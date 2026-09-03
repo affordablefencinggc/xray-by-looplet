@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
-import { ChevronUp, Download } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronUp, Download, Network } from "lucide-react";
 import { HOUSE, SHEETS } from "./geometry";
 import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
 import { pickAndRunTakeoff } from "./engine";
 import { useStudio, type Pane } from "./store";
+import { buildLoopletQuoteLines, pushToLoopletCrm } from "./crmBridge";
+import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 
 const PANES: { id: Pane; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -20,6 +22,30 @@ const PANES: { id: Pane; label: string }[] = [
 export function Studio() {
   const s = useStudio();
   const sheet = SHEETS[s.sheet];
+
+  // Global keyboard shortcuts for tool switching and navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (shouldIgnoreShortcuts(document.activeElement)) {
+        return;
+      }
+      handleStudioKeyDown(
+        e,
+        {
+          setPane: s.setPane,
+          setTool: s.setTool,
+          toggleSnapping: s.toggleSnapping,
+          clearPending: s.clearPending,
+          commitPending: s.commitPending,
+          pendingLength: s.pending.length,
+        },
+        PANES
+      );
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [s]);
 
   async function openPlan() {
     try {
@@ -50,6 +76,16 @@ export function Studio() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <a
+            className="pill inline-flex items-center gap-1.5 no-underline"
+            href="/mindmap-topdown.html"
+            target="_blank"
+            rel="noreferrer"
+            title="Open top-down architecture mind map & editable TODO"
+          >
+            <Network className="size-3.5 text-cyan" />
+            Mind Map
+          </a>
           <button type="button" className="pill" aria-pressed={s.capsOpen} onClick={() => s.toggle("capsOpen")}>
             Capabilities
           </button>
@@ -257,7 +293,7 @@ function SheetsPane() {
   return (
     <>
       <p className="text-muted">
-        {sh.title} · {sh.kind} · drag is disabled here — this is the sheet as a 2D source view.
+        {sh.title} · {sh.kind} · Use scroll wheel to zoom, click & drag to pan.
       </p>
       <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-[18px]">
         <div className={`stage absolute inset-0 ${s.skin === "paper" ? "paper" : ""}`}>
@@ -274,13 +310,13 @@ function MeasurePane() {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>
-          Length
+          Length <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">L</kbd>
         </button>
         <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>
-          Area
+          Area <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">A</kbd>
         </button>
         <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>
-          Count
+          Count <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">C</kbd>
         </button>
         <label className="kicker ml-2">
           Scale m / drawing unit
@@ -294,10 +330,15 @@ function MeasurePane() {
           />
         </label>
         <button type="button" className="pill" onClick={() => s.commitPending()}>
-          Close area
+          Close area <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Enter</kbd>
+        </button>
+        <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>
+          Cancel <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Esc</kbd>
         </button>
       </div>
-      <p className="text-muted">Two clicks for length. Polygon then Close area. Each click is one count. Scale is yours — we do not infer it.</p>
+      <p className="text-muted">
+        Shortcuts: <span className="font-mono text-cyan">L</span> Length · <span className="font-mono text-cyan">A</span> Area · <span className="font-mono text-cyan">C</span> Count · <span className="font-mono text-amber-400">S</span> Snap · <span className="font-mono text-muted">Esc</span> Cancel. Two clicks for length. Polygon then Close area.
+      </p>
       <div className="relative min-h-[360px] flex-1 overflow-hidden rounded-[18px]">
         <div className={`stage absolute inset-0 ${s.skin === "paper" ? "paper" : ""}`}>
           <PlanCanvas interactive />
@@ -314,13 +355,13 @@ function SketchPane() {
     <>
       <div className="flex gap-2">
         <button type="button" className="pill" aria-pressed={s.tool === "sketch"} onClick={() => s.setTool("sketch")}>
-          Manual layer
+          Manual layer <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">M</kbd>
         </button>
         <button type="button" className="pill" onClick={() => s.commitPending()}>
-          Commit trace
+          Commit trace <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Enter</kbd>
         </button>
         <button type="button" className="pill" onClick={() => s.clearPending()}>
-          Cancel
+          Cancel <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Esc</kbd>
         </button>
       </div>
       <p className="text-muted">Click a polyline on the plan, then Commit. Height in Model only raises these traces after scale.</p>
@@ -460,9 +501,49 @@ function Stage() {
           <button type="button" className="stage-btn" aria-pressed={s.showRoof} onClick={() => s.toggle("showRoof")}>
             Roof
           </button>
+          <button type="button" className="stage-btn" aria-pressed={s.showSurfaces} onClick={() => s.toggleSurfaces()}>
+            Shaded Surfaces
+          </button>
           <button type="button" className="stage-btn" aria-pressed={s.showMan} onClick={() => s.toggle("showMan")}>
             Manual layer
           </button>
+          <span className="text-cbar ml-1">Storeys</span>
+          <select
+            className="rounded-full bg-navy px-2 py-1 text-paper"
+            value={s.floors}
+            onChange={(e) => s.setFloors(Number(e.target.value))}
+          >
+            <option value={1}>1 Storey</option>
+            <option value={2}>2 Storeys</option>
+            <option value={3}>3 Storeys</option>
+            <option value={4}>4 Storeys</option>
+          </select>
+          {s.floors > 1 && (
+            <>
+              <button
+                type="button"
+                className="stage-btn"
+                aria-pressed={s.explodeFloors > 0}
+                onClick={() => s.setExplodeFloors(s.explodeFloors > 0 ? 0 : 1.2)}
+                title="Explode storeys vertically"
+              >
+                Explode {s.explodeFloors > 0 ? "ON" : "OFF"}
+              </button>
+              <select
+                className="rounded-full bg-navy px-2 py-1 text-paper"
+                value={s.activeFloor === null ? "all" : String(s.activeFloor)}
+                onChange={(e) => s.setActiveFloor(e.target.value === "all" ? null : Number(e.target.value))}
+                title="Isolate specific storey level"
+              >
+                <option value="all">All Levels</option>
+                {Array.from({ length: s.floors }, (_, i) => (
+                  <option key={i} value={i}>
+                    {i === 0 ? "Ground (L0)" : `Level ${i} (L${i})`}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button type="button" className="stage-btn" aria-pressed={s.pose === "standing"} onClick={() => s.stand()}>
             Stand 3D
           </button>
@@ -652,15 +733,41 @@ function ReviewPane() {
 
 function CostPane() {
   const s = useStudio();
+  const [pushed, setPushed] = useState(false);
   const lengths = s.markups.filter((m) => m.kind === "length" || m.kind === "sketch");
   const areas = s.markups.filter((m) => m.kind === "area");
   const counts = s.markups.filter((m) => m.kind === "count");
   const sum = (arr: typeof s.markups) => arr.reduce((a, m) => a + m.value, 0);
+
+  const staged = buildLoopletQuoteLines(s.markups, s.trades, s.planName, s.sheet);
+
+  function handlePushToCrm() {
+    const res = pushToLoopletCrm(staged);
+    if (res.success && res.url) {
+      if (typeof window !== "undefined") {
+        const opened = window.open(res.url, "_blank");
+        if (!opened) {
+          console.warn("Popup blocked, redirecting in current tab.");
+          window.location.href = res.url;
+        }
+      }
+    }
+    setPushed(true);
+    setTimeout(() => setPushed(false), 4000);
+  }
+
+  function handleDownloadQuoteJson() {
+    const blob = new Blob([JSON.stringify(staged, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `looplet-quote-${s.planName || "takeoff"}-sheet-${s.sheet + 1}.json`;
+    a.click();
+  }
+
   return (
     <>
       <p className="text-muted">
-        Bill of quantities is the sum of your marks. Empty rows stay empty. Looplet quoting is a later hand-off, not
-        a generated price.
+        Bill of quantities is the sum of your marks. Direct push converts your takeoffs into live Looplet CRM Quote Line Items.
       </p>
       <table className="w-full border-collapse">
         <thead>
@@ -692,11 +799,46 @@ function CostPane() {
           </tr>
         </tbody>
       </table>
+
       {s.trades.map((t) => (
         <p key={t.id} className="mt-2 rounded-xl bg-card px-3 py-2">
           {t.name} — no qty until you mark it
         </p>
       ))}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="pill bg-cyan text-navy font-bold hover:brightness-110 cursor-pointer"
+          onClick={handlePushToCrm}
+        >
+          {pushed ? "✓ Staged for Looplet CRM!" : "Push to Looplet CRM Quote Composer"}
+        </button>
+        <button
+          type="button"
+          className="pill cursor-pointer"
+          onClick={handleDownloadQuoteJson}
+        >
+          Download Quote Lines JSON
+        </button>
+      </div>
+
+      {staged.lines.length > 0 && (
+        <div className="mt-3 rounded-xl bg-card p-3 font-mono text-[11px]">
+          <div className="flex justify-between text-muted">
+            <span>Estimated Subtotal (ex GST):</span>
+            <span className="text-paper">${staged.subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-muted">
+            <span>GST (10%):</span>
+            <span className="text-paper">${staged.tax.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between font-bold text-cyan mt-1 pt-1 border-t border-line">
+            <span>Estimated Total:</span>
+            <span>${staged.total.toFixed(2)} AUD</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -19,7 +19,7 @@ export const PAL = {
 export const SHEETS = Array.from({ length: 24 }, (_, i) => {
   const n = i + 1;
   let kind: SheetKind = "plan";
-  let title = `Sheet ${n}`;
+  const title = `Sheet ${n}`;
   if (n <= 2) kind = "cover";
   if (n === 3) kind = "plan";
   if (n >= 17 && n <= 20) kind = "elev";

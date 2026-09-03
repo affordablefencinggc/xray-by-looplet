@@ -52,9 +52,21 @@ type StudioState = {
   trades: Trade[];
   capsOpen: boolean;
   rightCollapsed: boolean;
+  zoom2d: number;
+  pan2d: { x: number; y: number };
+  snappingEnabled: boolean;
+  floors: number;
+  explodeFloors: number;
+  activeFloor: number | null;
+  showSurfaces: boolean;
   setPane: (pane: Pane) => void;
   setSheet: (sheet: number) => void;
-  toggle: (k: "showSrc" | "showBld" | "showRoof" | "showMan" | "rightCollapsed" | "capsOpen") => void;
+  toggle: (k: "showSrc" | "showBld" | "showRoof" | "showMan" | "rightCollapsed" | "capsOpen" | "snappingEnabled" | "showSurfaces") => void;
+  toggleSnapping: () => void;
+  toggleSurfaces: () => void;
+  setFloors: (floors: number) => void;
+  setExplodeFloors: (val: number) => void;
+  setActiveFloor: (floor: number | null) => void;
   setSkin: (skin: "navy" | "paper") => void;
   lift: () => void;
   hideChrome: () => void;
@@ -67,6 +79,8 @@ type StudioState = {
   setHeight: (h: number) => void;
   setScale: (m: number) => void;
   setTool: (t: Tool) => void;
+  setZoom2d: (zoom: number) => void;
+  setPan2d: (pan: { x: number; y: number }) => void;
   setPlanName: (name: string | null) => void;
   setPlan: (name: string, takeoff: unknown | null, note: string) => void;
   addPoint: (p: { x: number; y: number }) => void;
@@ -120,6 +134,18 @@ export const useStudio = create<StudioState>((set, get) => ({
   trades: [],
   capsOpen: false,
   rightCollapsed: false,
+  zoom2d: 1,
+  pan2d: { x: 0, y: 0 },
+  snappingEnabled: true,
+  floors: 1,
+  explodeFloors: 0,
+  activeFloor: null,
+  showSurfaces: true,
+  toggleSnapping: () => set({ snappingEnabled: !get().snappingEnabled }),
+  toggleSurfaces: () => set({ showSurfaces: !get().showSurfaces }),
+  setFloors: (floors) => set({ floors: Math.max(1, Math.min(4, floors)) }),
+  setExplodeFloors: (val) => set({ explodeFloors: Math.max(0, Math.min(3, val)) }),
+  setActiveFloor: (floor) => set({ activeFloor: floor }),
   setPane: (pane) => set({ pane, lifted: pane === "model" ? get().lifted : false, chromeHidden: false }),
   setSheet: (sheet) => {
     const kind: SheetKind = SHEETS[sheet]?.kind ?? "plan";
@@ -151,12 +177,16 @@ export const useStudio = create<StudioState>((set, get) => ({
       dist: 1,
       az: get().cam === "plan" ? -Math.PI / 2 : -0.7,
       el: get().cam === "plan" ? 1.38 : 0.35,
+      zoom2d: 1,
+      pan2d: { x: 0, y: 0 },
     }),
   setOrbit: (az, el) => set({ az, el }),
   setDist: (dist) => set({ dist }),
   setHeight: (h) => set({ height: h }),
   setScale: (m) => set({ scaleM: Math.max(0.001, m) }),
   setTool: (t) => set({ tool: t, pending: [] }),
+  setZoom2d: (zoom2d) => set({ zoom2d }),
+  setPan2d: (pan2d) => set({ pan2d }),
   setPlanName: (name) => set({ planName: name }),
   setPlan: (name, takeoff, note) => set({ planName: name, takeoff, engineNote: note }),
   addPoint: (p) => {
