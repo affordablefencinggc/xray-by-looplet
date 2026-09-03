@@ -97,14 +97,14 @@ export function Studio() {
           >
             Charcoal
           </button>
-          <InstallButton />
           <a
-            className="pill-dark inline-flex items-center gap-1.5 no-underline"
-            href="/xray-model-pipeline.html"
-            download="xray-by-looplet.html"
+            className="pill inline-flex items-center gap-1.5 no-underline bg-[#7fdbff]/20 text-[#7fdbff] border border-[#7fdbff]/40 hover:bg-[#7fdbff]/30 font-semibold"
+            href="/X-Ray-by-Looplet-Setup.exe"
+            download="X-Ray-by-Looplet-Setup.exe"
+            title="Download official Windows installer"
           >
             <Download className="size-3.5" />
-            Download
+            Install Windows App (.exe)
           </a>
           <button type="button" className="pill-dark" onClick={() => void openPlan()}>
             Open plan
@@ -569,10 +569,11 @@ function Stage() {
           </button>
           <a
             className="stage-btn inline-flex items-center no-underline"
-            href="/xray-model-pipeline.html"
-            download="xray-by-looplet.html"
+            href="/X-Ray-by-Looplet-Setup.exe"
+            download="X-Ray-by-Looplet-Setup.exe"
+            title="Download Windows App"
           >
-            Download
+            Download App
           </a>
           <span className="flex items-center gap-1" title="Canvas colour">
             <button
