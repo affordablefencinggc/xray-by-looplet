@@ -11,8 +11,12 @@ from pathlib import Path
 # Add engine/python to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "engine" / "python"))
 
-from xray.assemblies import WallInput, expand_wall
-from xray.quantify import Quantity
+try:
+    from xray.assemblies import WallInput, expand_wall
+    from xray.quantify import Quantity
+except ImportError:
+    from engine.python.xray.assemblies import WallInput, expand_wall  # type: ignore
+    from engine.python.xray.quantify import Quantity  # type: ignore
 
 def demo_highrise_structural_hardware(floors: int = 16, bays_x: int = 6, bays_y: int = 4):
     """
