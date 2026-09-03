@@ -491,8 +491,8 @@ const DEFAULT_NODES = [
   { id: 'xr_rv', parentId: 'z1', code: 'XR-UI-RV', label: 'Review Pane (Deterministic Flags)', zone: 'ui', status: 'done', priority: 'P0', desc: 'Flag audit: scale check, unattached plan, 0 areas/trades. No AI guessing.', files: ['src/studio/Studio.tsx'] },
   { id: 'xr_cs', parentId: 'z1', code: 'XR-UI-CS', label: 'Cost / BOM Calculation', zone: 'ui', status: 'done', priority: 'P0', desc: 'BOM summing lengths, areas, and counts strictly from measured marks.', files: ['src/studio/Studio.tsx'] },
   { id: 'xr_pf', parentId: 'z1', code: 'XR-UI-PF', label: 'Proof Pane & Evidence Export', zone: 'ui', status: 'done', priority: 'P0', desc: 'xray-evidence.json export with plan, sheet, scale, markups, and trades.', files: ['src/studio/Studio.tsx'] },
-  { id: 'xr_ui_enh1', parentId: 'z1', code: 'XR-UI-ENH1', label: 'Vector Vertex Snapping', zone: 'ui', status: 'todo', priority: 'P1', desc: 'Cursor snapping to PDF vector lines and corners during measurement.', files: ['src/studio/IsoCanvas.tsx'] },
-  { id: 'xr_ui_enh2', parentId: 'z1', code: 'XR-UI-ENH2', label: 'Multi-Page PDF Viewer', zone: 'ui', status: 'todo', priority: 'P2', desc: 'Render multipage construction documents directly in the webview.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_ui_enh1', parentId: 'z1', code: 'XR-UI-ENH1', label: 'Vector Vertex Snapping', zone: 'ui', status: 'done', priority: 'P1', desc: 'Cursor snapping to PDF vector lines and corners during measurement.', files: ['src/studio/IsoCanvas.tsx', 'src/studio/snapping.ts'] },
+  { id: 'xr_ui_enh2', parentId: 'z1', code: 'XR-UI-ENH2', label: 'Multi-Page PDF Viewer', zone: 'ui', status: 'done', priority: 'P2', desc: 'Render multipage construction documents directly in the webview.', files: ['src/studio/Studio.tsx'] },
 
   // ── ZONE 2: 3D GRAPHICS & CANVAS ──
   { id: 'z2', parentId: 'root', code: 'Z2-3D', label: 'Zone 2: 3D Graphics & Canvas', zone: '3d', status: 'done', priority: 'P0', desc: 'WebGL 3D wireframe pipeline, IsoCanvas, geometry meshes, Zustand store.', files: ['src/studio/wireframeGl.ts', 'src/studio/IsoCanvas.tsx'] },
@@ -500,8 +500,8 @@ const DEFAULT_NODES = [
   { id: 'xr_iso', parentId: 'z2', code: 'XR-3D-ISO', label: 'IsoCanvas & 2D Plan Canvas', zone: '3d', status: 'done', priority: 'P0', desc: 'Mouse rotation, pan, zoom clamp, 2D click coordinate transform.', files: ['src/studio/IsoCanvas.tsx'] },
   { id: 'xr_geo', parentId: 'z2', code: 'XR-3D-GEO', label: 'geometry.ts House Meshes', zone: '3d', status: 'done', priority: 'P0', desc: '24 sheet definitions, building mesh B and roof prism R line segments.', files: ['src/studio/geometry.ts'] },
   { id: 'xr_st', parentId: 'z2', code: 'XR-3D-ST', label: 'store.ts Zustand Studio Store', zone: '3d', status: 'done', priority: 'P0', desc: 'Studio state: active pane, tools, markups, trades, camera pose, height.', files: ['src/studio/store.ts'] },
-  { id: 'xr_3d_enh1', parentId: 'z2', code: 'XR-3D-ENH1', label: 'Screen-Space Polyline Thickening', zone: '3d', status: 'todo', priority: 'P2', desc: 'Antialiased thickened line shaders for ultra-crisp high-DPI rendering.', files: ['src/studio/wireframeGl.ts'] },
-  { id: 'xr_3d_enh2', parentId: 'z2', code: 'XR-3D-ENH2', label: 'Shaded Solid Surfaces Preview', zone: '3d', status: 'todo', priority: 'P3', desc: 'Optional translucent face rendering alongside wireframe lines.', files: ['src/studio/wireframeGl.ts'] },
+  { id: 'xr_3d_enh1', parentId: 'z2', code: 'XR-3D-ENH1', label: 'Screen-Space Polyline Thickening', zone: '3d', status: 'done', priority: 'P2', desc: 'Antialiased thickened line shaders for ultra-crisp high-DPI rendering.', files: ['src/studio/wireframeGl.ts'] },
+  { id: 'xr_3d_enh2', parentId: 'z2', code: 'XR-3D-ENH2', label: 'Shaded Solid Surfaces Preview', zone: '3d', status: 'done', priority: 'P3', desc: 'Optional translucent face rendering alongside wireframe lines.', files: ['src/studio/wireframeGl.ts', 'src/studio/faces.ts'] },
 
   // ── ZONE 3: TAURI DESKTOP & RUST HOST ──
   { id: 'z3', parentId: 'root', code: 'Z3-TR', label: 'Zone 3: Tauri Desktop Shell', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Tauri 2 Rust shell, file picker dialog, host spawner crate.', files: ['src-tauri/src/lib.rs', 'engine/host/src/lib.rs'] },
@@ -509,8 +509,8 @@ const DEFAULT_NODES = [
   { id: 'xr_tr_hst', parentId: 'z3', code: 'XR-TR-HST', label: 'xray_engine_host Crate', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Engine binary resolver: env var -> engine/bin -> python3 module.', files: ['engine/host/src/lib.rs'] },
   { id: 'xr_tr_spw', parentId: 'z3', code: 'XR-TR-SPW', label: 'Process Spawner & Timeout', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Scratch temp dir creation, 120s timeout guard, stdout/err capture.', files: ['engine/host/src/lib.rs'] },
   { id: 'xr_tr_tst', parentId: 'z3', code: 'XR-TR-TST', label: 'Host Unit Tests (cargo test)', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Cargo tests verifying package presence, missing file handling, exe names.', files: ['engine/host/src/lib.rs'] },
-  { id: 'xr_tr_bld', parentId: 'z3', code: 'XR-TR-BLD', label: 'Frozen Engine Binary Packaging', zone: 'tauri', status: 'in_progress', priority: 'P1', desc: 'PyInstaller bundle of xray-engine.exe for zero-Python native installs.', files: ['engine/host/Cargo.toml'] },
-  { id: 'xr_tr_pkg', parentId: 'z3', code: 'XR-TR-PKG', label: 'Windows MSI & NSIS Installer', zone: 'tauri', status: 'todo', priority: 'P1', desc: 'Tauri production build with embedded WebView2 and sidecar binary.', files: ['src-tauri/tauri.conf.json'] },
+  { id: 'xr_tr_bld', parentId: 'z3', code: 'XR-TR-BLD', label: 'Frozen Engine Binary Packaging', zone: 'tauri', status: 'done', priority: 'P1', desc: 'Compiled xray-engine.exe sidecar binary for zero-Python native installs.', files: ['engine/host/Cargo.toml', 'engine/host/src/main.rs'] },
+  { id: 'xr_tr_pkg', parentId: 'z3', code: 'XR-TR-PKG', label: 'Windows MSI & NSIS Installer', zone: 'tauri', status: 'done', priority: 'P1', desc: 'Tauri production build with embedded WebView2 and sidecar binary.', files: ['src-tauri/tauri.conf.json', 'src-tauri/icons/icon.ico'] },
 
   // ── ZONE 4: TAKEOFF ENGINE ──
   { id: 'z4', parentId: 'root', code: 'Z4-ENG', label: 'Zone 4: Takeoff Engine (Python)', zone: 'engine', status: 'done', priority: 'P0', desc: '31 deterministic Python modules for vector takeoff and trade packs.', files: ['engine/python/xray/engine.py'] },
@@ -520,7 +520,7 @@ const DEFAULT_NODES = [
   { id: 'xr_eng_pck', parentId: 'z4', code: 'XR-ENG-PCK', label: 'Trade Packs (Fencing/Res/Elec)', zone: 'engine', status: 'done', priority: 'P0', desc: 'Colorbond fencing, residential framing, concrete structural, electrical.', files: ['engine/python/xray/packs_fencing.py', 'engine/python/xray/packs_residential.py'] },
   { id: 'xr_eng_bom', parentId: 'z4', code: 'XR-ENG-BOM', label: 'BOM Rollup & Assemblies', zone: 'engine', status: 'done', priority: 'P0', desc: 'quantify.py, rollup.py, assemblies.py, tables.py.', files: ['engine/python/xray/quantify.py', 'engine/python/xray/assemblies.py'] },
   { id: 'xr_eng_out', parentId: 'z4', code: 'XR-ENG-OUT', label: 'Annotated PDF Markup Writer', zone: 'engine', status: 'done', priority: 'P0', desc: 'markup_writer.py, report.py, advisor.py: stamped vector PDF output.', files: ['engine/python/xray/markup_writer.py'] },
-  { id: 'xr_eng_dxf', parentId: 'z4', code: 'XR-ENG-DXF', label: 'Native DXF / DWG Direct Parser', zone: 'engine', status: 'todo', priority: 'P2', desc: 'Direct AutoCAD DXF entity extraction alongside vector PDF parsing.', files: ['engine/python/xray/sources/'] },
+  { id: 'xr_eng_dxf', parentId: 'z4', code: 'XR-ENG-DXF', label: 'Native DXF / DWG Direct Parser', zone: 'engine', status: 'done', priority: 'P2', desc: 'Direct AutoCAD DXF entity extraction alongside vector PDF parsing.', files: ['engine/python/xray/dxf.py'] },
 
   // ── ZONE 5: FASTMCP AGENT SERVER ──
   { id: 'z5', parentId: 'root', code: 'Z5-MCP', label: 'Zone 5: FastMCP Agent Server', zone: 'mcp', status: 'done', priority: 'P0', desc: 'FastMCP stdio AI tool server for Claude, Codex, Grok agents.', files: ['engine/server/mcp_server.py'] },
@@ -528,14 +528,14 @@ const DEFAULT_NODES = [
   { id: 'xr_mcp_tls', parentId: 'z5', code: 'XR-MCP-TLS', label: 'MCP Tools Catalog (6 Tools)', zone: 'mcp', status: 'done', priority: 'P0', desc: 'engine_info, run_takeoff, calibrated, marked_pdf, wireframe_scene.', files: ['engine/server/mcp_server.py'] },
   { id: 'xr_mcp_qte', parentId: 'z5', code: 'XR-MCP-QTE', label: 'quote_draft & Looplet Lines', zone: 'mcp', status: 'done', priority: 'P0', desc: 'quote_lines.py: takeoff BOM converted to unpriced Looplet quote lines.', files: ['engine/server/quote_lines.py'] },
   { id: 'xr_mcp_tst', parentId: 'z5', code: 'XR-MCP-TST', label: 'MCP Pytest Contracts', zone: 'mcp', status: 'done', priority: 'P0', desc: 'test_mcp.py verifying all MCP tools and return schema shapes.', files: ['engine/server/test_mcp.py'] },
-  { id: 'xr_mcp_reg', parentId: 'z5', code: 'XR-MCP-REG', label: 'Agent Workspace MCP Config', zone: 'mcp', status: 'todo', priority: 'P1', desc: 'Register X-Ray stdio command in IDE/agent MCP configurations.', files: ['engine/server/requirements.txt'] },
+  { id: 'xr_mcp_reg', parentId: 'z5', code: 'XR-MCP-REG', label: 'Agent Workspace MCP Config', zone: 'mcp', status: 'done', priority: 'P1', desc: 'Register X-Ray stdio command in IDE/agent MCP configurations.', files: ['.cursor/mcp.json', 'scripts/mcp-setup.mjs'] },
 
   // ── ZONE 6: LOOPLET CRM INTEGRATION ──
   { id: 'z6', parentId: 'root', code: 'Z6-CRM', label: 'Zone 6: Looplet CRM Bridge', zone: 'crm', status: 'done', priority: 'P0', desc: 'BOM to quote handoff, standalone PWA, distribution pipeline.', files: ['engine/server/quote_lines.py'] },
-  { id: 'xr_crm_lin', parentId: 'z6', code: 'XR-INT-LIN', label: 'Quote Line Items Handoff', zone: 'crm', status: 'done', priority: 'P0', desc: 'Direct mapping of takeoff items to Looplet CRM quote lines schema.', files: ['engine/server/quote_lines.py'] },
+  { id: 'xr_crm_lin', parentId: 'z6', code: 'XR-INT-LIN', label: 'Quote Line Items Handoff', zone: 'crm', status: 'done', priority: 'P0', desc: 'Direct mapping of takeoff items to Looplet CRM quote lines schema.', files: ['src/studio/crmBridge.ts'] },
   { id: 'xr_crm_pwa', parentId: 'z6', code: 'XR-INT-PWA', label: 'Standalone Offline HTML Export', zone: 'crm', status: 'done', priority: 'P0', desc: 'xray-model-pipeline.html self-contained distribution package.', files: ['public/xray-model-pipeline.html'] },
-  { id: 'xr_crm_psh', parentId: 'z6', code: 'XR-INT-PSH', label: '1-Click Push to Looplet Quote', zone: 'crm', status: 'done', priority: 'P1', desc: 'Export directly to active Looplet CRM organization quote draft.', files: ['src/studio/Studio.tsx'] },
-  { id: 'xr_crm_snc', parentId: 'z6', code: 'XR-INT-SNC', label: 'Looplet Job Files Two-Way Sync', zone: 'crm', status: 'todo', priority: 'P2', desc: 'Pull PDF plans from Looplet Docbox and write back marked PDFs.', files: ['src/studio/engine.ts'] },
+  { id: 'xr_crm_psh', parentId: 'z6', code: 'XR-INT-PSH', label: '1-Click Push to Looplet Quote', zone: 'crm', status: 'done', priority: 'P1', desc: 'Export directly to active Looplet CRM organization quote draft.', files: ['src/studio/Studio.tsx', 'src/studio/crmBridge.ts'] },
+  { id: 'xr_crm_snc', parentId: 'z6', code: 'XR-INT-SNC', label: 'Looplet Job Files Two-Way Sync', zone: 'crm', status: 'done', priority: 'P2', desc: 'Two-way sync queue between offline store and Looplet CRM job attachments.', files: ['src/studio/sync.ts'] },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -544,7 +544,7 @@ const DEFAULT_NODES = [
 
 class MindMapApp {
   constructor() {
-    this.storageKey = 'xray_topdown_mindmap_data_v1';
+    this.storageKey = 'xray_topdown_mindmap_data_v2';
     this.nodes = this.loadNodes();
     this.activeNodeId = null;
     this.collapsedZones = new Set();
