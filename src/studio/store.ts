@@ -8,6 +8,7 @@ export type Pane =
   | "sketch"
   | "components"
   | "model"
+  | "render"
   | "review"
   | "cost"
   | "proof";
@@ -59,6 +60,24 @@ type StudioState = {
   explodeFloors: number;
   activeFloor: number | null;
   showSurfaces: boolean;
+  projectPreset: "wtc" | "highrise" | "fencing" | "ruffles";
+  wtcLayers: { perimeter: boolean; core: boolean; floors: boolean };
+  renderMaterials: {
+    roof: string;
+    walls: string;
+    windows: string;
+    landscaping: string;
+    lighting: string;
+    style: string;
+    direction: string;
+  };
+  capturedView: string | null;
+  geometryLock: boolean;
+  setProjectPreset: (preset: "wtc" | "highrise" | "fencing" | "ruffles") => void;
+  toggleWtcLayer: (layer: "perimeter" | "core" | "floors") => void;
+  setRenderMaterial: (key: string, val: string) => void;
+  setCapturedView: (val: string | null) => void;
+  toggleGeometryLock: () => void;
   setPane: (pane: Pane) => void;
   setSheet: (sheet: number) => void;
   toggle: (k: "showSrc" | "showBld" | "showRoof" | "showMan" | "rightCollapsed" | "capsOpen" | "snappingEnabled" | "showSurfaces") => void;
@@ -141,6 +160,74 @@ export const useStudio = create<StudioState>((set, get) => ({
   explodeFloors: 0,
   activeFloor: null,
   showSurfaces: true,
+  projectPreset: "wtc",
+  wtcLayers: { perimeter: true, core: true, floors: true },
+  renderMaterials: {
+    roof: "Standing-seam metal - warm white",
+    walls: "Light cream masonry and restrained natural ac",
+    windows: "Charcoal aluminium frames - clear glazing",
+    landscaping: "Subtropical Australian planting - retained site i",
+    lighting: "Warm late-afternoon daylight - physically plau",
+    style: "Photoreal architectural visualisation",
+    direction: "Optional finish, weather or presentation direction",
+  },
+  capturedView: null,
+  geometryLock: true,
+  setProjectPreset: (preset) => {
+    if (preset === "wtc") {
+      set({
+        projectPreset: preset,
+        planName: "WTC.DXF",
+        floors: 110,
+        pane: "model",
+        cam: "iso",
+        az: -0.75,
+        el: 0.28,
+        dist: 1.4,
+      });
+    } else if (preset === "highrise") {
+      set({
+        projectPreset: preset,
+        planName: "191217_752 HIGH_FOR CONSTRUCTION L...",
+        floors: 40,
+        pane: "model",
+        cam: "iso",
+        az: -0.65,
+        el: 0.32,
+      });
+    } else if (preset === "fencing") {
+      set({
+        projectPreset: preset,
+        planName: "fencing-boundary.dxf",
+        floors: 1,
+        pane: "cost",
+      });
+    } else {
+      set({
+        projectPreset: "ruffles",
+        planName: "10558 REV C - 356 RUFFLES RD, WILLOW...",
+        floors: 1,
+        pane: "model",
+        sheet: 16,
+      });
+    }
+  },
+  toggleWtcLayer: (layer) =>
+    set({
+      wtcLayers: {
+        ...get().wtcLayers,
+        [layer]: !get().wtcLayers[layer],
+      },
+    }),
+  setRenderMaterial: (key, val) =>
+    set({
+      renderMaterials: {
+        ...get().renderMaterials,
+        [key]: val,
+      },
+    }),
+  setCapturedView: (val) => set({ capturedView: val }),
+  toggleGeometryLock: () => set({ geometryLock: !get().geometryLock }),
   toggleSnapping: () => set({ snappingEnabled: !get().snappingEnabled }),
   toggleSurfaces: () => set({ showSurfaces: !get().showSurfaces }),
   setFloors: (floors) => set({ floors: Math.max(1, Math.min(100, floors)) }),

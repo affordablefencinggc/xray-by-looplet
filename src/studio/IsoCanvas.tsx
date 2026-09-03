@@ -6,6 +6,8 @@ import { mountWireframe, type Elem } from "./wireframeGl";
 import { getSnapPoint, type SnapTarget } from "./snapping";
 import { computeFaces } from "./faces";
 import { buildElevationStack } from "./elevationStack";
+import { buildWtcGeometry } from "./wtcModel";
+import { buildFencingGeometry } from "./fencingModel";
 
 export function IsoCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -18,9 +20,54 @@ export function IsoCanvas() {
     const viewer = mountWireframe(canvas, {
       getElements() {
         const s = useStudio.getState();
+        const out: Elem[] = [];
+
+        // Project Preset 1: World Trade Center WTC 1 (281 columns)
+        if (s.projectPreset === "wtc") {
+          const wtc = buildWtcGeometry(s.wtcLayers);
+          for (const seg of wtc.perimeter) {
+            out.push({
+              type: "perimeter",
+              colour: PAL.cyan,
+              a: [seg[0], seg[1], seg[2]],
+              b: [seg[3], seg[4], seg[5]],
+            });
+          }
+          for (const seg of wtc.core) {
+            out.push({
+              type: "core",
+              colour: PAL.roof,
+              a: [seg[0], seg[1], seg[2]],
+              b: [seg[3], seg[4], seg[5]],
+            });
+          }
+          for (const seg of wtc.floorLines) {
+            out.push({
+              type: "floors",
+              colour: PAL.mist,
+              a: [seg[0], seg[1], seg[2]],
+              b: [seg[3], seg[4], seg[5]],
+            });
+          }
+          return out;
+        }
+
+        // Project Preset 2: Fencing Boundary (48 lm Colorbond)
+        if (s.projectPreset === "fencing") {
+          const f = buildFencingGeometry();
+          for (const seg of f) {
+            out.push({
+              type: "fencing",
+              colour: PAL.cyan,
+              a: [seg[0], seg[1], seg[2]],
+              b: [seg[3], seg[4], seg[5]],
+            });
+          }
+          return out;
+        }
+
         const kind = SHEETS[s.sheet]?.kind ?? "elev";
         const geom = kind === "elev" || kind === "detail" ? HOUSE : PLAN;
-        const out: Elem[] = [];
 
         if (s.showSrc) {
           out.push(

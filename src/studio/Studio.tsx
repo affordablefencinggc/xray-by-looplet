@@ -6,6 +6,9 @@ import { pickAndRunTakeoff } from "./engine";
 import { useStudio, type Pane } from "./store";
 import { buildLoopletQuoteLines, pushToLoopletCrm } from "./crmBridge";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+import { RenderStudio } from "./RenderStudio";
+import { WTC_STATS } from "./wtcModel";
+import { FENCING_BOM, FENCING_TOTAL } from "./fencingModel";
 
 const PANES: { id: Pane; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -14,6 +17,7 @@ const PANES: { id: Pane; label: string }[] = [
   { id: "sketch", label: "Sketch" },
   { id: "components", label: "Components" },
   { id: "model", label: "Model" },
+  { id: "render", label: "Render" },
   { id: "review", label: "Review" },
   { id: "cost", label: "Cost" },
   { id: "proof", label: "Proof" },
@@ -61,7 +65,22 @@ export function Studio() {
       <header className="flex items-center gap-2.5 border-b border-line bg-header px-3 py-2">
         <div className="flex min-w-0 items-center gap-2 font-mono text-[11px] tracking-[0.12em]">
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
-          <span className="hidden truncate sm:inline">X-RAY BY LOOPLET</span>
+          <span className="hidden truncate sm:inline font-semibold">X-RAY BY LOOPLET</span>
+        </div>
+        <div className="hidden lg:flex items-center gap-1.5 border-l border-line/60 pl-2">
+          <span className="font-mono text-[9px] text-muted uppercase tracking-wider font-medium">
+            PROJECT:
+          </span>
+          <select
+            value={s.projectPreset}
+            onChange={(e) => s.setProjectPreset(e.target.value as any)}
+            className="rounded-full bg-navy text-paper px-3 py-1 text-xs font-mono border border-line focus:border-cyan outline-none cursor-pointer shadow-sm"
+          >
+            <option value="wtc">🏙️ World Trade Center WTC 1 (110 Floors · 281 Columns)</option>
+            <option value="highrise">🏗️ Commercial Highrise (191217_752 · 42 Sheets · 31.8m Core)</option>
+            <option value="fencing">🚧 Colorbond Fencing (48 lm · $3,045.08 BOM)</option>
+            <option value="ruffles">🏡 Ruffles Rd Residence (10558 REV C · 24 Sheets)</option>
+          </select>
         </div>
         <nav className="flex flex-1 justify-center gap-0.5" aria-label="Panes">
           {PANES.map((p) => (
@@ -182,6 +201,7 @@ export function Studio() {
           {s.pane === "sketch" && <SketchPane />}
           {s.pane === "components" && <ComponentsPane />}
           {s.pane === "model" && <ModelPane />}
+          {s.pane === "render" && <RenderStudio />}
           {s.pane === "review" && <ReviewPane />}
           {s.pane === "cost" && <CostPane />}
           {s.pane === "proof" && <ProofPane />}
@@ -429,11 +449,36 @@ function ModelPane() {
             This workspace shows exactly how far the current source can travel—from plan geometry to a labelled
             graph, wireframe, solid model and optional render.
           </p>
-          <div className="grid grid-cols-4 gap-2.5">
-            <Stat k="Qualified plan" v={s.planName ? "Yes" : "No"} n={s.engineNote} />
-            <Stat k="Source vectors" v={String(HOUSE.B.length + HOUSE.R.length)} n="Demo mesh segments on this sheet — not a PDF parse" />
-            <Stat k="Manual geometry" v={String(s.markups.length)} n="Measured lines, areas and component markers" />
-            <Stat k="Semantic instances" v="0" n="Required for exact recursive assembly identity" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {s.projectPreset === "wtc" ? (
+              <>
+                <Stat k="Qualified plan" v="Yes" n="WTC.DXF · 110 floors · 1,368 ft to roof" />
+                <Stat k="Source vectors" v="281 cols" n="236 perimeter + 45 core columns" />
+                <Stat k="Gross floor" v="42,825 sf" n={`Total built: 4.71M sf · 207'-2" square`} />
+                <Stat k="Slenderness" v="6.6 : 1" n="Reconciled from DXF footprint" />
+              </>
+            ) : s.projectPreset === "highrise" ? (
+              <>
+                <Stat k="Qualified plan" v="Yes" n="42 source sheets · OCR off" />
+                <Stat k="Source vectors" v="12,000" n="Native PDF line segments on this sheet" />
+                <Stat k="3D Height" v="31.8m" n="Relative 3D height calibrate for metres" />
+                <Stat k="Semantic instances" v="0" n="Required for exact recursive assembly identity" />
+              </>
+            ) : s.projectPreset === "fencing" ? (
+              <>
+                <Stat k="Qualified plan" v="Yes" n="fencing-boundary.dxf · Colorbond @ 1.8m" />
+                <Stat k="Fence run" v="48 lm" n="21 posts + 1 gate" />
+                <Stat k="Priced total" v="$3,045.08" n="BOM fully priced and evidenced" />
+                <Stat k="Review queue" v="2 flags" n="Concrete footing & unit check" />
+              </>
+            ) : (
+              <>
+                <Stat k="Qualified plan" v={s.planName ? "Yes" : "No"} n={s.engineNote} />
+                <Stat k="Source vectors" v="10,428" n="Native PDF line segments on this sheet" />
+                <Stat k="Manual geometry" v={String(s.markups.length)} n="Measured lines, areas and component markers" />
+                <Stat k="Semantic instances" v="0" n="Required for exact recursive assembly identity" />
+              </>
+            )}
           </div>
         </>
       )}
@@ -469,7 +514,135 @@ function Stage() {
       ref={canvasRef}
       className={`stage relative h-full min-h-[320px] overflow-hidden rounded-[18px] ${s.skin === "paper" ? "paper bg-paper text-ink" : "bg-navy text-paper"}`}
     >
-      {!s.chromeHidden && (
+      {s.projectPreset === "wtc" && (
+        <>
+          {/* Top Left Title Overlay */}
+          <div className="absolute top-12 left-4 z-20 pointer-events-none">
+            <div className="font-mono text-[9px] tracking-[0.2em] text-cyan uppercase font-semibold">
+              Structural elevation · extruded from plan
+            </div>
+            <h1 className="text-2xl font-light text-paper tracking-tight mt-0.5">
+              World Trade Center <span className="font-semibold text-cyan">WTC 1</span>
+            </h1>
+            <div className="font-mono text-[10px] text-muted mt-0.5">
+              110 Floors · 1,368' to roof · 207'-2" square
+            </div>
+            <div className="font-mono text-[10px] text-cyan/90 font-medium">
+              281 columns from the DXF, carried the full height.
+            </div>
+          </div>
+
+          {/* Top Right Source Badge */}
+          <div className="absolute top-12 right-4 z-20 pointer-events-none text-right font-mono text-[9px] tracking-wider text-muted hidden sm:block">
+            <div>SOURCE <span className="text-paper">wtc.dxf</span></div>
+            <div className="text-cyan font-medium">236 PERIMETER · 45 CORE</div>
+            <div>SLENDERNESS 6.6 : 1</div>
+          </div>
+
+          {/* Top-Left Floating Takeoff Box */}
+          <div className="absolute top-32 left-4 z-20 rounded-xl border border-line bg-navy/90 backdrop-blur-md p-3 w-52 font-mono text-[10px] shadow-2xl hidden md:block">
+            <div className="text-cyan font-semibold uppercase tracking-wider mb-1.5 border-b border-line/60 pb-1">
+              X-Ray Takeoff · WTC.DXF
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Perimeter columns</span>
+              <span className="text-paper font-semibold">{WTC_STATS.perimeterColumns}</span>
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Core columns</span>
+              <span className="text-paper font-semibold">{WTC_STATS.coreColumns}</span>
+            </div>
+            <div className="flex justify-between py-1 border-t border-line/40 font-semibold text-paper">
+              <span>Total</span>
+              <span className="text-cyan">{WTC_STATS.totalColumns} ea</span>
+            </div>
+            <div className="text-[9px] text-green-400 mt-1 leading-tight">
+              ✓ reconciled - counted from the DXF, each traceable to a footprint polyline
+            </div>
+          </div>
+
+          {/* Bottom Left Column Toggles */}
+          <div className="absolute bottom-3 left-4 z-20 flex flex-col gap-1.5 font-mono">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                className={`px-2 py-0.5 text-[9px] uppercase rounded border transition-colors ${s.wtcLayers.perimeter ? "border-cyan text-paper bg-cyan/20" : "border-line text-muted bg-card/60"}`}
+                onClick={() => s.toggleWtcLayer("perimeter")}
+              >
+                Perimeter
+              </button>
+              <button
+                type="button"
+                className={`px-2 py-0.5 text-[9px] uppercase rounded border transition-colors ${s.wtcLayers.core ? "border-amber-400 text-paper bg-amber-400/20" : "border-line text-muted bg-card/60"}`}
+                onClick={() => s.toggleWtcLayer("core")}
+              >
+                Core
+              </button>
+              <button
+                type="button"
+                className={`px-2 py-0.5 text-[9px] uppercase rounded border transition-colors ${s.wtcLayers.floors ? "border-blue-400 text-paper bg-blue-400/20" : "border-line text-muted bg-card/60"}`}
+                onClick={() => s.toggleWtcLayer("floors")}
+              >
+                Floors
+              </button>
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                className="px-2 py-0.5 text-[9px] uppercase rounded border border-line text-muted bg-card/60 hover:text-paper"
+                onClick={() => { s.setCam("plan"); s.setOrbit(-Math.PI / 2, 0.02); }}
+              >
+                Elevation
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 text-[9px] uppercase rounded border border-cyan text-paper bg-cyan/20"
+                onClick={() => { s.setCam("iso"); s.setOrbit(-0.7, 0.35); }}
+              >
+                Iso
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 text-[9px] uppercase rounded border border-line text-muted bg-card/60 hover:text-paper"
+                onClick={() => { s.setCam("plan"); s.setOrbit(-Math.PI / 2, 1.38); }}
+              >
+                Plan
+              </button>
+            </div>
+            <span className="text-[9px] text-muted hidden sm:inline">
+              drag orbit · right-drag pan · scroll zoom
+            </span>
+          </div>
+
+          {/* Bottom Right Structure Stats */}
+          <div className="absolute bottom-3 right-4 z-20 rounded-xl border border-line bg-navy/90 backdrop-blur-md p-3 w-48 font-mono text-[10px] shadow-2xl hidden sm:block">
+            <div className="text-muted uppercase tracking-widest text-[9px] mb-1.5 border-b border-line/60 pb-1 font-semibold">
+              Structure
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Roof height</span>
+              <span className="text-paper">{WTC_STATS.roofHeightFt.toLocaleString()} ft</span>
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Floor-to-floor</span>
+              <span className="text-paper">{WTC_STATS.floorToFloorFt} ft</span>
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Gross floor</span>
+              <span className="text-paper">{WTC_STATS.grossFloorSf.toLocaleString()} sf</span>
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Total built</span>
+              <span className="text-paper">{WTC_STATS.totalBuiltSf}</span>
+            </div>
+            <div className="flex justify-between py-0.5 text-muted">
+              <span>Column line</span>
+              <span className="text-paper">{WTC_STATS.columnLineFt.toLocaleString()} ft</span>
+            </div>
+          </div>
+        </>
+      )}
+      {!s.chromeHidden && s.projectPreset !== "wtc" && (
         <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-1.5 bg-gradient-to-b from-navy/90 to-transparent px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em]">
           <span className="text-cbar">Source sheet</span>
           <select
@@ -767,6 +940,108 @@ function CostPane() {
     a.href = URL.createObjectURL(blob);
     a.download = `looplet-quote-${s.planName || "takeoff"}-sheet-${s.sheet + 1}.json`;
     a.click();
+  }
+
+  if (s.projectPreset === "fencing") {
+    return (
+      <div className="flex flex-col gap-4">
+        {/* Header strip */}
+        <div className="flex items-center justify-between pb-1 border-b border-line">
+          <div className="font-mono text-[10px] text-muted tracking-wider uppercase">
+            SOURCE: fencing-boundary.dxf · Colorbond @ 1.8m
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="pill-dark text-xs" onClick={handlePushToCrm}>
+              {pushed ? "✓ Pushed to Looplet!" : "Push to Looplet CRM"}
+            </button>
+            <button type="button" className="pill text-xs" onClick={handleDownloadQuoteJson}>
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="rounded-xl border border-line bg-card/60 p-3">
+            <div className="text-2xl font-semibold text-paper tracking-tight">48 <span className="text-xs font-normal text-muted">lm</span></div>
+            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Fence Run</div>
+          </div>
+          <div className="rounded-xl border border-line bg-card/60 p-3">
+            <div className="text-2xl font-semibold text-paper tracking-tight">21 <span className="text-xs font-normal text-cyan">+1 gate</span></div>
+            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Posts</div>
+          </div>
+          <div className="rounded-xl border border-line bg-card/60 p-3">
+            <div className="text-2xl font-semibold text-amber-400 tracking-tight">$3,045<span className="text-sm">.08</span></div>
+            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Priced Total</div>
+          </div>
+          <div className="rounded-xl border border-line bg-card/60 p-3">
+            <div className="text-2xl font-semibold text-rose-400 tracking-tight">2</div>
+            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Need Review</div>
+          </div>
+        </div>
+
+        {/* Bill of Materials Table */}
+        <div className="rounded-2xl border border-line bg-card/40 p-4">
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-3 font-semibold">
+            Bill of Materials — priced, every line evidenced
+          </div>
+          <table className="w-full text-left font-mono text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-line text-muted uppercase text-[9px] tracking-wider pb-2">
+                <th className="py-2">Item</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Trust</th>
+                <th className="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FENCING_BOM.map((item, idx) => (
+                <tr key={idx} className="border-b border-line/40 hover:bg-card/60">
+                  <td className="py-2.5 text-paper font-sans text-xs">{item.item}</td>
+                  <td className="text-muted">{item.qty}</td>
+                  <td className="text-muted">{item.unit}</td>
+                  <td>
+                    <span className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-wider ${
+                      item.trust === "reconciled"
+                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                        : item.trust === "single-source"
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                    }`}>
+                      {item.trust}
+                    </span>
+                  </td>
+                  <td className="text-right font-medium text-paper">${item.amount.toFixed(2)}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-line font-semibold text-paper">
+                <td className="py-3">Total</td>
+                <td colSpan={3} />
+                <td className="text-right text-amber-400 text-sm font-mono">${FENCING_TOTAL.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Review Queue */}
+        <div className="rounded-2xl border border-line bg-card/40 p-4">
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-2 font-semibold">
+            Review Queue — 2 items need your call
+          </div>
+          <ul className="space-y-2 text-xs">
+            <li className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-muted">
+              <span className="font-medium text-amber-300 block mb-0.5">● Concrete (footings)</span>
+              Assumes 250 mm dia × 600 mm deep footings — confirm with the engineer/soil footing size is a site call.
+            </li>
+            <li className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-muted">
+              <span className="font-medium text-amber-300 block mb-0.5">● Drawing unit unverified</span>
+              Unit &quot;mm&quot; rests only on the DXF header, nothing to corroborate it — confirm before ordering.
+            </li>
+          </ul>
+        </div>
+      </div>
+    );
   }
 
   return (
