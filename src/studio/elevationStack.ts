@@ -52,7 +52,7 @@ export function buildElevationStack(opts: ElevationStackOptions): Elem[] {
   const roofCol = navy ? PAL.roof : "#c9a227";
 
   const out: Elem[] = [];
-  const floorCount = pose === "standing" ? Math.max(1, Math.min(4, floors)) : 1;
+  const floorCount = pose === "standing" ? Math.max(1, Math.min(100, floors)) : 1;
   const effectiveExplode = pose === "standing" ? Math.max(0, explode) : 0;
   const stepH = floorHeight + effectiveExplode;
 

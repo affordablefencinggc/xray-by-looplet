@@ -143,7 +143,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   showSurfaces: true,
   toggleSnapping: () => set({ snappingEnabled: !get().snappingEnabled }),
   toggleSurfaces: () => set({ showSurfaces: !get().showSurfaces }),
-  setFloors: (floors) => set({ floors: Math.max(1, Math.min(4, floors)) }),
+  setFloors: (floors) => set({ floors: Math.max(1, Math.min(100, floors)) }),
   setExplodeFloors: (val) => set({ explodeFloors: Math.max(0, Math.min(3, val)) }),
   setActiveFloor: (floor) => set({ activeFloor: floor }),
   setPane: (pane) => set({ pane, lifted: pane === "model" ? get().lifted : false, chromeHidden: false }),

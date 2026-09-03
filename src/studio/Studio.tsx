@@ -517,6 +517,10 @@ function Stage() {
             <option value={2}>2 Storeys</option>
             <option value={3}>3 Storeys</option>
             <option value={4}>4 Storeys</option>
+            <option value={8}>8 Storeys (Midrise)</option>
+            <option value={16}>16 Storeys (Highrise)</option>
+            <option value={25}>25 Storeys (Tower)</option>
+            <option value={40}>40 Storeys (Skyscraper)</option>
           </select>
           {s.floors > 1 && (
             <>
