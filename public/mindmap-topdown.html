@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X-Ray by Looplet — Top-Down Mind Map & TODO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07090e;
+    --bg-surface: #0e131f;
+    --bg-card: #141b2d;
+    --border: #1e293b;
+    --border-hover: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.2);
+    --z1: #38bdf8; /* Studio UI */
+    --z2: #818cf8; /* 3D Graphics */
+    --z3: #fb923c; /* Tauri Rust */
+    --z4: #34d399; /* Takeoff Engine */
+    --z5: #c084fc; /* FastMCP */
+    --z6: #f59e0b; /* CRM Integration */
+    --done: #10b981;
+    --inprogress: #38bdf8;
+    --todo: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+  }
+
+  /* ── HEADER & NAV BAR ── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 56px;
+    background: rgba(7, 9, 14, 0.92);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: inherit;
+  }
+  .logo-badge {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #0284c7, #38bdf8);
+    color: #fff; font-family: 'JetBrains Mono', monospace;
+    font-weight: 800; font-size: 13px;
+    display: grid; place-items: center;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+  }
+  .brand-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.12em; color: var(--text-primary);
+  }
+  .brand-sub {
+    font-size: 10px; color: var(--text-muted); font-family: 'Plus Jakarta Sans', sans-serif;
+    text-transform: uppercase; letter-spacing: 1px; margin-left: 4px;
+    background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;
+  }
+
+  .header-actions {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    color: var(--text-secondary); transition: all 0.15s;
+    text-decoration: none;
+  }
+  .btn:hover {
+    background: var(--bg-card); border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+  .btn-primary {
+    background: #0284c7; border-color: #0284c7; color: #fff;
+  }
+  .btn-primary:hover {
+    background: #0369a1; border-color: #0369a1;
+  }
+  .btn-accent {
+    background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);
+    color: var(--accent);
+  }
+  .btn-accent:hover {
+    background: rgba(56, 189, 248, 0.2); border-color: var(--accent);
+  }
+
+  /* ── PROGRESS & METRICS STRIP ── */
+  .metrics-strip {
+    position: fixed; top: 56px; left: 0; right: 0; z-index: 90;
+    height: 60px;
+    background: rgba(14, 19, 31, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; gap: 24px;
+  }
+  .progress-block {
+    display: flex; align-items: center; gap: 16px; min-width: 240px;
+  }
+  .progress-num {
+    font-size: 28px; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+    color: var(--accent); line-height: 1;
+  }
+  .progress-details { flex: 1; }
+  .progress-bar-wrap {
+    height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px;
+    overflow: hidden; margin-top: 4px; display: flex;
+  }
+  .progress-bar-done {
+    height: 100%; background: var(--done); transition: width 0.3s;
+  }
+  .progress-bar-inprog {
+    height: 100%; background: var(--inprogress); transition: width 0.3s;
+  }
+
+  .stat-chips {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .stat-chip {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .stat-chip strong {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    color: var(--text-primary);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-done { background: var(--done); box-shadow: 0 0 8px var(--done); }
+  .dot-inprog { background: var(--inprogress); box-shadow: 0 0 8px var(--inprogress); }
+  .dot-todo { background: var(--todo); }
+
+  .filter-controls {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .search-input {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px;
+    color: var(--text-primary); font-family: inherit; width: 160px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-select {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; font-size: 12px;
+    color: var(--text-secondary); font-family: inherit; outline: none;
+    cursor: pointer;
+  }
+
+  /* ── CANVAS VIEWPORT ── */
+  #viewport {
+    position: absolute; top: 116px; bottom: 0; left: 0; right: 0;
+    overflow: hidden; cursor: grab; background-color: var(--bg);
+    background-image: 
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+  #viewport.dragging { cursor: grabbing; }
+  svg#canvas {
+    width: 100%; height: 100%; overflow: visible;
+  }
+
+  /* ── SVG NODES & CONNECTORS ── */
+  .conn-path {
+    fill: none; stroke: var(--border-hover); stroke-width: 1.5;
+    stroke-linecap: round; transition: stroke 0.2s, stroke-width 0.2s;
+  }
+  .conn-path.highlight {
+    stroke: var(--accent); stroke-width: 2.5;
+  }
+
+  .node-g {
+    cursor: pointer; transition: transform 0.2s;
+  }
+  .node-g:hover {
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
+  }
+  .node-box {
+    rx: 8; ry: 8;
+    fill: var(--bg-card);
+    stroke: var(--border); stroke-width: 1.2;
+    transition: all 0.2s;
+  }
+  .node-g:hover .node-box {
+    stroke: var(--accent);
+  }
+  .node-g.root .node-box {
+    fill: #0c1427; stroke: #38bdf8; stroke-width: 2;
+    rx: 12; ry: 12;
+  }
+  .node-g.zone-node .node-box {
+    fill: #0e172a; stroke-width: 1.8;
+  }
+  .node-g.done .node-box {
+    border-left: 4px solid var(--done);
+    opacity: 0.85;
+  }
+  .node-g.done:hover { opacity: 1; }
+  .node-g.in_progress .node-box {
+    stroke: var(--inprogress); stroke-width: 1.8;
+  }
+
+  .node-title {
+    fill: var(--text-primary); font-size: 12px; font-weight: 600;
+    pointer-events: none;
+  }
+  .node-code {
+    fill: var(--text-muted); font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; pointer-events: none;
+  }
+  .node-status-badge {
+    cursor: pointer; rx: 4; ry: 4;
+  }
+  .node-status-text {
+    font-size: 9px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    text-anchor: middle; dominant-baseline: central; pointer-events: none;
+    text-transform: uppercase;
+  }
+
+  /* ── FLOATING CONTROLS ── */
+  .canvas-controls {
+    position: fixed; bottom: 20px; right: 20px; z-index: 80;
+    display: flex; gap: 8px; background: rgba(14, 19, 31, 0.9);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px;
+    backdrop-filter: blur(10px);
+  }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg-surface); color: var(--text-secondary);
+    display: grid; place-items: center; cursor: pointer; font-size: 14px;
+    font-weight: 700; transition: all 0.15s;
+  }
+  .icon-btn:hover {
+    background: var(--bg-card); color: var(--text-primary); border-color: var(--border-hover);
+  }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
+    display: none; place-items: center; padding: 20px;
+  }
+  .modal-overlay.open { display: grid; }
+  .modal-panel {
+    width: 600px; max-width: 95vw; max-height: 88vh;
+    background: var(--bg-surface); border: 1px solid var(--border-hover);
+    border-radius: 14px; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8); overflow: hidden;
+  }
+  .modal-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-body {
+    padding: 20px; overflow-y: auto; flex: 1;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .modal-footer {
+    padding: 14px 20px; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(0,0,0,0.2);
+  }
+
+  .form-group {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .form-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text-muted);
+  }
+  .form-input, .form-textarea, .form-select {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; font-size: 13px;
+    color: var(--text-primary); font-family: inherit; outline: none;
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus {
+    border-color: var(--accent);
+  }
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .checklist-item {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .checklist-item input[type="checkbox"] {
+    accent-color: var(--done); cursor: pointer;
+  }
+
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #07090e; border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: #38bdf8; margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <a href="/" class="brand" title="Back to X-Ray Studio">
+      <div class="logo-badge">XR</div>
+      <div>
+        <span class="brand-title">X-RAY BY LOOPLET</span>
+        <span class="brand-sub">Top-Down Mind Map & TODO</span>
+      </div>
+    </a>
+    <div class="header-actions">
+      <button class="btn btn-accent" id="btnAddTask">+ Add Task</button>
+      <button class="btn" id="btnExportJson">Export JSON</button>
+      <label class="btn" style="margin-bottom: 0;">
+        Import JSON <input type="file" id="importFileInput" accept=".json" style="display: none;">
+      </label>
+      <button class="btn" id="btnExportMd">Export Markdown</button>
+      <button class="btn" id="btnReset">Reset</button>
+      <a href="/" class="btn btn-primary">Studio App</a>
+    </div>
+  </header>
+
+  <!-- Metrics & Filter Strip -->
+  <div class="metrics-strip">
+    <div class="progress-block">
+      <div class="progress-num" id="pctDisplay">0%</div>
+      <div class="progress-details">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">
+          Takeoff Architecture Progress
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-done" id="barDone" style="width: 0%;"></div>
+          <div class="progress-bar-inprog" id="barInprog" style="width: 0%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-chips">
+      <div class="stat-chip">
+        <span class="dot dot-done"></span> Done: <strong id="countDone">0</strong>
+      </div>
+      <div class="stat-chip">
+        <span class="dot dot-inprog"></span> In Progress: <strong id="countInprog">0</strong>
+      </div>
+      <div class="stat-chip">
+        <span class="dot dot-todo"></span> Todo: <strong id="countTodo">0</strong>
+      </div>
+      <div class="stat-chip">
+        Total Nodes: <strong id="countTotal">0</strong>
+      </div>
+    </div>
+
+    <div class="filter-controls">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search tasks or code...">
+      <select class="filter-select" id="zoneFilter">
+        <option value="all">All Zones</option>
+        <option value="ui">Zone 1: Studio UI</option>
+        <option value="3d">Zone 2: 3D Graphics</option>
+        <option value="tauri">Zone 3: Tauri Desktop</option>
+        <option value="engine">Zone 4: Takeoff Engine</option>
+        <option value="mcp">Zone 5: FastMCP Agent</option>
+        <option value="crm">Zone 6: Looplet CRM</option>
+      </select>
+      <select class="filter-select" id="statusFilter">
+        <option value="all">All Statuses</option>
+        <option value="todo">Todo Only</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Interactive SVG Canvas -->
+  <div id="viewport">
+    <svg id="canvas">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 8 5 L 0 9 z" fill="#334155" />
+        </marker>
+      </defs>
+      <g id="transformGroup">
+        <g id="connectionsLayer"></g>
+        <g id="nodesLayer"></g>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Canvas Floating Controls -->
+  <div class="canvas-controls">
+    <button class="icon-btn" id="btnZoomIn" title="Zoom In">+</button>
+    <button class="icon-btn" id="btnZoomOut" title="Zoom Out">−</button>
+    <button class="icon-btn" id="btnFit" title="Fit to Screen">⛶</button>
+  </div>
+
+  <!-- Node Edit Modal -->
+  <div class="modal-overlay" id="nodeModal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="modalCodeBadge" style="font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 13px; color: var(--accent);">XR-00</span>
+          <h3 id="modalTitle" style="font-size: 15px; font-weight: 700;">Task Details</h3>
+        </div>
+        <button class="icon-btn" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Task Label</label>
+          <input type="text" class="form-input" id="editLabel">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="editStatus">
+              <option value="todo">Todo</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select class="form-select" id="editPriority">
+              <option value="P0">P0 — Blocker / Core</option>
+              <option value="P1">P1 — High</option>
+              <option value="P2">P2 — Normal</option>
+              <option value="P3">P3 — Enhancement</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Zone</label>
+          <select class="form-select" id="editZone">
+            <option value="ui">Zone 1: Studio UI</option>
+            <option value="3d">Zone 2: 3D Graphics & Canvas</option>
+            <option value="tauri">Zone 3: Tauri Desktop Shell</option>
+            <option value="engine">Zone 4: Vector Takeoff Engine</option>
+            <option value="mcp">Zone 5: FastMCP Agent Server</option>
+            <option value="crm">Zone 6: Looplet CRM Bridge</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description & Acceptance Criteria</label>
+          <textarea class="form-textarea" id="editDesc"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Associated Source Files</label>
+          <input type="text" class="form-input" id="editFiles" placeholder="Comma-separated file paths...">
+          <div id="fileChipsWrap"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" style="color: #ef4444;" id="btnDeleteTask">Delete Task</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" id="modalCancel">Cancel</button>
+          <button class="btn btn-primary" id="modalSave">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// X-RAY TOP-DOWN ARCHITECTURE DATA MODEL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_NODES = [
+  // Root
+  { id: 'root', code: 'XR-ROOT', label: 'X-Ray by Looplet (Takeoff Studio)', zone: 'root', status: 'done', priority: 'P0', desc: 'Evidence-first construction takeoff studio, WebGL 3D wireframe and FastMCP agent surface.', files: ['package.json', 'src/router.tsx'] },
+
+  // ── ZONE 1: STUDIO UI PANES ──
+  { id: 'z1', parentId: 'root', code: 'Z1-UI', label: 'Zone 1: Studio UI Panes', zone: 'ui', status: 'done', priority: 'P0', desc: '9 core studio workflow panes in React 19 / TanStack.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_ov', parentId: 'z1', code: 'XR-UI-OV', label: 'Overview Pane & Stage', zone: 'ui', status: 'done', priority: 'P0', desc: 'Evidence stats, plan qualification indicator, stage 3D wireframe embed.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_sh', parentId: 'z1', code: 'XR-UI-SH', label: 'Sheets Navigator (24 Sheets)', zone: 'ui', status: 'done', priority: 'P0', desc: '24-sheet catalog navigation with plan and elevation canvas switches.', files: ['src/studio/geometry.ts', 'src/studio/Studio.tsx'] },
+  { id: 'xr_ms', parentId: 'z1', code: 'XR-UI-MS', label: 'Measure Tools (Length/Area/Count)', zone: 'ui', status: 'done', priority: 'P0', desc: 'Scale m/unit, polyline length, polygon area with Close Area, count items.', files: ['src/studio/Studio.tsx', 'src/studio/IsoCanvas.tsx'] },
+  { id: 'xr_sk', parentId: 'z1', code: 'XR-UI-SK', label: 'Sketch Layer & Trace Commit', zone: 'ui', status: 'done', priority: 'P0', desc: 'Manual polyline tracing, commit trace and height extrusion integration.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_cp', parentId: 'z1', code: 'XR-UI-CP', label: 'Components & Trade Builder', zone: 'ui', status: 'done', priority: 'P0', desc: 'Open-ended custom trade registration without defaulted quantities.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_md', parentId: 'z1', code: 'XR-UI-MD', label: 'Model Pipeline & 3D Stage', zone: 'ui', status: 'done', priority: 'P0', desc: 'Interactive 3D wireframe stage, presentation height, Stand 3D / Lay flat, PNG still export.', files: ['src/studio/Studio.tsx', 'src/studio/wireframeGl.ts'] },
+  { id: 'xr_rv', parentId: 'z1', code: 'XR-UI-RV', label: 'Review Pane (Deterministic Flags)', zone: 'ui', status: 'done', priority: 'P0', desc: 'Flag audit: scale check, unattached plan, 0 areas/trades. No AI guessing.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_cs', parentId: 'z1', code: 'XR-UI-CS', label: 'Cost / BOM Calculation', zone: 'ui', status: 'done', priority: 'P0', desc: 'BOM summing lengths, areas, and counts strictly from measured marks.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_pf', parentId: 'z1', code: 'XR-UI-PF', label: 'Proof Pane & Evidence Export', zone: 'ui', status: 'done', priority: 'P0', desc: 'xray-evidence.json export with plan, sheet, scale, markups, and trades.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_ui_enh1', parentId: 'z1', code: 'XR-UI-ENH1', label: 'Vector Vertex Snapping', zone: 'ui', status: 'todo', priority: 'P1', desc: 'Cursor snapping to PDF vector lines and corners during measurement.', files: ['src/studio/IsoCanvas.tsx'] },
+  { id: 'xr_ui_enh2', parentId: 'z1', code: 'XR-UI-ENH2', label: 'Multi-Page PDF Viewer', zone: 'ui', status: 'todo', priority: 'P2', desc: 'Render multipage construction documents directly in the webview.', files: ['src/studio/Studio.tsx'] },
+
+  // ── ZONE 2: 3D GRAPHICS & CANVAS ──
+  { id: 'z2', parentId: 'root', code: 'Z2-3D', label: 'Zone 2: 3D Graphics & Canvas', zone: '3d', status: 'done', priority: 'P0', desc: 'WebGL 3D wireframe pipeline, IsoCanvas, geometry meshes, Zustand store.', files: ['src/studio/wireframeGl.ts', 'src/studio/IsoCanvas.tsx'] },
+  { id: 'xr_gl', parentId: 'z2', code: 'XR-3D-GL', label: 'wireframeGl.ts WebGL Engine', zone: '3d', status: 'done', priority: 'P0', desc: 'GL shaders, perspective and isometric matrix math, line vertex buffers.', files: ['src/studio/wireframeGl.ts'] },
+  { id: 'xr_iso', parentId: 'z2', code: 'XR-3D-ISO', label: 'IsoCanvas & 2D Plan Canvas', zone: '3d', status: 'done', priority: 'P0', desc: 'Mouse rotation, pan, zoom clamp, 2D click coordinate transform.', files: ['src/studio/IsoCanvas.tsx'] },
+  { id: 'xr_geo', parentId: 'z2', code: 'XR-3D-GEO', label: 'geometry.ts House Meshes', zone: '3d', status: 'done', priority: 'P0', desc: '24 sheet definitions, building mesh B and roof prism R line segments.', files: ['src/studio/geometry.ts'] },
+  { id: 'xr_st', parentId: 'z2', code: 'XR-3D-ST', label: 'store.ts Zustand Studio Store', zone: '3d', status: 'done', priority: 'P0', desc: 'Studio state: active pane, tools, markups, trades, camera pose, height.', files: ['src/studio/store.ts'] },
+  { id: 'xr_3d_enh1', parentId: 'z2', code: 'XR-3D-ENH1', label: 'Screen-Space Polyline Thickening', zone: '3d', status: 'todo', priority: 'P2', desc: 'Antialiased thickened line shaders for ultra-crisp high-DPI rendering.', files: ['src/studio/wireframeGl.ts'] },
+  { id: 'xr_3d_enh2', parentId: 'z2', code: 'XR-3D-ENH2', label: 'Shaded Solid Surfaces Preview', zone: '3d', status: 'todo', priority: 'P3', desc: 'Optional translucent face rendering alongside wireframe lines.', files: ['src/studio/wireframeGl.ts'] },
+
+  // ── ZONE 3: TAURI DESKTOP & RUST HOST ──
+  { id: 'z3', parentId: 'root', code: 'Z3-TR', label: 'Zone 3: Tauri Desktop Shell', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Tauri 2 Rust shell, file picker dialog, host spawner crate.', files: ['src-tauri/src/lib.rs', 'engine/host/src/lib.rs'] },
+  { id: 'xr_tr_cmd', parentId: 'z3', code: 'XR-TR-CMD', label: 'Tauri Commands (lib.rs)', zone: 'tauri', status: 'done', priority: 'P0', desc: 'xray_pick_plan, xray_run_takeoff, xray_engine_status IPC commands.', files: ['src-tauri/src/lib.rs'] },
+  { id: 'xr_tr_hst', parentId: 'z3', code: 'XR-TR-HST', label: 'xray_engine_host Crate', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Engine binary resolver: env var -> engine/bin -> python3 module.', files: ['engine/host/src/lib.rs'] },
+  { id: 'xr_tr_spw', parentId: 'z3', code: 'XR-TR-SPW', label: 'Process Spawner & Timeout', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Scratch temp dir creation, 120s timeout guard, stdout/err capture.', files: ['engine/host/src/lib.rs'] },
+  { id: 'xr_tr_tst', parentId: 'z3', code: 'XR-TR-TST', label: 'Host Unit Tests (cargo test)', zone: 'tauri', status: 'done', priority: 'P0', desc: 'Cargo tests verifying package presence, missing file handling, exe names.', files: ['engine/host/src/lib.rs'] },
+  { id: 'xr_tr_bld', parentId: 'z3', code: 'XR-TR-BLD', label: 'Frozen Engine Binary Packaging', zone: 'tauri', status: 'in_progress', priority: 'P1', desc: 'PyInstaller bundle of xray-engine.exe for zero-Python native installs.', files: ['engine/host/Cargo.toml'] },
+  { id: 'xr_tr_pkg', parentId: 'z3', code: 'XR-TR-PKG', label: 'Windows MSI & NSIS Installer', zone: 'tauri', status: 'todo', priority: 'P1', desc: 'Tauri production build with embedded WebView2 and sidecar binary.', files: ['src-tauri/tauri.conf.json'] },
+
+  // ── ZONE 4: TAKEOFF ENGINE ──
+  { id: 'z4', parentId: 'root', code: 'Z4-ENG', label: 'Zone 4: Takeoff Engine (Python)', zone: 'engine', status: 'done', priority: 'P0', desc: '31 deterministic Python modules for vector takeoff and trade packs.', files: ['engine/python/xray/engine.py'] },
+  { id: 'xr_eng_cor', parentId: 'z4', code: 'XR-ENG-COR', label: 'CLI & Engine Pipeline', zone: 'engine', status: 'done', priority: 'P0', desc: 'cli.py, engine.py, __main__.py, preflight plan validation.', files: ['engine/python/xray/cli.py', 'engine/python/xray/engine.py'] },
+  { id: 'xr_eng_vec', parentId: 'z4', code: 'XR-ENG-VEC', label: 'Vector Paths & Wireframe', zone: 'engine', status: 'done', priority: 'P0', desc: 'chains.py, graph.py, scale.py, wireframe.py, solid.py.', files: ['engine/python/xray/wireframe.py', 'engine/python/xray/graph.py'] },
+  { id: 'xr_eng_ocr', parentId: 'z4', code: 'XR-ENG-OCR', label: 'OCR & Plan Grammar', zone: 'engine', status: 'done', priority: 'P0', desc: 'ocr.py, grammar.py: scale detection and title block recognition.', files: ['engine/python/xray/ocr.py', 'engine/python/xray/grammar.py'] },
+  { id: 'xr_eng_pck', parentId: 'z4', code: 'XR-ENG-PCK', label: 'Trade Packs (Fencing/Res/Elec)', zone: 'engine', status: 'done', priority: 'P0', desc: 'Colorbond fencing, residential framing, concrete structural, electrical.', files: ['engine/python/xray/packs_fencing.py', 'engine/python/xray/packs_residential.py'] },
+  { id: 'xr_eng_bom', parentId: 'z4', code: 'XR-ENG-BOM', label: 'BOM Rollup & Assemblies', zone: 'engine', status: 'done', priority: 'P0', desc: 'quantify.py, rollup.py, assemblies.py, tables.py.', files: ['engine/python/xray/quantify.py', 'engine/python/xray/assemblies.py'] },
+  { id: 'xr_eng_out', parentId: 'z4', code: 'XR-ENG-OUT', label: 'Annotated PDF Markup Writer', zone: 'engine', status: 'done', priority: 'P0', desc: 'markup_writer.py, report.py, advisor.py: stamped vector PDF output.', files: ['engine/python/xray/markup_writer.py'] },
+  { id: 'xr_eng_dxf', parentId: 'z4', code: 'XR-ENG-DXF', label: 'Native DXF / DWG Direct Parser', zone: 'engine', status: 'todo', priority: 'P2', desc: 'Direct AutoCAD DXF entity extraction alongside vector PDF parsing.', files: ['engine/python/xray/sources/'] },
+
+  // ── ZONE 5: FASTMCP AGENT SERVER ──
+  { id: 'z5', parentId: 'root', code: 'Z5-MCP', label: 'Zone 5: FastMCP Agent Server', zone: 'mcp', status: 'done', priority: 'P0', desc: 'FastMCP stdio AI tool server for Claude, Codex, Grok agents.', files: ['engine/server/mcp_server.py'] },
+  { id: 'xr_mcp_srv', parentId: 'z5', code: 'XR-MCP-SRV', label: 'FastMCP Server Setup', zone: 'mcp', status: 'done', priority: 'P0', desc: 'FastMCP("xray-engine") server initialization and stdio transport.', files: ['engine/server/mcp_server.py'] },
+  { id: 'xr_mcp_tls', parentId: 'z5', code: 'XR-MCP-TLS', label: 'MCP Tools Catalog (6 Tools)', zone: 'mcp', status: 'done', priority: 'P0', desc: 'engine_info, run_takeoff, calibrated, marked_pdf, wireframe_scene.', files: ['engine/server/mcp_server.py'] },
+  { id: 'xr_mcp_qte', parentId: 'z5', code: 'XR-MCP-QTE', label: 'quote_draft & Looplet Lines', zone: 'mcp', status: 'done', priority: 'P0', desc: 'quote_lines.py: takeoff BOM converted to unpriced Looplet quote lines.', files: ['engine/server/quote_lines.py'] },
+  { id: 'xr_mcp_tst', parentId: 'z5', code: 'XR-MCP-TST', label: 'MCP Pytest Contracts', zone: 'mcp', status: 'done', priority: 'P0', desc: 'test_mcp.py verifying all MCP tools and return schema shapes.', files: ['engine/server/test_mcp.py'] },
+  { id: 'xr_mcp_reg', parentId: 'z5', code: 'XR-MCP-REG', label: 'Agent Workspace MCP Config', zone: 'mcp', status: 'todo', priority: 'P1', desc: 'Register X-Ray stdio command in IDE/agent MCP configurations.', files: ['engine/server/requirements.txt'] },
+
+  // ── ZONE 6: LOOPLET CRM INTEGRATION ──
+  { id: 'z6', parentId: 'root', code: 'Z6-CRM', label: 'Zone 6: Looplet CRM Bridge', zone: 'crm', status: 'done', priority: 'P0', desc: 'BOM to quote handoff, standalone PWA, distribution pipeline.', files: ['engine/server/quote_lines.py'] },
+  { id: 'xr_crm_lin', parentId: 'z6', code: 'XR-INT-LIN', label: 'Quote Line Items Handoff', zone: 'crm', status: 'done', priority: 'P0', desc: 'Direct mapping of takeoff items to Looplet CRM quote lines schema.', files: ['engine/server/quote_lines.py'] },
+  { id: 'xr_crm_pwa', parentId: 'z6', code: 'XR-INT-PWA', label: 'Standalone Offline HTML Export', zone: 'crm', status: 'done', priority: 'P0', desc: 'xray-model-pipeline.html self-contained distribution package.', files: ['public/xray-model-pipeline.html'] },
+  { id: 'xr_crm_psh', parentId: 'z6', code: 'XR-INT-PSH', label: '1-Click Push to Looplet Quote', zone: 'crm', status: 'done', priority: 'P1', desc: 'Export directly to active Looplet CRM organization quote draft.', files: ['src/studio/Studio.tsx'] },
+  { id: 'xr_crm_snc', parentId: 'z6', code: 'XR-INT-SNC', label: 'Looplet Job Files Two-Way Sync', zone: 'crm', status: 'todo', priority: 'P2', desc: 'Pull PDF plans from Looplet Docbox and write back marked PDFs.', files: ['src/studio/engine.ts'] },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP STATE & CONTROLLER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class MindMapApp {
+  constructor() {
+    this.storageKey = 'xray_topdown_mindmap_data_v1';
+    this.nodes = this.loadNodes();
+    this.activeNodeId = null;
+    this.collapsedZones = new Set();
+    this.filterZone = 'all';
+    this.filterStatus = 'all';
+    this.searchQuery = '';
+
+    // Canvas Transform State
+    this.scale = 0.9;
+    this.panX = window.innerWidth / 2 - 450;
+    this.panY = 40;
+    this.isDragging = false;
+    this.dragStart = { x: 0, y: 0 };
+
+    this.initDom();
+    this.bindEvents();
+    this.render();
+  }
+
+  loadNodes() {
+    try {
+      const cached = localStorage.getItem(this.storageKey);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.warn('Failed to load from localStorage:', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_NODES));
+  }
+
+  saveNodes() {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.nodes));
+    } catch (e) {
+      console.warn('Failed to save to localStorage:', e);
+    }
+  }
+
+  initDom() {
+    this.viewport = document.getElementById('viewport');
+    this.canvas = document.getElementById('canvas');
+    this.transformGroup = document.getElementById('transformGroup');
+    this.connectionsLayer = document.getElementById('connectionsLayer');
+    this.nodesLayer = document.getElementById('nodesLayer');
+
+    this.pctDisplay = document.getElementById('pctDisplay');
+    this.barDone = document.getElementById('barDone');
+    this.barInprog = document.getElementById('barInprog');
+    this.countDone = document.getElementById('countDone');
+    this.countInprog = document.getElementById('countInprog');
+    this.countTodo = document.getElementById('countTodo');
+    this.countTotal = document.getElementById('countTotal');
+
+    this.zoneFilter = document.getElementById('zoneFilter');
+    this.statusFilter = document.getElementById('statusFilter');
+    this.searchInput = document.getElementById('searchInput');
+
+    this.nodeModal = document.getElementById('nodeModal');
+    this.modalCodeBadge = document.getElementById('modalCodeBadge');
+    this.modalTitle = document.getElementById('modalTitle');
+    this.editLabel = document.getElementById('editLabel');
+    this.editStatus = document.getElementById('editStatus');
+    this.editPriority = document.getElementById('editPriority');
+    this.editZone = document.getElementById('editZone');
+    this.editDesc = document.getElementById('editDesc');
+    this.editFiles = document.getElementById('editFiles');
+    this.fileChipsWrap = document.getElementById('fileChipsWrap');
+  }
+
+  bindEvents() {
+    // Pan & Zoom
+    this.viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.node-g')) return;
+      this.isDragging = true;
+      this.dragStart = { x: e.clientX - this.panX, y: e.clientY - this.panY };
+      this.viewport.classList.add('dragging');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isDragging) return;
+      this.panX = e.clientX - this.dragStart.x;
+      this.panY = e.clientY - this.dragStart.y;
+      this.applyTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      this.isDragging = false;
+      this.viewport.classList.remove('dragging');
+    });
+
+    this.viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      const newScale = Math.min(Math.max(0.3, this.scale * zoomFactor), 2.2);
+      
+      const mouseX = e.clientX;
+      const mouseY = e.clientY - 116;
+      this.panX = mouseX - (mouseX - this.panX) * (newScale / this.scale);
+      this.panY = mouseY - (mouseY - this.panY) * (newScale / this.scale);
+      this.scale = newScale;
+      this.applyTransform();
+    }, { passive: false });
+
+    // Controls
+    document.getElementById('btnZoomIn').addEventListener('click', () => this.zoom(1.2));
+    document.getElementById('btnZoomOut').addEventListener('click', () => this.zoom(0.8));
+    document.getElementById('btnFit').addEventListener('click', () => this.fitToScreen());
+
+    // Filters
+    this.zoneFilter.addEventListener('change', (e) => {
+      this.filterZone = e.target.value;
+      this.render();
+    });
+    this.statusFilter.addEventListener('change', (e) => {
+      this.filterStatus = e.target.value;
+      this.render();
+    });
+    this.searchInput.addEventListener('input', (e) => {
+      this.searchQuery = e.target.value.toLowerCase().trim();
+      this.render();
+    });
+
+    // Actions
+    document.getElementById('btnAddTask').addEventListener('click', () => this.openNewTaskModal());
+    document.getElementById('btnExportJson').addEventListener('click', () => this.exportJson());
+    document.getElementById('btnExportMd').addEventListener('click', () => this.exportMarkdown());
+    document.getElementById('btnReset').addEventListener('click', () => this.resetBaseline());
+    document.getElementById('importFileInput').addEventListener('change', (e) => this.importJson(e));
+
+    // Modal
+    document.getElementById('modalClose').addEventListener('click', () => this.closeModal());
+    document.getElementById('modalCancel').addEventListener('click', () => this.closeModal());
+    document.getElementById('modalSave').addEventListener('click', () => this.saveModalChanges());
+    document.getElementById('btnDeleteTask').addEventListener('click', () => this.deleteActiveTask());
+  }
+
+  zoom(factor) {
+    this.scale = Math.min(Math.max(0.3, this.scale * factor), 2.2);
+    this.applyTransform();
+  }
+
+  fitToScreen() {
+    this.scale = 0.85;
+    this.panX = window.innerWidth / 2 - 480;
+    this.panY = 40;
+    this.applyTransform();
+  }
+
+  applyTransform() {
+    this.transformGroup.setAttribute('transform', `translate(${this.panX}, ${this.panY}) scale(${this.scale})`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // TOP-DOWN TREE LAYOUT CALCULATION
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  computeLayout() {
+    const rootNode = this.nodes.find(n => n.id === 'root');
+    const zoneNodes = this.nodes.filter(n => n.parentId === 'root');
+
+    // Layout configuration
+    const NODE_WIDTH = 260;
+    const NODE_HEIGHT = 68;
+    const ROOT_WIDTH = 340;
+    const ROOT_HEIGHT = 76;
+    const ZONE_WIDTH = 280;
+    const ZONE_HEIGHT = 68;
+
+    const V_GAP_ROOT_TO_ZONE = 130;
+    const V_GAP_ZONE_TO_TASK = 100;
+    const V_GAP_TASKS = 22;
+    const H_GAP_ZONES = 40;
+
+    // Filter matching
+    const matchesFilter = (node) => {
+      if (node.id === 'root' || node.parentId === 'root') return true;
+      if (this.filterZone !== 'all' && node.zone !== this.filterZone) return false;
+      if (this.filterStatus !== 'all' && node.status !== this.filterStatus) return false;
+      if (this.searchQuery) {
+        const text = `${node.code} ${node.label} ${node.desc || ''}`.toLowerCase();
+        if (!text.includes(this.searchQuery)) return false;
+      }
+      return true;
+    };
+
+    // Organize tasks by zone
+    const zoneColumns = [];
+    zoneNodes.forEach(zone => {
+      const childTasks = this.nodes.filter(n => n.parentId === zone.id && matchesFilter(n));
+      zoneColumns.push({
+        zone,
+        tasks: childTasks,
+        width: Math.max(ZONE_WIDTH, NODE_WIDTH)
+      });
+    });
+
+    // Calculate total layout width
+    let currentX = 0;
+    zoneColumns.forEach(col => {
+      col.x = currentX;
+      currentX += col.width + H_GAP_ZONES;
+    });
+    const totalWidth = currentX - H_GAP_ZONES;
+
+    // Position Root
+    rootNode.x = (totalWidth - ROOT_WIDTH) / 2;
+    rootNode.y = 0;
+    rootNode.w = ROOT_WIDTH;
+    rootNode.h = ROOT_HEIGHT;
+
+    // Position Zones and Tasks
+    const positions = new Map();
+    positions.set(rootNode.id, rootNode);
+
+    zoneColumns.forEach(col => {
+      const zNode = col.zone;
+      zNode.x = col.x + (col.width - ZONE_WIDTH) / 2;
+      zNode.y = rootNode.y + rootNode.h + V_GAP_ROOT_TO_ZONE;
+      zNode.w = ZONE_WIDTH;
+      zNode.h = ZONE_HEIGHT;
+      positions.set(zNode.id, zNode);
+
+      let taskY = zNode.y + zNode.h + V_GAP_ZONE_TO_TASK;
+      col.tasks.forEach(task => {
+        task.x = col.x + (col.width - NODE_WIDTH) / 2;
+        task.y = taskY;
+        task.w = NODE_WIDTH;
+        task.h = NODE_HEIGHT;
+        positions.set(task.id, task);
+        taskY += task.h + V_GAP_TASKS;
+      });
+    });
+
+    return positions;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // RENDERING & SVG GRAPH
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  render() {
+    this.updateMetrics();
+    const positions = this.computeLayout();
+
+    // Clear previous SVG
+    this.connectionsLayer.innerHTML = '';
+    this.nodesLayer.innerHTML = '';
+
+    // Render Connectors
+    this.nodes.forEach(node => {
+      if (!node.parentId) return;
+      const parent = positions.get(node.parentId);
+      const child = positions.get(node.id);
+      if (!parent || !child) return;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const startX = parent.x + parent.w / 2;
+      const startY = parent.y + parent.h;
+      const endX = child.x + child.w / 2;
+      const endY = child.y;
+
+      const midY = startY + (endY - startY) * 0.55;
+      const d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+      path.setAttribute('d', d);
+      path.setAttribute('class', 'conn-path');
+
+      // Zone specific connector tints
+      if (child.zone && child.zone !== 'root') {
+        path.style.stroke = `var(--z${child.zone === 'ui' ? '1' : child.zone === '3d' ? '2' : child.zone === 'tauri' ? '3' : child.zone === 'engine' ? '4' : child.zone === 'mcp' ? '5' : '6'})`;
+        path.style.opacity = '0.22';
+      }
+
+      this.connectionsLayer.appendChild(path);
+    });
+
+    // Render Nodes
+    positions.forEach((pos, id) => {
+      const node = this.nodes.find(n => n.id === id);
+      if (!node) return;
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', `node-g ${node.id === 'root' ? 'root' : ''} ${node.parentId === 'root' ? 'zone-node' : ''} ${node.status}`);
+      g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+      // Node background box
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('width', pos.w);
+      rect.setAttribute('height', pos.h);
+      rect.setAttribute('class', 'node-box');
+
+      // Zone border color
+      if (node.zone && node.zone !== 'root') {
+        const colorVar = `var(--z${node.zone === 'ui' ? '1' : node.zone === '3d' ? '2' : node.zone === 'tauri' ? '3' : node.zone === 'engine' ? '4' : node.zone === 'mcp' ? '5' : '6'})`;
+        rect.style.borderLeftColor = colorVar;
+      }
+
+      g.appendChild(rect);
+
+      // Node Code & Zone badge
+      const codeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      codeText.setAttribute('x', 14);
+      codeText.setAttribute('y', 22);
+      codeText.setAttribute('class', 'node-code');
+      codeText.textContent = node.code || '';
+      g.appendChild(codeText);
+
+      // Node Title
+      const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      titleText.setAttribute('x', 14);
+      titleText.setAttribute('y', 44);
+      titleText.setAttribute('class', 'node-title');
+      
+      let label = node.label;
+      if (label.length > 32) label = label.substring(0, 30) + '…';
+      titleText.textContent = label;
+      g.appendChild(titleText);
+
+      // Status Badge (Clickable toggle)
+      if (node.id !== 'root' && node.parentId !== 'root') {
+        const badgeW = 68;
+        const badgeH = 22;
+        const badgeX = pos.w - badgeW - 12;
+        const badgeY = (pos.h - badgeH) / 2;
+
+        const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        badgeRect.setAttribute('x', badgeX);
+        badgeRect.setAttribute('y', badgeY);
+        badgeRect.setAttribute('width', badgeW);
+        badgeRect.setAttribute('height', badgeH);
+        badgeRect.setAttribute('class', 'node-status-badge');
+
+        const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        badgeText.setAttribute('x', badgeX + badgeW / 2);
+        badgeText.setAttribute('y', badgeY + badgeH / 2);
+        badgeText.setAttribute('class', 'node-status-text');
+
+        if (node.status === 'done') {
+          badgeRect.setAttribute('fill', 'rgba(16, 185, 129, 0.2)');
+          badgeRect.setAttribute('stroke', '#10b981');
+          badgeText.setAttribute('fill', '#34d399');
+          badgeText.textContent = '✓ DONE';
+        } else if (node.status === 'in_progress') {
+          badgeRect.setAttribute('fill', 'rgba(56, 189, 248, 0.2)');
+          badgeRect.setAttribute('stroke', '#38bdf8');
+          badgeText.setAttribute('fill', '#38bdf8');
+          badgeText.textContent = '● IN PROG';
+        } else {
+          badgeRect.setAttribute('fill', 'rgba(100, 116, 139, 0.15)');
+          badgeRect.setAttribute('stroke', '#475569');
+          badgeText.setAttribute('fill', '#94a3b8');
+          badgeText.textContent = '○ TODO';
+        }
+
+        // Toggle status on badge click
+        const statusGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        statusGroup.appendChild(badgeRect);
+        statusGroup.appendChild(badgeText);
+        statusGroup.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.cycleStatus(node.id);
+        });
+        g.appendChild(statusGroup);
+      }
+
+      // Open detail modal on node click
+      g.addEventListener('click', () => {
+        this.openNodeModal(node.id);
+      });
+
+      this.nodesLayer.appendChild(g);
+    });
+
+    this.applyTransform();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STATUS CYCLING & METRICS
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  cycleStatus(nodeId) {
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    if (node.status === 'todo') node.status = 'in_progress';
+    else if (node.status === 'in_progress') node.status = 'done';
+    else node.status = 'todo';
+
+    this.saveNodes();
+    this.render();
+  }
+
+  updateMetrics() {
+    const taskNodes = this.nodes.filter(n => n.id !== 'root' && n.parentId !== 'root');
+    const total = taskNodes.length;
+    const done = taskNodes.filter(n => n.status === 'done').length;
+    const inprog = taskNodes.filter(n => n.status === 'in_progress').length;
+    const todo = taskNodes.filter(n => n.status === 'todo').length;
+
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const inprogPct = total > 0 ? Math.round((inprog / total) * 100) : 0;
+
+    this.pctDisplay.textContent = `${pct}%`;
+    this.barDone.style.width = `${pct}%`;
+    this.barInprog.style.width = `${inprogPct}%`;
+
+    this.countDone.textContent = done;
+    this.countInprog.textContent = inprog;
+    this.countTodo.textContent = todo;
+    this.countTotal.textContent = total;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // MODAL & TASK EDITING
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  openNodeModal(nodeId) {
+    this.activeNodeId = nodeId;
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    this.modalCodeBadge.textContent = node.code || 'TASK';
+    this.modalTitle.textContent = node.label;
+    this.editLabel.value = node.label;
+    this.editStatus.value = node.status || 'todo';
+    this.editPriority.value = node.priority || 'P1';
+    this.editZone.value = node.zone || 'ui';
+    this.editDesc.value = node.desc || '';
+    this.editFiles.value = (node.files || []).join(', ');
+
+    // Render file chips
+    this.fileChipsWrap.innerHTML = '';
+    (node.files || []).forEach(f => {
+      const chip = document.createElement('span');
+      chip.className = 'file-chip';
+      chip.textContent = `📄 ${f}`;
+      this.fileChipsWrap.appendChild(chip);
+    });
+
+    document.getElementById('btnDeleteTask').style.display = 
+      (node.id === 'root' || node.parentId === 'root') ? 'none' : 'block';
+
+    this.nodeModal.classList.add('open');
+  }
+
+  closeModal() {
+    this.nodeModal.classList.remove('open');
+    this.activeNodeId = null;
+  }
+
+  saveModalChanges() {
+    if (!this.activeNodeId) return;
+    const node = this.nodes.find(n => n.id === this.activeNodeId);
+    if (!node) return;
+
+    node.label = this.editLabel.value.trim() || node.label;
+    node.status = this.editStatus.value;
+    node.priority = this.editPriority.value;
+    node.zone = this.editZone.value;
+    node.desc = this.editDesc.value.trim();
+    node.files = this.editFiles.value.split(',').map(s => s.trim()).filter(Boolean);
+
+    this.saveNodes();
+    this.closeModal();
+    this.render();
+  }
+
+  deleteActiveTask() {
+    if (!this.activeNodeId) return;
+    if (confirm('Delete this task node from the mind map?')) {
+      this.nodes = this.nodes.filter(n => n.id !== this.activeNodeId);
+      this.saveNodes();
+      this.closeModal();
+      this.render();
+    }
+  }
+
+  openNewTaskModal() {
+    const newId = 'task_' + Date.now();
+    const zoneMap = {
+      ui: 'z1',
+      '3d': 'z2',
+      tauri: 'z3',
+      engine: 'z4',
+      mcp: 'z5',
+      crm: 'z6'
+    };
+
+    const targetZone = this.filterZone !== 'all' ? this.filterZone : 'ui';
+    const parentId = zoneMap[targetZone] || 'z1';
+
+    const newTask = {
+      id: newId,
+      parentId: parentId,
+      code: `XR-TODO-${Math.floor(10 + Math.random() * 90)}`,
+      label: 'New Architecture Task',
+      zone: targetZone,
+      status: 'todo',
+      priority: 'P1',
+      desc: 'Define task requirements and scope.',
+      files: []
+    };
+
+    this.nodes.push(newTask);
+    this.saveNodes();
+    this.render();
+    this.openNodeModal(newId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EXPORT / IMPORT CAPABILITIES
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  exportJson() {
+    const dataStr = JSON.stringify(this.nodes, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `xray-mindmap-state-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  importJson(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if (Array.isArray(imported)) {
+          this.nodes = imported;
+          this.saveNodes();
+          this.render();
+          alert('Mind map state imported successfully!');
+        }
+      } catch (err) {
+        alert('Invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  exportMarkdown() {
+    let md = `# X-Ray by Looplet — Exported Architecture TODO Checklist\n\n`;
+    md += `Exported: ${new Date().toISOString()}\n\n`;
+
+    const zones = [
+      { id: 'ui', title: 'Zone 1: Studio UI Panes' },
+      { id: '3d', title: 'Zone 2: 3D Graphics & Canvas' },
+      { id: 'tauri', title: 'Zone 3: Tauri Desktop Shell & Rust' },
+      { id: 'engine', title: 'Zone 4: Takeoff Engine (Python)' },
+      { id: 'mcp', title: 'Zone 5: FastMCP Agent Server' },
+      { id: 'crm', title: 'Zone 6: Looplet CRM Bridge' }
+    ];
+
+    zones.forEach(z => {
+      md += `## ${z.title}\n\n`;
+      const tasks = this.nodes.filter(n => n.zone === z.id && n.parentId !== 'root');
+      tasks.forEach(t => {
+        const check = t.status === 'done' ? '[x]' : t.status === 'in_progress' ? '[-]' : '[ ]';
+        md += `- ${check} **${t.code}**: ${t.label}\n`;
+        if (t.desc) md += `  - *Details*: ${t.desc}\n`;
+        if (t.files && t.files.length) md += `  - *Files*: ${t.files.map(f => `\`${f}\``).join(', ')}\n`;
+      });
+      md += `\n`;
+    });
+
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `XRAY-EXPORTED-TODO-${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  resetBaseline() {
+    if (confirm('Reset mind map to default architectural baseline? Custom modifications will be cleared.')) {
+      this.nodes = JSON.parse(JSON.stringify(DEFAULT_NODES));
+      this.saveNodes();
+      this.render();
+    }
+  }
+}
+
+// Instantiate on load
+window.addEventListener('DOMContentLoaded', () => {
+  window.app = new MindMapApp();
+});
+</script>
+</body>
+</html>
