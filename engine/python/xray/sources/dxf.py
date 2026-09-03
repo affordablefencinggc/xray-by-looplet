@@ -212,12 +212,26 @@ class DxfAdapter(SourceAdapter):
     name = "dxf"
 
     def can_read(self, path: str | Path) -> bool:
-        return str(path).lower().endswith(".dxf")
+        ext = str(path).lower()
+        return ext.endswith(".dxf") or ext.endswith(".dwg")
 
     def read(self, path: str | Path) -> ReadResult:
         import ezdxf  # imported here so the engine works without CAD deps
 
-        doc = ezdxf.readfile(str(path))
+        p = Path(path)
+        if p.suffix.lower() == ".dwg":
+            try:
+                from ezdxf.addons import odafc
+                doc = odafc.readfile(str(p))
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to read DWG file {p.name}. Direct binary DWG parsing "
+                    "requires the ODA File Converter (odafc) to be installed and configured. "
+                    "Alternatively, please pre-convert your DWG files to DXF format."
+                ) from e
+        else:
+            doc = ezdxf.readfile(str(path))
+
         msp = doc.modelspace()
 
         # recursion needs the anonymous blocks too (*U1 groups hold real
