@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>X-Ray by Looplet · Model</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#ebe4d4; --paper:#f2ede3; --ink:#1c1812; --muted:#6b6256; --line:#d4cbb8; --navy:#050b14; --cyan:#7fdbff; --roof:#e8b339; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px/1.4 "IBM Plex Sans",sans-serif; }
+    button, select, input { font:inherit; cursor:pointer; }
+    button { border:1px solid var(--line); background:#f7f1e4; color:var(--ink); border-radius:999px; padding:6px 12px; }
+    button[aria-pressed="true"] { background:var(--navy); color:var(--paper); border-color:var(--navy); }
+    header { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); background:#f3ece0; }
+    .brand { display:flex; align-items:center; gap:8px; font-family:"IBM Plex Mono",monospace; letter-spacing:.12em; font-size:11px; }
+    .xr { width:28px; height:28px; border-radius:50%; background:var(--navy); color:var(--paper); display:grid; place-items:center; }
+    nav { display:flex; gap:2px; flex:1; justify-content:center; }
+    nav button { background:none; border:0; border-radius:0; color:var(--muted); }
+    nav button.active { color:var(--ink); box-shadow:inset 0 -2px 0 var(--ink); }
+    .pill-dark { background:var(--navy); color:var(--paper); border-color:var(--navy); }
+    .sub { padding:8px 12px; font-family:"IBM Plex Mono",monospace; letter-spacing:.18em; font-size:10px; color:var(--muted); }
+    .layout { display:grid; grid-template-columns:168px 1fr 260px; height:calc(100% - 86px); }
+    .layout.lifted { grid-template-columns:0 1fr 0; }
+    .layout.lifted .rail, .layout.lifted .intro, .layout.lifted .cards { display:none; }
+    aside { padding:12px; border-right:1px solid var(--line); overflow:auto; }
+    aside.right { border-right:0; border-left:1px solid var(--line); }
+    h2 { font:10px/1 "IBM Plex Mono",monospace; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+    .sheet { display:block; width:100%; text-align:left; border-radius:10px; margin:2px 0; background:transparent; border-color:transparent; }
+    .sheet.active { background:#fff; border-color:var(--line); }
+    .main { padding:12px 16px; min-width:0; display:flex; flex-direction:column; gap:10px; }
+    .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .card { background:#f7f1e4; border-radius:16px; padding:12px 14px; }
+    .card b { display:block; font-size:28px; }
+    .k { font:10px/1 "IBM Plex Mono",monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+    .stage-wrap { flex:1; min-height:280px; position:relative; }
+    .stage { position:relative; height:100%; min-height:320px; border-radius:18px; overflow:hidden; background:var(--navy); color:var(--paper); }
+    .stage.paper { background:var(--paper); color:var(--ink); }
+    canvas { display:block; width:100%; height:100%; }
+    .cbar { position:absolute; left:0; right:0; top:0; z-index:3; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; background:linear-gradient(to bottom,rgba(12,18,32,.82),transparent); font-family:"IBM Plex Mono",monospace; letter-spacing:.12em; font-size:10px; text-transform:uppercase; }
+    .cbar label { color:#9eb0c4; }
+    .cbar select, .cbar input { background:#111827; color:var(--paper); border:0; border-radius:999px; padding:6px 10px; }
+    .colors i { width:14px; height:14px; border-radius:50%; display:block; border:2px solid transparent; }
+    .colors { display:flex; gap:4px; }
+    .colors i.navy { background:#0c1220; } .colors i.paper { background:#f3ead8; } .colors i.on { border-color:#7ec4e8; }
+    .lift { width:28px; height:22px; border-radius:8px; padding:0; background:#1a2434; color:var(--paper); border-color:#314056; }
+    .overlay { position:absolute; left:14px; top:86px; z-index:2; font-family:"IBM Plex Mono",monospace; letter-spacing:.16em; font-size:10px; text-transform:uppercase; color:#9eb0c4; }
+    .note { font-family:"IBM Plex Mono",monospace; font-size:10px; color:#8aa0b8; position:absolute; left:14px; top:58px; }
+    .truth, .ready { background:#f7f1e4; border-radius:12px; padding:10px 12px; color:var(--muted); }
+    footer { grid-column:1/-1; display:flex; gap:14px; padding:6px 12px; border-top:1px solid var(--line); font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="xr">XR</span> X-RAY BY LOOPLET</div>
+    <nav>
+      <button>Overview</button><button>Sheets</button><button>Measure</button>
+      <button>Sketch</button><button>Components</button>
+      <button class="active">Model</button>
+      <button>Review</button><button>Cost</button><button>Proof</button>
+    </nav>
+    <button id="charcoalBtn" aria-pressed="true">Charcoal</button>
+    <button class="pill-dark">Open plan</button>
+  </header>
+  <div class="sub">MODEL PIPELINE · standalone download · the live studio is the full app</div>
+  <div class="layout" id="layout">
+    <aside class="rail">
+      <h2>Project sheets 24</h2>
+      <div id="sheets"></div>
+    </aside>
+    <section class="main">
+      <p class="intro">Buildings first, roofs second. Height never creates quantities.</p>
+      <div class="cards">
+        <div class="card"><div class="k">Qualified plan</div><b>Yes</b></div>
+        <div class="card"><div class="k">Source vectors</div><b>demo</b></div>
+        <div class="card"><div class="k">Manual geometry</div><b>0</b></div>
+        <div class="card"><div class="k">Semantic instances</div><b>0</b></div>
+      </div>
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <div class="cbar">
+            <label>Source sheet</label><select id="sheetSel"></select>
+            <label>Height (m)</label><input id="height" type="number" value="0" style="width:64px" />
+            <button id="btnSrc" aria-pressed="true">Source vectors</button>
+            <button id="btnBld" aria-pressed="true">Building</button>
+            <button id="btnRoof" aria-pressed="true">Roof</button>
+            <button id="btnMan" aria-pressed="false">Manual layer</button>
+            <button id="btnStand" aria-pressed="true">Stand 3D</button>
+            <button id="btnLay">Lay Flat</button>
+            <span style="flex:1"></span>
+            <button id="btnPlan">Plan</button>
+            <button id="btnIso" aria-pressed="true">Isometric</button>
+            <button id="btnFit">Fit</button>
+            <div class="colors"><i class="navy on" data-skin="navy"></i><i class="paper" data-skin="paper"></i></div>
+            <button class="lift" id="lift">⌃</button>
+          </div>
+          <p class="note">Height only raises measured geometry after scale. It never creates quantities.</p>
+          <div class="overlay">3D wireframe · building then roof</div>
+          <canvas id="cv"></canvas>
+        </div>
+      </div>
+      <p class="truth"><b>Truth boundary:</b> native plan paths, not BIM. Buildings first, roofs second.</p>
+    </section>
+    <aside class="rail right">
+      <h2>Model readiness</h2>
+      <div class="ready">Source qualified. Semantic graph not evidenced. No default fence pack.</div>
+    </aside>
+    <footer><span>Sheet 17 / 24</span><span>Evidence-first</span></footer>
+  </div>
+<script>
+const state={src:true,bld:true,roof:true,man:false,pose:"standing",skin:"navy",lifted:false,az:-0.95,el:0.42,dist:1};
+const sheets=Array.from({length:24},(_,i)=>"Sheet "+(i+1));
+const box=document.getElementById("sheets"), sel=document.getElementById("sheetSel");
+sheets.forEach((n,i)=>{const b=document.createElement("button"); b.className="sheet"+(i===16?" active":""); b.textContent=String(i+1).padStart(2,"0")+" "+n; b.onclick=()=>{[...box.children].forEach((el,k)=>el.classList.toggle("active",k===i)); sel.value=i;}; box.appendChild(b); const o=document.createElement("option"); o.value=i; o.textContent=n; if(i===16)o.selected=true; sel.appendChild(o);});
+function house(){const B=[],R=[],D=6.4,H=2.7,W=16,L=(a,p,q)=>a.push([...p,...q]);
+const box3=(a,x0,z0,x1,z1,y0,y1)=>{const p=[[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1],[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]];L(a,p[0],p[1]);L(a,p[1],p[2]);L(a,p[2],p[3]);L(a,p[3],p[0]);L(a,p[4],p[5]);L(a,p[5],p[6]);L(a,p[6],p[7]);L(a,p[7],p[4]);L(a,p[0],p[4]);L(a,p[1],p[5]);L(a,p[2],p[6]);L(a,p[3],p[7]);};
+box3(B,0,0,W,D,0,H); const mid=D/2,ry=4.7; L(R,[0,H,0],[W,H,0]);L(R,[W,H,0],[W,H,D]);L(R,[W,H,D],[0,H,D]);L(R,[0,H,D],[0,H,0]);L(R,[0,ry,mid],[W,ry,mid]);L(R,[0,H,0],[0,ry,mid]);L(R,[0,H,D],[0,ry,mid]);L(R,[W,H,0],[W,ry,mid]);L(R,[W,H,D],[W,ry,mid]); return {B,R};}
+const geom=house(), canvas=document.getElementById("cv"), ctx=canvas.getContext("2d");
+function proj(x,y,z,w,h){const cA=Math.cos(state.az),sA=Math.sin(state.az),cE=Math.cos(state.el),sE=Math.sin(state.el); const x1=x*cA-z*sA,z1=x*sA+z*cA,y1=y*cE-z1*sE,s=(Math.min(w,h)*0.07)/state.dist; return [w/2+x1*s,h*0.7-y1*s];}
+function draw(){const dpr=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth,h=canvas.clientHeight; canvas.width=w*dpr; canvas.height=h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); const navy=state.skin==="navy"; ctx.fillStyle=navy?"#0c1220":"#f3ead8"; ctx.fillRect(0,0,w,h);
+const stroke=(segs,col,wid)=>{ctx.strokeStyle=col; ctx.lineWidth=wid; ctx.beginPath(); for(const s of segs){const a=proj(s[0]-8,state.pose==="laid"?s[1]*0.02:s[1],s[2]-3.2,w,h); const b=proj(s[3]-8,state.pose==="laid"?s[4]*0.02:s[4],s[5]-3.2,w,h); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);} ctx.stroke();};
+if(state.src&&state.bld) stroke(geom.B,navy?"#7ec4e8":"#2c5a48",1.15);
+if(state.src&&state.roof) stroke(geom.R,"#e8b339",1.35);}
+function sync(){document.getElementById("stage").classList.toggle("paper",state.skin==="paper"); document.getElementById("layout").classList.toggle("lifted",state.lifted); document.querySelector(".colors .navy").classList.toggle("on",state.skin==="navy"); document.querySelector(".colors .paper").classList.toggle("on",state.skin==="paper"); draw();}
+["btnSrc","btnBld","btnRoof","btnMan"].forEach(id=>{document.getElementById(id).onclick=()=>{const k=id.slice(3).toLowerCase(); state[id==="btnSrc"?"src":id==="btnBld"?"bld":id==="btnRoof"?"roof":"man"]=!state[id==="btnSrc"?"src":id==="btnBld"?"bld":id==="btnRoof"?"roof":"man"]; document.getElementById(id).setAttribute("aria-pressed",state[id==="btnSrc"?"src":id==="btnBld"?"bld":id==="btnRoof"?"roof":"man"]); sync();};});
+document.getElementById("btnStand").onclick=()=>{state.pose="standing"; state.az=-0.95; state.el=0.42; sync();};
+document.getElementById("btnLay").onclick=()=>{state.pose="laid"; state.el=0.9; sync();};
+document.getElementById("btnPlan").onclick=()=>{state.az=-0.2; state.el=1.22; sync();};
+document.getElementById("btnIso").onclick=()=>{state.az=-0.95; state.el=0.42; sync();};
+document.getElementById("btnFit").onclick=()=>{state.dist=1; sync();};
+document.getElementById("charcoalBtn").onclick=()=>{state.skin=state.skin==="navy"?"paper":"navy"; sync();};
+document.querySelectorAll(".colors i").forEach(el=>el.onclick=()=>{state.skin=el.dataset.skin; sync();});
+document.getElementById("lift").onclick=()=>{state.lifted=!state.lifted; sync();};
+let drag=null; canvas.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,az:state.az,el:state.el};};
+canvas.onpointermove=e=>{if(!drag)return; state.az=drag.az+(e.clientX-drag.x)*0.008; state.el=Math.max(-0.15,Math.min(1.3,drag.el-(e.clientY-drag.y)*0.006)); draw();};
+canvas.onpointerup=()=>drag=null; canvas.onwheel=e=>{e.preventDefault(); state.dist=Math.max(0.4,Math.min(3,state.dist*(e.deltaY>0?1.08:0.92))); draw();};
+addEventListener("resize",draw); sync();
+</script>
+</body>
+</html>
