@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, Magnet } from "lucide-react";
-import { HOUSE, PAL, PLAN, SHEETS, type Seg } from "./geometry";
+import { HOUSE, PAL, PLAN, SHEETS, type Seg, type SheetKind } from "./geometry";
 import { useStudio } from "./store";
 import { mountWireframe, type Elem } from "./wireframeGl";
 import { getSnapPoint, type SnapTarget } from "./snapping";
@@ -8,6 +8,8 @@ import { computeFaces } from "./faces";
 import { buildElevationStack } from "./elevationStack";
 import { buildWtcGeometry } from "./wtcModel";
 import { buildFencingGeometry } from "./fencingModel";
+import type { CalibrationPoint } from "./calibration";
+import type { FenceRun } from "./domain";
 
 export function IsoCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -184,14 +186,210 @@ export function IsoCanvas() {
   );
 }
 
-export function PlanCanvas({ interactive }: { interactive: boolean }) {
+export type PlanCanvasViewport = {
+  width: number;
+  height: number;
+  zoom: number;
+  pan: CalibrationPoint;
+  kind: SheetKind;
+  floors: number;
+};
+
+export type PlanCanvasProps = {
+  interactive: boolean;
+  sourceMode?: "procedural" | "overlay";
+  calibrationCaptureActive?: boolean;
+  calibrationPoints?: readonly CalibrationPoint[];
+  onCalibrationPoint?: (point: CalibrationPoint) => void;
+  selectedRunId?: string | null;
+  selectedVertexIndex?: number | null;
+  onSelectRun?: (runId: string | null) => void;
+  onSelectVertex?: (runId: string, vertexIndex: number) => void;
+  onMoveVertex?: (runId: string, vertexIndex: number, point: CalibrationPoint) => void;
+};
+
+function getPlanCanvasGeometry(viewport: PlanCanvasViewport) {
+  const centerX = viewport.width / 2;
+  const centerY = viewport.height / 2;
+  const totalHeight = viewport.kind === "elev" ? viewport.floors * 2.8 + 2 : 7.2;
+  const padding = 48;
+  const scale = Math.min(
+    (viewport.width - padding * 2) / 18,
+    (viewport.height - padding * 2) / totalHeight,
+  );
+  return {
+    centerX,
+    centerY,
+    totalHeight,
+    scale,
+    offsetX: (viewport.width - 18 * scale) / 2,
+    offsetY: (viewport.height - totalHeight * scale) / 2,
+  };
+}
+
+/** Maps a pointer position in the rendered canvas to the document coordinates used by tracing. */
+export function canvasPointToDocumentPoint(
+  point: CalibrationPoint,
+  viewport: PlanCanvasViewport,
+): CalibrationPoint {
+  const geometry = getPlanCanvasGeometry(viewport);
+  const untransformedX = geometry.centerX
+    + (point.x - geometry.centerX - viewport.pan.x) / viewport.zoom;
+  const untransformedY = geometry.centerY
+    + (point.y - geometry.centerY - viewport.pan.y) / viewport.zoom;
+
+  return {
+    x: (untransformedX - geometry.offsetX) / geometry.scale,
+    y: viewport.kind === "elev"
+      ? geometry.totalHeight - (untransformedY - geometry.offsetY) / geometry.scale
+      : (untransformedY - geometry.offsetY) / geometry.scale,
+  };
+}
+
+/** Inverse of canvasPointToDocumentPoint, including the current zoom and pan. */
+export function documentPointToCanvasPoint(
+  point: CalibrationPoint,
+  viewport: PlanCanvasViewport,
+): CalibrationPoint {
+  const geometry = getPlanCanvasGeometry(viewport);
+  const untransformedX = geometry.offsetX + point.x * geometry.scale;
+  const untransformedY = viewport.kind === "elev"
+    ? geometry.offsetY + (geometry.totalHeight - point.y) * geometry.scale
+    : geometry.offsetY + point.y * geometry.scale;
+
+  return {
+    x: geometry.centerX + viewport.pan.x
+      + (untransformedX - geometry.centerX) * viewport.zoom,
+    y: geometry.centerY + viewport.pan.y
+      + (untransformedY - geometry.centerY) * viewport.zoom,
+  };
+}
+
+export function resolvePlanCanvasPointerMode(input: {
+  calibrationCaptureActive: boolean;
+  interactive: boolean;
+  button: number;
+  shiftKey: boolean;
+  toolActive: boolean;
+}): "calibration" | "pan" | "trace" {
+  if (input.calibrationCaptureActive) return "calibration";
+  if (!input.interactive || input.button === 2 || input.button === 1 || input.shiftKey || !input.toolActive) {
+    return "pan";
+  }
+  return "trace";
+}
+
+export type RunPathHit = {
+  runId: string;
+  segmentIndex: number;
+  distancePx: number;
+};
+
+export type RunVertexHit = {
+  runId: string;
+  vertexIndex: number;
+  distancePx: number;
+};
+
+function distanceToSegment(
+  point: CalibrationPoint,
+  start: CalibrationPoint,
+  end: CalibrationPoint,
+): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(0, Math.min(1,
+    ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy),
+  ));
+  return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
+}
+
+/** Hit-tests the closest visible segment using a screen-pixel tolerance. */
+export function hitTestFenceRuns(
+  canvasPoint: CalibrationPoint,
+  runs: readonly Pick<FenceRun, "id" | "points">[],
+  viewport: PlanCanvasViewport,
+  tolerancePx = 10,
+): RunPathHit | null {
+  let closest: RunPathHit | null = null;
+  for (const run of runs) {
+    for (let segmentIndex = 0; segmentIndex < run.points.length - 1; segmentIndex += 1) {
+      const start = documentPointToCanvasPoint(run.points[segmentIndex], viewport);
+      const end = documentPointToCanvasPoint(run.points[segmentIndex + 1], viewport);
+      const distancePx = distanceToSegment(canvasPoint, start, end);
+      if (distancePx <= tolerancePx && (!closest || distancePx < closest.distancePx)) {
+        closest = { runId: run.id, segmentIndex, distancePx };
+      }
+    }
+  }
+  return closest;
+}
+
+/** Hit-tests the closest vertex handle on a selected run. */
+export function hitTestRunVertices(
+  canvasPoint: CalibrationPoint,
+  run: Pick<FenceRun, "id" | "points">,
+  viewport: PlanCanvasViewport,
+  tolerancePx = 12,
+): RunVertexHit | null {
+  let closest: RunVertexHit | null = null;
+  run.points.forEach((point, vertexIndex) => {
+    const rendered = documentPointToCanvasPoint(point, viewport);
+    const distancePx = Math.hypot(canvasPoint.x - rendered.x, canvasPoint.y - rendered.y);
+    if (distancePx <= tolerancePx && (!closest || distancePx < closest.distancePx)) {
+      closest = { runId: run.id, vertexIndex, distancePx };
+    }
+  });
+  return closest;
+}
+
+export function resolveTracingCanvasPointerMode(input: {
+  calibrationCaptureActive: boolean;
+  interactive: boolean;
+  button: number;
+  shiftKey: boolean;
+  toolActive: boolean;
+  vertexHit: boolean;
+  runHit: boolean;
+  vertexEditingEnabled: boolean;
+  runSelectionEnabled: boolean;
+}): "calibration" | "move-vertex" | "select-run" | "pan" | "trace" {
+  if (input.calibrationCaptureActive) return "calibration";
+  if (!input.interactive || input.button === 2 || input.button === 1 || input.shiftKey) return "pan";
+  if (input.vertexEditingEnabled && input.vertexHit) return "move-vertex";
+  if (input.runSelectionEnabled && input.runHit) return "select-run";
+  return input.toolActive ? "trace" : "pan";
+}
+
+export function PlanCanvas({
+  interactive,
+  sourceMode = "procedural",
+  calibrationCaptureActive = false,
+  calibrationPoints = [],
+  onCalibrationPoint,
+  selectedRunId = null,
+  selectedVertexIndex = null,
+  onSelectRun,
+  onSelectVertex,
+  onMoveVertex,
+}: PlanCanvasProps) {
   const ref = useRef<HTMLCanvasElement>(null);
   const s = useStudio();
   const zoom = s.zoom2d;
   const pan = s.pan2d;
+  const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId);
+  const pageCount = activeDocument?.pageCount ?? 1;
+  const currentRuns = s.job.runs.filter((run) => run.sheet === s.sheet);
+  const currentGates = s.job.gates.filter((gate) => gate.sheet === s.sheet);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverSnap, setHoverSnap] = useState<SnapTarget | null>(null);
-  const drag = useRef<{ x: number; y: number; dragging: boolean } | null>(null);
+  const drag = useRef<
+    | { kind: "pan"; x: number; y: number }
+    | { kind: "vertex"; runId: string; vertexIndex: number }
+    | null
+  >(null);
+  const lastPointerMode = useRef<ReturnType<typeof resolveTracingCanvasPointerMode> | null>(null);
 
   const zoomCenter = (factor: number) => {
     const oldZoom = s.zoom2d;
@@ -217,36 +415,11 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
   function toWorld(e: PointerEvent<HTMLCanvasElement>) {
     const canvas = ref.current!;
     const r = canvas.getBoundingClientRect();
-    const sx = e.clientX - r.left;
-    const sy = e.clientY - r.top;
-    
-    const w = r.width;
-    const h = r.height;
-    const cx = w / 2;
-    const cy = h / 2;
-    const pad = 48;
     const kind = SHEETS[s.sheet]?.kind ?? "elev";
-    const totalH = kind === "elev" ? (s.floors * 2.8 + 2.0) : 7.2;
-    const sx_factor = (w - pad * 2) / 18;
-    const sy_factor = (h - pad * 2) / totalH;
-    const sc = Math.min(sx_factor, sy_factor);
-    const ox = (w - 18 * sc) / 2;
-    const oy = (h - totalH * sc) / 2;
-
-    const cx_orig = cx + (sx - cx - pan.x) / zoom;
-    const cy_orig = cy + (sy - cy - pan.y) / zoom;
-
-    if (kind === "elev") {
-      return {
-        x: (cx_orig - ox) / sc,
-        y: totalH - (cy_orig - oy) / sc
-      };
-    } else {
-      return {
-        x: (cx_orig - ox) / sc,
-        y: (cy_orig - oy) / sc
-      };
-    }
+    return canvasPointToDocumentPoint(
+      { x: e.clientX - r.left, y: e.clientY - r.top },
+      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors },
+    );
   }
 
   useEffect(() => {
@@ -292,8 +465,11 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const navy = s.skin === "navy";
-      ctx.fillStyle = navy ? PAL.navy : PAL.paper;
-      ctx.fillRect(0, 0, w, h);
+      ctx.clearRect(0, 0, w, h);
+      if (sourceMode === "procedural") {
+        ctx.fillStyle = navy ? PAL.navy : PAL.paper;
+        ctx.fillRect(0, 0, w, h);
+      }
 
       // Apply zoom & pan transformations
       const cx = w / 2;
@@ -320,7 +496,7 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
         }
       };
 
-      if (s.showSrc) {
+      if (s.showSrc && sourceMode === "procedural") {
         if (s.showBld) {
           ctx.strokeStyle = navy ? PAL.cyan : PAL.planInk;
           ctx.lineWidth = 1.6 / zoom;
@@ -417,7 +593,7 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
         ctx.fillText("SCALE: 1:100 @ A1 · TRUE VECTORS", tb0[0] + 6 / zoom, tb0[1] + 36 / zoom);
       }
 
-      if (s.showBld) {
+      if (s.showBld && sourceMode === "procedural") {
         if (kind === "elev") {
           ctx.strokeStyle = navy ? PAL.cyan : PAL.planInk;
           ctx.lineWidth = 1.2 / zoom;
@@ -457,6 +633,7 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
         ctx.lineWidth = 1.2 / zoom;
         for (const m of s.markups) {
           if (m.sheet !== s.sheet) continue;
+          if (currentRuns.some((run) => run.id === m.id)) continue;
           if (m.points.length === 0) continue;
           ctx.beginPath();
           m.points.forEach((p, i) => {
@@ -473,6 +650,82 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
             ctx.fill();
           }
         }
+
+        for (const run of currentRuns) {
+          if (run.points.length < 2) continue;
+          const selected = run.id === selectedRunId;
+          ctx.save();
+          ctx.strokeStyle = selected ? "#ffb000" : navy ? PAL.cyan : PAL.planInk;
+          ctx.lineWidth = (selected ? 4 : 2.5) / zoom;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          run.points.forEach((point, index) => {
+            const rendered = to(point.x, point.y);
+            if (index === 0) ctx.moveTo(rendered[0], rendered[1]);
+            else ctx.lineTo(rendered[0], rendered[1]);
+          });
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        for (const gate of currentGates) {
+          const rendered = to(gate.point.x, gate.point.y);
+          const associatedRun = gate.runId
+            ? currentRuns.find((run) => run.id === gate.runId)
+            : undefined;
+          let segmentIndex = gate.segmentIndex ?? null;
+          if (associatedRun && (segmentIndex === null || segmentIndex >= associatedRun.points.length - 1)) {
+            let closestDistance = Number.POSITIVE_INFINITY;
+            associatedRun.points.slice(0, -1).forEach((point, index) => {
+              const distance = distanceToSegment(gate.point, point, associatedRun.points[index + 1]);
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                segmentIndex = index;
+              }
+            });
+          }
+
+          ctx.save();
+          const markerSize = 9 / zoom;
+          ctx.strokeStyle = gate.runId === selectedRunId ? "#ffb000" : "#ff4f87";
+          ctx.fillStyle = navy ? PAL.navy : "#ffffff";
+          ctx.lineWidth = 3 / zoom;
+          if (associatedRun && segmentIndex !== null) {
+            const start = to(associatedRun.points[segmentIndex].x, associatedRun.points[segmentIndex].y);
+            const end = to(associatedRun.points[segmentIndex + 1].x, associatedRun.points[segmentIndex + 1].y);
+            const length = Math.hypot(end[0] - start[0], end[1] - start[1]) || 1;
+            const normalX = -(end[1] - start[1]) / length;
+            const normalY = (end[0] - start[0]) / length;
+            ctx.beginPath();
+            ctx.moveTo(rendered[0] - normalX * markerSize, rendered[1] - normalY * markerSize);
+            ctx.lineTo(rendered[0] + normalX * markerSize, rendered[1] + normalY * markerSize);
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.arc(rendered[0], rendered[1], 5 / zoom, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
+        if (selectedRun) {
+          selectedRun.points.forEach((point, vertexIndex) => {
+            const rendered = to(point.x, point.y);
+            const selected = vertexIndex === selectedVertexIndex;
+            ctx.save();
+            ctx.fillStyle = selected ? "#ff4f87" : "#ffffff";
+            ctx.strokeStyle = "#ffb000";
+            ctx.lineWidth = 2.5 / zoom;
+            ctx.beginPath();
+            ctx.arc(rendered[0], rendered[1], (selected ? 7 : 5.5) / zoom, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          });
+        }
+
         if (s.pending.length) {
           ctx.strokeStyle = PAL.manual;
           ctx.lineWidth = 1.2 / zoom;
@@ -489,7 +742,7 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
       }
 
       // Rubber-band preview line for active measurement/sketching tools
-      if (interactive && s.tool !== "none" && s.pending.length > 0 && hoverSnap) {
+      if (!calibrationCaptureActive && interactive && s.tool !== "none" && s.pending.length > 0 && hoverSnap) {
         const lastPt = s.pending[s.pending.length - 1];
         const qLast = to(lastPt.x, lastPt.y);
         const qHover = to(hoverSnap.point.x, hoverSnap.point.y);
@@ -520,7 +773,7 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
       }
 
       // Snapping visual indicator
-      if (hoverSnap && hoverSnap.snapped && s.snappingEnabled && s.tool !== "none") {
+      if (!calibrationCaptureActive && hoverSnap && hoverSnap.snapped && s.snappingEnabled && s.tool !== "none") {
         const sp = to(hoverSnap.point.x, hoverSnap.point.y);
         ctx.save();
         ctx.strokeStyle = "#ff007f";
@@ -555,6 +808,38 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
         );
         ctx.restore();
       }
+
+      if (calibrationPoints.length > 0) {
+        const visiblePoints = calibrationPoints.slice(0, 2).map((point) => to(point.x, point.y));
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        if (visiblePoints.length === 2) {
+          ctx.strokeStyle = "#ffb000";
+          ctx.lineWidth = 3 / zoom;
+          ctx.setLineDash([8 / zoom, 5 / zoom]);
+          ctx.beginPath();
+          ctx.moveTo(visiblePoints[0][0], visiblePoints[0][1]);
+          ctx.lineTo(visiblePoints[1][0], visiblePoints[1][1]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        visiblePoints.forEach(([x, y], index) => {
+          ctx.fillStyle = "#ffb000";
+          ctx.strokeStyle = navy ? PAL.navy : "#ffffff";
+          ctx.lineWidth = 2 / zoom;
+          ctx.beginPath();
+          ctx.arc(x, y, 7 / zoom, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = navy ? PAL.navy : "#3a2500";
+          ctx.font = `bold ${10 / zoom}px monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(index + 1), x, y + 0.5 / zoom);
+        });
+        ctx.restore();
+      }
     };
 
     draw();
@@ -568,6 +853,8 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
   }, [
     s.skin,
     s.markups,
+    s.job.runs,
+    s.job.gates,
     s.pending,
     s.sheet,
     s.showSrc,
@@ -578,61 +865,102 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
     s.tool,
     s.scaleM,
     interactive,
+    sourceMode,
+    calibrationCaptureActive,
+    calibrationPoints,
+    selectedRunId,
+    selectedVertexIndex,
     hoverSnap,
     zoom,
     pan,
     s.floors,
   ]);
 
-  useEffect(() => {
-    if (!interactive) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "s" || e.key === "S") {
-        if (
-          document.activeElement?.tagName === "INPUT" ||
-          document.activeElement?.tagName === "TEXTAREA"
-        ) {
-          return;
-        }
-        s.toggleSnapping();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [interactive, s]);
-
   return (
     <div className="relative h-full w-full select-none">
       <canvas
         ref={ref}
+        aria-label={calibrationCaptureActive ? "Select calibration points on plan" : "Plan drawing canvas"}
         className={`block h-full w-full touch-none ${
-          !interactive || s.tool === "none"
+          calibrationCaptureActive
+            ? "cursor-crosshair"
+            : !interactive || s.tool === "none"
             ? isDragging
               ? "cursor-grabbing"
               : "cursor-grab"
             : "cursor-crosshair"
         }`}
         onPointerDown={(e) => {
-          const isPan = !interactive || e.button === 2 || e.button === 1 || e.shiftKey || s.tool === "none";
-          if (isPan) {
-            drag.current = { x: e.clientX, y: e.clientY, dragging: true };
+          const canvas = ref.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          const canvasPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+          const viewport: PlanCanvasViewport = {
+            width: rect.width,
+            height: rect.height,
+            zoom,
+            pan,
+            kind: SHEETS[s.sheet]?.kind ?? "elev",
+            floors: s.floors,
+          };
+          const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
+          const vertexHit = selectedRun && onMoveVertex
+            ? hitTestRunVertices(canvasPoint, selectedRun, viewport)
+            : null;
+          const runHit = onSelectRun
+            ? hitTestFenceRuns(canvasPoint, currentRuns, viewport)
+            : null;
+          const mode = resolveTracingCanvasPointerMode({
+            calibrationCaptureActive,
+            interactive,
+            button: e.button,
+            shiftKey: e.shiftKey,
+            toolActive: s.tool !== "none",
+            vertexHit: Boolean(vertexHit),
+            runHit: Boolean(runHit),
+            vertexEditingEnabled: Boolean(onMoveVertex),
+            runSelectionEnabled: Boolean(onSelectRun),
+          });
+          lastPointerMode.current = mode;
+          if (mode === "calibration") {
+            if (hoverSnap) setHoverSnap(null);
+            onCalibrationPoint?.(toWorld(e));
+            e.preventDefault();
+          } else if (mode === "move-vertex" && vertexHit) {
+            if (hoverSnap) setHoverSnap(null);
+            onSelectRun?.(vertexHit.runId);
+            onSelectVertex?.(vertexHit.runId, vertexHit.vertexIndex);
+            drag.current = {
+              kind: "vertex",
+              runId: vertexHit.runId,
+              vertexIndex: vertexHit.vertexIndex,
+            };
+            e.currentTarget.setPointerCapture(e.pointerId);
+            e.preventDefault();
+          } else if (mode === "select-run" && runHit) {
+            if (hoverSnap) setHoverSnap(null);
+            onSelectRun?.(runHit.runId);
+            e.preventDefault();
+          } else if (mode === "pan") {
+            drag.current = { kind: "pan", x: e.clientX, y: e.clientY };
             setIsDragging(true);
-            (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+            e.currentTarget.setPointerCapture(e.pointerId);
             e.preventDefault();
           } else {
-            if (interactive) {
-              const st = useStudio.getState();
-              if (st.tool !== "none") {
-                const targetPoint = hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : toWorld(e);
-                st.addPoint(targetPoint);
-              }
+            const st = useStudio.getState();
+            if (st.tool !== "none") {
+              const targetPoint = hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : toWorld(e);
+              st.addPoint(targetPoint);
             }
           }
         }}
         onPointerMove={(e) => {
-          if (drag.current && drag.current.dragging) {
+          if (calibrationCaptureActive) {
+            if (hoverSnap) setHoverSnap(null);
+          } else if (drag.current?.kind === "vertex") {
+            onMoveVertex?.(drag.current.runId, drag.current.vertexIndex, toWorld(e));
+            e.preventDefault();
+          } else if (drag.current?.kind === "pan") {
             const dx = e.clientX - drag.current.x;
             const dy = e.clientY - drag.current.y;
             s.setPan2d({ x: s.pan2d.x + dx, y: s.pan2d.y + dy });
@@ -661,14 +989,18 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
         }}
         onPointerUp={(e) => {
           if (drag.current) {
-            (e.target as HTMLCanvasElement).releasePointerCapture(e.pointerId);
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }
             drag.current = null;
             setIsDragging(false);
           }
         }}
         onPointerCancel={(e) => {
           if (drag.current) {
-            (e.target as HTMLCanvasElement).releasePointerCapture(e.pointerId);
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }
             drag.current = null;
             setIsDragging(false);
           }
@@ -677,12 +1009,14 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
           e.preventDefault();
         }}
         onDoubleClick={() => {
-          if (interactive) useStudio.getState().commitPending();
+          if (interactive && !calibrationCaptureActive && lastPointerMode.current === "trace") {
+            useStudio.getState().commitPending();
+          }
         }}
       />
 
       {/* Centered Floating Premium PDF-style Toolbar Overlay */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-navy/95 text-paper border border-white/10 backdrop-blur-md rounded-full shadow-xl px-4 py-1.5 pointer-events-auto select-none z-10 font-mono text-[11px]">
+      <div className="canvas-toolbar absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-navy/95 text-paper border border-white/10 backdrop-blur-md rounded-full shadow-xl px-4 py-1.5 pointer-events-auto select-none z-10 font-mono text-[11px]">
         {/* Page navigation */}
         <button
           onClick={() => s.setSheet(Math.max(0, s.sheet - 1))}
@@ -694,11 +1028,11 @@ export function PlanCanvas({ interactive }: { interactive: boolean }) {
           <ChevronLeft className="size-4" />
         </button>
         <span className="flex items-center justify-center min-w-[76px] text-white/90 text-center font-semibold px-1 select-none">
-          Page {s.sheet + 1} / 24
+          Page {s.sheet + 1} / {pageCount}
         </span>
         <button
-          onClick={() => s.setSheet(Math.min(23, s.sheet + 1))}
-          disabled={s.sheet === 23}
+          onClick={() => s.setSheet(Math.min(pageCount - 1, s.sheet + 1))}
+          disabled={s.sheet >= pageCount - 1}
           type="button"
           className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent text-white transition-all cursor-pointer"
           title="Next Page"

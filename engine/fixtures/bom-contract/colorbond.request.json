@@ -1,0 +1,43 @@
+{
+  "schema": "xray.job-to-bom/v1", "requestId": "golden-colorbond", "inputDigest": "eef1ef41e211bd2efa36205bbb496eadf57e944f63250a14cafa434dbeeee164",
+  "job": { "id": "job-colorbond", "revision": 12 },
+  "document": { "id": "doc-colorbond", "name": "colorbond.svg", "kind": "svg", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+  "verifiedAssets": [{ "kind": "document", "id": "doc-colorbond", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }],
+  "calibrations": [{ "id": "calibration-sheet-0", "sheet": 0, "candidateId": "manual-0", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "metresPerUnit": "1" }],
+  "runs": [{
+    "id": "run-boundary", "revision": 5, "sheet": 0, "label": "Boundary", "recipeId": "recipe-colorbond-good-neighbour", "segments": [{ "index": 0, "lengthMm": 10000 }],
+    "vertices": [{ "index": 0, "topologyNodeId": "sheet:0:x:0:y:0", "cornerTreatment": "end", "postOverride": null }, { "index": 1, "topologyNodeId": "sheet:0:x:10:y:0", "cornerTreatment": "end", "postOverride": null }],
+    "storedLengths": { "grossMm": 10000, "gateDeductionMm": 2000, "netMm": 8000 },
+    "specification": { "system": "colorbond", "customSystem": "", "profile": "Good Neighbour", "heightMm": 1800, "bayWidthMm": 2400, "ground": "soil", "slope": "level", "removalRequired": false, "removalMaterial": "", "removalLengthMm": null, "disposalRequired": false, "access": "clear", "sleepers": "none", "retainingRequired": false, "retainingType": "none", "retainingHeightMm": null, "retainingCondition": "", "notes": "" },
+    "photoIds": [], "approval": { "status": "approved", "entityRevision": 5, "decidedAt": "2026-09-04T00:00:00.000Z", "decidedBy": "Estimator", "note": "Checked" }
+  }],
+  "gates": [{ "id": "gate-double", "revision": 3, "sheet": 0, "label": "Double gate", "runId": "run-boundary", "segmentIndex": 0, "centreOffsetMm": 4000, "widthMm": 2000, "heightMm": 1800, "type": "double", "customType": "", "openingDirection": "inward", "hingeSide": "double", "hardware": "Scheduled hardware set", "latch": "Centre latch", "postSize": "100 x 100", "finish": "Monument", "clearanceMm": 50, "motorised": false, "hardwareModelId": "gate-model-double-2000", "leafCount": 2, "boundaryPostCount": 2, "hingeSetCount": 2, "latchCount": 1, "dropBoltCount": 1, "photoIds": [], "approval": { "status": "approved", "entityRevision": 3, "decidedAt": "2026-09-04T00:00:00.000Z", "decidedBy": "Estimator", "note": "Checked" } }],
+  "evidence": [{ "kind": "document", "id": "doc-colorbond", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, { "kind": "calibration", "id": "calibration-sheet-0", "sheet": 0, "candidateId": "manual-0", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "metresPerUnit": "1" }],
+  "recipeSet": { "id": "recipes-colorbond", "revision": 2, "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "recipes": [{
+    "id": "recipe-colorbond-good-neighbour", "revision": 2, "system": "colorbond", "profile": "Good Neighbour", "maxBayWidthMm": 2400, "postSpacingMm": 2400,
+    "materialModel": { "kind": "colorbond", "effectiveSheetCoverMm": 762, "railRows": 2, "gateBoundaryPostRole": "gate", "assumptionIds": ["a-cover", "a-rails"] },
+    "footings": [{ "postRole": "ordinary", "diameterMm": 250, "depthMm": 600, "assumptionIds": ["a-footing"] }, { "postRole": "end", "diameterMm": 250, "depthMm": 600, "assumptionIds": ["a-footing"] }, { "postRole": "gate", "diameterMm": 300, "depthMm": 800, "assumptionIds": ["a-footing"] }],
+    "allowances": [], "gateHardwareModels": [{ "id": "gate-model-double-2000", "gateType": "double", "widthMm": 2000, "leafCount": 2, "boundaryPostCount": 2, "hingeSetCount": 2, "latchCount": 1, "dropBoltCount": 1, "assumptionIds": ["a-gate"] }],
+    "supportedSlopes": ["level"], "supportedGround": ["soil"], "supportedGateTypes": ["double"], "supportedRetainingTypes": ["none"], "supportsSleepers": false,
+    "assumptions": [
+      { "id": "a-spacing", "key": "post-spacing-mm", "label": "Maximum post spacing", "value": "2400", "unit": "mm", "source": "Approved recipe", "effectiveAt": "2026-09-04T00:00:00.000Z", "status": "accepted", "acceptedBy": "Estimator", "acceptedAt": "2026-09-04T00:00:00.000Z" },
+      { "id": "a-cover", "key": "effective-sheet-cover-mm", "label": "Effective sheet cover", "value": "762", "unit": "mm", "source": "Manufacturer profile", "effectiveAt": "2026-09-04T00:00:00.000Z", "status": "accepted", "acceptedBy": "Estimator", "acceptedAt": "2026-09-04T00:00:00.000Z" },
+      { "id": "a-rails", "key": "rail-rows", "label": "Rail rows", "value": "2", "unit": "ea", "source": "Manufacturer profile", "effectiveAt": "2026-09-04T00:00:00.000Z", "status": "accepted", "acceptedBy": "Estimator", "acceptedAt": "2026-09-04T00:00:00.000Z" },
+      { "id": "a-footing", "key": "role-footing-dimensions", "label": "Role-specific footing dimensions", "value": "1", "unit": "ratio", "source": "Engineer schedule", "effectiveAt": "2026-09-04T00:00:00.000Z", "status": "accepted", "acceptedBy": "Estimator", "acceptedAt": "2026-09-04T00:00:00.000Z" },
+      { "id": "a-gate", "key": "double-gate-components", "label": "Double gate component set", "value": "1", "unit": "ratio", "source": "Gate schedule", "effectiveAt": "2026-09-04T00:00:00.000Z", "status": "accepted", "acceptedBy": "Estimator", "acceptedAt": "2026-09-04T00:00:00.000Z" }
+    ],
+    "components": [
+      { "id": "cb-post-ordinary", "itemCode": "CB-POST-ORD", "description": "Ordinary Colorbond post", "unit": "ea", "basis": "per-ordinary-post", "factor": "1", "assumptionIds": ["a-spacing"] },
+      { "id": "cb-post-end", "itemCode": "CB-POST-END", "description": "End Colorbond post", "unit": "ea", "basis": "per-end-post", "factor": "1", "assumptionIds": ["a-spacing"] },
+      { "id": "cb-post-gate", "itemCode": "CB-POST-GATE", "description": "Gate boundary post", "unit": "ea", "basis": "per-gate-post", "factor": "1", "assumptionIds": ["a-gate"] },
+      { "id": "cb-sheet", "itemCode": "CB-SHEET", "description": "Colorbond infill sheet", "unit": "ea", "basis": "per-infill-sheet", "factor": "1", "assumptionIds": ["a-cover"] },
+      { "id": "cb-rail-cut", "itemCode": "CB-RAIL-CUT", "description": "Colorbond rail cut", "unit": "ea", "basis": "rail-cuts", "factor": "1", "assumptionIds": ["a-rails"] },
+      { "id": "cb-rail-lm", "itemCode": "CB-RAIL-LM", "description": "Colorbond rail material", "unit": "lm", "basis": "rail-lm", "factor": "1", "assumptionIds": ["a-rails"] },
+      { "id": "gate-opening", "itemCode": "GATE-OPENING", "description": "Double gate opening", "unit": "ea", "basis": "per-gate-opening", "factor": "1", "assumptionIds": ["a-gate"] },
+      { "id": "gate-leaf", "itemCode": "GATE-LEAF", "description": "Gate leaf", "unit": "ea", "basis": "per-gate-leaf", "factor": "1", "assumptionIds": ["a-gate"] },
+      { "id": "gate-hinge", "itemCode": "GATE-HINGE-SET", "description": "Gate hinge set", "unit": "ea", "basis": "per-hinge-set", "factor": "1", "assumptionIds": ["a-gate"] },
+      { "id": "gate-latch", "itemCode": "GATE-LATCH", "description": "Gate latch", "unit": "ea", "basis": "per-latch", "factor": "1", "assumptionIds": ["a-gate"] },
+      { "id": "gate-drop", "itemCode": "GATE-DROP-BOLT", "description": "Gate drop bolt", "unit": "ea", "basis": "per-drop-bolt", "factor": "1", "assumptionIds": ["a-gate"] }
+    ]
+  }] }
+}

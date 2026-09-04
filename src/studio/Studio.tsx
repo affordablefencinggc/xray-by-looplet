@@ -1,14 +1,27 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronUp, Download, Network } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Check, ChevronUp, Download } from "lucide-react";
 import { HOUSE, SHEETS } from "./geometry";
 import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
-import { pickAndRunTakeoff } from "./engine";
+import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
 import { useStudio, type Pane } from "./store";
-import { buildLoopletQuoteLines, pushToLoopletCrm } from "./crmBridge";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 import { RenderStudio } from "./RenderStudio";
-import { WTC_STATS } from "./wtcModel";
-import { FENCING_BOM, FENCING_TOTAL } from "./fencingModel";
+import { CalibrationPanel } from "./CalibrationPanel";
+import { DocumentPreview } from "./DocumentPreview";
+import { PhotoEvidencePanel } from "./PhotoEvidencePanel";
+import { SpecificationPanel } from "./SpecificationPanel";
+import { TraceEditorPanel, type TraceEditMode, type TraceMergeEndpoint } from "./TraceEditorPanel";
+import { getQuoteReadiness } from "./quoteReadiness";
+import type { CalibrationInputUnit } from "./calibration";
+import type { GateRecord } from "./domain";
+import type { EditableFenceRun, PlacedGate } from "./tracing";
+import { BomPanel, type BomEvidenceRef, type BomTransportStatus } from "./BomPanel";
+import { compileBomRequest } from "./bomCompiler";
+import type { BomIssue, BomRecipeSet } from "./bomContract";
+import { acceptRecipeAssumption, createCandidateFencingRecipeSet, reopenRecipeAssumption } from "./fencingRecipes";
+import { createTauriBomAdapter } from "./bomTauriAdapter";
+import { runBomTransport, sameBomSourceBinding } from "./bomTransport";
+import { loadFencingRecipeSet, saveFencingRecipeSet } from "./fencingRecipePersistence";
 
 const PANES: { id: Pane; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -25,7 +38,17 @@ const PANES: { id: Pane; label: string }[] = [
 
 export function Studio() {
   const s = useStudio();
-  const sheet = SHEETS[s.sheet];
+  const activePaneTabRef = useRef<HTMLButtonElement>(null);
+  const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
+  const pageCount = activeDocument?.pageCount ?? 1;
+
+  useEffect(() => {
+    void useStudio.getState().hydratePersistence();
+  }, []);
+
+  useEffect(() => {
+    activePaneTabRef.current?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [s.pane]);
 
   // Global keyboard shortcuts for tool switching and navigation
   useEffect(() => {
@@ -53,39 +76,31 @@ export function Studio() {
 
   async function openPlan() {
     try {
-      const r = await pickAndRunTakeoff();
-      if (r.name) s.setPlan(r.name, r.takeoff, r.note);
+      const imported = await pickAndImportPlan();
+      await s.importPlan(imported);
     } catch (err) {
-      s.setPlan(s.planName ?? "open failed", null, err instanceof Error ? err.message : String(err));
+      if (err instanceof PlanImportCancelledError) return;
+      useStudio.setState({
+        documentError: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-bg text-ink">
-      <header className="flex items-center gap-2.5 border-b border-line bg-header px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2 font-mono text-[11px] tracking-[0.12em]">
+    <div className="workbench flex h-dvh flex-col bg-bg text-ink" data-hydration-status={s.hydrationStatus} data-skin={s.skin}>
+      <header className="studio-header flex items-center gap-2.5 border-b border-line bg-header px-3 py-2">
+        <div className="studio-brand flex min-w-0 items-center gap-2 font-mono text-[11px] tracking-[0.12em]">
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
-          <span className="hidden truncate sm:inline font-semibold">X-RAY BY LOOPLET</span>
+          <span className="truncate font-semibold">X-RAY BY LOOPLET</span>
         </div>
-        <div className="hidden lg:flex items-center gap-1.5 border-l border-line/60 pl-2">
-          <span className="font-mono text-[9px] text-muted uppercase tracking-wider font-medium">
-            PROJECT:
-          </span>
-          <select
-            value={s.projectPreset}
-            onChange={(e) => s.setProjectPreset(e.target.value as any)}
-            className="rounded-full bg-navy text-paper px-3 py-1 text-xs font-mono border border-line focus:border-cyan outline-none cursor-pointer shadow-sm"
-          >
-            <option value="wtc">🏙️ World Trade Center WTC 1 (110 Floors · 281 Columns)</option>
-            <option value="highrise">🏗️ Commercial Highrise (191217_752 · 42 Sheets · 31.8m Core)</option>
-            <option value="fencing">🚧 Colorbond Fencing (48 lm · $3,045.08 BOM)</option>
-            <option value="ruffles">🏡 Ruffles Rd Residence (10558 REV C · 24 Sheets)</option>
-          </select>
-        </div>
-        <nav className="flex flex-1 justify-center gap-0.5" aria-label="Panes">
+        <span className="studio-project truncate" title={activeDocument?.name ?? "No plan open"}>
+          {activeDocument?.name ?? "No plan open"}
+        </span>
+        <nav className="studio-pane-nav flex flex-1 justify-center gap-0.5" aria-label="Panes">
           {PANES.map((p) => (
             <button
               key={p.id}
+              ref={s.pane === p.id ? activePaneTabRef : undefined}
               type="button"
               className={`pane-tab ${s.pane === p.id ? "active" : ""}`}
               onClick={() => s.setPane(p.id)}
@@ -94,17 +109,9 @@ export function Studio() {
             </button>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <a
-            className="pill inline-flex items-center gap-1.5 no-underline"
-            href="/mindmap-topdown.html"
-            target="_blank"
-            rel="noreferrer"
-            title="Open top-down architecture mind map & editable TODO"
-          >
-            <Network className="size-3.5 text-cyan" />
-            Mind Map
-          </a>
+        <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
+        <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
+        <div className="studio-header-actions ml-auto flex items-center gap-2">
           <button type="button" className="pill" aria-pressed={s.capsOpen} onClick={() => s.toggle("capsOpen")}>
             Capabilities
           </button>
@@ -114,52 +121,33 @@ export function Studio() {
             aria-pressed={s.skin === "navy"}
             onClick={() => s.setSkin(s.skin === "navy" ? "paper" : "navy")}
           >
-            Charcoal
+            {s.skin === "navy" ? "Cream" : "Charcoal"}
           </button>
-          <a
-            className="pill inline-flex items-center gap-1.5 no-underline bg-[#7fdbff]/20 text-[#7fdbff] border border-[#7fdbff]/40 hover:bg-[#7fdbff]/30 font-semibold"
-            href="/X-Ray-by-Looplet-Setup.exe"
-            download="X-Ray-by-Looplet-Setup.exe"
-            title="Download official Windows installer"
-          >
-            <Download className="size-3.5" />
-            Install Windows App (.exe)
-          </a>
-          <button type="button" className="pill-dark" onClick={() => void openPlan()}>
+          <button type="button" className="pill-dark" onClick={() => void openPlan()} disabled={!s.persistenceHydrated}>
             Open plan
           </button>
         </div>
       </header>
 
-      <div className="flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
+      <div className="studio-modebar flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
         {s.pane === "model" && (
-          <>
-            MODEL PIPELINE
-            <button type="button" className="pill tracking-normal">
-              Export plan nodes
-            </button>
-            <button type="button" className="pill tracking-normal">
-              Sketch guidance
-            </button>
-          </>
+          <>MODEL · local presentation wireframe</>
         )}
         {s.pane === "measure" && <>MEASURE · scale first · then length / area / count</>}
         {s.pane === "sketch" && <>SKETCH · manual traces only · never quantities</>}
         {s.pane === "overview" && <>STUDIO · evidence-first takeoff</>}
-        {s.pane === "sheets" && <>SHEETS · {s.planName ?? "no plan"}</>}
+        {s.pane === "sheets" && <>SHEETS · {s.activePlanBinary?.name ?? "no verified plan"}</>}
         {s.pane === "components" && <>COMPONENTS · open-ended trades</>}
         {s.pane === "review" && <>REVIEW · flags from missing evidence</>}
-        {s.pane === "cost" && <>COST · BOM from measured markups only</>}
+        {s.pane === "cost" && <>COST · QUANTITY REGISTER · EVIDENCE BOUND</>}
         {s.pane === "proof" && <>PROOF · export the evidence pack</>}
       </div>
 
-      <div
-        className={`grid min-h-0 flex-1 ${s.lifted ? "grid-cols-1" : s.rightCollapsed ? "grid-cols-[168px_1fr]" : "grid-cols-[168px_minmax(0,1fr)_260px]"}`}
-      >
+      <div className={`studio-layout grid min-h-0 flex-1 ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
         {!s.lifted && (
-          <aside className="overflow-auto border-r border-line p-3">
+          <aside className="studio-left-rail overflow-auto border-r border-line p-3">
             <h2 className="kicker mb-2">
-              Project sheets <span className="float-right">{SHEETS.length}</span>
+              Project sheets <span className="float-right">{pageCount}</span>
             </h2>
             <div className="mb-2 flex gap-1">
               <button type="button" className="pill" onClick={() => void openPlan()}>
@@ -169,14 +157,14 @@ export function Studio() {
                 Fit sheet
               </button>
             </div>
-            {SHEETS.map((sh) => (
+            {Array.from({ length: pageCount }, (_, index) => (
               <button
-                key={sh.index}
+                key={index}
                 type="button"
-                className={`sheet-btn ${s.sheet === sh.index ? "active" : ""}`}
-                onClick={() => s.setSheet(sh.index)}
+                className={`sheet-btn ${s.sheet === index ? "active" : ""}`}
+                onClick={() => s.setSheet(index)}
               >
-                {String(sh.n).padStart(2, "0")} {sh.title}
+                {String(index + 1).padStart(2, "0")} {activeDocument?.name ?? "No source plan"}
               </button>
             ))}
             <h2 className="kicker mt-4">
@@ -194,34 +182,35 @@ export function Studio() {
           </aside>
         )}
 
-        <section className={`flex min-w-0 flex-col gap-2.5 ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
-          {s.pane === "overview" && <Overview />}
-          {s.pane === "sheets" && <SheetsPane />}
-          {s.pane === "measure" && <MeasurePane />}
-          {s.pane === "sketch" && <SketchPane />}
-          {s.pane === "components" && <ComponentsPane />}
-          {s.pane === "model" && <ModelPane />}
-          {s.pane === "render" && <RenderStudio />}
-          {s.pane === "review" && <ReviewPane />}
-          {s.pane === "cost" && <CostPane />}
-          {s.pane === "proof" && <ProofPane />}
+        <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
+          {!s.persistenceHydrated ? <HydrationState /> : (
+            <>
+              {s.persistenceError ? <IntegrityNotice title="Saved work needs attention" message={s.persistenceError} /> : null}
+              {s.pane === "overview" && <Overview />}
+              {s.pane === "sheets" && <SheetsPane onOpenPlan={() => void openPlan()} />}
+              {s.pane === "measure" && <MeasurePane />}
+              {s.pane === "sketch" && <SketchPane />}
+              {s.pane === "components" && <ComponentsPane />}
+              {s.pane === "model" && <ModelPane />}
+              {s.pane === "render" && <RenderStudio />}
+              {s.pane === "review" && <ReviewPane />}
+              {s.pane === "cost" && <CostPane />}
+              {s.pane === "proof" && <ProofPane />}
+            </>
+          )}
         </section>
 
-        {!s.lifted && !s.rightCollapsed && <RightRail />}
+        {!s.lifted && !s.rightCollapsed && s.pane !== "measure" && <RightRail />}
       </div>
 
-      <footer className="flex flex-wrap gap-3.5 border-t border-line px-3 py-1.5 font-mono text-[10px] tracking-wider text-muted">
+      <footer className="studio-footer flex flex-wrap gap-3.5 border-t border-line px-3 py-1.5 font-mono text-[10px] tracking-wider text-muted">
         <span>Mode {s.pane} readiness</span>
         <span>
-          Sheet {sheet.n} / 24
+          Sheet {s.sheet + 1} / {pageCount}
         </span>
         <span>Markups {s.markups.length}</span>
         <span>Evidence-first — quantities never re-derived here</span>
-        <span>{s.planName ?? "no plan"}</span>
-        <a className="ml-auto inline-flex items-center gap-1 text-ink underline" href="/xray-model-pipeline.html" download="xray-by-looplet.html">
-          <Download className="size-3" />
-          Download
-        </a>
+        <span>{s.activePlanBinary?.name ?? "no verified plan"}</span>
       </footer>
 
       {s.capsOpen && <Capabilities onClose={() => s.toggle("capsOpen")} />}
@@ -229,51 +218,13 @@ export function Studio() {
   );
 }
 
-function InstallButton() {
-  const [help, setHelp] = useState(false);
+function HydrationState() {
+  const status = useStudio((state) => state.hydrationStatus);
+  return <div className="workbench-loading" role="status"><span className="kicker">Restoring workbench</span><strong>{status === "error" ? "Saved work could not be restored" : "Checking saved evidence and original files"}</strong><p>Editing becomes available after document and photo integrity checks finish.</p></div>;
+}
 
-  function insideGrokShell() {
-    try {
-      return window.self !== window.top || /grok\.com$/i.test(window.location.hostname);
-    } catch {
-      return true;
-    }
-  }
-
-  return (
-    <>
-      <button type="button" className="pill" onClick={() => setHelp(true)}>
-        Install on this PC
-      </button>
-      {help && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-navy/40 p-6" onClick={() => setHelp(false)}>
-          <div className="max-w-md rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-mono text-sm tracking-[0.16em]">THAT WAS GROK, NOT X-RAY</h2>
-            <p className="mt-3 text-muted">
-              Chrome’s “Install Grok app · Publisher: grok.com” is the chat site. This studio is running inside it, so
-              the install icon always offers Grok. Click <b>Not now</b>.
-            </p>
-            <p className="mt-3 text-muted">
-              To put X-Ray on your PC, use <b>Download</b> in the header. That saves <code>xray-by-looplet.html</code> —
-              open that file. It is not a Grok install.
-            </p>
-            {insideGrokShell() ? null : (
-              <p className="mt-3 text-muted">If you opened this studio on its own tab (not grok.com), Chrome can then install *this* site as an app.</p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <a className="pill-dark inline-flex items-center gap-1.5 no-underline" href="/xray-model-pipeline.html" download="xray-by-looplet.html">
-                <Download className="size-3.5" />
-                Download X-Ray
-              </a>
-              <button type="button" className="pill" onClick={() => setHelp(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+function IntegrityNotice({ title, message }: { title: string; message: string }) {
+  return <div className="integrity-notice" role="alert"><AlertTriangle className="size-4" aria-hidden="true" /><div><strong>{title}</strong><span>{message}</span></div></div>;
 }
 
 function Stat({ k, v, n }: { k: string; v: string; n: string }) {
@@ -288,17 +239,18 @@ function Stat({ k, v, n }: { k: string; v: string; n: string }) {
 
 function Overview() {
   const s = useStudio();
+  const verifiedPlan = s.activePlanBinary;
   return (
     <>
       <p className="max-w-prose text-muted">
-        X-Ray by Looplet is an evidence-first takeoff studio. Open a construction PDF, set scale, mark length /
-        area / count, then hand a BOM to Looplet. The model never invents quantities.
+        X-Ray is an evidence-first takeoff workbench. Open a supported plan, establish scale, then record length,
+        area and count observations. Pricing and external handoff stay unavailable until their production contracts exist.
       </p>
       <div className="grid grid-cols-4 gap-2.5">
-        <Stat k="Qualified plan" v={s.planName ? "Yes" : "No"} n={s.planName ? "24 source sheets · OCR off" : "Open a plan"} />
-        <Stat k="Source vectors" v="demo" n="Native line segments on this sheet" />
+        <Stat k="Verified plan bytes" v={verifiedPlan ? "Ready" : "Missing"} n={verifiedPlan?.name ?? "Open a plan to begin"} />
+        <Stat k="Source integrity" v={verifiedPlan ? "SHA-256" : "Pending"} n={verifiedPlan ? "Bytes rechecked in this session" : "No verified source is loaded"} />
         <Stat k="Manual geometry" v={String(s.markups.length)} n="Measured lines, areas and markers" />
-        <Stat k="Semantic instances" v="0" n="Required for exact recursive assembly identity" />
+        <Stat k="Pricing" v="Unavailable" n="No rate source is connected" />
       </div>
       <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-[18px]">
         <Stage />
@@ -307,65 +259,188 @@ function Overview() {
   );
 }
 
-function SheetsPane() {
+function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
   const s = useStudio();
-  const sh = SHEETS[s.sheet];
+  const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
   return (
     <>
-      <p className="text-muted">
-        {sh.title} · {sh.kind} · Use scroll wheel to zoom, click & drag to pan.
-      </p>
-      <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-[18px]">
-        <div className={`stage absolute inset-0 ${s.skin === "paper" ? "paper" : ""}`}>
-          {sh.kind === "elev" ? <IsoCanvas /> : <PlanCanvas interactive={false} />}
-        </div>
+      <div className="pane-heading-row">
+        <div><span className="kicker">Verified source</span><h1>Sheet {s.sheet + 1}</h1></div>
+        <span className={`asset-state ${s.assetReadiness.document.state}`}>{s.assetReadiness.document.state}</span>
       </div>
+      {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+      {s.activePlanBinary ? (
+        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="sheets-document-preview" />
+      ) : (
+        <section className="source-ingest" aria-labelledby="source-ingest-title">
+          <div className="source-ingest-grid" aria-hidden="true">
+            <span className="source-ingest-line source-ingest-line-a" />
+            <span className="source-ingest-line source-ingest-line-b" />
+            <span className="source-ingest-line source-ingest-line-c" />
+            <span className="source-ingest-axis">SOURCE / 00</span>
+          </div>
+          <div className="source-ingest-content">
+            <span className="source-ingest-index">01</span>
+            <span className="kicker">Source qualification</span>
+            <h2 id="source-ingest-title">Bring the drawing into the workbench</h2>
+            <p>Open the original PDF, DXF or SVG. X-Ray checks the bytes first, then exposes the sheet for measurement without inventing geometry.</p>
+            <button type="button" className="source-ingest-action" onClick={onOpenPlan} disabled={!s.persistenceHydrated}>Open source plan</button>
+          </div>
+          <ol className="source-ingest-steps" aria-label="Source verification sequence">
+            <li><span>01</span><strong>Original bytes</strong><small>Attach locally</small></li>
+            <li><span>02</span><strong>Integrity</strong><small>Record SHA-256</small></li>
+            <li><span>03</span><strong>Sheets</strong><small>Inspect before measure</small></li>
+          </ol>
+        </section>
+      )}
+      <dl className="source-metadata">
+        <div><dt>File</dt><dd>{activeDocument?.name ?? "No source imported"}</dd></div>
+        <div><dt>Pages</dt><dd>{activeDocument?.pageCount ?? 0}</dd></div>
+        <div><dt>SHA-256</dt><dd>{activeDocument?.sha256 ?? "Unavailable"}</dd></div>
+      </dl>
     </>
   );
 }
 
 function MeasurePane() {
   const s = useStudio();
+  const selectedRunRecord = s.selectedRunId ? s.job.runs.find((run) => run.id === s.selectedRunId) ?? null : null;
+  const selectedRun = selectedRunRecord ? editableRun(selectedRunRecord) : null;
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>
-          Length <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">L</kbd>
-        </button>
-        <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>
-          Area <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">A</kbd>
-        </button>
-        <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>
-          Count <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">C</kbd>
-        </button>
-        <label className="kicker ml-2">
-          Scale m / drawing unit
-          <input
-            className="ml-2 w-20 rounded-full bg-navy px-2 py-1 text-paper"
-            type="number"
-            step="0.01"
-            min="0.001"
-            value={s.scaleM}
-            onChange={(e) => s.setScale(Number(e.target.value) || 1)}
-          />
-        </label>
-        <button type="button" className="pill" onClick={() => s.commitPending()}>
-          Close area <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Enter</kbd>
-        </button>
-        <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>
-          Cancel <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Esc</kbd>
-        </button>
-      </div>
-      <p className="text-muted">
-        Shortcuts: <span className="font-mono text-cyan">L</span> Length · <span className="font-mono text-cyan">A</span> Area · <span className="font-mono text-cyan">C</span> Count · <span className="font-mono text-amber-400">S</span> Snap · <span className="font-mono text-muted">Esc</span> Cancel. Two clicks for length. Polygon then Close area.
-      </p>
-      <div className="relative min-h-[360px] flex-1 overflow-hidden rounded-[18px]">
-        <div className={`stage absolute inset-0 ${s.skin === "paper" ? "paper" : ""}`}>
-          <PlanCanvas interactive />
+    <div className="measure-workspace">
+      <div className="measure-main-column">
+        <div className="measure-tools" aria-label="Measurement tools">
+          <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
+          <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
+          <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>Gate <kbd>C</kbd></button>
+          <button type="button" className="pill" aria-pressed={s.snappingEnabled} onClick={s.toggleSnapping}>Snap <kbd>S</kbd></button>
+          <span className="measure-tools-spacer" />
+          <button type="button" className="pill" onClick={s.commitPending} disabled={s.pending.length < 2}>Finish trace</button>
+          <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>Cancel</button>
         </div>
+        {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
+        {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
+        {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview">
+          <PlanCanvas
+            interactive
+            sourceMode="overlay"
+            calibrationCaptureActive={Boolean(s.calibrationCapture)}
+            calibrationPoints={s.calibrationCapture?.points ?? []}
+            onCalibrationPoint={s.addCalibrationPoint}
+            selectedRunId={s.selectedRunId}
+            selectedVertexIndex={s.selectedVertexIndex}
+            onSelectRun={s.selectRun}
+            onSelectVertex={s.selectVertex}
+            onMoveVertex={s.moveRunVertex}
+          />
+        </DocumentPreview>
+        <MarkupList />
       </div>
-      <MarkupList />
-    </>
+      <MeasureInspector selectedRun={selectedRun} />
+    </div>
+  );
+}
+
+function editableRun(run: ReturnType<typeof useStudio.getState>["job"]["runs"][number]): EditableFenceRun {
+  return { ...run, revision: run.revision ?? 1, grossLengthM: run.grossLengthM ?? run.lengthM, gateDeductionM: run.gateDeductionM ?? 0, netLengthM: run.netLengthM ?? run.lengthM };
+}
+
+function placedGate(gate: GateRecord): PlacedGate {
+  return { ...gate, revision: gate.revision ?? 1, segmentIndex: gate.segmentIndex ?? null, segmentT: gate.segmentT ?? null };
+}
+
+function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | null }) {
+  const s = useStudio();
+  const [distanceValue, setDistanceValue] = useState("");
+  const [unit, setUnit] = useState<CalibrationInputUnit>("m");
+  const [editMode, setEditMode] = useState<TraceEditMode>("select");
+  const [mergeTargetRunId, setMergeTargetRunId] = useState<string | null>(null);
+  const [mergeFirstEndpoint, setMergeFirstEndpoint] = useState<TraceMergeEndpoint>("end");
+  const [mergeSecondEndpoint, setMergeSecondEndpoint] = useState<TraceMergeEndpoint>("start");
+  const selectedGateRecord = s.selectedGateId ? s.job.gates.find((gate) => gate.id === s.selectedGateId) ?? null : null;
+  const selectedGate = selectedGateRecord ? placedGate(selectedGateRecord) : null;
+  const sheetRuns = s.job.runs.filter((run) => run.sheet === s.sheet).map(editableRun);
+  const sheetGates = s.job.gates.filter((gate) => gate.sheet === s.sheet);
+
+  function createCalibrationCandidate() {
+    if (s.calibrationCapture?.points.length !== 2) return;
+    s.upsertManualCalibrationCandidate({
+      distance: { value: Number(distanceValue), unit },
+      provenance: { method: "two-point", evidence: `Sheet ${s.sheet + 1} manual known distance`, documentId: s.job.activeDocumentId },
+    });
+  }
+
+  useEffect(() => {
+    if (s.calibrationCapture?.points.length === 2) createCalibrationCandidate();
+  }, [s.calibrationCapture?.points.length]);
+
+  function insertAfterSelected() {
+    if (!selectedRun || s.selectedVertexIndex === null) return;
+    const segmentIndex = Math.min(s.selectedVertexIndex, selectedRun.points.length - 2);
+    const first = selectedRun.points[segmentIndex];
+    const second = selectedRun.points[segmentIndex + 1];
+    if (!first || !second) return;
+    s.insertRunVertex(selectedRun.id, segmentIndex, { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 });
+  }
+
+  return (
+    <aside className="measure-inspector" aria-label="Measure inspector">
+      <CalibrationPanel
+        sheetNumber={s.sheet + 1}
+        calibration={s.currentCalibration}
+        captureActive={Boolean(s.calibrationCapture)}
+        capturedPoints={s.calibrationCapture?.points.length ?? 0}
+        distanceValue={distanceValue}
+        unit={unit}
+        onDistanceValueChange={setDistanceValue}
+        onUnitChange={setUnit}
+        onStartCapture={s.startCalibrationCapture}
+        onCancelCapture={s.cancelCalibrationCapture}
+        onSelectCandidate={s.resolveCalibrationCandidate}
+        onLock={() => s.lockCurrentCalibration()}
+        onUnlock={s.unlockCurrentCalibration}
+      />
+      <TraceEditorPanel
+        selectedRun={selectedRun}
+        selectedGate={selectedGate}
+        selectedVertexIndex={s.selectedVertexIndex}
+        editMode={editMode}
+        canUndo={s.traceUndoStack.length > 0}
+        canRedo={s.traceRedoStack.length > 0}
+        mergeRunOptions={sheetRuns}
+        mergeTargetRunId={mergeTargetRunId}
+        mergeFirstEndpoint={mergeFirstEndpoint}
+        mergeSecondEndpoint={mergeSecondEndpoint}
+        gateRunOptions={sheetRuns}
+        onUndo={s.undoTrace}
+        onRedo={s.redoTrace}
+        onEditModeChange={setEditMode}
+        onSelectVertex={(vertexIndex) => selectedRun && s.selectVertex(selectedRun.id, vertexIndex)}
+        onInsertAfterSelectedVertex={insertAfterSelected}
+        onRemoveSelectedVertex={() => selectedRun && s.selectedVertexIndex !== null && s.removeRunVertex(selectedRun.id, s.selectedVertexIndex)}
+        onSplitAtSelectedVertex={() => selectedRun && s.selectedVertexIndex !== null && s.splitRun(selectedRun.id, s.selectedVertexIndex)}
+        onMergeTargetRunChange={setMergeTargetRunId}
+        onMergeFirstEndpointChange={setMergeFirstEndpoint}
+        onMergeSecondEndpointChange={setMergeSecondEndpoint}
+        onMergeRuns={() => selectedRun && mergeTargetRunId && s.mergeRuns({ firstRunId: selectedRun.id, firstEndpoint: mergeFirstEndpoint, secondRunId: mergeTargetRunId, secondEndpoint: mergeSecondEndpoint })}
+        onGateSpecificationChange={s.updateGateSpecification}
+        onGateRunChange={(gateId, _expectedRevision, runId) => {
+          const gate = sheetGates.find((entry) => entry.id === gateId);
+          if (gate && runId) s.upsertGate({ ...gate, id: gate.id, runId, widthM: gate.widthM ?? 1, point: gate.point });
+        }}
+        onRemoveGate={(gateId) => s.removeGate(gateId)}
+      />
+      {selectedRun ? <SpecificationPanel run={selectedRun} onUpdate={s.updateRunSpecification} /> : (
+        <section className="inspector-empty"><span className="eyebrow">Run specification</span><strong>Select a run</strong><p>Choose a measured run on the plan to record the construction evidence required for review.</p></section>
+      )}
+      <section className="measure-photo-summary">
+        <span className="eyebrow">Photo evidence</span>
+        <strong>{s.job.photos.length} attached</strong>
+        <p>{s.photoError ?? "Full captions, links, hashes and ordering are managed in Proof."}</p>
+        <button type="button" className="button button-secondary" onClick={() => s.setPane("proof")}>Open Proof</button>
+      </section>
+    </aside>
   );
 }
 
@@ -401,7 +476,7 @@ function ComponentsPane() {
   return (
     <>
       <p className="text-muted">
-        Right rail is open-ended. No default fence, Colorbond, or trade pack. Add only what this sheet evidences.
+        The component list is open-ended. Nothing is preloaded; add only what this job actually evidences.
       </p>
       <form
         className="flex gap-2"
@@ -441,44 +516,20 @@ function ComponentsPane() {
 
 function ModelPane() {
   const s = useStudio();
+  const verifiedPlan = s.activePlanBinary;
   return (
     <>
       {!s.lifted && (
         <>
           <p className="max-w-prose text-muted">
-            This workspace shows exactly how far the current source can travel—from plan geometry to a labelled
-            graph, wireframe, solid model and optional render.
+            Use the preserved wireframe canvas to inspect local presentation geometry. It does not establish source
+            qualification, semantic identity, quantities, or a render result.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            {s.projectPreset === "wtc" ? (
-              <>
-                <Stat k="Qualified plan" v="Yes" n="WTC.DXF · 110 floors · 1,368 ft to roof" />
-                <Stat k="Source vectors" v="281 cols" n="236 perimeter + 45 core columns" />
-                <Stat k="Gross floor" v="42,825 sf" n={`Total built: 4.71M sf · 207'-2" square`} />
-                <Stat k="Slenderness" v="6.6 : 1" n="Reconciled from DXF footprint" />
-              </>
-            ) : s.projectPreset === "highrise" ? (
-              <>
-                <Stat k="Qualified plan" v="Yes" n="42 source sheets · OCR off" />
-                <Stat k="Source vectors" v="12,000" n="Native PDF line segments on this sheet" />
-                <Stat k="3D Height" v="31.8m" n="Relative 3D height calibrate for metres" />
-                <Stat k="Semantic instances" v="0" n="Required for exact recursive assembly identity" />
-              </>
-            ) : s.projectPreset === "fencing" ? (
-              <>
-                <Stat k="Qualified plan" v="Yes" n="fencing-boundary.dxf · Colorbond @ 1.8m" />
-                <Stat k="Fence run" v="48 lm" n="21 posts + 1 gate" />
-                <Stat k="Priced total" v="$3,045.08" n="BOM fully priced and evidenced" />
-                <Stat k="Review queue" v="2 flags" n="Concrete footing & unit check" />
-              </>
-            ) : (
-              <>
-                <Stat k="Qualified plan" v={s.planName ? "Yes" : "No"} n={s.engineNote} />
-                <Stat k="Source vectors" v="10,428" n="Native PDF line segments on this sheet" />
-                <Stat k="Manual geometry" v={String(s.markups.length)} n="Measured lines, areas and component markers" />
-                <Stat k="Semantic instances" v="0" n="Required for exact recursive assembly identity" />
-              </>
-            )}
+            <Stat k="Verified plan bytes" v={verifiedPlan ? "Ready" : "Missing"} n={verifiedPlan?.name ?? "No verified source loaded"} />
+            <Stat k="Viewer" v="Local" n="Presentation wireframe; not source evidence" />
+            <Stat k="Manual geometry" v={String(s.markups.length)} n="Recorded measurements and markers" />
+            <Stat k="Semantic model" v="Unavailable" n="No CAD/IFC object graph is connected" />
           </div>
         </>
       )}
@@ -487,9 +538,9 @@ function ModelPane() {
       </div>
       {!s.lifted && (
         <p className="rounded-xl bg-card px-3 py-2.5 text-muted">
-          <b className="text-ink">Truth boundary:</b> this is an interactive wireframe of native plan paths, not a
-          semantic BIM reconstruction. Buildings first, roofs second. Exact bolts, brackets and concealed hardware
-          still need CAD instances or explicit manual evidence.
+          <b className="text-ink">Truth boundary:</b> this is an interactive local presentation wireframe, not a
+          qualified source model or semantic BIM reconstruction. Exact assemblies still need verified source objects
+          or explicit evidence.
         </p>
       )}
     </>
@@ -514,135 +565,7 @@ function Stage() {
       ref={canvasRef}
       className={`stage relative h-full min-h-[320px] overflow-hidden rounded-[18px] ${s.skin === "paper" ? "paper bg-paper text-ink" : "bg-navy text-paper"}`}
     >
-      {s.projectPreset === "wtc" && (
-        <>
-          {/* Top Left Title Overlay */}
-          <div className="absolute top-12 left-4 z-20 pointer-events-none">
-            <div className="font-mono text-[9px] tracking-[0.2em] text-cyan uppercase font-semibold">
-              Structural elevation · extruded from plan
-            </div>
-            <h1 className="text-2xl font-light text-paper tracking-tight mt-0.5">
-              World Trade Center <span className="font-semibold text-cyan">WTC 1</span>
-            </h1>
-            <div className="font-mono text-[10px] text-muted mt-0.5">
-              110 Floors · 1,368' to roof · 207'-2" square
-            </div>
-            <div className="font-mono text-[10px] text-cyan/90 font-medium">
-              281 columns from the DXF, carried the full height.
-            </div>
-          </div>
-
-          {/* Top Right Source Badge */}
-          <div className="absolute top-12 right-4 z-20 pointer-events-none text-right font-mono text-[9px] tracking-wider text-muted hidden sm:block">
-            <div>SOURCE <span className="text-paper">wtc.dxf</span></div>
-            <div className="text-cyan font-medium">236 PERIMETER · 45 CORE</div>
-            <div>SLENDERNESS 6.6 : 1</div>
-          </div>
-
-          {/* Top-Left Floating Takeoff Box */}
-          <div className="absolute top-32 left-4 z-20 rounded-xl border border-line bg-navy/90 backdrop-blur-md p-3 w-52 font-mono text-[10px] shadow-2xl hidden md:block">
-            <div className="text-cyan font-semibold uppercase tracking-wider mb-1.5 border-b border-line/60 pb-1">
-              X-Ray Takeoff · WTC.DXF
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Perimeter columns</span>
-              <span className="text-paper font-semibold">{WTC_STATS.perimeterColumns}</span>
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Core columns</span>
-              <span className="text-paper font-semibold">{WTC_STATS.coreColumns}</span>
-            </div>
-            <div className="flex justify-between py-1 border-t border-line/40 font-semibold text-paper">
-              <span>Total</span>
-              <span className="text-cyan">{WTC_STATS.totalColumns} ea</span>
-            </div>
-            <div className="text-[9px] text-green-400 mt-1 leading-tight">
-              ✓ reconciled - counted from the DXF, each traceable to a footprint polyline
-            </div>
-          </div>
-
-          {/* Bottom Left Column Toggles */}
-          <div className="absolute bottom-3 left-4 z-20 flex flex-col gap-1.5 font-mono">
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                className={`px-2 py-0.5 text-[9px] uppercase rounded border transition-colors ${s.wtcLayers.perimeter ? "border-cyan text-paper bg-cyan/20" : "border-line text-muted bg-card/60"}`}
-                onClick={() => s.toggleWtcLayer("perimeter")}
-              >
-                Perimeter
-              </button>
-              <button
-                type="button"
-                className={`px-2 py-0.5 text-[9px] uppercase rounded border transition-colors ${s.wtcLayers.core ? "border-amber-400 text-paper bg-amber-400/20" : "border-line text-muted bg-card/60"}`}
-                onClick={() => s.toggleWtcLayer("core")}
-              >
-                Core
-              </button>
-              <button
-                type="button"
-                className={`px-2 py-0.5 text-[9px] uppercase rounded border transition-colors ${s.wtcLayers.floors ? "border-blue-400 text-paper bg-blue-400/20" : "border-line text-muted bg-card/60"}`}
-                onClick={() => s.toggleWtcLayer("floors")}
-              >
-                Floors
-              </button>
-            </div>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                className="px-2 py-0.5 text-[9px] uppercase rounded border border-line text-muted bg-card/60 hover:text-paper"
-                onClick={() => { s.setCam("plan"); s.setOrbit(-Math.PI / 2, 0.02); }}
-              >
-                Elevation
-              </button>
-              <button
-                type="button"
-                className="px-2 py-0.5 text-[9px] uppercase rounded border border-cyan text-paper bg-cyan/20"
-                onClick={() => { s.setCam("iso"); s.setOrbit(-0.7, 0.35); }}
-              >
-                Iso
-              </button>
-              <button
-                type="button"
-                className="px-2 py-0.5 text-[9px] uppercase rounded border border-line text-muted bg-card/60 hover:text-paper"
-                onClick={() => { s.setCam("plan"); s.setOrbit(-Math.PI / 2, 1.38); }}
-              >
-                Plan
-              </button>
-            </div>
-            <span className="text-[9px] text-muted hidden sm:inline">
-              drag orbit · right-drag pan · scroll zoom
-            </span>
-          </div>
-
-          {/* Bottom Right Structure Stats */}
-          <div className="absolute bottom-3 right-4 z-20 rounded-xl border border-line bg-navy/90 backdrop-blur-md p-3 w-48 font-mono text-[10px] shadow-2xl hidden sm:block">
-            <div className="text-muted uppercase tracking-widest text-[9px] mb-1.5 border-b border-line/60 pb-1 font-semibold">
-              Structure
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Roof height</span>
-              <span className="text-paper">{WTC_STATS.roofHeightFt.toLocaleString()} ft</span>
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Floor-to-floor</span>
-              <span className="text-paper">{WTC_STATS.floorToFloorFt} ft</span>
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Gross floor</span>
-              <span className="text-paper">{WTC_STATS.grossFloorSf.toLocaleString()} sf</span>
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Total built</span>
-              <span className="text-paper">{WTC_STATS.totalBuiltSf}</span>
-            </div>
-            <div className="flex justify-between py-0.5 text-muted">
-              <span>Column line</span>
-              <span className="text-paper">{WTC_STATS.columnLineFt.toLocaleString()} ft</span>
-            </div>
-          </div>
-        </>
-      )}
-      {!s.chromeHidden && s.projectPreset !== "wtc" && (
+      {!s.chromeHidden && (
         <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-1.5 bg-gradient-to-b from-navy/90 to-transparent px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em]">
           <span className="text-cbar">Source sheet</span>
           <select
@@ -690,10 +613,10 @@ function Stage() {
             <option value={2}>2 Storeys</option>
             <option value={3}>3 Storeys</option>
             <option value={4}>4 Storeys</option>
-            <option value={8}>8 Storeys (Midrise)</option>
-            <option value={16}>16 Storeys (Highrise)</option>
-            <option value={25}>25 Storeys (Tower)</option>
-            <option value={40}>40 Storeys (Skyscraper)</option>
+            <option value={8}>8 Storeys</option>
+            <option value={16}>16 Storeys</option>
+            <option value={25}>25 Storeys</option>
+            <option value={40}>40 Storeys</option>
           </select>
           {s.floors > 1 && (
             <>
@@ -740,14 +663,6 @@ function Stage() {
           <button type="button" className="stage-btn" onClick={saveStill}>
             Save still
           </button>
-          <a
-            className="stage-btn inline-flex items-center no-underline"
-            href="/X-Ray-by-Looplet-Setup.exe"
-            download="X-Ray-by-Looplet-Setup.exe"
-            title="Download Windows App"
-          >
-            Download App
-          </a>
           <span className="flex items-center gap-1" title="Canvas colour">
             <button
               type="button"
@@ -780,13 +695,13 @@ function Stage() {
       {!s.chromeHidden && (
         <>
           <p className="pointer-events-none absolute top-16 left-3.5 z-[2] font-mono text-[10px] tracking-wider text-cbar">
-            Height only raises measured geometry after page-scale calibration. It never creates quantities.
+            Presentation controls affect only this local wireframe. They never create quantities or source evidence.
           </p>
           <div className="pointer-events-none absolute top-[86px] left-3.5 z-[2] font-mono text-[10px] uppercase tracking-[0.16em] text-cbar">
-            <div>Qualified source geometry</div>
-            <div>{s.pose === "standing" ? "3D wireframe · building then roof" : "Plan · laid on ground"}</div>
+            <div>Local presentation geometry</div>
+            <div>{s.pose === "standing" ? "3D wireframe · standing" : "Wireframe · laid flat"}</div>
             <div className="pointer-events-auto mt-2 flex gap-3 text-paper">
-              <Swatch on={s.showSrc} onClick={() => s.toggle("showSrc")} color="bg-cyan" label="PDF vectors" />
+              <Swatch on={s.showSrc} onClick={() => s.toggle("showSrc")} color="bg-cyan" label="reference lines" />
               <Swatch on={s.showBld} onClick={() => s.toggle("showBld")} color="bg-cyan" label="building" />
               <Swatch on={s.showRoof} onClick={() => s.toggle("showRoof")} color="bg-roof" label="roof" />
               <Swatch on={s.showMan} onClick={() => s.toggle("showMan")} color="bg-manual" label="manual" />
@@ -814,30 +729,32 @@ function Swatch({ on, onClick, color, label }: { on: boolean; onClick: () => voi
 
 function RightRail() {
   const s = useStudio();
+  if (s.pane === "proof") return <ProofRightRail />;
+  if (s.pane === "cost") return <CostRightRail />;
   return (
-    <aside className="overflow-auto border-l border-line p-3">
+    <aside className="studio-right-rail overflow-auto border-l border-line p-3">
       <div className="mb-2 flex items-start justify-between">
         <h2 className="kicker">Model readiness</h2>
         <button type="button" className="pill" onClick={() => s.toggle("rightCollapsed")}>
           Collapse
         </button>
       </div>
-      <p className="text-muted">Track the validated path from source geometry.</p>
+      <p className="text-muted">Track what the current pane can prove.</p>
       <div className="mt-2.5 rounded-[14px] bg-card p-3">
-        <Row a="Source" b={s.planName ? "Qualified" : "Missing"} />
-        <Row a="Source viewer" b="Available" />
+        <Row a="Verified plan bytes" b={s.activePlanBinary ? "Ready" : "Missing"} />
+        <Row a="Source verification" b={s.activePlanBinary ? "SHA-256" : "Pending"} />
         <Row a="Semantic graph" b="Not evidenced" />
       </div>
       <div className="mt-2.5 rounded-[14px] bg-card p-3">
         <div className="kicker">Current boundary</div>
         <p className="mt-2">
-          The interactive source viewer is connected. PDF paths remain unlabelled line evidence; semantic solids still
-          need CAD/IFC objects or explicit manual evidence.
+          The local presentation viewer is available. It does not prove that plan bytes, vector identities, or semantic
+          solids are verified; those require the source-integrity and CAD/IFC contracts.
         </p>
         <div className="kicker mt-2.5">On this sheet</div>
         <p className="mt-2">
           {SHEETS[s.sheet].kind === "elev"
-            ? "Elevation · building mass + roof prism. No fence pack unless the sheet shows fence."
+            ? "Elevation · local building and roof presentation layers."
             : "Plan · rooms as native walls. Trades only appear if you add them."}
         </p>
         {s.trades.length > 0 && (
@@ -851,6 +768,60 @@ function RightRail() {
           </>
         )}
       </div>
+    </aside>
+  );
+}
+
+function CostRightRail() {
+  const s = useStudio();
+  const snapshot = s.bomState.snapshot;
+  const document = s.job.documents.find((entry) => entry.id === s.job.activeDocumentId && entry.source !== "sample");
+  return (
+    <aside className="studio-right-rail overflow-auto border-l border-line p-3">
+      <div className="mb-2 flex items-start justify-between">
+        <h2 className="kicker">BOM readiness</h2>
+        <button type="button" className="pill" onClick={() => s.toggle("rightCollapsed")}>Collapse</button>
+      </div>
+      <p className="text-muted">The current quantity result stays bound to its evidence and recipe revisions.</p>
+      <div className="rail-register mt-2.5">
+        <Row a="Verified plan" b={document?.sha256 ? "SHA-256" : "Missing"} />
+        <Row a="Job revision" b={snapshot ? String(snapshot.binding.jobRevision) : String(s.job.revision)} />
+        <Row a="Ruleset" b={snapshot ? `${snapshot.binding.ruleset.id}@${snapshot.binding.ruleset.version}` : "Not run"} />
+        <Row a="Quantity state" b={snapshot ? (s.bomState.invalidation ? "Stale" : "Current") : "Not built"} />
+      </div>
+      <div className="rail-register mt-2.5">
+        <div className="kicker">Commercial boundary</div>
+        <p className="mt-2">This mode proves material quantities and their calculation lineage. It does not apply supplier rates, tax, margins, or send anything externally.</p>
+        <div className="kicker mt-2.5">Source</div>
+        <p className="mt-2">{document?.name ?? "Import and verify a source plan before preparing quantities."}</p>
+      </div>
+    </aside>
+  );
+}
+
+function ProofRightRail() {
+  const s = useStudio();
+  const document = s.job.documents.find((entry) => entry.id === s.job.activeDocumentId && entry.source !== "sample");
+  return (
+    <aside className="studio-right-rail proof-right-rail overflow-auto border-l border-line p-3">
+      <div className="rail-heading">
+        <div><span className="kicker">Proof inspector</span><h2>Asset integrity</h2></div>
+        <button type="button" className="technical-button" onClick={() => s.toggle("rightCollapsed")}>Collapse</button>
+      </div>
+      <dl className="proof-rail-metrics">
+        <Row a="Document" b={s.assetReadiness.document.state} />
+        <Row a="Plan hash" b={document?.sha256 ? "Recorded" : "Missing"} />
+        <Row a="Photos" b={String(s.job.photos.length)} />
+        <Row a="Revisions" b={String(s.job.revisionHistory.length)} />
+      </dl>
+      <section className="proof-rail-section">
+        <span className="kicker">Current blockers</span>
+        {s.quoteReadiness.blockers.length ? <ol>{s.quoteReadiness.blockers.slice(0, 8).map((blocker, index) => <li key={`${blocker.code}-${blocker.entityId ?? index}`}>{blocker.message}</li>)}</ol> : <p>Canonical job and original asset checks currently pass.</p>}
+      </section>
+      <section className="proof-rail-section">
+        <span className="kicker">Export boundary</span>
+        <p>The manifest records current evidence and blockers. It is not a priced quote or external handoff receipt.</p>
+      </section>
     </aside>
   );
 }
@@ -888,255 +859,293 @@ function MarkupList() {
 
 function ReviewPane() {
   const s = useStudio();
-  const flags: string[] = [];
-  if (!s.planName) flags.push("No plan file attached.");
-  if (s.markups.length && s.scaleM === 1) flags.push("Scale still at 1 m / unit — confirm against a drawn bar.");
-  if (s.trades.length === 0) flags.push("No trades listed. Right rail stays empty on purpose.");
-  if (s.markups.filter((m) => m.kind === "area").length === 0) flags.push("No area marks. GFA is not invented.");
+  const [actor, setActor] = useState("");
+  const [note, setNote] = useState("");
+  const selectedRun = s.selectedRunId ? s.job.runs.find((run) => run.id === s.selectedRunId) ?? null : null;
+  const selectedGate = s.selectedGateId ? s.job.gates.find((gate) => gate.id === s.selectedGateId) ?? null : null;
+  const canDecide = actor.trim().length > 0;
   return (
-    <>
-      <p className="text-muted">Review flags come from missing evidence, never from a language model.</p>
-      <ul className="space-y-2">
-        {flags.map((f) => (
-          <li key={f} className="rounded-2xl bg-card px-4 py-3">
-            {f}
-          </li>
-        ))}
-        {flags.length === 0 && <li className="rounded-2xl bg-card px-4 py-3">No flags.</li>}
-      </ul>
-      <MarkupList />
-    </>
+    <div className="review-workspace">
+      <section className="review-blockers">
+        <div className="pane-heading-row"><div><span className="kicker">Canonical readiness</span><h1>{s.quoteReadiness.blockers.length} blockers</h1></div><span className={`asset-state ${s.quoteReadiness.ready ? "ready" : "unverified"}`}>{s.quoteReadiness.ready ? "ready" : "blocked"}</span></div>
+        <p>Every issue below comes from the saved job plus runtime verification of the original document and photo bytes.</p>
+        <ul>
+          {s.quoteReadiness.blockers.map((blocker, index) => (
+            <li key={`${blocker.code}-${blocker.entityId ?? index}`}>
+              <button type="button" onClick={() => {
+                const run = blocker.entityId && s.job.runs.find((entry) => entry.id === blocker.entityId);
+                const gate = blocker.entityId && s.job.gates.find((entry) => entry.id === blocker.entityId);
+                if (run) { s.selectRun(run.id); s.setSheet(run.sheet); s.setPane("measure"); }
+                else if (gate) { s.selectGate(gate.id); s.setSheet(gate.sheet); s.setPane("measure"); }
+              }}>
+                <span>{blocker.code}</span><strong>{blocker.message}</strong>
+              </button>
+            </li>
+          ))}
+          {s.quoteReadiness.blockers.length === 0 ? <li className="review-clear"><Check className="size-4" aria-hidden="true" /> All current evidence checks pass.</li> : null}
+        </ul>
+      </section>
+      <section className="review-decisions">
+        <div><span className="kicker">Entity decisions</span><h2>Runs and gates</h2></div>
+        <label className="field"><span>Reviewer</span><input value={actor} onChange={(event) => setActor(event.currentTarget.value)} placeholder="Required for approve or reject" /></label>
+        <label className="field"><span>Decision note</span><textarea rows={2} value={note} onChange={(event) => setNote(event.currentTarget.value)} placeholder="Evidence checked, exception or reason" /></label>
+        <div className="review-entity-list">
+          {[...s.job.runs, ...s.job.gates].map((entity) => {
+            const isRun = "specification" in entity;
+            const selected = isRun ? selectedRun?.id === entity.id : selectedGate?.id === entity.id;
+            return <article key={entity.id} className={selected ? "selected" : ""}>
+              <button type="button" className="review-entity-select" onClick={() => isRun ? s.selectRun(entity.id) : s.selectGate(entity.id)}><strong>{entity.label}</strong><span>Rev {entity.revision} · {entity.review.status}</span></button>
+              <div><button type="button" disabled={!canDecide} onClick={() => isRun ? s.approveRun(entity.id, entity.revision ?? 1, actor.trim(), note) : s.approveGate(entity.id, entity.revision ?? 1, actor.trim(), note)}>Approve</button><button type="button" disabled={!canDecide} onClick={() => isRun ? s.rejectRun(entity.id, entity.revision ?? 1, actor.trim(), note) : s.rejectGate(entity.id, entity.revision ?? 1, actor.trim(), note)}>Reject</button></div>
+            </article>;
+          })}
+          {s.job.runs.length + s.job.gates.length === 0 ? <p>No measured runs or gates are available for review.</p> : null}
+        </div>
+      </section>
+    </div>
   );
 }
 
 function CostPane() {
   const s = useStudio();
-  const [pushed, setPushed] = useState(false);
-  const lengths = s.markups.filter((m) => m.kind === "length" || m.kind === "sketch");
-  const areas = s.markups.filter((m) => m.kind === "area");
-  const counts = s.markups.filter((m) => m.kind === "count");
-  const sum = (arr: typeof s.markups) => arr.reduce((a, m) => a + m.value, 0);
+  const [recipeSet, setRecipeSet] = useState<BomRecipeSet | null>(null);
+  const [compileIssues, setCompileIssues] = useState<readonly BomIssue[]>([]);
+  const [transportStatus, setTransportStatus] = useState<BomTransportStatus>({ phase: "idle" });
+  const [recipePersistenceError, setRecipePersistenceError] = useState<string | null>(null);
+  const [reviewer, setReviewer] = useState("");
+  const buildToken = useRef(0);
+  const buildAbort = useRef<AbortController | null>(null);
 
-  const staged = buildLoopletQuoteLines(s.markups, s.trades, s.planName, s.sheet);
-
-  function handlePushToCrm() {
-    const res = pushToLoopletCrm(staged);
-    if (res.success && res.url) {
-      if (typeof window !== "undefined") {
-        const opened = window.open(res.url, "_blank");
-        if (!opened) {
-          console.warn("Popup blocked, redirecting in current tab.");
-          window.location.href = res.url;
-        }
+  useEffect(() => {
+    let current = true;
+    void (async () => {
+      const loaded = await loadFencingRecipeSet(s.job.id);
+      const value = loaded.ok ? loaded.recipeSet : await createCandidateFencingRecipeSet();
+      if (!current) return;
+      if (!loaded.ok && loaded.reason !== "not-found") {
+        setRecipePersistenceError(`Saved recipe decisions could not be restored (${loaded.reason}).`);
+      } else {
+        setRecipePersistenceError(null);
       }
-    }
-    setPushed(true);
-    setTimeout(() => setPushed(false), 4000);
-  }
+      if (!loaded.ok) {
+        const saved = await saveFencingRecipeSet(s.job.id, value);
+        if (!saved.ok && current) setRecipePersistenceError(`Recipe decisions could not be saved (${saved.reason}).`);
+      }
+      if (current) {
+        setRecipeSet(value);
+        useStudio.getState().reconcileBomRecipeSet(value);
+      }
+    })();
+    return () => {
+      current = false;
+      buildToken.current += 1;
+    };
+  }, [s.job.id]);
 
-  function handleDownloadQuoteJson() {
-    const blob = new Blob([JSON.stringify(staged, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `looplet-quote-${s.planName || "takeoff"}-sheet-${s.sheet + 1}.json`;
-    a.click();
-  }
-
-  if (s.projectPreset === "fencing") {
-    return (
-      <div className="flex flex-col gap-4">
-        {/* Header strip */}
-        <div className="flex items-center justify-between pb-1 border-b border-line">
-          <div className="font-mono text-[10px] text-muted tracking-wider uppercase">
-            SOURCE: fencing-boundary.dxf · Colorbond @ 1.8m
-          </div>
-          <div className="flex gap-2">
-            <button type="button" className="pill-dark text-xs" onClick={handlePushToCrm}>
-              {pushed ? "✓ Pushed to Looplet!" : "Push to Looplet CRM"}
-            </button>
-            <button type="button" className="pill text-xs" onClick={handleDownloadQuoteJson}>
-              Export JSON
-            </button>
-          </div>
-        </div>
-
-        {/* 4 Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <div className="rounded-xl border border-line bg-card/60 p-3">
-            <div className="text-2xl font-semibold text-paper tracking-tight">48 <span className="text-xs font-normal text-muted">lm</span></div>
-            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Fence Run</div>
-          </div>
-          <div className="rounded-xl border border-line bg-card/60 p-3">
-            <div className="text-2xl font-semibold text-paper tracking-tight">21 <span className="text-xs font-normal text-cyan">+1 gate</span></div>
-            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Posts</div>
-          </div>
-          <div className="rounded-xl border border-line bg-card/60 p-3">
-            <div className="text-2xl font-semibold text-amber-400 tracking-tight">$3,045<span className="text-sm">.08</span></div>
-            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Priced Total</div>
-          </div>
-          <div className="rounded-xl border border-line bg-card/60 p-3">
-            <div className="text-2xl font-semibold text-rose-400 tracking-tight">2</div>
-            <div className="font-mono text-[9px] tracking-wider text-muted uppercase mt-0.5">Need Review</div>
-          </div>
-        </div>
-
-        {/* Bill of Materials Table */}
-        <div className="rounded-2xl border border-line bg-card/40 p-4">
-          <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-3 font-semibold">
-            Bill of Materials — priced, every line evidenced
-          </div>
-          <table className="w-full text-left font-mono text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-line text-muted uppercase text-[9px] tracking-wider pb-2">
-                <th className="py-2">Item</th>
-                <th>Qty</th>
-                <th>Unit</th>
-                <th>Trust</th>
-                <th className="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {FENCING_BOM.map((item, idx) => (
-                <tr key={idx} className="border-b border-line/40 hover:bg-card/60">
-                  <td className="py-2.5 text-paper font-sans text-xs">{item.item}</td>
-                  <td className="text-muted">{item.qty}</td>
-                  <td className="text-muted">{item.unit}</td>
-                  <td>
-                    <span className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-wider ${
-                      item.trust === "reconciled"
-                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                        : item.trust === "single-source"
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                        : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                    }`}>
-                      {item.trust}
-                    </span>
-                  </td>
-                  <td className="text-right font-medium text-paper">${item.amount.toFixed(2)}</td>
-                </tr>
-              ))}
-              <tr className="border-t border-line font-semibold text-paper">
-                <td className="py-3">Total</td>
-                <td colSpan={3} />
-                <td className="text-right text-amber-400 text-sm font-mono">${FENCING_TOTAL.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Review Queue */}
-        <div className="rounded-2xl border border-line bg-card/40 p-4">
-          <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-2 font-semibold">
-            Review Queue — 2 items need your call
-          </div>
-          <ul className="space-y-2 text-xs">
-            <li className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-muted">
-              <span className="font-medium text-amber-300 block mb-0.5">● Concrete (footings)</span>
-              Assumes 250 mm dia × 600 mm deep footings — confirm with the engineer/soil footing size is a site call.
-            </li>
-            <li className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-muted">
-              <span className="font-medium text-amber-300 block mb-0.5">● Drawing unit unverified</span>
-              Unit &quot;mm&quot; rests only on the DXF header, nothing to corroborate it — confirm before ordering.
-            </li>
-          </ul>
-        </div>
-      </div>
+  const activeRecipes = useMemo(() => {
+    if (!recipeSet || s.job.runs.length === 0) return [];
+    const ids = new Set(
+      s.job.runs.flatMap((run) =>
+        recipeSet.recipes
+          .filter((recipe) => recipe.system === run.specification.system && recipe.profile === run.specification.profile)
+          .map((recipe) => recipe.id),
+      ),
     );
+    return recipeSet.recipes.filter((recipe) => ids.has(recipe.id));
+  }, [recipeSet, s.job.runs]);
+  const recipeAssumptions = activeRecipes.length > 0 ? activeRecipes.flatMap((recipe) => recipe.assumptions) : null;
+  const bomHost = detectHost();
+
+  async function generateBom() {
+    if (!recipeSet) return;
+    const token = ++buildToken.current;
+    setCompileIssues([]);
+    setTransportStatus({ phase: "pending", message: "Checking evidence and applying the local versioned fencing rules." });
+    const compiled = await compileBomRequest({
+      job: s.job,
+      runtimeAssets: s.assetReadiness,
+      hydrationSettled: s.persistenceHydrated,
+      recipeSet,
+      requestId: crypto.randomUUID(),
+    });
+    if (token !== buildToken.current) return;
+    if (!compiled.ok) {
+      setCompileIssues(compiled.issues);
+      setTransportStatus({ phase: "idle" });
+      return;
+    }
+    s.beginBomGeneration(compiled.request);
+    try {
+      let response;
+      if (bomHost === "tauri") {
+        const source = useStudio.getState().activePlanBinary;
+        if (!source || source.sha256 !== compiled.request.document.sha256) {
+          throw new Error("The verified source bytes no longer match this BOM request.");
+        }
+        const { invoke } = await import("@tauri-apps/api/core");
+        const controller = new AbortController();
+        buildAbort.current = controller;
+        const result = await runBomTransport(
+          compiled.request,
+          createTauriBomAdapter(invoke, source.bytes),
+          {
+            signal: controller.signal,
+            isCurrent: (binding) => {
+              const current = useStudio.getState();
+              const pendingBinding = current.bomState.pending?.binding;
+              return pendingBinding !== undefined &&
+                sameBomSourceBinding(pendingBinding, binding) &&
+                current.job.id === binding.jobId &&
+                current.job.revision === binding.jobRevision &&
+                current.activePlanBinary?.sha256 === binding.documentSha256;
+            },
+          },
+        );
+        if (!result.ok) throw new Error(result.error.safeMessage);
+        response = result.response;
+      } else throw new Error("BOM generation requires the X-Ray desktop quantity engine.");
+      if (token !== buildToken.current) return;
+      s.completeBomGeneration(response);
+      setTransportStatus({ phase: "idle" });
+    } catch (error) {
+      if (token !== buildToken.current) return;
+      const message = error instanceof Error ? error.message : "The local quantity build was interrupted.";
+      s.failBomGeneration(message);
+      setTransportStatus({ phase: "failed", message });
+    } finally {
+      buildAbort.current = null;
+    }
+  }
+
+  async function acceptAssumption(assumptionId: string) {
+    if (!recipeSet) return;
+    const actor = reviewer.trim();
+    if (!actor) {
+      setTransportStatus({ phase: "failed", message: "Enter the reviewer responsible for accepting this project assumption." });
+      return;
+    }
+    const recipe = activeRecipes.find((entry) => entry.assumptions.some((assumption) => assumption.id === assumptionId));
+    if (!recipe) return;
+    try {
+      const transition = await acceptRecipeAssumption(recipeSet, {
+        recipeId: recipe.id,
+        assumptionId,
+        expectedSetRevision: recipeSet.revision,
+        expectedRecipeRevision: recipe.revision,
+        actor,
+        at: new Date().toISOString(),
+      });
+      const saved = await saveFencingRecipeSet(s.job.id, transition.recipeSet);
+      if (!saved.ok) throw new Error(`Recipe decision could not be saved (${saved.reason}).`);
+      setRecipeSet(transition.recipeSet);
+      useStudio.getState().reconcileBomRecipeSet(transition.recipeSet);
+      setRecipePersistenceError(null);
+      setTransportStatus({ phase: "idle" });
+    } catch (error) {
+      setTransportStatus({ phase: "failed", message: error instanceof Error ? error.message : "The assumption decision could not be recorded." });
+    }
+  }
+
+  async function reopenAssumption(assumptionId: string) {
+    if (!recipeSet) return;
+    const actor = reviewer.trim();
+    if (!actor) {
+      setRecipePersistenceError("Enter the reviewer responsible for reopening this project assumption.");
+      return;
+    }
+    const recipe = activeRecipes.find((entry) => entry.assumptions.some((assumption) => assumption.id === assumptionId));
+    if (!recipe) return;
+    try {
+      const transition = await reopenRecipeAssumption(recipeSet, {
+        recipeId: recipe.id,
+        assumptionId,
+        expectedSetRevision: recipeSet.revision,
+        expectedRecipeRevision: recipe.revision,
+        actor,
+        at: new Date().toISOString(),
+      });
+      const saved = await saveFencingRecipeSet(s.job.id, transition.recipeSet);
+      if (!saved.ok) throw new Error(`Recipe decision could not be saved (${saved.reason}).`);
+      setRecipeSet(transition.recipeSet);
+      useStudio.getState().reconcileBomRecipeSet(transition.recipeSet);
+      setRecipePersistenceError(null);
+    } catch (error) {
+      setRecipePersistenceError(error instanceof Error ? error.message : "The assumption decision could not be reopened.");
+    }
+  }
+
+  function cancelBom() {
+    buildToken.current += 1;
+    buildAbort.current?.abort();
+    buildAbort.current = null;
+    if (s.bomState.pending) s.failBomGeneration("Quantity build cancelled by the estimator.");
+    setTransportStatus({ phase: "idle" });
+  }
+
+  function openBomEvidence(reference: BomEvidenceRef) {
+    if (reference.kind === "run") {
+      s.selectRun(reference.id);
+      s.setPane("measure");
+    } else if (reference.kind === "gate") {
+      s.selectGate(reference.id);
+      s.setPane("measure");
+    } else if (reference.kind === "photo") {
+      s.setPane("proof");
+    } else if (reference.kind === "calibration") {
+      s.setPane("measure");
+    } else if (reference.kind === "document") {
+      s.setPane("sheets");
+    } else if (reference.kind === "approval") {
+      s.setPane("review");
+    }
   }
 
   return (
-    <>
-      <p className="text-muted">
-        Bill of quantities is the sum of your marks. Direct push converts your takeoffs into live Looplet CRM Quote Line Items.
-      </p>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="kicker text-left">
-            <th className="py-2">Item</th>
-            <th>Qty</th>
-            <th>Unit</th>
-            <th>Source</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-t border-line">
-            <td className="py-2">Measured length</td>
-            <td>{sum(lengths).toFixed(2)}</td>
-            <td>m</td>
-            <td>markups</td>
-          </tr>
-          <tr className="border-t border-line">
-            <td className="py-2">Measured area</td>
-            <td>{sum(areas).toFixed(2)}</td>
-            <td>m²</td>
-            <td>markups</td>
-          </tr>
-          <tr className="border-t border-line">
-            <td className="py-2">Counted items</td>
-            <td>{sum(counts).toFixed(0)}</td>
-            <td>ea</td>
-            <td>markups</td>
-          </tr>
-        </tbody>
-      </table>
-
-      {s.trades.map((t) => (
-        <p key={t.id} className="mt-2 rounded-xl bg-card px-3 py-2">
-          {t.name} — no qty until you mark it
-        </p>
-      ))}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="pill bg-cyan text-navy font-bold hover:brightness-110 cursor-pointer"
-          onClick={handlePushToCrm}
-        >
-          {pushed ? "✓ Staged for Looplet CRM!" : "Push to Looplet CRM Quote Composer"}
-        </button>
-        <button
-          type="button"
-          className="pill cursor-pointer"
-          onClick={handleDownloadQuoteJson}
-        >
-          Download Quote Lines JSON
-        </button>
-      </div>
-
-      {staged.lines.length > 0 && (
-        <div className="mt-3 rounded-xl bg-card p-3 font-mono text-[11px]">
-          <div className="flex justify-between text-muted">
-            <span>Estimated Subtotal (ex GST):</span>
-            <span className="text-paper">${staged.subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-muted">
-            <span>GST (10%):</span>
-            <span className="text-paper">${staged.tax.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-cyan mt-1 pt-1 border-t border-line">
-            <span>Estimated Total:</span>
-            <span>${staged.total.toFixed(2)} AUD</span>
-          </div>
+    <div className="cost-workspace">
+      {recipePersistenceError ? <IntegrityNotice title="Recipe decisions need attention" message={recipePersistenceError} /> : null}
+      {recipeAssumptions?.some((assumption) => assumption.status === "unresolved") ? (
+        <div className="cost-controlbar">
+          <span className="kicker">Recipe review</span>
+          <label className="field cost-reviewer-field">
+            <span>Responsible estimator</span>
+            <input value={reviewer} onChange={(event) => setReviewer(event.currentTarget.value)} placeholder="Name required to accept assumptions" />
+          </label>
+          <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
         </div>
-      )}
-    </>
+      ) : null}
+      <BomPanel
+        state={s.bomState}
+        compileIssues={compileIssues}
+        transportStatus={transportStatus}
+        recipeAssumptions={recipeAssumptions}
+        generationAvailable={bomHost === "tauri"}
+        onGenerate={() => void generateBom()}
+        onCancel={cancelBom}
+        onRetry={() => void generateBom()}
+        onAcceptAssumption={(assumptionId) => void acceptAssumption(assumptionId)}
+        onReopenAssumption={(assumptionId) => void reopenAssumption(assumptionId)}
+        onOpenEvidence={openBomEvidence}
+      />
+    </div>
   );
 }
 
 function ProofPane() {
   const s = useStudio();
+  const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
   function download() {
+    const current = useStudio.getState();
+    const readiness = getQuoteReadiness(current.job, current.assetReadiness, current.persistenceHydrated);
     const blob = new Blob(
       [
         JSON.stringify(
           {
+            schema: "xray-evidence-manifest/v1",
             product: "xray-by-looplet",
-            plan: s.planName,
-            sheet: s.sheet + 1,
-            scaleM: s.scaleM,
-            markups: s.markups,
-            trades: s.trades,
-            note: "Quantities are only the markups. Nothing else was derived.",
+            exportedAt: new Date().toISOString(),
+            job: current.job,
+            assetReadiness: current.assetReadiness,
+            readiness,
+            note: "This manifest records canonical evidence and current blockers. It is not a priced quote.",
           },
           null,
           2,
@@ -1150,15 +1159,24 @@ function ProofPane() {
     a.click();
   }
   return (
-    <>
-      <p className="text-muted">Proof is the evidence pack: plan name, scale, markups, trades. No regenerated numbers.</p>
-      <button type="button" className="pill-dark inline-flex items-center gap-2" onClick={download}>
-        <Download className="size-4" /> Export evidence JSON
-      </button>
-      <pre className="mt-3 overflow-auto rounded-2xl bg-navy p-4 text-cyan">
-        {JSON.stringify({ plan: s.planName, markups: s.markups.length, trades: s.trades.map((t) => t.name) }, null, 2)}
-      </pre>
-    </>
+    <div className="proof-workspace">
+      <div className="proof-heading pane-heading-row"><div><span className="kicker">Revisioned evidence</span><h1>Proof manifest</h1><p>Original availability, SHA-256 metadata, links and revision history stay visible with every export.</p></div><button type="button" className="pill-dark inline-flex items-center gap-2" onClick={download}><Download className="size-4" /> Export current manifest</button></div>
+      <div className="proof-artifact-grid">
+        <section className="proof-source-artifact">
+          <span className="kicker">Source artifact</span>
+          <strong>{activeDocument?.name ?? "No verified plan attached"}</strong>
+          <dl><Row a="Original bytes" b={s.assetReadiness.document.state} /><Row a="Pages" b={String(activeDocument?.pageCount ?? 0)} /><Row a="SHA-256" b={activeDocument?.sha256 ? `${activeDocument.sha256.slice(0, 16)}…` : "Unavailable"} /></dl>
+        </section>
+        <section className="proof-summary">
+          <Row a="Job revision" b={String(s.job.revision)} />
+          <Row a="Photo originals" b={`${Object.values(s.assetReadiness.photos).filter((entry) => entry.state === "ready").length} / ${s.job.photos.length} ready`} />
+          <Row a="Measured runs" b={String(s.job.runs.length)} />
+          <Row a="Readiness blockers" b={String(s.quoteReadiness.blockers.length)} />
+        </section>
+      </div>
+      <PhotoEvidencePanel photos={s.job.photos} photoPreviewUrls={s.photoPreviewUrls} runs={s.job.runs} gates={s.job.gates} error={s.photoError} onAddPhotos={s.addPhotos} onUpdatePhoto={s.updatePhotoEvidence} onReorderPhoto={s.reorderPhoto} onRemovePhoto={s.removePhoto} />
+      <details className="proof-revisions"><summary>Revision history <span>{s.job.revisionHistory.length}</span></summary><ol>{[...s.job.revisionHistory].reverse().map((event) => <li key={event.id}><span>#{event.sequence}</span><strong>{event.summary}</strong><time>{new Date(event.occurredAt).toLocaleString()}</time></li>)}</ol></details>
+    </div>
   );
 }
 
@@ -1168,22 +1186,16 @@ function Capabilities({ onClose }: { onClose: () => void }) {
       <div className="max-w-lg rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="font-mono text-sm tracking-[0.16em]">CAPABILITIES</h2>
         <ul className="mt-3 list-disc space-y-1 pl-5">
-          <li>Open a construction plan (PDF name recorded; vector takeoff is a later engine pass)</li>
-          <li>24-sheet job, elevation and plan poses</li>
-          <li>3D isometric wireframe — building first, roof second</li>
+          <li>Open and integrity-check supported plan bytes</li>
+          <li>Browse the current sheet rail and local presentation views</li>
+          <li>Inspect a local isometric wireframe</li>
           <li>Stand 3D / Lay Flat / Plan / Isometric / Fit</li>
           <li>Canvas colour (charcoal navy or paper) and lift-up full canvas</li>
           <li>Measure length, area, count after you set scale</li>
           <li>Manual sketch layer, raised only by presentation height</li>
           <li>Open-ended trades — nothing defaulted</li>
-          <li>BOM and proof from markups only. LLM never writes a quantity.</li>
+          <li>Inspect recorded markup totals without invented materials or prices</li>
         </ul>
-        <p className="mt-3 text-muted">
-          Download a static Model page:{" "}
-          <a className="underline" href="/xray-model-pipeline.html" download>
-            xray-model-pipeline.html
-          </a>
-        </p>
         <button type="button" className="pill-dark mt-4" onClick={onClose}>
           Close
         </button>

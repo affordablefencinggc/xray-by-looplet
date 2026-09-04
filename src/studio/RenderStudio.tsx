@@ -1,368 +1,137 @@
 import { useState } from "react";
-import { Camera, Download, Image as ImageIcon, Sparkles, Check, Sliders, Shield } from "lucide-react";
+import { Camera, Download, Image as ImageIcon, Shield, Sliders } from "lucide-react";
 import { useStudio } from "./store";
 
 export function RenderStudio() {
   const s = useStudio();
-  const [generating, setGenerating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
-
   const materials = s.renderMaterials;
 
   const handleCaptureCamera = () => {
-    const camStr = `Azimuth: ${s.az.toFixed(2)}rad, Elevation: ${s.el.toFixed(2)}rad, Zoom: ${s.dist.toFixed(1)}x`;
-    s.setCapturedView(camStr);
-    setStatusMsg(`Captured 3D camera viewpoint: ${camStr}`);
-    setTimeout(() => setStatusMsg(null), 3500);
+    const camera = `Azimuth: ${s.az.toFixed(2)}rad, Elevation: ${s.el.toFixed(2)}rad, Zoom: ${s.dist.toFixed(1)}x`;
+    s.setCapturedView(camera);
+    setStatusMsg(`Local camera recorded: ${camera}`);
   };
 
-  const handleGenerate = () => {
-    setGenerating(true);
-    setStatusMsg("Prompting xAI Grok Imagine with strict geometry lock...");
-    setTimeout(() => {
-      setGenerating(false);
-      setStatusMsg("Visual render package generated and verified against 3D camera.");
-      setTimeout(() => setStatusMsg(null), 4000);
-    }, 1800);
+  const handleExportBrief = () => {
+    const brief = {
+      kind: "xray-local-render-brief",
+      planName: s.activePlanBinary?.name ?? null,
+      sheet: s.sheet + 1,
+      camera: s.capturedView,
+      appearanceDirection: materials,
+      provider: null,
+      renderStatus: "unavailable",
+      note: "This local brief contains no generated image and makes no geometry-verification claim.",
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(brief, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `xray-render-brief-sheet-${s.sheet + 1}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setStatusMsg("Local camera/reference brief downloaded.");
   };
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
-      {/* Header Eyebrow & Title */}
       <div>
-        <div className="font-mono text-[10px] tracking-[0.24em] text-cyan uppercase">
-          Camera to Image
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-paper mt-0.5">
-          Render studio
-        </h1>
-        <p className="text-xs text-muted max-w-3xl mt-1 leading-relaxed">
-          Capture a chosen 3D camera, add explicit design references and package a provenance-safe visual brief. Render pixels never become measurements or component evidence.
+        <div className="kicker">Camera / reference brief</div>
+        <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">Render</h1>
+        <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted">
+          Record a local camera and appearance direction. No image provider, reference-photo importer, MCP connection,
+          or generated render is available in this build.
         </p>
       </div>
 
-      {/* Metrics Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border border-line bg-card/60 p-3">
-          <div className="font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
-            Qualified Source
-          </div>
-          <div className="mt-1 text-lg font-medium text-paper">
-            {s.planName ? "Yes" : "No"}
-          </div>
-          <div className="text-[11px] text-muted truncate">
-            {s.planName ? s.planName : "Open a plan first"}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-line bg-card/60 p-3">
-          <div className="font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
-            Selected Sheet
-          </div>
-          <div className="mt-1 text-lg font-medium text-paper">
-            Sheet {s.sheet + 1}
-          </div>
-          <div className="text-[11px] text-muted truncate">
-            Left rail & source sheet synchronised
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-line bg-card/60 p-3">
-          <div className="font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
-            3D Camera
-          </div>
-          <div className="mt-1 text-lg font-medium text-cyan">
-            {s.capturedView ? "Captured" : "Not captured"}
-          </div>
-          <div className="text-[11px] text-muted truncate">
-            {s.capturedView ? s.capturedView : "Capture the current model view"}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-line bg-card/60 p-3">
-          <div className="font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
-            Trusted Provider
-          </div>
-          <div className="mt-1 text-lg font-medium text-green-400">
-            xAI - Grok Imagine
-          </div>
-          <div className="text-[11px] text-muted truncate">
-            Credentials managed via secure host
-          </div>
-        </div>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <StatusCard label="Verified plan bytes" value={s.activePlanBinary ? "Ready" : "Missing"} note={s.activePlanBinary?.name ?? "Open a plan first"} />
+        <StatusCard label="Selected sheet" value={`Sheet ${s.sheet + 1}`} note="Local workbench selection" />
+        <StatusCard label="Camera brief" value={s.capturedView ? "Recorded" : "Not recorded"} note={s.capturedView ?? "Capture the current model view"} />
+        <StatusCard label="Render provider" value="Unavailable" note="No authenticated provider is connected" />
       </div>
 
-      {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="pill inline-flex items-center gap-1.5"
-          onClick={() => s.setPane("model")}
-        >
-          <Sliders className="size-3.5 text-cyan" />
-          Adjust 3D camera
+        <button type="button" className="pill inline-flex items-center gap-1.5" onClick={() => s.setPane("model")}>
+          <Sliders className="size-3.5 text-cyan" /> Adjust local camera
         </button>
-        <button
-          type="button"
-          className="pill inline-flex items-center gap-1.5"
-          onClick={handleCaptureCamera}
-        >
-          <Camera className="size-3.5 text-cyan" />
-          Capture selected view
+        <button type="button" className="pill inline-flex items-center gap-1.5" onClick={handleCaptureCamera}>
+          <Camera className="size-3.5 text-cyan" /> Record camera
         </button>
-        <button
-          type="button"
-          className="pill inline-flex items-center gap-1.5"
-          onClick={() => setStatusMsg("Designer reference moodboard loaded.")}
-        >
-          <ImageIcon className="size-3.5 text-cyan" />
-          Add designer photos
+        <button type="button" className="pill inline-flex items-center gap-1.5" onClick={handleExportBrief}>
+          <Download className="size-3.5 text-cyan" /> Download local brief
         </button>
-        <button
-          type="button"
-          className="pill inline-flex items-center gap-1.5"
-          onClick={() => setStatusMsg("Visual brief JSON exported to clipboard.")}
-        >
-          <Download className="size-3.5 text-cyan" />
-          Export visual brief
-        </button>
-        <button
-          type="button"
-          className="pill inline-flex items-center gap-1.5"
-          onClick={() => setStatusMsg("Connected to FastMCP looplet-xray-takeoff.")}
-        >
-          <Shield className="size-3.5 text-cyan" />
-          Connect MCP
-        </button>
-        {statusMsg && (
-          <span className="text-xs font-mono text-cyan ml-2 animate-fade-in">
-            ✓ {statusMsg}
-          </span>
-        )}
+        {statusMsg && <span className="ml-2 font-mono text-xs text-cyan" role="status">{statusMsg}</span>}
       </div>
 
-      {/* Visual Comparison Split */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Left: 3D Camera Frame */}
-        <div className="flex flex-col rounded-2xl border border-line bg-card/40 p-3.5 min-h-[280px]">
-          <div className="flex items-center justify-between pb-2 border-b border-line/60 text-[11px] font-mono">
-            <span className="text-muted uppercase tracking-wider">
-              Geometry Input
-            </span>
-            <span className="text-cyan">
-              Sheet {s.sheet + 1} · {s.capturedView ? "LOCKED" : "LIVE ORBIT"}
-            </span>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <section className="flex min-h-[260px] flex-col rounded-2xl border border-line bg-card p-3.5">
+          <div className="flex items-center justify-between border-b border-line pb-2 font-mono text-[11px]">
+            <span className="uppercase tracking-wider text-muted">Local camera</span>
+            <span className="text-cyan">{s.capturedView ? "RECORDED" : "LIVE"}</span>
           </div>
+          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-line bg-navy p-6 text-center">
+            <Camera className="mb-2 size-10 text-cyan" />
+            <div className="text-sm font-medium text-paper">{s.capturedView ? "Camera parameters recorded" : "No camera recorded"}</div>
+            <p className="mt-1 max-w-xs text-xs text-muted">{s.capturedView ?? "Adjust the wireframe in Model, then record its local camera parameters."}</p>
+          </div>
+        </section>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-navy/80 rounded-xl mt-2 relative border border-line/40 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(#17324d_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
-            <Camera className="size-10 text-cyan/60 mb-2" />
-            <div className="text-paper text-sm font-medium">
-              {s.capturedView ? "Camera View Active" : `Selected Camera: Sheet ${s.sheet + 1}`}
-            </div>
-            <p className="text-xs text-muted max-w-xs mt-1">
-              {s.capturedView
-                ? s.capturedView
-                : "Open Model, orbit the genuine source geometry to the view you want, then capture it here."}
-            </p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={handleCaptureCamera}
-                className="px-3 py-1 bg-cyan text-navy rounded-full text-xs font-semibold hover:bg-cyan/90 transition-colors"
-              >
-                Capture Current Frame
-              </button>
-            </div>
-            <div className="absolute bottom-2 left-3 text-[10px] font-mono text-muted/70">
-              Geometry provenance: native PDF/DXF paths. Raised height is presentation-only until calibrated.
-            </div>
+        <section className="flex min-h-[260px] flex-col rounded-2xl border border-line bg-card p-3.5">
+          <div className="flex items-center justify-between border-b border-line pb-2 font-mono text-[11px]">
+            <span className="uppercase tracking-wider text-muted">Generated output</span>
+            <span className="text-muted">UNAVAILABLE</span>
           </div>
-        </div>
-
-        {/* Right: Visual Output Reference */}
-        <div className="flex flex-col rounded-2xl border border-line bg-card/40 p-3.5 min-h-[280px]">
-          <div className="flex items-center justify-between pb-2 border-b border-line/60 text-[11px] font-mono">
-            <span className="text-muted uppercase tracking-wider">
-              Visual Output
-            </span>
-            <span className="text-paper font-medium">
-              Ruffles reference standard
-            </span>
+          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-line bg-navy p-6 text-center">
+            <Shield className="mb-2 size-9 text-muted" />
+            <div className="text-sm font-medium text-paper">No provider connected</div>
+            <p className="mt-1 max-w-sm text-xs text-muted">A production render requires an authenticated provider, an explicit request, and a returned asset with provenance.</p>
           </div>
-
-          <div className="flex-1 flex flex-col items-center justify-center p-2 bg-navy/80 rounded-xl mt-2 relative border border-line/40 overflow-hidden">
-            {/* Architectural rendering representation */}
-            <div className="relative w-full h-full min-h-[210px] rounded-lg overflow-hidden flex flex-col items-center justify-center bg-gradient-to-br from-amber-950/20 via-slate-900 to-sky-950/40">
-              <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-[9px] tracking-widest uppercase">
-                Different Source · Reference Only
-              </div>
-              <div className="text-center p-4">
-                <Sparkles className="size-8 text-amber-400/80 mx-auto mb-2" />
-                <div className="text-paper text-sm font-semibold">
-                  Photoreal Visual Target
-                </div>
-                <div className="text-xs text-muted max-w-xs mt-1">
-                  Warm late-afternoon daylight · Light cream masonry · Standing-seam metal roof · Retained subtropical planting
-                </div>
-              </div>
-              <div className="absolute bottom-2.5 right-2.5 text-[9px] font-mono text-muted/80">
-                Grok Imagine 3.0 Model Lock Verified
-              </div>
-            </div>
-          </div>
-          <div className="text-[10px] text-muted mt-2">
-            <b>Reference boundary:</b> this image belongs to the separately qualified Ruffles set. It demonstrates target finish only.
-          </div>
-        </div>
+        </section>
       </div>
 
-      {/* Materials & Atmosphere + Generate Render Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Left 2 cols: Materials inputs */}
-        <div className="md:col-span-2 rounded-2xl border border-line bg-card/40 p-3.5 flex flex-col gap-2.5">
-          <div className="text-xs font-mono tracking-wider text-muted uppercase">
-            Materials and atmosphere
-          </div>
-          <div className="text-[11px] text-muted">
-            Change appearance without changing the validated structure.
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-            <div>
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Roof
-              </label>
-              <input
-                type="text"
-                value={materials.roof}
-                onChange={(e) => s.setRenderMaterial("roof", e.target.value)}
-                className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Walls
-              </label>
-              <input
-                type="text"
-                value={materials.walls}
-                onChange={(e) => s.setRenderMaterial("walls", e.target.value)}
-                className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Windows
-              </label>
-              <input
-                type="text"
-                value={materials.windows}
-                onChange={(e) => s.setRenderMaterial("windows", e.target.value)}
-                className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Landscaping
-              </label>
-              <input
-                type="text"
-                value={materials.landscaping}
-                onChange={(e) => s.setRenderMaterial("landscaping", e.target.value)}
-                className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Lighting
-              </label>
-              <input
-                type="text"
-                value={materials.lighting}
-                onChange={(e) => s.setRenderMaterial("lighting", e.target.value)}
-                className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Render Style
-              </label>
-              <input
-                type="text"
-                value={materials.style}
-                onChange={(e) => s.setRenderMaterial("style", e.target.value)}
-                className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] font-mono text-muted block uppercase">
-              Additional Appearance Direction
-            </label>
-            <input
-              type="text"
-              value={materials.direction}
-              onChange={(e) => s.setRenderMaterial("direction", e.target.value)}
-              className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper focus:border-cyan outline-none mt-0.5"
-            />
-          </div>
+      <section className="rounded-2xl border border-line bg-card p-3.5">
+        <div className="kicker">Appearance direction</div>
+        <p className="mt-1 text-[11px] text-muted">These notes are saved only in the local brief. They do not change or verify geometry.</p>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <BriefField label="Roof" value={materials.roof} onChange={(value) => s.setRenderMaterial("roof", value)} />
+          <BriefField label="Walls" value={materials.walls} onChange={(value) => s.setRenderMaterial("walls", value)} />
+          <BriefField label="Windows" value={materials.windows} onChange={(value) => s.setRenderMaterial("windows", value)} />
+          <BriefField label="Landscape" value={materials.landscaping} onChange={(value) => s.setRenderMaterial("landscaping", value)} />
+          <BriefField label="Lighting" value={materials.lighting} onChange={(value) => s.setRenderMaterial("lighting", value)} />
+          <BriefField label="Style" value={materials.style} onChange={(value) => s.setRenderMaterial("style", value)} />
         </div>
-
-        {/* Right 1 col: Generate render trigger */}
-        <div className="rounded-2xl border border-line bg-card/40 p-3.5 flex flex-col justify-between">
-          <div>
-            <div className="text-xs font-mono tracking-wider text-muted uppercase">
-              Generate render
-            </div>
-            <div className="text-[11px] text-muted mt-1 leading-relaxed">
-              The first image is always the selected X-Ray camera. References are appearance-only.
-            </div>
-
-            <div className="mt-3">
-              <label className="text-[10px] font-mono text-muted block uppercase">
-                Trusted Cloud Provider
-              </label>
-              <select className="w-full bg-navy/80 border border-line rounded px-2.5 py-1.5 text-xs text-paper mt-1 focus:border-cyan outline-none">
-                <option>xAI - Grok Imagine</option>
-                <option>Local SDXL / ComfyUI</option>
-              </select>
-            </div>
-
-            <label className="flex items-start gap-2.5 mt-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={s.geometryLock}
-                onChange={s.toggleGeometryLock}
-                className="mt-0.5 accent-cyan rounded"
-              />
-              <div className="text-[11px] text-muted leading-tight">
-                <b className="text-paper block font-medium">Geometry lock required</b>
-                The provider is explicitly instructed to preserve walls, openings, rooflines, footprint, levels and camera.
-              </div>
-            </label>
-          </div>
-
-          <button
-            type="button"
-            disabled={generating}
-            onClick={handleGenerate}
-            className="w-full mt-4 py-2.5 bg-gradient-to-r from-cyan to-blue-500 hover:from-cyan/90 hover:to-blue-500/90 text-navy font-semibold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition-all"
-          >
-            {generating ? (
-              <>
-                <div className="size-3.5 border-2 border-navy border-t-transparent rounded-full animate-spin" />
-                Prompting Model...
-              </>
-            ) : (
-              <>
-                <Sparkles className="size-4" />
-                Generate Render Brief
-              </>
-            )}
-          </button>
+        <div className="mt-2">
+          <BriefField label="Additional direction" value={materials.direction} onChange={(value) => s.setRenderMaterial("direction", value)} />
         </div>
+      </section>
+
+      <div className="flex flex-wrap gap-2" aria-label="Unavailable render actions">
+        <button type="button" className="pill inline-flex items-center gap-1.5" disabled title="No reference-photo importer is connected">
+          <ImageIcon className="size-3.5" /> Reference import unavailable
+        </button>
+        <button type="button" className="pill" disabled title="No authenticated render provider is connected">Generate unavailable</button>
+        <button type="button" className="pill" disabled title="No MCP transport is connected">MCP unavailable</button>
       </div>
     </div>
+  );
+}
+
+function StatusCard({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div className="rounded-xl border border-line bg-card p-3">
+      <div className="kicker">{label}</div>
+      <div className="mt-1 text-lg font-medium">{value}</div>
+      <div className="truncate text-[11px] text-muted" title={note}>{note}</div>
+    </div>
+  );
+}
+
+function BriefField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block text-[10px] font-mono uppercase text-muted">
+      {label}
+      <input className="mt-0.5 w-full rounded border border-line bg-navy px-2.5 py-2 text-xs text-paper outline-none focus:border-cyan" type="text" value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
   );
 }

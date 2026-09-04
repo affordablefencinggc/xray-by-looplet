@@ -113,6 +113,12 @@ describe("Keyboard Shortcuts Engine", () => {
       assert.deepEqual(log, ["setPane:measure", "setTool:count"]);
     });
 
+    it("handles M as the visible Move tool without routing to the removed Sketch pane", () => {
+      const { actions, log } = createMockActions();
+      handleStudioKeyDown({ key: "m", preventDefault: () => {} }, actions, MOCK_PANES);
+      assert.deepEqual(log, ["setPane:measure", "setTool:none"]);
+    });
+
     it("handles Escape to cancel / clear pending", () => {
       const { actions, log } = createMockActions();
       let prevented = false;

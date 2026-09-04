@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   appNameFromHost,
-  createHeadInjector,
+  createHeadInjector as createHeadInjectorRaw,
   grokXCreatorHeadTags,
-  injectGrokPwaHead,
+  injectGrokPwaHead as injectGrokPwaHeadRaw,
   isDocumentPath,
   isInstallQuery,
   publicAppHost,
@@ -20,6 +20,18 @@ import {
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const EMPTY_OG_ROOT = mkdtempSync(join(tmpdir(), "grok-og-isolated-"));
+
+// Head injection normally discovers this app's baked site.json and public OG
+// assets. Unit cases exercise generic platform behavior, so give every call an
+// empty identity unless that case explicitly supplies one.
+function injectGrokPwaHead(html, context = {}) {
+  return injectGrokPwaHeadRaw(html, { cwd: EMPTY_OG_ROOT, site: {}, ...context });
+}
+
+function createHeadInjector(context = {}) {
+  return createHeadInjectorRaw({ cwd: EMPTY_OG_ROOT, site: {}, ...context });
+}
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
@@ -503,4 +515,3 @@ test("vite plugin bakes og identity as a virtual module", () => {
   assert.match(plugin, /virtual:grok-og-identity/);
   assert.match(plugin, /snapshotOgIdentity/);
 });
-

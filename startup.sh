@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
-cd /workspace
+APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$APP_DIR"
 node scripts/preview.mjs stop || true
 if curl -sf -o /dev/null --max-time 2 http://127.0.0.1:8080/; then
   exit 0

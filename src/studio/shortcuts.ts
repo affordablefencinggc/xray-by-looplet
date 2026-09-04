@@ -45,8 +45,8 @@ export function handleStudioKeyDown(
     actions.setTool("count");
   } else if (key === "m" || key === "M") {
     e.preventDefault();
-    actions.setPane("sketch");
-    actions.setTool("sketch");
+    actions.setPane("measure");
+    actions.setTool("none");
   } else if (key === "s" || key === "S") {
     e.preventDefault();
     actions.toggleSnapping();
