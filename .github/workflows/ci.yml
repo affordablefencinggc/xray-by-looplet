@@ -7,6 +7,100 @@ on:
     branches: [main]
 
 jobs:
+  sc07-transport-proof:
+    name: SC-07 Transport Contract Proof
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: never
+      NO_COLOR: 1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Setup Python 3.12 for the shared SC-07 contract boundary
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install trusted Rust stable with rustfmt and clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: swatinem/rust-cache@v2
+
+      - name: Install Tauri Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install pinned Python engine dependencies
+        run: python -m pip install -r engine/python/requirements.txt
+
+      - name: Verify trusted Cargo toolchain
+        run: |
+          command -v cargo
+          cargo --version
+          rustfmt --version
+          cargo clippy --version
+
+      - name: Check Rust formatting
+        run: |
+          cargo fmt --manifest-path engine/host/Cargo.toml -- --check
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Lint Rust host and Tauri transport
+        run: |
+          cargo clippy --manifest-path engine/host/Cargo.toml --all-targets -- -D warnings
+          cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Capture TypeScript transport, adapter, state, persistence, store and panel proof
+        run: |
+          mkdir -p proof/SC-07
+          node --experimental-strip-types --test src/studio/bomTransport.test.ts src/studio/bomTauriAdapter.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomStore.test.ts src/studio/BomPanel.test.ts src/studio/engineHost.test.ts 2>&1 | tee proof/SC-07/typescript-transport.tap
+
+      - name: Capture Python request and response contract-boundary proof
+        env:
+          PYTHONPATH: engine/python:engine
+        run: python -m pytest engine/python/xray/test_job_bom.py engine/python/xray/test_job_bom_contract_boundary.py engine/python/xray/test_orders.py -q -p no:cacheprovider 2>&1 | tee proof/SC-07/python-transport.log
+
+      - name: Capture Rust host transport proof with harmless compiled fixture only
+        run: cargo test --manifest-path engine/host/Cargo.toml transport -- --nocapture 2>&1 | tee proof/SC-07/rust-host-transport.log
+
+      - name: Capture Unix process-group descendant termination proof
+        run: cargo test --manifest-path engine/host/Cargo.toml transport_br_013_unix_process_group_kills_descendants_on_timeout_and_cancel -- --nocapture 2>&1 | tee proof/SC-07/rust-host-process-tree-unix.log
+
+      - name: Capture Tauri transport proof with injected runners only
+        run: cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture 2>&1 | tee proof/SC-07/rust-tauri-transport.log
+
+      - name: Verify hermetic spawn policy and aggregate BR evidence
+        run: node scripts/verify-sc07-transport-proof.mjs
+
+      - name: Upload SC-07 transport proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: sc07-transport-proof
+          path: |
+            proof/SC-07/transport.json
+            proof/SC-07/typescript-transport.tap
+            proof/SC-07/rust-host-transport.log
+            proof/SC-07/rust-host-process-tree-unix.log
+            proof/SC-07/rust-tauri-transport.log
+            proof/SC-07/python-transport.log
+            proof/SC-07/bom-flow-audit-dev.json
+            proof/SC-07/bom-flow-audit-built.json
+          if-no-files-found: error
+
   web-and-engine-audit:
     name: Web Studio & Vector Engine Audit
     runs-on: ubuntu-latest
@@ -20,6 +114,14 @@ jobs:
           node-version: 22
           cache: "npm"
 
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Python engine dependencies
+        run: python -m pip install -r engine/python/requirements.txt
+
       - name: Install Node dependencies
         run: npm ci
 
@@ -28,6 +130,25 @@ jobs:
 
       - name: Run test suite
         run: npm test
+
+      - name: Run deterministic BOM and order kernels
+        env:
+          PYTHONPATH: engine/python:engine
+        run: python -m pytest engine/python/xray/test_job_bom.py engine/python/xray/test_orders.py -q -p no:cacheprovider --junitxml=proof/SC-07/pytest-kernels.xml
+
+      - name: Prove TypeScript and Python BOM byte parity
+        env:
+          XRAY_PYTHON: python
+        run: npm run test:bom-parity
+
+      - name: Upload BOM convergence proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: sc07-bom-convergence
+          path: |
+            proof/SC-07/convergence.json
+            proof/SC-07/pytest-kernels.xml
+          if-no-files-found: error
 
       - name: Build Web Application
         run: npm run build
@@ -44,7 +165,7 @@ jobs:
 
   tauri-desktop-matrix:
     name: Tauri Desktop Build (${{ matrix.platform }})
-    needs: web-and-engine-audit
+    needs: [web-and-engine-audit, sc07-transport-proof]
     runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -74,6 +195,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Execute SC-07 transport tests on ${{ matrix.platform }}
+        env:
+          CARGO_TERM_COLOR: never
+          NO_COLOR: 1
+        run: |
+          cargo test --manifest-path engine/host/Cargo.toml transport -- --nocapture
+          cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
 
       - name: Build Tauri Desktop Application
         run: npm run tauri:build

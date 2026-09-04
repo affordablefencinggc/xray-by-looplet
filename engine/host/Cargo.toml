@@ -2,7 +2,7 @@
 name = "xray-engine-host"
 version = "0.1.0"
 edition = "2021"
-description = "Spawn the X-Ray Python takeoff engine and read takeoff.json"
+description = "Bounded host transport for the X-Ray deterministic BOM engine"
 license = "UNLICENSED"
 
 [lib]
@@ -14,4 +14,8 @@ name = "xray-engine"
 path = "src/main.rs"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_JobObjects", "Win32_System_Threading"] }
