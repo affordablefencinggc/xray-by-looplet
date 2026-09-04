@@ -1,4 +1,7 @@
 # Ledger: Direct IFC BIM Model Parser (XR-ENG-IFC-01)
+
+> **SUPERSEDED COMPLETION CLAIM — 2026-09-04:** Preserve this file as implementation history only. `XRAY-MASTER-LEDGER.md` is authoritative. The scanner/adapter code exists, but IFC units, placement semantics, production-adapter coverage and current executed evidence remain partial under ENG-024; the feature is not release-complete.
+
 Approved: yes @ 2026-09-03T10:55:00.000Z
 Baseline branch: main
 Graph / Boundary: `engine/python/xray/ifc.py`, `engine/python/xray/sources/ifc.py`, `engine/python/xray/sources/__init__.py`, `engine/python/xray/test_dxf_ifc.py`

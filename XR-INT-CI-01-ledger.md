@@ -1,4 +1,7 @@
 # Ledger: Continuous Integration Pipeline for Multi-Platform Releases (XR-INT-CI-01)
+
+> **SUPERSEDED COMPLETION CLAIM — 2026-09-04:** Preserve this file as workflow-edit history only. `XRAY-MASTER-LEDGER.md` is authoritative. CI configuration exists, but no matching remote run links or uploaded release artifacts have been verified; continuous security, provenance and release attestation remain SC-15 work.
+
 Approved: yes @ 2026-09-03 (User requested: "Implement task XR-INT-CI-01: 'Continuous integration pipeline building Linux, Windows, and Web releases on commit'. Produce clean, working code with verified proof.")
 Baseline commit: 4c23c25
 Baseline branch: main

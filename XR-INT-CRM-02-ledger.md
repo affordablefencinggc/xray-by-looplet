@@ -1,4 +1,7 @@
 # Ledger: One-Click Direct Push to Looplet CRM Quote Composer (XR-INT-CRM-02)
+
+> **SUPERSEDED / INVALIDATED COMPLETION CLAIM — 2026-09-04:** Preserve this file as history only. `XRAY-MASTER-LEDGER.md` is authoritative. The browser/localStorage handoff was not a Looplet-owned authenticated contract and is now disabled fail-closed. Real contract intake is SC-10 and server transport, outbox, attachments and receipts are SC-14.
+
 Approved: yes @ 2026-09-03 (User requested: "Implement task XR-INT-CRM-02: 'One-click direct push from X-Ray Studio to live Looplet CRM Quote Composer'. Produce clean, working code with verified proof.")
 Baseline commit: 4c23c25
 Baseline branch: main
