@@ -24,15 +24,42 @@ sorted type, and no clock or randomness is used — same takeoff, same scene byt
 from __future__ import annotations
 
 import json
+import math
 from collections import Counter
 
 from xray.htmlutil import esc as _esc
 
-SCENE_VERSION = "0.1"
+SCENE_VERSION = "0.2"
 
 # a small, fixed palette cycled by sorted type index — deterministic colour.
 _PALETTE = ["#7fdbff", "#2d9cdb", "#e8f4fb", "#5b7f9c", "#8fb3cc",
             "#1c6ea4", "#b3e08f", "#d99cdb"]
+
+
+def _number(value, *, positive=False):
+    if (isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) or abs(value) > 1e12
+            or positive and value <= 0):
+        raise ValueError("Unsupported finite coordinate or positive height.")
+    return float(value)
+
+
+def _symbols(takeoff):
+    symbols = takeoff.get("symbols", [])
+    if not isinstance(symbols, list) or not symbols or len(symbols) > 100_000:
+        raise ValueError("No supported placed symbols, or symbol limit exceeded; no wireframe available.")
+    ids = set()
+    for s in symbols:
+        if not isinstance(s, dict):
+            raise ValueError("Invalid placed symbol.")
+        for key in ("id", "blockName"):
+            if not isinstance(s.get(key), str) or not s[key] or len(s[key]) > 1024:
+                raise ValueError("Missing or invalid symbol identity.")
+        if s["id"] in ids:
+            raise ValueError("Duplicate symbol identity.")
+        ids.add(s["id"])
+        _number(s.get("x")); _number(s.get("y"))
+    return symbols
 
 
 def build_scene(takeoff: dict, heights: dict | None = None,
@@ -46,8 +73,14 @@ def build_scene(takeoff: dict, heights: dict | None = None,
     a proportion of the plan's horizontal extent is used so the model reads
     sensibly — still flagged, never a quantity.
     """
-    symbols = takeoff.get("symbols", []) or []
+    symbols = _symbols(takeoff)
+    if heights is not None and not isinstance(heights, dict):
+        raise ValueError("Height inputs must be a mapping.")
     heights = heights or {}
+    for height in heights.values():
+        _number(height, positive=True)
+    if default_height is not None:
+        _number(default_height, positive=True)
 
     xs = [s["x"] for s in symbols if s.get("x") is not None]
     ys = [s["y"] for s in symbols if s.get("y") is not None]
@@ -57,6 +90,7 @@ def build_scene(takeoff: dict, heights: dict | None = None,
         # a modest fraction of the plan extent — enough to read as 3D without
         # towering over an elongated layout. Arbitrary and flagged, never a fact.
         default_height = span * 0.25 if span else 1.0
+    _number(default_height, positive=True)
 
     types = sorted({s["blockName"] for s in symbols})
     colour = {name: _PALETTE[i % len(_PALETTE)] for i, name in enumerate(types)}
@@ -70,9 +104,9 @@ def build_scene(takeoff: dict, heights: dict | None = None,
         else:
             h, tier = float(default_height), "needs-human"
             assumed_any = True
-        x, y = float(s.get("x") or 0.0), float(s.get("y") or 0.0)
+        x, y = _number(s["x"]), _number(s["y"])
         elements.append({
-            "nodeId": s["id"], "type": name, "kind": "column",
+            "nodeId": s["id"], "type": name, "kind": "symbol-extrusion",
             "colour": colour[name], "heightTier": tier,
             "a": [x, y, 0.0], "b": [x, y, h],
         })
@@ -89,6 +123,7 @@ def build_scene(takeoff: dict, heights: dict | None = None,
         "engine": takeoff.get("engine"),
         "source": {
             "documentPath": takeoff.get("document", {}).get("path"),
+            "sha256": takeoff.get("document", {}).get("sha256"),
             "units": (takeoff.get("document", {}).get("units") or {}).get("resolved", ""),
         },
         "meta": {
@@ -104,14 +139,39 @@ def build_scene(takeoff: dict, heights: dict | None = None,
         "elements": elements,
         "bounds": bounds,
     }
-    return json.loads(json.dumps(scene, default=str))
+    return json.loads(json.dumps(scene, allow_nan=False))
 
 
 def roundtrip_check(scene: dict, takeoff: dict) -> dict:
     """Re-derive component counts FROM the scene and gate them against the
     takeoff's symbols. The model must reproduce the drawing's counts exactly."""
-    from_scene = Counter(e["type"] for e in scene.get("elements", []))
-    from_takeoff = Counter(s["blockName"] for s in takeoff.get("symbols", []) or [])
+    try:
+        symbols = _symbols(takeoff)
+        elements = scene.get("elements", [])
+        if not isinstance(elements, list) or len(elements) != len(symbols):
+            raise ValueError("Element inventory mismatch.")
+        expected = {s["id"]: s for s in symbols}
+        seen = set()
+        for e in elements:
+            identity = e["nodeId"]
+            if identity not in expected or identity in seen:
+                raise ValueError("Element identity mismatch.")
+            seen.add(identity); s = expected[identity]
+            if (e["type"] != s["blockName"] or e["kind"] != "symbol-extrusion"
+                    or len(e["a"]) != 3 or len(e["b"]) != 3
+                    or e["a"] != [s["x"], s["y"], 0.0]
+                    or e["b"][:2] != [s["x"], s["y"]]
+                    or e.get("heightTier") not in ("given", "needs-human")):
+                raise ValueError("Element placement mismatch.")
+            for coordinate in e["a"] + e["b"]:
+                _number(coordinate)
+            _number(e["b"][2], positive=True)
+        if scene.get("source", {}).get("sha256") != takeoff.get("document", {}).get("sha256"):
+            raise ValueError("Source binding mismatch.")
+    except (ValueError, TypeError, KeyError):
+        return {"ok": False, "byType": {}, "mismatches": {}, "reason": "Missing, invalid or changed source-bound placements."}
+    from_scene = Counter(e["type"] for e in elements)
+    from_takeoff = Counter(s["blockName"] for s in symbols)
     mismatches = {
         t: {"scene": from_scene.get(t, 0), "takeoff": from_takeoff.get(t, 0)}
         for t in set(from_scene) | set(from_takeoff)
@@ -121,14 +181,14 @@ def roundtrip_check(scene: dict, takeoff: dict) -> dict:
             "mismatches": mismatches}
 
 
-def render_html(scene: dict, title: str = "Structural wireframe") -> str:
+def render_html(scene: dict, title: str = "Placed-symbol wireframe") -> str:
     """A self-contained, dependency-free WebGL viewer (same lineage as the WTC
     reference): orbit / pan / zoom, Iso / Elevation / Plan presets, isolate by
     type. The scene is embedded inline — offline, no external requests."""
     payload = json.dumps({
         "elements": scene["elements"], "types": scene["types"],
         "bounds": scene["bounds"], "meta": scene.get("meta", {}),
-    }, separators=(",", ":"))
+    }, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     total = len(scene["elements"])
     assumed = scene.get("meta", {}).get("heightBasis") == "assumed"
     type_rows = "".join(
@@ -162,7 +222,7 @@ def render_html(scene: dict, title: str = "Structural wireframe") -> str:
  .help{{font-family:var(--mono);font-size:10px;color:var(--dim)}}
 </style></head><body>
 <canvas id="gl"></canvas>
-<div class="hud tl"><p class="eyebrow">Structural wireframe · extruded from plan</p>
+<div class="hud tl"><p class="eyebrow">Placed-symbol view · not building reconstruction</p>
  <h1>{_esc(title)}</h1>
  <p class="sub">{total} components from the drawing{'' if not assumed else
    ' · <span class="warn">height assumed for view — not measured</span>'}</p></div>
@@ -181,7 +241,7 @@ else{{
 const off=S.bounds, mn=off.min, mx=off.max;
 const ctr=[(mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2];
 const diag=Math.hypot(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])||1;
-const on={{}}; S.types.forEach(t=>on[t.name]=true);
+const on=Object.create(null); S.types.forEach(t=>on[t.name]=true);
 function hex(h){{return [parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,parseInt(h.slice(5,7),16)/255];}}
 function build(){{const V=[],C=[];S.elements.forEach(e=>{{if(!on[e.type])return;
   const c=hex(e.colour);V.push(e.a[0],e.a[1],e.a[2],e.b[0],e.b[1],e.b[2]);
@@ -209,7 +269,7 @@ const cam={{az:-0.7,el:0.35,dist:diag*1.6}},tgt=Object.assign({{}},cam);
 function frame(){{
  KEYS.forEach(k=>cam[k]+=(tgt[k]-cam[k])*0.15);
  const dpr=Math.min(devicePixelRatio||1,2),w=cv.clientWidth,h=cv.clientHeight;
- if(cv.width!==Math.round(w*dpr)){{cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}}
+ if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){{cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}}
  gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0.02,0.043,0.078,1);
  gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
  const ce=Math.cos(cam.el),se=Math.sin(cam.el);
@@ -252,8 +312,13 @@ def main(argv=None) -> int:
                     help="assumed viewing height for all types (drawing units)")
     a = ap.parse_args(argv)
 
-    tk = json.loads(Path(a.takeoff).read_text(encoding="utf-8"))
-    scene = build_scene(tk, default_height=a.height)
+    try:
+        tk = json.loads(Path(a.takeoff).read_text(encoding="utf-8"))
+        scene = build_scene(tk, default_height=a.height)
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        import sys
+        print("error: unsupported or invalid source placements; no wireframe generated.", file=sys.stderr)
+        return 2
     check = roundtrip_check(scene, tk)
     out_dir = Path(a.out) if a.out else Path(a.takeoff).parent
     out_dir.mkdir(parents=True, exist_ok=True)

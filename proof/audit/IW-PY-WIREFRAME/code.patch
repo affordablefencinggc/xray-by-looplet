@@ -1,0 +1,907 @@
+--- a/engine/python/xray/wireframe.py
++++ b/engine/python/xray/wireframe.py
+@@ -24,15 +24,42 @@
+ from __future__ import annotations
+ 
+ import json
++import math
+ from collections import Counter
+ 
+ from xray.htmlutil import esc as _esc
+ 
+-SCENE_VERSION = "0.1"
++SCENE_VERSION = "0.2"
+ 
+ # a small, fixed palette cycled by sorted type index — deterministic colour.
+ _PALETTE = ["#7fdbff", "#2d9cdb", "#e8f4fb", "#5b7f9c", "#8fb3cc",
+             "#1c6ea4", "#b3e08f", "#d99cdb"]
++
++
++def _number(value, *, positive=False):
++    if (isinstance(value, bool) or not isinstance(value, (int, float))
++            or not math.isfinite(value) or abs(value) > 1e12
++            or positive and value <= 0):
++        raise ValueError("Unsupported finite coordinate or positive height.")
++    return float(value)
++
++
++def _symbols(takeoff):
++    symbols = takeoff.get("symbols", [])
++    if not isinstance(symbols, list) or not symbols or len(symbols) > 100_000:
++        raise ValueError("No supported placed symbols, or symbol limit exceeded; no wireframe available.")
++    ids = set()
++    for s in symbols:
++        if not isinstance(s, dict):
++            raise ValueError("Invalid placed symbol.")
++        for key in ("id", "blockName"):
++            if not isinstance(s.get(key), str) or not s[key] or len(s[key]) > 1024:
++                raise ValueError("Missing or invalid symbol identity.")
++        if s["id"] in ids:
++            raise ValueError("Duplicate symbol identity.")
++        ids.add(s["id"])
++        _number(s.get("x")); _number(s.get("y"))
++    return symbols
+ 
+ 
+ def build_scene(takeoff: dict, heights: dict | None = None,
+@@ -46,8 +73,14 @@
+     a proportion of the plan's horizontal extent is used so the model reads
+     sensibly — still flagged, never a quantity.
+     """
+-    symbols = takeoff.get("symbols", []) or []
++    symbols = _symbols(takeoff)
++    if heights is not None and not isinstance(heights, dict):
++        raise ValueError("Height inputs must be a mapping.")
+     heights = heights or {}
++    for height in heights.values():
++        _number(height, positive=True)
++    if default_height is not None:
++        _number(default_height, positive=True)
+ 
+     xs = [s["x"] for s in symbols if s.get("x") is not None]
+     ys = [s["y"] for s in symbols if s.get("y") is not None]
+@@ -57,6 +90,7 @@
+         # a modest fraction of the plan extent — enough to read as 3D without
+         # towering over an elongated layout. Arbitrary and flagged, never a fact.
+         default_height = span * 0.25 if span else 1.0
++    _number(default_height, positive=True)
+ 
+     types = sorted({s["blockName"] for s in symbols})
+     colour = {name: _PALETTE[i % len(_PALETTE)] for i, name in enumerate(types)}
+@@ -70,9 +104,9 @@
+         else:
+             h, tier = float(default_height), "needs-human"
+             assumed_any = True
+-        x, y = float(s.get("x") or 0.0), float(s.get("y") or 0.0)
++        x, y = _number(s["x"]), _number(s["y"])
+         elements.append({
+-            "nodeId": s["id"], "type": name, "kind": "column",
++            "nodeId": s["id"], "type": name, "kind": "symbol-extrusion",
+             "colour": colour[name], "heightTier": tier,
+             "a": [x, y, 0.0], "b": [x, y, h],
+         })
+@@ -89,6 +123,7 @@
+         "engine": takeoff.get("engine"),
+         "source": {
+             "documentPath": takeoff.get("document", {}).get("path"),
++            "sha256": takeoff.get("document", {}).get("sha256"),
+             "units": (takeoff.get("document", {}).get("units") or {}).get("resolved", ""),
+         },
+         "meta": {
+@@ -104,14 +139,39 @@
+         "elements": elements,
+         "bounds": bounds,
+     }
+-    return json.loads(json.dumps(scene, default=str))
++    return json.loads(json.dumps(scene, allow_nan=False))
+ 
+ 
+ def roundtrip_check(scene: dict, takeoff: dict) -> dict:
+     """Re-derive component counts FROM the scene and gate them against the
+     takeoff's symbols. The model must reproduce the drawing's counts exactly."""
+-    from_scene = Counter(e["type"] for e in scene.get("elements", []))
+-    from_takeoff = Counter(s["blockName"] for s in takeoff.get("symbols", []) or [])
++    try:
++        symbols = _symbols(takeoff)
++        elements = scene.get("elements", [])
++        if not isinstance(elements, list) or len(elements) != len(symbols):
++            raise ValueError("Element inventory mismatch.")
++        expected = {s["id"]: s for s in symbols}
++        seen = set()
++        for e in elements:
++            identity = e["nodeId"]
++            if identity not in expected or identity in seen:
++                raise ValueError("Element identity mismatch.")
++            seen.add(identity); s = expected[identity]
++            if (e["type"] != s["blockName"] or e["kind"] != "symbol-extrusion"
++                    or len(e["a"]) != 3 or len(e["b"]) != 3
++                    or e["a"] != [s["x"], s["y"], 0.0]
++                    or e["b"][:2] != [s["x"], s["y"]]
++                    or e.get("heightTier") not in ("given", "needs-human")):
++                raise ValueError("Element placement mismatch.")
++            for coordinate in e["a"] + e["b"]:
++                _number(coordinate)
++            _number(e["b"][2], positive=True)
++        if scene.get("source", {}).get("sha256") != takeoff.get("document", {}).get("sha256"):
++            raise ValueError("Source binding mismatch.")
++    except (ValueError, TypeError, KeyError):
++        return {"ok": False, "byType": {}, "mismatches": {}, "reason": "Missing, invalid or changed source-bound placements."}
++    from_scene = Counter(e["type"] for e in elements)
++    from_takeoff = Counter(s["blockName"] for s in symbols)
+     mismatches = {
+         t: {"scene": from_scene.get(t, 0), "takeoff": from_takeoff.get(t, 0)}
+         for t in set(from_scene) | set(from_takeoff)
+@@ -121,14 +181,14 @@
+             "mismatches": mismatches}
+ 
+ 
+-def render_html(scene: dict, title: str = "Structural wireframe") -> str:
++def render_html(scene: dict, title: str = "Placed-symbol wireframe") -> str:
+     """A self-contained, dependency-free WebGL viewer (same lineage as the WTC
+     reference): orbit / pan / zoom, Iso / Elevation / Plan presets, isolate by
+     type. The scene is embedded inline — offline, no external requests."""
+     payload = json.dumps({
+         "elements": scene["elements"], "types": scene["types"],
+         "bounds": scene["bounds"], "meta": scene.get("meta", {}),
+-    }, separators=(",", ":"))
++    }, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+     total = len(scene["elements"])
+     assumed = scene.get("meta", {}).get("heightBasis") == "assumed"
+     type_rows = "".join(
+@@ -162,7 +222,7 @@
+  .help{{font-family:var(--mono);font-size:10px;color:var(--dim)}}
+ </style></head><body>
+ <canvas id="gl"></canvas>
+-<div class="hud tl"><p class="eyebrow">Structural wireframe · extruded from plan</p>
++<div class="hud tl"><p class="eyebrow">Placed-symbol view · not building reconstruction</p>
+  <h1>{_esc(title)}</h1>
+  <p class="sub">{total} components from the drawing{'' if not assumed else
+    ' · <span class="warn">height assumed for view — not measured</span>'}</p></div>
+@@ -181,7 +241,7 @@
+ const off=S.bounds, mn=off.min, mx=off.max;
+ const ctr=[(mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2];
+ const diag=Math.hypot(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])||1;
+-const on={{}}; S.types.forEach(t=>on[t.name]=true);
++const on=Object.create(null); S.types.forEach(t=>on[t.name]=true);
+ function hex(h){{return [parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,parseInt(h.slice(5,7),16)/255];}}
+ function build(){{const V=[],C=[];S.elements.forEach(e=>{{if(!on[e.type])return;
+   const c=hex(e.colour);V.push(e.a[0],e.a[1],e.a[2],e.b[0],e.b[1],e.b[2]);
+@@ -209,7 +269,7 @@
+ function frame(){{
+  KEYS.forEach(k=>cam[k]+=(tgt[k]-cam[k])*0.15);
+  const dpr=Math.min(devicePixelRatio||1,2),w=cv.clientWidth,h=cv.clientHeight;
+- if(cv.width!==Math.round(w*dpr)){{cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}}
++ if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){{cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}}
+  gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0.02,0.043,0.078,1);
+  gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  const ce=Math.cos(cam.el),se=Math.sin(cam.el);
+@@ -252,8 +312,13 @@
+                     help="assumed viewing height for all types (drawing units)")
+     a = ap.parse_args(argv)
+ 
+-    tk = json.loads(Path(a.takeoff).read_text(encoding="utf-8"))
+-    scene = build_scene(tk, default_height=a.height)
++    try:
++        tk = json.loads(Path(a.takeoff).read_text(encoding="utf-8"))
++        scene = build_scene(tk, default_height=a.height)
++    except (OSError, ValueError, TypeError, KeyError) as error:
++        import sys
++        print("error: unsupported or invalid source placements; no wireframe generated.", file=sys.stderr)
++        return 2
+     check = roundtrip_check(scene, tk)
+     out_dir = Path(a.out) if a.out else Path(a.takeoff).parent
+     out_dir.mkdir(parents=True, exist_ok=True)
+--- a/engine/python/xray/sources/dxf.py
++++ b/engine/python/xray/sources/dxf.py
+@@ -89,7 +89,7 @@
+ 
+ 
+ def expand_inserts(container, blocks, depth=0, path=(), origin=(0.0, 0.0),
+-                   rot=0.0, scale=(1.0, 1.0), chain=()):
++                   rot=0.0, scale=(1.0, 1.0), chain=(), matrix=None):
+     """Yield a Symbol for EVERY block placement, at any nesting depth.
+ 
+     A component's real count only appears after recursion: one modelspace INSERT
+@@ -101,13 +101,21 @@
+     Positions carry through the cumulative transform, so a nested part reports
+     where it actually sits in model space.
+     """
++    from ezdxf.math import Matrix44
+     if depth > MAX_BLOCK_DEPTH:
+-        return
+-    ca, sa = math.cos(math.radians(rot)), math.sin(math.radians(rot))
++        raise ValueError("Nested block depth exceeded; placements are incomplete.")
++    if matrix is None:
++        matrix = (Matrix44.scale(scale[0], scale[1], 1)
++                  @ Matrix44.z_rotate(math.radians(rot))
++                  @ Matrix44.translate(origin[0], origin[1], 0))
+     for i, e in enumerate(container):
+         if e.dxftype() != "INSERT":
+             continue
+         name = e.dxf.name
++        if name in path:
++            raise ValueError("Cyclic block reference; placements are incomplete.")
++        if tuple(e.dxf.extrusion) != (0.0, 0.0, 1.0):
++            raise ValueError("Non-default block OCS orientation is unsupported.")
+         # Identity: the chain of INSERT handles from the modelspace root down
+         # to this placement (see Symbol.id). The chain — not any single handle —
+         # is what stays unique when one definition is placed many times.
+@@ -115,13 +123,27 @@
+         sid = "/".join(chain + (h,))
+         pid = "/".join(chain) or None
+         # local placement -> parent space: scale, then rotate, then translate
+-        lx = float(e.dxf.insert.x) * scale[0]
+-        ly = float(e.dxf.insert.y) * scale[1]
+-        wx = origin[0] + lx * ca - ly * sa
+-        wy = origin[1] + lx * sa + ly * ca
+-        wrot = rot + float(getattr(e.dxf, "rotation", 0.0) or 0.0)
+-        wsx = scale[0] * float(getattr(e.dxf, "xscale", 1.0) or 1.0)
+-        wsy = scale[1] * float(getattr(e.dxf, "yscale", 1.0) or 1.0)
++        # ezdxf's affine matrix includes the block base point, reflections and
++        # nonuniform scaling. Adding angles loses these at nested placements.
++        placed = matrix.transform(e.dxf.insert)
++        wx, wy = float(placed.x), float(placed.y)
++        if not math.isfinite(wx) or not math.isfinite(wy):
++            raise ValueError("Nonfinite block placement.")
++        cumulative = e.matrix44() @ matrix
++        axis_x = cumulative.transform_direction((1, 0, 0))
++        axis_y = cumulative.transform_direction((0, 1, 0))
++        wsx = math.hypot(axis_x.x, axis_x.y)
++        y_length = math.hypot(axis_y.x, axis_y.y)
++        dot = axis_x.x * axis_y.x + axis_x.y * axis_y.y
++        determinant = axis_x.x * axis_y.y - axis_x.y * axis_y.x
++        if (not all(math.isfinite(v) for v in (wsx, y_length, dot, determinant))
++                or not wsx or not y_length
++                or abs(dot) > 1e-10 * wsx * y_length):
++            raise ValueError("Degenerate or sheared block placement is unsupported.")
++        # Equivalent orthogonal rotation/scales, including reflected Y. A single
++        # rotation+axis-scale tuple cannot truthfully encode a sheared matrix.
++        wrot = math.degrees(math.atan2(axis_x.y, axis_x.x))
++        wsy = determinant / wsx
+         layer = getattr(e.dxf, "layer", "") or ""
+         attribs, over = _attrs_for(e, blocks)
+         yield Symbol(block_name=name, layer=layer, x=wx, y=wy,
+@@ -133,7 +155,7 @@
+         if blk is not None:
+             yield from expand_inserts(blk, blocks, depth + 1, path + (name,),
+                                       (wx, wy), wrot, (wsx, wsy),
+-                                      chain + (h,))
++                                      chain + (h,), cumulative)
+ 
+ 
+ def _bbox_width(block, insert) -> float:
+--- a/engine/python/xray/source_wireframe.py
++++ b/engine/python/xray/source_wireframe.py
+@@ -0,0 +1,232 @@
++"""Bounded PDF path outlines in page points; presentation only, never quantities.
++
++This additive API does not modify engine.run() or its takeoff schema. Text,
++images, shadings and explicitly clipped objects are counted as omissions.
++Curves remain cubic curves, not guessed wall or component geometry.
++"""
++from __future__ import annotations
++
++import argparse
++import ctypes
++import hashlib
++import json
++import math
++from pathlib import Path
++import sys
++from xml.sax.saxutils import escape
++
++MAX_BYTES = 30 * 1024 * 1024
++MAX_PAGES = 100
++MAX_OBJECTS = 250_000
++MAX_PATHS = 200_000
++MAX_SEGMENTS = 600_000
++MAX_DEPTH = 16
++MAX_OUTPUT_BYTES = 80 * 1024 * 1024
++IDENTITY = (1., 0., 0., 1., 0., 0.)
++
++
++class WireframeError(ValueError):
++    """Unsupported, malformed or bounded-out source, with no success artifact."""
++
++
++def _finite(value):
++    if not math.isfinite(value) or abs(value) > 1e8:
++        raise WireframeError('Unsupported coordinate range.')
++    return float(value)
++
++
++def compose(outer, inner):
++    a, b, c, d, e, f = outer
++    g, h, i, j, k, l = inner
++    return tuple(_finite(v) for v in (a*g+c*h, b*g+d*h, a*i+c*j, b*i+d*j, a*k+c*l+e, b*k+d*l+f))
++
++
++def transform(matrix, x, y):
++    a, b, c, d, e, f = matrix
++    return [_finite(a*x+c*y+e), _finite(b*x+d*y+f)]
++
++
++def page_matrix(crop, rotation):
++    l, b, r, t = crop
++    w, h = r-l, t-b
++    if w <= 0 or h <= 0 or rotation not in (0, 90, 180, 270):
++        raise WireframeError('Unsupported page box or rotation.')
++    return {
++        0: ((1, 0, 0, -1, -l, t), w, h),
++        90: ((0, 1, 1, 0, -b, -l), h, w),
++        180: ((-1, 0, 0, 1, r, -b), w, h),
++        270: ((0, -1, -1, 0, t, r), h, w),
++    }[rotation]
++
++
++def extract_pdf(path, pages=None):
++    import pypdfium2 as pdfium
++    from pypdfium2 import raw
++    source = Path(path)
++    if not source.is_file() or source.suffix.lower() != '.pdf' or not 0 < source.stat().st_size <= MAX_BYTES:
++        raise WireframeError('Missing, unsupported or oversized PDF input.')
++    with source.open('rb') as handle:
++        content = handle.read(MAX_BYTES + 1)
++    if not 0 < len(content) <= MAX_BYTES:
++        raise WireframeError('Captured input exceeds byte limit.')
++    if not content.startswith(b'%PDF-'):
++        raise WireframeError('Invalid PDF signature.')
++    digest = hashlib.sha256(content).hexdigest()
++    totals = {'objects': 0, 'paths': 0, 'segments': 0}
++    result_pages = []
++    with pdfium.PdfDocument(content) as doc:
++        if not 0 < len(doc) <= MAX_PAGES:
++            raise WireframeError('Page limit exceeded.')
++        selection = list(range(1, len(doc)+1)) if pages is None else list(pages)
++        if (not selection or len(set(selection)) != len(selection)
++                or any(type(p) is not int or not 1 <= p <= len(doc) for p in selection)):
++            raise WireframeError('Invalid or duplicate selected page.')
++        for page_number in sorted(selection):
++            page = doc[page_number-1]
++            try:
++                # PDFium's effective box intersects inherited CropBox/MediaBox.
++                # A raw CropBox may extend beyond the rendered page.
++                crop = [_finite(v) for v in page.get_bbox()]
++                rotation = page.get_rotation()
++                view, width, height = page_matrix(crop, rotation)
++                records = []
++                omissions = {'text': 0, 'image': 0, 'shading': 0, 'clippedObjects': 0, 'nonPaintingPaths': 0, 'unknown': 0}
++                page_counts = {'objects': 0, 'paths': 0, 'segments': 0}
++
++                def walk(parent, parent_matrix, ancestry=(), depth=0):
++                    if depth > MAX_DEPTH:
++                        raise WireframeError('Form nesting limit exceeded.')
++                    count = raw.FPDFPage_CountObjects(parent) if not ancestry else raw.FPDFFormObj_CountObjects(parent)
++                    if count < 0 or totals['objects'] + count > MAX_OBJECTS:
++                        raise WireframeError('Object count failed or exceeded limit.')
++                    for index in range(count):
++                        obj_raw = raw.FPDFPage_GetObject(parent, index) if not ancestry else raw.FPDFFormObj_GetObject(parent, index)
++                        if not obj_raw:
++                            raise WireframeError('Missing PDF object.')
++                        obj = pdfium.PdfObject(obj_raw, page=page)
++                        totals['objects'] += 1; page_counts['objects'] += 1
++                        if totals['objects'] > MAX_OBJECTS:
++                            raise WireframeError('Nested object limit exceeded.')
++                        identity = ancestry + (index,)
++                        clip = raw.FPDFPageObj_GetClipPath(obj)
++                        clip_count = raw.FPDFClipPath_CountPaths(clip) if clip else -1
++                        if clip_count > 0:
++                            omissions['clippedObjects'] += 1
++                            continue
++                        matrix = compose(parent_matrix, obj.get_matrix().get())
++                        if obj.type == raw.FPDF_PAGEOBJ_FORM:
++                            walk(obj, matrix, identity, depth+1)
++                            continue
++                        if obj.type != raw.FPDF_PAGEOBJ_PATH:
++                            key = {raw.FPDF_PAGEOBJ_TEXT: 'text', raw.FPDF_PAGEOBJ_IMAGE: 'image', raw.FPDF_PAGEOBJ_SHADING: 'shading'}.get(obj.type, 'unknown')
++                            omissions[key] += 1
++                            continue
++                        count_segments = raw.FPDFPath_CountSegments(obj)
++                        if count_segments < 0:
++                            raise WireframeError('Invalid path segment count.')
++                        totals['paths'] += 1; totals['segments'] += count_segments
++                        page_counts['paths'] += 1; page_counts['segments'] += count_segments
++                        if totals['paths'] > MAX_PATHS or totals['segments'] > MAX_SEGMENTS:
++                            raise WireframeError('Path or segment limit exceeded.')
++                        fill = ctypes.c_int(); stroke = ctypes.c_int()
++                        if not raw.FPDFPath_GetDrawMode(obj, fill, stroke):
++                            raise WireframeError('Path paint mode unavailable.')
++                        if not fill.value and not stroke.value:
++                            omissions['nonPaintingPaths'] += 1
++                            continue
++                        commands = []; pending = []; has_move = False
++                        display = compose(view, matrix)
++                        for n in range(count_segments):
++                            segment = raw.FPDFPath_GetPathSegment(obj, n)
++                            x = ctypes.c_float(); y = ctypes.c_float()
++                            if not segment or not raw.FPDFPathSegment_GetPoint(segment, x, y):
++                                raise WireframeError('Invalid path point.')
++                            point = transform(display, x.value, y.value)
++                            kind = raw.FPDFPathSegment_GetType(segment)
++                            if kind == raw.FPDF_SEGMENT_MOVETO:
++                                if pending: raise WireframeError('Incomplete cubic path.')
++                                commands.append(['M', *point]); has_move = True
++                            elif kind == raw.FPDF_SEGMENT_LINETO and has_move and not pending:
++                                commands.append(['L', *point])
++                            elif kind == raw.FPDF_SEGMENT_BEZIERTO and has_move:
++                                pending.extend(point)
++                                if len(pending) == 6:
++                                    commands.append(['C', *pending]); pending = []
++                            else:
++                                raise WireframeError('Unsupported path command ordering.')
++                            if raw.FPDFPathSegment_GetClose(segment):
++                                if pending: raise WireframeError('Incomplete closed cubic path.')
++                                commands.append(['Z'])
++                        if pending: raise WireframeError('Truncated cubic path.')
++                        if commands:
++                            records.append({'id': f'p{page_number}/' + '/'.join(map(str, identity)), 'objectIndices': list(identity), 'segmentCount': count_segments, 'commands': commands})
++                walk(page, IDENTITY)
++                result_pages.append({'page': page_number, 'widthPt': width, 'heightPt': height, 'cropBox': crop, 'rotation': rotation, 'coordinateSystem': 'display-page-top-left-points',
++                    'status': 'partial' if records else 'unsupported', 'pathCount': len(records), 'counts': page_counts, 'omissions': omissions, 'paths': records})
++            finally:
++                page.close()
++        source_pages = len(doc)
++    data = {'schema': 'xray.source-wireframe/v1', 'kind': 'pdf-path-outlines', 'authority': 'presentation-only-not-quantities-or-building-reconstruction',
++        'source': {'name': source.name, 'sha256': digest, 'bytes': len(content), 'pageCount': source_pages},
++        'runtime': {'pypdfium2': str(pdfium.PYPDFIUM_INFO), 'pdfium': str(pdfium.PDFIUM_INFO)},
++        'status': 'partial' if any(p['paths'] for p in result_pages) else 'unsupported',
++        'limits': {'inputBytes': MAX_BYTES, 'pages': MAX_PAGES, 'objects': MAX_OBJECTS, 'paths': MAX_PATHS, 'segments': MAX_SEGMENTS, 'depth': MAX_DEPTH, 'outputBytes': MAX_OUTPUT_BYTES},
++        'counts': totals, 'pages': result_pages}
++    if len(json.dumps(data, separators=(',', ':'), allow_nan=False).encode()) > MAX_OUTPUT_BYTES:
++        raise WireframeError('Output byte limit exceeded.')
++    return data
++
++
++def render_svg(page):
++    def number(value):
++        return format(value, '.12g')
++    paths = ''.join('<path d="' + ' '.join(c[0] + ' '.join(number(v) for v in c[1:]) for c in p['commands']) + '"/>' for p in page['paths'])
++    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {number(page["widthPt"])} {number(page["heightPt"])}"><title>Page {page["page"]} source path outlines, partial presentation only</title><g fill="none" stroke="#d9e5ee" stroke-width="0.55" stroke-linecap="round" stroke-linejoin="round">{paths}</g></svg>'
++
++
++def render_viewer(data):
++    manifest = {k: v for k, v in data.items() if k != 'pages'}
++    manifest['pages'] = [{k: v for k, v in p.items() if k != 'paths'} for p in data['pages']]
++    payload = json.dumps(manifest, separators=(',', ':'), allow_nan=False).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
++    title = escape(data['source']['name'])
++    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title} · source wireframe</title>
++<style>:root{{--bg:#09131e;--ink:#d9e5ee;--muted:#a7bbc9;--line:#334a5b}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 'Segoe UI',sans-serif}}header{{padding:16px 24px;border-bottom:1px solid var(--line)}}h1{{font-size:24px;margin:0 0 8px}}p{{margin:6px 0}}.note{{color:var(--muted);font-size:13px}}nav{{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}}button,select{{min-height:40px;background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:6px 12px;font:inherit}}button{{cursor:pointer}}#viewport{{height:calc(100vh - 220px);min-height:300px;overflow:auto;padding:20px}}#drawing{{display:block;margin:auto;width:100%;height:100%;object-fit:contain;transform-origin:top left}}#empty{{padding:40px}}a{{color:var(--ink)}}</style></head><body><header><h1>{title}</h1><p>Actual PDF path outlines · PARTIAL · 2D presentation only</p><p class="note">Text, images, shading and clipped objects are omitted and counted. No walls, component counts, heights or quantities are inferred.</p><p id="facts" class="note"></p><nav><label>Page <select id="page"></select></label><button id="previous">Previous</button><button id="next">Next</button><button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom −</button><button id="fit">Fit</button><a href="scene.json">Source-bound JSON</a></nav></header><div id="viewport"><img id="drawing" alt="Extracted PDF source path outlines"><p id="empty" hidden>No supported vector paths on this page.</p></div>
++<script>const DATA={payload};const select=document.getElementById('page'),drawing=document.getElementById('drawing'),empty=document.getElementById('empty');let zoom=1;
++for(const p of DATA.pages){{const o=document.createElement('option');o.value=p.page;o.textContent=p.page+' · '+p.pathCount+' paths';select.append(o)}}
++function show(){{const p=DATA.pages.find(p=>p.page===Number(select.value));zoom=1;resize();drawing.hidden=!p.pathCount;empty.hidden=!!p.pathCount;if(p.pathCount)drawing.src='page-'+p.page+'.svg';else drawing.removeAttribute('src');document.getElementById('facts').textContent='Page '+p.page+' / '+DATA.source.pageCount+' · '+p.pathCount+' paths · '+p.counts.segments+' source segments · omissions '+JSON.stringify(p.omissions)+' · source '+DATA.source.sha256.slice(0,16)+'… · page points';}}
++function resize(){{drawing.style.width=zoom*100+'%';drawing.style.height=zoom*100+'%'}}select.onchange=show;document.getElementById('previous').onclick=()=>{{select.selectedIndex=Math.max(0,select.selectedIndex-1);show()}};document.getElementById('next').onclick=()=>{{select.selectedIndex=Math.min(DATA.pages.length-1,select.selectedIndex+1);show()}};document.getElementById('zoomIn').onclick=()=>{{zoom=Math.min(4,zoom*1.25);resize()}};document.getElementById('zoomOut').onclick=()=>{{zoom=Math.max(.5,zoom/1.25);resize()}};document.getElementById('fit').onclick=()=>{{zoom=1;resize()}};select.value=DATA.pages.reduce((a,b)=>b.pathCount>a.pathCount?b:a).page;show();</script></body></html>'''
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description='Extract bounded PDF source path outlines; not building reconstruction.')
++    parser.add_argument('pdf'); parser.add_argument('--out', required=True)
++    parser.add_argument('--pages', help='Comma-separated one-based pages; default all pages')
++    args = parser.parse_args(argv)
++    try:
++        selection = None if args.pages is None else [int(p) for p in args.pages.split(',')]
++        data = extract_pdf(args.pdf, selection)
++        if data['status'] == 'unsupported':
++            raise WireframeError('No supported PDF vector paths; no wireframe generated.')
++        content = json.dumps(data, separators=(',', ':'), allow_nan=False)
++        artifacts = {'scene.json': content, 'index.html': render_viewer(data)}
++        for page in data['pages']:
++            if page['paths']: artifacts[f'page-{page["page"]}.svg'] = render_svg(page)
++        if sum(len(v.encode()) for v in artifacts.values()) > MAX_OUTPUT_BYTES:
++            raise WireframeError('Aggregate output byte limit exceeded.')
++        out = Path(args.out)
++        out.mkdir(parents=False, exist_ok=False)
++        for name, text in artifacts.items():
++            with (out / name).open('x', encoding='utf-8', newline='\n') as handle:
++                handle.write(text)
++        completion = {'status': 'partial', 'sourceSha256': data['source']['sha256'], 'artifacts': {name: hashlib.sha256(text.encode()).hexdigest() for name, text in artifacts.items()}}
++        with (out / 'complete.json').open('x', encoding='utf-8', newline='\n') as handle:
++            json.dump(completion, handle, separators=(',', ':'))
++        print(json.dumps({'status': data['status'], 'sourceSha256': data['source']['sha256'], 'pages': len(data['pages']), 'paths': sum(p['pathCount'] for p in data['pages']), 'segments': data['counts']['segments']}))
++        return 0
++    except Exception as error:
++        print('error: ' + (str(error) if isinstance(error, WireframeError) else 'Source extraction or exclusive output failed.'), file=sys.stderr)
++        return 2
++
++
++if __name__ == '__main__':
++    raise SystemExit(main())
+--- a/engine/python/xray/test_wireframe.py
++++ b/engine/python/xray/test_wireframe.py
+@@ -0,0 +1,77 @@
++import copy
++import json
++import math
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++
++from xray.wireframe import build_scene, roundtrip_check, render_html
++
++
++def fixture():
++    return {'document': {'sha256': 'a'*64}, 'symbols': [
++        {'id': 'root/a', 'blockName': 'door', 'x': 12, 'y': -3},
++        {'id': 'root/b', 'blockName': '__proto__', 'x': -12, 'y': 8},
++    ]}
++
++
++class WireframeTests(unittest.TestCase):
++    def test_placed_identity_coordinates_and_counts_preserved_without_mutation(self):
++        data = fixture(); original = copy.deepcopy(data)
++        scene = build_scene(data, heights={'door': 2}, default_height=1)
++        self.assertEqual(data, original)
++        self.assertTrue(roundtrip_check(scene, data)['ok'])
++        self.assertEqual(scene['elements'][0]['kind'], 'symbol-extrusion')
++        self.assertEqual(scene['elements'][0]['a'], [12, -3, 0])
++        self.assertEqual(scene['elements'][0]['heightTier'], 'given')
++        self.assertEqual(scene['elements'][1]['heightTier'], 'needs-human')
++        self.assertEqual(scene, build_scene(data, heights={'door': 2}, default_height=1))
++
++    def test_empty_missing_duplicate_nonfinite_and_out_of_range_reject(self):
++        for symbols in [[], [{'id':'a','blockName':'x'}], [fixture()['symbols'][0]]*2,
++                        [{'id':'a','blockName':'x','x':float('nan'),'y':0}],
++                        [{'id':'a','blockName':'x','x':1e20,'y':0}]]:
++            with self.subTest(symbols=symbols), self.assertRaises(ValueError):
++                build_scene({'symbols': symbols})
++        self.assertFalse(roundtrip_check({'elements': []}, {'symbols': []})['ok'])
++
++    def test_invalid_heights_reject(self):
++        for height in [0, -1, math.nan, math.inf, 1e20, True, '3']:
++            with self.subTest(height=height), self.assertRaises(ValueError):
++                build_scene(fixture(), default_height=height)
++            with self.assertRaises(ValueError):
++                build_scene(fixture(), heights={'door': height})
++
++    def test_equal_counts_cannot_hide_changed_identity_type_coordinate_or_source(self):
++        original = build_scene(fixture())
++        mutations = [lambda s: s['elements'][0].update(nodeId='forged'),
++                     lambda s: s['elements'][0].update(type='other'),
++                     lambda s: s['elements'][0]['a'].__setitem__(0, 400),
++                     lambda s: s['elements'][0]['b'].__setitem__(1, 400),
++                     lambda s: s['source'].update(sha256='b'*64),
++                     lambda s: s['elements'][0]['b'].__setitem__(2, -1)]
++        for mutate in mutations:
++            scene = copy.deepcopy(original); mutate(scene)
++            self.assertFalse(roundtrip_check(scene, fixture())['ok'])
++
++    def test_viewer_payload_does_not_break_out_of_script(self):
++        data = fixture(); data['symbols'][0]['blockName'] = '</script><script>globalThis.injected=1</script>'
++        html = render_html(build_scene(data))
++        self.assertEqual(html.count('</script>'), 1)
++        self.assertIn('\\u003c/script', html)
++        self.assertIn('Object.create(null)', html)
++        self.assertIn('cv.height!==Math.round(h*dpr)', html)
++
++    def test_actual_cli_empty_input_nonzero_and_no_output(self):
++        with tempfile.TemporaryDirectory() as scratch:
++            path = Path(scratch) / 'empty.json'; path.write_text('{"symbols":[]}', encoding='utf-8')
++            out = Path(scratch) / 'out'
++            result = subprocess.run([sys.executable, '-m', 'xray.wireframe', str(path), '--out', str(out)], capture_output=True)
++            self.assertEqual(result.returncode, 2)
++            self.assertFalse(out.exists())
++            self.assertNotIn(b'OK', result.stdout)
++
++
++if __name__ == '__main__': unittest.main()
+--- a/engine/python/xray/test_source_wireframe.py
++++ b/engine/python/xray/test_source_wireframe.py
+@@ -0,0 +1,128 @@
++import copy
++from pathlib import Path
++import tempfile
++import unittest
++import contextlib
++import io
++from unittest.mock import patch
++
++import pikepdf
++import pypdfium2 as pdfium
++
++from xray.source_wireframe import extract_pdf, page_matrix, render_svg, WireframeError
++
++
++def source_fixture(path):
++    """Synthetic source with known nested placement, curve, closed path and clipping."""
++    pdf = pikepdf.Pdf.new()
++    page = pdf.add_blank_page(page_size=(400, 300))
++    page.CropBox = pikepdf.Array([10, 20, 310, 220]); page.Rotate = 90
++    inner = pdf.make_stream(b'0 0 m 10 0 l 10 10 l h S 20 0 m 21 0 22 1 23 3 c S')
++    inner.Type = pikepdf.Name('/XObject'); inner.Subtype = pikepdf.Name('/Form'); inner.BBox = pikepdf.Array([-100,-100,200,200])
++    inner.Resources = pikepdf.Dictionary()
++    outer = pdf.make_stream(b'q 0 1 -1 0 20 10 cm /Inner Do Q')
++    outer.Type = pikepdf.Name('/XObject'); outer.Subtype = pikepdf.Name('/Form'); outer.BBox = pikepdf.Array([-100,-100,300,300])
++    outer.Resources = pikepdf.Dictionary(XObject=pikepdf.Dictionary(Inner=inner))
++    page.Resources = pikepdf.Dictionary(XObject=pikepdf.Dictionary(Outer=outer))
++    page.Contents = pdf.make_stream(b'q 2 0 0 2 30 40 cm /Outer Do Q q 100 100 10 10 re W n 90 90 m 130 130 l S Q')
++    pdf.save(path, deterministic_id=True)
++
++
++class SourceWireframeTests(unittest.TestCase):
++    def test_nested_transform_crop_rotation_curves_closed_paths_and_clipping(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / 'nested.pdf'; source_fixture(path)
++            first = extract_pdf(path); second = extract_pdf(path)
++            self.assertEqual(first, second)
++            page = first['pages'][0]
++            self.assertEqual((page['widthPt'], page['heightPt']), (200, 300))
++            self.assertEqual(page['status'], 'partial')
++            commands = [c for p in page['paths'] for c in p['commands']]
++            self.assertIn(['M', 40, 60], commands)
++            self.assertIn(['L', 60, 60], commands)
++            self.assertIn(['L', 60, 40], commands)
++            self.assertTrue(any(c[0] == 'C' and len(c) == 7 for c in commands))
++            self.assertIn(['Z'], commands)
++            self.assertGreaterEqual(page['omissions']['clippedObjects'], 1)
++            self.assertTrue(all(len(p['objectIndices']) >= 3 for p in page['paths']))
++            with pdfium.PdfDocument(path) as doc:
++                image = doc[0].render(scale=2).to_pil().convert('RGB')
++                # Known horizontal nested line at displayed page (50,60).
++                self.assertLess(min(sum(image.getpixel((x,y))) for x in range(97,104) for y in range(117,124)), 300)
++            self.assertIn('M40 60', render_svg(page))
++
++    def test_all_page_rotations_have_expected_corner_mapping(self):
++        from xray.source_wireframe import transform
++        expected = {0:[0,200], 90:[0,0], 180:[300,0], 270:[200,300]}
++        for rotation, coordinate in expected.items():
++            matrix, _, _ = page_matrix([10,20,310,220], rotation)
++            self.assertEqual(transform(matrix, 10,20), coordinate)
++
++    def test_crop_outside_media_uses_effective_rendered_bounds(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / 'crop.pdf'
++            pdf = pikepdf.Pdf.new(); page = pdf.add_blank_page(page_size=(400,300))
++            page.CropBox = pikepdf.Array([-100,-100,600,700]); page.Rotate = 90
++            page.Contents = pdf.make_stream(b'10 20 m 100 20 l S'); pdf.save(path)
++            data = extract_pdf(path)['pages'][0]
++            self.assertEqual(data['cropBox'], [0,0,400,300])
++            with pdfium.PdfDocument(path) as doc:
++                self.assertEqual((data['widthPt'], data['heightPt']), doc[0].get_size())
++
++    def test_bounds_and_invalid_selection_fail_without_truncation(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / 'nested.pdf'; source_fixture(path)
++            for limit in ['MAX_BYTES', 'MAX_PAGES', 'MAX_OBJECTS', 'MAX_PATHS', 'MAX_SEGMENTS', 'MAX_DEPTH', 'MAX_OUTPUT_BYTES']:
++                with self.subTest(limit=limit), patch('xray.source_wireframe.'+limit, 0), self.assertRaises(WireframeError):
++                    extract_pdf(path)
++            for pages in [[], [0], [1,1], [2], [True]]:
++                with self.assertRaises(WireframeError): extract_pdf(path, pages)
++
++    def test_raster_or_empty_page_is_explicitly_unsupported(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / 'empty.pdf'
++            pdf = pikepdf.Pdf.new(); pdf.add_blank_page(); pdf.save(path)
++            data = extract_pdf(path)
++            self.assertEqual(data['status'], 'unsupported')
++            self.assertEqual(data['pages'][0]['pathCount'], 0)
++
++    def test_nested_objects_cannot_spend_outer_sibling_budget_twice(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / 'nested.pdf'; source_fixture(path)
++            count = extract_pdf(path)['counts']['objects']
++            with patch('xray.source_wireframe.MAX_OBJECTS', count-1), self.assertRaises(WireframeError):
++                extract_pdf(path)
++
++    def test_raster_is_not_converted_into_fake_vector_geometry(self):
++        from PIL import Image, ImageDraw
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / 'raster.pdf'
++            image = Image.new('RGB', (300,200), 'white')
++            ImageDraw.Draw(image).rectangle((10,10,200,180), outline='black', width=3)
++            image.save(path, 'PDF')
++            data = extract_pdf(path)
++            self.assertEqual(data['status'], 'unsupported')
++            self.assertEqual(data['pages'][0]['omissions']['image'], 1)
++
++    def test_cli_exclusive_output_failure_no_success_manifest(self):
++        from xray.source_wireframe import main
++        with tempfile.TemporaryDirectory() as directory:
++            source = Path(directory) / 'nested.pdf'; source_fixture(source)
++            existing = Path(directory) / 'exists'; existing.mkdir()
++            marker = existing / 'keep.txt'; marker.write_text('keep')
++            with contextlib.redirect_stdout(io.StringIO()) as stdout, contextlib.redirect_stderr(io.StringIO()):
++                self.assertEqual(main([str(source),'--out',str(existing)]), 2)
++            self.assertEqual(stdout.getvalue(), '')
++            self.assertEqual(marker.read_text(), 'keep')
++            output = Path(directory) / 'partial'
++            original = Path.open
++            def fail_write(path, *args, **kwargs):
++                if path.name == 'index.html': raise OSError('simulated write failure')
++                return original(path, *args, **kwargs)
++            with patch.object(Path,'open',fail_write), contextlib.redirect_stdout(io.StringIO()) as stdout, contextlib.redirect_stderr(io.StringIO()):
++                self.assertEqual(main([str(source),'--out',str(output)]), 2)
++            self.assertEqual(stdout.getvalue(), '')
++            self.assertFalse((output/'complete.json').exists())
++
++
++if __name__ == '__main__': unittest.main()
+--- a/engine/python/xray/test_wireframe_dxf.py
++++ b/engine/python/xray/test_wireframe_dxf.py
+@@ -0,0 +1,44 @@
++import unittest
++import ezdxf
++from ezdxf.math import Matrix44
++from xray.sources.dxf import expand_inserts
++
++
++class NestedPlacementTests(unittest.TestCase):
++    def test_nested_translation_rotation_reflection_nonuniform_scale_and_basepoint(self):
++        doc = ezdxf.new()
++        leaf = doc.blocks.new('LEAF'); leaf.add_line((0,0),(1,1))
++        nested = doc.blocks.new('NESTED', base_point=(1,2))
++        child = nested.add_blockref('LEAF',(3,4), dxfattribs={'rotation': 90, 'xscale': 2, 'yscale': .5})
++        assembly = doc.blocks.new('ASSEMBLY', base_point=(-2,1))
++        mid = assembly.add_blockref('NESTED',(5,2), dxfattribs={'rotation': 90, 'xscale': -1, 'yscale': 3})
++        parent = doc.modelspace().add_blockref('ASSEMBLY',(40,50), dxfattribs={'rotation': 45, 'xscale': 2, 'yscale': .5})
++        symbols = list(expand_inserts(doc.modelspace(), doc.blocks))
++        self.assertEqual(len(symbols), 3)
++        expected = (mid.matrix44() @ parent.matrix44()).transform(child.dxf.insert)
++        self.assertAlmostEqual(symbols[2].x, expected.x)
++        self.assertAlmostEqual(symbols[2].y, expected.y)
++        self.assertEqual(symbols[2].id, '/'.join([parent.dxf.handle, mid.dxf.handle, child.dxf.handle]))
++        self.assertEqual(symbols[2].parent_id, symbols[1].id)
++        import math
++        full = child.matrix44() @ mid.matrix44() @ parent.matrix44()
++        axis = full.transform_direction((1,0,0))
++        self.assertAlmostEqual(symbols[2].xscale*math.cos(math.radians(symbols[2].rotation)), axis.x)
++        self.assertAlmostEqual(symbols[2].xscale*math.sin(math.radians(symbols[2].rotation)), axis.y)
++        child.dxf.rotation = 30
++        with self.assertRaisesRegex(ValueError, 'sheared'):
++            list(expand_inserts(doc.modelspace(), doc.blocks))
++
++    def test_nondefault_ocs_fails_closed(self):
++        doc = ezdxf.new(); block=doc.blocks.new('BLOCK');block.add_line((0,0),(1,1))
++        doc.modelspace().add_blockref('BLOCK',(1,2),dxfattribs={'extrusion':(0,1,0)})
++        with self.assertRaisesRegex(ValueError,'OCS'):
++            list(expand_inserts(doc.modelspace(),doc.blocks))
++
++    def test_cyclic_and_excessively_nested_blocks_fail_instead_of_truncate(self):
++        doc = ezdxf.new(); a = doc.blocks.new('A'); a.add_blockref('A',(0,0))
++        doc.modelspace().add_blockref('A',(0,0))
++        with self.assertRaises(ValueError): list(expand_inserts(doc.modelspace(), doc.blocks))
++
++
++if __name__ == '__main__': unittest.main()
+--- a/engine/server/mcp_server.py
++++ b/engine/server/mcp_server.py
+@@ -10,6 +10,9 @@
+ from __future__ import annotations
+ 
+ import sys
++import math
++import os
++import tempfile
+ from pathlib import Path
+ 
+ _ENGINE = Path(__file__).resolve().parents[1]
+@@ -19,6 +22,7 @@
+         sys.path.insert(0, str(p))
+ 
+ from mcp.server.fastmcp import FastMCP
++from pydantic import StrictFloat, StrictInt
+ 
+ from xray import ENGINE_NAME, __version__, engine
+ from xray.markup_writer import write_marked_pdf
+@@ -52,12 +56,27 @@
+ 
+ 
+ @mcp.tool()
+-def run_takeoff_calibrated(pdf_path: str, page: int,
+-                           p0: list, p1: list, known_mm: float) -> dict:
++def run_takeoff_calibrated(pdf_path: str, page: StrictInt,
++                           p0: list[StrictFloat | StrictInt], p1: list[StrictFloat | StrictInt],
++                           known_mm: StrictFloat | StrictInt) -> dict:
+     """Run a takeoff with a manual scale calibration on one page: two points in
+     PDF coordinates ([x, y] each) and the real-world distance between them (mm).
+     The calibrated scale overrides auto-detection for that page."""
+-    cal = {int(page): {"p0": list(p0), "p1": list(p1), "known_mm": float(known_mm)}}
++    if (type(page) is not int or page < 0 or len(p0) != 2 or len(p1) != 2
++            or any(isinstance(v, bool) or not isinstance(v, (int,float)) or not math.isfinite(v) or abs(v)>1e9 for v in [*p0,*p1,known_mm])
++            or known_mm <= 0 or p0 == p1):
++        raise ValueError("Invalid calibration page, points or positive distance.")
++    from xray.preflight import check_input
++    import pypdfium2 as pdfium
++    if check_input(pdf_path).name != "pdf":
++        raise ValueError("Calibration requires a supported PDF source.")
++    with pdfium.PdfDocument(pdf_path) as document:
++        if page >= len(document):
++            raise ValueError("Calibration page is outside the source.")
++        width, height = document[page].get_size()
++        if any(not 0 <= p[0] <= width or not 0 <= p[1] <= height for p in [p0,p1]):
++            raise ValueError("Calibration points are outside the source page.")
++    cal = {page: {"p0": list(p0), "p1": list(p1), "known_mm": float(known_mm)}}
+     return engine.run(pdf_path, calibrations=cal)
+ 
+ 
+@@ -65,8 +84,29 @@
+ def marked_pdf(pdf_path: str, out_path: str) -> dict:
+     """Run a takeoff and write a marked-up PDF (standard annotations + embedded
+     takeoff.json) to out_path. Returns the path and quantity count."""
++    target = Path(out_path)
++    if (not target.is_absolute() or target.suffix.lower() != ".pdf"
++            or target.exists() or target.is_symlink() or not target.parent.is_dir()
++            or target.parent.resolve() != target.parent):
++        raise ValueError("Marked PDF requires an absent absolute output in an existing directory.")
+     result = engine.run(pdf_path)
+-    write_marked_pdf(pdf_path, out_path, result)
++    temporary = None
++    try:
++        with tempfile.NamedTemporaryFile(prefix=".xray-marked-", suffix=".pdf", dir=target.parent, delete=False) as handle:
++            temporary = Path(handle.name)
++        write_marked_pdf(pdf_path, str(temporary), result)
++        import pikepdf
++        with pikepdf.open(temporary) as output:
++            if len(output.pages) != len(result["document"]["pages"]):
++                raise ValueError("Marked PDF page inventory mismatch.")
++        with temporary.open("r+b") as handle:
++            os.fsync(handle.fileno())
++        os.link(temporary, target)  # atomic publication; an existing target wins
++    except Exception as error:
++        raise ValueError("Marked PDF publication failed; no success recorded.") from error
++    finally:
++        if temporary is not None:
++            temporary.unlink(missing_ok=True)
+     return {"marked_pdf": out_path,
+             "quantities": len(result.get("quantities", [])),
+             "checks": len(result.get("checks", []))}
+@@ -83,4 +123,11 @@
+ 
+ 
+ if __name__ == "__main__":
++    # On Windows, first-loading NumPy/ezdxf after AnyIO starts its stdio
++    # worker threads can stall native extension initialization. Load an
++    # installed CAD runtime before those threads exist, without requiring it
++    # for PDF-only installations or changing the ordinary CLI protocol.
++    import importlib.util
++    if importlib.util.find_spec("ezdxf") is not None:
++        import ezdxf  # noqa: F401
+     mcp.run()
+--- a/engine/server/test_mcp_boundaries.py
++++ b/engine/server/test_mcp_boundaries.py
+@@ -0,0 +1,45 @@
++import tempfile
++from pathlib import Path
++from unittest.mock import patch
++import pytest
++from server.mcp_server import run_takeoff_calibrated, marked_pdf
++
++ROOT=Path(__file__).resolve().parents[2]
++SOURCE=str(ROOT/'engine/fixtures/electrical-schedule.pdf')
++
++
++@pytest.mark.parametrize('page,p0,p1,distance',[
++    (-1,[0,0],[1,0],100),(True,[0,0],[1,0],100),(0,[0],[1,0],100),
++    (0,[0,0],[0,0],100),(0,[0,0],[1,0],-1),(0,[0,0],[1,0],float('nan')),
++    (99,[0,0],[1,0],100),(0,[0,0],[1e7,0],100),
++])
++def test_invalid_calibration_is_rejected(page,p0,p1,distance):
++    with pytest.raises(ValueError): run_takeoff_calibrated(SOURCE,page,p0,p1,distance)
++
++
++def test_valid_calibration_is_explicit_and_verified():
++    result=run_takeoff_calibrated(SOURCE,0,[0,0],[100,0],1000)
++    assert result['document']['pages'][0]['scale']['mmPerPt']==10
++    assert result['document']['pages'][0]['scale']['verified'] is True
++
++
++def test_marked_pdf_preserves_existing_and_cleans_failed_stage():
++    with tempfile.TemporaryDirectory() as directory:
++        target=Path(directory)/'marked.pdf';target.write_bytes(b'original')
++        with pytest.raises(ValueError):marked_pdf(SOURCE,str(target))
++        assert target.read_bytes()==b'original'
++        fresh=Path(directory)/'fresh.pdf'
++        with patch('server.mcp_server.write_marked_pdf',side_effect=OSError('write failed')):
++            with pytest.raises(ValueError):marked_pdf(SOURCE,str(fresh))
++        assert not fresh.exists()
++        assert not list(Path(directory).glob('.xray-marked-*'))
++
++
++def test_marked_pdf_actual_publish_is_readable():
++    import pikepdf
++    with tempfile.TemporaryDirectory() as directory:
++        target=Path(directory)/'marked.pdf'
++        result=marked_pdf(SOURCE,str(target))
++        assert result['marked_pdf']==str(target)
++        with pikepdf.open(target) as pdf:assert len(pdf.pages)==1
++        assert not list(Path(directory).glob('.xray-marked-*'))

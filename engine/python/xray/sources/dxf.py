@@ -89,7 +89,7 @@ def _attrs_for(insert, blocks) -> tuple[dict, tuple]:
 
 
 def expand_inserts(container, blocks, depth=0, path=(), origin=(0.0, 0.0),
-                   rot=0.0, scale=(1.0, 1.0), chain=()):
+                   rot=0.0, scale=(1.0, 1.0), chain=(), matrix=None):
     """Yield a Symbol for EVERY block placement, at any nesting depth.
 
     A component's real count only appears after recursion: one modelspace INSERT
@@ -101,13 +101,21 @@ def expand_inserts(container, blocks, depth=0, path=(), origin=(0.0, 0.0),
     Positions carry through the cumulative transform, so a nested part reports
     where it actually sits in model space.
     """
+    from ezdxf.math import Matrix44
     if depth > MAX_BLOCK_DEPTH:
-        return
-    ca, sa = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        raise ValueError("Nested block depth exceeded; placements are incomplete.")
+    if matrix is None:
+        matrix = (Matrix44.scale(scale[0], scale[1], 1)
+                  @ Matrix44.z_rotate(math.radians(rot))
+                  @ Matrix44.translate(origin[0], origin[1], 0))
     for i, e in enumerate(container):
         if e.dxftype() != "INSERT":
             continue
         name = e.dxf.name
+        if name in path:
+            raise ValueError("Cyclic block reference; placements are incomplete.")
+        if tuple(e.dxf.extrusion) != (0.0, 0.0, 1.0):
+            raise ValueError("Non-default block OCS orientation is unsupported.")
         # Identity: the chain of INSERT handles from the modelspace root down
         # to this placement (see Symbol.id). The chain — not any single handle —
         # is what stays unique when one definition is placed many times.
@@ -115,13 +123,27 @@ def expand_inserts(container, blocks, depth=0, path=(), origin=(0.0, 0.0),
         sid = "/".join(chain + (h,))
         pid = "/".join(chain) or None
         # local placement -> parent space: scale, then rotate, then translate
-        lx = float(e.dxf.insert.x) * scale[0]
-        ly = float(e.dxf.insert.y) * scale[1]
-        wx = origin[0] + lx * ca - ly * sa
-        wy = origin[1] + lx * sa + ly * ca
-        wrot = rot + float(getattr(e.dxf, "rotation", 0.0) or 0.0)
-        wsx = scale[0] * float(getattr(e.dxf, "xscale", 1.0) or 1.0)
-        wsy = scale[1] * float(getattr(e.dxf, "yscale", 1.0) or 1.0)
+        # ezdxf's affine matrix includes the block base point, reflections and
+        # nonuniform scaling. Adding angles loses these at nested placements.
+        placed = matrix.transform(e.dxf.insert)
+        wx, wy = float(placed.x), float(placed.y)
+        if not math.isfinite(wx) or not math.isfinite(wy):
+            raise ValueError("Nonfinite block placement.")
+        cumulative = e.matrix44() @ matrix
+        axis_x = cumulative.transform_direction((1, 0, 0))
+        axis_y = cumulative.transform_direction((0, 1, 0))
+        wsx = math.hypot(axis_x.x, axis_x.y)
+        y_length = math.hypot(axis_y.x, axis_y.y)
+        dot = axis_x.x * axis_y.x + axis_x.y * axis_y.y
+        determinant = axis_x.x * axis_y.y - axis_x.y * axis_y.x
+        if (not all(math.isfinite(v) for v in (wsx, y_length, dot, determinant))
+                or not wsx or not y_length
+                or abs(dot) > 1e-10 * wsx * y_length):
+            raise ValueError("Degenerate or sheared block placement is unsupported.")
+        # Equivalent orthogonal rotation/scales, including reflected Y. A single
+        # rotation+axis-scale tuple cannot truthfully encode a sheared matrix.
+        wrot = math.degrees(math.atan2(axis_x.y, axis_x.x))
+        wsy = determinant / wsx
         layer = getattr(e.dxf, "layer", "") or ""
         attribs, over = _attrs_for(e, blocks)
         yield Symbol(block_name=name, layer=layer, x=wx, y=wy,
@@ -133,7 +155,7 @@ def expand_inserts(container, blocks, depth=0, path=(), origin=(0.0, 0.0),
         if blk is not None:
             yield from expand_inserts(blk, blocks, depth + 1, path + (name,),
                                       (wx, wy), wrot, (wsx, wsy),
-                                      chain + (h,))
+                                      chain + (h,), cumulative)
 
 
 def _bbox_width(block, insert) -> float:
