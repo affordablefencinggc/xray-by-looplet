@@ -1,0 +1,332 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import * as THREE from "three";
+import {
+  createModelScope,
+  normalizeScopeOptions,
+  scopePointer,
+  scopeFrame,
+  projectScopeCamera,
+  withScopeRendererState,
+} from "./ModelScope.ts";
+
+const options = { enabled: true, zoom: 4, diameter: 240 };
+const close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
+
+describe("Model scope coordinates and projection", () => {
+  it("bounds untrusted numerical options and keeps enabled strict", () => {
+    assert.deepEqual(
+      normalizeScopeOptions({ enabled: true, zoom: Infinity, diameter: NaN }),
+      options,
+    );
+    assert.deepEqual(normalizeScopeOptions({ enabled: false, zoom: 30, diameter: 12 }), {
+      enabled: false,
+      zoom: 8,
+      diameter: 160,
+    });
+    assert.deepEqual(normalizeScopeOptions({ enabled: true, zoom: -3, diameter: 1000 }), {
+      enabled: true,
+      zoom: 2,
+      diameter: 360,
+    });
+  });
+
+  it("maps a translated/scaled host in CSS coordinates, without assuming DPR", () => {
+    const rect = { left: 80, top: 120, width: 1000, height: 600 };
+    assert.deepEqual(scopePointer(580, 420, rect, 500, 300), { x: 250, y: 150 });
+    assert.equal(scopePointer(79, 420, rect, 500, 300), null);
+    assert.equal(scopePointer(580, 721, rect, 500, 300), null);
+    assert.equal(scopePointer(580, 420, { ...rect, width: 0 }, 500, 300), null);
+    assert.equal(scopePointer(NaN, 420, rect, 500, 300), null);
+  });
+
+  it("bounds the lens while retaining the exact focus point at every edge", () => {
+    for (const [width, height] of [
+      [1000, 600],
+      [320, 180],
+      [100, 80],
+    ]) {
+      for (const [x, y] of [
+        [0, 0],
+        [width, 0],
+        [0, height],
+        [width, height],
+        [width / 2, height / 2],
+      ]) {
+        const frame = scopeFrame(width, height, { x, y }, options, 2)!;
+        assert.ok(frame.left >= 0 && frame.top >= 0);
+        assert.ok(frame.left + frame.diameter <= width && frame.top + frame.diameter <= height);
+        close(frame.sampleLeft + frame.sampleSize / 2, x);
+        close(frame.sampleTop + frame.sampleSize / 2, y);
+        close(frame.diameter / frame.sampleSize, 4);
+      }
+    }
+    assert.equal(scopeFrame(0, 100, { x: 0, y: 0 }, options, 1), null);
+  });
+
+  it("uses DPR only for bounded fresh-render resolution", () => {
+    const low = scopeFrame(1000, 600, { x: 500, y: 300 }, options, 1)!;
+    const high = scopeFrame(1000, 600, { x: 500, y: 300 }, options, 3)!;
+    assert.equal(low.pixels, 240);
+    assert.equal(high.pixels, 480);
+    assert.deepEqual({ ...low, pixels: 0 }, { ...high, pixels: 0 });
+    assert.equal(
+      scopeFrame(1000, 600, { x: 500, y: 300 }, { ...options, diameter: 360 }, 4)!.pixels,
+      720,
+    );
+    const stronger = scopeFrame(1000, 600, { x: 500, y: 300 }, { ...options, zoom: 8 }, 1)!;
+    close(low.sampleSize / stronger.sampleSize, 2);
+  });
+
+  for (const kind of ["perspective", "orthographic"] as const) {
+    it(`${kind} keeps all four edge pointer rays under the crosshair at either DPR`, () => {
+      const camera =
+        kind === "perspective"
+          ? new THREE.PerspectiveCamera(43, 1000 / 600, 0.1, 500)
+          : new THREE.OrthographicCamera(-10, 10, 6, -6, 0.1, 500);
+      camera.position.set(8, 12, 18);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld(true);
+      for (const dpr of [1, 2])
+        for (const [x, y] of [
+          [0, 0],
+          [1000, 0],
+          [0, 600],
+          [1000, 600],
+          [1, 300],
+          [999, 300],
+          [500, 1],
+          [500, 599],
+        ]) {
+          const frame = scopeFrame(1000, 600, { x, y }, options, dpr)!;
+          const focus = new THREE.Vector3((2 * x) / 1000 - 1, 1 - (2 * y) / 600, 0).unproject(
+            camera,
+          );
+          const lens = projectScopeCamera(camera, camera.clone(), frame);
+          const result = focus.project(lens);
+          close(result.x, 0);
+          close(result.y, 0);
+        }
+    });
+    for (const existingCrop of [false, true]) {
+      it(`${kind} centers the original source point at true 4x without mutating camera (existing crop: ${existingCrop})`, () => {
+        const camera =
+          kind === "perspective"
+            ? new THREE.PerspectiveCamera(43, 1000 / 600, 0.1, 500)
+            : new THREE.OrthographicCamera(-10, 10, 6, -6, 0.1, 500);
+        camera.position.set(8, 12, 18);
+        camera.lookAt(0, 0, 0);
+        camera.zoom = 1.4;
+        if (existingCrop) camera.setViewOffset(2000, 1200, 100, 200, 1000, 600);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        const before = camera.toJSON();
+        const frame = scopeFrame(1000, 600, { x: 670, y: 260 }, options, 2)!;
+        const center = new THREE.Vector3((2 * 670) / 1000 - 1, 1 - (2 * 260) / 600, 0).unproject(
+          camera,
+        );
+        const dx = new THREE.Vector3((2 * 680) / 1000 - 1, 1 - (2 * 260) / 600, 0).unproject(
+          camera,
+        );
+        const dy = new THREE.Vector3((2 * 670) / 1000 - 1, 1 - (2 * 270) / 600, 0).unproject(
+          camera,
+        );
+        const lens = projectScopeCamera(camera, camera.clone(), frame);
+        const middle = center.project(lens),
+          right = dx.project(lens),
+          down = dy.project(lens);
+        close(middle.x, 0);
+        close(middle.y, 0);
+        close(((right.x - middle.x) * frame.diameter) / 2, 40);
+        close(((middle.y - down.y) * frame.diameter) / 2, 40);
+        assert.deepEqual(camera.toJSON(), before);
+      });
+    }
+  }
+
+  it("copies a transformed camera's world pose without reparenting it", () => {
+    const parent = new THREE.Group();
+    parent.position.set(5, 3, 1);
+    parent.rotation.y = 0.5;
+    const source = new THREE.PerspectiveCamera(45, 5 / 3, 0.1, 100);
+    source.position.set(0, 4, 10);
+    parent.add(source);
+    parent.updateMatrixWorld(true);
+    const frame = scopeFrame(1000, 600, { x: 500, y: 300 }, options, 1)!;
+    const lens = projectScopeCamera(source, new THREE.PerspectiveCamera(), frame);
+    lens.matrixWorld.elements.forEach((value, i) => close(value, source.matrixWorld.elements[i]));
+    assert.equal(source.parent, parent);
+    assert.equal(lens.parent, null);
+  });
+});
+
+describe("Model scope shared renderer state", () => {
+  for (const fail of [false, true])
+    it(`restores target, viewport, scissor, shadows, XR and counters after ${fail ? "failure" : "success"}`, () => {
+      let target: unknown = { name: "original" };
+      let face = 3,
+        mip = 2,
+        viewport = new THREE.Vector4(10, 20, 300, 200),
+        scissor = new THREE.Vector4(2, 4, 100, 90),
+        scissorTest = true;
+      const fake = {
+        autoClear: false,
+        shadowMap: { autoUpdate: true, needsUpdate: true },
+        xr: { enabled: true },
+        info: {
+          autoReset: true,
+          render: { frame: 7, calls: 9, triangles: 50, points: 3, lines: 6 },
+        },
+        getRenderTarget: () => target,
+        getActiveCubeFace: () => face,
+        getActiveMipmapLevel: () => mip,
+        getViewport: (out: THREE.Vector4) => out.copy(viewport),
+        getScissor: (out: THREE.Vector4) => out.copy(scissor),
+        getScissorTest: () => scissorTest,
+        setRenderTarget: (next: unknown, f = 0, m = 0) => {
+          target = next;
+          face = f;
+          mip = m;
+        },
+        setViewport: (next: THREE.Vector4) => {
+          viewport = next.clone();
+        },
+        setScissor: (next: THREE.Vector4) => {
+          scissor = next.clone();
+        },
+        setScissorTest: (next: boolean) => {
+          scissorTest = next;
+        },
+      };
+      const original = {
+        target,
+        face,
+        mip,
+        viewport: viewport.clone(),
+        scissor: scissor.clone(),
+        info: { ...fake.info.render },
+      };
+      const run = () =>
+        withScopeRendererState(fake as unknown as THREE.WebGLRenderer, () => {
+          assert.equal(fake.shadowMap.autoUpdate, false);
+          assert.equal(fake.xr.enabled, false);
+          assert.equal(scissorTest, false);
+          fake.setRenderTarget({ name: "lens" });
+          fake.setViewport(new THREE.Vector4(0, 0, 480, 480));
+          fake.setScissor(new THREE.Vector4(0, 0, 2, 2));
+          fake.info.render.calls = 1000;
+          if (fail) throw new Error("readback failure");
+        });
+      if (fail) assert.throws(run, /readback failure/);
+      else run();
+      assert.equal(target, original.target);
+      assert.equal(face, 3);
+      assert.equal(mip, 2);
+      assert.deepEqual(viewport, original.viewport);
+      assert.deepEqual(scissor, original.scissor);
+      assert.equal(scissorTest, true);
+      assert.equal(fake.autoClear, false);
+      assert.equal(fake.shadowMap.autoUpdate, true);
+      assert.equal(fake.shadowMap.needsUpdate, true);
+      assert.equal(fake.xr.enabled, true);
+      assert.equal(fake.info.autoReset, true);
+      assert.deepEqual(fake.info.render, original.info);
+    });
+});
+
+describe("Model scope lifecycle", () => {
+  it("passes input through, hides on leave, and disposes only its own resources once", () => {
+    const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+    const children: unknown[] = [];
+    const listeners = new Map<string, (event: { clientX: number; clientY: number }) => void>();
+    const context = {
+      createImageData: (width: number, height: number) => ({
+        data: new Uint8ClampedArray(width * height * 4),
+      }),
+    };
+    const nodes: Array<{
+      style: Record<string, string>;
+      dataset: Record<string, string>;
+      removed: boolean;
+    }> = [];
+    const documentStub = {
+      createElement: () => {
+        const node = {
+          style: {},
+          dataset: {},
+          removed: false,
+          setAttribute: () => {},
+          appendChild: () => {},
+          getContext: () => context,
+          remove() {
+            this.removed = true;
+          },
+        };
+        nodes.push(node);
+        return node;
+      },
+    };
+    let targetDisposals = 0,
+      invalidations = 0;
+    const originalDispose = THREE.WebGLRenderTarget.prototype.dispose;
+    THREE.WebGLRenderTarget.prototype.dispose = function () {
+      targetDisposals++;
+      originalDispose.call(this);
+    };
+    Object.defineProperty(globalThis, "document", { value: documentStub, configurable: true });
+    try {
+      const scene = new THREE.Scene();
+      const geometry = new THREE.BoxGeometry();
+      const material = new THREE.MeshBasicMaterial();
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+      let sharedDisposals = 0;
+      geometry.addEventListener("dispose", () => sharedDisposals++);
+      material.addEventListener("dispose", () => sharedDisposals++);
+      const host = {
+        appendChild: (node: unknown) => children.push(node),
+        addEventListener: (
+          name: string,
+          fn: (event: { clientX: number; clientY: number }) => void,
+        ) => listeners.set(name, fn),
+        removeEventListener: (name: string) => listeners.delete(name),
+      };
+      const scope = createModelScope({
+        host: host as unknown as HTMLDivElement,
+        renderer: {} as THREE.WebGLRenderer,
+        scene,
+        getCamera: () => new THREE.PerspectiveCamera(),
+        onInvalidate: () => invalidations++,
+      });
+      assert.equal(children.length, 1);
+      assert.equal(nodes[0].style.pointerEvents, "none");
+      assert.deepEqual([...listeners.keys()], ["pointermove", "pointerleave", "pointercancel"]);
+      listeners.get("pointermove")!({ clientX: 30, clientY: 40 });
+      assert.equal(invalidations, 0);
+      scope.setOptions(options);
+      assert.equal(invalidations, 1);
+      listeners.get("pointermove")!({ clientX: 30, clientY: 40 });
+      assert.equal(invalidations, 2);
+      nodes[0].style.display = "block";
+      listeners.get("pointerleave")!({ clientX: 0, clientY: 0 });
+      assert.equal(nodes[0].style.display, "none");
+      scope.setOptions({ ...options, enabled: false });
+      scope.render();
+      scope.dispose();
+      scope.dispose();
+      assert.equal(targetDisposals, 2);
+      assert.equal(listeners.size, 0);
+      assert.equal(nodes[0].removed, true);
+      assert.equal(sharedDisposals, 0);
+      assert.equal(scene.children[0], mesh);
+      const before = invalidations;
+      scope.setOptions(options);
+      scope.render();
+      assert.equal(invalidations, before);
+    } finally {
+      THREE.WebGLRenderTarget.prototype.dispose = originalDispose;
+      if (previousDocument) Object.defineProperty(globalThis, "document", previousDocument);
+      else Reflect.deleteProperty(globalThis, "document");
+    }
+  });
+});

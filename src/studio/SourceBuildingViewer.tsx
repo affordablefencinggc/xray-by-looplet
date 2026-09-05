@@ -14,6 +14,14 @@ import {
   type SourceBuilding,
 } from "./sourceBuilding";
 import "./sourceBuilding.css";
+import { createModelScope, type ModelScopeOptions } from "./ModelScope";
+import { BuildingVisualSettings } from "./BuildingVisualSettings";
+import {
+  DEFAULT_APPEARANCE,
+  loadAppearance,
+  saveAppearance,
+  type BuildingAppearance,
+} from "./buildingAppearance";
 
 type ViewOptions = {
   wireframe: boolean;
@@ -28,6 +36,8 @@ type SceneApi = {
   select: (id: string | null) => void;
   fit: () => void;
   png: () => void;
+  appearance: (value: BuildingAppearance) => void;
+  scope: (value: ModelScopeOptions) => void;
   dispose: () => void;
 };
 const sessionViewOptions = new Map<string, ViewOptions>();
@@ -77,6 +87,7 @@ function createBuildingScene(
     plan: false,
     level: "all",
   };
+  let scope: ReturnType<typeof createModelScope> | null = null;
   let disposed = false,
     frame = 0;
   const render = () => {
@@ -84,7 +95,14 @@ function createBuildingScene(
     if (disposed) return;
     const changing = controls.update();
     renderer.render(scene, camera);
+    scope?.render();
     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
+    renderer.domElement.dataset.frameCount = String(
+      Number(renderer.domElement.dataset.frameCount ?? 0) + 1,
+    );
+    renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
+    renderer.domElement.dataset.cameraTarget = controls.target.toArray().join(",");
+    renderer.domElement.dataset.cameraZoom = String(camera.zoom);
     if (changing) invalidate();
   };
   const invalidate = () => {
@@ -101,7 +119,8 @@ function createBuildingScene(
     controls.addEventListener("change", invalidate);
   };
   configureControls();
-  scene.add(new THREE.HemisphereLight("#ffffff", "#8f9083", 2.25));
+  const ambient = new THREE.HemisphereLight("#ffffff", "#8f9083", 2.25);
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight("#fff6df", 3.2);
   sun.position.copy(center).add(new THREE.Vector3(-span * 0.5, span * 0.9, span * 0.55));
   sun.target.position.copy(center);
@@ -351,8 +370,32 @@ function createBuildingScene(
   renderer.domElement.addEventListener("pointerdown", onDown);
   renderer.domElement.addEventListener("pointerup", onUp);
   renderer.domElement.addEventListener("webglcontextlost", lost);
+  scope = createModelScope({
+    host,
+    renderer,
+    scene,
+    getCamera: () => camera,
+    onInvalidate: invalidate,
+  });
   apply();
   return {
+    scope(value) {
+      scope?.setOptions(value);
+      invalidate();
+    },
+    appearance(value) {
+      scene.background = new THREE.Color(value.background);
+      groundMaterial.color.set(value.background);
+      for (const material of [wireMaterial, clippedWireMaterial]) {
+        material.color.set(value.wire);
+        material.opacity = value.opacity;
+      }
+      ambient.intensity = 2.25 * value.lighting;
+      sun.intensity = 3.2 * value.lighting;
+      renderer.shadowMap.enabled = value.shadows;
+      renderer.domElement.dataset.appearance = JSON.stringify(value);
+      invalidate();
+    },
     options(next) {
       const changed = next.plan !== options.plan,
         exploded = next.explode !== options.explode || next.level !== options.level;
@@ -425,6 +468,7 @@ function createBuildingScene(
     dispose() {
       disposed = true;
       cancelAnimationFrame(frame);
+      scope?.dispose();
       observer.disconnect();
       controls.dispose();
       renderer.domElement.removeEventListener("pointerdown", onDown);
@@ -449,6 +493,39 @@ function createBuildingScene(
 }
 
 export function SourceBuildingViewer() {
+  const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
+    enabled: false,
+    zoom: 4,
+    diameter: 240,
+  });
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setScopeOptions((value) => ({ ...value, enabled: false }));
+    };
+    window.addEventListener("keydown", escape, true);
+    return () => window.removeEventListener("keydown", escape, true);
+  }, []);
+  const [appearance, setAppearance] = useState<BuildingAppearance>({ ...DEFAULT_APPEARANCE }),
+    [appearanceLoaded, setAppearanceLoaded] = useState(false),
+    [preferenceWarning, setPreferenceWarning] = useState<string | null>(null),
+    [sceneDigest, setSceneDigest] = useState("");
+  useEffect(() => {
+    try {
+      setAppearance(loadAppearance(window.localStorage));
+    } catch {
+      setPreferenceWarning("Appearance preferences are unavailable in this browser.");
+    }
+    setAppearanceLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!appearanceLoaded) return;
+    try {
+      saveAppearance(window.localStorage, appearance);
+      setPreferenceWarning(null);
+    } catch {
+      setPreferenceWarning("Appearance works here, but these settings could not be saved.");
+    }
+  }, [appearance, appearanceLoaded]);
   const pageIndex = useStudio((s) => s.sheet),
     activeDocument = useStudio((s) => s.job.documents.find((d) => d.id === s.job.activeDocumentId));
   const documentError = useStudio((s) => s.documentError);
@@ -513,7 +590,14 @@ export function SourceBuildingViewer() {
     setMatched(false);
     setError(null);
     void fetchBuildingBytes(config.sceneUrl, 20 * 1024 * 1024, abort.signal)
-      .then((bytes) => parseSourceBuilding(JSON.parse(new TextDecoder().decode(bytes))))
+      .then(async (bytes) => {
+        const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes).buffer);
+        if (!abort.signal.aborted)
+          setSceneDigest(
+            Array.from(new Uint8Array(digest), (v) => v.toString(16).padStart(2, "0")).join(""),
+          );
+        return parseSourceBuilding(JSON.parse(new TextDecoder().decode(bytes)));
+      })
       .then((value) => {
         if (value.source.sha256 !== config.sha256)
           throw Error("Reconstruction source identity does not match the selected plan.");
@@ -565,6 +649,8 @@ export function SourceBuildingViewer() {
     };
   }, [model, matched]);
   useEffect(() => api.current?.options(options), [options, matched]);
+  useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
+  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
   useEffect(() => {
     api.current?.select(selected);
     setSourceIndex(0);
@@ -594,6 +680,53 @@ export function SourceBuildingViewer() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }
+  async function exportSvg() {
+    try {
+      const bytes = await fetchBuildingBytes(svgUrl, 10 * 1024 * 1024),
+        text = new TextDecoder().decode(bytes);
+      if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw Error("Unsupported SVG document declaration.");
+      const document = new DOMParser().parseFromString(text, "image/svg+xml"),
+        provenance = JSON.parse(
+          document.querySelector("#source-provenance")?.textContent ?? "null",
+        );
+      if (
+        document.querySelector("parsererror,script,foreignObject,image") ||
+        provenance?.source?.sha256 !== model?.source.sha256 ||
+        provenance?.sceneSha256 !== sceneDigest
+      )
+        throw Error("SVG source geometry does not match the current reconstruction.");
+      const background = document.querySelector("#drawing-background"),
+        edges = document.querySelector("#building-edges");
+      if (!background || !edges) throw Error("SVG palette metadata is unavailable.");
+      background.setAttribute("fill", appearance.background);
+      edges.setAttribute("stroke", appearance.wire);
+      edges.setAttribute("stroke-opacity", String(appearance.opacity));
+      for (const label of document.querySelectorAll('[data-palette-role="text"]'))
+        label.setAttribute("fill", appearance.wire);
+      const metadata = document.createElementNS("http://www.w3.org/2000/svg", "metadata");
+      metadata.setAttribute("id", "viewer-appearance");
+      metadata.textContent = JSON.stringify({
+        background: appearance.background,
+        wire: appearance.wire,
+        opacity: appearance.opacity,
+        projection: svgProjection,
+        scope:
+          "Fixed Python-generated projection; palette adapted in viewer; source paths unchanged.",
+      });
+      document.documentElement.append(metadata);
+      const blob = new Blob([new XMLSerializer().serializeToString(document)], {
+          type: "image/svg+xml",
+        }),
+        url = URL.createObjectURL(blob),
+        anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = `caroline-wireframe-${svgProjection}.svg`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
   const part = model?.objects.find((p) => p.id === selected) ?? null,
@@ -712,6 +845,15 @@ export function SourceBuildingViewer() {
             })}
         </nav>
         <div className="building-stage">
+          {ready && (
+            <BuildingVisualSettings
+              value={appearance}
+              onChange={setAppearance}
+              warning={preferenceWarning}
+              scope={scopeOptions}
+              onScopeChange={setScopeOptions}
+            />
+          )}
           {ready ? (
             <>
               <div className="building-canvas" ref={host} />
@@ -825,14 +967,14 @@ export function SourceBuildingViewer() {
               {config.id === "caroline" && (
                 <div className="building-svg-export">
                   {svgAvailable ? (
-                    <a href={svgUrl} download>
+                    <button type="button" onClick={() => void exportSvg()}>
                       <Download size={13} /> SVG /{" "}
                       {options.plan
                         ? options.level === "upper"
                           ? "upper plan"
                           : "ground plan"
                         : "fixed axonometric"}
-                    </a>
+                    </button>
                   ) : (
                     <span>SVG export preparing</span>
                   )}
@@ -842,7 +984,10 @@ export function SourceBuildingViewer() {
                 <MousePointer2 size={13} /> Drag to orbit · wheel to zoom · right-drag to pan ·
                 click a part
               </div>
-              <div className="building-view-label">
+              <div
+                className="building-view-label"
+                style={{ color: appearance.wire, background: appearance.background }}
+              >
                 {options.wireframe
                   ? "X-RAY EDGES / DECORATIVE REPEATS OMITTED"
                   : options.plan

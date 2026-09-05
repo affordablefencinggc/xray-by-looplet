@@ -1,0 +1,350 @@
+import * as THREE from "three";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+type ScopeCamera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
+export type ModelScopeOptions = { enabled: boolean; zoom: number; diameter: number };
+type Point = { x: number; y: number };
+type ScopeFrame = {
+  width: number;
+  height: number;
+  diameter: number;
+  pixels: number;
+  left: number;
+  top: number;
+  sampleLeft: number;
+  sampleTop: number;
+  sampleSize: number;
+};
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const finite = (value: number, fallback: number) => (Number.isFinite(value) ? value : fallback);
+
+export function normalizeScopeOptions(options: ModelScopeOptions): ModelScopeOptions {
+  return {
+    enabled: options.enabled === true,
+    zoom: clamp(finite(options.zoom, 4), 2, 8),
+    diameter: clamp(finite(options.diameter, 240), 160, 360),
+  };
+}
+
+/** Input and crop coordinates stay in CSS pixels; DPR affects resolution only. */
+export function scopePointer(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number },
+  width: number,
+  height: number,
+): Point | null {
+  if (
+    ![clientX, clientY, rect.left, rect.top, rect.width, rect.height, width, height].every(
+      Number.isFinite,
+    ) ||
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    width <= 0 ||
+    height <= 0
+  )
+    return null;
+  const x = ((clientX - rect.left) * width) / rect.width;
+  const y = ((clientY - rect.top) * height) / rect.height;
+  return x < 0 || y < 0 || x > width || y > height ? null : { x, y };
+}
+
+export function scopeFrame(
+  width: number,
+  height: number,
+  point: Point,
+  options: ModelScopeOptions,
+  dpr: number,
+): ScopeFrame | null {
+  if (![width, height, point.x, point.y].every(Number.isFinite) || width < 1 || height < 1)
+    return null;
+  const normalized = normalizeScopeOptions(options);
+  const diameter = Math.min(normalized.diameter, width, height);
+  const sampleSize = diameter / normalized.zoom;
+  return {
+    width,
+    height,
+    diameter,
+    pixels: Math.max(1, Math.min(720, Math.round(diameter * clamp(finite(dpr, 1), 1, 2)))),
+    left: clamp(point.x - diameter / 2, 0, width - diameter),
+    top: clamp(point.y - diameter / 2, 0, height - diameter),
+    // The lens box is bounded, but its crosshair must retain the exact pointer ray.
+    // Negative view offsets are valid: at an edge, inspect just beyond the main view.
+    sampleLeft: clamp(point.x, 0, width) - sampleSize / 2,
+    sampleTop: clamp(point.y, 0, height) - sampleSize / 2,
+    sampleSize,
+  };
+}
+
+/** Copies into an owned camera, preserving the source camera and any pre-existing crop. */
+export function projectScopeCamera(source: ScopeCamera, lens: ScopeCamera, frame: ScopeFrame) {
+  if (source instanceof THREE.PerspectiveCamera && lens instanceof THREE.PerspectiveCamera)
+    lens.copy(source, false);
+  else if (source instanceof THREE.OrthographicCamera && lens instanceof THREE.OrthographicCamera)
+    lens.copy(source, false);
+  else throw new Error("Scope camera projection must match its source");
+  // A camera can belong to a transformed parent. The lens is deliberately unparented.
+  source.matrixWorld.decompose(lens.position, lens.quaternion, lens.scale);
+  lens.updateMatrixWorld(true);
+  const view = source.view?.enabled ? source.view : null;
+  const scaleX = view ? view.width / frame.width : 1;
+  const scaleY = view ? view.height / frame.height : 1;
+  lens.setViewOffset(
+    view?.fullWidth ?? frame.width,
+    view?.fullHeight ?? frame.height,
+    (view?.offsetX ?? 0) + frame.sampleLeft * scaleX,
+    (view?.offsetY ?? 0) + frame.sampleTop * scaleY,
+    frame.sampleSize * scaleX,
+    frame.sampleSize * scaleY,
+  );
+  // Perspective.setViewOffset updates aspect; preserve the actual source projection.
+  if (lens instanceof THREE.PerspectiveCamera && source instanceof THREE.PerspectiveCamera) {
+    lens.aspect = source.aspect;
+    lens.updateProjectionMatrix();
+  }
+  return lens;
+}
+
+/** Preserve public renderer state even when scene rendering or pixel readback fails. */
+export function withScopeRendererState(renderer: THREE.WebGLRenderer, draw: () => void) {
+  const target = renderer.getRenderTarget();
+  const face = renderer.getActiveCubeFace(),
+    mip = renderer.getActiveMipmapLevel();
+  const viewport = renderer.getViewport(new THREE.Vector4());
+  const scissor = renderer.getScissor(new THREE.Vector4());
+  const scissorTest = renderer.getScissorTest();
+  const autoClear = renderer.autoClear;
+  const shadowAutoUpdate = renderer.shadowMap.autoUpdate,
+    shadowNeedsUpdate = renderer.shadowMap.needsUpdate;
+  const xrEnabled = renderer.xr.enabled;
+  const infoAutoReset = renderer.info.autoReset,
+    renderInfo = { ...renderer.info.render };
+  try {
+    renderer.autoClear = true;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = false;
+    renderer.xr.enabled = false;
+    renderer.info.autoReset = false;
+    renderer.setScissorTest(false);
+    draw();
+  } finally {
+    renderer.setRenderTarget(target, face, mip);
+    renderer.setViewport(viewport);
+    renderer.setScissor(scissor);
+    renderer.setScissorTest(scissorTest);
+    renderer.autoClear = autoClear;
+    renderer.shadowMap.autoUpdate = shadowAutoUpdate;
+    renderer.shadowMap.needsUpdate = shadowNeedsUpdate;
+    renderer.xr.enabled = xrEnabled;
+    renderer.info.autoReset = infoAutoReset;
+    Object.assign(renderer.info.render, renderInfo);
+  }
+}
+
+export function createModelScope({
+  host,
+  renderer,
+  scene,
+  getCamera,
+  onInvalidate,
+}: {
+  host: HTMLDivElement;
+  renderer: THREE.WebGLRenderer;
+  scene: THREE.Scene;
+  getCamera: () => ScopeCamera;
+  onInvalidate: () => void;
+}) {
+  const overlay = document.createElement("div");
+  overlay.className = "model-scope";
+  overlay.dataset.modelScope = "true";
+  overlay.setAttribute("aria-hidden", "true");
+  Object.assign(overlay.style, {
+    position: "absolute",
+    display: "none",
+    pointerEvents: "none",
+    overflow: "hidden",
+    borderRadius: "50%",
+    boxSizing: "border-box",
+    zIndex: "3",
+    boxShadow:
+      "inset 0 0 0 2px var(--scope-rim, #bec4c7), inset 0 0 0 4px var(--scope-ink, #273237)",
+  });
+  const canvas = document.createElement("canvas");
+  Object.assign(canvas.style, {
+    display: "block",
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+  });
+  overlay.appendChild(canvas);
+  host.appendChild(overlay);
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) {
+    overlay.remove();
+    throw new Error("Model scope requires a 2D canvas");
+  }
+  const linearTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+  const outputTarget = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+  const output = new OutputPass();
+  const perspective = new THREE.PerspectiveCamera(),
+    orthographic = new THREE.OrthographicCamera();
+  let options = normalizeScopeOptions({ enabled: false, zoom: 4, diameter: 240 });
+  let pointer: { clientX: number; clientY: number } | null = null;
+  let disposed = false;
+  let pixels = new Uint8Array(4);
+  let flipped = context.createImageData(1, 1);
+  const hide = () => {
+    overlay.style.display = "none";
+  };
+  const move = (event: PointerEvent) => {
+    pointer = { clientX: event.clientX, clientY: event.clientY };
+    if (options.enabled) onInvalidate();
+  };
+  const leave = () => {
+    pointer = null;
+    hide();
+  };
+  host.addEventListener("pointermove", move, { passive: true });
+  host.addEventListener("pointerleave", leave);
+  host.addEventListener("pointercancel", leave);
+  return {
+    setOptions(value: ModelScopeOptions) {
+      if (disposed) return;
+      options = normalizeScopeOptions(value);
+      overlay.dataset.zoom = String(options.zoom);
+      if (!options.enabled) hide();
+      onInvalidate();
+    },
+    render() {
+      if (disposed || !options.enabled || !pointer) {
+        hide();
+        return;
+      }
+      const rect = host.getBoundingClientRect();
+      const scaleX = rect.width / (host.offsetWidth || rect.width);
+      const scaleY = rect.height / (host.offsetHeight || rect.height);
+      const point = scopePointer(
+        pointer.clientX,
+        pointer.clientY,
+        {
+          left: rect.left + host.clientLeft * scaleX,
+          top: rect.top + host.clientTop * scaleY,
+          width: host.clientWidth * scaleX,
+          height: host.clientHeight * scaleY,
+        },
+        host.clientWidth,
+        host.clientHeight,
+      );
+      if (!point) {
+        hide();
+        return;
+      }
+      const frame = scopeFrame(
+        host.clientWidth,
+        host.clientHeight,
+        point,
+        options,
+        renderer.getPixelRatio(),
+      );
+      if (!frame) {
+        hide();
+        return;
+      }
+      if (canvas.width !== frame.pixels || canvas.height !== frame.pixels) {
+        canvas.width = canvas.height = frame.pixels;
+        linearTarget.setSize(frame.pixels, frame.pixels);
+        outputTarget.setSize(frame.pixels, frame.pixels);
+        pixels = new Uint8Array(frame.pixels * frame.pixels * 4);
+        flipped = context.createImageData(frame.pixels, frame.pixels);
+      }
+      const source = getCamera();
+      const lens = projectScopeCamera(
+        source,
+        source instanceof THREE.PerspectiveCamera ? perspective : orthographic,
+        frame,
+      );
+      try {
+        withScopeRendererState(renderer, () => {
+          renderer.setRenderTarget(linearTarget);
+          renderer.clear(true, true, true);
+          renderer.render(scene, lens);
+          output.render(renderer, outputTarget, linearTarget, 0, false);
+          renderer.readRenderTargetPixels(outputTarget, 0, 0, frame.pixels, frame.pixels, pixels);
+        });
+      } catch (error) {
+        hide();
+        throw error;
+      }
+      const stride = frame.pixels * 4;
+      for (let y = 0; y < frame.pixels; y++) {
+        flipped.data.set(
+          pixels.subarray((frame.pixels - y - 1) * stride, (frame.pixels - y) * stride),
+          y * stride,
+        );
+      }
+      context.putImageData(flipped, 0, 0);
+      const ratio = frame.pixels / frame.diameter;
+      context.save();
+      context.scale(ratio, ratio);
+      const radius = frame.diameter / 2;
+      const style = getComputedStyle(overlay);
+      const ink = style.getPropertyValue("--scope-ink").trim() || "#273237";
+      const rim = style.getPropertyValue("--scope-rim").trim() || "#bec4c7";
+      context.strokeStyle = ink;
+      context.lineWidth = 5;
+      context.beginPath();
+      context.arc(radius, radius, radius - 3, 0, Math.PI * 2);
+      context.stroke();
+      context.strokeStyle = rim;
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(radius, radius, radius - 2, 0, Math.PI * 2);
+      context.stroke();
+      // Dual-tone crosshairs remain legible on both light and dark scene surfaces.
+      const crosshair = () => {
+        context.beginPath();
+        for (const direction of [-1, 1]) {
+          context.moveTo(radius + direction * 6, radius);
+          context.lineTo(radius + direction * 24, radius);
+          context.moveTo(radius, radius + direction * 6);
+          context.lineTo(radius, radius + direction * 24);
+        }
+        context.stroke();
+      };
+      context.strokeStyle = rim;
+      context.lineWidth = 3;
+      crosshair();
+      context.strokeStyle = ink;
+      context.lineWidth = 1;
+      crosshair();
+      context.fillStyle = ink;
+      context.fillRect(radius - 31, frame.diameter - 33, 62, 20);
+      context.fillStyle = rim;
+      context.font = "600 11px sans-serif";
+      context.textAlign = "center";
+      context.fillText(`${options.zoom}\u00d7 SCOPE`, radius, frame.diameter - 19);
+      context.restore();
+      Object.assign(overlay.style, {
+        display: "block",
+        left: `${frame.left}px`,
+        top: `${frame.top}px`,
+        width: `${frame.diameter}px`,
+        height: `${frame.diameter}px`,
+      });
+      overlay.dataset.projection = source.type;
+      overlay.dataset.sample = `${frame.sampleLeft},${frame.sampleTop},${frame.sampleSize}`;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      host.removeEventListener("pointermove", move);
+      host.removeEventListener("pointerleave", leave);
+      host.removeEventListener("pointercancel", leave);
+      linearTarget.dispose();
+      outputTarget.dispose();
+      output.dispose();
+      overlay.remove();
+      pixels = new Uint8Array(0);
+    },
+  };
+}
