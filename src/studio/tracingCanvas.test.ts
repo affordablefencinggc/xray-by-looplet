@@ -5,6 +5,9 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { createDefaultJob } from "./domain.ts";
+import { createUnverifiedCalibration } from "./calibration.ts";
+import { useStudio } from "./store.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cacheRoot = resolve("node_modules/.cache");
@@ -29,6 +32,7 @@ const {
   hitTestFenceRuns,
   hitTestRunVertices,
   resolveTracingCanvasPointerMode,
+  vertexDragCommitPoint,
 } = require(compiledPath) as typeof import("./IsoCanvas");
 
 after(() => rmSync(compiledDir, { recursive: true, force: true }));
@@ -123,9 +127,13 @@ describe("PlanCanvas editing interaction precedence", () => {
     assert.equal(resolveTracingCanvasPointerMode({ ...gate, interactive: false }), "pan");
   });
 
-  it("chooses vertex drag, run selection, trace, then ordinary pan without overlap", () => {
-    assert.equal(resolveTracingCanvasPointerMode(base), "move-vertex");
-    assert.equal(resolveTracingCanvasPointerMode({ ...base, vertexHit: false }), "select-run");
+  it("keeps drawing ahead of existing geometry and moves only in explicit Move mode", () => {
+    assert.equal(resolveTracingCanvasPointerMode(base), "trace");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, editMode: "move" }), "trace");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, toolActive: false, editMode: "move" }), "move-vertex");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, toolActive: false, editMode: "select" }), "select-vertex");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, toolActive: false, editMode: "insert" }), "select-vertex");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, toolActive: false, vertexHit: false }), "select-run");
     assert.equal(resolveTracingCanvasPointerMode({ ...base, vertexHit: false, runHit: false }), "trace");
     assert.equal(resolveTracingCanvasPointerMode({
       ...base,
@@ -133,5 +141,61 @@ describe("PlanCanvas editing interaction precedence", () => {
       runHit: false,
       toolActive: false,
     }), "pan");
+  });
+
+  it("starts an area on a selected run vertex without mutating that run; explicit Move still edits and undo restores it", () => {
+    const job = createDefaultJob("2026-09-05T00:00:00.000Z");
+    job.documents[0] = { ...job.documents[0], id: "source", source: "web", sha256: "a".repeat(64), pageCount: 1 };
+    job.activeDocumentId = "source";
+    job.calibrations = [{ ...createUnverifiedCalibration(0), coordinateSpace: "source-page-v1" }];
+    useStudio.setState({ job, sheet: 0, currentCalibration: job.calibrations[0], pending: [], calibrationCapture: null, markups: [], selectedRunId: null, selectedVertexIndex: null, traceUndoStack: [], traceRedoStack: [], tool: "none" });
+    useStudio.getState().ingestCalibrationCandidate({ id: "scale", source: "declared", metresPerUnit: .01, confidence: .95, provenance: { method: "test", evidence: "Known scale", documentId: "source" } });
+    useStudio.getState().lockCurrentCalibration();
+    useStudio.getState().setTool("length");
+    [{ x: 100, y: 100 }, { x: 200, y: 100 }].forEach(point => useStudio.getState().addPoint(point));
+    useStudio.getState().commitPending();
+    const run = structuredClone(useStudio.getState().job.runs[0]);
+    useStudio.getState().selectRun(run.id);
+    useStudio.getState().setTool("area");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, editMode: "move" }), "trace");
+    [run.points[0], { x: 140, y: 150 }, { x: 100, y: 180 }].forEach(point => useStudio.getState().addPoint(point));
+    useStudio.getState().commitPending();
+    assert.deepEqual(useStudio.getState().job.runs[0], run);
+    assert.deepEqual(useStudio.getState().job.annotations?.[0].points[0], run.points[0]);
+    useStudio.getState().setTool("none");
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, toolActive: false, editMode: "select" }), "select-vertex");
+    useStudio.getState().selectVertex(run.id, 0);
+    assert.deepEqual(useStudio.getState().job.runs[0], run);
+    assert.equal(resolveTracingCanvasPointerMode({ ...base, toolActive: false, editMode: "move" }), "move-vertex");
+    let preview = { documentId: "source", sourceSha256: "a".repeat(64), sheet: 0, runId: run.id, runRevision: run.revision ?? 1, vertexIndex: 0, originalPoint: { ...run.points[0] }, point: { ...run.points[0] } };
+    for (let step = 1; step <= 8; step++) preview = { ...preview, point: { x: 100 - 10 * step / 8, y: 100 + 10 * step / 8 } };
+    assert.deepEqual(useStudio.getState().job.runs[0], run, "preview moves must not mutate durable geometry");
+    const commit = vertexDragCommitPoint(preview, { documentId: "source", sourceSha256: "a".repeat(64), sheet: 0, run: useStudio.getState().job.runs[0], allowed: true });
+    assert.ok(commit);
+    useStudio.getState().moveRunVertex(run.id, 0, commit);
+    assert.equal(useStudio.getState().job.runs[0].revision, (run.revision ?? 1) + 1);
+    assert.deepEqual(useStudio.getState().job.runs[0].points[0], { x: 90, y: 110 });
+    useStudio.getState().undoTrace();
+    assert.deepEqual(useStudio.getState().job.runs[0].points, run.points);
+    useStudio.getState().redoTrace();
+    assert.deepEqual(useStudio.getState().job.runs[0].points[0], { x: 90, y: 110 });
+    assert.equal(useStudio.getState().job.annotations?.length, 1);
+  });
+
+  it("cancels release for Escape/pointercancel, source/page changes, changed run revision, invalid or unchanged points", () => {
+    const run = { id: "run", revision: 3, points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] };
+    const preview = { documentId: "source", sourceSha256: "a".repeat(64), sheet: 2, runId: "run", runRevision: 3, vertexIndex: 0, originalPoint: { x: 10, y: 20 }, point: { x: 11, y: 21 } };
+    const current = { documentId: "source", sourceSha256: "a".repeat(64), sheet: 2, run, allowed: true };
+    assert.deepEqual(vertexDragCommitPoint(preview, current), preview.point);
+    assert.equal(vertexDragCommitPoint(null, current), null, "cancel clears preview before pointerup");
+    assert.equal(vertexDragCommitPoint(preview, { ...current, allowed: false }), null);
+    assert.equal(vertexDragCommitPoint(preview, { ...current, documentId: "other" }), null);
+    assert.equal(vertexDragCommitPoint(preview, { ...current, sheet: 1 }), null);
+    assert.equal(vertexDragCommitPoint(preview, { ...current, sourceSha256: "b".repeat(64) }), null);
+    assert.equal(vertexDragCommitPoint(preview, { ...current, run: { ...run, revision: 4 } }), null);
+    assert.equal(vertexDragCommitPoint(preview, { ...current, run: undefined }), null);
+    assert.equal(vertexDragCommitPoint({ ...preview, point: { x: NaN, y: 21 } }, current), null);
+    assert.equal(vertexDragCommitPoint({ ...preview, point: preview.originalPoint }, current), null);
+    assert.deepEqual(run.points, [{ x: 10, y: 20 }, { x: 30, y: 40 }]);
   });
 });

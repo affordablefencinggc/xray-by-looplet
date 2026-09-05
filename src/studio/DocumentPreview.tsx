@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PlanBinary } from "./documentContract";
 import { parseSvgViewBox, svgSourceBounds, sourceViewport, sourceToCanvas, type SourcePage, type SourcePoint } from "./documentViewport";
+
+
+export const SourceScopeContext = createContext<((context: CanvasRenderingContext2D) => void) | null>(null);
 
 type Point = { x: number; y: number };
 type DxfPath = { d: string; closed: boolean };
@@ -188,6 +191,7 @@ type ReadySource = { key: string; page: SourcePage; url: string | null; kind: "s
 
 export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, className = "", loading = false, error = null, zoom = 1, pan = {x:0,y:0}, showSource = true, onSourceReady, children }: DocumentPreviewProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const sourceImageRef = useRef<HTMLImageElement>(null);
   const [size, setSize] = useState({width:0,height:0});
   const [readySource, setReadySource] = useState<ReadySource | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
@@ -255,6 +259,28 @@ export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, class
   const viewport=ready?sourceViewport(ready.page.bounds,size.width,size.height,zoom,pan):null;
   const origin=viewport && ready?sourceToCanvas({x:ready.page.bounds.x,y:ready.page.bounds.y},viewport):null;
   const style=viewport && ready && origin?{left:origin.x,top:origin.y,width:ready.page.bounds.width*viewport.scale,height:ready.page.bounds.height*viewport.scale,visibility:showSource?"visible" as const:"hidden" as const}:undefined;
+  const paintScopeSource = useMemo(() => {
+    if (!available || !ready) return null;
+    const frame = sourceViewport(ready.page.bounds, size.width, size.height, zoom, pan);
+    if (!frame) return null;
+    return (context: CanvasRenderingContext2D) => {
+      if (!showSource) return;
+      const origin = sourceToCanvas({ x: ready.page.bounds.x, y: ready.page.bounds.y }, frame);
+      context.save();
+      context.translate(origin.x, origin.y);
+      context.scale(frame.scale, frame.scale);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, ready.page.bounds.width, ready.page.bounds.height);
+      if (ready.kind === "dxf" && dxf) {
+        context.translate(-ready.page.bounds.x, -ready.page.bounds.y);
+        context.strokeStyle = "#262b31"; context.lineWidth = 1 / frame.scale;
+        for (const path of dxf.paths) context.stroke(new Path2D(path.d));
+      } else if (sourceImageRef.current?.complete && sourceImageRef.current.naturalWidth) {
+        context.drawImage(sourceImageRef.current, 0, 0, ready.page.bounds.width, ready.page.bounds.height);
+      }
+      context.restore();
+    };
+  }, [available, ready, size.width, size.height, zoom, pan.x, pan.y, showSource, dxf]);
   let message:ReactNode=null;
   if(error)message=<PreviewMessage title="Plan preview needs attention" detail={error} alert />;
   else if(loading)message=<PreviewMessage title="Retrieving verified plan" detail="Checking the stored file bytes before previewing this source." />;
@@ -272,10 +298,10 @@ export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, class
     <div className="document-preview-viewport" ref={viewportRef}>
       <div className="document-preview-source" aria-live="polite">
         {ready && viewport && ready.kind === "dxf" && dxf ? <svg className="document-source-page" style={style} viewBox={dxf.viewBox} role="img" aria-label={`${binary?.name}, DXF linework`} preserveAspectRatio="none"><g>{dxf.paths.map((path,index)=><path key={index} d={path.d}/>)}</g></svg> : null}
-        {ready?.url && viewport ? <img className="document-source-page" style={style} src={ready.url} alt={`${binary?.name} source plan`} data-source-rotation={ready.page.rotation} data-source-crop={ready.page.crop?.join(",")} onLoad={()=>setLoadedKey(key)} onError={()=>setFailure({key,message:"The source image could not be rendered. Original bytes remain attached."})}/> : null}
+        {ready?.url && viewport ? <img ref={sourceImageRef} className="document-source-page" style={style} src={ready.url} alt={`${binary?.name} source plan`} data-source-rotation={ready.page.rotation} data-source-crop={ready.page.crop?.join(",")} onLoad={()=>setLoadedKey(key)} onError={()=>setFailure({key,message:"The source image could not be rendered. Original bytes remain attached."})}/> : null}
         {message}
       </div>
-      {children ? <div className="document-preview-overlay">{typeof children === "function" ? children(available ? ready.page : null) : children}</div> : null}
+      {children ? <SourceScopeContext.Provider value={paintScopeSource}><div className="document-preview-overlay">{typeof children === "function" ? children(available ? ready.page : null) : children}</div></SourceScopeContext.Provider> : null}
     </div>
   </figure>;
 }

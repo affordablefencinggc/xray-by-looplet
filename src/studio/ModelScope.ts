@@ -1,80 +1,21 @@
 import * as THREE from "three";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { drawScopeReticle, routeScopeWheel } from "./precisionScope.ts";
 
 type ScopeCamera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
-export type ModelScopeOptions = { enabled: boolean; zoom: number; diameter: number };
-type Point = { x: number; y: number };
-type ScopeFrame = {
-  width: number;
-  height: number;
-  diameter: number;
-  pixels: number;
-  left: number;
-  top: number;
-  sampleLeft: number;
-  sampleTop: number;
-  sampleSize: number;
-};
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-const finite = (value: number, fallback: number) => (Number.isFinite(value) ? value : fallback);
-
-export function normalizeScopeOptions(options: ModelScopeOptions): ModelScopeOptions {
-  return {
-    enabled: options.enabled === true,
-    zoom: clamp(finite(options.zoom, 4), 2, 8),
-    diameter: clamp(finite(options.diameter, 240), 160, 360),
-  };
-}
-
-/** Input and crop coordinates stay in CSS pixels; DPR affects resolution only. */
-export function scopePointer(
-  clientX: number,
-  clientY: number,
-  rect: { left: number; top: number; width: number; height: number },
-  width: number,
-  height: number,
-): Point | null {
-  if (
-    ![clientX, clientY, rect.left, rect.top, rect.width, rect.height, width, height].every(
-      Number.isFinite,
-    ) ||
-    rect.width <= 0 ||
-    rect.height <= 0 ||
-    width <= 0 ||
-    height <= 0
-  )
-    return null;
-  const x = ((clientX - rect.left) * width) / rect.width;
-  const y = ((clientY - rect.top) * height) / rect.height;
-  return x < 0 || y < 0 || x > width || y > height ? null : { x, y };
-}
-
-export function scopeFrame(
-  width: number,
-  height: number,
-  point: Point,
-  options: ModelScopeOptions,
-  dpr: number,
-): ScopeFrame | null {
-  if (![width, height, point.x, point.y].every(Number.isFinite) || width < 1 || height < 1)
-    return null;
-  const normalized = normalizeScopeOptions(options);
-  const diameter = Math.min(normalized.diameter, width, height);
-  const sampleSize = diameter / normalized.zoom;
-  return {
-    width,
-    height,
-    diameter,
-    pixels: Math.max(1, Math.min(720, Math.round(diameter * clamp(finite(dpr, 1), 1, 2)))),
-    left: clamp(point.x - diameter / 2, 0, width - diameter),
-    top: clamp(point.y - diameter / 2, 0, height - diameter),
-    // The lens box is bounded, but its crosshair must retain the exact pointer ray.
-    // Negative view offsets are valid: at an edge, inspect just beyond the main view.
-    sampleLeft: clamp(point.x, 0, width) - sampleSize / 2,
-    sampleTop: clamp(point.y, 0, height) - sampleSize / 2,
-    sampleSize,
-  };
-}
+import {
+  normalizeScopeOptions,
+  scopePointer,
+  scopeFrame,
+  type ModelScopeOptions,
+  type ScopeFrame,
+} from "./precisionScope.ts";
+export {
+  normalizeScopeOptions,
+  scopePointer,
+  scopeFrame,
+  type ModelScopeOptions,
+} from "./precisionScope.ts";
 
 /** Copies into an owned camera, preserving the source camera and any pre-existing crop. */
 export function projectScopeCamera(source: ScopeCamera, lens: ScopeCamera, frame: ScopeFrame) {
@@ -147,12 +88,14 @@ export function createModelScope({
   scene,
   getCamera,
   onInvalidate,
+  onZoomChange,
 }: {
   host: HTMLDivElement;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   getCamera: () => ScopeCamera;
   onInvalidate: () => void;
+  onZoomChange?: (zoom: number) => void;
 }) {
   const overlay = document.createElement("div");
   overlay.className = "model-scope";
@@ -191,10 +134,14 @@ export function createModelScope({
   let options = normalizeScopeOptions({ enabled: false, zoom: 4, diameter: 240 });
   let pointer: { clientX: number; clientY: number } | null = null;
   let disposed = false;
+  let visibleFrame: ScopeFrame | null = null;
+  const originalCursor = renderer.domElement?.style?.cursor ?? "";
   let pixels = new Uint8Array(4);
   let flipped = context.createImageData(1, 1);
   const hide = () => {
     overlay.style.display = "none";
+    visibleFrame = null;
+    if (renderer.domElement?.style) renderer.domElement.style.cursor = originalCursor;
   };
   const move = (event: PointerEvent) => {
     pointer = { clientX: event.clientX, clientY: event.clientY };
@@ -204,6 +151,25 @@ export function createModelScope({
     pointer = null;
     hide();
   };
+  const wheel = (event: WheelEvent) => {
+    if (!options.enabled || !visibleFrame || event.target !== renderer.domElement) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const point = scopePointer(
+      event.clientX,
+      event.clientY,
+      rect,
+      host.clientWidth,
+      host.clientHeight,
+    );
+    if (point)
+      routeScopeWheel(event, point, visibleFrame, options.zoom, (zoom) => {
+        options = { ...options, zoom };
+        overlay.dataset.zoom = String(zoom);
+        onZoomChange?.(zoom);
+        onInvalidate();
+      });
+  };
+  host.addEventListener("wheel", wheel, { capture: true, passive: false });
   host.addEventListener("pointermove", move, { passive: true });
   host.addEventListener("pointerleave", leave);
   host.addEventListener("pointercancel", leave);
@@ -286,43 +252,7 @@ export function createModelScope({
       const ratio = frame.pixels / frame.diameter;
       context.save();
       context.scale(ratio, ratio);
-      const radius = frame.diameter / 2;
-      const style = getComputedStyle(overlay);
-      const ink = style.getPropertyValue("--scope-ink").trim() || "#273237";
-      const rim = style.getPropertyValue("--scope-rim").trim() || "#bec4c7";
-      context.strokeStyle = ink;
-      context.lineWidth = 5;
-      context.beginPath();
-      context.arc(radius, radius, radius - 3, 0, Math.PI * 2);
-      context.stroke();
-      context.strokeStyle = rim;
-      context.lineWidth = 2;
-      context.beginPath();
-      context.arc(radius, radius, radius - 2, 0, Math.PI * 2);
-      context.stroke();
-      // Dual-tone crosshairs remain legible on both light and dark scene surfaces.
-      const crosshair = () => {
-        context.beginPath();
-        for (const direction of [-1, 1]) {
-          context.moveTo(radius + direction * 6, radius);
-          context.lineTo(radius + direction * 24, radius);
-          context.moveTo(radius, radius + direction * 6);
-          context.lineTo(radius, radius + direction * 24);
-        }
-        context.stroke();
-      };
-      context.strokeStyle = rim;
-      context.lineWidth = 3;
-      crosshair();
-      context.strokeStyle = ink;
-      context.lineWidth = 1;
-      crosshair();
-      context.fillStyle = ink;
-      context.fillRect(radius - 31, frame.diameter - 33, 62, 20);
-      context.fillStyle = rim;
-      context.font = "600 11px sans-serif";
-      context.textAlign = "center";
-      context.fillText(`${options.zoom}\u00d7 SCOPE`, radius, frame.diameter - 19);
+      drawScopeReticle(context, frame.diameter, options.zoom);
       context.restore();
       Object.assign(overlay.style, {
         display: "block",
@@ -331,12 +261,17 @@ export function createModelScope({
         width: `${frame.diameter}px`,
         height: `${frame.diameter}px`,
       });
+      visibleFrame = frame;
+      if (renderer.domElement?.style) renderer.domElement.style.cursor = "none";
+      overlay.dataset.reticle = "three-post";
       overlay.dataset.projection = source.type;
       overlay.dataset.sample = `${frame.sampleLeft},${frame.sampleTop},${frame.sampleSize}`;
     },
     dispose() {
       if (disposed) return;
       disposed = true;
+      if (renderer.domElement?.style) renderer.domElement.style.cursor = originalCursor;
+      host.removeEventListener("wheel", wheel, true);
       host.removeEventListener("pointermove", move);
       host.removeEventListener("pointerleave", leave);
       host.removeEventListener("pointercancel", leave);

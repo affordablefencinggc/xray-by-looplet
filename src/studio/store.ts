@@ -13,6 +13,11 @@ import {
   type RunSpecification,
   type SiteDetails,
 } from "./domain.ts";
+import {
+  captureDocumentWorkspace,
+  restoreDocumentWorkspace,
+  prepareDocumentSelection,
+} from "./documentWorkspaces.ts";
 import { loadFencingJob, saveFencingJob } from "./persistence.ts";
 import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
 import { createBrowserPlanStore } from "./documents.ts";
@@ -260,6 +265,7 @@ type StudioState = {
   setPan2d: (pan: { x: number; y: number }) => void;
   setPlanName: (name: string | null) => void;
   importPlan: (imported: ImportedPlan) => Promise<void>;
+  selectDocument: (documentId: string) => Promise<void>;
   addPoint: (p: { x: number; y: number }) => void;
   commitPending: () => void;
   clearPending: () => void;
@@ -337,25 +343,38 @@ function activeCalibration(job: FencingJob, sheet: number): Calibration {
 }
 
 function usesImportedSource(job: FencingJob): boolean {
-  return Boolean(job.documents.find(document=>document.id===job.activeDocumentId && document.source!=="sample"));
+  return Boolean(
+    job.documents.find(
+      (document) => document.id === job.activeDocumentId && document.source !== "sample",
+    ),
+  );
 }
-function hasLegacySourceEvidence(job: FencingJob,sheet:number): boolean {
-  const calibration=activeCalibration(job,sheet);
-  return usesImportedSource(job) && calibration.coordinateSpace!=="source-page-v1" && (calibration.candidates.length>0 || calibration.locked || calibrationHasGeometry(job,sheet));
+function hasLegacySourceEvidence(job: FencingJob, sheet: number): boolean {
+  const calibration = activeCalibration(job, sheet);
+  return (
+    usesImportedSource(job) &&
+    calibration.coordinateSpace !== "source-page-v1" &&
+    (calibration.candidates.length > 0 || calibration.locked || calibrationHasGeometry(job, sheet))
+  );
 }
-function assertSourceCoordinateAuthority(job:FencingJob,sheet:number) {
-  if(usesImportedSource(job) && activeCalibration(job,sheet).coordinateSpace!=="source-page-v1")throw Error("Legacy source coordinates are unverified. Preserve/export the evidence before a reviewed retrace.");
+function assertSourceCoordinateAuthority(job: FencingJob, sheet: number) {
+  if (usesImportedSource(job) && activeCalibration(job, sheet).coordinateSpace !== "source-page-v1")
+    throw Error(
+      "Legacy source coordinates are unverified. Preserve/export the evidence before a reviewed retrace.",
+    );
 }
-function assertTraceChangeAuthority(job:FencingJob,next:TraceState) {
+function assertTraceChangeAuthority(job: FencingJob, next: TraceState) {
   // Commands/history can target another page. Validate every changed, inserted
   // or removed entity's actual page, including both sides of a reassociation.
-  for(const kind of ["runs","gates"] as const) {
-    const before=job[kind],after=next[kind];
-    for(const id of new Set([...before.map(e=>e.id),...after.map(e=>e.id)])) {
-      const old=before.find(e=>e.id===id),incoming=after.find(e=>e.id===id);
-      if(old && incoming && sameDurableEntity(old,incoming))continue;
-      if(old)assertSourceCoordinateAuthority(job,old.sheet);
-      if(incoming)assertSourceCoordinateAuthority(job,incoming.sheet);
+  for (const kind of ["runs", "gates"] as const) {
+    const before = job[kind],
+      after = next[kind];
+    for (const id of new Set([...before.map((e) => e.id), ...after.map((e) => e.id)])) {
+      const old = before.find((e) => e.id === id),
+        incoming = after.find((e) => e.id === id);
+      if (old && incoming && sameDurableEntity(old, incoming)) continue;
+      if (old) assertSourceCoordinateAuthority(job, old.sheet);
+      if (incoming) assertSourceCoordinateAuthority(job, incoming.sheet);
     }
   }
 }
@@ -573,12 +592,17 @@ function boundedHistory(entries: TraceHistoryEntry[]): TraceHistoryEntry[] {
 
 function calibrationHasGeometry(job: FencingJob, sheet: number): boolean {
   return (
-    job.runs.some((run) => run.sheet === sheet) || job.gates.some((gate) => gate.sheet === sheet)
+    job.runs.some((run) => run.sheet === sheet) ||
+    job.gates.some((gate) => gate.sheet === sheet) ||
+    (job.annotations ?? []).some((item) => item.sheet === sheet)
   );
 }
 
 function assertCalibrationCanChange(job: FencingJob, sheet: number) {
-  if(hasLegacySourceEvidence(job,sheet))throw Error("Legacy source coordinates are preserved read-only. Export the current manifest in Proof before a reviewed retrace.");
+  if (hasLegacySourceEvidence(job, sheet))
+    throw Error(
+      "Legacy source coordinates are preserved read-only. Export the current manifest in Proof before a reviewed retrace.",
+    );
   if (calibrationHasGeometry(job, sheet)) {
     throw new Error("Remove measurements from this sheet before changing its locked calibration.");
   }
@@ -586,6 +610,7 @@ function assertCalibrationCanChange(job: FencingJob, sheet: number) {
 
 function markupsFromJob(job: FencingJob): Markup[] {
   return [
+    ...(job.annotations ?? []),
     ...job.runs.map((run) => ({
       id: run.id,
       kind: "length" as const,
@@ -657,35 +682,46 @@ function readiness(
   return getQuoteReadiness(job, assets, hydrated);
 }
 
-function jobForImportedPlan(job: FencingJob, imported: ImportedPlan): FencingJob {
-  const timestamp = nowIso();
-  const photos = job.photos.map((photo) =>
-    photo.runIds.length === 0 && photo.gateIds.length === 0
-      ? photo
-      : { ...photo, runIds: [], gateIds: [], revision: photo.revision + 1, updatedAt: timestamp },
+function jobForImportedPlan(job: FencingJob, imported: ImportedPlan, sheet = 0): FencingJob {
+  const captured = captureDocumentWorkspace(job, sheet);
+  const restored = restoreDocumentWorkspace(
+    { ...captured, documents: [...captured.documents, imported.revision] },
+    imported.revision,
   );
   return appendJobRevision(
-    {
-      ...job,
-      updatedAt: timestamp,
-      documents: [...job.documents, imported.revision],
-      activeDocumentId: imported.revision.id,
-      runs: [],
-      gates: [],
-      photos,
-      calibrations: Array.from({ length: imported.revision.pageCount ?? 1 }, (_, sheet) =>
-        createUnverifiedCalibration(sheet),
-      ),
-      bom: [],
-      quoteDraft: null,
-    },
+    restored,
     {
       entityType: "job",
       entityId: job.id,
       action: "update",
       summary: `Imported plan ${imported.revision.name}.`,
     },
-    timestamp,
+    nowIso(),
+  );
+}
+
+function appendSourceMarkup(job: FencingJob, markup: Markup): FencingJob {
+  const document = job.documents.find((item) => item.id === job.activeDocumentId);
+  if (!document || (markup.kind !== "area" && markup.kind !== "sketch"))
+    throw Error("A source document is required for this annotation.");
+  const annotation = {
+    ...markup,
+    kind: markup.kind,
+    documentId: document.id,
+    sourceSha256: document.sha256 ?? null,
+    coordinateSpace:
+      activeCalibration(job, markup.sheet).coordinateSpace === "source-page-v1" && document.sha256
+        ? ("source-page-v1" as const)
+        : ("legacy-unverified" as const),
+  };
+  return appendJobRevision(
+    { ...job, annotations: [...(job.annotations ?? []), annotation] },
+    {
+      entityType: "job",
+      entityId: job.id,
+      action: "update",
+      summary: `Saved ${markup.label} on sheet ${markup.sheet + 1}.`,
+    },
   );
 }
 
@@ -716,6 +752,7 @@ export function addLegacyPhotoMetadataForMigration(
 
 const initialJob = createDefaultJob();
 let hydrationFlight: Promise<void> | null = null;
+let documentSelectionVersion = 0;
 
 export const useStudio = create<StudioState>((set, get) => ({
   job: initialJob,
@@ -854,7 +891,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     const pageCount = activeDocument?.pageCount ?? 1;
     const safeSheet = Math.max(0, Math.min(pageCount - 1, sheet));
     const calibration = activeCalibration(state.job, safeSheet);
-    const job = state.job;
+    const job = { ...state.job, activeSheet: safeSheet };
     const selectedRun = state.selectedRunId
       ? job.runs.find((run) => run.id === state.selectedRunId && run.sheet === safeSheet)
       : null;
@@ -935,8 +972,15 @@ export const useStudio = create<StudioState>((set, get) => ({
   setScale: () =>
     set(calibrationFailure("Use a verified calibration candidate and lock it before measuring.")),
   startCalibrationCapture: () => {
-    const { sheet,job } = get();
-    if(hasLegacySourceEvidence(job,sheet)){set(calibrationFailure("Legacy source coordinates require reviewed recovery; export the current manifest in Proof."));return;}
+    const { sheet, job } = get();
+    if (hasLegacySourceEvidence(job, sheet)) {
+      set(
+        calibrationFailure(
+          "Legacy source coordinates require reviewed recovery; export the current manifest in Proof.",
+        ),
+      );
+      return;
+    }
     set({
       calibrationCapture: { sheet, points: [] },
       calibrationError: null,
@@ -976,7 +1020,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       }
       assertCalibrationCanChange(state.job, state.sheet);
       const calibration = activeCalibration(state.job, state.sheet);
-      if(usesImportedSource(state.job) && input.coordinateSpace!=="source-page-v1")throw Error("Source calibration requires explicit source-page-v1 coordinates.");
+      if (usesImportedSource(state.job) && input.coordinateSpace !== "source-page-v1")
+        throw Error("Source calibration requires explicit source-page-v1 coordinates.");
       const candidateId = input.candidateId ?? `manual-sheet-${state.sheet}`;
       const candidate = createTwoPointCalibrationCandidate({
         id: candidateId,
@@ -991,7 +1036,10 @@ export const useStudio = create<StudioState>((set, get) => ({
         ...calibration.candidates.filter((entry) => entry.id !== candidateId),
         candidate,
       ];
-      const next = unlockedCalibrationWithCandidates({...calibration,coordinateSpace:input.coordinateSpace ?? calibration.coordinateSpace}, candidates);
+      const next = unlockedCalibrationWithCandidates(
+        { ...calibration, coordinateSpace: input.coordinateSpace ?? calibration.coordinateSpace },
+        candidates,
+      );
       set({
         job: revisedCalibration(
           state.job,
@@ -1068,7 +1116,10 @@ export const useStudio = create<StudioState>((set, get) => ({
   lockCurrentCalibration: (candidateId) => {
     try {
       const state = get();
-      if(hasLegacySourceEvidence(state.job,state.sheet))throw Error("Legacy source calibration cannot authorize measurements; export before reviewed recovery.");
+      if (hasLegacySourceEvidence(state.job, state.sheet))
+        throw Error(
+          "Legacy source calibration cannot authorize measurements; export before reviewed recovery.",
+        );
       const calibration = activeCalibration(state.job, state.sheet);
       if (
         calibration.locked &&
@@ -1131,9 +1182,106 @@ export const useStudio = create<StudioState>((set, get) => ({
   setZoom2d: (zoom2d) => set({ zoom2d }),
   setPan2d: (pan2d) => set({ pan2d }),
   setPlanName: (name) => set({ planName: name }),
+  selectDocument: async (documentId) => {
+    const before = get();
+    if (documentId === before.job.activeDocumentId && before.activePlanBinary) return;
+    const version = ++documentSelectionVersion;
+    const unchanged = () =>
+      version === documentSelectionVersion &&
+      get().job === before.job &&
+      get().sheet === before.sheet &&
+      get().pending === before.pending &&
+      get().calibrationCapture === before.calibrationCapture;
+    const prepared = await prepareDocumentSelection(
+      before,
+      documentId,
+      async (document) =>
+        verifyStoredPlanContent(await createBrowserPlanStore().get(document.id), document),
+      unchanged,
+    );
+    const photoPreviewUrls: Record<string, string> = {};
+    const photoReadiness: RuntimeAssetReadiness["photos"] = {};
+    const messages: string[] = [];
+    try {
+      if (prepared.job.photos.length) {
+        const contents = await createBrowserPhotoStore().list();
+        const byId = new Map(contents.map((item) => [item.id, item]));
+        for (const photo of prepared.job.photos) {
+          const result = await verifyPhotoContent(byId.get(photo.id) ?? null, photo);
+          if (result.status === "ready") {
+            photoPreviewUrls[photo.id] = photoContentObjectUrl(result.content);
+            photoReadiness[photo.id] = { state: "ready", message: null };
+          } else {
+            photoReadiness[photo.id] = { state: result.status, message: result.message };
+            messages.push(result.message);
+          }
+        }
+      }
+      if (!unchanged())
+        throw Error(
+          "The workbench changed while this plan loaded. Your current work was preserved; select the plan again.",
+        );
+      const job = appendJobRevision(prepared.job, {
+        entityType: "job",
+        entityId: before.job.id,
+        action: "update",
+        summary: `Selected source ${prepared.binary.name}.`,
+      });
+      const sheet = job.activeSheet ?? 0,
+        calibration = activeCalibration(job, sheet);
+      set({
+        job,
+        activePlanBinary: prepared.binary,
+        planName: prepared.binary.name,
+        sheet,
+        currentCalibration: calibration,
+        scaleM: scaleForCalibration(calibration),
+        markups: markupsFromJob(job),
+        pending: [],
+        calibrationCapture: null,
+        selectedRunId: null,
+        selectedVertexIndex: null,
+        selectedGateId: null,
+        traceUndoStack: [],
+        traceRedoStack: [],
+        tool: "none",
+        zoom2d: 1,
+        pan2d: { x: 0, y: 0 },
+        takeoff: null,
+        engineNote: "Restored original source and its saved evidence.",
+        documentError: null,
+        calibrationError: null,
+        traceError: null,
+        photoPreviewUrls,
+        photoError: messages.join(" ") || null,
+        assetReadiness: { document: { state: "ready", message: null }, photos: photoReadiness },
+      });
+      for (const url of Object.values(before.photoPreviewUrls)) URL.revokeObjectURL(url);
+    } catch (error) {
+      for (const url of Object.values(photoPreviewUrls)) URL.revokeObjectURL(url);
+      throw error;
+    }
+  },
   importPlan: async (imported) => {
     try {
+      const before = get();
+      if (before.pending.length || before.calibrationCapture)
+        throw Error(
+          "Finish or cancel the current trace or calibration before opening another plan.",
+        );
+      if (before.job.documents.some((item) => item.id === imported.revision.id))
+        throw Error("This source ID already exists. Select the saved plan instead.");
+      const version = ++documentSelectionVersion;
       await createBrowserPlanStore().put(storedContent(imported.binary));
+      if (
+        version !== documentSelectionVersion ||
+        get().job !== before.job ||
+        get().pending !== before.pending ||
+        get().calibrationCapture !== before.calibrationCapture
+      )
+        throw Error(
+          "The workbench changed while the source was stored. Current evidence was preserved; open the plan again.",
+        );
       set((state) => ({
         activePlanBinary: imported.binary,
         documentError: null,
@@ -1153,12 +1301,15 @@ export const useStudio = create<StudioState>((set, get) => ({
         traceRedoStack: [],
         pending: [],
         markups: [],
-        job: jobForImportedPlan(state.job, imported),
+        job: jobForImportedPlan(state.job, imported, state.sheet),
         assetReadiness: {
           document: { state: "ready", message: null },
-          photos: state.assetReadiness.photos,
+          photos: {},
         },
+        photoPreviewUrls: {},
+        photoError: null,
       }));
+      for (const url of Object.values(before.photoPreviewUrls)) URL.revokeObjectURL(url);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       set({ documentError: message });
@@ -1171,7 +1322,12 @@ export const useStudio = create<StudioState>((set, get) => ({
       return;
     }
     const { tool, pending, sheet, job } = get();
-    try{assertSourceCoordinateAuthority(job,sheet);}catch(error){set(calibrationFailure((error as Error).message));return;}
+    try {
+      assertSourceCoordinateAuthority(job, sheet);
+    } catch (error) {
+      set(calibrationFailure((error as Error).message));
+      return;
+    }
     if (tool === "count") {
       const runId = get().selectedRunId;
       if (!runId) {
@@ -1195,7 +1351,12 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
   commitPending: () => {
     const { tool, pending, sheet, markups, job } = get();
-    try{assertSourceCoordinateAuthority(job,sheet);}catch(error){set(calibrationFailure((error as Error).message));return;}
+    try {
+      assertSourceCoordinateAuthority(job, sheet);
+    } catch (error) {
+      set(calibrationFailure((error as Error).message));
+      return;
+    }
     const calibration = activeCalibration(job, sheet);
     if ((tool === "length" || tool === "area" || tool === "sketch") && !calibration.locked) {
       set(
@@ -1253,42 +1414,32 @@ export const useStudio = create<StudioState>((set, get) => ({
       return;
     }
     if (tool === "area" && pending.length >= 3) {
-      set({
-        pending: [],
-        markups: [
-          ...markups,
-          {
-            id: uid(),
-            kind: "area",
-            label: "Area",
-            value: polyArea(pending) * calibration.metresPerUnit * calibration.metresPerUnit,
-            unit: "m²",
-            sheet,
-            points: pending,
-          },
-        ],
-      });
+      const markup: Markup = {
+        id: uid(),
+        kind: "area",
+        label: "Area",
+        value: polyArea(pending) * calibration.metresPerUnit * calibration.metresPerUnit,
+        unit: "m\u00b2",
+        sheet,
+        points: pending,
+      };
+      set({ pending: [], markups: [...markups, markup], job: appendSourceMarkup(job, markup) });
       return;
     }
     if (tool === "sketch" && pending.length >= 2) {
       const metres = pending
         .slice(1)
         .reduce((acc, pt, i) => acc + dist2(pending[i], pt) * calibration.metresPerUnit, 0);
-      set({
-        pending: [],
-        markups: [
-          ...markups,
-          {
-            id: uid(),
-            kind: "sketch",
-            label: "Manual trace",
-            value: metres,
-            unit: "m",
-            sheet,
-            points: pending,
-          },
-        ],
-      });
+      const markup: Markup = {
+        id: uid(),
+        kind: "sketch",
+        label: "Manual trace",
+        value: metres,
+        unit: "m",
+        sheet,
+        points: pending,
+      };
+      set({ pending: [], markups: [...markups, markup], job: appendSourceMarkup(job, markup) });
     }
   },
   clearPending: () => set({ pending: [] }),
@@ -1323,7 +1474,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       const state = get();
       const previous = traceStateFromJob(state.job);
       const result = applyTraceCommand(previous, command, state.job.calibrations);
-      assertTraceChangeAuthority(state.job,result.next);
+      assertTraceChangeAuthority(state.job, result.next);
       const history: TraceHistoryEntry = { command, previous: result.previous, next: result.next };
       set({
         job: revisedTraceJob(state.job, result.next, traceRevisionDescriptor(state.job, command)),
@@ -1506,7 +1657,7 @@ export const useStudio = create<StudioState>((set, get) => ({
         runs: previous.runs.filter((entry) => entry.id !== runId),
         gates: previous.gates.filter((gate) => gate.runId !== runId),
       };
-      assertTraceChangeAuthority(state.job,next);
+      assertTraceChangeAuthority(state.job, next);
       const history: TraceHistoryEntry = {
         command: { type: "remove-run", runId, expectedRevision: run.revision },
         previous,
@@ -1533,8 +1684,12 @@ export const useStudio = create<StudioState>((set, get) => ({
     const state = get();
     const entry = state.traceUndoStack.at(-1);
     if (!entry) return;
-    try { assertTraceChangeAuthority(state.job,entry.previous); }
-    catch(error) { set({traceError:error instanceof Error?error.message:String(error)}); return; }
+    try {
+      assertTraceChangeAuthority(state.job, entry.previous);
+    } catch (error) {
+      set({ traceError: error instanceof Error ? error.message : String(error) });
+      return;
+    }
     set({
       job: revisedTraceJob(state.job, entry.previous, {
         entityType: "job",
@@ -1553,8 +1708,12 @@ export const useStudio = create<StudioState>((set, get) => ({
     const state = get();
     const entry = state.traceRedoStack.at(-1);
     if (!entry) return;
-    try { assertTraceChangeAuthority(state.job,entry.next); }
-    catch(error) { set({traceError:error instanceof Error?error.message:String(error)}); return; }
+    try {
+      assertTraceChangeAuthority(state.job, entry.next);
+    } catch (error) {
+      set({ traceError: error instanceof Error ? error.message : String(error) });
+      return;
+    }
     set({
       job: revisedTraceJob(state.job, entry.next, {
         entityType: "job",
@@ -1578,19 +1737,63 @@ export const useStudio = create<StudioState>((set, get) => ({
       get().removeGate(id);
       return;
     }
-    set({ markups: get().markups.filter((markup) => markup.id !== id) });
-  },
-  addTrade: (name) => {
-    const n = name.trim();
-    if (!n) return;
+    const state = get();
+    const annotation = state.job.annotations?.find((item) => item.id === id);
+    try {
+      if (annotation) assertSourceCoordinateAuthority(state.job, annotation.sheet);
+    } catch (error) {
+      set({ traceError: error instanceof Error ? error.message : String(error) });
+      return;
+    }
     set({
-      trades: [
-        ...get().trades,
-        { id: uid(), name: n, note: "Open-ended — from this sheet, not a default pack" },
-      ],
+      markups: state.markups.filter((markup) => markup.id !== id),
+      job: annotation
+        ? appendJobRevision(
+            { ...state.job, annotations: state.job.annotations!.filter((item) => item.id !== id) },
+            {
+              entityType: "job",
+              entityId: state.job.id,
+              action: "update",
+              summary: `Removed ${annotation.label}.`,
+            },
+          )
+        : state.job,
     });
   },
-  removeTrade: (id) => set({ trades: get().trades.filter((t) => t.id !== id) }),
+  addTrade: (name) => {
+    const n = name.trim().slice(0, 200);
+    if (!n) return;
+    const state = get(),
+      trades = [...state.trades, { id: uid(), name: n, note: "Recorded from project evidence" }];
+    set({
+      trades,
+      job: appendJobRevision(
+        { ...state.job, componentRegistry: trades },
+        {
+          entityType: "job",
+          entityId: state.job.id,
+          action: "update",
+          summary: `Added component ${n}.`,
+        },
+      ),
+    });
+  },
+  removeTrade: (id) => {
+    const state = get(),
+      trades = state.trades.filter((item) => item.id !== id);
+    set({
+      trades,
+      job: appendJobRevision(
+        { ...state.job, componentRegistry: trades },
+        {
+          entityType: "job",
+          entityId: state.job.id,
+          action: "update",
+          summary: "Removed component name.",
+        },
+      ),
+    });
+  },
   updateSite: (site) =>
     set((state) => ({
       job: appendJobRevision(
@@ -1838,14 +2041,18 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
   beginBomGeneration: (request, startedAt = nowIso()) => {
     const current = get();
-    const activeDocument = current.job.documents.find((document) => document.id === current.job.activeDocumentId);
+    const activeDocument = current.job.documents.find(
+      (document) => document.id === current.job.activeDocumentId,
+    );
     if (
       request.job.id !== current.job.id ||
       request.job.revision !== current.job.revision ||
       !activeDocument ||
       activeDocument.sha256 !== request.document.sha256
     ) {
-      throw new Error("A BOM build can start only for the active job revision and verified source document.");
+      throw new Error(
+        "A BOM build can start only for the active job revision and verified source document.",
+      );
     }
     const next = beginBomStateBuild(current.bomState, request, startedAt);
     set({ bomState: next, bomPersistenceError: null });
@@ -1879,12 +2086,16 @@ export const useStudio = create<StudioState>((set, get) => ({
     const state = get();
     const reference = state.bomState.pending?.binding ?? state.bomState.snapshot?.binding;
     if (!reference) return state.bomState;
-    const next = reconcileBomBinding(state.bomState, {
-      ...reference,
-      recipeSetId: recipeSet.id,
-      recipeSetRevision: recipeSet.revision,
-      recipeSetDigest: recipeSet.digest,
-    }, changedAt);
+    const next = reconcileBomBinding(
+      state.bomState,
+      {
+        ...reference,
+        recipeSetId: recipeSet.id,
+        recipeSetRevision: recipeSet.revision,
+        recipeSetDigest: recipeSet.digest,
+      },
+      changedAt,
+    );
     if (next !== state.bomState) set({ bomState: next });
     return next;
   },
@@ -1925,7 +2136,14 @@ export const useStudio = create<StudioState>((set, get) => ({
         bomState = interrupted.state;
       }
       bomState = reconcileBomStateForJob(bomState, job);
-      const loadedCalibration = activeCalibration(job, 0);
+      const restoredSheet = Math.max(
+        0,
+        Math.min(
+          job.activeSheet ?? 0,
+          (job.documents.find((item) => item.id === job.activeDocumentId)?.pageCount ?? 1) - 1,
+        ),
+      );
+      const loadedCalibration = activeCalibration(job, restoredSheet);
       let traceError: string | null = null;
       try {
         traceStateFromJob(job);
@@ -1944,9 +2162,10 @@ export const useStudio = create<StudioState>((set, get) => ({
         bomState,
         bomPersistenceError,
         markups: markupsFromJob(job),
+        trades: job.componentRegistry ?? [],
         currentCalibration: loadedCalibration,
         scaleM: scaleForCalibration(loadedCalibration),
-        sheet: 0,
+        sheet: restoredSheet,
         calibrationCapture: null,
         calibrationError: null,
         selectedRunId: null,

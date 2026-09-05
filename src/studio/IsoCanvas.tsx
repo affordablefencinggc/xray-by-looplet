@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, Magnet } from "lucide-react";
 import { HOUSE, PAL, PLAN, SHEETS, type Seg, type SheetKind } from "./geometry";
 import { useStudio } from "./store";
@@ -11,6 +11,12 @@ import { buildFencingGeometry } from "./fencingModel";
 import type { CalibrationPoint } from "./calibration";
 import type { FenceRun } from "./domain";
 import { sourceViewport, sourceToCanvas, canvasToSource, pointOnSource, snapSourcePoint, type SourceBounds } from "./documentViewport";
+
+import { SourceScopeContext } from "./DocumentPreview";
+import { PlanScope, type DrawScopeScene } from "./PlanScope";
+import { scopeFrame, throughScope, insideScope, routeScopeWheel, type ScopeFrame } from "./precisionScope";
+import "./planScope.css";
+const EMPTY_CALIBRATION_POINTS: readonly CalibrationPoint[] = [];
 
 export function IsoCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -207,6 +213,7 @@ export type PlanCanvasProps = {
   onCalibrationPoint?: (point: CalibrationPoint) => void;
   selectedRunId?: string | null;
   selectedVertexIndex?: number | null;
+  editMode?: "select" | "move" | "insert";
   onSelectRun?: (runId: string | null) => void;
   onSelectVertex?: (runId: string, vertexIndex: number) => void;
   onMoveVertex?: (runId: string, vertexIndex: number, point: CalibrationPoint) => void;
@@ -369,13 +376,34 @@ export function resolveTracingCanvasPointerMode(input: {
   vertexEditingEnabled: boolean;
   runSelectionEnabled: boolean;
   placementToolActive?: boolean;
-}): "calibration" | "move-vertex" | "select-run" | "pan" | "trace" {
+  editMode?: "select" | "move" | "insert";
+}): "calibration" | "move-vertex" | "select-vertex" | "select-run" | "pan" | "trace" {
   if (input.calibrationCaptureActive) return "calibration";
   if (!input.interactive || input.button === 2 || input.button === 1 || input.shiftKey) return "pan";
-  if (input.placementToolActive) return "trace";
-  if (input.vertexEditingEnabled && input.vertexHit) return "move-vertex";
+  if (input.toolActive || input.placementToolActive) return "trace";
+  if (input.vertexHit && input.vertexEditingEnabled && input.editMode === "move") return "move-vertex";
+  if (input.vertexHit && input.runSelectionEnabled) return "select-vertex";
   if (input.runSelectionEnabled && input.runHit) return "select-run";
   return input.toolActive ? "trace" : "pan";
+}
+
+export type VertexDragPreview = {
+  documentId: string | null; sourceSha256: string | null; sheet: number; runId: string; runRevision: number;
+  vertexIndex: number; originalPoint: CalibrationPoint; point: CalibrationPoint;
+};
+
+/** A release may commit only against the exact source and run where the gesture began. */
+export function vertexDragCommitPoint(preview: VertexDragPreview | null, current: {
+  documentId: string | null; sourceSha256: string | null; sheet: number; run?: Pick<FenceRun, "id" | "revision" | "points">;
+  allowed: boolean;
+}): CalibrationPoint | null {
+  if (!preview || !current.allowed || preview.documentId !== current.documentId || preview.sourceSha256 !== current.sourceSha256 || preview.sheet !== current.sheet ||
+    preview.runId !== current.run?.id || preview.runRevision !== (current.run.revision ?? 1)) return null;
+  const original = current.run.points[preview.vertexIndex];
+  if (!original || original.x !== preview.originalPoint.x || original.y !== preview.originalPoint.y ||
+    !Number.isFinite(preview.point.x) || !Number.isFinite(preview.point.y) ||
+    (preview.point.x === original.x && preview.point.y === original.y)) return null;
+  return preview.point;
 }
 
 export function PlanCanvas({
@@ -384,10 +412,11 @@ export function PlanCanvas({
   sourceBounds = null,
   legacyReadOnly = false,
   calibrationCaptureActive = false,
-  calibrationPoints = [],
+  calibrationPoints = EMPTY_CALIBRATION_POINTS,
   onCalibrationPoint,
   selectedRunId = null,
   selectedVertexIndex = null,
+  editMode = "select",
   onSelectRun,
   onSelectVertex,
   onMoveVertex,
@@ -398,7 +427,13 @@ export function PlanCanvas({
   const pan = s.pan2d;
   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId);
   const pageCount = activeDocument?.pageCount ?? 1;
-  const currentRuns = s.job.runs.filter((run) => run.sheet === s.sheet);
+  const [vertexPreview, setVertexPreview] = useState<VertexDragPreview | null>(null);
+  const vertexPreviewRef = useRef<VertexDragPreview | null>(null);
+  const updateVertexPreview = (preview: VertexDragPreview | null) => { vertexPreviewRef.current = preview; setVertexPreview(preview); };
+  const currentRuns = s.job.runs.filter((run) => run.sheet === s.sheet).map(run =>
+    vertexPreview && vertexPreview.runId === run.id && vertexPreview.documentId === s.job.activeDocumentId &&
+    vertexPreview.sheet === s.sheet && vertexPreview.runRevision === (run.revision ?? 1)
+      ? { ...run, points: run.points.map((point, index) => index === vertexPreview.vertexIndex ? vertexPreview.point : point) } : run);
   const currentGates = s.job.gates.filter((gate) => gate.sheet === s.sheet);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverSnap, setHoverSnap] = useState<SnapTarget | null>(null);
@@ -408,6 +443,40 @@ export function PlanCanvas({
     | null
   >(null);
   const lastPointerMode = useRef<ReturnType<typeof resolveTracingCanvasPointerMode> | null>(null);
+  const paintSource = useContext(SourceScopeContext);
+  const [scopeEnabled, setScopeEnabled] = useState(false);
+  const [scopeZoom, setScopeZoom] = useState(4);
+  const [scopeAnchor, setScopeAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [placingScope, setPlacingScope] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [scopeDraw, setScopeDraw] = useState<DrawScopeScene | null>(null);
+  const precisionFrame = useMemo(() => scopeEnabled && (sourceMode !== "overlay" || sourceBounds)
+    ? scopeFrame(canvasSize.width, canvasSize.height, scopeAnchor ?? { x: canvasSize.width / 2, y: canvasSize.height / 2 },
+      { enabled: true, zoom: scopeZoom, diameter: 280 }, window.devicePixelRatio || 1) : null,
+    [scopeEnabled, scopeAnchor, scopeZoom, canvasSize, sourceMode, sourceBounds]);
+  const lensRef = useRef(precisionFrame); lensRef.current = precisionFrame;
+  useEffect(() => {
+    setScopeAnchor(null); setPlacingScope(false); drag.current = null; updateVertexPreview(null); setIsDragging(false);
+  }, [s.sheet, s.job.activeDocumentId]);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    const resize = () => setCanvasSize({ width: canvas.clientWidth, height: canvas.clientHeight });
+    resize(); const observer = new ResizeObserver(resize); observer.observe(canvas);
+    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") { setScopeEnabled(false); setPlacingScope(false); drag.current = null; updateVertexPreview(null); setIsDragging(false); } };
+    window.addEventListener("keydown", escape);
+    return () => { observer.disconnect(); window.removeEventListener("keydown", escape); };
+  }, []);
+  const canvasPointer = (e: { clientX: number; clientY: number }) => {
+    const canvas = ref.current!, r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * canvas.clientWidth / r.width, y: (e.clientY - r.top) * canvas.clientHeight / r.height };
+  };
+  const precisePointer = (e: { clientX: number; clientY: number }) => {
+    const point = canvasPointer(e);
+    return lensRef.current ? throughScope(point, lensRef.current) : point;
+  };
+  const pointerMagnification = (e: { clientX: number; clientY: number }) =>
+    lensRef.current && insideScope(canvasPointer(e), lensRef.current) ? scopeZoom : 1;
+
 
   const zoomCenter = (factor: number) => {
     const oldZoom = s.zoom2d;
@@ -435,8 +504,8 @@ export function PlanCanvas({
     const r = canvas.getBoundingClientRect();
     const kind = SHEETS[s.sheet]?.kind ?? "elev";
     return canvasPointToDocumentPoint(
-      { x: e.clientX - r.left, y: e.clientY - r.top },
-      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors, sourceBounds },
+      precisePointer(e),
+      { width: canvas.clientWidth, height: canvas.clientHeight, zoom, pan, kind, floors: s.floors, sourceBounds },
     );
   }
 
@@ -447,6 +516,7 @@ export function PlanCanvas({
     if (!ctx) return;
 
     const onWheel = (e: WheelEvent) => {
+      if (routeScopeWheel(e, canvasPointer(e), lensRef.current, scopeZoom, setScopeZoom)) return;
       e.preventDefault();
       const zoomFactor = 1.1;
       const f = e.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
@@ -473,17 +543,25 @@ export function PlanCanvas({
 
     canvas.addEventListener("wheel", onWheel, { passive: false });
 
-    const draw = () => {
+    const drawScene = (ctx: CanvasRenderingContext2D, crop?: ScopeFrame) => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       if (w < 2 || h < 2) return;
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!crop) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      } else {
+        const scale = crop.pixels / crop.sampleSize;
+        ctx.setTransform(scale, 0, 0, scale, -crop.sampleLeft * scale, -crop.sampleTop * scale);
+      }
 
+      const drawZoom = zoom * (crop ? crop.diameter / crop.sampleSize : 1);
       const navy = s.skin === "navy";
-      ctx.clearRect(0, 0, w, h);
+      if (!crop) ctx.clearRect(0, 0, w, h);
+      else { ctx.fillStyle = "#e4e5e7"; ctx.fillRect(crop.sampleLeft, crop.sampleTop, crop.sampleSize, crop.sampleSize); }
+      if (crop && sourceMode === "overlay") paintSource?.(ctx);
       if(sourceMode === "overlay" && (!sourceBounds || legacyReadOnly))return;
       if (sourceMode === "procedural") {
         ctx.fillStyle = navy ? PAL.navy : PAL.paper;
@@ -520,7 +598,7 @@ export function PlanCanvas({
       if (s.showSrc && sourceMode === "procedural") {
         if (s.showBld) {
           ctx.strokeStyle = navy ? PAL.cyan : PAL.planInk;
-          ctx.lineWidth = 1.6 / zoom;
+          ctx.lineWidth = 1.6 / drawZoom;
           if (kind === "elev") {
             for (let f = 0; f < s.floors; f++) {
               const yOffset = f * 2.8;
@@ -546,7 +624,7 @@ export function PlanCanvas({
         }
         if (s.showRoof) {
           ctx.strokeStyle = navy ? PAL.roof : "#c9a227";
-          ctx.lineWidth = 1.1 / zoom;
+          ctx.lineWidth = 1.1 / drawZoom;
           if (kind === "elev") {
             const topOffset = (s.floors - 1) * 2.8;
             for (const seg of geom.R) {
@@ -583,8 +661,8 @@ export function PlanCanvas({
             ctx.fillStyle = rm.col;
             ctx.fillRect(p0[0], p0[1], p1[0] - p0[0], p1[1] - p0[1]);
             ctx.fillStyle = navy ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.45)";
-            ctx.font = `${Math.max(9, 10 / zoom)}px monospace`;
-            ctx.fillText(rm.name, p0[0] + 8 / zoom, p0[1] + 16 / zoom);
+            ctx.font = `${Math.max(9, 10 / drawZoom)}px monospace`;
+            ctx.fillText(rm.name, p0[0] + 8 / drawZoom, p0[1] + 16 / drawZoom);
           }
         }
 
@@ -592,12 +670,12 @@ export function PlanCanvas({
         const tb0 = to(13.2, kind === "elev" ? (s.floors * 2.8 + 0.2) : 5.4);
         const tb1 = to(17.6, kind === "elev" ? (s.floors * 2.8 + 1.6) : 6.8);
         ctx.strokeStyle = navy ? "rgba(127,219,255,0.4)" : "rgba(28,110,164,0.4)";
-        ctx.lineWidth = 1 / zoom;
+        ctx.lineWidth = 1 / drawZoom;
         ctx.strokeRect(tb0[0], tb0[1], tb1[0] - tb0[0], tb1[1] - tb0[1]);
         ctx.fillStyle = navy ? "rgba(127,219,255,0.7)" : "rgba(28,110,164,0.8)";
-        ctx.font = `bold ${Math.max(9, 10 / zoom)}px monospace`;
-        ctx.fillText("X-RAY TAKEOFF STUDIO", tb0[0] + 6 / zoom, tb0[1] + 14 / zoom);
-        ctx.font = `${Math.max(8, 8.5 / zoom)}px monospace`;
+        ctx.font = `bold ${Math.max(9, 10 / drawZoom)}px monospace`;
+        ctx.fillText("X-RAY TAKEOFF STUDIO", tb0[0] + 6 / drawZoom, tb0[1] + 14 / drawZoom);
+        ctx.font = `${Math.max(8, 8.5 / drawZoom)}px monospace`;
         
         let dynamicSheetTitle = "SHEET 17 · GROUND FLOOR PLAN";
         if (kind === "cover") {
@@ -610,14 +688,14 @@ export function PlanCanvas({
           dynamicSheetTitle = `SHEET ${s.sheet + 1} · DETAILS & SECTIONS`;
         }
         
-        ctx.fillText(dynamicSheetTitle, tb0[0] + 6 / zoom, tb0[1] + 26 / zoom);
-        ctx.fillText("LOCAL SKETCH · UNVERIFIED SCALE", tb0[0] + 6 / zoom, tb0[1] + 36 / zoom);
+        ctx.fillText(dynamicSheetTitle, tb0[0] + 6 / drawZoom, tb0[1] + 26 / drawZoom);
+        ctx.fillText("LOCAL SKETCH · UNVERIFIED SCALE", tb0[0] + 6 / drawZoom, tb0[1] + 36 / drawZoom);
       }
 
       if (s.showBld && sourceMode === "procedural") {
         if (kind === "elev") {
           ctx.strokeStyle = navy ? PAL.cyan : PAL.planInk;
-          ctx.lineWidth = 1.2 / zoom;
+          ctx.lineWidth = 1.2 / drawZoom;
           for (let f = 0; f < s.floors; f++) {
             const yOffset = f * 2.8;
             for (const seg of geom.B) {
@@ -638,7 +716,7 @@ export function PlanCanvas({
             [[12.2, 0], [12.2, 7.2]],
           ].map((pts) => pts.map(([x, y]) => to(x, y)));
           ctx.strokeStyle = navy ? PAL.cyan : PAL.planInk;
-          ctx.lineWidth = 1.2 / zoom;
+          ctx.lineWidth = 1.2 / drawZoom;
           for (const outline of outlines) {
             ctx.beginPath();
             ctx.moveTo(outline[0][0], outline[0][1]);
@@ -651,7 +729,7 @@ export function PlanCanvas({
       if (s.showMan) {
         ctx.strokeStyle = PAL.manual;
         ctx.fillStyle = PAL.manual;
-        ctx.lineWidth = 1.2 / zoom;
+        ctx.lineWidth = 1.2 / drawZoom;
         for (const m of s.markups) {
           if (m.sheet !== s.sheet) continue;
           if (currentRuns.some((run) => run.id === m.id)) continue;
@@ -667,7 +745,7 @@ export function PlanCanvas({
           if (m.kind === "count") {
             const q = to(m.points[0].x, m.points[0].y);
             ctx.beginPath();
-            ctx.arc(q[0], q[1], 4 / zoom, 0, Math.PI * 2);
+            ctx.arc(q[0], q[1], 4 / drawZoom, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -677,7 +755,7 @@ export function PlanCanvas({
           const selected = run.id === selectedRunId;
           ctx.save();
           ctx.strokeStyle = selected ? "#ffb000" : navy ? PAL.cyan : PAL.planInk;
-          ctx.lineWidth = (selected ? 4 : 2.5) / zoom;
+          ctx.lineWidth = (selected ? 4 : 2.5) / drawZoom;
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
           ctx.beginPath();
@@ -708,10 +786,10 @@ export function PlanCanvas({
           }
 
           ctx.save();
-          const markerSize = 9 / zoom;
+          const markerSize = 9 / drawZoom;
           ctx.strokeStyle = gate.runId === selectedRunId ? "#ffb000" : "#ff4f87";
           ctx.fillStyle = navy ? PAL.navy : "#ffffff";
-          ctx.lineWidth = 3 / zoom;
+          ctx.lineWidth = 3 / drawZoom;
           if (associatedRun && segmentIndex !== null) {
             const start = to(associatedRun.points[segmentIndex].x, associatedRun.points[segmentIndex].y);
             const end = to(associatedRun.points[segmentIndex + 1].x, associatedRun.points[segmentIndex + 1].y);
@@ -724,7 +802,7 @@ export function PlanCanvas({
             ctx.stroke();
           }
           ctx.beginPath();
-          ctx.arc(rendered[0], rendered[1], 5 / zoom, 0, Math.PI * 2);
+          ctx.arc(rendered[0], rendered[1], 5 / drawZoom, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
           ctx.restore();
@@ -738,9 +816,9 @@ export function PlanCanvas({
             ctx.save();
             ctx.fillStyle = selected ? "#ff4f87" : "#ffffff";
             ctx.strokeStyle = "#ffb000";
-            ctx.lineWidth = 2.5 / zoom;
+            ctx.lineWidth = 2.5 / drawZoom;
             ctx.beginPath();
-            ctx.arc(rendered[0], rendered[1], (selected ? 7 : 5.5) / zoom, 0, Math.PI * 2);
+            ctx.arc(rendered[0], rendered[1], (selected ? 7 : 5.5) / drawZoom, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             ctx.restore();
@@ -749,8 +827,8 @@ export function PlanCanvas({
 
         if (s.pending.length) {
           ctx.strokeStyle = PAL.manual;
-          ctx.lineWidth = 1.2 / zoom;
-          ctx.setLineDash([4 / zoom, 4 / zoom]);
+          ctx.lineWidth = 1.2 / drawZoom;
+          ctx.setLineDash([4 / drawZoom, 4 / drawZoom]);
           ctx.beginPath();
           s.pending.forEach((p, i) => {
             const q = to(p.x, p.y);
@@ -770,8 +848,8 @@ export function PlanCanvas({
 
         ctx.save();
         ctx.strokeStyle = PAL.manual;
-        ctx.lineWidth = 1.2 / zoom;
-        ctx.setLineDash([4 / zoom, 4 / zoom]);
+        ctx.lineWidth = 1.2 / drawZoom;
+        ctx.setLineDash([4 / drawZoom, 4 / drawZoom]);
         ctx.beginPath();
         ctx.moveTo(qLast[0], qLast[1]);
         ctx.lineTo(qHover[0], qHover[1]);
@@ -781,15 +859,15 @@ export function PlanCanvas({
         // Draw active segment length label along the line
         const dist = Math.hypot(hoverSnap.point.x - lastPt.x, hoverSnap.point.y - lastPt.y) * s.scaleM;
         ctx.save();
-        ctx.font = `bold ${Math.max(9, 10 / zoom)}px monospace`;
+        ctx.font = `bold ${Math.max(9, 10 / drawZoom)}px monospace`;
         const text = `${dist.toFixed(2)} m`;
         const midX = (qLast[0] + qHover[0]) / 2;
         const midY = (qLast[1] + qHover[1]) / 2;
         const textWidth = ctx.measureText(text).width;
         ctx.fillStyle = navy ? "rgba(5, 11, 20, 0.75)" : "rgba(242, 237, 227, 0.75)";
-        ctx.fillRect(midX + 2 / zoom, midY - 12 / zoom, textWidth + 6 / zoom, 12 / zoom);
+        ctx.fillRect(midX + 2 / drawZoom, midY - 12 / drawZoom, textWidth + 6 / drawZoom, 12 / drawZoom);
         ctx.fillStyle = navy ? "#7fdbff" : "#1c6ea4";
-        ctx.fillText(text, midX + 5 / zoom, midY - 3 / zoom);
+        ctx.fillText(text, midX + 5 / drawZoom, midY - 3 / drawZoom);
         ctx.restore();
       }
 
@@ -799,8 +877,8 @@ export function PlanCanvas({
         ctx.save();
         ctx.strokeStyle = "#ff007f";
         ctx.fillStyle = "rgba(255, 0, 127, 0.3)";
-        ctx.lineWidth = 1.8 / zoom;
-        const sz = 7 / zoom;
+        ctx.lineWidth = 1.8 / drawZoom;
+        const sz = 7 / drawZoom;
         // Diamond
         ctx.beginPath();
         ctx.moveTo(sp[0], sp[1] - sz);
@@ -820,7 +898,7 @@ export function PlanCanvas({
         ctx.stroke();
 
         // Coordinates callout
-        ctx.font = `bold ${Math.max(9, 10 / zoom)}px monospace`;
+        ctx.font = `bold ${Math.max(9, 10 / drawZoom)}px monospace`;
         ctx.fillStyle = navy ? "#7fdbff" : "#050b14";
         ctx.fillText(
           `SNAP (${hoverSnap.point.x.toFixed(2)}, ${hoverSnap.point.y.toFixed(2)}) ${sourceMode === "overlay" ? "source units" : "m"}`,
@@ -837,8 +915,8 @@ export function PlanCanvas({
         ctx.lineJoin = "round";
         if (visiblePoints.length === 2) {
           ctx.strokeStyle = "#ffb000";
-          ctx.lineWidth = 3 / zoom;
-          ctx.setLineDash([8 / zoom, 5 / zoom]);
+          ctx.lineWidth = 3 / drawZoom;
+          ctx.setLineDash([8 / drawZoom, 5 / drawZoom]);
           ctx.beginPath();
           ctx.moveTo(visiblePoints[0][0], visiblePoints[0][1]);
           ctx.lineTo(visiblePoints[1][0], visiblePoints[1][1]);
@@ -848,22 +926,24 @@ export function PlanCanvas({
         visiblePoints.forEach(([x, y], index) => {
           ctx.fillStyle = "#ffb000";
           ctx.strokeStyle = navy ? PAL.navy : "#ffffff";
-          ctx.lineWidth = 2 / zoom;
+          ctx.lineWidth = 2 / drawZoom;
           ctx.beginPath();
-          ctx.arc(x, y, 7 / zoom, 0, Math.PI * 2);
+          ctx.arc(x, y, 7 / drawZoom, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
           ctx.fillStyle = navy ? PAL.navy : "#3a2500";
-          ctx.font = `bold ${10 / zoom}px monospace`;
+          ctx.font = `bold ${10 / drawZoom}px monospace`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(String(index + 1), x, y + 0.5 / zoom);
+          ctx.fillText(String(index + 1), x, y + 0.5 / drawZoom);
         });
         ctx.restore();
       }
     };
 
+    const draw = () => drawScene(ctx);
     draw();
+    setScopeDraw(() => (context: CanvasRenderingContext2D, frame: ScopeFrame) => drawScene(context, frame));
     const ro = new ResizeObserver(draw);
     ro.observe(canvas);
 
@@ -872,9 +952,12 @@ export function PlanCanvas({
       ro.disconnect();
     };
   }, [
+    paintSource,
+    scopeZoom,
     s.skin,
     s.markups,
     s.job.runs,
+    vertexPreview,
     s.job.gates,
     s.pending,
     s.sheet,
@@ -918,10 +1001,13 @@ export function PlanCanvas({
           if (!canvas) return;
           if(sourceMode === "overlay" && !sourceBounds)return;
           const rect = canvas.getBoundingClientRect();
-          const canvasPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+          if (placingScope && e.button === 0) {
+            setScopeAnchor(canvasPointer(e)); setPlacingScope(false); e.preventDefault(); return;
+          }
+          const canvasPoint = precisePointer(e);
           const viewport: PlanCanvasViewport = {
-            width: rect.width,
-            height: rect.height,
+            width: canvas.clientWidth,
+            height: canvas.clientHeight,
             zoom,
             pan,
             kind: SHEETS[s.sheet]?.kind ?? "elev",
@@ -929,11 +1015,11 @@ export function PlanCanvas({
             sourceBounds,
           };
           const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
-          const vertexHit = selectedRun && onMoveVertex
-            ? hitTestRunVertices(canvasPoint, selectedRun, viewport)
+          const vertexHit = selectedRun && (onMoveVertex || onSelectVertex)
+            ? hitTestRunVertices(canvasPoint, selectedRun, viewport, 12 / pointerMagnification(e))
             : null;
           const runHit = onSelectRun
-            ? hitTestFenceRuns(canvasPoint, currentRuns, viewport)
+            ? hitTestFenceRuns(canvasPoint, currentRuns, viewport, 10 / pointerMagnification(e))
             : null;
           const mode = resolveTracingCanvasPointerMode({
             calibrationCaptureActive: calibrationCaptureActive && !legacyReadOnly,
@@ -946,6 +1032,7 @@ export function PlanCanvas({
             runHit: Boolean(runHit),
             vertexEditingEnabled: Boolean(onMoveVertex),
             runSelectionEnabled: Boolean(onSelectRun),
+            editMode,
           });
           lastPointerMode.current = mode;
           if(sourceMode === "overlay" && sourceBounds && mode !== "pan" && !pointOnSource(toWorld(e),sourceBounds))return;
@@ -962,7 +1049,16 @@ export function PlanCanvas({
               runId: vertexHit.runId,
               vertexIndex: vertexHit.vertexIndex,
             };
+            const original = s.job.runs.find(run => run.id === vertexHit.runId)!;
+            updateVertexPreview({ documentId: s.job.activeDocumentId, sourceSha256: activeDocument?.sha256 ?? null, sheet: s.sheet, runId: original.id,
+              runRevision: original.revision ?? 1, vertexIndex: vertexHit.vertexIndex,
+              originalPoint: { ...original.points[vertexHit.vertexIndex] }, point: { ...original.points[vertexHit.vertexIndex] } });
             e.currentTarget.setPointerCapture(e.pointerId);
+            e.preventDefault();
+          } else if (mode === "select-vertex" && vertexHit) {
+            if (hoverSnap) setHoverSnap(null);
+            onSelectRun?.(vertexHit.runId);
+            onSelectVertex?.(vertexHit.runId, vertexHit.vertexIndex);
             e.preventDefault();
           } else if (mode === "select-run" && runHit) {
             if (hoverSnap) setHoverSnap(null);
@@ -979,7 +1075,7 @@ export function PlanCanvas({
               const world=toWorld(e);
               const frame=sourceBounds?sourceViewport(sourceBounds,rect.width,rect.height,zoom,pan):null;
               const targetPoint = sourceMode === "overlay" && frame
-                ? snapSourcePoint(world,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled).point
+                ? snapSourcePoint(world,[...currentRuns.flatMap(run=>run.points),...s.pending],24/(frame.scale*pointerMagnification(e)),s.snappingEnabled).point
                 : hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : world;
               st.addPoint(targetPoint);
             }
@@ -987,10 +1083,14 @@ export function PlanCanvas({
         }}
         onPointerMove={(e) => {
           if(sourceMode === "overlay" && !sourceBounds)return;
+          if (placingScope) return;
           if (calibrationCaptureActive && !legacyReadOnly) {
             if (hoverSnap) setHoverSnap(null);
           } else if (drag.current?.kind === "vertex") {
-            onMoveVertex?.(drag.current.runId, drag.current.vertexIndex, toWorld(e));
+            const point = toWorld(e), preview = vertexPreviewRef.current;
+            if (preview && editMode === "move" && s.tool === "none" && !legacyReadOnly &&
+              (sourceMode !== "overlay" || (sourceBounds && pointOnSource(point, sourceBounds))))
+              updateVertexPreview({ ...preview, point });
             e.preventDefault();
           } else if (drag.current?.kind === "pan") {
             const dx = e.clientX - drag.current.x;
@@ -1008,10 +1108,10 @@ export function PlanCanvas({
               const sx_factor = (canvas.clientWidth - pad * 2) / 18;
               const sy_factor = (canvas.clientHeight - pad * 2) / totalH;
               const sc = Math.min(sx_factor, sy_factor);
-              const snapRadius = 24 / (sc * zoom);
+              const snapRadius = 24 / (sc * zoom * pointerMagnification(e));
               const frame=sourceBounds?sourceViewport(sourceBounds,canvas.clientWidth,canvas.clientHeight,zoom,pan):null;
               const target = sourceMode === "overlay" && frame
-                ? snapSourcePoint(w,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled)
+                ? snapSourcePoint(w,[...currentRuns.flatMap(run=>run.points),...s.pending],24/(frame.scale*pointerMagnification(e)),s.snappingEnabled)
                 : getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
               setHoverSnap(target);
             }
@@ -1023,6 +1123,15 @@ export function PlanCanvas({
           if (hoverSnap) setHoverSnap(null);
         }}
         onPointerUp={(e) => {
+          const preview = vertexPreviewRef.current;
+          if (drag.current?.kind === "vertex" && preview) {
+            const state = useStudio.getState();
+            const point = vertexDragCommitPoint(preview, { documentId: state.job.activeDocumentId, sourceSha256: state.job.documents.find(doc => doc.id === state.job.activeDocumentId)?.sha256 ?? null, sheet: state.sheet,
+              run: state.job.runs.find(run => run.id === preview.runId),
+              allowed: editMode === "move" && state.tool === "none" && !legacyReadOnly && !state.calibrationCapture });
+            if (point) onMoveVertex?.(preview.runId, preview.vertexIndex, point);
+          }
+          updateVertexPreview(null);
           if (drag.current) {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) {
               e.currentTarget.releasePointerCapture(e.pointerId);
@@ -1032,6 +1141,7 @@ export function PlanCanvas({
           }
         }}
         onPointerCancel={(e) => {
+          updateVertexPreview(null);
           if (drag.current) {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) {
               e.currentTarget.releasePointerCapture(e.pointerId);
@@ -1049,6 +1159,18 @@ export function PlanCanvas({
           }
         }}
       />
+
+      {precisionFrame && <PlanScope frame={precisionFrame} zoom={scopeZoom} draw={scopeDraw} />}
+      <div className="plan-scope-controls">
+        <button type="button" aria-label="Drawing scope" aria-pressed={scopeEnabled}
+          disabled={sourceMode === "overlay" && !sourceBounds}
+          onClick={() => { setScopeEnabled(!scopeEnabled); setPlacingScope(false); }}>Scope</button>
+        {scopeEnabled && <>
+          <button type="button" aria-pressed={placingScope} onClick={() => setPlacingScope(!placingScope)}>Place scope</button>
+          <label>Zoom <input type="range" aria-label="Drawing scope magnification" min="2" max="8" step=".01" value={scopeZoom} onChange={(e) => setScopeZoom(Number(e.target.value))} /><output>{scopeZoom.toFixed(2)}x</output></label>
+        </>}
+      </div>
+      {scopeEnabled && <p className="plan-scope-help" role="status">{placingScope ? "Click the plan to place the scope. This click will not draw." : "Place scope, then draw inside the lens. Wheel changes magnification."}</p>}
 
       {/* Centered Floating Premium PDF-style Toolbar Overlay */}
       <div className="canvas-toolbar absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-navy/95 text-paper border border-white/10 backdrop-blur-md rounded-full shadow-xl px-4 py-1.5 pointer-events-auto select-none z-10 font-mono text-[11px]">

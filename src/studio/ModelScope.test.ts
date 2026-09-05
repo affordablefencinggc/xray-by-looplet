@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import {
   createModelScope,
   normalizeScopeOptions,
@@ -235,6 +236,59 @@ describe("Model scope shared renderer state", () => {
 });
 
 describe("Model scope lifecycle", () => {
+  it("mounts a capture wheel listener that updates only a visible lens and restores ordinary routing outside its circle", () => {
+    const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+    const previousOutput = OutputPass.prototype.render;
+    const handlers = new Map<string, { fn: (e: any) => void; options: any }>();
+    const drawing = new Proxy({ createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }) }, {
+      get(target, name) { return name in target ? target[name as keyof typeof target] : () => {}; },
+      set() { return true; },
+    });
+    const doc = { createElement: () => ({ style: {}, dataset: {}, setAttribute() {}, appendChild() {}, remove() {}, getContext: () => drawing }) };
+    const host = {
+      clientWidth: 900, clientHeight: 650, offsetWidth: 900, offsetHeight: 650, clientLeft: 0, clientTop: 0,
+      getBoundingClientRect: () => ({ left: 80, top: 100, width: 900, height: 650 }), appendChild() {},
+      addEventListener: (name: string, fn: (e: any) => void, options: any) => handlers.set(name, { fn, options }),
+      removeEventListener: (name: string) => handlers.delete(name),
+    };
+    const element = { getBoundingClientRect: host.getBoundingClientRect, style: { cursor: "crosshair" } };
+    const renderer = {
+      domElement: element, shadowMap: { autoUpdate: true, needsUpdate: false }, xr: { enabled: false },
+      info: { autoReset: true, render: { calls: 0 } }, autoClear: true,
+      getPixelRatio: () => 1, getRenderTarget: () => null, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0,
+      getViewport: () => new THREE.Vector4(0, 0, 900, 650), getScissor: () => new THREE.Vector4(0, 0, 900, 650),
+      getScissorTest: () => false, setRenderTarget() {}, setViewport() {}, setScissor() {}, setScissorTest() {}, clear() {}, render() {}, readRenderTargetPixels() {},
+    };
+    Object.defineProperty(globalThis, "document", { value: doc, configurable: true });
+    OutputPass.prototype.render = () => {};
+    try {
+      const camera = new THREE.PerspectiveCamera(45, 900 / 650, .1, 100);
+      camera.position.set(3, 4, 12); camera.updateMatrixWorld();
+      const original = JSON.stringify(camera.toJSON());
+      let updated = 0, prevented = 0, stopped = 0;
+      const scope = createModelScope({ host: host as unknown as HTMLDivElement, renderer: renderer as unknown as THREE.WebGLRenderer, scene: new THREE.Scene(), getCamera: () => camera, onInvalidate() {}, onZoomChange: zoom => { updated = zoom; } });
+      assert.deepEqual(handlers.get("wheel")!.options, { capture: true, passive: false });
+      const wheel = (x: number, y: number) => handlers.get("wheel")!.fn({ target: element, clientX: 80 + x, clientY: 100 + y, deltaY: -100, deltaMode: 0, preventDefault() { prevented++; }, stopImmediatePropagation() { stopped++; } });
+      wheel(450, 325); assert.equal(prevented, 0);
+      scope.setOptions(options);
+      handlers.get("pointermove")!.fn({ clientX: 530, clientY: 425 });
+      scope.render();
+      assert.equal(element.style.cursor, "none");
+      wheel(450, 325);
+      assert.ok(updated > 4); assert.equal(prevented, 1); assert.equal(stopped, 1);
+      assert.equal(JSON.stringify(camera.toJSON()), original);
+      wheel(332, 207); // Inside DOM rectangle, outside circular lens.
+      assert.equal(prevented, 1);
+      handlers.get("pointerleave")!.fn({});
+      assert.equal(element.style.cursor, "crosshair");
+      wheel(450, 325); assert.equal(prevented, 1);
+      scope.dispose(); assert.equal(handlers.has("wheel"), false);
+    } finally {
+      OutputPass.prototype.render = previousOutput;
+      if (previousDocument) Object.defineProperty(globalThis, "document", previousDocument);
+      else Reflect.deleteProperty(globalThis, "document");
+    }
+  });
   it("passes input through, hides on leave, and disposes only its own resources once", () => {
     const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
     const children: unknown[] = [];
@@ -300,7 +354,7 @@ describe("Model scope lifecycle", () => {
       });
       assert.equal(children.length, 1);
       assert.equal(nodes[0].style.pointerEvents, "none");
-      assert.deepEqual([...listeners.keys()], ["pointermove", "pointerleave", "pointercancel"]);
+      assert.deepEqual([...listeners.keys()], ["wheel", "pointermove", "pointerleave", "pointercancel"]);
       listeners.get("pointermove")!({ clientX: 30, clientY: 40 });
       assert.equal(invalidations, 0);
       scope.setOptions(options);

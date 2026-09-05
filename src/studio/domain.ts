@@ -259,365 +259,485 @@ export const quoteDraftSchema = z.object({
   loopletReceipt: z.string().nullable(),
 });
 
-export const fencingJobSchema = z
-  .object({
-    schemaVersion: z.literal(JOB_SCHEMA_VERSION),
-    id: z.string().min(1),
-    revision: z.number().int().positive(),
-    name: z.string().min(1).max(200),
-    trade: z.literal("fencing"),
-    status: z.enum(["draft", "in-review", "quote-ready", "sent"]),
-    createdAt: isoDateTime,
-    updatedAt: isoDateTime,
-    site: siteDetailsSchema,
-    documents: z.array(documentRevisionSchema),
-    activeDocumentId: z.string().nullable(),
-    calibrations: z.array(calibrationSchema),
-    runs: z.array(fenceRunSchema),
-    gates: z.array(gateSchema),
-    photos: z.array(photoEvidenceSchema),
-    bom: z.array(bomLineSchema),
-    quoteDraft: quoteDraftSchema.nullable(),
-    revisionHistory: z.array(revisionEventSchema).max(1000),
-  })
-  .superRefine((job, context) => {
-    const documentIds = new Set<string>();
-    for (let index = 0; index < job.documents.length; index += 1) {
-      const document = job.documents[index];
-      if (documentIds.has(document.id)) {
-        context.addIssue({
-          code: "custom",
-          path: ["documents", index, "id"],
-          message: `Duplicate document revision ID: ${document.id}.`,
-        });
-      }
-      documentIds.add(document.id);
-    }
-    if (job.activeDocumentId !== null && !documentIds.has(job.activeDocumentId)) {
+export const sourceAnnotationSchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum(["sketch", "area"]),
+  label: z.string().max(200),
+  value: z.number().finite().nonnegative(),
+  unit: z.string().max(20),
+  sheet: z.number().int().nonnegative(),
+  points: z.array(pointSchema).min(2).max(100000),
+  documentId: z.string().min(1),
+  sourceSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  coordinateSpace: z.enum(["source-page-v1", "legacy-unverified"]),
+});
+export const documentWorkspaceSchema = z.object({
+  documentId: z.string().min(1),
+  sourceSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  sheet: z.number().int().nonnegative(),
+  calibrations: z.array(calibrationSchema),
+  runs: z.array(fenceRunSchema),
+  gates: z.array(gateSchema),
+  annotations: z.array(sourceAnnotationSchema).max(10000),
+  photos: z.array(photoEvidenceSchema),
+  bom: z.array(bomLineSchema),
+  quoteDraft: quoteDraftSchema.nullable(),
+  status: z.enum(["draft", "in-review", "quote-ready", "sent"]),
+  revisionHistory: z.array(revisionEventSchema).max(1000),
+});
+const fencingJobDataSchema = z.object({
+  schemaVersion: z.literal(JOB_SCHEMA_VERSION),
+  id: z.string().min(1),
+  revision: z.number().int().positive(),
+  name: z.string().min(1).max(200),
+  trade: z.literal("fencing"),
+  status: z.enum(["draft", "in-review", "quote-ready", "sent"]),
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime,
+  site: siteDetailsSchema,
+  documents: z.array(documentRevisionSchema),
+  activeDocumentId: z.string().nullable(),
+  calibrations: z.array(calibrationSchema),
+  runs: z.array(fenceRunSchema),
+  gates: z.array(gateSchema),
+  photos: z.array(photoEvidenceSchema),
+  bom: z.array(bomLineSchema),
+  quoteDraft: quoteDraftSchema.nullable(),
+  revisionHistory: z.array(revisionEventSchema).max(1000),
+  annotations: z.array(sourceAnnotationSchema).max(10000).optional(),
+  documentWorkspaces: z.record(z.string(), documentWorkspaceSchema).optional(),
+  activeSheet: z.number().int().nonnegative().optional(),
+  componentRegistry: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1).max(200),
+        note: z.string().max(1000),
+      }),
+    )
+    .max(1000)
+    .optional(),
+});
+function refineFencingJob(
+  job: z.infer<typeof fencingJobDataSchema>,
+  context: z.RefinementCtx,
+): void {
+  const documentIds = new Set<string>();
+  for (let index = 0; index < job.documents.length; index += 1) {
+    const document = job.documents[index];
+    if (documentIds.has(document.id)) {
       context.addIssue({
         code: "custom",
-        path: ["activeDocumentId"],
-        message: `Active document ${job.activeDocumentId} is not present in the document revisions.`,
+        path: ["documents", index, "id"],
+        message: `Duplicate document revision ID: ${document.id}.`,
       });
     }
-    const sheets = new Set<number>();
-    for (let index = 0; index < job.calibrations.length; index += 1) {
-      const sheet = job.calibrations[index].sheet;
-      if (sheets.has(sheet)) {
-        context.addIssue({
-          code: "custom",
-          path: ["calibrations", index, "sheet"],
-          message: `Only one calibration is allowed for sheet ${sheet}.`,
-        });
-      }
-      sheets.add(sheet);
+    documentIds.add(document.id);
+  }
+  if (job.activeDocumentId !== null && !documentIds.has(job.activeDocumentId)) {
+    context.addIssue({
+      code: "custom",
+      path: ["activeDocumentId"],
+      message: `Active document ${job.activeDocumentId} is not present in the document revisions.`,
+    });
+  }
+  const sheets = new Set<number>();
+  for (let index = 0; index < job.calibrations.length; index += 1) {
+    const sheet = job.calibrations[index].sheet;
+    if (sheets.has(sheet)) {
+      context.addIssue({
+        code: "custom",
+        path: ["calibrations", index, "sheet"],
+        message: `Only one calibration is allowed for sheet ${sheet}.`,
+      });
     }
-    const runIds = new Set<string>();
-    for (let index = 0; index < job.runs.length; index += 1) {
-      const run = job.runs[index];
-      if (run.revision === undefined) {
-        context.addIssue({
-          code: "custom",
-          path: ["runs", index, "revision"],
-          message: "Version 2 fence runs require a revision.",
-        });
-      }
-      if (runIds.has(run.id)) {
-        context.addIssue({
-          code: "custom",
-          path: ["runs", index, "id"],
-          message: `Duplicate fence run ID: ${run.id}.`,
-        });
-      }
-      runIds.add(run.id);
-      const lengthFieldCount = [run.grossLengthM, run.gateDeductionM, run.netLengthM].filter(
-        (value) => value !== undefined,
-      ).length;
-      if (lengthFieldCount !== 0 && lengthFieldCount !== 3) {
+    sheets.add(sheet);
+  }
+  const runIds = new Set<string>();
+  for (let index = 0; index < job.runs.length; index += 1) {
+    const run = job.runs[index];
+    if (run.revision === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["runs", index, "revision"],
+        message: "Version 2 fence runs require a revision.",
+      });
+    }
+    if (runIds.has(run.id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["runs", index, "id"],
+        message: `Duplicate fence run ID: ${run.id}.`,
+      });
+    }
+    runIds.add(run.id);
+    const lengthFieldCount = [run.grossLengthM, run.gateDeductionM, run.netLengthM].filter(
+      (value) => value !== undefined,
+    ).length;
+    if (lengthFieldCount !== 0 && lengthFieldCount !== 3) {
+      context.addIssue({
+        code: "custom",
+        path: ["runs", index],
+        message: "Run gross, gate deduction and net lengths must be recorded together.",
+      });
+    }
+    if (
+      run.netLengthM !== undefined &&
+      run.grossLengthM !== undefined &&
+      run.gateDeductionM !== undefined
+    ) {
+      const expectedNet = Math.max(0, run.grossLengthM - run.gateDeductionM);
+      if (
+        Math.abs(run.netLengthM - expectedNet) > 1e-9 ||
+        Math.abs(run.lengthM - run.netLengthM) > 1e-9
+      ) {
         context.addIssue({
           code: "custom",
           path: ["runs", index],
-          message: "Run gross, gate deduction and net lengths must be recorded together.",
-        });
-      }
-      if (
-        run.netLengthM !== undefined &&
-        run.grossLengthM !== undefined &&
-        run.gateDeductionM !== undefined
-      ) {
-        const expectedNet = Math.max(0, run.grossLengthM - run.gateDeductionM);
-        if (
-          Math.abs(run.netLengthM - expectedNet) > 1e-9 ||
-          Math.abs(run.lengthM - run.netLengthM) > 1e-9
-        ) {
-          context.addIssue({
-            code: "custom",
-            path: ["runs", index],
-            message: "Run gross, gate deduction, net and compatibility lengths are inconsistent.",
-          });
-        }
-      }
-      const cornerIds = new Set<string>();
-      const cornerVertices = new Set<number>();
-      for (let cornerIndex = 0; cornerIndex < run.specification.corners.length; cornerIndex += 1) {
-        const corner = run.specification.corners[cornerIndex];
-        if (cornerIds.has(corner.id) || cornerVertices.has(corner.vertexIndex)) {
-          context.addIssue({
-            code: "custom",
-            path: ["runs", index, "specification", "corners", cornerIndex],
-            message: "Each run vertex may have only one uniquely identified corner treatment.",
-          });
-        }
-        if (corner.vertexIndex >= run.points.length) {
-          context.addIssue({
-            code: "custom",
-            path: ["runs", index, "specification", "corners", cornerIndex, "vertexIndex"],
-            message: "Corner treatment references a vertex outside the run.",
-          });
-        }
-        cornerIds.add(corner.id);
-        cornerVertices.add(corner.vertexIndex);
-      }
-      const postIds = new Set<string>();
-      const postVertices = new Set<number>();
-      for (let postIndex = 0; postIndex < run.specification.postOverrides.length; postIndex += 1) {
-        const post = run.specification.postOverrides[postIndex];
-        if (postIds.has(post.id) || postVertices.has(post.vertexIndex)) {
-          context.addIssue({
-            code: "custom",
-            path: ["runs", index, "specification", "postOverrides", postIndex],
-            message: "Each run vertex may have only one uniquely identified post override.",
-          });
-        }
-        if (post.vertexIndex >= run.points.length) {
-          context.addIssue({
-            code: "custom",
-            path: ["runs", index, "specification", "postOverrides", postIndex, "vertexIndex"],
-            message: "Post override references a vertex outside the run.",
-          });
-        }
-        postIds.add(post.id);
-        postVertices.add(post.vertexIndex);
-      }
-      if (new Set(run.photoIds).size !== run.photoIds.length) {
-        context.addIssue({
-          code: "custom",
-          path: ["runs", index, "photoIds"],
-          message: "Run photo links must be unique.",
+          message: "Run gross, gate deduction, net and compatibility lengths are inconsistent.",
         });
       }
     }
-    const gateIds = new Set<string>();
-    for (let index = 0; index < job.gates.length; index += 1) {
-      const gate = job.gates[index];
-      if (gate.revision === undefined) {
+    const cornerIds = new Set<string>();
+    const cornerVertices = new Set<number>();
+    for (let cornerIndex = 0; cornerIndex < run.specification.corners.length; cornerIndex += 1) {
+      const corner = run.specification.corners[cornerIndex];
+      if (cornerIds.has(corner.id) || cornerVertices.has(corner.vertexIndex)) {
         context.addIssue({
           code: "custom",
-          path: ["gates", index, "revision"],
-          message: "Version 2 gates require a revision.",
+          path: ["runs", index, "specification", "corners", cornerIndex],
+          message: "Each run vertex may have only one uniquely identified corner treatment.",
         });
       }
-      if (gateIds.has(gate.id)) {
+      if (corner.vertexIndex >= run.points.length) {
         context.addIssue({
           code: "custom",
-          path: ["gates", index, "id"],
-          message: `Duplicate gate ID: ${gate.id}.`,
+          path: ["runs", index, "specification", "corners", cornerIndex, "vertexIndex"],
+          message: "Corner treatment references a vertex outside the run.",
         });
       }
-      gateIds.add(gate.id);
-      if (
-        (gate.segmentIndex === null) !== (gate.segmentT === null) ||
-        (gate.segmentIndex === undefined) !== (gate.segmentT === undefined)
+      cornerIds.add(corner.id);
+      cornerVertices.add(corner.vertexIndex);
+    }
+    const postIds = new Set<string>();
+    const postVertices = new Set<number>();
+    for (let postIndex = 0; postIndex < run.specification.postOverrides.length; postIndex += 1) {
+      const post = run.specification.postOverrides[postIndex];
+      if (postIds.has(post.id) || postVertices.has(post.vertexIndex)) {
+        context.addIssue({
+          code: "custom",
+          path: ["runs", index, "specification", "postOverrides", postIndex],
+          message: "Each run vertex may have only one uniquely identified post override.",
+        });
+      }
+      if (post.vertexIndex >= run.points.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["runs", index, "specification", "postOverrides", postIndex, "vertexIndex"],
+          message: "Post override references a vertex outside the run.",
+        });
+      }
+      postIds.add(post.id);
+      postVertices.add(post.vertexIndex);
+    }
+    if (new Set(run.photoIds).size !== run.photoIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["runs", index, "photoIds"],
+        message: "Run photo links must be unique.",
+      });
+    }
+  }
+  const gateIds = new Set<string>();
+  for (let index = 0; index < job.gates.length; index += 1) {
+    const gate = job.gates[index];
+    if (gate.revision === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["gates", index, "revision"],
+        message: "Version 2 gates require a revision.",
+      });
+    }
+    if (gateIds.has(gate.id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["gates", index, "id"],
+        message: `Duplicate gate ID: ${gate.id}.`,
+      });
+    }
+    gateIds.add(gate.id);
+    if (
+      (gate.segmentIndex === null) !== (gate.segmentT === null) ||
+      (gate.segmentIndex === undefined) !== (gate.segmentT === undefined)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["gates", index],
+        message: "Gate segment index and interpolation must be present together.",
+      });
+    }
+    if (gate.runId) {
+      const run = job.runs.find((entry) => entry.id === gate.runId);
+      if (!run)
+        context.addIssue({
+          code: "custom",
+          path: ["gates", index, "runId"],
+          message: `Gate references missing run ${gate.runId}.`,
+        });
+      else if (run.sheet !== gate.sheet)
+        context.addIssue({
+          code: "custom",
+          path: ["gates", index, "sheet"],
+          message: "Gate and associated run must be on the same sheet.",
+        });
+      else if (
+        gate.segmentIndex === undefined ||
+        gate.segmentIndex === null ||
+        gate.segmentT === undefined ||
+        gate.segmentT === null
       ) {
         context.addIssue({
           code: "custom",
           path: ["gates", index],
-          message: "Gate segment index and interpolation must be present together.",
+          message: "An associated gate requires a segment placement.",
         });
-      }
-      if (gate.runId) {
-        const run = job.runs.find((entry) => entry.id === gate.runId);
-        if (!run)
-          context.addIssue({
-            code: "custom",
-            path: ["gates", index, "runId"],
-            message: `Gate references missing run ${gate.runId}.`,
-          });
-        else if (run.sheet !== gate.sheet)
-          context.addIssue({
-            code: "custom",
-            path: ["gates", index, "sheet"],
-            message: "Gate and associated run must be on the same sheet.",
-          });
-        else if (
-          gate.segmentIndex === undefined ||
-          gate.segmentIndex === null ||
-          gate.segmentT === undefined ||
-          gate.segmentT === null
-        ) {
-          context.addIssue({
-            code: "custom",
-            path: ["gates", index],
-            message: "An associated gate requires a segment placement.",
-          });
-        } else if (gate.segmentIndex >= run.points.length - 1) {
-          context.addIssue({
-            code: "custom",
-            path: ["gates", index, "segmentIndex"],
-            message: "Gate segment is outside its associated run.",
-          });
-        } else {
-          const start = run.points[gate.segmentIndex];
-          const end = run.points[gate.segmentIndex + 1];
-          const expected = {
-            x: start.x + (end.x - start.x) * gate.segmentT,
-            y: start.y + (end.y - start.y) * gate.segmentT,
-          };
-          if (Math.hypot(gate.point.x - expected.x, gate.point.y - expected.y) > 1e-6) {
-            context.addIssue({
-              code: "custom",
-              path: ["gates", index, "point"],
-              message: "Gate point does not match its segment placement.",
-            });
-          }
-        }
-      } else if (gate.segmentIndex !== undefined && gate.segmentIndex !== null) {
+      } else if (gate.segmentIndex >= run.points.length - 1) {
         context.addIssue({
           code: "custom",
           path: ["gates", index, "segmentIndex"],
-          message: "An unassociated gate cannot retain a segment placement.",
+          message: "Gate segment is outside its associated run.",
+        });
+      } else {
+        const start = run.points[gate.segmentIndex];
+        const end = run.points[gate.segmentIndex + 1];
+        const expected = {
+          x: start.x + (end.x - start.x) * gate.segmentT,
+          y: start.y + (end.y - start.y) * gate.segmentT,
+        };
+        if (Math.hypot(gate.point.x - expected.x, gate.point.y - expected.y) > 1e-6) {
+          context.addIssue({
+            code: "custom",
+            path: ["gates", index, "point"],
+            message: "Gate point does not match its segment placement.",
+          });
+        }
+      }
+    } else if (gate.segmentIndex !== undefined && gate.segmentIndex !== null) {
+      context.addIssue({
+        code: "custom",
+        path: ["gates", index, "segmentIndex"],
+        message: "An unassociated gate cannot retain a segment placement.",
+      });
+    }
+    if (new Set(gate.photoIds).size !== gate.photoIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["gates", index, "photoIds"],
+        message: "Gate photo links must be unique.",
+      });
+    }
+  }
+  const photoIds = new Set<string>();
+  const photoOrders = new Set<number>();
+  for (let index = 0; index < job.photos.length; index += 1) {
+    const photo = job.photos[index];
+    if (photoIds.has(photo.id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["photos", index, "id"],
+        message: `Duplicate photo evidence ID: ${photo.id}.`,
+      });
+    }
+    if (photoOrders.has(photo.order)) {
+      context.addIssue({
+        code: "custom",
+        path: ["photos", index, "order"],
+        message: `Duplicate photo evidence order: ${photo.order}.`,
+      });
+    }
+    if (
+      new Set(photo.runIds).size !== photo.runIds.length ||
+      new Set(photo.gateIds).size !== photo.gateIds.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["photos", index],
+        message: "Photo evidence links must be unique.",
+      });
+    }
+    for (const runId of photo.runIds) {
+      const run = job.runs.find((entry) => entry.id === runId);
+      if (!run)
+        context.addIssue({
+          code: "custom",
+          path: ["photos", index, "runIds"],
+          message: `Photo references missing run ${runId}.`,
+        });
+      else if (!run.photoIds.includes(photo.id))
+        context.addIssue({
+          code: "custom",
+          path: ["photos", index, "runIds"],
+          message: `Photo and run ${runId} must link to each other.`,
+        });
+    }
+    for (const gateId of photo.gateIds) {
+      const gate = job.gates.find((entry) => entry.id === gateId);
+      if (!gate)
+        context.addIssue({
+          code: "custom",
+          path: ["photos", index, "gateIds"],
+          message: `Photo references missing gate ${gateId}.`,
+        });
+      else if (!gate.photoIds.includes(photo.id))
+        context.addIssue({
+          code: "custom",
+          path: ["photos", index, "gateIds"],
+          message: `Photo and gate ${gateId} must link to each other.`,
+        });
+    }
+    photoIds.add(photo.id);
+    photoOrders.add(photo.order);
+  }
+  for (let expectedOrder = 0; expectedOrder < job.photos.length; expectedOrder += 1) {
+    if (!photoOrders.has(expectedOrder)) {
+      context.addIssue({
+        code: "custom",
+        path: ["photos"],
+        message: "Photo evidence order must be contiguous from zero.",
+      });
+      break;
+    }
+  }
+  for (let index = 0; index < job.runs.length; index += 1) {
+    for (const photoId of job.runs[index].photoIds) {
+      const photo = job.photos.find((entry) => entry.id === photoId);
+      if (!photo || !photo.runIds.includes(job.runs[index].id)) {
+        context.addIssue({
+          code: "custom",
+          path: ["runs", index, "photoIds"],
+          message: `Run references missing or one-way photo ${photoId}.`,
         });
       }
-      if (new Set(gate.photoIds).size !== gate.photoIds.length) {
+    }
+  }
+  for (let index = 0; index < job.gates.length; index += 1) {
+    for (const photoId of job.gates[index].photoIds) {
+      const photo = job.photos.find((entry) => entry.id === photoId);
+      if (!photo || !photo.gateIds.includes(job.gates[index].id)) {
         context.addIssue({
           code: "custom",
           path: ["gates", index, "photoIds"],
-          message: "Gate photo links must be unique.",
+          message: `Gate references missing or one-way photo ${photoId}.`,
         });
       }
     }
-    const photoIds = new Set<string>();
-    const photoOrders = new Set<number>();
-    for (let index = 0; index < job.photos.length; index += 1) {
-      const photo = job.photos[index];
-      if (photoIds.has(photo.id)) {
-        context.addIssue({
-          code: "custom",
-          path: ["photos", index, "id"],
-          message: `Duplicate photo evidence ID: ${photo.id}.`,
-        });
-      }
-      if (photoOrders.has(photo.order)) {
-        context.addIssue({
-          code: "custom",
-          path: ["photos", index, "order"],
-          message: `Duplicate photo evidence order: ${photo.order}.`,
-        });
-      }
-      if (
-        new Set(photo.runIds).size !== photo.runIds.length ||
-        new Set(photo.gateIds).size !== photo.gateIds.length
-      ) {
-        context.addIssue({
-          code: "custom",
-          path: ["photos", index],
-          message: "Photo evidence links must be unique.",
-        });
-      }
-      for (const runId of photo.runIds) {
-        const run = job.runs.find((entry) => entry.id === runId);
-        if (!run)
-          context.addIssue({
-            code: "custom",
-            path: ["photos", index, "runIds"],
-            message: `Photo references missing run ${runId}.`,
-          });
-        else if (!run.photoIds.includes(photo.id))
-          context.addIssue({
-            code: "custom",
-            path: ["photos", index, "runIds"],
-            message: `Photo and run ${runId} must link to each other.`,
-          });
-      }
-      for (const gateId of photo.gateIds) {
-        const gate = job.gates.find((entry) => entry.id === gateId);
-        if (!gate)
-          context.addIssue({
-            code: "custom",
-            path: ["photos", index, "gateIds"],
-            message: `Photo references missing gate ${gateId}.`,
-          });
-        else if (!gate.photoIds.includes(photo.id))
-          context.addIssue({
-            code: "custom",
-            path: ["photos", index, "gateIds"],
-            message: `Photo and gate ${gateId} must link to each other.`,
-          });
-      }
-      photoIds.add(photo.id);
-      photoOrders.add(photo.order);
+  }
+  const eventIds = new Set<string>();
+  const eventSequences = new Set<number>();
+  for (let index = 0; index < job.revisionHistory.length; index += 1) {
+    const event = job.revisionHistory[index];
+    if (
+      eventIds.has(event.id) ||
+      eventSequences.has(event.sequence) ||
+      event.sequence > job.revision
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["revisionHistory", index],
+        message: "Revision events require unique IDs and sequences no newer than the job revision.",
+      });
     }
-    for (let expectedOrder = 0; expectedOrder < job.photos.length; expectedOrder += 1) {
-      if (!photoOrders.has(expectedOrder)) {
-        context.addIssue({
-          code: "custom",
-          path: ["photos"],
-          message: "Photo evidence order must be contiguous from zero.",
-        });
-        break;
-      }
+    if (index > 0 && event.sequence <= job.revisionHistory[index - 1].sequence) {
+      context.addIssue({
+        code: "custom",
+        path: ["revisionHistory", index, "sequence"],
+        message: "Revision events must be stored in ascending sequence order.",
+      });
     }
-    for (let index = 0; index < job.runs.length; index += 1) {
-      for (const photoId of job.runs[index].photoIds) {
-        const photo = job.photos.find((entry) => entry.id === photoId);
-        if (!photo || !photo.runIds.includes(job.runs[index].id)) {
-          context.addIssue({
-            code: "custom",
-            path: ["runs", index, "photoIds"],
-            message: `Run references missing or one-way photo ${photoId}.`,
-          });
-        }
-      }
+    eventIds.add(event.id);
+    eventSequences.add(event.sequence);
+  }
+
+  const activeDocument = job.documents.find((item) => item.id === job.activeDocumentId);
+  if (
+    job.activeSheet !== undefined &&
+    activeDocument?.pageCount != null &&
+    job.activeSheet >= activeDocument.pageCount
+  )
+    context.addIssue({
+      code: "custom",
+      path: ["activeSheet"],
+      message: "Active sheet is outside the selected source.",
+    });
+  const annotationIds = new Set<string>();
+  for (const [index, annotation] of (job.annotations ?? []).entries()) {
+    if (
+      annotationIds.has(annotation.id) ||
+      annotation.documentId !== job.activeDocumentId ||
+      annotation.sourceSha256 !== (activeDocument?.sha256 ?? null) ||
+      (activeDocument?.pageCount != null && annotation.sheet >= activeDocument.pageCount) ||
+      (annotation.kind === "area" && annotation.points.length < 3) ||
+      (annotation.coordinateSpace === "source-page-v1" && annotation.sourceSha256 === null)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["annotations", index],
+        message: "Annotation identity, source binding or page is invalid.",
+      });
     }
-    for (let index = 0; index < job.gates.length; index += 1) {
-      for (const photoId of job.gates[index].photoIds) {
-        const photo = job.photos.find((entry) => entry.id === photoId);
-        if (!photo || !photo.gateIds.includes(job.gates[index].id)) {
-          context.addIssue({
-            code: "custom",
-            path: ["gates", index, "photoIds"],
-            message: `Gate references missing or one-way photo ${photoId}.`,
-          });
-        }
-      }
+    annotationIds.add(annotation.id);
+  }
+  const snapshots = Object.entries(job.documentWorkspaces ?? {});
+  if (snapshots.length > 100)
+    context.addIssue({
+      code: "custom",
+      path: ["documentWorkspaces"],
+      message: "Too many document workspaces.",
+    });
+  for (const [id, workspace] of snapshots) {
+    const source = job.documents.find((item) => item.id === id);
+    if (
+      !source ||
+      id !== workspace.documentId ||
+      id === job.activeDocumentId ||
+      workspace.sourceSha256 !== (source.sha256 ?? null) ||
+      (source.pageCount != null && workspace.sheet >= source.pageCount)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["documentWorkspaces", id],
+        message: "Workspace source binding or page is invalid.",
+      });
+      continue;
     }
-    const eventIds = new Set<string>();
-    const eventSequences = new Set<number>();
-    for (let index = 0; index < job.revisionHistory.length; index += 1) {
-      const event = job.revisionHistory[index];
-      if (
-        eventIds.has(event.id) ||
-        eventSequences.has(event.sequence) ||
-        event.sequence > job.revision
-      ) {
-        context.addIssue({
-          code: "custom",
-          path: ["revisionHistory", index],
-          message:
-            "Revision events require unique IDs and sequences no newer than the job revision.",
-        });
-      }
-      if (index > 0 && event.sequence <= job.revisionHistory[index - 1].sequence) {
-        context.addIssue({
-          code: "custom",
-          path: ["revisionHistory", index, "sequence"],
-          message: "Revision events must be stored in ascending sequence order.",
-        });
-      }
-      eventIds.add(event.id);
-      eventSequences.add(event.sequence);
-    }
-  });
+    // Reuse complete active evidence validation without recursive workspace nesting.
+    refineFencingJob(
+      {
+        ...job,
+        ...workspace,
+        activeDocumentId: id,
+        documentWorkspaces: {},
+        activeSheet: workspace.sheet,
+      },
+      {
+        ...context,
+        addIssue: (issue) =>
+          context.addIssue(
+            typeof issue === "string"
+              ? { code: "custom", message: issue, path: ["documentWorkspaces", id] }
+              : { ...issue, path: ["documentWorkspaces", id, ...(issue.path ?? [])] },
+          ),
+      },
+    );
+  }
+}
+export const fencingJobSchema = fencingJobDataSchema.superRefine(refineFencingJob);
 
 export type FencingJob = z.infer<typeof fencingJobSchema>;
 export type SiteDetails = z.infer<typeof siteDetailsSchema>;
@@ -990,12 +1110,19 @@ export function getJobBlockers(job: FencingJob): JobBlocker[] {
   const sheetsNeedingCalibration = measurementSheets.length > 0 ? measurementSheets : [0];
   for (const sheet of sheetsNeedingCalibration) {
     const calibration = job.calibrations.find((entry) => entry.sheet === sheet);
-    if (!calibration?.locked || calibration.source === "unverified" || (activeDocument?.source !== "sample" && calibration.coordinateSpace !== "source-page-v1")) {
+    if (
+      !calibration?.locked ||
+      calibration.source === "unverified" ||
+      (activeDocument?.source !== "sample" && calibration.coordinateSpace !== "source-page-v1")
+    ) {
       blockers.push({
         code: "calibration",
-        message: calibration?.locked && calibration.coordinateSpace !== "source-page-v1" && activeDocument?.source !== "sample"
-          ? `Sheet ${sheet + 1} uses legacy source coordinates. Export the preserved evidence before a reviewed retrace; quantities are unverified.`
-          : `Confirm and lock the drawing scale for sheet ${sheet + 1}.`,
+        message:
+          calibration?.locked &&
+          calibration.coordinateSpace !== "source-page-v1" &&
+          activeDocument?.source !== "sample"
+            ? `Sheet ${sheet + 1} uses legacy source coordinates. Export the preserved evidence before a reviewed retrace; quantities are unverified.`
+            : `Confirm and lock the drawing scale for sheet ${sheet + 1}.`,
       });
     }
   }

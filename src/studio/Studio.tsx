@@ -5,6 +5,9 @@ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
 import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
 import { useStudio, type Pane } from "./store";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
+import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
+import { invalidateModelViews } from "./modelViewSnapshot";
 import { SourceBuildingViewer } from "./SourceBuildingViewer";
 import { RenderStudio } from "./RenderStudio";
 import { CalibrationPanel } from "./CalibrationPanel";
@@ -42,6 +45,7 @@ export function Studio() {
   const activePaneTabRef = useRef<HTMLButtonElement>(null);
   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
   const pageCount = activeDocument?.pageCount ?? 1;
+  useEffect(() => { invalidateModelViews(s.activePlanBinary?.documentId, s.activePlanBinary?.sha256); }, [s.activePlanBinary?.documentId, s.activePlanBinary?.sha256]);
 
   useEffect(() => {
     void useStudio.getState().hydratePersistence().then(() => {
@@ -96,9 +100,7 @@ export function Studio() {
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
           <span className="truncate font-semibold">X-RAY BY LOOPLET</span>
         </div>
-        <span className="studio-project truncate" title={activeDocument?.name ?? "No plan open"}>
-          {activeDocument?.name ?? "No plan open"}
-        </span>
+        <ProjectPlanSwitcher onSelect={s.selectDocument} />
         <nav className="studio-pane-nav flex flex-1 justify-center gap-0.5" aria-label="Panes">
           {PANES.map((p) => (
             <button
@@ -190,6 +192,7 @@ export function Studio() {
         )}
 
         <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.pane === "model" ? "source-model-main" : ""} ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
+          <div className="workspace-central-content">
           {!s.persistenceHydrated ? <HydrationState /> : (
             <>
               {s.persistenceError ? <IntegrityNotice title="Saved work needs attention" message={s.persistenceError} /> : null}
@@ -205,20 +208,14 @@ export function Studio() {
               {s.pane === "proof" && <ProofPane />}
             </>
           )}
+          </div>
+          <WorkspaceDiagnostics />
         </section>
 
         {!s.lifted && !s.rightCollapsed && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
       </div>
 
-      <footer className="studio-footer flex flex-wrap gap-3.5 border-t border-line px-3 py-1.5 font-mono text-[10px] tracking-wider text-muted">
-        <span>Mode {s.pane} readiness</span>
-        <span>
-          Sheet {s.sheet + 1} / {pageCount}
-        </span>
-        <span>Markups {s.markups.length}</span>
-        <span>Evidence-first — quantities never re-derived here</span>
-        <span>{s.activePlanBinary?.name ?? "no verified plan"}</span>
-      </footer>
+
 
       {s.capsOpen && <Capabilities onClose={() => s.toggle("capsOpen")} />}
     </div>
@@ -246,22 +243,29 @@ function Stat({ k, v, n }: { k: string; v: string; n: string }) {
 
 function Overview() {
   const s = useStudio();
-  const verifiedPlan = s.activePlanBinary;
+  const source = s.activePlanBinary;
+  const document = s.job.documents.find((item) => item.id === s.job.activeDocumentId);
   return (
     <>
-      <p className="max-w-prose text-muted">
-        X-Ray is an evidence-first takeoff workbench. Open a supported plan, establish scale, then record length,
-        area and count observations. Pricing and external handoff stay unavailable until their production contracts exist.
-      </p>
+      <div className="pane-heading-row">
+        <div><span className="kicker">Project overview</span><h1>{source?.name ?? "Start with your source drawing"}</h1></div>
+        <span className={`asset-state ${s.assetReadiness.document.state}`}>{s.assetReadiness.document.state}</span>
+      </div>
+      <p className="max-w-prose text-muted">Inspect the original sheets, establish their scale, then record your measurements and drawing evidence.</p>
       <div className="grid grid-cols-4 gap-2.5">
-        <Stat k="Verified plan bytes" v={verifiedPlan ? "Ready" : "Missing"} n={verifiedPlan?.name ?? "Open a plan to begin"} />
-        <Stat k="Source integrity" v={verifiedPlan ? "SHA-256" : "Pending"} n={verifiedPlan ? "Bytes rechecked in this session" : "No verified source is loaded"} />
-        <Stat k="Manual geometry" v={String(s.markups.length)} n="Measured lines, areas and markers" />
-        <Stat k="Pricing" v="Unavailable" n="No rate source is connected" />
+        <Stat k="Original sheets" v={String(source ? document?.pageCount ?? 1 : 0)} n={source ? "From the attached source" : "No source attached"} />
+        <Stat k="Measured runs" v={String(s.job.runs.length)} n="Saved measurement paths" />
+        <Stat k="Sketch traces" v={String(s.markups.filter((item) => item.kind === "sketch").length)} n="Saved drawing annotations" />
+        <Stat k="Photo evidence" v={String(s.job.photos.length)} n="Attached evidence records" />
       </div>
-      <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-[18px]">
-        <Stage />
-      </div>
+      <nav className="flex flex-wrap gap-2" aria-label="Project next actions">
+        <button type="button" className="pill" onClick={() => s.setPane("sheets")}>{source ? "Inspect source sheets" : "Open source sheets"}</button>
+        <button type="button" className="pill" disabled={!source} onClick={() => s.setPane("measure")}>Calibrate and measure</button>
+        <button type="button" className="pill" onClick={() => s.setPane("model")}>Model workspace</button>
+        <button type="button" className="pill" onClick={() => s.setPane("proof")}>Review evidence</button>
+      </nav>
+      {s.documentError && <IntegrityNotice title="Source needs attention" message={s.documentError} />}
+      <DocumentPreview binary={source} pageIndex={s.sheet} pageCount={document?.pageCount} className="sheets-document-preview" />
     </>
   );
 }
@@ -311,6 +315,7 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
 
 function MeasurePane() {
   const s = useStudio();
+  const [editMode, setEditMode] = useState<TraceEditMode>("select");
   const [sourceReady,setSourceReady]=useState(false);
   const calibration=s.currentCalibration;
   const legacyReadOnly=calibration.coordinateSpace !== "source-page-v1" && (calibration.candidates.length>0 || calibration.locked || s.job.runs.some(run=>run.sheet===s.sheet) || s.job.gates.some(gate=>gate.sheet===s.sheet));
@@ -343,6 +348,7 @@ function MeasurePane() {
             onCalibrationPoint={s.addCalibrationPoint}
             selectedRunId={s.selectedRunId}
             selectedVertexIndex={s.selectedVertexIndex}
+            editMode={editMode}
             onSelectRun={s.selectRun}
             onSelectVertex={s.selectVertex}
             onMoveVertex={s.moveRunVertex}
@@ -350,7 +356,7 @@ function MeasurePane() {
         </DocumentPreview>
         <MarkupList />
       </div>
-      <fieldset className="measure-inspector-boundary" disabled={!sourceReady || legacyReadOnly}><MeasureInspector selectedRun={selectedRun} sourceReady={sourceReady} legacyReadOnly={legacyReadOnly} /></fieldset>
+      <fieldset className="measure-inspector-boundary" disabled={!sourceReady || legacyReadOnly}><MeasureInspector selectedRun={selectedRun} sourceReady={sourceReady} legacyReadOnly={legacyReadOnly} editMode={editMode} onEditModeChange={(mode) => { s.setTool("none"); setEditMode(mode); }} /></fieldset>
     </div>
   );
 }
@@ -363,11 +369,10 @@ function placedGate(gate: GateRecord): PlacedGate {
   return { ...gate, revision: gate.revision ?? 1, segmentIndex: gate.segmentIndex ?? null, segmentT: gate.segmentT ?? null };
 }
 
-function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = false }: { selectedRun: EditableFenceRun | null; sourceReady?: boolean; legacyReadOnly?: boolean }) {
+function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = false, editMode, onEditModeChange }: { selectedRun: EditableFenceRun | null; sourceReady?: boolean; legacyReadOnly?: boolean; editMode: TraceEditMode; onEditModeChange: (mode: TraceEditMode) => void }) {
   const s = useStudio();
   const [distanceValue, setDistanceValue] = useState("");
   const [unit, setUnit] = useState<CalibrationInputUnit>("m");
-  const [editMode, setEditMode] = useState<TraceEditMode>("select");
   const [mergeTargetRunId, setMergeTargetRunId] = useState<string | null>(null);
   const [mergeFirstEndpoint, setMergeFirstEndpoint] = useState<TraceMergeEndpoint>("end");
   const [mergeSecondEndpoint, setMergeSecondEndpoint] = useState<TraceMergeEndpoint>("start");
@@ -417,6 +422,7 @@ function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = f
         onLock={() => s.lockCurrentCalibration()}
         onUnlock={s.unlockCurrentCalibration}
       />
+      {s.tool !== "none" ? <p className="text-xs text-muted" role="status">Drawing tool active; choose an edit mode to leave drawing.</p> : null}
       <TraceEditorPanel
         selectedRun={selectedRun}
         selectedGate={selectedGate}
@@ -431,7 +437,7 @@ function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = f
         gateRunOptions={sheetRuns}
         onUndo={s.undoTrace}
         onRedo={s.redoTrace}
-        onEditModeChange={setEditMode}
+        onEditModeChange={onEditModeChange}
         onSelectVertex={(vertexIndex) => selectedRun && s.selectVertex(selectedRun.id, vertexIndex)}
         onInsertAfterSelectedVertex={insertAfterSelected}
         onRemoveSelectedVertex={() => selectedRun && s.selectedVertexIndex !== null && s.removeRunVertex(selectedRun.id, s.selectedVertexIndex)}
@@ -447,6 +453,7 @@ function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = f
         }}
         onRemoveGate={(gateId) => s.removeGate(gateId)}
       />
+      {editMode === "insert" && s.tool === "none" ? <p className="text-xs text-muted">Select a vertex, then use Insert after to add a midpoint next to it.</p> : null}
       {selectedRun ? <SpecificationPanel run={selectedRun} onUpdate={s.updateRunSpecification} /> : (
         <section className="inspector-empty"><span className="eyebrow">Run specification</span><strong>Select a run</strong><p>Choose a measured run on the plan to record the construction evidence required for review.</p></section>
       )}
@@ -462,25 +469,28 @@ function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = f
 
 function SketchPane() {
   const s = useStudio();
+  const [sourceReady, setSourceReady] = useState(false);
+  const calibration = s.currentCalibration;
+  const legacyReadOnly = calibration.coordinateSpace !== "source-page-v1" && (calibration.candidates.length > 0 || calibration.locked || s.job.runs.some(run => run.sheet === s.sheet));
   return (
     <>
       <div className="flex gap-2">
-        <button type="button" className="pill" aria-pressed={s.tool === "sketch"} onClick={() => s.setTool("sketch")}>
+        <button type="button" className="pill" disabled={!sourceReady || legacyReadOnly || !calibration.locked} aria-pressed={s.tool === "sketch"} onClick={() => s.setTool("sketch")}>
           Manual layer <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">M</kbd>
         </button>
-        <button type="button" className="pill" onClick={() => s.commitPending()}>
+        <button type="button" className="pill" disabled={!sourceReady || legacyReadOnly || !calibration.locked} onClick={() => s.commitPending()}>
           Commit trace <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Enter</kbd>
         </button>
         <button type="button" className="pill" onClick={() => s.clearPending()}>
           Cancel <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Esc</kbd>
         </button>
       </div>
-      <p className="text-muted">Click a polyline on the plan, then Commit. Height in Model only raises these traces after scale.</p>
-      <div className="relative min-h-[360px] flex-1 overflow-hidden rounded-[18px]">
-        <div className={`stage absolute inset-0 ${s.skin === "paper" ? "paper" : ""}`}>
-          <PlanCanvas interactive />
-        </div>
-      </div>
+      <p className="text-muted">Draw source-linked annotation paths on the original plan, then commit the trace.</p>
+      {(!calibration.locked || legacyReadOnly) && <div className="integrity-notice" role="status"><strong>Calibrate this source before drawing</strong><span>Sketch points use the original page coordinates and its locked scale.</span><button type="button" className="pill" onClick={() => s.setPane("measure")}>Open Measure to calibrate</button></div>}
+      {s.calibrationError && <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} />}
+      <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview" zoom={s.zoom2d} pan={s.pan2d} showSource={s.showSrc} onSourceReady={setSourceReady}>
+        {(page) => <PlanCanvas interactive sourceMode="overlay" sourceBounds={page?.bounds ?? null} legacyReadOnly={legacyReadOnly} />}
+      </DocumentPreview>
       <MarkupList />
     </>
   );
@@ -1189,16 +1199,17 @@ function Capabilities({ onClose }: { onClose: () => void }) {
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="capabilities-title" className="max-w-lg rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 id="capabilities-title" className="font-mono text-sm tracking-[0.16em]">CAPABILITIES</h2>
         <ul className="mt-3 list-disc space-y-1 pl-5">
-          <li>Open and integrity-check supported plan bytes</li>
-          <li>Browse the current sheet rail and local presentation views</li>
-          <li>Inspect a local isometric wireframe</li>
-          <li>Stand 3D / Lay Flat / Plan / Isometric / Fit</li>
-          <li>Canvas colour (charcoal navy or paper) and lift-up full canvas</li>
-          <li>Measure fence runs and associated gates after locking source scale</li>
-          <li>Area sketches and added trade names last only for the current session</li>
-          <li>Manual sketch layer, raised only by presentation height</li>
-          <li>Open-ended trades — nothing defaulted</li>
-          <li>Inspect recorded markup totals without invented materials or prices</li>
+          <li>Open PDF, DXF and SVG plans and check original source bytes.</li>
+          <li>Browse source sheets and inspect job readiness in Overview.</li>
+          <li>Inspect the matched source building in Model with Solid / Wireframe, floor, roof and cutaway controls.</li>
+          <li>Use the three-post precision scope in Model, Measure and Sketch; wheel inside the circle changes lens magnification.</li>
+          <li>Choose model palettes and wire appearance in Visual settings.</li>
+          <li>Calibrate source scale, then record runs, areas, markers and manual traces.</li>
+          <li>Add trade names from job evidence; nothing is preloaded.</li>
+          <li>Review source-linked evidence and export the current proof manifest.</li>
+          <li>Render exports a camera and appearance brief; generated images are unavailable.</li>
+          <li>Cost shows evidence-gated quantities; pricing is unavailable.</li>
+          <li>Saved work stays linked to its source plan; diagnostics are session-only.</li>
         </ul>
         <button type="button" className="pill-dark mt-4" onClick={onClose}>
           Close

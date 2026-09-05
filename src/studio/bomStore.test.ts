@@ -27,15 +27,17 @@ describe("studio durable BOM integration", () => {
       id: request.job.id,
       revision: request.job.revision,
       activeDocumentId: request.document.id,
-      documents: [{
-        id: request.document.id,
-        name: request.document.name,
-        kind: request.document.kind,
-        importedAt: T0,
-        pageCount: 1,
-        sha256: request.document.sha256,
-        source: "web" as const,
-      }],
+      documents: [
+        {
+          id: request.document.id,
+          name: request.document.name,
+          kind: request.document.kind,
+          importedAt: T0,
+          pageCount: 1,
+          sha256: request.document.sha256,
+          source: "web" as const,
+        },
+      ],
     };
     resetStudioHydrationForTests();
     useStudio.setState({
@@ -70,11 +72,14 @@ describe("studio durable BOM integration", () => {
     useStudio.getState().completeBomGeneration(response, T1);
     const snapshot = useStudio.getState().bomState.snapshot;
 
-    useStudio.getState().reconcileBomRecipeSet({
-      ...request.recipeSet,
-      revision: request.recipeSet.revision + 1,
-      digest: "d".repeat(64),
-    }, "2026-09-04T00:00:02.000Z");
+    useStudio.getState().reconcileBomRecipeSet(
+      {
+        ...request.recipeSet,
+        revision: request.recipeSet.revision + 1,
+        digest: "d".repeat(64),
+      },
+      "2026-09-04T00:00:02.000Z",
+    );
 
     assert.deepEqual(useStudio.getState().bomState.snapshot, snapshot);
     assert.deepEqual(useStudio.getState().bomState.invalidation?.reasons, ["recipe-changed"]);
@@ -90,16 +95,52 @@ describe("studio durable BOM integration", () => {
     assert.equal(useStudio.getState().bomState.snapshot, null);
   });
 
+  it("retains historical engine snapshot but cancels and rejects pending output after a source switch", () => {
+    useStudio.getState().beginBomGeneration(request, T0);
+    useStudio.getState().completeBomGeneration(response, T1);
+    const snapshot = useStudio.getState().bomState.snapshot;
+    useStudio.getState().beginBomGeneration(request, T0);
+    useStudio.setState((state) => ({
+      job: {
+        ...state.job,
+        activeDocumentId: "other-source",
+        documents: [
+          ...state.job.documents,
+          {
+            ...state.job.documents[0],
+            id: "other-source",
+            sha256: "f".repeat(64),
+          },
+        ],
+      },
+    }));
+    assert.deepEqual(useStudio.getState().bomState.snapshot, snapshot);
+    assert.equal(useStudio.getState().bomState.pending, null);
+    assert.ok(useStudio.getState().bomState.invalidation?.reasons.includes("source-changed"));
+    assert.equal(useStudio.getState().completeBomGeneration(response, T1).ok, false);
+    assert.deepEqual(useStudio.getState().bomState.snapshot, snapshot);
+  });
+
   it("refuses to start a request compiled from a stale job or source", () => {
     assert.throws(
-      () => useStudio.getState().beginBomGeneration({ ...request, job: { ...request.job, revision: request.job.revision - 1 } }, T0),
+      () =>
+        useStudio
+          .getState()
+          .beginBomGeneration(
+            { ...request, job: { ...request.job, revision: request.job.revision - 1 } },
+            T0,
+          ),
       /active job revision/i,
     );
     assert.throws(
-      () => useStudio.getState().beginBomGeneration({
-        ...request,
-        document: { ...request.document, sha256: `b${request.document.sha256.slice(1)}` },
-      }, T0),
+      () =>
+        useStudio.getState().beginBomGeneration(
+          {
+            ...request,
+            document: { ...request.document, sha256: `b${request.document.sha256.slice(1)}` },
+          },
+          T0,
+        ),
       /verified source document/i,
     );
     assert.equal(useStudio.getState().bomState.pending, null);

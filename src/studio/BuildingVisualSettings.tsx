@@ -95,19 +95,6 @@ export function BuildingVisualSettings({
           Scope
         </button>
         <button
-          type="button"
-          className="visual-cycle"
-          aria-label="Next visual preset"
-          title="Cycle visual presets"
-          onClick={() => onChange(nextPreset(value.preset))}
-        >
-          <span
-            className="visual-palette-dot"
-            style={{ background: value.background, borderColor: value.wire }}
-          />
-          <ChevronRight size={14} />
-        </button>
-        <button
           ref={trigger}
           type="button"
           aria-expanded={open}
@@ -140,6 +127,20 @@ export function BuildingVisualSettings({
               <X size={16} />
             </button>
           </header>
+          <button
+            type="button"
+            className="visual-next-preset"
+            aria-label="Next visual preset"
+            title="Cycle visual presets"
+            onClick={() => onChange(nextPreset(value.preset))}
+          >
+            <span
+              className="visual-palette-dot"
+              style={{ background: value.background, borderColor: value.wire }}
+            />
+            <span>Next preset</span>
+            <ChevronRight size={14} />
+          </button>
           <label>
             Preset
             <select
@@ -207,15 +208,16 @@ export function BuildingVisualSettings({
             <legend>Scope zoom</legend>
             <label>
               Magnification
-              <select
+              <output>{scope.zoom.toFixed(2)}x</output>
+              <input
+                type="range"
                 aria-label="Scope magnification"
+                min="2"
+                max="8"
+                step=".01"
                 value={scope.zoom}
                 onChange={(e) => onScopeChange({ ...scope, zoom: Number(e.target.value) })}
-              >
-                <option value="2">2x</option>
-                <option value="4">4x</option>
-                <option value="8">8x</option>
-              </select>
+              />
             </label>
             <label>
               Scope diameter <output>{scope.diameter}px</output>
@@ -230,8 +232,8 @@ export function BuildingVisualSettings({
               />
             </label>
             <p>
-              Move over the model to magnify. Escape turns the scope off; the main camera stays in
-              place.
+              Move over the model to magnify. Wheel inside the lens changes its zoom. Escape turns
+              the scope off; the main camera stays in place.
             </p>
           </fieldset>
           {warning && <p role="status">{warning}</p>}

@@ -16,6 +16,7 @@ import {
 import "./sourceBuilding.css";
 import { createModelScope, type ModelScopeOptions } from "./ModelScope";
 import { BuildingVisualSettings } from "./BuildingVisualSettings";
+import { publishModelView } from "./modelViewSnapshot";
 import {
   DEFAULT_APPEARANCE,
   loadAppearance,
@@ -47,6 +48,8 @@ function createBuildingScene(
   model: SourceBuilding,
   onSelect: (id: string | null) => void,
   onError: (message: string) => void,
+  onScopeZoom: (zoom: number) => void,
+  binding: { documentId: string; sceneId: string; sceneSha256: string },
 ): SceneApi {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -103,6 +106,21 @@ function createBuildingScene(
     renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
     renderer.domElement.dataset.cameraTarget = controls.target.toArray().join(",");
     renderer.domElement.dataset.cameraZoom = String(camera.zoom);
+    publishModelView({
+      ...binding,
+      sourceSha256: model.source.sha256,
+      view: { ...options },
+      camera: {
+        projection: camera instanceof THREE.PerspectiveCamera ? "perspective" : "orthographic",
+        position: camera.position.toArray() as [number, number, number],
+        target: controls.target.toArray() as [number, number, number],
+        up: camera.up.toArray() as [number, number, number],
+        zoom: camera.zoom,
+        near: camera.near,
+        far: camera.far,
+        projectionMatrix: camera.projectionMatrix.toArray(),
+      },
+    });
     if (changing) invalidate();
   };
   const invalidate = () => {
@@ -376,6 +394,7 @@ function createBuildingScene(
     scene,
     getCamera: () => camera,
     onInvalidate: invalidate,
+    onZoomChange: onScopeZoom,
   });
   apply();
   return {
@@ -637,9 +656,16 @@ export function SourceBuildingViewer() {
     };
   }, [model, binary]);
   useEffect(() => {
-    if (!model || !matched || !host.current) return;
+    if (!model || !matched || !host.current || !binary || !sceneDigest) return;
     try {
-      api.current = createBuildingScene(host.current, model, setSelected, setError);
+      api.current = createBuildingScene(
+        host.current,
+        model,
+        setSelected,
+        setError,
+        (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
+        { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -647,7 +673,7 @@ export function SourceBuildingViewer() {
       api.current?.dispose();
       api.current = null;
     };
-  }, [model, matched]);
+  }, [model, matched, binary?.documentId, sceneDigest, config.id]);
   useEffect(() => api.current?.options(options), [options, matched]);
   useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
   useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
@@ -758,19 +784,21 @@ export function SourceBuildingViewer() {
           </span>
           <h1>{ready ? "The drawing, in three dimensions" : `Explore ${config.title}`}</h1>
         </div>
-        <select
-          className="building-scene-picker"
-          aria-label="Prepared building"
-          value={config.id}
-          disabled={loading}
-          onChange={(e) => setChosen(e.target.value)}
-        >
-          {BUILDING_CATALOG.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
+        {!ready && (
+          <select
+            className="building-scene-picker"
+            aria-label="Prepared building"
+            value={config.id}
+            disabled={loading}
+            onChange={(e) => setChosen(e.target.value)}
+          >
+            {BUILDING_CATALOG.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="building-source-state">
           {ready ? (
             <>
