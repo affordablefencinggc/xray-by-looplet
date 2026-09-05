@@ -1,0 +1,28 @@
+# Workspace shell ? independent desktop QA instructions
+
+All tests below are pending actual UI execution. Use final frozen source and record exact input hashes. These are author instructions, not results or approval. No mobile QA.
+
+1. Preserve a real before PNG from the previous application state before shell integration; do not synthesize or relabel a later state as the previous implementation. A collapsed versus expanded after-state can prove interaction, but does not substitute for the actual prior layout screenshot when comparing implementation.
+2. Load actual Caroline source. Capture the new larger navigation and active filename/count. Open every one of the ten tabs using visible controls; check nav text and actions remain accessible, no horizontal document overflow or hidden active tab.
+3. In Model, verify diagnostics are collapsed initially. Compare footer left/right bounds to the actual building-stage, excluding model nav and inspector. Open Status; verify filename, original SHA, page count, markups and readiness agree with active source. Capture full actual desktop PNG showing both rails and panel.
+4. Repeat footer width check in Measure against measure-document-preview and in Sketch against its source area. Expand/collapse without changing source coordinates, canvas zoom or selection. Narrow and widen desktop viewport; verify panel alignment updates.
+5. Logs contains actual workspace transitions: change sheet/tab, return and inspect recorded entries. Console shows real messages after mounting. If explicitly issuing a browser console.warn for the test, label it as an intentional diagnostic capture test in the report. Never represent test-injected messages as spontaneous product failures.
+6. Trigger a legitimate rejected import through Open plan with malformed supported-source bytes. Confirm original source stays intact; Errors and Status show the actual import error. Preserve the expected failure evidence and classify it as an exercised rejection, distinct from uncaught browser errors. Do not suppress exceptions or rewrite raw failure reports to pass.
+7. Clear session log clears only recorded rows/counts; Status still shows current import/persistence error and original source. The browser's native console and saved job data must be unchanged. New actual events after clearing appear again. Error/Console counts refer to recorded events within the bounded session window, not a claim about total lifetime problems.
+8. ArrowLeft/ArrowRight/Home/End navigate diagnostic tabs; Enter/click opens, collapse control closes; focus remains visible. Confirm collapsed default after full reload and no uncaught errors during normal interactions.
+9. After safe selector integration, import two distinct actual documents. Record active filename/count, full SHA and real drawings. Create source-bound work in A, select B, create distinct work, select A and verify exact coordinates/calibration/review/photo associations. Repeat B then full reload. Do not count switching as verified from text or unchanged file count alone.
+10. Missing/tampered saved source, unfinished trace/capture and rapid switch requests must retain the previous valid source/work and expose an error. Header onSelect must never use destructive importPlan or simply swap activeDocumentId.
+
+Machine proof: diagnosticsBuffer.test.ts covers 200-event/2000-character bounds, snapshot ownership, accessor/cycle-safe serialization, original console forwarding/exceptions, own-wrapper-only restoration and reentrancy guard. Current author result 5 pass; typecheck passed after correcting Windows helper/component filename collision. Actual UI tests above remain independent QA work.
+
+Final evidence requirements: desktop dev and built execution; real before/after use-case PNGs with source/capture binding; code patch and source manifest; HTML gallery; root independent approval. Use existing proof/audit/IW-REAL-3D-VIEWER and screenshots/industry-real-3d-viewer locations to avoid extending proof gate paths. Preserve all failures. No Git publication.
+
+## Render camera correction
+
+Before defect proof exists at proof/audit/IW-REAL-3D-VIEWER/shell-2026-09-05T11-25-25-805Z/results.json, with actual first/second Model dataset and unchanged old render-before.json/render-after.json supplied by independent main_pages_qa. Preserve these raw files.
+
+After final viewer hook: visit matching Caroline Model, choose actual roof/cutaway/level/wire/explode state, orbit; read actual camera datasets immediately before opening Render. Record camera and download real brief. Compare camera.position/target/zoom/projection and projectionMatrix to actual Three view, sourceDocumentId and sourceSha256 to imported bytes, modelView.sceneSha256 to sceneDigest and modelView.view to controls. Return to Model, orbit to a different actual camera, record/export again and assert numeric data changed. Existing record intentionally remains a snapshot until Record camera is pressed again.
+
+Switch to a different plan: old recorded snapshot must clear, Record/Download disabled until a new matched Model view exists. Rejected import retaining the old active source must not corrupt its snapshot. A fresh reload has no session camera; no stale legacy s.capturedView string may appear as a new camera. Render must visibly say no image renderer implemented; no LIVE state or claim that a paid/authenticated provider is inherently required.
+
+User header correction supersedes old left-aligned shell screenshot acceptance. Fresh1440/2560 capture must show centered larger navigation;2560 returns to one header row with selector/actions intact.

@@ -1,0 +1,15 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {validateCurrentPacket} from '../../../scripts/current-work-proof.mjs';
+const selectionPath=process.argv[2];
+if(!selectionPath)throw Error('Provide the explicit reviewed report/capture selection JSON; no report discovery or invented result fallback.');
+const selection=JSON.parse(readFileSync(selectionPath,'utf8'));
+const frozen=JSON.parse(readFileSync('planning/handovers/IW-PRECISION-DELIVERY/frozen-inputs.json','utf8'));
+const stage=JSON.parse(readFileSync('planning/handovers/IW-PRECISION-DELIVERY/code-stage-manifest.json','utf8'));
+const bind=path=>{const bytes=readFileSync(path);return {path,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')}};
+if(!Array.isArray(selection.workIds)||!selection.scope||!Array.isArray(selection.executions))throw Error('Missing explicit work scope/execution selection');
+const packet={schema:'xray.current-proof/v1',id:'IW-PRECISION-FINAL',author:'precision_scope + agentation_integration + precision_delivery; independent QA main_pages_qa',status:'awaiting independent review',workIds:selection.workIds,scope:selection.scope,inputs:frozen.inputs,diff:stage.diff,executions:selection.executions.map(execution=>{if(!Array.isArray(execution.reports)||!execution.reports.length)throw Error('Missing actual report');return {environment:execution.environment,report:bind(execution.reports[0]),additionalReports:execution.reports.slice(1).map(bind),screenshots:execution.screenshots.map(bind)}})};
+const verdict=validateCurrentPacket(packet,process.cwd());
+const path='proof/audit/IW-CURRENT-WORK/precision-final-packet.json';
+writeFileSync(path,JSON.stringify(packet,null,2)+'\n');
+console.log(JSON.stringify({path,...bind(path),digest:verdict.digest,verified:verdict.verified,blockers:verdict.blockers,images:verdict.screenshots.length}));

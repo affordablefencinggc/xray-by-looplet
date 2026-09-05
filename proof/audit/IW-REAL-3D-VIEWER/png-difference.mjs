@@ -1,0 +1,12 @@
+import {createCanvas,loadImage} from '@napi-rs/canvas';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const [beforePath,afterPath,label]=process.argv.slice(2);assert.ok(beforePath&&afterPath&&/^[a-z0-9-]+$/.test(label));
+const id=new Date().toISOString().replaceAll(':','-').replaceAll('.','-'),root=`proof/audit/IW-REAL-3D-VIEWER/png-difference-${id}`,shots=`screenshots/industry-real-3d-viewer/png-difference-${id}`;mkdirSync(root,{recursive:true});mkdirSync(shots,{recursive:true});
+const hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
+const before=await loadImage(readFileSync(beforePath)),after=await loadImage(readFileSync(afterPath));assert.equal(before.width,after.width);assert.equal(before.height,after.height);
+const width=before.width,height=before.height,canvas=createCanvas(width,height),ctx=canvas.getContext('2d');ctx.drawImage(before,0,0);const a=ctx.getImageData(0,0,width,height);ctx.clearRect(0,0,width,height);ctx.drawImage(after,0,0);const b=ctx.getImageData(0,0,width,height),difference=ctx.createImageData(width,height);let changedPixels=0,totalAbsoluteChannelDifference=0;
+for(let i=0;i<a.data.length;i+=4){let changed=false;for(let channel=0;channel<3;channel++){const delta=Math.abs(a.data[i+channel]-b.data[i+channel]);difference.data[i+channel]=delta;totalAbsoluteChannelDifference+=delta;if(delta)changed=true;}difference.data[i+3]=255;if(changed)changedPixels++;}
+ctx.putImageData(difference,0,0);const path=`${shots}/${label}-absolute-difference.png`;writeFileSync(path,canvas.toBuffer('image/png'));
+const report={kind:'derived-pixel-difference',label,generatedAt:new Date().toISOString(),before:{path:beforePath,sha256:hash(beforePath)},after:{path:afterPath,sha256:hash(afterPath)},difference:{path,sha256:hash(path)},width,height,changedPixels,changedFraction:changedPixels/(width*height),meanAbsoluteRgbDifference:totalAbsoluteChannelDifference/(width*height*3),interpretation:'Absolute RGB difference between retained actual application captures. Black pixels are identical. These captures may differ in camera, source region, selections and layout; this is an audit comparison, not a geometry accuracy or isolated-causality assertion. Neither original image is modified.'};writeFileSync(`${root}/${label}.json`,JSON.stringify(report,null,2));console.log(JSON.stringify({report:`${root}/${label}.json`,...report}));
