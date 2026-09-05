@@ -156,7 +156,11 @@ async function countPdfPages(bytes: Uint8Array): Promise<number> {
       throw simpleError;
     }
     try {
-      const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+      const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+      if (typeof window !== "undefined") {
+        const { default: workerUrl } = await import("pdfjs-dist/legacy/build/pdf.worker.mjs?url");
+        GlobalWorkerOptions.workerSrc = workerUrl;
+      }
       const task = getDocument({
         data: Uint8Array.from(bytes),
       });

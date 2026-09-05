@@ -1,0 +1,3245 @@
+diff --git a/engine/python/xray/building_svg.py b/engine/python/xray/building_svg.py
+new file mode 100644
+index 0000000..a4df56c
+--- /dev/null
++++ b/engine/python/xray/building_svg.py
+@@ -0,0 +1,159 @@
++"""Native vector X-ray wireframes from source-bound building meshes.
++
++This is a projection of curated geometry, not automatic PDF interpretation.
++Concealed edges remain visible. Coplanar triangulation diagonals are removed.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import math
++from pathlib import Path
++import xml.etree.ElementTree as ET
++
++from xray.source_building import BuildingError
++
++NS = 'http://www.w3.org/2000/svg'
++ET.register_namespace('', NS)
++MAX_BYTES = 32 * 1024 * 1024
++OMITTED_LABELS = {'Clapboard reveal', 'Shutter louver', 'Rear gable clapboard reveal', 'Roof edge flashing'}
++VIEWS = ('axonometric', 'ground', 'upper')
++POLICY = 'X-ray: concealed architectural edges remain visible; no hidden-line occlusion. Coplanar triangulation diagonals, room overlays and repetitive clapboard/louver/flashing detail are omitted.'
++
++
++def read_bounded(path):
++    with Path(path).open('rb') as stream:
++        data = stream.read(MAX_BYTES + 1)
++    if len(data) > MAX_BYTES:
++        raise BuildingError('Input exceeds 32 MiB limit')
++    return data
++
++
++def load_bound_scene(scene_path, source_path):
++    raw = read_bounded(scene_path)
++    scene = json.loads(raw)
++    if scene.get('schema') != 'xray.source-building/v1' or scene.get('units') != 'm':
++        raise BuildingError('Expected source-building v1 geometry in metres')
++    if hashlib.sha256(read_bounded(source_path)).hexdigest() != scene['source']['sha256']:
++        raise BuildingError('Source PDF SHA-256 does not match geometry')
++    return scene, hashlib.sha256(raw).hexdigest()
++
++
++def architectural_edges(part):
++    """Weld coincident vertices and keep boundaries or noncoplanar creases."""
++    raw, indices = part['positions'], part['indices']
++    if not raw or len(raw) % 3 or not all(math.isfinite(v) for v in raw):
++        raise BuildingError('Invalid mesh positions')
++    points = [tuple(round(v, 6) for v in raw[i:i + 3]) for i in range(0, len(raw), 3)]
++    if not indices or len(indices) % 3 or any(type(i) is not int or not 0 <= i < len(points) for i in indices):
++        raise BuildingError('Invalid mesh triangle indices')
++    adjacency = {}
++    for i in range(0, len(indices), 3):
++        a, b, c = (points[j] for j in indices[i:i + 3])
++        u, v = [b[j] - a[j] for j in range(3)], [c[j] - a[j] for j in range(3)]
++        n = (u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0])
++        length = math.sqrt(sum(x*x for x in n))
++        if length < 1e-12:
++            raise BuildingError('Degenerate mesh triangle')
++        n = tuple(x / length for x in n)
++        for p, q in ((a, b), (b, c), (c, a)):
++            adjacency.setdefault(tuple(sorted((p, q))), []).append(n)
++    threshold = math.cos(math.radians(1))
++    return sorted(edge for edge, normals in adjacency.items() if len(normals) == 1 or
++                  any(abs(sum(a*b for a, b in zip(normals[0], n))) < threshold for n in normals[1:]))
++
++
++def included(part, view):
++    return (part['category'] != 'room' and part['label'] not in OMITTED_LABELS and
++            (view == 'axonometric' or part['level'] == view))
++
++
++def project(point, matrix):
++    return tuple(sum(a*b for a, b in zip(row, point)) for row in matrix)
++
++
++def make_svg(scene, scene_sha, view):
++    if view not in VIEWS:
++        raise BuildingError('Unknown vector projection')
++    matrix = [[1/math.sqrt(2), 0, -1/math.sqrt(2)], [1/math.sqrt(6), -2/math.sqrt(6), 1/math.sqrt(6)]] if view == 'axonometric' else [[1, 0, 0], [0, 0, 1]]
++    groups, all_points, seen_ids = [], [], set()
++    for part in sorted(scene['objects'], key=lambda p: p['id']):
++        if part['id'] in seen_ids:
++            raise BuildingError('Duplicate part ID')
++        seen_ids.add(part['id'])
++        if not included(part, view):
++            continue
++        edges = set()
++        for a, b in architectural_edges(part):
++            p, q = (tuple(round(v, 6) for v in project(pt, matrix)) for pt in (a, b))
++            if math.dist(p, q) > 1e-6:
++                edges.add(tuple(sorted((p, q))))
++        if edges:
++            edges = sorted(edges)
++            groups.append((part, edges))
++            all_points.extend(p for edge in edges for p in edge)
++    if not all_points:
++        raise BuildingError('Projection has no geometry')
++    low = [min(p[i] for p in all_points) for i in range(2)]
++    high = [max(p[i] for p in all_points) for i in range(2)]
++    scale, margin, top = 100, 42, 104
++    width = max(850, (high[0]-low[0])*scale+2*margin)
++    height = (high[1]-low[1])*scale+top+90
++    offset = [(width-(high[0]-low[0])*scale)/2-low[0]*scale, top-low[1]*scale]
++    def node(parent, name, attrs=None, text=None):
++        item = ET.SubElement(parent, '{'+NS+'}'+name, attrs or {})
++        item.text = text
++        return item
++    root = ET.Element('{'+NS+'}svg', {'viewBox': f'0 0 {width:.4f} {height:.4f}', 'width': f'{width:.4f}', 'height': f'{height:.4f}', 'role': 'img', 'aria-labelledby': 'drawing-title drawing-description'})
++    title = "Caroline's Farmhouse — " + ('axonometric wireframe' if view == 'axonometric' else view + ' floor wireframe')
++    node(root, 'title', {'id': 'drawing-title'}, title)
++    node(root, 'desc', {'id': 'drawing-description'}, POLICY)
++    metadata = {'schema': 'xray.building-wireframe/v1', 'source': scene['source'], 'sceneSha256': scene_sha, 'units': 'm', 'view': view, 'projectionMatrix': matrix, 'svgUnitsPerMetre': scale, 'translation': offset, 'projectedBoundsMetres': {'min': low, 'max': high}, 'hiddenEdgePolicy': POLICY, 'omittedLabels': sorted(OMITTED_LABELS), 'parts': len(groups), 'segments': sum(len(e) for _, e in groups)}
++    node(root, 'metadata', {'id': 'source-provenance'}, json.dumps(metadata, sort_keys=True))
++    node(root, 'rect', {'width': '100%', 'height': '100%', 'fill': '#ffffff'})
++    text_attrs = {'x': str(margin), 'font-family': 'Arial, sans-serif', 'fill': '#20352f'}
++    node(root, 'text', {**text_attrs, 'y': '34', 'font-size': '21', 'font-weight': '600'}, title)
++    node(root, 'text', {**text_attrs, 'y': '57', 'font-size': '12'}, 'Actual source geometry · X-ray edges include concealed parts · Curated approximate reconstruction')
++    node(root, 'text', {**text_attrs, 'y': '76', 'font-size': '11'}, 'Vector units: 100 SVG units per metre in the declared orthographic projection.')
++    drawing = node(root, 'g', {'id': 'building-edges', 'fill': 'none', 'stroke': '#294b40', 'stroke-width': '.8', 'stroke-linejoin': 'round', 'stroke-linecap': 'round'})
++    for part, edges in groups:
++        group = node(drawing, 'g', {'id': 'part-'+hashlib.sha256(part['id'].encode()).hexdigest()[:20], 'data-part-id': part['id'], 'data-category': part['category'], 'data-level': part['level']})
++        node(group, 'title', text=part['label'])
++        node(group, 'metadata', text=json.dumps({'sourceRefs': part['sourceRefs'], 'evidenceState': part['evidenceState']}, sort_keys=True))
++        commands = []
++        for a, b in edges:
++            commands.append(f'M{a[0]*scale+offset[0]:.4f},{a[1]*scale+offset[1]:.4f}L{b[0]*scale+offset[0]:.4f},{b[1]*scale+offset[1]:.4f}')
++        node(group, 'path', {'d': ' '.join(commands), 'vector-effect': 'non-scaling-stroke'})
++    node(root, 'text', {**text_attrs, 'y': f'{height-53:.4f}', 'font-size': '11'}, 'Jay Osborne / FreeFarmhouse · Adaptation CC BY-SA 4.0 · Source pages 4–18; other designs excluded.')
++    node(root, 'text', {**text_attrs, 'y': f'{height-35:.4f}', 'font-size': '9'}, 'PDF SHA-256: '+scene['source']['sha256'])
++    node(root, 'text', {**text_attrs, 'y': f'{height-19:.4f}', 'font-size': '9'}, 'Scene SHA-256: '+scene_sha)
++    return ET.tostring(root, encoding='utf-8', xml_declaration=True), metadata
++
++
++def export(scene_path, source_path, out):
++    scene, scene_sha = load_bound_scene(scene_path, source_path)
++    out = Path(out)
++    out.mkdir(parents=True, exist_ok=True)
++    results = []
++    for view in VIEWS:
++        data, metadata = make_svg(scene, scene_sha, view)
++        name = 'wireframe-'+view+'.svg'
++        (out/name).write_bytes(data)
++        results.append({'file': name, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'parts': metadata['parts'], 'segments': metadata['segments']})
++    manifest = {'schema': 'xray.building-wireframe-manifest/v1', 'sourceSha256': scene['source']['sha256'], 'sceneSha256': scene_sha, 'hiddenEdgePolicy': POLICY, 'outputs': results}
++    (out/'wireframe-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n', encoding='utf-8')
++    return manifest
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('scene', type=Path)
++    parser.add_argument('--source', required=True, type=Path)
++    parser.add_argument('--out', required=True, type=Path)
++    args = parser.parse_args()
++    print(json.dumps(export(args.scene, args.source, args.out), indent=2))
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/engine/python/xray/caroline_building.py b/engine/python/xray/caroline_building.py
+new file mode 100644
+index 0000000..1f81a6e
+--- /dev/null
++++ b/engine/python/xray/caroline_building.py
+@@ -0,0 +1,238 @@
++﻿"""Curated Caroline source reconstruction, bound to the supplied 19-page PDF.
++
++Geometry follows source plans, elevations and sections. This is a presentation
++reconstruction, not an automatic architectural classifier or a quantity model.
++"""
++from __future__ import annotations
++import argparse,hashlib,json,math
++from pathlib import Path
++from xray.source_building import triangulate,BuildingError
++FT=.3048
++
++class Builder:
++ def __init__(self,trace):
++  self.trace=trace;self.parts=[];self.scale=FT/trace['pointsPerFoot'];self.origin=trace['origin'];self.ids=set()
++ def point(self,p,y):return [(p[0]-self.origin[0])*self.scale,y,(p[1]-self.origin[1])*self.scale]
++ def refs(self,page,points,note='',state='traced'):
++  xs=[p[0] for p in points];zs=[p[1] for p in points]
++  return [{'page':page,'region':[max(0,min(xs)-3),max(0,min(zs)-3),min(1584,max(xs)+3),min(1224,max(zs)+3)],'trace':points,'evidenceState':state,'note':note}]
++ def mesh(self,id,cat,label,verts,idx,mat,level,refs,state='traced'):
++  if id in self.ids:raise BuildingError('Duplicate part '+id)
++  self.ids.add(id);self.parts.append({'id':id,'category':cat,'label':label,'positions':[round(v,6) for p in verts for v in p],'indices':idx,'material':mat,'level':level,'sourceRefs':refs,'evidenceState':state})
++ def beam(self,id,cat,label,a,b,width,low,high,mat,level,refs,state='inferred'):
++  length=math.dist(a,b)
++  if length<1e-8 or high<=low:raise BuildingError('Invalid member '+id)
++  nx=-(b[1]-a[1])/length*width/self.scale/2;nz=(b[0]-a[0])/length*width/self.scale/2
++  ps=[[a[0]+nx,a[1]+nz],[b[0]+nx,b[1]+nz],[b[0]-nx,b[1]-nz],[a[0]-nx,a[1]-nz]]
++  inds=[0,2,1,0,3,2,4,5,6,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]
++  self.mesh(id,cat,label,[self.point(p,y) for y in [low,high] for p in ps],inds,mat,level,refs,state)
++ def slab(self,id,label,poly,low,high,mat='floor',level='ground',page=5,cat='slab',state='traced'):
++  n=len(poly);indices=[];flat=triangulate(poly)
++  for i in range(0,len(flat),3):indices.extend(flat[i:i+3][::-1]);indices.extend(j+n for j in flat[i:i+3])
++  for i in range(n):j=(i+1)%n;indices.extend([i,j,j+n,i,j+n,i+n])
++  self.mesh(id,cat,label,[self.point(p,y) for y in [low,high] for p in poly],indices,mat,level,self.refs(page,poly,'Source plan outline; material and thickness are presentation assumptions.',state),state)
++ def rect(self,id,label,r,low,high,**kw):
++  x,z,xx,zz=r;self.slab(id,label,[[x,z],[xx,z],[xx,zz],[x,zz]],low,high,**kw)
++ def roof(self,id,label,poly,heights,page=4,sourcepoly=None,mat='roof'):
++  # The roof drawing is on the right half of page4; its registration relative
++  # to the floor plan is +722 page points in X, with the same Y coordinates.
++  source_outline=[[p[0]+722,p[1]] for p in poly]
++  refs=self.refs(4,source_outline,'Roof boundary registered from page 4. Its notes call roof dimensions rough. Horizontal trace and lower attachment heights are approximate.','inferred')
++  refs+=self.refs(7,[[98,374],[250,492]],'Main ridge +23 ft and eave +17 ft 6 in are dimensioned here.','dimensioned')
++  refs+=self.refs(7,[[330,406],[632,451]],'Main roof slope 7.5:12 is shown in this elevation.','dimensioned')
++  refs+=self.refs(4,[[1149,858],[1200,945]],'Lower roof slope 3:12 is dimensioned in the roof plan.','dimensioned')
++  self.mesh(id,'roof',label,[self.point(p,y) for p,y in zip(poly,heights)],triangulate(poly),mat,'roof',refs,'inferred')
++ def wall(self,w):
++  id=w['id'];a,b=w['a'],w['b'];level=w['level'];page=5 if level=='ground' else 6
++  low=0 if level=='ground' else 9*FT;high=w['top'] if w['top'] is not None else (9*FT if level=='ground' else 17*FT+FT/12)
++  mat='interior' if w['internal'] else 'wall';width=.095 if w['internal'] else .15
++  refs=self.refs(page,[a,b],'Wall location traced from this floor plan; floor datums and ceiling heights from page 9. Wall assembly thickness is approximate.')
++  def pos(t):return [a[j]+(b[j]-a[j])*t for j in range(2)]
++  prev=0
++  for oi,o in enumerate(w['openings']):
++   ss,ee=o['start'],o['end'];kind=o['kind'];typ=o['type'];bottom=0;top=80/12*FT
++   if not 0<=prev<=ss<ee<=1 or kind not in ['window','door','opening'] or typ not in [1,2,3,4,5]:raise BuildingError('Invalid opening interval/type: '+o['id'])
++   if kind=='window':
++    bottom=(18/12*FT if typ==1 else 2*FT if typ==2 else 3*FT);top=bottom+({1:72,2:60,3:42}[typ]/12*FT)
++   elif kind=='door' and typ in [1,2]:top=84/12*FT
++   sill,head=low+bottom,min(low+top,high-.04)
++   if ss>prev:self.beam(id+f'-solid-{oi}','wall',w['label'],pos(prev),pos(ss),width,low,high,mat,level,refs,'traced')
++   if sill>low:self.beam(id+f'-below-{oi}','wall',w['label'],pos(ss),pos(ee),width,low,sill,mat,level,refs,'traced')
++   if head<high:self.beam(id+f'-above-{oi}','wall',w['label'],pos(ss),pos(ee),width,head,high,mat,level,refs,'traced')
++   oa,ob=pos(ss),pos(ee);orf=self.refs(page,[oa,ob],'Opening traced. Type dimensions from the page 5/6 schedule; sash, casing and shutter detail from pages 7/8/12.','dimensioned')
++   if kind!='opening':
++    length=math.dist(oa,ob)*self.scale;f=.055/max(length,1e-8)*(ee-ss)
++    for j,(u,v) in enumerate([(ss,ss+f),(ee-f,ee)]):self.beam(o['id']+'-jamb'+str(j),'trim',o['id']+' casing',pos(u),pos(v),width+.045,sill,head,'trim',level,orf)
++    self.beam(o['id']+'-head','trim','Head casing',oa,ob,width+.05,head-.08,head,'trim',level,orf)
++   if kind=='window':
++    self.beam(o['id'],'window',o['id'].replace('-',' '),oa,ob,.026,sill+.04,head-.04,'glass',level,orf,'dimensioned')
++    self.beam(o['id']+'-sill','trim','Window sill',oa,ob,width+.09,sill,sill+.04,'trim',level,orf)
++    self.beam(o['id']+'-meeting-rail','trim','Double hung sash rail',oa,ob,.055,(sill+head)/2-.025,(sill+head)/2+.025,'trim',level,orf)
++    middle=(ss+ee)/2;ff=.018/math.dist(a,b)/self.scale
++    self.beam(o['id']+'-mullion','trim','Divided light mullion',pos(middle-ff),pos(middle+ff),.045,sill,head,'trim',level,orf)
++    if not w['internal']:
++     # Operable shutters shown open against the siding, never across the aperture.
++     for j,(u,v) in enumerate([(ss-(ee-ss)/2-.012,ss-.012),(ee+.012,ee+(ee-ss)/2+.012)]):
++      self.beam(o['id']+'-shutter'+str(j),'trim','Operable window shutter',pos(u),pos(v),width+.065,sill,head,'shutter',level,orf)
++      for k in range(1,9):
++       y=sill+(head-sill)*k/10
++       self.beam(o['id']+f'-louver{j}-{k}','trim','Shutter louver',pos(u),pos(v),width+.075,y,y+.012,'shutter-edge',level,orf)
++   elif kind=='door':
++    if not w['internal']:
++     self.beam(o['id'],'door',o['id'].replace('-',' '),oa,ob,.05,low,head,'door',level,orf,'dimensioned')
++     if typ in [1,2]:
++      self.beam(o['id']+'-glazed-lite','window','Glazed door light',pos(ss+(ee-ss)*.16),pos(ee-(ee-ss)*.16),.057,low+.95,head-.15,'glass',level,orf)
++    else:
++     dx=(ob[0]-oa[0])*.70;dz=(ob[1]-oa[1])*.70;end=[oa[0]+dx*.65-dz*.76,oa[1]+dx*.76+dz*.65]
++     self.beam(o['id'],'door',o['id'].replace('-',' '),oa,end,.035,low,head,'door',level,orf)
++   prev=ee
++  if prev<1:self.beam(id+'-solid-last','wall',w['label'],pos(prev),b,width,low,high,mat,level,refs,'traced')
++  # Clapboard reveal lines only along the solid wall bands, preserving all openings.
++  if not w['internal']:
++   n=0;y=low+.15
++   while y<high:
++    intervals=[(0,1)]
++    for o in w['openings']:
++     if o['kind']=='window':bot=low+({1:1.5,2:2,3:3}[o['type']])*FT;top=bot+{1:6,2:5,3:3.5}[o['type']]*FT
++     else:bot=low;top=low+7*FT
++     if bot-.02<y<top+.02:
++      intervals=[piece for left,right in intervals for piece in [(left,min(right,o['start'])),(max(left,o['end']),right)] if piece[1]-piece[0]>1e-5]
++    for left,right in intervals:self.beam(id+'-clapboard-'+str(n),'trim','Clapboard reveal',pos(left),pos(right),width+.012,y,y+.008,'siding-line',level,refs);n+=1
++    y+=.1524
++
++def build_scene(source,trace_path):
++ with source.open('rb') as stream:data=stream.read(30*1024*1024+1)
++ if len(data)>30*1024*1024:raise BuildingError('Source exceeds 30 MiB')
++ trace=json.loads(trace_path.read_text(encoding='utf-8-sig'));sha=hashlib.sha256(data).hexdigest()
++ if sha!=trace['sourceSha256']:raise BuildingError('Caroline source SHA-256 mismatch')
++ if trace['schema']!='xray.curated-caroline/v1':raise BuildingError('Unsupported Caroline trace')
++ b=Builder(trace)
++ b.rect('ground-main','Main floor: nominal 24 x 16 ft, traced outline',[233,548,665,835],-.254,0)
++ b.rect('kitchen-floor','Kitchen addition',[486,368,665,548],-.254,0)
++ b.rect('screen-floor','Screen porch slab',[378,368,486,548],-.41,-.3048,mat='stone')
++ b.rect('side-floor','Side room floor',[133,566,233,706],-.254,0)
++ b.rect('bath-floor','Downstairs bathroom floor',[665,675,767,813],-.254,0,mat='tile')
++ # Conditioned crawlspace perimeter and annex piers shown on pages4/9/18.
++ # Their below-floor depth is illustrative; the source requires site engineering.
++ foundation=[[233,548],[486,548],[486,368],[665,368],[665,835],[233,835]]
++ for i,(a,c) in enumerate(zip(foundation,foundation[1:]+foundation[:1])):
++  b.beam('foundation-wall-'+str(i),'slab','Conditioned crawlspace perimeter',a,c,.23,-.64,-.254,'stone','ground',b.refs(4,[a,c],'Foundation perimeter shown in page4 left drawing. Below-floor depth is illustrative, not engineered.','inferred'))
++ for i,p in enumerate([[140,575],[140,698],[140,809],[758,683],[758,814]]):
++  b.rect('annex-pier-'+str(i),'Annex support pier',[p[0]-7,p[1]-7,p[0]+7,p[1]+7],-.64,-.254,mat='stone',page=4,cat='column',state='inferred')
++ b.slab('veranda-deck','Wraparound front porch',[[133,706],[233,706],[233,835],[665,835],[665,813],[767,813],[767,938],[133,938]],-.24,-.025,mat='deck')
++ # Upper slab has an actual stair aperture. Three rectangles tile around it.
++ for id,r in [('west',[233,548,603,835]),('front',[603,640,665,835])]:b.rect('upper-floor-'+id,'Upper floor around stairwell',r,2.4892,2.7432,level='upper',page=6)
++ for r in trace['rooms']:
++  y=0 if r['level']=='ground' else 2.7432;b.rect('room-'+r['name'].lower().replace(' ','-').replace('/',''),'Room: '+r['name'],r['rect'],y+.001,y+.006,mat='tile' if 'bath' in r['name'].lower() else 'floor',level=r['level'],page=5 if r['level']=='ground' else 6,cat='room')
++ for wall in trace['walls']:b.wall(wall)
++ # Main gable planes use the source's exact 17ft6in eave,23ft ridge and7.5:12 slope.
++ eave=17.5*FT;ridge=23*FT;mid=693;run=(ridge-eave)/.625/b.scale
++ roofback=mid-run;rooffront=mid+run
++ b.roof('main-roof-north','Main gable north pitch 7.5:12',[[224,roofback],[674,roofback],[674,mid],[224,mid]],[eave,eave,ridge,ridge])
++ b.roof('main-roof-south','Main gable south pitch 7.5:12',[[224,mid],[674,mid],[674,rooffront],[224,rooffront]],[ridge,ridge,eave,eave])
++ # Gable ends are source-elevation geometry and hide with the roof.
++ for id,x in [('west',233),('east',665)]:
++  roof_y=lambda z:ridge-abs(z-mid)*b.scale*.625
++  verts=[b.point([x,548],17*FT+FT/12),b.point([x,835],17*FT+FT/12),b.point([x,835],roof_y(835)),b.point([x,mid],ridge),b.point([x,548],roof_y(548))]
++  b.mesh('gable-'+id,'roof-trim','Main '+id+' gable',verts,[0,1,2,0,2,3,0,3,4],'wall','roof',b.refs(7 if id=='west' else 8,[[315,380],[635,493]],'Gable silhouette traced from elevation; attic vent included separately.','dimensioned'),'dimensioned')
++  b.beam('attic-vent-'+id,'roof-trim','Gable attic vent',[x,684],[x,702],.165,5.65,6.10,'shutter','roof',b.refs(7 if id=='west' else 8,[[460,435],[490,478]] if id=='west' else [[400,435],[430,478]],'Attic vent shown in gable elevation.'))
++ # Low porch roofs: three joined planar surfaces around the main block.
++ attach=3.10;low=attach-117*b.scale*.25
++ b.roof('porch-roof-west','West porch and side-room roof 3:12',[[116,548],[233,548],[233,835],[116,952]],[low,attach,attach,low],page=6,sourcepoly=[[117,548],[233,548],[233,835],[117,950]])
++ b.roof('porch-roof-front','Front porch roof 3:12',[[116,952],[233,835],[665,835],[782,952]],[low,attach,attach,low],page=6,sourcepoly=[[117,950],[233,835],[665,835],[782,950]])
++ b.roof('porch-roof-east','East porch and bathroom roof 3:12',[[665,548],[782,548],[782,952],[665,835]],[attach,low,low,attach],page=6)
++ # Rear kitchen/screen-porch gable, clearly shown in roof plan and rear elevation.
++ rear_eave=2.66;rear_ridge=rear_eave+155*b.scale*.25
++ b.roof('rear-roof-west','Rear addition west roof 3:12',[[367,358],[522,358],[522,548],[367,548]],[rear_eave,rear_ridge,rear_ridge,rear_eave],page=6)
++ b.roof('rear-roof-east','Rear addition east roof 3:12',[[522,358],[677,358],[677,548],[522,548]],[rear_ridge,rear_eave,rear_eave,rear_ridge],page=6)
++ # The rear elevation/rendering show a closed sided gable over both the kitchen
++ # and screen porch. This cap meets the two actual lower roof planes.
++ rear_y=lambda x:rear_ridge-abs(x-522)*b.scale*.25
++ vv=[b.point([378,368],2.60),b.point([665,368],2.60),
++     b.point([665,368],rear_y(665)),b.point([522,368],rear_ridge),b.point([378,368],rear_y(378))]
++ rf=b.refs(8,[[918,609],[1225,657]],'Closed rear addition gable shown above kitchen/screen porch in rear elevation; corroborated by page 17. Lower attachment height remains approximate.','inferred')
++ rf+=b.refs(17,[[1200,503],[1490,622]],'Source rendering shows sided rear gable closure.','traced')
++ b.mesh('rear-gable-closure','roof-trim','Rear kitchen and screen porch gable closure',vv,[0,1,2,0,2,3,0,3,4],'wall','roof',rf,'inferred')
++ for i,y in enumerate([2.75,2.90,3.05,3.20]):
++  run=(rear_ridge-y)/(.25*b.scale);left=max(378,522-run);right=min(665,522+run)
++  b.beam('rear-gable-clapboard-'+str(i),'roof-trim','Rear gable clapboard reveal',[left,368],[right,368],.025,y-.006,y+.006,'siding-line','roof',rf)
++ # Standing seam lines lie on each existing roof surface (no raised unrelated panels).
++ for roof in list(b.parts):
++  if roof['category']!='roof':continue
++  p=[roof['positions'][i:i+3] for i in range(0,len(roof['positions']),3)]
++  # Perimeter flashing strips follow the same actual 3D plane.
++  for j,(a,c) in enumerate(zip(p,p[1:]+p[:1])):
++   dx=c[0]-a[0];dz=c[2]-a[2];ll=math.hypot(dx,dz)
++   if ll<1e-8:continue
++   nx=-dz/ll*.025;nz=dx/ll*.025
++   vv=[[a[0]+nx,a[1]+.015,a[2]+nz],[c[0]+nx,c[1]+.015,c[2]+nz],[c[0]-nx,c[1]+.015,c[2]-nz],[a[0]-nx,a[1]+.015,a[2]-nz]]
++   b.mesh(roof['id']+'-flashing-'+str(j),'roof-trim','Roof edge flashing',vv,[0,2,1,0,3,2],'roof-edge','roof',roof['sourceRefs'],'inferred')
++ # Wraparound porch turned posts, based on the 6-inch column detail.
++ posts=[[133,934],[260,934],[386,934],[512,934],[639,934],[764,934],[133,811],[133,706]]
++ for i,p in enumerate(posts):
++  refs=b.refs(5,[p],'Post centre traced; 6-inch turned post profile from pages 7 and 10.')
++  rings=[(-.025,.0762),(.12,.0762),(.55,.0762),(.62,.052),(.72,.039),(1.70,.039),(1.82,.065),(2.30,.065),(2.45,.0762)];vv=[];idx=[];n=12
++  for y,r in rings:
++   centre=b.point(p,y)
++   vv.extend([[centre[0]+math.cos(j*2*math.pi/n)*r,y,centre[2]+math.sin(j*2*math.pi/n)*r] for j in range(n)])
++  for k in range(len(rings)-1):
++   for j in range(n):a=k*n+j;c=k*n+(j+1)%n;idx.extend([a,c,c+n,a,c+n,a+n])
++  b.mesh('porch-post-'+str(i),'column','Turned porch post',vv,idx,'trim','ground',refs,'inferred')
++  b.rect('post-pier-'+str(i),'Porch foundation pier',[p[0]-7,p[1]-7,p[0]+7,p[1]+7],-.62,-.24,mat='stone',cat='column')
++ for i,(a,c) in enumerate([([133,934],[764,934]),([133,706],[133,934])]):b.beam('porch-beam-'+str(i),'trim','Porch supporting beam',a,c,.14,2.45,2.60,'trim','ground',b.refs(5,[a,c],'Porch beam over traced posts.'))
++ # Screen porch mesh and framing, including its actual exterior door bay.
++ for i,(a,c) in enumerate([([378,368],[486,368]),([378,368],[378,442]),([378,496],[378,548])]):
++  rf=b.refs(5,[a,c],'Screen porch perimeter from plan; screen infill from pages 7 and 17.')
++  b.beam('screen-'+str(i),'fence','Screen porch mesh',a,c,.012,-.18,2.60,'screen','ground',rf)
++  for j,y in enumerate([-.20,.62,2.52]):b.beam('screen-rail-'+str(i)+'-'+str(j),'trim','Screen porch rail',a,c,.085,y,y+.075,'trim','ground',rf)
++ for i,p in enumerate([[378,368],[486,368],[378,442],[378,496],[378,548]]):b.beam('screen-post-'+str(i),'column','Screen porch post',[p[0]-3,p[1]],[p[0]+3,p[1]],.10,-.3048,2.66,'trim','ground',b.refs(5,[p],'Screen porch framing shown in source.'))
++ # Exterior steps: source calls for three risers at front and two at screen porch.
++ # First block is a flush landing extension; three equal risers descend from
++ # that landing to the illustrative ground datum. Blocks meet edge-to-edge.
++ for i in range(3):
++  b.rect('front-step-'+str(i),'Front porch landing and descending steps',[540,938+i*12,614,950+i*12],-.64,-.025-i*(.615/3),mat='stone',state='inferred')
++  b.parts[-1]['sourceRefs'][0]['note']='Three front entry risers shown on page 5. Traced width and run; landing joins the porch at -0.025 m. Equal descending heights and ground support depth are inferred presentation dimensions.'
++ for i in range(2):b.rect('screen-step-'+str(i),'Two screen porch entry risers',[368-i*12,442,380-i*12,496],-.61,-.3048-i*.1524,mat='stone')
++ # Actual interior stair run and three winder treads; 14 risers total at9ft/14.
++ rise=9*FT/14
++ for i in range(11):
++  z=721-i*11.3;b.rect('stair-tread-'+str(i),'Winder stair straight tread',[607,z-11.3,662,z],i*rise,(i+1)*rise,mat='stairs',cat='stair')
++ corner=[607,596.7]
++ winders=[[[607,596.7],[662,596.7],[662,550]],[[607,596.7],[662,550],[607,550]],[[607,596.7],[607,550],[578,550],[578,596.7]]]
++ for i,poly in enumerate(winders):b.slab('stair-winder-'+str(i),'Winder stair corner tread',poly,(11+i)*rise,(12+i)*rise,mat='stairs',cat='stair')
++ b.rect('raised-closet-platform','Raised closet over lower stairs',[607,641,660,695],2.7432,2.7432+.9144,mat='floor',level='upper',page=6,cat='fixture')
++ # Handrail follows the lower stair wall; the top landing is left unobstructed.
++ # Decorative profile and rail height are illustrative, not a code clearance claim.
++ rail_a=b.point([603,721],.95);rail_c=b.point([603,596.7],11*rise+.95)
++ vv=[]
++ for p in [rail_a,rail_c]:vv.extend([[p[0]-.025,p[1]-.025,p[2]],[p[0]+.025,p[1]-.025,p[2]],[p[0]+.025,p[1]+.025,p[2]],[p[0]-.025,p[1]+.025,p[2]]])
++ b.mesh('stair-handrail','trim','Stair wall handrail',vv,[0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7],'stairs','ground',b.refs(5,[[603,596.7],[603,721]],'Stair-side wall traced. Sloping handrail profile and height are inferred.'),'inferred')
++ # Fixtures use actual plan rectangles. Furnishing choices are limited to shown cabinets/appliances.
++ fixtures=[('kitchen-counter-back',[491,375,658,404],.91,'cabinet','ground'),('kitchen-counter-east',[635,404,658,499],.91,'cabinet','ground'),('kitchen-fridge',[624,507,660,542],1.80,'appliance','ground'),('stove',[532,377,570,410],.94,'appliance','ground'),('kitchen-sink',[627,447,654,480],.96,'fixture','ground'),('ground-shower',[718,683,756,723],.12,'fixture','ground'),('ground-wc',[681,686,704,720],.46,'fixture','ground'),('ground-basin',[713,784,756,806],.82,'fixture','ground'),('upper-bath-tub',[243,555,281,637],.55,'fixture','upper'),('upper-wc',[299,611,322,643],.46,'fixture','upper'),('upper-vanity',[334,616,368,645],.84,'cabinet','upper')]
++ for id,r,h,mat,level in fixtures:
++  y=0 if level=='ground' else 2.7432;b.rect('fixture-'+id,id.replace('-',' '),r,y+.01,y+h,mat=mat,level=level,page=5 if level=='ground' else 6,cat='fixture',state='inferred')
++ mats={'wall':{'color':'#ece8dc','roughness':.86},'interior':{'color':'#f3efe5','roughness':.90},'trim':{'color':'#fcfaf3','roughness':.75},'siding-line':{'color':'#c6c5bc','roughness':.8},'roof':{'color':'#697b7b','roughness':.65,'metalness':.22},'roof-edge':{'color':'#b9c2bc','roughness':.6},'floor':{'color':'#cbb493','roughness':.85},'deck':{'color':'#bcb39a','roughness':.9},'tile':{'color':'#dedace','roughness':.75},'stairs':{'color':'#b69970','roughness':.8},'glass':{'color':'#89bdc8','opacity':.58,'roughness':.14},'shutter':{'color':'#405d54','roughness':.8},'shutter-edge':{'color':'#708276','roughness':.8},'door':{'color':'#dfdccd','roughness':.8},'stone':{'color':'#aaa69b','roughness':.95},'screen':{'color':'#667a70','opacity':.26,'roughness':.8},'cabinet':{'color':'#c2b28d','roughness':.8},'appliance':{'color':'#dededa','roughness':.5},'fixture':{'color':'#f7f6ef','roughness':.35}}
++ allpos=[o['positions'] for o in b.parts];mn=[min(p[j] for p in allpos for j in range(i,len(p),3)) for i in range(3)];mx=[max(p[j] for p in allpos for j in range(i,len(p),3)) for i in range(3)]
++ scene={'schema':'xray.source-building/v1','source':{'name':source.name,'sha256':sha,'pageCount':19,'title':"Caroline's Farmhouse",'author':'Jay Osborne / FreeFarmhouse','license':'CC BY-SA 4.0','licenseUrl':'https://creativecommons.org/licenses/by-sa/4.0/'},'units':'m','coordinateSystem':'+X drawing right; +Y up; +Z drawing down. Origin is page5(233,548), ground finished floor.','floorElevations':{'ground':0,'upper':2.7432},'bounds':{'min':mn,'max':mx},'materials':mats,'objects':b.parts,'sourceSheets':[{'page':n,'title':title,'role':role,'image':f'/models/caroline/source-page-{n}.png','width':1584,'height':1224} for n,title,role in [(4,'Foundation and roof plan','roof'),(5,'Downstairs plan','plan'),(6,'Upstairs plan','plan'),(7,'West and front elevations','elevation'),(8,'East and rear elevations','elevation'),(9,'Building sections','section'),(12,'Schedules and openings','detail'),(13,'Source design overview','rendering'),(14,'Source downstairs cutaway','rendering'),(15,'Source upstairs cutaway','rendering'),(16,'Source front perspective','rendering'),(17,'Source rear perspective','rendering'),(18,'Source section perspective','rendering')]],'assumptions':['Curated reconstruction of Caroline only, from the exact user-supplied PDF. This is not automatic PDF-to-BIM or verified construction geometry.','Author: Jay Osborne / FreeFarmhouse. Source license: Creative Commons Attribution-ShareAlike 4.0. This adapted model retains attribution and the same license.','Plans use 18 page points per foot (1/4 inch = 1 foot); main footprint is 24 x 16 feet. Coordinates are manually traced and rounded.','Plan trace endpoints have about one page-point tolerance (17 mm). The nominal 16-ft body depth traces as 287 points versus 288 points from its dimension; it is approximate, not an exact measured quantity.','Roof datum reconciliation: 7.5:12 pitch and the 5-ft 6-in ridge rise imply 17.6-ft total roof depth including overhang. This is 1.2 inches greater than the approximate 17-ft 6-in roof-plan label; section datums and stated pitch take precedence.','Second floor is +9 ft, main roof eave +17 ft 6 in, ridge +23 ft. Main roof pitch is 7.5:12 and lower roofs 3:12, taken from the source elevations and sections.','Materials, colours, shutter louver profiles, wall thickness, lower roof attachment elevation and foundation depth are approximate presentation choices.','Winder stair has the source 14 risers over 9 ft. Its tread polygons are curated from the plan; no clearance or building-code certification is implied.','The upper floor has a genuine stair opening and a raised closet platform over the lower stair flight, as shown in the source. Ground/upper controls expose both layouts.','Only the illustrated conditioned crawlspace/foundation option is represented. Alternate slab/basement details and other designs on page 19 are excluded.','The wraparound porch is unrailed as drawn; interior stair handrail detail is inferred. Only source-shown cabinets and fixtures are included.'],'summary':{'wallRuns':len(trace['walls']),'openings':sum(len(w['openings']) for w in trace['walls']),'roofFaces':sum(o['category']=='roof' for o in b.parts),'objects':len(b.parts),'floors':2,'visibleNamedRooms':8,'method':'source plan trace + dimensioned elevations + curated details','status':'source-bound-approximate'}}
++ validate_scene(scene);return scene
++
++def validate_scene(s):
++ ids=set()
++ for o in s['objects']:
++  if o['id'] in ids:raise BuildingError('Duplicate id')
++  ids.add(o['id']);p=o['positions'];idx=o['indices']
++  if not p or len(p)%3 or not all(math.isfinite(v) for v in p):raise BuildingError('Invalid positions')
++  if not idx or len(idx)%3 or not all(isinstance(v,int) and 0<=v<len(p)//3 for v in idx):raise BuildingError('Invalid indices')
++  if o['level'] not in ['ground','upper','roof']:raise BuildingError('Invalid level')
++  for r in o['sourceRefs']:
++   if not 1<=r['page']<=18:raise BuildingError('Invalid source page or excluded design')
++   if any(not 0<=x<=1584 or not 0<=z<=1224 for x,z in r['trace']):raise BuildingError('Source trace outside page')
++   if r['evidenceState'] not in ['traced','dimensioned','inferred']:raise BuildingError('Missing evidence state')
++ if s['source']['pageCount']!=19:raise BuildingError('Unexpected page count')
++
++def main(argv=None):
++ p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('--trace',type=Path,required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args(argv)
++ s=build_scene(a.source,a.trace);a.out.parent.mkdir(parents=True,exist_ok=True);a.out.write_text(json.dumps(s,indent=2),encoding='utf8');print(json.dumps(s['summary']))
++if __name__=='__main__':main()
++
++
+diff --git a/engine/python/xray/source_building.py b/engine/python/xray/source_building.py
+new file mode 100644
+index 0000000..71dbb64
+--- /dev/null
++++ b/engine/python/xray/source_building.py
+@@ -0,0 +1,277 @@
++"""Source-bound, curated Ruffles building reconstruction.
++
++This deliberately does not classify arbitrary PDF drawing paths as walls. It
++requires the reviewed trace for the exact source SHA-256. All geometry is a
++presentation reconstruction; no takeoff quantities are produced.
++"""
++from __future__ import annotations
++import argparse
++import hashlib
++import json
++import math
++from pathlib import Path
++
++SCHEMA = 'xray.source-building/v1'
++
++class BuildingError(ValueError):
++    pass
++
++def triangulate(points):
++    """Ear clipping for a simple planar source outline in drawing XY."""
++    area = sum(a[0]*b[1]-b[0]*a[1] for a,b in zip(points,points[1:]+points[:1]))
++    order = list(range(len(points)))
++    if area < 0: order.reverse()
++    result=[]
++    def cross(a,b,c): return (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])
++    while len(order)>3:
++        found=False
++        for k,b in enumerate(order):
++            a=order[k-1];c=order[(k+1)%len(order)]
++            if cross(points[a],points[b],points[c])<=1e-7:continue
++            def inside(p):return all(cross(points[x],points[y],p)>=-1e-7 for x,y in [(a,b),(b,c),(c,a)])
++            if any(inside(points[j]) for j in order if j not in (a,b,c)):continue
++            result.extend([a,c,b]);order.pop(k);found=True;break
++        if not found:
++            # Reject unclear/self-intersecting topology instead of silently fanning.
++            raise BuildingError('Non-simple source polygon cannot be triangulated')
++    result.extend([order[0],order[2],order[1]])
++    return result
++
++
++def build_scene(source: Path, trace_file: Path):
++    with source.open('rb') as stream:
++        captured=stream.read(30*1024*1024+1)
++    if len(captured)>30*1024*1024:raise BuildingError('Source exceeds bounded input size')
++    trace=json.loads(trace_file.read_text(encoding='utf-8-sig'))
++    sha=hashlib.sha256(captured).hexdigest()
++    if sha!=trace['sourceSha256']:raise BuildingError('Curated trace source SHA-256 mismatch')
++    if trace.get('schema')!='xray.curated-building-trace/v1':raise BuildingError('Unsupported trace schema')
++    scale=trace['calibration']['pointsPerMetre'];ox,oz=trace['calibration']['origin']
++    objects=[]
++    mats={'wall':{'color':'#e4ddcc','roughness':.88},'interior':{'color':'#f2eade','roughness':.9},'roof':{'color':'#8b9695','roughness':.75,'metalness':.14},'roof-edge':{'color':'#d7d8cc','roughness':.7},'floor':{'color':'#c8c4b7','roughness':.9},'tile':{'color':'#ddd3ba','roughness':.85},'glass':{'color':'#65a5b0','opacity':.58,'roughness':.2,'metalness':.15},'frame':{'color':'#ecece0','roughness':.6},'door':{'color':'#b7b8af','roughness':.8},'stone':{'color':'#a9a594','roughness':.95},'solar':{'color':'#213c56','roughness':.22,'metalness':.4},'fixture':{'color':'#f1eeeb','roughness':.4},'cabinet':{'color':'#b6aa90','roughness':.8},'steel':{'color':'#515e5a','roughness':.55,'metalness':.4},'fence':{'color':'#81948c','opacity':.28,'roughness':.7}}
++    def xyz(p,y):return [(p[0]-ox)/scale,y,(p[1]-oz)/scale]
++    def ref(page,points,state='traced',note='',dimension=None):
++        xs=[p[0] for p in points];zs=[p[1] for p in points]
++        r={'page':page,'region':[max(0,min(xs)-3),max(0,min(zs)-3),min(1191,max(xs)+3),min(842,max(zs)+3)],'trace':points,'evidenceState':state,'note':note}
++        if dimension:r['dimension']=dimension
++        return r
++    def mesh(id,category,label,vertices,indices,material,refs,state='traced',note=''):
++        objects.append({'id':id,'category':category,'label':label,'positions':[round(v,5) for p in vertices for v in p],'indices':indices,'material':material,'sourceRefs':refs,'evidenceState':state,'note':note})
++    boxidx=[0,2,1,0,3,2,4,5,6,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]
++    def beam(id,category,label,a,b,width,bottom,top,mat,refs,state='traced'):
++        length=math.dist(a,b)
++        if length<1e-7 or top<=bottom or width<=0:raise BuildingError('Invalid beam dimensions')
++        nx=-(b[1]-a[1])/length*width*scale/2;nz=(b[0]-a[0])/length*width*scale/2
++        ps=[[a[0]+nx,a[1]+nz],[b[0]+nx,b[1]+nz],[b[0]-nx,b[1]-nz],[a[0]-nx,a[1]-nz]]
++        mesh(id,category,label,[xyz(p,y) for y in [bottom,top] for p in ps],boxidx,mat,refs,state)
++    def slab(id,label,poly,bottom,top,mat='floor',page=13,category='slab',source_translation=(0,0)):
++        inds=triangulate(poly);n=len(poly);idx=[]
++        for i in range(0,len(inds),3):idx.extend(inds[i:i+3][::-1]);idx.extend([q+n for q in inds[i:i+3]])
++        for i in range(n):j=(i+1)%n;idx.extend([i,j,j+n,i,j+n,i+n])
++        source_poly=[[p[0]+source_translation[0],p[1]+source_translation[1]] for p in poly]
++        mesh(id,category,label,[xyz(p,y) for y in [bottom,top] for p in poly],idx,mat,[ref(page,source_poly,note='Outline traced; slab thickness is presentation inference.')],'inferred')
++    slab('main-slab','House footprint',trace['footprint'],-.18,0)
++    for r in trace['rooms']:
++        x1,z1,x2,z2=r['region'];slab('room-'+r['label'].split()[0].lower(),r['label'],[[x1,z1],[x2,z1],[x2,z2],[x1,z2]],.001,.015,'tile' if r['label'] in ['Bath','WC'] else 'floor',category='room')
++    slab('carport-slab','Carport - 6000 x 6500 source bay',[[-139,288],[27,288],[27,474],[-139,474]],-.16,0,page=11,source_translation=(303,-108))
++    slab('patio-slab','Patio',[[568,158],[800,158],[800,264],[568,264]],-.16,-.02,'tile')
++    slab('porch-slab','Porch and front path',[[540,423],[559,423],[559,375],[683,375],[683,477],[658,477],[658,606],[218,606],[218,582],[589,582],[589,478],[540,478]],-.18,-.01,'tile')
++    slab('cat-slab','Cat enclosure slab',[[959,156],[1043,156],[1043,279],[959,279]],-.15,-.02)
++    for i in range(3):slab('front-stair-'+str(i),'Three front steps',[[218,568+i*8.5],[589,568+i*8.5],[589,576.5+i*8.5],[218,576.5+i*8.5]],-.505,-.1683*(2-i),'tile')
++    opening_count=0
++    for w in trace['walls']:
++        a,b=w['a'],w['b'];h=w['height'];mat='interior' if w['kind']=='internal' else 'wall'
++        refs=[ref(13,[a,b],note=w['label']+'; horizontal extent traced.'),ref(17,[[58,230],[88,310]],'dimensioned','Elevation ceiling height.',{'value':2.72,'unit':'m','text':'2720'})]
++        def pos(t):return [a[j]+(b[j]-a[j])*t for j in range(2)]
++        cursor=0
++        for j,o in enumerate(sorted(w['openings'],key=lambda q:q['start'])):
++            start,end=o['start'],o['end']
++            if not 0<=cursor<=start<end<=1 or not 0<=o['bottom']<o['top']<=h:raise BuildingError('Invalid opening')
++            if start>cursor:beam(w['id']+f'-solid-{j}','wall',w['label'],pos(cursor),pos(start),w['thickness'],0,h,mat,refs)
++            if o['bottom']>0:beam(w['id']+f'-sillwall-{j}','wall',w['label'],pos(start),pos(end),w['thickness'],0,o['bottom'],mat,refs)
++            if o['top']<h:beam(w['id']+f'-headwall-{j}','wall',w['label'],pos(start),pos(end),w['thickness'],o['top'],h,mat,refs)
++            oa,ob=pos(start),pos(end);orefs=[ref(13,[oa,ob],note='Opening horizontal location traced; sill/head presentation height inferred from elevations. Internal door leaves shown in partly open position.')]
++            kind=o['kind'];height=o['top']-o['bottom'];ln=math.dist(oa,ob);framefrac=.055*scale/ln
++            for k,(s,e) in enumerate([(start,start+(end-start)*framefrac),(end-(end-start)*framefrac,end)]):beam(o['id']+'-jamb'+str(k),'trim',o['id']+' jamb',pos(s),pos(e),w['thickness']+.025,o['bottom'],o['top'],'frame',orefs,'inferred')
++            beam(o['id']+'-head','trim',o['id']+' lintel',oa,ob,w['thickness']+.025,o['top']-.055,o['top'],'frame',orefs,'inferred')
++            if kind=='window':
++                beam(o['id'],'window',o['id'].replace('-',' '),oa,ob,.035,o['bottom']+.055,o['top']-.055,'glass',orefs,'inferred')
++                beam(o['id']+'-sill','trim','Window sill',oa,ob,w['thickness']+.05,o['bottom'],o['bottom']+.06,'frame',orefs,'inferred')
++                mid=(start+end)/2;d=.025*scale/math.dist(a,b)
++                beam(o['id']+'-mullion','trim','Window mullion',pos(mid-d),pos(mid+d),.065,o['bottom'],o['top'],'frame',orefs,'inferred')
++                beam(o['id']+'-transom','trim','Window transom',oa,ob,.065,o['bottom']+height*.48,o['bottom']+height*.48+.045,'frame',orefs,'inferred')
++            elif kind=='garage-door':
++                beam(o['id'],'door','Garage panel lift',oa,ob,.075,0,o['top'],'door',orefs,'inferred')
++                for k in range(1,6):beam(o['id']+'-panel'+str(k),'trim','Garage door panel seam',oa,ob,.082,k*o['top']/6,k*o['top']/6+.014,'frame',orefs,'inferred')
++            else:
++                # A partly open leaf makes the opening itself visible; no wall triangles cross it.
++                dx=(ob[0]-oa[0])*.64;dz=(ob[1]-oa[1])*.64
++                leafend=[oa[0]+dx*.65-dz*.76,oa[1]+dx*.76+dz*.65]
++                beam(o['id'],'door',o['id'].replace('-',' '),oa,leafend,.045,0,o['top']-.02,'door',orefs,'inferred')
++            cursor=end;opening_count+=1
++        if cursor<1:beam(w['id']+'-solid-last','wall',w['label'],pos(cursor),b,w['thickness'],0,h,mat,refs)
++    # Continuous intersecting roof masses. Source drawing provides the plan and
++    # approximate pitch, but no surveyed ridge elevations. Their junctions are
++    # explicitly inferred, rather than turning conflicting traces into warped faces.
++    rt=trace['roofRegistration']['toFloorTranslation']
++    masses=[('main',[-56,255,515,645]),('east',[362,255,891,562]),
++            ('front-cross',[127,409,490,662]),('porch',[485,441,620,610]),
++            ('carport',[-230,385,138,615])]
++    k=math.tan(math.radians(22.5))/scale
++    def roof_height(x,z):
++        found=[]
++        for name,(left,top,right,bottom) in masses:
++            if left-1e-7<=x<=right+1e-7 and top-1e-7<=z<=bottom+1e-7:
++                values=[(x-left,'west'),(right-x,'east'),(z-top,'north'),(bottom-z,'south')]
++                distance,side=min(values)
++                found.append((2.72+max(0,distance)*k,name+'-'+side))
++        return max(found) if found else (2.72,'edge')
++    planes={}
++    for name,(left,top,right,bottom) in masses:
++        planes.update({name+'-west':(1,0,-left),name+'-east':(-1,0,right),
++                       name+'-north':(0,1,-top),name+'-south':(0,-1,bottom)})
++    def breaks(axis):
++        return sorted({r[i] for _,r in masses for i in ([0,2] if axis==0 else [1,3])})
++    def clip(poly,line,sign):
++        result=[];a,b,c=line
++        for p,q in zip(poly,poly[1:]+poly[:1]):
++            dp=(a*p[0]+b*p[1]+c)*sign;dq=(a*q[0]+b*q[1]+c)*sign
++            if dp>=-1e-8:result.append(p)
++            if (dp>1e-8 and dq<-1e-8) or (dp<-1e-8 and dq>1e-8):
++                f=dp/(dp-dq);result.append([p[j]+(q[j]-p[j])*f for j in range(2)])
++        return result
++    xs,zs=breaks(0),breaks(1);groups={}
++    for x0,x1 in zip(xs,xs[1:]):
++        for z0,z1 in zip(zs,zs[1:]):
++            if not any(l<=(x0+x1)/2<=r and t<=(z0+z1)/2<=b for _,(l,t,r,b) in masses):continue
++            raw=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]]
++            active=[name for name,(l,t,r,b) in masses if l<=(x0+x1)/2<=r and t<=(z0+z1)/2<=b]
++            candidates=[v for name,v in planes.items() if any(name.startswith(n+'-') for n in active)]
++            lines=set()
++            for i,p in enumerate(candidates):
++                for q in candidates[i+1:]:
++                    line=tuple(p[j]-q[j] for j in range(3))
++                    if line[:2]==(0,0):continue
++                    values=[line[0]*x+line[1]*z+line[2] for x,z in raw]
++                    if min(values)<-1e-7 and max(values)>1e-7:lines.add(line)
++            polygons=[raw]
++            for line in sorted(lines):
++                refined=[]
++                for poly in polygons:
++                    vals=[line[0]*x+line[1]*z+line[2] for x,z in poly]
++                    if min(vals)<-1e-7 and max(vals)>1e-7:
++                        refined.extend([clip(poly,line,1),clip(poly,line,-1)])
++                    else:refined.append(poly)
++                polygons=refined
++            for poly in polygons:
++                cx=sum(p[0] for p in poly)/len(poly);cz=sum(p[1] for p in poly)/len(poly)
++                _,key=roof_height(cx,cz);a,b,c=planes[key]
++                g=groups.setdefault(key,{'v':[],'i':[],'points':[]});base=len(g['v'])
++                g['v'].extend(xyz([x+rt[0],z+rt[1]],2.72+(a*x+b*z+c)*k) for x,z in poly)
++                for j in range(1,len(poly)-1):
++                    cross=(poly[j][0]-poly[0][0])*(poly[j+1][1]-poly[0][1])-(poly[j+1][0]-poly[0][0])*(poly[j][1]-poly[0][1])
++                    if abs(cross)>1e-7:g['i'].extend([base,base+j+1,base+j])
++                g['points'].extend(poly)
++    for key,g in groups.items():
++        # Bounded source regions point back to the actual page, including the west
++        # extension which appears on page15 rather than negative page16 coordinates.
++        ps=g['points'];page=15 if min(v[0] for v in ps)<0 else 16
++        sourcepts=[[x+266,z+108] for x,z in ps] if page==15 else ps
++        left=min(p[0] for p in sourcepts);top=min(p[1] for p in sourcepts)
++        right=max(p[0] for p in sourcepts);bottom=max(p[1] for p in sourcepts)
++        refs=[ref(page,[[left,top],[right,bottom]],'inferred',
++                  'Source-bound roof mass extent; exact planar hip intersections inferred from approximate 22.5-degree pitch. Mass junctions are inferred, not surveyed.'),
++              ref(18,[[80,28],[535,220]],'dimensioned','Approximate 22.5-degree pitch and 2.72 m ceiling.')]
++        mesh('roof-'+key,'roof',key.replace('-',' ')+' roof plane',g['v'],g['i'],'roof',refs,'inferred')
++    def slope_panel(id,label,raw,page,translation,yfunc,mat='roof',category='roof'):
++        verts=[xyz([p[0]+translation[0],p[1]+translation[1]],yfunc(p)) for p in raw]
++        if category in ('solar','skylight'):
++            # Fit the module to the highest actual roof triangle under its centre.
++            cx=sum(v[0] for v in verts)/len(verts);cz=sum(v[2] for v in verts)/len(verts)
++            candidates=[]
++            for ob in objects:
++                if ob['category']!='roof':continue
++                for j in range(0,len(ob['indices']),3):
++                    q=[ob['positions'][i*3:i*3+3] for i in ob['indices'][j:j+3]]
++                    a,b,c=q;det=(b[0]-a[0])*(c[2]-a[2])-(c[0]-a[0])*(b[2]-a[2])
++                    if abs(det)<1e-8:continue
++                    u=((cx-a[0])*(c[2]-a[2])-(c[0]-a[0])*(cz-a[2]))/det
++                    v=((b[0]-a[0])*(cz-a[2])-(cx-a[0])*(b[2]-a[2]))/det
++                    if u>=-1e-6 and v>=-1e-6 and u+v<=1+1e-6:
++                        dx=((b[1]-a[1])*(c[2]-a[2])-(c[1]-a[1])*(b[2]-a[2]))/det
++                        dz=((b[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(b[1]-a[1]))/det
++                        offset=a[1]-dx*a[0]-dz*a[2]
++                        candidates.append((dx*cx+dz*cz+offset,dx,dz,offset))
++            if not candidates:raise BuildingError('Roof detail lacks underlying source roof: '+id)
++            _,dx,dz,offset=max(candidates)
++            verts=[[v[0],dx*v[0]+dz*v[2]+offset+.07,v[2]] for v in verts]
++        mesh(id,category,label,verts,triangulate(raw),mat,[ref(page,raw,note='Source panel boundary traced; vertical placement approximated from elevation and stated pitch.')],'inferred')
++    slope_panel('patio-flyover','Patio 6.9 degree flyover',[[475,255],[634,255],[634,409],[475,409]],16,rt,lambda p:3.23+(409-p[1])/scale*math.tan(math.radians(6.9)))
++    slope_panel('cat-flyover','Cat enclosure 6.9 degree flyover',[[867,255],[998,255],[998,371],[867,371]],16,rt,lambda p:2.56+(998-p[0])/scale*math.tan(math.radians(6.9)))
++    # Porch piers and carport posts shown in plan; 460mm piers raised to 2.2 m per markup.
++    for i,(p,w,h) in enumerate([([580,466],.46,2.2),([663,466],.46,2.2),([-139,474],.46,2.2),([-139,288],.09,2.72),([686,156],.09,3.6),([1039,156],.09,2.56),([1039,278],.09,2.56)]):
++        pp=[p[0]-w*scale/2,p[1]];qq=[p[0]+w*scale/2,p[1]]
++        refs=[ref(11,[[160,180],[337,370]],note='Carport posts shown.') if p[0]<0 else ref(13,[p],note='Post location shown; marked porch piers 460 mm wide and 2.2 m high.')]
++        beam('post-'+str(i),'column','Stone pier' if w==.46 else 'Roof support post',pp,qq,w,0,h,'stone' if w==.46 else 'steel',refs,'inferred')
++        if w==.46:
++            support_top=roof_height(p[0]-rt[0],p[1]-rt[1])[0]
++            beam('post-extension-'+str(i),'column','Pier upper roof support',
++                 [p[0]-.045*scale,p[1]],[p[0]+.045*scale,p[1]],.09,h,support_top,
++                 'frame',refs,'inferred')
++    for i,(a,b) in enumerate([([960,156],[1043,156]),([1043,156],[1043,279]),([1043,279],[960,279])]):
++        refs=[ref(13,[a,b],note='Cat enclosure chain wire. Mesh cell size is schematic.')]
++        beam('fence-'+str(i),'fence','Cat enclosure chain wire',a,b,.012,0,2.5,'fence',refs,'inferred')
++        for k in range(1,8):
++            p=[a[j]+(b[j]-a[j])*k/8 for j in range(2)]
++            beam('fence-rod-'+str(i)+'-'+str(k),'fence','Wire fence upright',[p[0]-.08,p[1]],[p[0]+.08,p[1]],.009,0,2.5,'steel',refs,'inferred')
++    # Actual drawn bath/cabinets/robe outlines, intentionally no invented furniture in undisclosed rooms.
++    for id,label,rect,h,mat in [('tub','Bath tub',[223,343,246,391],.52,'fixture'),('vanity','Bathroom vanity',[255,344,278,388],.80,'cabinet'),('wc','WC pan',[229,301,240,323],.43,'fixture'),('basin','WC basin',[263,299,307,309],.85,'fixture'),('linen','Linen cabinet',[284,340,311,355],2.1,'cabinet'),('robe','Bedroom robe',[222,400,310,412],2.1,'cabinet'),('garage-storage','Garage storage',[202,334,215,496],2.1,'cabinet'),('fridge','Refrigerator recess',[203,298,216,323],1.85,'fixture')]:
++        x1,z1,x2,z2=rect;slab('fixture-'+id,label,[[x1,z1],[x2,z1],[x2,z2],[x1,z2]],.02,h,mat,category='fixture')
++    # Solar module positions follow the three explicit arrays on roof plans.
++    arrays=[(15,[(-136,514),(-115,514),(-93,514),(-158,553),(-136,553),(-115,553)]),(16,[(323,475),(351,475),(379,524),(407,524),(323,524),(351,524)]),(16,[(788,404),(813,404),(788,440),(813,440),(813,349),(813,376)])]
++    for g,(page,panels) in enumerate(arrays):
++        for j,(x,z) in enumerate(panels):
++            # first array coordinates already in common page16 frame
++            raw=[[x,z],[x+21,z],[x+21,z+32],[x,z+32]]
++            if g==0:y=lambda p:4.39-(p[1]-500)/scale*.4142+.08
++            elif g==1:y=lambda p:5.20-(p[0]-309)/scale*.4142+.08
++            else:y=lambda p:4.90-(p[0]-742)/scale*.4142+.08
++            source_raw=[[p[0]+266,p[1]+108] for p in raw] if page==15 else raw
++            trans=[rt[0]-266,rt[1]-108] if page==15 else rt
++            func=(lambda p,base=y:base([p[0]-266,p[1]-108])) if page==15 else y
++            slope_panel(f'solar-{g}-{j}','Source solar module',source_raw,page,trans,func,'solar','solar')
++    for id,rect in [('north',[196,421,229,439]),('south',[190,478,202,504])]:
++        x1,z1,x2,z2=rect
++        slope_panel('skylight-'+id,'New Velux skylight',[[x1,z1],[x2,z1],[x2,z2],[x1,z2]],16,rt,lambda p:5.55-abs(p[1]-450)/scale*.4142+.07,'glass','skylight')
++    positions=[o['positions'] for o in objects]
++    mn=[min(p[k] for p in positions for k in range(d,len(p),3)) for d in range(3)]
++    mx=[max(p[k] for p in positions for k in range(d,len(p),3)) for d in range(3)]
++    scene={'schema':SCHEMA,'source':{'name':source.name,'sha256':sha,'pageCount':24},'units':'m','coordinateSystem':'+X drawing right; +Y up; +Z drawing down; origin p13(32,156)','bounds':{'min':mn,'max':mx},'materials':mats,'objects':objects,'assumptions':['Curated source reconstruction; not automated PDF-to-BIM, construction geometry or verified takeoff.','The supplied drawing is PRELIMINARY PLANS ONLY NOT FOR CONSTRUCTION; all dimensions are approximate and TBC by builder onsite.','Horizontal positions manually traced in displayed page points and calibrated approximately from p13 garage 6510 mm dimension.','Ceiling height 2.720 m is dimensioned. Roof topology traced from p15/p16; roof junction heights inferred from approximate 22.5-degree pitch and elevations. Continuous source-bound hip mass intersections are inferred; intersections clipped exactly to their competing roof planes.','Flyover pitches 6.9 degrees and elevation references 3.230 m / 2.560 m come from p18/p19; registration and edge thickness are approximate.','Openings follow visible plan and elevation locations. Undimensioned sill/head heights, frames, partly open leaves and fixture heights are inferred for presentation.','Source shows only Media/Garage/WC/Bath/Linen/Robe/Bed 2 partitions. The existing dwelling remainder is intentionally unpartitioned, exactly as disclosed by this renovation plan.','Existing rear openings require onsite confirmation. No unseen bedroom layout, structural framing, roof trusses, terrain or additional buildings are invented.'],'sourceSheets':[{'page':n,'title':title,'image':f'/models/ruffles/source-page-{n}.png','width':1191,'height':842,'role':role} for n,title,role in [(11,'Ground plan: carport and rooms','plan'),(13,'Ground plan: full dwelling','plan'),(15,'Roof plan: west','roof'),(16,'Roof plan: east','roof'),(17,'Front elevations','elevation'),(18,'Side elevations','elevation'),(19,'Rear elevation','elevation')]],'summary':{'wallRuns':len(trace['walls']),'openings':opening_count,'roofFaces':sum(o['category']=='roof' for o in objects),'objects':len(objects),'visibleNamedRooms':7,'method':'curated source trace + dimension-bound reconstruction','status':'preliminary-approximate'}}
++    validate_scene(scene)
++    return scene
++
++
++def validate_scene(scene):
++    if scene.get('schema')!=SCHEMA or scene.get('units')!='m':raise BuildingError('Invalid scene contract')
++    ids=set()
++    for o in scene['objects']:
++        if o['id'] in ids:raise BuildingError('Duplicate object id')
++        ids.add(o['id']);p=o['positions'];idx=o['indices']
++        if not p or len(p)%3 or not all(isinstance(x,(int,float)) and math.isfinite(x) for x in p):raise BuildingError('Invalid mesh positions')
++        if not idx or len(idx)%3 or not all(isinstance(x,int) and 0<=x<len(p)//3 for x in idx):raise BuildingError('Invalid mesh indices')
++        if not o['sourceRefs'] or o['material'] not in scene['materials']:raise BuildingError('Missing source/material')
++        for r in o['sourceRefs']:
++            if not 1<=r['page']<=scene['source']['pageCount']:raise BuildingError('Invalid source page')
++            l,t,rr,b=r['region']
++            if not 0<=l<=rr<=1191 or not 0<=t<=b<=842:raise BuildingError('Invalid source region')
++            if any(not 0<=p[0]<=1191 or not 0<=p[1]<=842 for p in r.get('trace',[])):raise BuildingError('Trace lies outside original source page')
++    if len(ids)<100:raise BuildingError('Incomplete source reconstruction')
++
++
++def main(argv=None):
++    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('--trace',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
++    a=p.parse_args(argv);scene=build_scene(a.source,a.trace);a.out.parent.mkdir(parents=True,exist_ok=True);a.out.write_text(json.dumps(scene,indent=2),encoding='utf8');print(json.dumps(scene['summary']))
++
++if __name__=='__main__':main()
++
++
+diff --git a/engine/python/xray/test_caroline_building.py b/engine/python/xray/test_caroline_building.py
+new file mode 100644
+index 0000000..0450792
+--- /dev/null
++++ b/engine/python/xray/test_caroline_building.py
+@@ -0,0 +1,93 @@
++﻿"""Real-source Caroline geometry regressions; no synthetic building fixture."""
++import copy,hashlib,json,math,tempfile,unittest
++from pathlib import Path
++from xray.caroline_building import build_scene,validate_scene,Builder,FT
++from xray.source_building import BuildingError
++ROOT=Path(__file__).resolve().parents[3];SOURCE=ROOT/'engine/fixtures/caroline-blueprints-renderings-2025-08-08.pdf';TRACE=ROOT/'engine/fixtures/caroline-source-trace.json'
++def normal(a,b,c):
++ u=[b[i]-a[i] for i in range(3)];v=[c[i]-a[i] for i in range(3)];return [u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]
++class CarolineTests(unittest.TestCase):
++ @classmethod
++ def setUpClass(cls):cls.scene=build_scene(SOURCE,TRACE);cls.trace=json.loads(TRACE.read_text());cls.parts={o['id']:o for o in cls.scene['objects']}
++ def test_source_identity_copy_and_rejection(self):
++  self.assertEqual(self.scene['source']['sha256'],hashlib.sha256(SOURCE.read_bytes()).hexdigest());self.assertEqual(SOURCE.read_bytes(),(ROOT/'public/models/caroline/source.pdf').read_bytes())
++  with tempfile.TemporaryDirectory() as d:
++   p=Path(d)/'wrong.pdf';p.write_bytes(SOURCE.read_bytes()+b'x')
++   with self.assertRaisesRegex(BuildingError,'SHA-256'):build_scene(p,TRACE)
++ def test_finite_nondegenerate_meshes_and_original_page_bounds(self):
++  validate_scene(self.scene)
++  for o in self.scene['objects']:
++   p=o['positions']
++   for i in range(0,len(o['indices']),3):
++    abc=[p[j*3:j*3+3] for j in o['indices'][i:i+3]];self.assertGreater(sum(v*v for v in normal(*abc)),1e-17,o['id'])
++   for r in o['sourceRefs']:
++    self.assertIn(r['page'],range(1,19));l,t,rr,b=r['region'];self.assertTrue(0<=l<=rr<=1584 and 0<=t<=b<=1224)
++ def test_exact_floor_datums_nominal_trace_tolerance(self):
++  self.assertEqual(self.scene['floorElevations']['ground'],0);self.assertAlmostEqual(self.scene['floorElevations']['upper'],9*FT)
++  p=self.parts['ground-main']['positions'];self.assertAlmostEqual(max(p[::3])-min(p[::3]),24*FT,places=5)
++  self.assertLess(abs((max(p[2::3])-min(p[2::3]))-16*FT),.02)
++  for key in ['upper-floor-west','upper-floor-front']:self.assertAlmostEqual(max(self.parts[key]['positions'][1::3]),9*FT)
++ def test_all_roof_surfaces_coplanar_and_source_pitches(self):
++  for o in self.scene['objects']:
++   if o['category']!='roof':continue
++   ps=[o['positions'][i:i+3] for i in range(0,len(o['positions']),3)];a,b,c=[ps[i] for i in o['indices'][:3]];n=normal(a,b,c);ln=math.sqrt(sum(v*v for v in n))
++   for p in ps:self.assertLess(abs(sum(n[j]*(p[j]-a[j]) for j in range(3)))/ln,2e-6,o['id'])
++   pitch=math.hypot(n[0],n[2])/abs(n[1]);self.assertAlmostEqual(pitch,.625 if o['id'].startswith('main-roof') else .25,places=5)
++   self.assertEqual(o['evidenceState'],'inferred');self.assertTrue(any(r['evidenceState']=='dimensioned' for r in o['sourceRefs']))
++  ps=self.parts['main-roof-north']['positions'];self.assertAlmostEqual(min(ps[1::3]),17.5*FT);self.assertAlmostEqual(max(ps[1::3]),23*FT)
++  self.assertAlmostEqual(max(ps[::3])-min(ps[::3]),25*FT,places=5)
++ def test_gable_closes_against_actual_roof(self):
++  mid=693;scale=FT/18
++  for id in ['gable-west','gable-east']:
++   p=self.parts[id]['positions'];points=[p[i:i+3] for i in range(0,len(p),3)]
++   for x,y,z in points[2:]:self.assertAlmostEqual(y,23*FT-abs((z/scale+548)-mid)*scale*.625,places=5)
++ def test_true_upper_stairwell_and_raised_platform(self):
++  # Interior of the actual source stairwell: x603..665,z548..640.
++  x=(620-233)*FT/18;z=(580-548)*FT/18
++  for o in self.scene['objects']:
++   if o['level']!='upper' or o['category'] not in ['slab','room']:continue
++   p=o['positions'];self.assertFalse(min(p[::3])<x<max(p[::3]) and min(p[2::3])<z<max(p[2::3]),o['id'])
++  steps=[o for o in self.scene['objects'] if o['category']=='stair'];self.assertEqual(len(steps),14)
++  tops=sorted(max(o['positions'][1::3]) for o in steps)
++  for i,y in enumerate(tops):self.assertAlmostEqual(y,(i+1)*9*FT/14,places=5)
++  platform=self.parts['raised-closet-platform']['positions'];self.assertAlmostEqual(max(platform[1::3])-9*FT,3*FT)
++ def test_rear_gable_closes_against_both_lower_roof_planes(self):
++  cap=self.parts['rear-gable-closure'];self.assertEqual(cap['category'],'roof-trim')
++  ps=[cap['positions'][i:i+3] for i in range(0,len(cap['positions']),3)]
++  ridge=2.66+155*(FT/18)*.25
++  for x,y,z in ps[2:]:self.assertAlmostEqual(y,ridge-abs(x/(FT/18)+233-522)*(FT/18)*.25,places=5)
++  self.assertEqual({r['page'] for r in cap['sourceRefs']},{8,17})
++ def test_front_steps_descend_away_and_join_deck(self):
++  steps=[self.parts['front-step-'+str(i)]['positions'] for i in range(3)]
++  deck=self.parts['veranda-deck']['positions']
++  self.assertAlmostEqual(max(steps[0][1::3]),max(deck[1::3]))
++  self.assertAlmostEqual(min(steps[0][2::3]),max(deck[2::3]))
++  for i,p in enumerate(steps):
++   self.assertAlmostEqual(min(p[1::3]),-.64)
++   self.assertAlmostEqual(max(p[1::3]),-.025-i*.205)
++   if i:
++    self.assertLess(max(p[1::3]),max(steps[i-1][1::3]))
++    self.assertAlmostEqual(min(p[2::3]),max(steps[i-1][2::3]))
++  self.assertAlmostEqual(max(steps[-1][1::3])-(-.64),.205)
++ def test_wall_meshes_preserve_all_source_openings(self):
++  scale=FT/18
++  for w in self.trace['walls']:
++   a,c=w['a'],w['b'];dx=c[0]-a[0];dz=c[1]-a[1];ll=dx*dx+dz*dz;floor=0 if w['level']=='ground' else 9*FT
++   parts=[o for o in self.scene['objects'] if o['category']=='wall' and o['id'].startswith(w['id']+'-')]
++   for opening in w['openings']:
++    mid=(opening['start']+opening['end'])/2
++    if opening['kind']=='window':ymid=floor+{1:1.5,2:2,3:3}[opening['type']]*FT+{1:6,2:5,3:3.5}[opening['type']]*FT/2
++    else:ymid=floor+1
++    for o in parts:
++     p=o['positions'];tt=[((p[i]/scale+233-a[0])*dx+(p[i+2]/scale+548-a[1])*dz)/ll for i in range(0,len(p),3)]
++     self.assertFalse(min(tt)+1e-5<mid<max(tt)-1e-5 and min(p[1::3])+1e-5<ymid<max(p[1::3])-1e-5,(w['id'],opening['id'],o['id']))
++ def test_invalid_opening_interval_rejected(self):
++  w=copy.deepcopy(next(w for w in self.trace['walls'] if w['openings']));w['openings'][0]['end']=1.2
++  with self.assertRaisesRegex(BuildingError,'opening'):Builder(self.trace).wall(w)
++ def test_foundation_supports_present_and_levels_explicit(self):
++  walls=[o for o in self.scene['objects'] if o['id'].startswith('foundation-wall')];self.assertEqual(len(walls),6)
++  for o in walls:self.assertAlmostEqual(min(o['positions'][1::3]),-.64);self.assertAlmostEqual(max(o['positions'][1::3]),-.254)
++  self.assertTrue(all(o['level'] in ['ground','upper','roof'] for o in self.scene['objects']))
++  self.assertEqual(self.scene['source']['license'],'CC BY-SA 4.0')
++if __name__=='__main__':unittest.main()
++
+diff --git a/engine/python/xray/test_source_building.py b/engine/python/xray/test_source_building.py
+new file mode 100644
+index 0000000..28dce02
+--- /dev/null
++++ b/engine/python/xray/test_source_building.py
+@@ -0,0 +1,89 @@
++﻿"""Independent geometry/provenance checks on the real source-bound building."""
++import copy
++import hashlib
++import json
++import math
++from pathlib import Path
++import tempfile
++import unittest
++from xray.source_building import build_scene, validate_scene, BuildingError
++ROOT=Path(__file__).resolve().parents[3]
++SOURCE=ROOT/'engine/fixtures/residential-ruffles-seeka.pdf'
++TRACE=ROOT/'engine/fixtures/ruffles-source-trace.json'
++
++def normal(a,b,c):
++ u=[b[i]-a[i] for i in range(3)];v=[c[i]-a[i] for i in range(3)]
++ return [u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]
++
++class SourceBuildingTests(unittest.TestCase):
++ @classmethod
++ def setUpClass(cls):cls.scene=build_scene(SOURCE,TRACE)
++ def test_exact_source_and_trace_binding(self):
++  self.assertEqual(self.scene['source']['sha256'],hashlib.sha256(SOURCE.read_bytes()).hexdigest())
++  with tempfile.TemporaryDirectory() as d:
++   wrong=Path(d)/'different.pdf';wrong.write_bytes(SOURCE.read_bytes()+b'\nchanged')
++   with self.assertRaisesRegex(BuildingError,'SHA-256'):build_scene(wrong,TRACE)
++ def test_indices_finite_nonzero_triangles_and_source_bounds(self):
++  validate_scene(self.scene)
++  for o in self.scene['objects']:
++   p=o['positions']
++   for i in range(0,len(o['indices']),3):
++    a,b,c=[p[k*3:k*3+3] for k in o['indices'][i:i+3]]
++    self.assertGreater(sum(x*x for x in normal(a,b,c)),1e-15,o['id'])
++   for r in o['sourceRefs']:
++    for x,z in r.get('trace',[]):self.assertTrue(0<=x<=1191 and 0<=z<=842,(o['id'],r))
++ def test_real_height_extent_and_dimensioned_wall(self):
++  ys=[y for o in self.scene['objects'] for y in o['positions'][1::3]]
++  self.assertGreater(max(ys),5);self.assertLess(min(ys),0)
++  wall=next(o for o in self.scene['objects'] if o['id']=='north-existing-solid-last')
++  self.assertAlmostEqual(max(wall['positions'][1::3]),2.72)
++  self.assertEqual(self.scene['summary']['wallRuns'],33)
++ def test_wall_openings_are_actual_gaps(self):
++  trace=json.loads(TRACE.read_text());scale=trace['calibration']['pointsPerMetre'];ox,oz=trace['calibration']['origin']
++  for w in trace['walls']:
++   a,b=w['a'],w['b'];dx=b[0]-a[0];dz=b[1]-a[1];ll=dx*dx+dz*dz
++   pieces=[o for o in self.scene['objects'] if o['category']=='wall' and o['id'].startswith(w['id']+'-')]
++   for opening in w['openings']:
++    midpoint=(opening['start']+opening['end'])/2;ymid=(opening['bottom']+opening['top'])/2
++    for piece in pieces:
++     ps=piece['positions'];ts=[(((ps[i]*scale+ox)-a[0])*dx+((ps[i+2]*scale+oz)-a[1])*dz)/ll for i in range(0,len(ps),3)]
++     covers=min(ts)+1e-5<midpoint<max(ts)-1e-5 and min(ps[1::3])+1e-5<ymid<max(ps[1::3])-1e-5
++     self.assertFalse(covers,(w['id'],opening['id'],piece['id']))
++ def test_solar_skylight_and_flyover_coplanarity(self):
++  for o in self.scene['objects']:
++   if o['category'] not in ['solar','skylight'] and o['id'] not in ['patio-flyover','cat-flyover']:continue
++   ps=[o['positions'][i:i+3] for i in range(0,len(o['positions']),3)];n=normal(*ps[:3]);length=math.sqrt(sum(v*v for v in n))
++   for p in ps:self.assertLess(abs(sum(n[j]*(p[j]-ps[0][j]) for j in range(3)))/length,1e-4,o['id'])
++   if 'flyover' in o['id']:
++    slope=math.degrees(math.atan2(math.hypot(n[0],n[2]),abs(n[1])))
++    self.assertAlmostEqual(slope,6.9,places=2)
++ def test_roof_slopes_use_source_pitch(self):
++  pitches=[]
++  for o in self.scene['objects']:
++   if o['category']!='roof' or 'flyover' in o['id']:continue
++   ps=o['positions']
++   for i in range(0,len(o['indices']),3):
++    pts=[ps[j*3:j*3+3] for j in o['indices'][i:i+3]];n=normal(*pts)
++    pitches.append(math.degrees(math.atan2(math.hypot(n[0],n[2]),abs(n[1]))))
++  close=sum(abs(p-22.5)<.2 for p in pitches)
++  self.assertGreater(close/len(pitches),.90)
++ def test_every_roof_group_is_coplanar(self):
++  for o in self.scene['objects']:
++   if o['category']!='roof':continue
++   ps=[o['positions'][i:i+3] for i in range(0,len(o['positions']),3)]
++   # Use the largest face as reference, so rounded tiny intersection slivers do
++   # not magnify the five-decimal serialization tolerance in the fitted normal.
++   tris=[[ps[i] for i in o['indices'][j:j+3]] for j in range(0,len(o['indices']),3)]
++   a,b,c=max(tris,key=lambda q:sum(v*v for v in normal(*q)))
++   n=normal(a,b,c);length=math.sqrt(sum(v*v for v in n))
++   self.assertGreater(length,0)
++   for p in ps:self.assertLess(abs(sum(n[j]*(p[j]-a[j]) for j in range(3)))/length,1e-4,o['id'])
++ def test_rejects_forged_mesh_and_source_region(self):
++  s=copy.deepcopy(self.scene);s['objects'][0]['positions'][0]=float('nan')
++  with self.assertRaisesRegex(BuildingError,'positions'):validate_scene(s)
++  s=copy.deepcopy(self.scene);s['objects'][0]['indices'][0]=999999
++  with self.assertRaisesRegex(BuildingError,'indices'):validate_scene(s)
++  s=copy.deepcopy(self.scene);s['objects'][0]['sourceRefs'][0]['trace']=[[-1,1]]
++  with self.assertRaisesRegex(BuildingError,'outside'):validate_scene(s)
++if __name__=='__main__':unittest.main()
++
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/before.mjs b/proof/audit/IW-REAL-3D-VIEWER/before.mjs
+new file mode 100644
+index 0000000..a1f8ef5
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/before.mjs
+@@ -0,0 +1,5 @@
++import {chromium} from 'playwright';
++import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
++import {createHash} from 'node:crypto';
++const root='proof/audit/IW-REAL-3D-VIEWER';mkdirSync(root,{recursive:true});mkdirSync('screenshots/industry-real-3d-viewer',{recursive:true});const browser=await chromium.launch({channel:'msedge',headless:true}),page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
++try{await page.goto('http://127.0.0.1:8080/',{waitUntil:'networkidle'});await page.locator('[data-hydration-status="ready"]').waitFor();await page.getByRole('button',{name:'Model',exact:true}).click();await page.getByText('Presentation wireframe; not source evidence',{exact:true}).waitFor();const path='screenshots/industry-real-3d-viewer/model-before-desktop.png';await page.screenshot({path});const sourceFiles=['src/studio/Studio.tsx','src/studio/IsoCanvas.tsx','package.json'].map(path=>({path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex')}));writeFileSync(`${root}/before.json`,JSON.stringify({url:page.url(),capturedAt:new Date().toISOString(),viewport:{width:1440,height:1000},path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex'),scenario:'Actual old Model pane before source-building integration, no imported plan',errors,sourceFiles,tool:'Installed Playwright Edge; explicit user development testing authorization. Separate first glimpse also captured through Edge CUA.'},null,2));console.log(path);}finally{await browser.close();}
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/browser.mjs b/proof/audit/IW-REAL-3D-VIEWER/browser.mjs
+new file mode 100644
+index 0000000..6383993
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/browser.mjs
+@@ -0,0 +1,35 @@
++import {chromium} from 'playwright';
++import assert from 'node:assert/strict';
++import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
++import {createHash} from 'node:crypto';
++const origin=process.argv[2]??'http://127.0.0.1:8080',target=process.argv[3]??'caroline',id=new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
++const out=`proof/audit/IW-REAL-3D-VIEWER/run-${id}`,shots=`screenshots/industry-real-3d-viewer/${id}`;mkdirSync(out,{recursive:true});mkdirSync(shots,{recursive:true});
++const model=JSON.parse(readFileSync(`public/models/${target}/source-building.json`)),hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex'),results=[],captures=[],errors=[],downloads=[];
++const inputs=['src/studio/SourceBuildingViewer.tsx','src/studio/sourceBuilding.ts','src/studio/sourceBuilding.css','src/studio/Studio.tsx','src/studio/documents.ts','package.json','package-lock.json','vite.config.ts',`public/models/${target}/source-building.json`].map(path=>({path,sha256:hash(path)}));
++const browser=await chromium.launch({channel:'msedge',headless:true}),page=await browser.newPage({viewport:{width:1440,height:1000}});page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
++const record=(name,detail)=>results.push({name,status:'pass',detail});
++const snap=async(name,scenario,phase='after')=>{await page.waitForTimeout(350);const path=`${shots}/${name}.png`;await page.screenshot({path});captures.push({path,sha256:hash(path),url:page.url(),capturedAt:new Date().toISOString(),viewport:{width:1440,height:1000},scenario,phase,kind:'application-ui',result:'Executed scenario',sourceFiles:inputs});};
++const canvas=()=>page.locator('canvas[data-source-sha256]');
++const ready=async()=>{await page.locator('[data-model-status="ready"]').waitFor();await canvas().waitFor();assert.equal(await canvas().getAttribute('data-source-sha256'),model.source.sha256);await page.waitForTimeout(400);};
++const importFile=async payload=>{const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plan',exact:true}).click();await(await chooser).setFiles(payload);};
++try{
++ await page.goto(`${origin}/?pane=model`,{waitUntil:'networkidle'});await page.locator('[data-hydration-status="ready"]').waitFor();await page.getByLabel('Prepared building',{exact:true}).selectOption(target);await page.getByRole('button',{name:/Open .* plan in 3D/}).waitFor();await snap('01-source-before','Original source preview before actual PDF import','before');
++ await page.getByRole('button',{name:/Open .* plan in 3D/}).click();await ready();record('Prepared source imports actual PDF and resolves exact identity',{sha256:model.source.sha256,pages:model.source.pageCount,meshCount:await canvas().getAttribute('data-mesh-count')});await snap('02-building','Actual source-matched building with roof');
++ const before=hash(captures.at(-1).path),box=await canvas().boundingBox();await page.mouse.move(box.x+box.width*.75,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.75-box.height*.5,box.y+box.height*.5,{steps:20});await page.mouse.up();await page.waitForTimeout(700);await snap('02b-rear','Rear orbit checks source kitchen and porch additions');record('Rear orbit');await page.getByRole('button',{name:'Fit',exact:true}).click();await page.getByRole('button',{name:'Roof on',exact:true}).click();await snap('02c-angled-roof-off','Whole building roof hidden, upper stair opening visible');await page.getByRole('button',{name:'Roof off',exact:true}).click();await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.65,box.y+box.height*.53,{steps:12});await page.mouse.up();await snap('03-orbit','Actual pointer drag changes camera');assert.notEqual(hash(captures.at(-1).path),before);record('Orbit pointer drag changes rendered view');
++ await page.getByRole('button',{name:'Fit',exact:true}).click();await page.getByRole('button',{name:'Plan',exact:true}).click();assert.equal(await canvas().getAttribute('data-projection'),'orthographic-plan');await snap('04-plan','Orthographic source building plan');record('Plan projection');
++ await page.getByRole('button',{name:'Roof on',exact:true}).click();const roofHidden=model.objects.filter(p=>!['roof','roof-trim','solar','skylight'].includes(p.category)).length;assert.equal(Number(await canvas().getAttribute('data-visible-mesh-count')),roofHidden);await snap('05-roof-off','Roof, trim, solar and skylights hidden as one group');record('Roof group exclusion',{visible:roofHidden});
++ if(model.objects.some(p=>p.level)){
++  await page.getByLabel('Building floor',{exact:true}).selectOption('ground');assert.equal(await canvas().getAttribute('data-level'),'ground');await snap('06-ground','Ground floor only, upper structure and roof hidden');
++  await page.getByLabel('Building floor',{exact:true}).selectOption('upper');assert.equal(await canvas().getAttribute('data-level'),'upper');await snap('07-upper','Upper floor only, ground structure hidden');record('Ground and upper floor isolation');await page.getByLabel('Building floor',{exact:true}).selectOption('all');await page.getByRole('button',{name:'Wall cutaway',exact:true}).click();assert.equal(await canvas().getAttribute('data-level'),'ground');assert.equal(await canvas().getAttribute('data-cutaway'),'true');await snap('07b-whole-cutaway','Whole-building cutaway selects ground and removes upper slab');await page.getByLabel('Building floor',{exact:true}).selectOption('upper');assert.equal(await canvas().getAttribute('data-cutaway'),'true');await snap('07c-upper-cutaway','Upper-floor cutaway uses declared elevation');await page.getByRole('button',{name:'Roof off',exact:true}).click();assert.equal(await canvas().getAttribute('data-level'),'all');assert.equal(await canvas().getAttribute('data-cutaway'),'false');record('Whole/ground/upper cutaway and roof transitions');await page.getByLabel('Building floor',{exact:true}).selectOption('upper');
++ }
++ await page.getByRole('button',{name:'Orbit',exact:true}).click();await page.getByRole('button',{name:'Wall cutaway',exact:true}).click();assert.equal(await canvas().getAttribute('data-cutaway'),'true');await snap('08-cutaway','Wall clipping exposes source interiors at selected floor datum');record('Wall cutaway');
++ if(model.objects.some(p=>p.level))await page.getByLabel('Building floor',{exact:true}).selectOption('all');if(await canvas().getAttribute('data-cutaway')==='true')await page.getByRole('button',{name:'Wall cutaway',exact:true}).click();await page.getByRole('button',{name:'Explode',exact:true}).click();assert.equal(await canvas().getAttribute('data-explode'),'true');await snap('09-explode','Exploded structure, camera refitted');record('Explode');await page.getByRole('button',{name:'Explode',exact:true}).click();
++ await page.getByRole('button',{name:'Fit',exact:true}).click();await page.mouse.click(box.x+box.width*.5,box.y+box.height*.5);await page.waitForTimeout(200);assert.ok(await canvas().getAttribute('data-selected-part'));record('Actual canvas raycast selects geometry');
++ const part=model.objects.find(p=>p.sourceRefs.some(r=>r.dimension))??model.objects[0];await page.locator('.building-part-picker select').selectOption(part.id);assert.equal(await canvas().getAttribute('data-selected-part'),part.id);await snap('10-source-evidence','Selected part displays exact original sheet region and evidence');record('Source evidence selector',{part:part.id,page:part.sourceRefs[0].page});
++ const dl=page.waitForEvent('download');await page.getByRole('button',{name:'Download model PNG'}).click();const download=await dl,png=`${shots}/download.png`;await download.saveAs(png);assert.equal(readFileSync(png).subarray(0,8).toString('hex'),'89504e470d0a1a0a');downloads.push({path:png,sha256:hash(png),suggestedFilename:download.suggestedFilename()});record('Actual PNG download');
++ await page.reload({waitUntil:'networkidle'});await ready();await snap('11-reload','Original persisted bytes rehashed after reload');record('Persisted original reload matches scene');
++ await importFile({name:'unrelated.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0L100 100"/></svg>')});await page.locator('[data-model-status="unmatched"]').waitFor();assert.equal(await canvas().count(),0);await snap('12-unrelated','Unrelated real file import removes matching building');record('Different source cannot display prepared building');
++ await importFile(`public/models/${target}/source.pdf`);await ready();record('Ordinary Open plan of matching original resolves model');
++ await importFile({name:'broken.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 9 0 R >> endobj\n%%EOF')});await page.getByRole('alert').waitFor();assert.equal(await canvas().getAttribute('data-source-sha256'),model.source.sha256);await snap('13-rejected','Malformed PDF rejected; previously verified original remains');record('Malformed page tree does not replace source');
++ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.locator('.building-source-image img').evaluate(e=>e.complete&&e.naturalWidth>0),true);assert.deepEqual(errors,[]);record('Desktop content and console',{errors:0,overflow:false});for(const f of inputs)assert.equal(hash(f.path),f.sha256,`Source changed during browser run: ${f.path}`);record('Tested source hashes unchanged throughout run');
++}catch(e){results.push({name:'Harness failure',status:'fail',detail:e.stack});await snap('failure','Failure state');process.exitCode=1;}finally{writeFileSync(`${out}/results.json`,JSON.stringify({origin,target,completedAt:new Date().toISOString(),inputs,results,captures,downloads,errors},null,2));console.log(JSON.stringify({out,passed:results.filter(r=>r.status==='pass').length,failed:results.filter(r=>r.status==='fail'),errors}));await browser.close();}
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/first-render.mjs b/proof/audit/IW-REAL-3D-VIEWER/first-render.mjs
+new file mode 100644
+index 0000000..1c08fa7
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/first-render.mjs
+@@ -0,0 +1,4 @@
++﻿import {chromium} from 'playwright';
++import {writeFileSync} from 'node:fs';
++const browser=await chromium.launch({channel:'msedge',headless:true}),page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
++try{await page.goto('http://127.0.0.1:8080/?pane=model',{waitUntil:'networkidle'});await page.locator('[data-hydration-status="ready"]').waitFor();await page.getByRole('button',{name:'Open Ruffles plan in 3D'}).click();await page.locator('[data-model-status="ready"]').waitFor({timeout:60000});await page.locator('canvas[data-mesh-count]').waitFor();await page.waitForTimeout(1500);await page.screenshot({path:'screenshots/industry-real-3d-viewer/first-webgl-roof.png'});await page.getByRole('button',{name:'Roof on',exact:true}).click();await page.waitForTimeout(500);await page.screenshot({path:'screenshots/industry-real-3d-viewer/first-webgl-interior.png'});writeFileSync('proof/audit/IW-REAL-3D-VIEWER/first-render.json',JSON.stringify({errors,text:await page.locator('.source-building').innerText(),canvas:await page.locator('canvas[data-mesh-count]').evaluate(e=>({...e.dataset}))},null,2));console.log(JSON.stringify({errors}));}catch(e){console.log(await page.locator('body').innerText());throw e}finally{await browser.close()}
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/gates.mjs b/proof/audit/IW-REAL-3D-VIEWER/gates.mjs
+new file mode 100644
+index 0000000..f4dcac0
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/gates.mjs
+@@ -0,0 +1,3 @@
++﻿import {spawnSync} from 'node:child_process';import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';import {createHash} from 'node:crypto';import {dirname,resolve} from 'node:path';
++const root='proof/audit/IW-REAL-3D-VIEWER',id=new Date().toISOString().replaceAll(':','-').replaceAll('.','-'),env={...process.env};delete env.DATABASE_URL;
++const npm=resolve(dirname(process.execPath),'node_modules/npm/bin/npm-cli.js'),args=process.argv[2]==='build'?['run','build']:['run','typecheck'];const startedAt=new Date().toISOString(),r=spawnSync(process.execPath,[npm,...args],{env,encoding:'utf8',maxBuffer:30*1024*1024});writeFileSync(`${root}/${args[1]}-${id}.log`,r.stdout+r.stderr);writeFileSync(`${root}/${args[1]}-${id}.json`,JSON.stringify({startedAt,finishedAt:new Date().toISOString(),command:`npm ${args.join(' ')}`,exitCode:r.status,databaseUrlRemovedInChild:true,log:`${root}/${args[1]}-${id}.log`},null,2));console.log(JSON.stringify({command:args,exit:r.status,log:`${root}/${args[1]}-${id}.log`}));process.exitCode=r.status??1;
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/offline.mjs b/proof/audit/IW-REAL-3D-VIEWER/offline.mjs
+new file mode 100644
+index 0000000..43416f4
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/offline.mjs
+@@ -0,0 +1,4 @@
++import {chromium} from 'playwright';import assert from 'node:assert/strict';import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';import {createHash} from 'node:crypto';
++const origin=process.argv[2]??'http://127.0.0.1:8081',id=new Date().toISOString().replaceAll(':','-').replaceAll('.','-'),out=`proof/audit/IW-REAL-3D-VIEWER/offline-${id}`,shots=`screenshots/industry-real-3d-viewer/offline-${id}`;mkdirSync(out,{recursive:true});mkdirSync(shots,{recursive:true});const blocked=[],requests=[],errors=[],results=[];
++const b=await chromium.launch({channel:'msedge',headless:true}),context=await b.newContext({viewport:{width:1440,height:1000}});await context.route('**/*',route=>{const url=route.request().url(),u=new URL(url);if(!['127.0.0.1','localhost','[::1]'].includes(u.hostname)){blocked.push(url);return route.abort('internetdisconnected');}requests.push(url);return route.continue();});const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));
++try{await p.goto(`${origin}/?pane=model`,{waitUntil:'networkidle'});await p.getByRole('button',{name:'Open Caroline plan in 3D'}).click();await p.locator('[data-model-status="ready"]').waitFor();await p.getByLabel('Building floor',{exact:true}).selectOption('upper');await p.getByRole('button',{name:'Plan',exact:true}).click();await p.waitForTimeout(500);await p.screenshot({path:`${shots}/internet-blocked.png`});results.push('Fresh browser loads local app and exact local original with all external internet requests blocked');await p.reload({waitUntil:'networkidle'});await p.locator('[data-model-status="ready"]').waitFor();results.push('Reload from running local server restores original from IndexedDB while internet remains blocked');await context.setOffline(true);await p.getByRole('button',{name:'Roof on',exact:true}).click();await p.getByRole('button',{name:'Plan',exact:true}).click();const download=p.waitForEvent('download');await p.getByRole('button',{name:'Download model PNG'}).click();await(await download).saveAs(`${shots}/offline-open-model.png`);await p.screenshot({path:`${shots}/fully-offline-open.png`});results.push('Already-open loaded scene remains interactive and exports PNG when all browser networking is offline');assert.deepEqual(errors,[]);}catch(e){errors.push(e.stack);process.exitCode=1;}finally{const captures=['internet-blocked.png','fully-offline-open.png'].filter(f=>{try{readFileSync(`${shots}/${f}`);return true}catch{return false}}).map(f=>({path:`${shots}/${f}`,sha256:createHash('sha256').update(readFileSync(`${shots}/${f}`)).digest('hex'),url:p.url(),capturedAt:new Date().toISOString(),viewport:{width:1440,height:1000},scenario:f,phase:'after',kind:'application-ui'}));writeFileSync(`${out}/results.json`,JSON.stringify({origin,results,blocked,requests,errors,captures,limitations:['Local serving process still required for fresh reload; installed application/service-worker restart offline not verified.','Unloaded source sheets or another model cannot be fetched when all networking including localhost is offline.','External fonts and platform chrome requests are intentionally blocked in this test.']},null,2));console.log(JSON.stringify({out,results,errors}));await b.close();}
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/studio-tests.mjs b/proof/audit/IW-REAL-3D-VIEWER/studio-tests.mjs
+new file mode 100644
+index 0000000..75356b2
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/studio-tests.mjs
+@@ -0,0 +1 @@
++﻿import {spawnSync} from 'node:child_process';import {readdirSync,writeFileSync} from 'node:fs';const files=readdirSync('src/studio').filter(f=>f.endsWith('.test.ts')).map(f=>'src/studio/'+f),r=spawnSync(process.execPath,['--experimental-strip-types','--test',...files],{encoding:'utf8',maxBuffer:20*1024*1024});writeFileSync('proof/audit/IW-REAL-3D-VIEWER/studio-tests-final-02.log',r.stdout+r.stderr);console.log((r.stdout+r.stderr).slice(-1500));process.exitCode=r.status;
+diff --git a/proof/audit/IW-REAL-3D-VIEWER/wireframe-first.mjs b/proof/audit/IW-REAL-3D-VIEWER/wireframe-first.mjs
+new file mode 100644
+index 0000000..779c723
+--- /dev/null
++++ b/proof/audit/IW-REAL-3D-VIEWER/wireframe-first.mjs
+@@ -0,0 +1 @@
++﻿import {chromium} from 'playwright';const b=await chromium.launch({channel:'msedge',headless:true}),p=await b.newPage({viewport:{width:1440,height:1000}});try{await p.goto('http://127.0.0.1:8080/?pane=model',{waitUntil:'networkidle'});await p.getByRole('button',{name:'Open Caroline plan in 3D'}).click();await p.locator('canvas[data-source-sha256]').waitFor();await p.getByRole('button',{name:'Wireframe',exact:true}).click();await p.waitForTimeout(500);await p.screenshot({path:'screenshots/industry-real-3d-viewer/wireframe-first.png'});}finally{await b.close()}
+diff --git a/scripts/current-work-proof.mjs b/scripts/current-work-proof.mjs
+new file mode 100644
+index 0000000..e058984
+--- /dev/null
++++ b/scripts/current-work-proof.mjs
+@@ -0,0 +1,111 @@
++import {readFileSync, statSync, realpathSync} from 'node:fs';
++import {resolve, sep} from 'node:path';
++import {createHash} from 'node:crypto';
++import {validatePng} from './proof-png.mjs';
++
++export const CURRENT_INPUTS = Object.freeze([
++ 'src/studio/SourceBuildingViewer.tsx', 'src/studio/sourceBuilding.ts',
++ 'src/studio/sourceBuilding.css', 'src/studio/Studio.tsx', 'src/studio/documents.ts',
++ 'package.json', 'package-lock.json', 'vite.config.ts',
++ 'public/models/caroline/source-building.json',
++ 'engine/python/xray/source_building.py', 'engine/python/xray/caroline_building.py',
++ 'engine/fixtures/caroline-source-trace.json',
++ 'engine/fixtures/caroline-blueprints-renderings-2025-08-08.pdf',
++]);
++const sha = bytes => createHash('sha256').update(bytes).digest('hex');
++const requireValue = (condition, message) => {if (!condition) throw Error(message);};
++const stable = value => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object'
++ ? Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])])) : value;
++export function currentPacketDigest(packet) {
++ const {review, status, ...binding} = packet;
++ return sha(Buffer.from(JSON.stringify(stable(binding))));
++}
++function safeFile(root, path) {
++ requireValue(typeof path === 'string' && !path.includes('\\') && !path.startsWith('/') && !path.split('/').some(p => !p || p === '.' || p === '..') && !path.includes(':'), 'Unsafe current proof path');
++ const base = realpathSync(root), full = realpathSync(resolve(base, path));
++ requireValue(full.startsWith(base + sep), 'Current proof path escapes repository');
++ const info = statSync(full);
++ requireValue(info.isFile() && info.size > 0 && info.size <= 64 * 1024 * 1024, 'Invalid current proof file');
++ return readFileSync(full);
++}
++function boundFile(root, entry) {
++ requireValue(entry && /^[a-f0-9]{64}$/.test(entry.sha256) && Number.isSafeInteger(entry.bytes) && entry.bytes > 0, 'Invalid current proof file binding');
++ const bytes = safeFile(root, entry.path);
++ requireValue(bytes.length === entry.bytes && sha(bytes) === entry.sha256, `Stale current proof file: ${entry.path}`);
++ return bytes;
++}
++function artifact(path) {
++ return typeof path === 'string' && /^(proof\/audit\/IW-(CURRENT-WORK|REAL-3D-VIEWER|CAROLINE-3D|WIREFRAME)\/|screenshots\/industry-(real-3d-viewer|wireframe)\/)/.test(path);
++}
++function sameInputs(entries, inputs) {
++ requireValue(Array.isArray(entries) && entries.length === inputs.length, 'Execution input set differs from packet');
++ const actual = new Map(entries.map(e => [e.path, e.sha256]));
++ requireValue(actual.size === inputs.length && inputs.every(e => actual.get(e.path) === e.sha256), 'Execution input hashes differ from packet');
++}
++const timestamp = text => typeof text === 'string' && Number.isFinite(Date.parse(text));
++
++// Incomplete packets can display checked author evidence. Only a complete dev+built
++// packet with an independent review bound to its digest may verify current work.
++export function validateCurrentPacket(packet, root) {
++ requireValue(packet?.schema === 'xray.current-proof/v1' && typeof packet.id === 'string' && packet.id && typeof packet.author === 'string' && packet.author, 'Invalid current proof packet');
++ requireValue(Array.isArray(packet.workIds) && packet.workIds.length > 0 && new Set(packet.workIds).size === packet.workIds.length && packet.workIds.every(id => typeof id === 'string' && /^IW-[A-Z0-9-]+$/.test(id)), 'Invalid current proof work scope');
++ requireValue(['in progress', 'awaiting independent review', 'verified'].includes(packet.status), 'Invalid current proof status');
++ requireValue(Array.isArray(packet.inputs) && packet.inputs.length >= CURRENT_INPUTS.length, 'Missing required current inputs');
++ const inputPaths = new Set(packet.inputs.map(e => e.path));
++ requireValue(inputPaths.size === packet.inputs.length && CURRENT_INPUTS.every(p => inputPaths.has(p)), 'Missing or duplicate current inputs');
++ for (const input of packet.inputs) boundFile(root, input);
++ requireValue(artifact(packet.diff?.path) && packet.diff.path.endsWith('.patch'), 'Missing current code diff');
++ boundFile(root, packet.diff);
++ requireValue(Array.isArray(packet.executions) && packet.executions.length <= 2, 'Invalid current executions');
++ const environments = new Set(), screenshots = [], artifacts = [packet.diff], blockers = [];
++ let lastExecution = 0;
++ for (const execution of packet.executions) {
++  requireValue(['dev', 'built'].includes(execution.environment) && !environments.has(execution.environment), 'Duplicate or invalid execution environment');
++  environments.add(execution.environment);
++  requireValue(artifact(execution.report?.path) && execution.report.path.endsWith('.json'), 'Invalid execution report path');
++  const report = JSON.parse(boundFile(root, execution.report));
++  artifacts.push(execution.report);
++  sameInputs(report.inputs, packet.inputs);
++  requireValue(report.environment === execution.environment && report.target === 'caroline' && timestamp(report.completedAt), 'Execution environment or identity mismatch');
++  requireValue(Array.isArray(report.results) && report.results.length > 0 && report.results.every(r => r.status === 'pass'), 'Current execution contains failed or missing results');
++  requireValue(Array.isArray(report.errors) && report.errors.length === 0, 'Current execution has browser errors');
++  const origin = new URL(report.origin);
++  requireValue(origin.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(origin.hostname), 'Execution origin must identify local app');
++  requireValue(Array.isArray(report.captures) && Array.isArray(execution.screenshots) && execution.screenshots.length >= 2, 'Missing current before/after screenshots');
++  const captures = new Map(report.captures.map(c => [c.path, c]));
++  requireValue(captures.size === report.captures.length, 'Duplicate execution captures');
++  const phases = new Set(), used = new Set();
++  for (const image of execution.screenshots) {
++   requireValue(artifact(image.path) && image.path.endsWith('.png') && !used.has(image.path), 'Invalid or duplicate current screenshot');
++   used.add(image.path);
++   const capture = captures.get(image.path), bytes = boundFile(root, image);
++   requireValue(capture && capture.sha256 === image.sha256 && ['before', 'after'].includes(capture.phase) && capture.kind === 'application-ui' && typeof capture.scenario === 'string' && capture.scenario.trim(), 'Screenshot is not bound to execution capture');
++   requireValue(timestamp(capture.capturedAt) && Date.parse(capture.capturedAt) <= Date.parse(report.completedAt), 'Invalid screenshot capture time');
++   requireValue(new URL(capture.url).origin === origin.origin, 'Screenshot URL differs from executed app');
++   sameInputs(capture.sourceFiles, packet.inputs);
++   const dimensions = validatePng(bytes);
++   requireValue(capture.viewport?.width === dimensions.width && capture.viewport?.height === dimensions.height, 'Screenshot dimensions differ from captured viewport');
++   phases.add(capture.phase); artifacts.push(image);
++   screenshots.push({...capture, environment: execution.environment});
++  }
++  requireValue(phases.has('before') && phases.has('after'), 'Missing current before/after pair');
++  lastExecution = Math.max(lastExecution, Date.parse(report.completedAt));
++ }
++ for (const environment of ['dev', 'built']) if (!environments.has(environment)) blockers.push(`Missing ${environment} execution`);
++ if (!packet.review) blockers.push('Independent review pending');
++ else {
++  requireValue(artifact(packet.review.path) && packet.review.path.endsWith('.json'), 'Invalid current review path');
++  const review = JSON.parse(boundFile(root, packet.review)); artifacts.push(packet.review);
++  requireValue(review.schema === 'xray.current-proof-review/v1' && review.reviewer === 'root' && review.reviewer !== packet.author && review.decision === 'approved', 'Current review is not an independent approval');
++  requireValue(review.packetDigest === currentPacketDigest(packet) && timestamp(review.reviewedAt) && Date.parse(review.reviewedAt) >= lastExecution, 'Current review is stale or binds another packet');
++  requireValue(Array.isArray(review.scenarios) && review.scenarios.length > 0 && review.scenarios.every(s => typeof s === 'string' && s.trim()), 'Current review lacks executed scenario assessment');
++ }
++ requireValue(packet.status !== 'verified' || blockers.length === 0, 'Current verification requires dev, built and independent review');
++ return {ok: true, verified: packet.status === 'verified' && blockers.length === 0, digest: currentPacketDigest(packet), blockers, screenshots, artifacts};
++}
++
++export function readCurrentProof(root, reference) {
++ requireValue(artifact(reference?.path) && reference.path.endsWith('.json'), 'Invalid current packet path');
++ const packet = JSON.parse(boundFile(root, reference));
++ return {packet, ...validateCurrentPacket(packet, root)};
++}
+diff --git a/scripts/current-work-proof.test.mjs b/scripts/current-work-proof.test.mjs
+new file mode 100644
+index 0000000..6b2aa44
+--- /dev/null
++++ b/scripts/current-work-proof.test.mjs
+@@ -0,0 +1,45 @@
++import {test, after} from 'node:test';
++import assert from 'node:assert/strict';
++import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync} from 'node:fs';
++import {tmpdir} from 'node:os';
++import {join, dirname, resolve} from 'node:path';
++import {createHash} from 'node:crypto';
++import {CURRENT_INPUTS, currentPacketDigest, validateCurrentPacket, readCurrentProof} from './current-work-proof.mjs';
++
++const parent = realpathSync(tmpdir()), root = mkdtempSync(join(parent, 'xray-current-proof-'));
++const hash = b => createHash('sha256').update(b).digest('hex');
++function save(path, value) {const b = Buffer.isBuffer(value) ? value : Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)); mkdirSync(dirname(join(root,path)),{recursive:true}); writeFileSync(join(root,path),b); return {path,bytes:b.length,sha256:hash(b)};}
++const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', 'base64');
++let serial = 0;
++function fixture() {
++ const prefix = 'proof/audit/IW-CURRENT-WORK/fixture-' + serial++ + '/';
++ const inputs = CURRENT_INPUTS.map(path => save(path, 'Synthetic unit fixture: ' + path));
++ const packet = {schema:'xray.current-proof/v1',id:'IW-WIREFRAME',workIds:['IW-WIREFRAME'],author:'viewer-agent',status:'verified',inputs,diff:save(prefix+'code.patch','diff --git a/viewer b/viewer\n+proof fixture'),executions:[]};
++ for (const environment of ['dev','built']) {
++  const images = ['before','after'].map(phase=>save(prefix+environment+'-'+phase+'.png',png));
++  const captures = images.map((e,i)=>({...e,phase:i?'after':'before',kind:'application-ui',scenario:'Synthetic unit fixture',capturedAt:'2026-09-05T09:00:00Z',url:'http://127.0.0.1:8080/?pane=model',viewport:{width:1,height:1},sourceFiles:inputs}));
++  packet.executions.push({environment,report:save(prefix+environment+'.json',{environment,target:'caroline',origin:'http://127.0.0.1:8080',completedAt:'2026-09-05T09:01:00Z',inputs,results:[{status:'pass'}],errors:[],captures}),screenshots:images});
++ }
++ packet.review = save(prefix+'review.json',{schema:'xray.current-proof-review/v1',reviewer:'root',decision:'approved',reviewedAt:'2026-09-05T09:02:00Z',packetDigest:currentPacketDigest(packet),scenarios:['Synthetic unit fixture approval']});
++ return packet;
++}
++function changeReport(packet, change) {const e=packet.executions[0],r=JSON.parse(readFileSync(join(root,e.report.path)));change(r);e.report=save(e.report.path,r);}
++
++test('verified current packet requires exact sources, dev+built captures and independent review',()=>{const p=fixture(),v=validateCurrentPacket(p,root);assert.equal(v.verified,true);assert.equal(v.screenshots.length,4);assert.deepEqual(v.blockers,[]);});
++test('pending packet cannot promote missing production execution or review',()=>{const p=fixture();p.status='in progress';p.executions.pop();delete p.review;assert.deepEqual(validateCurrentPacket(p,root).blockers,['Missing built execution','Independent review pending']);p.status='verified';assert.throws(()=>validateCurrentPacket(p,root),/requires dev, built/);});
++test('missing development execution rejects verification',()=>{const p=fixture();p.executions.shift();delete p.review;assert.throws(()=>validateCurrentPacket(p,root),/requires dev, built/);});
++test('source mutation rejects even when historical proof exists elsewhere',()=>{const p=fixture();save(p.inputs[0].path,'tampered');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
++test('PNG mutation rejects',()=>{const p=fixture();save(p.executions[0].screenshots[0].path,'tampered');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
++test('raw report mutation rejects',()=>{const p=fixture();save(p.executions[0].report.path,'{}');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
++test('rebinding report metadata does not bypass independent review binding',()=>{const p=fixture();changeReport(p,r=>r.results.push({status:'pass'}));assert.throws(()=>validateCurrentPacket(p,root),/review is stale/);});
++test('review file mutation rejects',()=>{const p=fixture();save(p.review.path,'{}');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
++test('self review rejects despite recomputed review file hash',()=>{const p=fixture(),r=JSON.parse(readFileSync(join(root,p.review.path)));r.reviewer=p.author;p.review=save(p.review.path,r);assert.throws(()=>validateCurrentPacket(p,root),/independent approval/);});
++test('before screenshot cannot be relabelled as after without raw execution capture',()=>{const p=fixture();changeReport(p,r=>r.captures.forEach(c=>c.phase='before'));assert.throws(()=>validateCurrentPacket(p,root),/before\/after pair/);});
++test('capture source mismatch rejects even with rewritten report hash',()=>{const p=fixture();changeReport(p,r=>r.captures[0].sourceFiles[0].sha256='0'.repeat(64));assert.throws(()=>validateCurrentPacket(p,root),/input hashes differ/);});
++test('report environment mismatch rejects',()=>{const p=fixture();changeReport(p,r=>r.environment='built');assert.throws(()=>validateCurrentPacket(p,root),/environment or identity/);});
++test('failed browser result rejects',()=>{const p=fixture();changeReport(p,r=>r.results[0].status='fail');assert.throws(()=>validateCurrentPacket(p,root),/failed or missing results/);});
++test('missing required Python/source trace input rejects',()=>{const p=fixture();p.inputs.pop();assert.throws(()=>validateCurrentPacket(p,root),/Missing required/);});
++test('path traversal and duplicate source bindings reject',()=>{const p=fixture();p.diff.path='proof/audit/IW-CURRENT-WORK/../outside.patch';assert.throws(()=>validateCurrentPacket(p,root),/Unsafe/);const p2=fixture();p2.inputs.push(p2.inputs[0]);assert.throws(()=>validateCurrentPacket(p2,root),/duplicate current inputs/);});
++test('packet itself is hash-bound before loading',()=>{const p=fixture(),ref=save('proof/audit/IW-CURRENT-WORK/packet.json',p);assert.equal(readCurrentProof(root,ref).verified,true);save(ref.path,{...p,status:'in progress'});assert.throws(()=>readCurrentProof(root,ref),/Stale current proof/);});
++
++after(()=>{const path=resolve(root);assert.equal(dirname(path),parent);assert.ok(path.startsWith(join(parent,'xray-current-proof-')));rmSync(path,{recursive:true});});
+diff --git a/scripts/industry-ledger.mjs b/scripts/industry-ledger.mjs
+index 5d8bdd3..95bfdc7 100644
+--- a/scripts/industry-ledger.mjs
++++ b/scripts/industry-ledger.mjs
+@@ -3,26 +3,9 @@ import { createServer } from 'node:http';
+ import { existsSync, readFileSync, realpathSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+ import { dirname, resolve, relative, isAbsolute, sep } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+-import { inflateSync } from 'node:zlib';
+-
+-const pngCache=new Map();
+-const crcTable=Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
+-const crc32=bytes=>{let crc=0xffffffff;for(const byte of bytes)crc=crcTable[(crc^byte)&255]^(crc>>>8);return (crc^0xffffffff)>>>0;};
+-export function validatePng(bytes,digest=hash(bytes)) {
+- if(pngCache.has(digest))return pngCache.get(digest);
+- if(bytes.length<57||bytes.length>32*1024*1024||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Error('Invalid PNG signature/size');
+- let offset=8,width,height,channels,ended=false;const idat=[];
+- while(offset<bytes.length){if(offset+12>bytes.length)throw Error('Truncated PNG');const length=bytes.readUInt32BE(offset),end=offset+12+length;if(end>bytes.length)throw Error('Truncated PNG chunk');const type=bytes.toString('ascii',offset+4,offset+8),body=bytes.subarray(offset+8,offset+8+length);if(crc32(bytes.subarray(offset+4,end-4))!==bytes.readUInt32BE(end-4))throw Error('Invalid PNG CRC');
+-  if(offset===8&&type!=='IHDR')throw Error('Missing IHDR');
+-  if(type==='IHDR'){if(width||length!==13)throw Error('Invalid IHDR');width=body.readUInt32BE(0);height=body.readUInt32BE(4);channels=({0:1,2:3,4:2,6:4})[body[9]];if(!width||!height||width>10000||height>100000||!channels||body[8]!==8||body[10]!==0||body[11]!==0||body[12]!==0)throw Error('Unsupported PNG dimensions/encoding');}
+-  if(type==='IDAT')idat.push(body);
+-  if(type==='IEND'){if(length||end!==bytes.length)throw Error('Invalid PNG ending');ended=true;}
+-  offset=end;
+- }
+- const expected=height*(1+width*channels);if(!ended||!idat.length||expected>256*1024*1024)throw Error('PNG missing image or oversized decoded data');
+- const decoded=inflateSync(Buffer.concat(idat),{maxOutputLength:expected});if(decoded.length!==expected)throw Error('Invalid PNG image length');for(let row=0;row<height;row++)if(decoded[row*(1+width*channels)]>4)throw Error('Invalid PNG filter');
+- const dimensions={width,height};if(pngCache.size>=128)pngCache.clear();pngCache.set(digest,dimensions);return dimensions;
+-}
++import {validatePng} from './proof-png.mjs';
++export {validatePng} from './proof-png.mjs';
++import {readCurrentProof} from './current-work-proof.mjs';
+ 
+ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+ export const LEDGER = 'planning/control/ledger.json';
+@@ -199,13 +182,23 @@ export function readCurrentWork(root=ROOT) {
+  const p=safePath(root,'planning/control/current-work.json'),info=statSync(p);
+  if(!info.isFile()||info.size>65536)throw Error('Invalid current-work document');
+  const data=JSON.parse(readFileSync(p,'utf8'));
+- if(data.schema!=='xray.current-work/v1'||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.stages)||!Array.isArray(data.work)||data.stages.some(s=>!/^([a-f0-9]{40})$/.test(s.sha)||!s.title||!s.status)||data.work.some(w=>!w.id||!w.title||!['in progress','awaiting independent review','blocked'].includes(w.status)||!w.detail))throw Error('Invalid current-work metadata');
++ if(data.schema!=='xray.current-work/v1'||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.stages)||!Array.isArray(data.work)||data.stages.some(s=>!/^([a-f0-9]{40})$/.test(s.sha)||!s.title||!s.status)||data.work.some(w=>!w.id||!w.title||!['queued','in progress','awaiting independent review','blocked','verified'].includes(w.status)||!w.detail))throw Error('Invalid current-work metadata');
++ for(const work of data.work){
++  if(work.proof){try{work.proofValidation=readCurrentProof(root,work.proof);if(!work.proofValidation.packet.workIds.includes(work.id))throw Error('Packet does not cover this work');}catch(error){work.proofValidation={ok:false,error:String(error.message)};}}
++  if(work.status==='verified'&&(!work.proofValidation?.verified||!work.proofValidation?.ok))throw Error('Invalid current-work metadata: verified work requires matching current proof');
++ }
+  if(data.requirements){const p='planning/handovers/IW-PUBLIC-REQUIREMENTS/crosswalk.md';if(data.requirements.path!==p||hash(readFileSync(safePath(root,p)))!==data.requirements.sha256)throw Error('Current requirements link is missing or stale');}
+  return data;
+ }
++export function currentProofView(work) {
++ const proof=work.proofValidation;if(!proof)return '';
++ if(!proof.ok)return '<p class="notice">Current evidence unavailable or stale. Review is pending; captures are withheld.</p>';
++ const href=path=>'/current-artifact?path='+encodeURIComponent(path);
++ return '<section class="proof-gallery" aria-label="Current execution proof"><h4>'+ (proof.verified?'Independently reviewed current execution':'Author-tested snapshot - independent acceptance pending')+'</h4><p>'+esc(proof.blockers.join(' | '))+'</p><p><a href="'+href(work.proof.path)+'">Exact proof packet</a></p><div class="proof-grid">'+proof.screenshots.map(c=>'<figure class="proof-shot"><a class="proof-image" href="'+href(c.path)+'"><img loading="lazy" src="'+href(c.path)+'" width="'+c.viewport.width+'" height="'+c.viewport.height+'" alt="'+esc(c.scenario)+'"></a><figcaption><strong>'+esc(c.environment+' - '+c.phase)+'</strong><p>'+esc(c.scenario)+'</p><p class="proof-meta">'+esc(c.url)+'<br>'+esc(c.capturedAt)+' | '+c.viewport.width+' x '+c.viewport.height+'</p></figcaption></figure>').join('')+'</div></section>';
++}
+ export function currentWorkView(data) {
+  if(!data)return '';
+- return `<section class="notice current-work" aria-label="Current work"><p class="eyebrow">CURRENT WORK - UPDATED ${esc(data.updatedAt)}</p><h2>Building reconstruction and staged delivery</h2><p>${esc(data.deliveryStatus)}</p>${data.requirements?`<p>${link(data.requirements.path,'Public requirements crosswalk - queued work')}</p>`:''}<table><thead><tr><th>Commit</th><th>Reviewed delivery stage</th><th>Delivery state</th></tr></thead><tbody>${data.stages.map(s=>`<tr><td><code>${esc(s.sha.slice(0,7))}</code></td><td>${esc(s.title)}</td><td>${esc(s.status)}</td></tr>`).join('')}</tbody></table>${data.work.map(w=>`<article><h3>${esc(w.title)} - ${esc(w.status)}</h3><p>${esc(w.detail)}</p><small>Owner: ${esc(w.owner)}</small></article>`).join('')}<p><strong>${esc(data.historicalNotice)}</strong></p></section>`;
++ return `<section class="notice current-work" aria-label="Current work"><p class="eyebrow">CURRENT WORK - UPDATED ${esc(data.updatedAt)}</p><h2>Building reconstruction and staged delivery</h2><p>${esc(data.deliveryStatus)}</p>${data.requirements?`<p>${link(data.requirements.path,'Public requirements crosswalk - queued work')}</p>`:''}<table><thead><tr><th>Commit</th><th>Reviewed delivery stage</th><th>Delivery state</th></tr></thead><tbody>${data.stages.map(s=>`<tr><td><code>${esc(s.sha.slice(0,7))}</code></td><td>${esc(s.title)}</td><td>${esc(s.status)}</td></tr>`).join('')}</tbody></table>${data.work.map(w=>`<article><h3>${esc(w.title)} - ${esc(w.status)}</h3><p>${esc(w.detail)}</p><small>Owner: ${esc(w.owner)}</small>${currentProofView(w)}</article>`).join('')}<p><strong>${esc(data.historicalNotice)}</strong></p></section>`;
+ }
+ export function render(data, options={}) {
+  const taskRows=data.tasks.map(t=>`<article class="task searchable" data-status="${esc(t.status)}" data-search="${esc([t.id,t.title,t.slice,t.owner,t.status].join(' ').toLowerCase())}" id="${esc(t.id)}"><div class="task-heading"><div><span class="eyebrow">${esc(t.id)} / ${esc(t.slice)}</span><h3>${esc(t.title)}</h3></div><span class="status">${esc(t.status)}</span></div><p>${esc(t.summary)}</p>${screenshotGallery(data,t.id)}<details><summary>Acceptance, dependencies & proof</summary><dl><dt>Owner / revision</dt><dd>${esc(t.owner)} / ${t.revision}</dd><dt>Depends on</dt><dd>${t.dependsOn.map(d=>`<a href="#${esc(d)}">${esc(d)}</a>`).join(', ') || 'None'}</dd><dt>Machine acceptance</dt><dd>${esc(t.acceptance.machine)}</dd><dt>Human acceptance</dt><dd>${esc(t.acceptance.human)}</dd><dt>Proof</dt><dd>${t.evidence.length?t.evidence.map(e=>link(e.path,e.kind)).join(' · '):'No submitted evidence. Independent verification pending.'}</dd></dl><label for="packet-${esc(t.id)}">Startup packet</label><textarea id="packet-${esc(t.id)}" readonly rows="7">${esc(startupPacket(data,t))}</textarea><button data-copy="packet-${esc(t.id)}">Copy startup packet</button></details></article>`).join('');
+@@ -231,6 +224,7 @@ export function serve(root=ROOT,port=8097,options={}) {
+    if(url.pathname==='/ledger.json')return send(200,JSON.stringify(data),'application/json');
+    if(url.pathname==='/dashboard.css' || url.pathname==='/dashboard.js')return send(200,readFileSync(safePath(root,'planning/control'+url.pathname)),url.pathname.endsWith('.css')?'text/css':'text/javascript');
+    if(url.pathname==='/historical') return send(200,`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Historical baseline · Xray</title><link rel="stylesheet" href="/dashboard.css"><main><p class="eyebrow">HISTORICAL BASELINE / READ ONLY</p><h1>Before the industry-wide tracker</h1><p>The existing mindmap below is preserved verbatim, including inherited checked items. This historical view is rendered for comparison; it is not a screenshot of a previously existing dashboard.</p><p>Baseline ${esc(data.baseline.commit)}. Historical checked claims require independent re-verification.</p><h2>Historical mindmap and completion claims</h2><pre id="historical-mindmap">${esc(readFileSync(safePath(root,MINDMAP),'utf8'))}</pre></main></html>`,'text/html; charset=utf-8');
++   if(url.pathname==='/current-artifact') {const path=url.searchParams.get('path'),work=readCurrentWork(root);const allowed=work.work.some(w=>w.proofValidation?.ok&&(w.proof.path===path||w.proofValidation.artifacts.some(a=>a.path===path)));if(!allowed)return send(404,'Current artifact not allowlisted or stale');return send(200,readFileSync(safePath(root,path)),path.endsWith('.png')?'image/png':'text/plain; charset=utf-8');}
+    if(url.pathname==='/artifact') {const path=url.searchParams.get('path');const p=safePath(root,path);if(!artifactAllowed(path,data))return send(404,'Artifact not allowlisted');return send(200,readFileSync(p),path.endsWith('.png')?'image/png':'text/plain; charset=utf-8');}
+    return send(404,'Not found');
+   } catch {return send(400,'Invalid request or unavailable file');}
+diff --git a/scripts/proof-png.mjs b/scripts/proof-png.mjs
+new file mode 100644
+index 0000000..ca05cc8
+--- /dev/null
++++ b/scripts/proof-png.mjs
+@@ -0,0 +1,22 @@
++import {createHash} from 'node:crypto';
++import {inflateSync} from 'node:zlib';
++const hash = b => createHash('sha256').update(b).digest('hex');
++const pngCache=new Map();
++const crcTable=Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
++const crc32=bytes=>{let crc=0xffffffff;for(const byte of bytes)crc=crcTable[(crc^byte)&255]^(crc>>>8);return (crc^0xffffffff)>>>0;};
++export function validatePng(bytes,digest=hash(bytes)) {
++ if(pngCache.has(digest))return pngCache.get(digest);
++ if(bytes.length<57||bytes.length>32*1024*1024||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Error('Invalid PNG signature/size');
++ let offset=8,width,height,channels,ended=false;const idat=[];
++ while(offset<bytes.length){if(offset+12>bytes.length)throw Error('Truncated PNG');const length=bytes.readUInt32BE(offset),end=offset+12+length;if(end>bytes.length)throw Error('Truncated PNG chunk');const type=bytes.toString('ascii',offset+4,offset+8),body=bytes.subarray(offset+8,offset+8+length);if(crc32(bytes.subarray(offset+4,end-4))!==bytes.readUInt32BE(end-4))throw Error('Invalid PNG CRC');
++  if(offset===8&&type!=='IHDR')throw Error('Missing IHDR');
++  if(type==='IHDR'){if(width||length!==13)throw Error('Invalid IHDR');width=body.readUInt32BE(0);height=body.readUInt32BE(4);channels=({0:1,2:3,4:2,6:4})[body[9]];if(!width||!height||width>10000||height>100000||!channels||body[8]!==8||body[10]!==0||body[11]!==0||body[12]!==0)throw Error('Unsupported PNG dimensions/encoding');}
++  if(type==='IDAT')idat.push(body);
++  if(type==='IEND'){if(length||end!==bytes.length)throw Error('Invalid PNG ending');ended=true;}
++  offset=end;
++ }
++ const expected=height*(1+width*channels);if(!ended||!idat.length||expected>256*1024*1024)throw Error('PNG missing image or oversized decoded data');
++ const decoded=inflateSync(Buffer.concat(idat),{maxOutputLength:expected});if(decoded.length!==expected)throw Error('Invalid PNG image length');for(let row=0;row<height;row++)if(decoded[row*(1+width*channels)]>4)throw Error('Invalid PNG filter');
++ const dimensions={width,height};if(pngCache.size>=128)pngCache.clear();pngCache.set(digest,dimensions);return dimensions;
++}
++
+diff --git a/src/studio/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+new file mode 100644
+index 0000000..421a233
+--- /dev/null
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -0,0 +1,1034 @@
++import { useEffect, useRef, useState } from "react";
++import * as THREE from "three";
++import { OrbitControls } from "three/addons/controls/OrbitControls.js";
++import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X } from "lucide-react";
++import { useStudio } from "./store";
++import { inspectPlanBytes } from "./documents";
++import {
++  BUILDING_CATALOG,
++  ROOF_CATEGORIES,
++  WALL_CATEGORIES,
++  fetchBuildingBytes,
++  parseSourceBuilding,
++  sourceBytesMatch,
++  type SourceBuilding,
++} from "./sourceBuilding";
++import "./sourceBuilding.css";
++
++type ViewOptions = {
++  wireframe: boolean;
++  roof: boolean;
++  cutaway: boolean;
++  explode: boolean;
++  plan: boolean;
++  level: "all" | "ground" | "upper";
++};
++type SceneApi = {
++  options: (value: ViewOptions) => void;
++  select: (id: string | null) => void;
++  fit: () => void;
++  png: () => void;
++  dispose: () => void;
++};
++const sessionViewOptions = new Map<string, ViewOptions>();
++
++function createBuildingScene(
++  host: HTMLDivElement,
++  model: SourceBuilding,
++  onSelect: (id: string | null) => void,
++  onError: (message: string) => void,
++): SceneApi {
++  const renderer = new THREE.WebGLRenderer({
++    antialias: true,
++    alpha: false,
++    preserveDrawingBuffer: true,
++  });
++  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
++  renderer.outputColorSpace = THREE.SRGBColorSpace;
++  renderer.toneMapping = THREE.ACESFilmicToneMapping;
++  renderer.toneMappingExposure = 1.15;
++  renderer.shadowMap.enabled = true;
++  renderer.shadowMap.type = THREE.PCFShadowMap;
++  renderer.localClippingEnabled = true;
++  renderer.domElement.setAttribute("aria-label", "Interactive source building model");
++  renderer.domElement.setAttribute("role", "img");
++  renderer.domElement.dataset.sourceSha256 = model.source.sha256;
++  renderer.domElement.dataset.meshCount = String(model.objects.length);
++  host.appendChild(renderer.domElement);
++  const scene = new THREE.Scene();
++  scene.background = new THREE.Color("#e5e5df");
++  const bounds = new THREE.Box3(
++      new THREE.Vector3(...model.bounds.min),
++      new THREE.Vector3(...model.bounds.max),
++    ),
++    center = bounds.getCenter(new THREE.Vector3()),
++    size = bounds.getSize(new THREE.Vector3()),
++    span = Math.max(size.x, size.z);
++  const perspective = new THREE.PerspectiveCamera(36, 1, 0.05, span * 12),
++    orthographic = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, span * 12);
++  let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera = perspective;
++  let controls: OrbitControls<THREE.PerspectiveCamera | THREE.OrthographicCamera> =
++    new OrbitControls(camera, renderer.domElement);
++  let options: ViewOptions = {
++    wireframe: false,
++    roof: true,
++    cutaway: false,
++    explode: false,
++    plan: false,
++    level: "all",
++  };
++  let disposed = false,
++    frame = 0;
++  const render = () => {
++    frame = 0;
++    if (disposed) return;
++    const changing = controls.update();
++    renderer.render(scene, camera);
++    renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
++    if (changing) invalidate();
++  };
++  const invalidate = () => {
++    if (!disposed && !frame) frame = requestAnimationFrame(render);
++  };
++  const configureControls = () => {
++    controls.enableDamping = true;
++    controls.dampingFactor = 0.12;
++    controls.screenSpacePanning = true;
++    controls.maxPolarAngle = Math.PI * 0.48;
++    controls.minDistance = 2;
++    controls.maxDistance = span * 6;
++    controls.target.copy(center);
++    controls.addEventListener("change", invalidate);
++  };
++  configureControls();
++  scene.add(new THREE.HemisphereLight("#ffffff", "#8f9083", 2.25));
++  const sun = new THREE.DirectionalLight("#fff6df", 3.2);
++  sun.position.copy(center).add(new THREE.Vector3(-span * 0.5, span * 0.9, span * 0.55));
++  sun.target.position.copy(center);
++  sun.castShadow = true;
++  sun.shadow.mapSize.set(2048, 2048);
++  sun.shadow.camera.left = -span;
++  sun.shadow.camera.right = span;
++  sun.shadow.camera.top = span;
++  sun.shadow.camera.bottom = -span;
++  sun.shadow.camera.near = 0.1;
++  sun.shadow.camera.far = span * 4;
++  sun.shadow.normalBias = 0.04;
++  sun.shadow.bias = -0.00008;
++  scene.add(sun, sun.target);
++  const groundGeometry = new THREE.PlaneGeometry(span * 5, span * 5),
++    groundMaterial = new THREE.MeshStandardMaterial({ color: "#d9dbd3", roughness: 1 }),
++    ground = new THREE.Mesh(groundGeometry, groundMaterial);
++  ground.rotation.x = -Math.PI / 2;
++  ground.position.set(center.x, bounds.min.y, center.z);
++  ground.receiveShadow = true;
++  scene.add(ground);
++  const meshMap = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>>(),
++    parts = new Map(model.objects.map((p) => [p.id, p])),
++    edges: THREE.LineSegments[] = [],
++    materials = new Map<string, THREE.MeshStandardMaterial>();
++  let upperMin = Infinity;
++  for (const part of model.objects)
++    if (part.level === "upper") {
++      for (let i = 1; i < part.positions.length; i += 3)
++        upperMin = Math.min(upperMin, part.positions[i]);
++    }
++  const cutHeight =
++    model.floorElevations?.upper ?? (Number.isFinite(upperMin) ? Math.max(upperMin, 0) : 0);
++  const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2),
++    edgeMaterial = new THREE.LineBasicMaterial({
++      color: "#273735",
++      transparent: true,
++      opacity: 0.26,
++    }),
++    highlight = new THREE.MeshStandardMaterial({
++      color: "#b8d3cb",
++      emissive: "#234e43",
++      emissiveIntensity: 0.22,
++      roughness: 0.7,
++      side: THREE.DoubleSide,
++    });
++  const wireMaterial = new THREE.LineBasicMaterial({
++    color: "#315f59",
++    transparent: true,
++    opacity: 0.72,
++    depthTest: false,
++  });
++  const clippedWireMaterial = wireMaterial.clone(),
++    selectedWireMaterial = new THREE.LineBasicMaterial({ color: "#b25b21", depthTest: false }),
++    selectedClippedWireMaterial = selectedWireMaterial.clone();
++  for (const part of model.objects) {
++    const spec = model.materials[part.material],
++      key = part.material + ":" + (WALL_CATEGORIES.has(part.category) ? "wall" : "solid");
++    let material = materials.get(key);
++    if (!material) {
++      material = new THREE.MeshStandardMaterial({
++        color: spec.color,
++        roughness: spec.roughness ?? 0.8,
++        metalness: spec.metalness ?? 0,
++        opacity: spec.opacity ?? 1,
++        transparent: (spec.opacity ?? 1) < 1,
++        depthWrite: (spec.opacity ?? 1) >= 1,
++        side: THREE.DoubleSide,
++      });
++      materials.set(key, material);
++    }
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
++    geometry.setIndex(part.indices);
++    geometry.computeVertexNormals();
++    geometry.computeBoundingSphere();
++    const mesh = new THREE.Mesh(geometry, material);
++    mesh.castShadow = (spec.opacity ?? 1) > 0.9;
++    mesh.receiveShadow = true;
++    mesh.userData = { partId: part.id, baseMaterial: material };
++    meshMap.set(part.id, mesh);
++    scene.add(mesh);
++    {
++      const line = new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 28), edgeMaterial);
++      line.userData.solidEdge = !["room", "fixture", "solar", "fence"].includes(part.category);
++      line.raycast = () => {};
++      mesh.add(line);
++      edges.push(line);
++    }
++  }
++  let selected: string | null = null;
++  const visiblePart = (part: SourceBuilding["objects"][number]) =>
++    !(
++      options.wireframe &&
++      /^(Clapboard reveal|Shutter louver)$/.test(part.label) &&
++      selected !== part.id
++    ) &&
++    (!ROOF_CATEGORIES.has(part.category) || options.roof) &&
++    (options.level === "all" ||
++      (options.level === "ground"
++        ? part.level !== "upper" && part.level !== "roof"
++        : part.level !== "ground"));
++  const fit = () => {
++    const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
++    perspective.aspect = aspect;
++    perspective.updateProjectionMatrix();
++    const dir = new THREE.Vector3(0.8, 0.67, 1.2).normalize(),
++      right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(),
++      up = new THREE.Vector3().crossVectors(dir, right),
++      tan = Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
++    let distance = 1;
++    const effective = new THREE.Box3();
++    const vertex = new THREE.Vector3();
++    for (const part of model.objects)
++      if (visiblePart(part))
++        for (let i = 0; i < part.positions.length; i += 3)
++          effective.expandByPoint(
++            vertex.set(part.positions[i], part.positions[i + 1], part.positions[i + 2]),
++          );
++    if (effective.isEmpty()) effective.copy(bounds);
++    if (options.explode) effective.max.y += 4;
++    const center = effective.getCenter(new THREE.Vector3()),
++      size = effective.getSize(new THREE.Vector3());
++    for (const x of [effective.min.x, effective.max.x])
++      for (const y of [effective.min.y, effective.max.y])
++        for (const z of [effective.min.z, effective.max.z]) {
++          const delta = new THREE.Vector3(x, y, z).sub(center);
++          distance = Math.max(
++            distance,
++            Math.abs(delta.dot(up)) / tan + delta.dot(dir),
++            Math.abs(delta.dot(right)) / (tan * aspect) + delta.dot(dir),
++          );
++        }
++    perspective.position.copy(center).addScaledVector(dir, distance * 1.08);
++    perspective.up.set(0, 1, 0);
++    perspective.lookAt(center);
++    const half = Math.max(size.z / 2, size.x / (2 * aspect)) * 1.25;
++    orthographic.left = -half * aspect;
++    orthographic.right = half * aspect;
++    orthographic.top = half;
++    orthographic.bottom = -half;
++    orthographic.zoom = 1;
++    orthographic.position.copy(center).add(new THREE.Vector3(0, span * 2, 0));
++    orthographic.up.set(0, 0, -1);
++    orthographic.lookAt(center);
++    orthographic.updateProjectionMatrix();
++    controls.target.copy(center);
++    controls.update();
++    invalidate();
++  };
++  const resize = () => {
++    renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
++    fit();
++  };
++  const observer = new ResizeObserver(resize);
++  observer.observe(host);
++  resize();
++  const apply = () => {
++    plane.constant =
++      (options.level === "upper" ? cutHeight : 0) + 1.2 + (options.explode ? 1.5 : 0);
++    ground.visible = !options.wireframe;
++    highlight.visible = !options.wireframe;
++    clippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
++    selectedClippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
++    for (const [id, mesh] of meshMap) {
++      const part = parts.get(id)!;
++      mesh.visible = visiblePart(part);
++      mesh.position.y = options.explode
++        ? ROOF_CATEGORIES.has(part.category)
++          ? 4
++          : WALL_CATEGORIES.has(part.category) || part.category === "column"
++            ? 1.5
++            : part.category === "room"
++              ? 0.12
++              : 0
++        : 0;
++      const base = mesh.userData.baseMaterial as THREE.MeshStandardMaterial;
++      base.visible = !options.wireframe;
++      mesh.castShadow = !options.wireframe && (model.materials[part.material].opacity ?? 1) > 0.9;
++      base.clipShadows = true;
++      base.clippingPlanes = options.cutaway && WALL_CATEGORIES.has(part.category) ? [plane] : [];
++      mesh.material = selected === id ? highlight : base;
++      if (selected === id) highlight.clippingPlanes = base.clippingPlanes;
++      for (const child of mesh.children) {
++        const line = child as THREE.LineSegments;
++        line.material = options.wireframe
++          ? selected === id
++            ? WALL_CATEGORIES.has(part.category)
++              ? selectedClippedWireMaterial
++              : selectedWireMaterial
++            : WALL_CATEGORIES.has(part.category)
++              ? clippedWireMaterial
++              : wireMaterial
++          : edgeMaterial;
++        line.visible =
++          options.wireframe ||
++          (line.userData.solidEdge && (!options.cutaway || !WALL_CATEGORIES.has(part.category)));
++      }
++    }
++    renderer.domElement.dataset.displayMode = options.wireframe ? "wireframe" : "solid";
++    renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
++    renderer.domElement.dataset.level = options.level;
++    renderer.domElement.dataset.roof = String(options.roof);
++    renderer.domElement.dataset.cutaway = String(options.cutaway);
++    renderer.domElement.dataset.explode = String(options.explode);
++    renderer.domElement.dataset.projection = options.plan ? "orthographic-plan" : "perspective";
++    renderer.domElement.dataset.visibleMeshCount = String(
++      [...meshMap.values()].filter((m) => m.visible).length,
++    );
++    invalidate();
++  };
++  const pointer = new THREE.Vector2(),
++    ray = new THREE.Raycaster();
++  let down: { x: number; y: number } | null = null;
++  const onDown = (event: PointerEvent) => {
++    down = { x: event.clientX, y: event.clientY };
++  };
++  const onUp = (event: PointerEvent) => {
++    if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
++      down = null;
++      return;
++    }
++    down = null;
++    const rect = renderer.domElement.getBoundingClientRect();
++    pointer.set(
++      ((event.clientX - rect.left) / rect.width) * 2 - 1,
++      (-(event.clientY - rect.top) / rect.height) * 2 + 1,
++    );
++    ray.setFromCamera(pointer, camera);
++    const hit = ray
++      .intersectObjects(
++        [...meshMap.values()].filter((m) => m.visible),
++        false,
++      )
++      .find(
++        (h) =>
++          !options.cutaway ||
++          !WALL_CATEGORIES.has(parts.get(h.object.userData.partId)!.category) ||
++          h.point.y <= plane.constant,
++      );
++    onSelect(hit?.object.userData.partId ?? null);
++  };
++  const lost = (event: Event) => {
++    event.preventDefault();
++    onError("The 3D graphics context was interrupted. Reopen Model to restore the viewer.");
++  };
++  renderer.domElement.addEventListener("pointerdown", onDown);
++  renderer.domElement.addEventListener("pointerup", onUp);
++  renderer.domElement.addEventListener("webglcontextlost", lost);
++  apply();
++  return {
++    options(next) {
++      const changed = next.plan !== options.plan,
++        exploded = next.explode !== options.explode || next.level !== options.level;
++      options = next;
++      if (changed) {
++        controls.dispose();
++        camera = options.plan ? orthographic : perspective;
++        controls = new OrbitControls(camera, renderer.domElement);
++        configureControls();
++        controls.enableRotate = !options.plan;
++        fit();
++      }
++      if (exploded) fit();
++      apply();
++    },
++    select(id) {
++      selected = id;
++      renderer.domElement.dataset.selectedPart = id ?? "";
++      apply();
++    },
++    fit,
++    png() {
++      renderer.render(scene, camera);
++      const anchor = document.createElement("a");
++      anchor.download = model.source.name.replace(/\.pdf$/i, "") + "-reconstruction.png";
++      const output = document.createElement("canvas"),
++        source = renderer.domElement;
++      const scale = renderer.getPixelRatio(),
++        footer = 66 * scale;
++      output.width = source.width;
++      output.height = source.height + footer;
++      const context = output.getContext("2d");
++      if (!context) {
++        onError("The image export canvas is unavailable.");
++        return;
++      }
++      context.drawImage(source, 0, 0);
++      context.fillStyle = "#f2ede3";
++      context.fillRect(0, source.height, output.width, footer);
++      context.fillStyle = "#25372f";
++      context.font = `${11 * scale}px sans-serif`;
++      const attribution = [
++        model.source.title ?? model.source.name,
++        model.source.author,
++        model.source.license,
++      ]
++        .filter(Boolean)
++        .join(" / ");
++      context.fillText(
++        attribution,
++        16 * scale,
++        source.height + 20 * scale,
++        output.width - 32 * scale,
++      );
++      context.fillText(
++        "Curated approximate reconstruction / changes: source drawings converted to 3D / not for construction",
++        16 * scale,
++        source.height + 38 * scale,
++        output.width - 32 * scale,
++      );
++      context.fillText(
++        model.source.licenseUrl ?? `Source SHA-256: ${model.source.sha256}`,
++        16 * scale,
++        source.height + 54 * scale,
++        output.width - 32 * scale,
++      );
++      anchor.href = output.toDataURL("image/png");
++      anchor.click();
++    },
++    dispose() {
++      disposed = true;
++      cancelAnimationFrame(frame);
++      observer.disconnect();
++      controls.dispose();
++      renderer.domElement.removeEventListener("pointerdown", onDown);
++      renderer.domElement.removeEventListener("pointerup", onUp);
++      renderer.domElement.removeEventListener("webglcontextlost", lost);
++      for (const mesh of meshMap.values()) mesh.geometry.dispose();
++      for (const edge of edges) edge.geometry.dispose();
++      for (const material of materials.values()) material.dispose();
++      edgeMaterial.dispose();
++      wireMaterial.dispose();
++      clippedWireMaterial.dispose();
++      selectedWireMaterial.dispose();
++      selectedClippedWireMaterial.dispose();
++      highlight.dispose();
++      groundGeometry.dispose();
++      groundMaterial.dispose();
++      sun.shadow.map?.dispose();
++      renderer.dispose();
++      renderer.domElement.remove();
++    },
++  };
++}
++
++export function SourceBuildingViewer() {
++  const pageIndex = useStudio((s) => s.sheet),
++    activeDocument = useStudio((s) => s.job.documents.find((d) => d.id === s.job.activeDocumentId));
++  const documentError = useStudio((s) => s.documentError);
++  const binary = useStudio((s) => s.activePlanBinary),
++    hydrated = useStudio((s) => s.persistenceHydrated),
++    [model, setModel] = useState<SourceBuilding | null>(null),
++    [error, setError] = useState<string | null>(null),
++    [loading, setLoading] = useState(false),
++    [matched, setMatched] = useState(false),
++    [checking, setChecking] = useState(false),
++    [selected, setSelected] = useState<string | null>(null),
++    [sourceIndex, setSourceIndex] = useState(0),
++    [options, setOptions] = useState<ViewOptions>(
++      () =>
++        sessionViewOptions.get(binary?.sha256 ?? "") ?? {
++          wireframe: false,
++          roof: true,
++          cutaway: false,
++          explode: false,
++          plan: false,
++          level: "all",
++        },
++    );
++  useEffect(() => {
++    if (binary) sessionViewOptions.set(binary.sha256, options);
++  }, [binary, options]);
++  const [chosen, setChosen] = useState<string>(BUILDING_CATALOG[0].id);
++  const config = BUILDING_CATALOG.find((c) => c.id === chosen)!;
++  const [verifiedBytes, setVerifiedBytes] = useState<Uint8Array | null>(null);
++  const [svgAvailable, setSvgAvailable] = useState(false);
++  const svgProjection = options.plan
++    ? options.level === "upper"
++      ? "upper"
++      : "ground"
++    : "axonometric";
++  const svgUrl = `/models/caroline/wireframe-${svgProjection}.svg`;
++  useEffect(() => {
++    let active = true;
++    setSvgAvailable(false);
++    if (config.id !== "caroline") return;
++    void fetch(svgUrl, { method: "HEAD" })
++      .then((response) => {
++        if (active)
++          setSvgAvailable(
++            response.ok && response.headers.get("content-type")?.includes("image/svg+xml") === true,
++          );
++      })
++      .catch(() => {});
++    return () => {
++      active = false;
++    };
++  }, [config, svgUrl]);
++  useEffect(() => {
++    const entry = BUILDING_CATALOG.find((c) => c.sha256 === binary?.sha256);
++    if (entry) setChosen(entry.id);
++  }, [binary?.sha256]);
++  const host = useRef<HTMLDivElement>(null),
++    api = useRef<SceneApi | null>(null);
++  useEffect(() => {
++    const abort = new AbortController();
++    setModel(null);
++    setMatched(false);
++    setError(null);
++    void fetchBuildingBytes(config.sceneUrl, 20 * 1024 * 1024, abort.signal)
++      .then((bytes) => parseSourceBuilding(JSON.parse(new TextDecoder().decode(bytes))))
++      .then((value) => {
++        if (value.source.sha256 !== config.sha256)
++          throw Error("Reconstruction source identity does not match the selected plan.");
++        if (!abort.signal.aborted) setModel(value);
++      })
++      .catch((e) => {
++        if (!abort.signal.aborted) setError(e instanceof Error ? e.message : String(e));
++      });
++    return () => abort.abort();
++  }, [config]);
++  useEffect(() => {
++    let active = true;
++    setMatched(false);
++    setVerifiedBytes(null);
++    setSelected(null);
++    if (!model || !binary) {
++      setChecking(false);
++      return;
++    }
++    setChecking(true);
++    void sourceBytesMatch(model, binary.bytes, binary.sha256)
++      .then((value) => {
++        if (active) {
++          setMatched(value);
++          setVerifiedBytes(value ? binary.bytes : null);
++          setChecking(false);
++        }
++      })
++      .catch(() => {
++        if (active) {
++          setChecking(false);
++          setError("The imported original could not be verified.");
++        }
++      });
++    return () => {
++      active = false;
++    };
++  }, [model, binary]);
++  useEffect(() => {
++    if (!model || !matched || !host.current) return;
++    try {
++      api.current = createBuildingScene(host.current, model, setSelected, setError);
++    } catch (e) {
++      setError(e instanceof Error ? e.message : String(e));
++    }
++    return () => {
++      api.current?.dispose();
++      api.current = null;
++    };
++  }, [model, matched]);
++  useEffect(() => api.current?.options(options), [options, matched]);
++  useEffect(() => {
++    api.current?.select(selected);
++    setSourceIndex(0);
++  }, [selected, matched]);
++  async function openSource() {
++    if (!model) return;
++    const previousBinary = useStudio.getState().activePlanBinary;
++    setLoading(true);
++    setError(null);
++    try {
++      const bytes = await fetchBuildingBytes(config.sourceUrl, 100 * 1024 * 1024);
++      const imported = await inspectPlanBytes({
++        name: model.source.name,
++        bytes,
++        source: "web",
++        takeoff: null,
++      });
++      if (!(await sourceBytesMatch(model, imported.binary.bytes, imported.binary.sha256)))
++        throw Error("The original PDF does not match this reconstruction. Nothing was imported.");
++      if (useStudio.getState().activePlanBinary !== previousBinary)
++        throw Error(
++          "A different plan was opened while this source was loading. The newer plan was preserved.",
++        );
++      await useStudio.getState().importPlan(imported);
++      useStudio.getState().setPane("model");
++    } catch (e) {
++      setError(e instanceof Error ? e.message : String(e));
++    } finally {
++      setLoading(false);
++    }
++  }
++  const part = model?.objects.find((p) => p.id === selected) ?? null,
++    ref = part?.sourceRefs[sourceIndex],
++    sheet = ref
++      ? model?.sourceSheets.find((s) => s.page === ref.page)
++      : (model?.sourceSheets.find((s) =>
++          options.level === "upper"
++            ? /upstairs|upper/i.test(s.title)
++            : options.level === "ground"
++              ? /downstairs|ground plan/i.test(s.title)
++              : s.role === "elevation",
++        ) ?? model?.sourceSheets[0]),
++    ready =
++      matched &&
++      !!model &&
++      verifiedBytes === binary?.bytes &&
++      model.source.sha256 === binary?.sha256 &&
++      model.source.sha256 === config.sha256;
++  return (
++    <div
++      className="source-building"
++      data-model-status={ready ? "ready" : checking ? "checking" : model ? "unmatched" : "loading"}
++    >
++      <div className="building-heading">
++        <div>
++          <span className="building-eyebrow">
++            SOURCE RECONSTRUCTION / {config.title.toUpperCase()}
++          </span>
++          <h1>{ready ? "The drawing, in three dimensions" : `Explore ${config.title}`}</h1>
++        </div>
++        <select
++          className="building-scene-picker"
++          aria-label="Prepared building"
++          value={config.id}
++          disabled={loading}
++          onChange={(e) => setChosen(e.target.value)}
++        >
++          {BUILDING_CATALOG.map((c) => (
++            <option key={c.id} value={c.id}>
++              {c.title}
++            </option>
++          ))}
++        </select>
++        <span className="building-source-state">
++          {ready ? (
++            <>
++              <span className="building-dot" />
++              Original PDF matched / {model.source.pageCount} sheets
++            </>
++          ) : config.sample ? (
++            "Sample reconstruction - visual fidelity incomplete"
++          ) : (
++            "Curated from your architectural plans"
++          )}
++        </span>
++      </div>
++      {(error || documentError) && (
++        <div className="building-error" role="alert">
++          {error || documentError}
++          <button
++            type="button"
++            aria-label="Dismiss model error"
++            onClick={() => {
++              setError(null);
++              useStudio.setState({ documentError: null });
++            }}
++          >
++            <X size={16} />
++          </button>
++        </div>
++      )}
++      <div className="building-workspace">
++        <nav className="building-left-nav" aria-label="Source sheets and models">
++          <h2>MODELS</h2>
++          {BUILDING_CATALOG.map((c) => (
++            <button
++              type="button"
++              className={config.id === c.id ? "active" : ""}
++              key={c.id}
++              onClick={() => setChosen(c.id)}
++              disabled={loading}
++            >
++              <Box size={14} />
++              {c.title}
++            </button>
++          ))}
++          <h2>
++            SHEETS <span>{activeDocument?.pageCount ?? 0}</span>
++          </h2>
++          <p className="building-nav-file" title={binary?.name}>
++            {binary?.name ?? "Open a source PDF"}
++          </p>
++          {binary &&
++            Array.from({ length: activeDocument?.pageCount ?? 0 }, (_, i) => {
++              const sourceSheet =
++                model?.source.sha256 === binary.sha256
++                  ? model.sourceSheets.find((p) => p.page === i + 1)
++                  : undefined;
++              return (
++                <button
++                  type="button"
++                  key={i}
++                  className={pageIndex === i ? "active" : ""}
++                  aria-label={`Open source page ${i + 1}`}
++                  onClick={() => {
++                    useStudio.getState().setSheet(i);
++                    useStudio.getState().setPane("sheets");
++                  }}
++                >
++                  <span className="building-page-number">{String(i + 1).padStart(2, "0")}</span>
++                  <span>{sourceSheet?.title ?? `Sheet ${i + 1}`}</span>
++                  {sourceSheet && <img src={sourceSheet.image} alt="" loading="lazy" />}
++                </button>
++              );
++            })}
++        </nav>
++        <div className="building-stage">
++          {ready ? (
++            <>
++              <div className="building-canvas" ref={host} />
++              <div className="building-toolbar" aria-label="3D view controls">
++                <div className="building-tool-group">
++                  <button
++                    type="button"
++                    aria-pressed={!options.wireframe}
++                    onClick={() => setOptions((o) => ({ ...o, wireframe: false }))}
++                  >
++                    Solid
++                  </button>
++                  <button
++                    type="button"
++                    aria-pressed={options.wireframe}
++                    onClick={() => setOptions((o) => ({ ...o, wireframe: true }))}
++                  >
++                    Wireframe
++                  </button>
++                </div>
++                <div className="building-tool-group">
++                  <button
++                    type="button"
++                    aria-pressed={!options.plan}
++                    onClick={() => setOptions((o) => ({ ...o, plan: false }))}
++                  >
++                    <Box size={15} />
++                    Orbit
++                  </button>
++                  <button
++                    type="button"
++                    aria-pressed={options.plan}
++                    onClick={() => setOptions((o) => ({ ...o, plan: true }))}
++                  >
++                    <ScanLine size={15} />
++                    Plan
++                  </button>
++                  <button type="button" onClick={() => api.current?.fit()}>
++                    <Expand size={15} />
++                    Fit
++                  </button>
++                </div>
++                <div className="building-tool-group">
++                  {model.objects.some((p) => p.level) && (
++                    <select
++                      aria-label="Building floor"
++                      value={options.level}
++                      onChange={(e) =>
++                        setOptions((o) => ({
++                          ...o,
++                          level: e.target.value as ViewOptions["level"],
++                          roof: e.target.value === "all",
++                          cutaway: e.target.value === "all" ? false : o.cutaway,
++                        }))
++                      }
++                    >
++                      <option value="all">Whole building</option>
++                      <option value="ground">Ground floor</option>
++                      <option value="upper">Upper floor</option>
++                    </select>
++                  )}
++                  <button
++                    type="button"
++                    aria-pressed={options.roof}
++                    onClick={() =>
++                      setOptions((o) => ({
++                        ...o,
++                        roof: !o.roof,
++                        level: !o.roof ? "all" : o.level,
++                        cutaway: !o.roof ? false : o.cutaway,
++                      }))
++                    }
++                  >
++                    Roof {options.roof ? "on" : "off"}
++                  </button>
++                  <button
++                    type="button"
++                    aria-pressed={options.cutaway}
++                    onClick={() =>
++                      setOptions((o) => ({
++                        ...o,
++                        cutaway: !o.cutaway,
++                        level:
++                          !o.cutaway && o.level === "all" && model.floorElevations
++                            ? "ground"
++                            : o.level,
++                        roof: o.cutaway ? o.roof : false,
++                      }))
++                    }
++                  >
++                    Wall cutaway
++                  </button>
++                  <button
++                    type="button"
++                    aria-pressed={options.explode}
++                    onClick={() => setOptions((o) => ({ ...o, explode: !o.explode }))}
++                  >
++                    <Layers size={15} />
++                    Explode
++                  </button>
++                </div>
++                <button
++                  type="button"
++                  aria-label="Download model PNG"
++                  onClick={() => api.current?.png()}
++                >
++                  <Download size={15} />
++                  <span>PNG</span>
++                </button>
++              </div>
++              {config.id === "caroline" && (
++                <div className="building-svg-export">
++                  {svgAvailable ? (
++                    <a href={svgUrl} download>
++                      <Download size={13} /> SVG /{" "}
++                      {options.plan
++                        ? options.level === "upper"
++                          ? "upper plan"
++                          : "ground plan"
++                        : "fixed axonometric"}
++                    </a>
++                  ) : (
++                    <span>SVG export preparing</span>
++                  )}
++                </div>
++              )}
++              <div className="building-canvas-note">
++                <MousePointer2 size={13} /> Drag to orbit · wheel to zoom · right-drag to pan ·
++                click a part
++              </div>
++              <div className="building-view-label">
++                {options.wireframe
++                  ? "X-RAY EDGES / DECORATIVE REPEATS OMITTED"
++                  : options.plan
++                    ? "ORTHOGRAPHIC PLAN"
++                    : "PERSPECTIVE"}
++                <span>{model.objects.length} source-linked parts</span>
++              </div>
++            </>
++          ) : (
++            <div className="building-empty">
++              {model && (
++                <img
++                  src={
++                    model.sourceSheets.find((s) => s.role.includes("elev"))?.image ??
++                    model.sourceSheets[0].image
++                  }
++                  alt={`Original ${config.title} drawing`}
++                />
++              )}
++              <div className="building-empty-content">
++                <label className="building-part-picker">
++                  Prepared reconstruction
++                  <select
++                    value={config.id}
++                    disabled={loading}
++                    onChange={(e) => setChosen(e.target.value)}
++                  >
++                    {BUILDING_CATALOG.map((c) => (
++                      <option key={c.id} value={c.id}>
++                        {c.title}
++                      </option>
++                    ))}
++                  </select>
++                </label>
++                <span className="building-eyebrow">ONE REAL PLAN. ITS OWN BUILDING.</span>
++                <h2>
++                  {checking
++                    ? "Checking original drawing bytes…"
++                    : binary
++                      ? "This plan has no prepared 3D reconstruction"
++                      : "A real home, traced from its source"}
++                </h2>
++                <p>
++                  {binary && !checking
++                    ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
++                    : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore its documented walls, openings, roof and rooms.`}
++                </p>
++                <button
++                  type="button"
++                  className="building-primary"
++                  disabled={!model || loading || !hydrated || checking}
++                  onClick={() => void openSource()}
++                >
++                  {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
++                  <Box size={17} />
++                </button>
++              </div>
++            </div>
++          )}
++        </div>
++        <aside className="building-inspector" aria-label="Building source evidence">
++          <div className="building-inspector-title">
++            <span className="building-eyebrow">DRAWING EVIDENCE</span>
++            {part && (
++              <button
++                type="button"
++                aria-label="Clear part selection"
++                onClick={() => setSelected(null)}
++              >
++                <X size={15} />
++              </button>
++            )}
++          </div>
++          <h2>{part?.label ?? "Every part has a source"}</h2>
++          <p className="building-evidence-state">
++            {part
++              ? `${part.category} · ${part.evidenceState}`
++              : "Select geometry to inspect the original sheet."}
++          </p>
++          {ready && (
++            <label className="building-part-picker">
++              Building part
++              <select value={selected ?? ""} onChange={(e) => setSelected(e.target.value || null)}>
++                <option value="">Choose a part…</option>
++                {model.objects.map((p) => (
++                  <option key={p.id} value={p.id}>
++                    {p.label} · {p.id}
++                  </option>
++                ))}
++              </select>
++            </label>
++          )}
++          {sheet && (
++            <>
++              <a
++                className="building-source-image"
++                href={sheet.image}
++                target="_blank"
++                rel="noreferrer"
++                aria-label={`Open original source page ${sheet.page}`}
++              >
++                <img src={sheet.image} alt={`${sheet.title}, original page ${sheet.page}`} />
++                {ref && (
++                  <span
++                    className="building-source-region"
++                    style={{
++                      left: `${(ref.region[0] / sheet.width) * 100}%`,
++                      top: `${(ref.region[1] / sheet.height) * 100}%`,
++                      width: `${((ref.region[2] - ref.region[0]) / sheet.width) * 100}%`,
++                      height: `${((ref.region[3] - ref.region[1]) / sheet.height) * 100}%`,
++                    }}
++                  />
++                )}
++              </a>
++              <div className="building-sheet-label">
++                <b>Page {sheet.page}</b>
++                <span>{sheet.title}</span>
++              </div>
++            </>
++          )}
++          {part && (
++            <div className="building-part-evidence">
++              <label>
++                Evidence reference
++                <select
++                  value={sourceIndex}
++                  onChange={(e) => setSourceIndex(Number(e.target.value))}
++                >
++                  {part.sourceRefs.map((r, i) => (
++                    <option value={i} key={i}>
++                      Page {r.page} · {r.evidenceState}
++                    </option>
++                  ))}
++                </select>
++              </label>
++              {ref?.dimension && (
++                <p>
++                  <b>
++                    {ref.dimension.value} {ref.dimension.unit}
++                  </b>
++                  <span>Source annotation: {ref.dimension.text}</span>
++                </p>
++              )}
++              <p>{ref?.note}</p>
++              {part.note && <p>{part.note}</p>}
++            </div>
++          )}
++          <div className="building-boundary">
++            <b>Curated reconstruction</b>
++            {model?.source.author && (
++              <p>
++                {model.source.title}
++                <br />
++                {model.source.author}
++                <br />
++                {model.source.licenseUrl ? (
++                  <a href={model.source.licenseUrl} target="_blank" rel="noreferrer">
++                    {model.source.license}
++                  </a>
++                ) : (
++                  model.source.license
++                )}
++                <br />
++                Adaptation: source drawings reconstructed in 3D.
++              </p>
++            )}
++            <p>
++              Preliminary, approximate geometry. Not for construction or verified quantities.
++              {config.sample
++                ? "Undisclosed interiors are left unpartitioned."
++                : "The disclosed floor layouts are reconstructed; source assumptions remain explicit."}
++            </p>
++            <details>
++              <summary>Source and assumptions</summary>
++              <p className="building-hash">
++                PDF SHA-256
++                <br />
++                {model?.source.sha256}
++              </p>
++              {model?.assumptions.map((text, i) => (
++                <p key={i}>{text}</p>
++              ))}
++            </details>
++          </div>
++        </aside>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 410c1e0..ae29c8d 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -5,6 +5,7 @@ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
+ import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
+ import { useStudio, type Pane } from "./store";
+ import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
++import { SourceBuildingViewer } from "./SourceBuildingViewer";
+ import { RenderStudio } from "./RenderStudio";
+ import { CalibrationPanel } from "./CalibrationPanel";
+ import { DocumentPreview } from "./DocumentPreview";
+@@ -43,7 +44,9 @@ export function Studio() {
+   const pageCount = activeDocument?.pageCount ?? 1;
+ 
+   useEffect(() => {
+-    void useStudio.getState().hydratePersistence();
++    void useStudio.getState().hydratePersistence().then(() => {
++      if (new URLSearchParams(window.location.search).get("pane") === "model") useStudio.getState().setPane("model");
++    });
+   }, []);
+ 
+   useEffect(() => {
+@@ -131,7 +134,7 @@ export function Studio() {
+ 
+       <div className="studio-modebar flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
+         {s.pane === "model" && (
+-          <>MODEL · local presentation wireframe</>
++          <>MODEL · source-linked architectural reconstruction</>
+         )}
+         {s.pane === "measure" && <>MEASURE · scale first · then length / area / count</>}
+         {s.pane === "sketch" && <>SKETCH · manual traces only · never quantities</>}
+@@ -143,9 +146,11 @@ export function Studio() {
+         {s.pane === "proof" && <>PROOF · export the evidence pack</>}
+       </div>
+ 
+-      <div className={`studio-layout grid min-h-0 flex-1 ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
+-        {!s.lifted && (
++      <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
++        {!s.lifted && s.pane !== "model" && (
+           <aside className="studio-left-rail overflow-auto border-r border-line p-3">
++            <h2 className="kicker mb-2">Models</h2>
++            <button type="button" className="sheet-btn mb-4" onClick={() => s.setPane("model")}>Source building</button>
+             <h2 className="kicker mb-2">
+               Project sheets <span className="float-right">{pageCount}</span>
+             </h2>
+@@ -162,9 +167,11 @@ export function Studio() {
+                 key={index}
+                 type="button"
+                 className={`sheet-btn ${s.sheet === index ? "active" : ""}`}
++                aria-label={`Open source page ${index + 1}`}
++                title={activeDocument?.name ?? "No source plan"}
+                 onClick={() => s.setSheet(index)}
+               >
+-                {String(index + 1).padStart(2, "0")} {activeDocument?.name ?? "No source plan"}
++                {String(index + 1).padStart(2, "0")} {activeDocument ? `Sheet ${index + 1}` : "No source plan"}
+               </button>
+             ))}
+             <h2 className="kicker mt-4">
+@@ -182,7 +189,7 @@ export function Studio() {
+           </aside>
+         )}
+ 
+-        <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
++        <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.pane === "model" ? "source-model-main" : ""} ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
+           {!s.persistenceHydrated ? <HydrationState /> : (
+             <>
+               {s.persistenceError ? <IntegrityNotice title="Saved work needs attention" message={s.persistenceError} /> : null}
+@@ -200,7 +207,7 @@ export function Studio() {
+           )}
+         </section>
+ 
+-        {!s.lifted && !s.rightCollapsed && s.pane !== "measure" && <RightRail />}
++        {!s.lifted && !s.rightCollapsed && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
+       </div>
+ 
+       <footer className="studio-footer flex flex-wrap gap-3.5 border-t border-line px-3 py-1.5 font-mono text-[10px] tracking-wider text-muted">
+@@ -524,36 +531,7 @@ function ComponentsPane() {
+ }
+ 
+ function ModelPane() {
+-  const s = useStudio();
+-  const verifiedPlan = s.activePlanBinary;
+-  return (
+-    <>
+-      {!s.lifted && (
+-        <>
+-          <p className="max-w-prose text-muted">
+-            Use the preserved wireframe canvas to inspect local presentation geometry. It does not establish source
+-            qualification, semantic identity, quantities, or a render result.
+-          </p>
+-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+-            <Stat k="Verified plan bytes" v={verifiedPlan ? "Ready" : "Missing"} n={verifiedPlan?.name ?? "No verified source loaded"} />
+-            <Stat k="Viewer" v="Local" n="Presentation wireframe; not source evidence" />
+-            <Stat k="Manual geometry" v={String(s.markups.length)} n="Recorded measurements and markers" />
+-            <Stat k="Semantic model" v="Unavailable" n="No CAD/IFC object graph is connected" />
+-          </div>
+-        </>
+-      )}
+-      <div className={`relative min-h-[280px] flex-1 ${s.lifted ? "min-h-0" : ""}`}>
+-        <Stage />
+-      </div>
+-      {!s.lifted && (
+-        <p className="rounded-xl bg-card px-3 py-2.5 text-muted">
+-          <b className="text-ink">Truth boundary:</b> this is an interactive local presentation wireframe, not a
+-          qualified source model or semantic BIM reconstruction. Exact assemblies still need verified source objects
+-          or explicit evidence.
+-        </p>
+-      )}
+-    </>
+-  );
++  return <SourceBuildingViewer />;
+ }
+ 
+ function Stage() {
+diff --git a/src/studio/documents.ts b/src/studio/documents.ts
+index 53d9674..f77daad 100644
+--- a/src/studio/documents.ts
++++ b/src/studio/documents.ts
+@@ -156,7 +156,11 @@ async function countPdfPages(bytes: Uint8Array): Promise<number> {
+       throw simpleError;
+     }
+     try {
+-      const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
++      const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist/legacy/build/pdf.mjs");
++      if (typeof window !== "undefined") {
++        const { default: workerUrl } = await import("pdfjs-dist/legacy/build/pdf.worker.mjs?url");
++        GlobalWorkerOptions.workerSrc = workerUrl;
++      }
+       const task = getDocument({
+         data: Uint8Array.from(bytes),
+       });
+diff --git a/src/studio/documentsComplex.test.ts b/src/studio/documentsComplex.test.ts
+new file mode 100644
+index 0000000..aeba692
+--- /dev/null
++++ b/src/studio/documentsComplex.test.ts
+@@ -0,0 +1,39 @@
++import assert from "node:assert/strict";
++import { readFile } from "node:fs/promises";
++import { test } from "node:test";
++import { inspectPlanBytes } from "./documents.ts";
++import { parseSourceBuilding, sourceBytesMatch } from "./sourceBuilding.ts";
++
++for (const [name, pages] of [
++  ["caroline", 19],
++  ["ruffles", 24],
++] as const)
++  test(`actual ${name} complex PDF retains its original bytes and exact page identity`, async () => {
++    const scene = parseSourceBuilding(
++      JSON.parse(
++        await readFile(
++          new URL(`../../public/models/${name}/source-building.json`, import.meta.url),
++          "utf8",
++        ),
++      ),
++    );
++    const original = new Uint8Array(
++      await readFile(new URL(`../../public/models/${name}/source.pdf`, import.meta.url)),
++    );
++    const result = await inspectPlanBytes({
++      name: scene.source.name,
++      bytes: original,
++      source: "web",
++      takeoff: null,
++    });
++    assert.equal(result.revision.pageCount, pages);
++    assert.deepEqual(result.binary.bytes, original);
++    assert.equal(result.binary.sha256, scene.source.sha256);
++    assert.equal(await sourceBytesMatch(scene, result.binary.bytes, result.binary.sha256), true);
++    assert.equal(result.takeoff, null);
++    if (name === "caroline") {
++      assert.equal(scene.floorElevations?.upper, 2.7432);
++      assert.ok(scene.objects.some((p) => p.category === "stair"));
++      assert.equal(scene.source.author, "Jay Osborne / FreeFarmhouse");
++    }
++  });
+diff --git a/src/studio/sourceBuilding.css b/src/studio/sourceBuilding.css
+new file mode 100644
+index 0000000..4f76fa2
+--- /dev/null
++++ b/src/studio/sourceBuilding.css
+@@ -0,0 +1,421 @@
++.source-model-layout {
++  grid-template-columns: minmax(0, 1fr) !important;
++}
++.studio-main.source-model-main {
++  padding: 0;
++  overflow: hidden;
++}
++.source-building {
++  --building-accent: #315c50;
++  --building-on-accent: #fff;
++  display: flex;
++  flex-direction: column;
++  min-height: 0;
++  height: 100%;
++  background: var(--color-paper);
++}
++.building-heading {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 24px;
++  padding: 16px 22px;
++  border-bottom: 1px solid var(--color-line);
++}
++.building-eyebrow {
++  font: 10px var(--font-mono);
++  letter-spacing: 0.14em;
++  color: var(--color-muted);
++}
++.building-heading h1 {
++  font-size: 23px;
++  font-weight: 500;
++  letter-spacing: -0.025em;
++  margin-top: 4px;
++}
++.building-source-state {
++  font-size: 11px;
++  color: var(--color-muted);
++  display: flex;
++  align-items: center;
++  gap: 7px;
++}
++.building-scene-picker {
++  margin-left: auto;
++  background: var(--color-paper);
++  border: 1px solid var(--color-line);
++  padding: 7px;
++  border-radius: 4px;
++  font-size: 11px;
++}
++.building-toolbar select {
++  pointer-events: auto;
++  background: var(--color-paper);
++  color: var(--color-ink);
++  border: 0;
++  padding: 7px;
++  font-size: 11px;
++}
++.building-dot {
++  width: 6px;
++  height: 6px;
++  background: var(--building-accent);
++  border-radius: 50%;
++}
++.building-workspace {
++  display: grid;
++  grid-template-columns: 168px minmax(0, 1fr) 270px;
++  flex: 1;
++  min-height: 0;
++}
++.building-stage {
++  position: relative;
++  overflow: hidden;
++  min-height: 300px;
++  background: #e5e5df;
++}
++.building-left-nav {
++  overflow: auto;
++  border-right: 1px solid var(--color-line);
++  padding: 14px 10px;
++  background: var(--color-bg);
++}
++.building-left-nav h2 {
++  margin: 5px 4px 10px;
++  font: 10px var(--font-mono);
++  letter-spacing: 0.12em;
++  color: var(--color-muted);
++}
++.building-left-nav h2 span {
++  float: right;
++}
++.building-left-nav h2:not(:first-child) {
++  margin-top: 22px;
++}
++.building-left-nav button {
++  display: flex;
++  align-items: center;
++  gap: 7px;
++  width: 100%;
++  min-height: 32px;
++  text-align: left;
++  padding: 7px 6px;
++  margin: 3px 0;
++  border: 1px solid transparent;
++  border-radius: 4px;
++  font-size: 10px;
++}
++.building-left-nav button.active {
++  background: var(--color-selected);
++  border-color: var(--color-line);
++}
++.building-left-nav button img {
++  width: 27px;
++  height: 21px;
++  object-fit: contain;
++  margin-left: auto;
++  background: white;
++}
++.building-left-nav button span:nth-child(2) {
++  min-width: 0;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.building-page-number {
++  font: 9px var(--font-mono);
++  color: var(--color-muted);
++  flex: none;
++}
++.building-nav-file {
++  font-size: 9px;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  margin: 0 4px 12px;
++  color: var(--color-muted);
++}
++.building-svg-export {
++  position: absolute;
++  right: 18px;
++  bottom: 62px;
++  background: var(--color-paper);
++  border: 1px solid var(--color-line);
++  border-radius: 4px;
++  padding: 7px 10px;
++  font-size: 10px;
++}
++.building-svg-export a {
++  display: flex;
++  align-items: center;
++  gap: 7px;
++}
++.building-canvas {
++  position: absolute;
++  inset: 0;
++}
++.building-canvas canvas {
++  display: block;
++  width: 100%;
++  height: 100%;
++  touch-action: none;
++}
++.building-toolbar {
++  position: absolute;
++  top: 16px;
++  left: 16px;
++  right: 16px;
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  align-items: center;
++  pointer-events: none;
++}
++.building-toolbar button,
++.building-tool-group {
++  pointer-events: auto;
++}
++.building-tool-group {
++  display: flex;
++  background: var(--color-paper);
++  padding: 3px;
++  border: 1px solid var(--color-line);
++  border-radius: 6px;
++  box-shadow: var(--shadow-plane);
++}
++.building-toolbar button {
++  display: flex;
++  gap: 6px;
++  align-items: center;
++  background: var(--color-paper);
++  border-radius: 4px;
++  padding: 8px 10px;
++  font-size: 11px;
++  color: var(--color-ink);
++  white-space: nowrap;
++}
++.building-toolbar button[aria-pressed="true"] {
++  background: var(--building-accent);
++  color: var(--building-on-accent);
++}
++.source-building button:focus-visible,
++.source-building select:focus-visible,
++.source-building a:focus-visible {
++  outline: 2px solid var(--color-blue);
++  outline-offset: 3px;
++}
++.building-canvas-note {
++  position: absolute;
++  bottom: 18px;
++  left: 18px;
++  display: flex;
++  align-items: center;
++  gap: 5px;
++  color: #44534b;
++  font-size: 10px;
++  padding: 5px 8px;
++  background: #e5e5dfdf;
++  border-radius: 4px;
++  pointer-events: none;
++}
++.building-view-label {
++  position: absolute;
++  bottom: 20px;
++  right: 20px;
++  font: 9px var(--font-mono);
++  letter-spacing: 0.12em;
++  color: #44534b;
++  text-align: right;
++  pointer-events: none;
++}
++.building-view-label span {
++  display: block;
++  letter-spacing: 0;
++  margin-top: 4px;
++}
++.building-inspector {
++  overflow: auto;
++  border-left: 1px solid var(--color-line);
++  padding: 20px;
++}
++.building-inspector-title {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  min-height: 20px;
++}
++.building-inspector h2 {
++  margin-top: 10px;
++  font-size: 19px;
++  font-weight: 500;
++  line-height: 1.2;
++}
++.building-evidence-state {
++  color: var(--color-muted);
++  margin: 8px 0 18px;
++  font-size: 11px;
++}
++.building-part-picker,
++.building-part-evidence label {
++  display: block;
++  color: var(--color-muted);
++  font-size: 10px;
++}
++.building-part-picker select,
++.building-part-evidence select {
++  display: block;
++  margin: 5px 0 18px;
++  width: 100%;
++  padding: 8px;
++  background: var(--color-card);
++  color: var(--color-ink);
++  border: 1px solid var(--color-line);
++  border-radius: 4px;
++  font-size: 11px;
++}
++.building-source-image {
++  display: block;
++  position: relative;
++  margin: 14px 0 9px;
++  background: white;
++  border: 1px solid var(--color-line);
++}
++.building-source-image img {
++  display: block;
++  width: 100%;
++  height: auto;
++}
++.building-source-region {
++  position: absolute;
++  border: 2px solid #b15b22;
++  background: #e6a56633;
++}
++.building-sheet-label {
++  display: flex;
++  align-items: flex-start;
++  gap: 12px;
++  font-size: 10px;
++}
++.building-sheet-label b {
++  white-space: nowrap;
++}
++.building-sheet-label span {
++  color: var(--color-muted);
++}
++.building-part-evidence {
++  margin-top: 20px;
++  font-size: 11px;
++}
++.building-part-evidence p {
++  margin: 12px 0;
++}
++.building-part-evidence p span {
++  display: block;
++  color: var(--color-muted);
++  margin-top: 3px;
++}
++.building-boundary {
++  margin-top: 24px;
++  padding-top: 18px;
++  border-top: 1px solid var(--color-line);
++  font-size: 11px;
++}
++.building-boundary p {
++  margin-top: 7px;
++  color: var(--color-muted);
++}
++.building-boundary details {
++  margin-top: 15px;
++}
++.building-boundary summary {
++  cursor: pointer;
++}
++.building-hash {
++  overflow-wrap: anywhere;
++  font: 9px var(--font-mono);
++}
++.building-empty {
++  height: 100%;
++  position: relative;
++  display: flex;
++  align-items: flex-end;
++  padding: 48px;
++  background: #e5e5df;
++}
++.building-empty > img {
++  position: absolute;
++  top: 2%;
++  left: 3%;
++  width: 94%;
++  height: 65%;
++  object-fit: contain;
++  mix-blend-mode: multiply;
++  opacity: 0.8;
++}
++.building-empty-content {
++  position: relative;
++  max-width: 540px;
++  background: #e5e5dfeb;
++  padding: 24px 0 12px;
++  color: #243a31;
++}
++.building-empty-content .building-eyebrow {
++  color: #526258;
++}
++.building-empty h2 {
++  font-size: 34px;
++  line-height: 1.14;
++  letter-spacing: -0.03em;
++  font-weight: 500;
++  margin: 12px 0;
++}
++.building-empty p {
++  font-size: 13px;
++  max-width: 470px;
++  color: #526258;
++}
++.building-primary {
++  display: flex;
++  gap: 18px;
++  align-items: center;
++  margin-top: 22px;
++  padding: 12px 17px;
++  border-radius: 5px;
++  background: var(--building-accent);
++  color: white;
++  font-size: 12px;
++}
++.building-primary:disabled {
++  opacity: 0.6;
++}
++.building-error {
++  display: flex;
++  justify-content: space-between;
++  padding: 10px 20px;
++  color: var(--color-danger);
++  border-bottom: 1px solid var(--color-line);
++  overflow-wrap: anywhere;
++}
++@media (max-width: 1100px) {
++  .building-workspace {
++    grid-template-columns: 140px minmax(0, 1fr) 235px;
++  }
++  .building-heading h1 {
++    font-size: 20px;
++  }
++  .building-source-state {
++    max-width: 200px;
++  }
++  .building-toolbar {
++    gap: 5px;
++  }
++  .building-toolbar button {
++    padding: 7px;
++  }
++  .building-empty {
++    padding: 28px;
++  }
++  .building-view-label {
++    display: none;
++  }
++}
+diff --git a/src/studio/sourceBuilding.test.ts b/src/studio/sourceBuilding.test.ts
+new file mode 100644
+index 0000000..00e7703
+--- /dev/null
++++ b/src/studio/sourceBuilding.test.ts
+@@ -0,0 +1,59 @@
++import assert from "node:assert/strict";
++import { readFile } from "node:fs/promises";
++import { test } from "node:test";
++import { parseSourceBuilding, sourceBytesMatch, fetchBuildingBytes } from "./sourceBuilding.ts";
++
++const fixture = JSON.parse(
++  await readFile(
++    new URL("../../public/models/ruffles/source-building.json", import.meta.url),
++    "utf8",
++  ),
++);
++test("real source geometry validates and original PDF bytes match, not caller-supplied flags", async () => {
++  const scene = parseSourceBuilding(fixture),
++    bytes = new Uint8Array(
++      await readFile(new URL("../../public/models/ruffles/source.pdf", import.meta.url)),
++    );
++  assert.equal(await sourceBytesMatch(scene, bytes, scene.source.sha256), true);
++  const changed = bytes.slice();
++  changed[200] ^= 1;
++  assert.equal(await sourceBytesMatch(scene, changed, scene.source.sha256), false);
++  assert.equal(await sourceBytesMatch(scene, bytes, "0".repeat(64)), false);
++  assert.equal(await sourceBytesMatch(scene, new Uint8Array(), scene.source.sha256), false);
++  assert.equal(
++    await sourceBytesMatch(scene, new Uint8Array(100 * 1024 * 1024 + 1), scene.source.sha256),
++    false,
++  );
++});
++test("rejects invalid source geometry before any GPU allocation", () => {
++  for (const mutate of [
++    (s: any) => (s.objects = []),
++    (s: any) => (s.schema = "future"),
++    (s: any) => (s.objects[0].positions[0] = NaN),
++    (s: any) => (s.objects[0].indices[0] = 999999),
++    (s: any) => (s.objects[1].id = s.objects[0].id),
++    (s: any) => (s.objects[0].sourceRefs[0].page = 999),
++    (s: any) => (s.objects[0].sourceRefs[0].region = [-1, 0, 20, 20]),
++    (s: any) => (s.sourceSheets[0].image = "https://example.com/source.png"),
++    (s: any) => (s.objects[0].level = "undocumented"),
++    (s: any) => (s.objects[0].material = "missing"),
++  ]) {
++    const altered = structuredClone(fixture);
++    mutate(altered);
++    assert.throws(() => parseSourceBuilding(altered));
++  }
++});
++test("source stream size gate applies to declared length and actual streamed bytes", async () => {
++  const original = globalThis.fetch;
++  try {
++    globalThis.fetch = async () =>
++      new Response(new Uint8Array(4), { headers: { "content-length": "100" } });
++    await assert.rejects(fetchBuildingBytes("/test", 5), /size/);
++    globalThis.fetch = async () => new Response(new Uint8Array(10));
++    await assert.rejects(fetchBuildingBytes("/test", 5), /size/);
++    globalThis.fetch = async () => new Response(new Uint8Array([1, 2, 3]));
++    assert.deepEqual(await fetchBuildingBytes("/test", 5), new Uint8Array([1, 2, 3]));
++  } finally {
++    globalThis.fetch = original;
++  }
++});
+diff --git a/src/studio/sourceBuilding.ts b/src/studio/sourceBuilding.ts
+new file mode 100644
+index 0000000..36532cd
+--- /dev/null
++++ b/src/studio/sourceBuilding.ts
+@@ -0,0 +1,247 @@
++import { z } from "zod";
++
++export const BUILDING_SCENE_URL = "/models/ruffles/source-building.json";
++export const BUILDING_SOURCE_URL = "/models/ruffles/source.pdf";
++export const BUILDING_CATALOG = [
++  {
++    id: "caroline",
++    title: "Caroline",
++    sceneUrl: "/models/caroline/source-building.json",
++    sourceUrl: "/models/caroline/source.pdf",
++    sha256: "f62cf82411d5343fd67f2c51b9a0092d70c885c147f9e7b417a6204b4edf11eb",
++    sample: false,
++  },
++  {
++    id: "ruffles",
++    title: "Ruffles sample",
++    sceneUrl: BUILDING_SCENE_URL,
++    sourceUrl: BUILDING_SOURCE_URL,
++    sha256: "7bc2b13848091c42d8601d9acc8d8b8888cff193c32b416c9d61478887864a33",
++    sample: true,
++  },
++] as const;
++export const ROOF_CATEGORIES = new Set(["roof", "roof-trim", "solar", "skylight"]);
++export const WALL_CATEGORIES = new Set(["wall", "window", "door", "trim"]);
++const number = z.number().finite().min(-10000).max(10000);
++const point = z.tuple([number, number]);
++const vector = z.tuple([number, number, number]);
++const evidence = z.enum(["traced", "dimensioned", "inferred"]);
++const sourceRef = z
++  .object({
++    page: z.number().int().min(1).max(1000),
++    region: z.tuple([number, number, number, number]),
++    trace: z.array(point).max(10000).optional(),
++    dimension: z
++      .object({
++        value: z.number().finite().positive(),
++        unit: z.string().max(20),
++        text: z.string().max(300),
++      })
++      .strict()
++      .optional(),
++    evidenceState: evidence,
++    note: z.string().max(3000),
++  })
++  .strict();
++const object = z
++  .object({
++    level: z.enum(["ground", "upper", "roof"]).optional(),
++    id: z.string().min(1).max(200),
++    category: z.enum([
++      "wall",
++      "room",
++      "roof",
++      "roof-trim",
++      "slab",
++      "column",
++      "window",
++      "door",
++      "fixture",
++      "solar",
++      "skylight",
++      "trim",
++      "fence",
++      "stair",
++    ]),
++    label: z.string().min(1).max(300),
++    positions: z.array(number).min(9).max(600000),
++    indices: z.array(z.number().int().nonnegative()).min(3).max(600000),
++    material: z.string().min(1).max(100),
++    sourceRefs: z.array(sourceRef).min(1).max(30),
++    evidenceState: evidence,
++    note: z.string().max(3000).optional(),
++  })
++  .strict();
++const sceneSchema = z
++  .object({
++    schema: z.literal("xray.source-building/v1"),
++    source: z
++      .object({
++        name: z.string().min(1).max(300),
++        sha256: z.string().regex(/^[a-f0-9]{64}$/),
++        pageCount: z.number().int().min(1).max(1000),
++        title: z.string().min(1).max(300).optional(),
++        author: z.string().min(1).max(300).optional(),
++        license: z.string().min(1).max(100).optional(),
++        licenseUrl: z
++          .string()
++          .url()
++          .max(1000)
++          .refine((v) => new URL(v).protocol === "https:")
++          .optional(),
++      })
++      .strict(),
++    units: z.literal("m"),
++    coordinateSystem: z.string().min(1).max(300),
++    bounds: z.object({ min: vector, max: vector }).strict(),
++    floorElevations: z.object({ ground: number, upper: number }).strict().optional(),
++    materials: z.record(
++      z.string().min(1).max(100),
++      z
++        .object({
++          color: z.string().regex(/^#[a-fA-F0-9]{6}$/),
++          opacity: z.number().min(0).max(1).optional(),
++          roughness: z.number().min(0).max(1).optional(),
++          metalness: z.number().min(0).max(1).optional(),
++        })
++        .strict(),
++    ),
++    objects: z.array(object).min(1).max(5000),
++    assumptions: z.array(z.string().max(3000)).min(1).max(100),
++    sourceSheets: z
++      .array(
++        z
++          .object({
++            page: z.number().int().min(1).max(1000),
++            title: z.string().min(1).max(300),
++            image: z.string().regex(/^\/models\/[a-z0-9-]+\/source-page-\d+\.png$/),
++            width: z.number().positive().max(10000),
++            height: z.number().positive().max(10000),
++            role: z.string().max(100),
++          })
++          .strict(),
++      )
++      .min(1)
++      .max(1000),
++    summary: z
++      .object({
++        floors: z.number().int().min(1).max(100).optional(),
++        wallRuns: z.number().int().nonnegative(),
++        openings: z.number().int().nonnegative(),
++        roofFaces: z.number().int().nonnegative(),
++        objects: z.number().int().positive(),
++        visibleNamedRooms: z.number().int().nonnegative(),
++        method: z.string().max(300),
++        status: z.string().max(100),
++      })
++      .strict(),
++  })
++  .strict();
++
++export type SourceBuilding = z.infer<typeof sceneSchema>;
++export type BuildingPart = SourceBuilding["objects"][number];
++
++export function parseSourceBuilding(input: unknown): SourceBuilding {
++  const scene = sceneSchema.parse(input),
++    ids = new Set<string>(),
++    sheets = new Map(scene.sourceSheets.map((s) => [s.page, s]));
++  if (
++    sheets.size !== scene.sourceSheets.length ||
++    scene.sourceSheets.some((s) => s.page > scene.source.pageCount)
++  )
++    throw Error("Source sheet identity is inconsistent.");
++  if (
++    scene.bounds.min.some((v, i) => v >= scene.bounds.max[i]) ||
++    scene.summary.objects !== scene.objects.length
++  )
++    throw Error("Scene bounds or object count is inconsistent.");
++  if (
++    scene.floorElevations &&
++    (scene.floorElevations.upper <= scene.floorElevations.ground ||
++      scene.floorElevations.ground < scene.bounds.min[1] ||
++      scene.floorElevations.upper > scene.bounds.max[1])
++  )
++    throw Error("Floor elevations are outside the source building.");
++  let coordinates = 0;
++  for (const part of scene.objects) {
++    if (ids.has(part.id) || !Object.hasOwn(scene.materials, part.material))
++      throw Error("Duplicate part or missing material.");
++    ids.add(part.id);
++    coordinates += part.positions.length;
++    if (
++      coordinates > 3000000 ||
++      part.positions.length % 3 ||
++      part.indices.length % 3 ||
++      part.indices.some((i) => i >= part.positions.length / 3)
++    )
++      throw Error("Invalid or oversized triangle mesh.");
++    if (
++      part.positions.some(
++        (v, i) => v < scene.bounds.min[i % 3] - 0.01 || v > scene.bounds.max[i % 3] + 0.01,
++      )
++    )
++      throw Error("Part exceeds declared scene bounds.");
++    for (const ref of part.sourceRefs) {
++      const sheet = sheets.get(ref.page);
++      if (!sheet) throw Error("Part refers to an unavailable source sheet.");
++      const [l, t, r, b] = ref.region;
++      if (l < 0 || t < 0 || r <= l || b <= t || r > sheet.width || b > sheet.height)
++        throw Error("Source region is outside the original sheet.");
++      if (ref.trace?.some(([x, y]) => x < 0 || y < 0 || x > sheet.width || y > sheet.height))
++        throw Error("Source trace is outside the original sheet.");
++    }
++  }
++  return scene;
++}
++
++export async function sourceBytesMatch(
++  scene: SourceBuilding,
++  bytes: Uint8Array,
++  declaredSha256: string,
++): Promise<boolean> {
++  if (
++    !bytes.byteLength ||
++    bytes.byteLength > 100 * 1024 * 1024 ||
++    declaredSha256 !== scene.source.sha256
++  )
++    return false;
++  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes).buffer);
++  return (
++    Array.from(new Uint8Array(digest), (v) => v.toString(16).padStart(2, "0")).join("") ===
++    scene.source.sha256
++  );
++}
++
++export async function fetchBuildingBytes(
++  url: string,
++  limit: number,
++  signal?: AbortSignal,
++): Promise<Uint8Array> {
++  const response = await fetch(url, { signal });
++  if (!response.ok) throw Error(`Source asset could not be loaded (${response.status}).`);
++  if (Number(response.headers.get("content-length")) > limit)
++    throw Error("Source asset exceeds the supported size.");
++  const reader = response.body?.getReader();
++  if (!reader) throw Error("Source asset stream is unavailable.");
++  const chunks: Uint8Array[] = [];
++  let length = 0;
++  try {
++    while (true) {
++      const next = await reader.read();
++      if (next.done) break;
++      length += next.value.length;
++      if (length > limit) throw Error("Source asset exceeds the supported size.");
++      chunks.push(next.value);
++    }
++  } catch (error) {
++    await reader.cancel();
++    throw error;
++  }
++  const result = new Uint8Array(length);
++  let offset = 0;
++  for (const chunk of chunks) {
++    result.set(chunk, offset);
++    offset += chunk.length;
++  }
++  return result;
++}
+diff --git a/vite.config.ts b/vite.config.ts
+index 73cb79a..9d4b483 100644
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -151,7 +151,7 @@ export default defineConfig(({ command, isPreview }) => ({
+     port: 8080,
+     strictPort: true,
+     watch: {
+-      ignored: ["**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**"],
++      ignored: ["**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
+     },
+   },
+   preview: {
+diff --git a/proof/audit/IW-CURRENT-WORK/checkpoint-browser.mjs b/proof/audit/IW-CURRENT-WORK/checkpoint-browser.mjs
+new file mode 100644
+index 0000000..681d631
+--- /dev/null
++++ b/proof/audit/IW-CURRENT-WORK/checkpoint-browser.mjs
+@@ -0,0 +1,19 @@
++import {chromium} from 'playwright';
++import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
++import {createHash} from 'node:crypto';
++import {once} from 'node:events';
++import assert from 'node:assert/strict';
++import {serve,ROOT,readLedger,validate} from '../../../scripts/industry-ledger.mjs';
++const hash=b=>createHash('sha256').update(b).digest('hex'),stamp=new Date().toISOString().replaceAll(':','-').replaceAll('.','-'),out='proof/audit/IW-CURRENT-WORK/checkpoint-browser-'+stamp;
++mkdirSync(out,{recursive:true});const before=hash(readFileSync('planning/control/ledger.json'));
++const server=serve(ROOT,0,{scope:'historical'});await once(server,'listening');const url='http://127.0.0.1:'+server.address().port+'/',viewport={width:1440,height:1000};
++const browser=await chromium.launch({channel:'msedge',headless:true}),page=await browser.newPage({viewport}),errors=[],captures=[];
++page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
++const capture=async name=>{const path=out+'/'+name+'.png';await page.screenshot({path,fullPage:false});captures.push({path,url:page.url(),capturedAt:new Date().toISOString(),viewport,sha256:hash(readFileSync(path))});};
++try{
++ await page.goto(url,{waitUntil:'networkidle'});assert.match(await page.locator('.current-work').innerText(),/Caroline/);assert.equal(await page.locator('.current-work tbody tr').count(),8);assert.match(await page.locator('.current-work').innerText(),/push pending/);assert.match(await page.locator('body').innerText(),/HISTORICAL ASSESSMENT SNAPSHOT/);assert.equal(await page.locator('.feature-audit-row:visible').count(),150);const requirementLink=page.getByRole('link',{name:'Public requirements crosswalk - queued work'});const requirementResponse=await page.request.get(new URL(await requirementLink.getAttribute('href'),url).href);assert.equal(requirementResponse.status(),200);assert.match(await requirementResponse.text(),/SVG 2D export is currently absent/);await capture('current-work');
++ await page.locator('#search').fill('NEW-010');const row=page.locator('#audit-NEW-010');await row.scrollIntoViewIfNeeded();assert.match(await row.innerText(),/Recorded result/);const imgs=row.locator('img');assert.ok(await imgs.count()>0);for(const img of await imgs.all()){await img.scrollIntoViewIfNeeded();await img.evaluate(i=>i.decode());}await row.scrollIntoViewIfNeeded();await capture('historical-pdf-evidence');
++ const link=row.locator('a').first(),href=await link.getAttribute('href');assert.equal((await page.request.get(new URL(href,url).href)).status(),200);
++ await page.locator('#search').fill('');await page.locator('#status').selectOption('fail');assert.equal(await page.locator('.feature-audit-row:visible').count(),15);assert.deepEqual(errors,[]);assert.equal(hash(readFileSync('planning/control/ledger.json')),before);assert.equal(validate(readLedger(),ROOT,{scope:'historical'}).ok,true);
++ writeFileSync(out+'/results.json',JSON.stringify({at:new Date().toISOString(),url,viewport,captures,canonicalSha256:before,rows:150,failFilter:15,currentStages:8,sourceTarget:'Caroline',artifactLinkPassed:true,errors,desktopOnly:true,method:'Actual Edge browser capture; established Playwright fallback, no injected product state.',limitation:'Historical proof only. Current Caroline geometry and viewer remain in progress; no push has succeeded.'},null,2));console.log(out);
++}finally{await browser.close();await new Promise(r=>server.close(r));}

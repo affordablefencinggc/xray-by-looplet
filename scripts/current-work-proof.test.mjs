@@ -1,0 +1,45 @@
+import {test, after} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join, dirname, resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {CURRENT_INPUTS, currentPacketDigest, validateCurrentPacket, readCurrentProof} from './current-work-proof.mjs';
+
+const parent = realpathSync(tmpdir()), root = mkdtempSync(join(parent, 'xray-current-proof-'));
+const hash = b => createHash('sha256').update(b).digest('hex');
+function save(path, value) {const b = Buffer.isBuffer(value) ? value : Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)); mkdirSync(dirname(join(root,path)),{recursive:true}); writeFileSync(join(root,path),b); return {path,bytes:b.length,sha256:hash(b)};}
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', 'base64');
+let serial = 0;
+function fixture() {
+ const prefix = 'proof/audit/IW-CURRENT-WORK/fixture-' + serial++ + '/';
+ const inputs = CURRENT_INPUTS.map(path => save(path, 'Synthetic unit fixture: ' + path));
+ const packet = {schema:'xray.current-proof/v1',id:'IW-WIREFRAME',workIds:['IW-WIREFRAME'],author:'viewer-agent',status:'verified',inputs,diff:save(prefix+'code.patch','diff --git a/viewer b/viewer\n+proof fixture'),executions:[]};
+ for (const environment of ['dev','built']) {
+  const images = ['before','after'].map(phase=>save(prefix+environment+'-'+phase+'.png',png));
+  const captures = images.map((e,i)=>({...e,phase:i?'after':'before',kind:'application-ui',scenario:'Synthetic unit fixture',capturedAt:'2026-09-05T09:00:00Z',url:'http://127.0.0.1:8080/?pane=model',viewport:{width:1,height:1},sourceFiles:inputs}));
+  packet.executions.push({environment,report:save(prefix+environment+'.json',{environment,target:'caroline',origin:'http://127.0.0.1:8080',completedAt:'2026-09-05T09:01:00Z',inputs,results:[{status:'pass'}],errors:[],captures}),screenshots:images});
+ }
+ packet.review = save(prefix+'review.json',{schema:'xray.current-proof-review/v1',reviewer:'root',decision:'approved',reviewedAt:'2026-09-05T09:02:00Z',packetDigest:currentPacketDigest(packet),scenarios:['Synthetic unit fixture approval']});
+ return packet;
+}
+function changeReport(packet, change) {const e=packet.executions[0],r=JSON.parse(readFileSync(join(root,e.report.path)));change(r);e.report=save(e.report.path,r);}
+
+test('verified current packet requires exact sources, dev+built captures and independent review',()=>{const p=fixture(),v=validateCurrentPacket(p,root);assert.equal(v.verified,true);assert.equal(v.screenshots.length,4);assert.deepEqual(v.blockers,[]);});
+test('pending packet cannot promote missing production execution or review',()=>{const p=fixture();p.status='in progress';p.executions.pop();delete p.review;assert.deepEqual(validateCurrentPacket(p,root).blockers,['Missing built execution','Independent review pending']);p.status='verified';assert.throws(()=>validateCurrentPacket(p,root),/requires dev, built/);});
+test('missing development execution rejects verification',()=>{const p=fixture();p.executions.shift();delete p.review;assert.throws(()=>validateCurrentPacket(p,root),/requires dev, built/);});
+test('source mutation rejects even when historical proof exists elsewhere',()=>{const p=fixture();save(p.inputs[0].path,'tampered');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
+test('PNG mutation rejects',()=>{const p=fixture();save(p.executions[0].screenshots[0].path,'tampered');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
+test('raw report mutation rejects',()=>{const p=fixture();save(p.executions[0].report.path,'{}');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
+test('rebinding report metadata does not bypass independent review binding',()=>{const p=fixture();changeReport(p,r=>r.results.push({status:'pass'}));assert.throws(()=>validateCurrentPacket(p,root),/review is stale/);});
+test('review file mutation rejects',()=>{const p=fixture();save(p.review.path,'{}');assert.throws(()=>validateCurrentPacket(p,root),/Stale current proof/);});
+test('self review rejects despite recomputed review file hash',()=>{const p=fixture(),r=JSON.parse(readFileSync(join(root,p.review.path)));r.reviewer=p.author;p.review=save(p.review.path,r);assert.throws(()=>validateCurrentPacket(p,root),/independent approval/);});
+test('before screenshot cannot be relabelled as after without raw execution capture',()=>{const p=fixture();changeReport(p,r=>r.captures.forEach(c=>c.phase='before'));assert.throws(()=>validateCurrentPacket(p,root),/before\/after pair/);});
+test('capture source mismatch rejects even with rewritten report hash',()=>{const p=fixture();changeReport(p,r=>r.captures[0].sourceFiles[0].sha256='0'.repeat(64));assert.throws(()=>validateCurrentPacket(p,root),/input hashes differ/);});
+test('report environment mismatch rejects',()=>{const p=fixture();changeReport(p,r=>r.environment='built');assert.throws(()=>validateCurrentPacket(p,root),/environment or identity/);});
+test('failed browser result rejects',()=>{const p=fixture();changeReport(p,r=>r.results[0].status='fail');assert.throws(()=>validateCurrentPacket(p,root),/failed or missing results/);});
+test('missing required Python/source trace input rejects',()=>{const p=fixture();p.inputs.pop();assert.throws(()=>validateCurrentPacket(p,root),/Missing required/);});
+test('path traversal and duplicate source bindings reject',()=>{const p=fixture();p.diff.path='proof/audit/IW-CURRENT-WORK/../outside.patch';assert.throws(()=>validateCurrentPacket(p,root),/Unsafe/);const p2=fixture();p2.inputs.push(p2.inputs[0]);assert.throws(()=>validateCurrentPacket(p2,root),/duplicate current inputs/);});
+test('packet itself is hash-bound before loading',()=>{const p=fixture(),ref=save('proof/audit/IW-CURRENT-WORK/packet.json',p);assert.equal(readCurrentProof(root,ref).verified,true);save(ref.path,{...p,status:'in progress'});assert.throws(()=>readCurrentProof(root,ref),/Stale current proof/);});
+
+after(()=>{const path=resolve(root);assert.equal(dirname(path),parent);assert.ok(path.startsWith(join(parent,'xray-current-proof-')));rmSync(path,{recursive:true});});

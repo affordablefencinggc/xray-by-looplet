@@ -3,26 +3,9 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync, realpathSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inflateSync } from 'node:zlib';
-
-const pngCache=new Map();
-const crcTable=Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
-const crc32=bytes=>{let crc=0xffffffff;for(const byte of bytes)crc=crcTable[(crc^byte)&255]^(crc>>>8);return (crc^0xffffffff)>>>0;};
-export function validatePng(bytes,digest=hash(bytes)) {
- if(pngCache.has(digest))return pngCache.get(digest);
- if(bytes.length<57||bytes.length>32*1024*1024||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Error('Invalid PNG signature/size');
- let offset=8,width,height,channels,ended=false;const idat=[];
- while(offset<bytes.length){if(offset+12>bytes.length)throw Error('Truncated PNG');const length=bytes.readUInt32BE(offset),end=offset+12+length;if(end>bytes.length)throw Error('Truncated PNG chunk');const type=bytes.toString('ascii',offset+4,offset+8),body=bytes.subarray(offset+8,offset+8+length);if(crc32(bytes.subarray(offset+4,end-4))!==bytes.readUInt32BE(end-4))throw Error('Invalid PNG CRC');
-  if(offset===8&&type!=='IHDR')throw Error('Missing IHDR');
-  if(type==='IHDR'){if(width||length!==13)throw Error('Invalid IHDR');width=body.readUInt32BE(0);height=body.readUInt32BE(4);channels=({0:1,2:3,4:2,6:4})[body[9]];if(!width||!height||width>10000||height>100000||!channels||body[8]!==8||body[10]!==0||body[11]!==0||body[12]!==0)throw Error('Unsupported PNG dimensions/encoding');}
-  if(type==='IDAT')idat.push(body);
-  if(type==='IEND'){if(length||end!==bytes.length)throw Error('Invalid PNG ending');ended=true;}
-  offset=end;
- }
- const expected=height*(1+width*channels);if(!ended||!idat.length||expected>256*1024*1024)throw Error('PNG missing image or oversized decoded data');
- const decoded=inflateSync(Buffer.concat(idat),{maxOutputLength:expected});if(decoded.length!==expected)throw Error('Invalid PNG image length');for(let row=0;row<height;row++)if(decoded[row*(1+width*channels)]>4)throw Error('Invalid PNG filter');
- const dimensions={width,height};if(pngCache.size>=128)pngCache.clear();pngCache.set(digest,dimensions);return dimensions;
-}
+import {validatePng} from './proof-png.mjs';
+export {validatePng} from './proof-png.mjs';
+import {readCurrentProof} from './current-work-proof.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const LEDGER = 'planning/control/ledger.json';
@@ -199,13 +182,23 @@ export function readCurrentWork(root=ROOT) {
  const p=safePath(root,'planning/control/current-work.json'),info=statSync(p);
  if(!info.isFile()||info.size>65536)throw Error('Invalid current-work document');
  const data=JSON.parse(readFileSync(p,'utf8'));
- if(data.schema!=='xray.current-work/v1'||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.stages)||!Array.isArray(data.work)||data.stages.some(s=>!/^([a-f0-9]{40})$/.test(s.sha)||!s.title||!s.status)||data.work.some(w=>!w.id||!w.title||!['in progress','awaiting independent review','blocked'].includes(w.status)||!w.detail))throw Error('Invalid current-work metadata');
+ if(data.schema!=='xray.current-work/v1'||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.stages)||!Array.isArray(data.work)||data.stages.some(s=>!/^([a-f0-9]{40})$/.test(s.sha)||!s.title||!s.status)||data.work.some(w=>!w.id||!w.title||!['queued','in progress','awaiting independent review','blocked','verified'].includes(w.status)||!w.detail))throw Error('Invalid current-work metadata');
+ for(const work of data.work){
+  if(work.proof){try{work.proofValidation=readCurrentProof(root,work.proof);if(!work.proofValidation.packet.workIds.includes(work.id))throw Error('Packet does not cover this work');}catch(error){work.proofValidation={ok:false,error:String(error.message)};}}
+  if(work.status==='verified'&&(!work.proofValidation?.verified||!work.proofValidation?.ok))throw Error('Invalid current-work metadata: verified work requires matching current proof');
+ }
  if(data.requirements){const p='planning/handovers/IW-PUBLIC-REQUIREMENTS/crosswalk.md';if(data.requirements.path!==p||hash(readFileSync(safePath(root,p)))!==data.requirements.sha256)throw Error('Current requirements link is missing or stale');}
  return data;
 }
+export function currentProofView(work) {
+ const proof=work.proofValidation;if(!proof)return '';
+ if(!proof.ok)return '<p class="notice">Current evidence unavailable or stale. Review is pending; captures are withheld.</p>';
+ const href=path=>'/current-artifact?path='+encodeURIComponent(path);
+ return '<section class="proof-gallery" aria-label="Current execution proof"><h4>'+ (proof.verified?'Independently reviewed current execution':'Author-tested snapshot - independent acceptance pending')+'</h4><p>'+esc(proof.blockers.join(' | '))+'</p><p><a href="'+href(work.proof.path)+'">Exact proof packet</a></p><div class="proof-grid">'+proof.screenshots.map(c=>'<figure class="proof-shot"><a class="proof-image" href="'+href(c.path)+'"><img loading="lazy" src="'+href(c.path)+'" width="'+c.viewport.width+'" height="'+c.viewport.height+'" alt="'+esc(c.scenario)+'"></a><figcaption><strong>'+esc(c.environment+' - '+c.phase)+'</strong><p>'+esc(c.scenario)+'</p><p class="proof-meta">'+esc(c.url)+'<br>'+esc(c.capturedAt)+' | '+c.viewport.width+' x '+c.viewport.height+'</p></figcaption></figure>').join('')+'</div></section>';
+}
 export function currentWorkView(data) {
  if(!data)return '';
- return `<section class="notice current-work" aria-label="Current work"><p class="eyebrow">CURRENT WORK - UPDATED ${esc(data.updatedAt)}</p><h2>Building reconstruction and staged delivery</h2><p>${esc(data.deliveryStatus)}</p>${data.requirements?`<p>${link(data.requirements.path,'Public requirements crosswalk - queued work')}</p>`:''}<table><thead><tr><th>Commit</th><th>Reviewed delivery stage</th><th>Delivery state</th></tr></thead><tbody>${data.stages.map(s=>`<tr><td><code>${esc(s.sha.slice(0,7))}</code></td><td>${esc(s.title)}</td><td>${esc(s.status)}</td></tr>`).join('')}</tbody></table>${data.work.map(w=>`<article><h3>${esc(w.title)} - ${esc(w.status)}</h3><p>${esc(w.detail)}</p><small>Owner: ${esc(w.owner)}</small></article>`).join('')}<p><strong>${esc(data.historicalNotice)}</strong></p></section>`;
+ return `<section class="notice current-work" aria-label="Current work"><p class="eyebrow">CURRENT WORK - UPDATED ${esc(data.updatedAt)}</p><h2>Building reconstruction and staged delivery</h2><p>${esc(data.deliveryStatus)}</p>${data.requirements?`<p>${link(data.requirements.path,'Public requirements crosswalk - queued work')}</p>`:''}<table><thead><tr><th>Commit</th><th>Reviewed delivery stage</th><th>Delivery state</th></tr></thead><tbody>${data.stages.map(s=>`<tr><td><code>${esc(s.sha.slice(0,7))}</code></td><td>${esc(s.title)}</td><td>${esc(s.status)}</td></tr>`).join('')}</tbody></table>${data.work.map(w=>`<article><h3>${esc(w.title)} - ${esc(w.status)}</h3><p>${esc(w.detail)}</p><small>Owner: ${esc(w.owner)}</small>${currentProofView(w)}</article>`).join('')}<p><strong>${esc(data.historicalNotice)}</strong></p></section>`;
 }
 export function render(data, options={}) {
  const taskRows=data.tasks.map(t=>`<article class="task searchable" data-status="${esc(t.status)}" data-search="${esc([t.id,t.title,t.slice,t.owner,t.status].join(' ').toLowerCase())}" id="${esc(t.id)}"><div class="task-heading"><div><span class="eyebrow">${esc(t.id)} / ${esc(t.slice)}</span><h3>${esc(t.title)}</h3></div><span class="status">${esc(t.status)}</span></div><p>${esc(t.summary)}</p>${screenshotGallery(data,t.id)}<details><summary>Acceptance, dependencies & proof</summary><dl><dt>Owner / revision</dt><dd>${esc(t.owner)} / ${t.revision}</dd><dt>Depends on</dt><dd>${t.dependsOn.map(d=>`<a href="#${esc(d)}">${esc(d)}</a>`).join(', ') || 'None'}</dd><dt>Machine acceptance</dt><dd>${esc(t.acceptance.machine)}</dd><dt>Human acceptance</dt><dd>${esc(t.acceptance.human)}</dd><dt>Proof</dt><dd>${t.evidence.length?t.evidence.map(e=>link(e.path,e.kind)).join(' · '):'No submitted evidence. Independent verification pending.'}</dd></dl><label for="packet-${esc(t.id)}">Startup packet</label><textarea id="packet-${esc(t.id)}" readonly rows="7">${esc(startupPacket(data,t))}</textarea><button data-copy="packet-${esc(t.id)}">Copy startup packet</button></details></article>`).join('');
@@ -231,6 +224,7 @@ export function serve(root=ROOT,port=8097,options={}) {
    if(url.pathname==='/ledger.json')return send(200,JSON.stringify(data),'application/json');
    if(url.pathname==='/dashboard.css' || url.pathname==='/dashboard.js')return send(200,readFileSync(safePath(root,'planning/control'+url.pathname)),url.pathname.endsWith('.css')?'text/css':'text/javascript');
    if(url.pathname==='/historical') return send(200,`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Historical baseline · Xray</title><link rel="stylesheet" href="/dashboard.css"><main><p class="eyebrow">HISTORICAL BASELINE / READ ONLY</p><h1>Before the industry-wide tracker</h1><p>The existing mindmap below is preserved verbatim, including inherited checked items. This historical view is rendered for comparison; it is not a screenshot of a previously existing dashboard.</p><p>Baseline ${esc(data.baseline.commit)}. Historical checked claims require independent re-verification.</p><h2>Historical mindmap and completion claims</h2><pre id="historical-mindmap">${esc(readFileSync(safePath(root,MINDMAP),'utf8'))}</pre></main></html>`,'text/html; charset=utf-8');
+   if(url.pathname==='/current-artifact') {const path=url.searchParams.get('path'),work=readCurrentWork(root);const allowed=work.work.some(w=>w.proofValidation?.ok&&(w.proof.path===path||w.proofValidation.artifacts.some(a=>a.path===path)));if(!allowed)return send(404,'Current artifact not allowlisted or stale');return send(200,readFileSync(safePath(root,path)),path.endsWith('.png')?'image/png':'text/plain; charset=utf-8');}
    if(url.pathname==='/artifact') {const path=url.searchParams.get('path');const p=safePath(root,path);if(!artifactAllowed(path,data))return send(404,'Artifact not allowlisted');return send(200,readFileSync(p),path.endsWith('.png')?'image/png':'text/plain; charset=utf-8');}
    return send(404,'Not found');
   } catch {return send(400,'Invalid request or unavailable file');}

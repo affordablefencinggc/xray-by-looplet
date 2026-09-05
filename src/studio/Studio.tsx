@@ -5,6 +5,7 @@ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
 import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
 import { useStudio, type Pane } from "./store";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+import { SourceBuildingViewer } from "./SourceBuildingViewer";
 import { RenderStudio } from "./RenderStudio";
 import { CalibrationPanel } from "./CalibrationPanel";
 import { DocumentPreview } from "./DocumentPreview";
@@ -43,7 +44,9 @@ export function Studio() {
   const pageCount = activeDocument?.pageCount ?? 1;
 
   useEffect(() => {
-    void useStudio.getState().hydratePersistence();
+    void useStudio.getState().hydratePersistence().then(() => {
+      if (new URLSearchParams(window.location.search).get("pane") === "model") useStudio.getState().setPane("model");
+    });
   }, []);
 
   useEffect(() => {
@@ -131,7 +134,7 @@ export function Studio() {
 
       <div className="studio-modebar flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
         {s.pane === "model" && (
-          <>MODEL · local presentation wireframe</>
+          <>MODEL · source-linked architectural reconstruction</>
         )}
         {s.pane === "measure" && <>MEASURE · scale first · then length / area / count</>}
         {s.pane === "sketch" && <>SKETCH · manual traces only · never quantities</>}
@@ -143,9 +146,11 @@ export function Studio() {
         {s.pane === "proof" && <>PROOF · export the evidence pack</>}
       </div>
 
-      <div className={`studio-layout grid min-h-0 flex-1 ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
-        {!s.lifted && (
+      <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
+        {!s.lifted && s.pane !== "model" && (
           <aside className="studio-left-rail overflow-auto border-r border-line p-3">
+            <h2 className="kicker mb-2">Models</h2>
+            <button type="button" className="sheet-btn mb-4" onClick={() => s.setPane("model")}>Source building</button>
             <h2 className="kicker mb-2">
               Project sheets <span className="float-right">{pageCount}</span>
             </h2>
@@ -162,9 +167,11 @@ export function Studio() {
                 key={index}
                 type="button"
                 className={`sheet-btn ${s.sheet === index ? "active" : ""}`}
+                aria-label={`Open source page ${index + 1}`}
+                title={activeDocument?.name ?? "No source plan"}
                 onClick={() => s.setSheet(index)}
               >
-                {String(index + 1).padStart(2, "0")} {activeDocument?.name ?? "No source plan"}
+                {String(index + 1).padStart(2, "0")} {activeDocument ? `Sheet ${index + 1}` : "No source plan"}
               </button>
             ))}
             <h2 className="kicker mt-4">
@@ -182,7 +189,7 @@ export function Studio() {
           </aside>
         )}
 
-        <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
+        <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.pane === "model" ? "source-model-main" : ""} ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
           {!s.persistenceHydrated ? <HydrationState /> : (
             <>
               {s.persistenceError ? <IntegrityNotice title="Saved work needs attention" message={s.persistenceError} /> : null}
@@ -200,7 +207,7 @@ export function Studio() {
           )}
         </section>
 
-        {!s.lifted && !s.rightCollapsed && s.pane !== "measure" && <RightRail />}
+        {!s.lifted && !s.rightCollapsed && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
       </div>
 
       <footer className="studio-footer flex flex-wrap gap-3.5 border-t border-line px-3 py-1.5 font-mono text-[10px] tracking-wider text-muted">
@@ -524,36 +531,7 @@ function ComponentsPane() {
 }
 
 function ModelPane() {
-  const s = useStudio();
-  const verifiedPlan = s.activePlanBinary;
-  return (
-    <>
-      {!s.lifted && (
-        <>
-          <p className="max-w-prose text-muted">
-            Use the preserved wireframe canvas to inspect local presentation geometry. It does not establish source
-            qualification, semantic identity, quantities, or a render result.
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            <Stat k="Verified plan bytes" v={verifiedPlan ? "Ready" : "Missing"} n={verifiedPlan?.name ?? "No verified source loaded"} />
-            <Stat k="Viewer" v="Local" n="Presentation wireframe; not source evidence" />
-            <Stat k="Manual geometry" v={String(s.markups.length)} n="Recorded measurements and markers" />
-            <Stat k="Semantic model" v="Unavailable" n="No CAD/IFC object graph is connected" />
-          </div>
-        </>
-      )}
-      <div className={`relative min-h-[280px] flex-1 ${s.lifted ? "min-h-0" : ""}`}>
-        <Stage />
-      </div>
-      {!s.lifted && (
-        <p className="rounded-xl bg-card px-3 py-2.5 text-muted">
-          <b className="text-ink">Truth boundary:</b> this is an interactive local presentation wireframe, not a
-          qualified source model or semantic BIM reconstruction. Exact assemblies still need verified source objects
-          or explicit evidence.
-        </p>
-      )}
-    </>
-  );
+  return <SourceBuildingViewer />;
 }
 
 function Stage() {

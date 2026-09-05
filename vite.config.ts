@@ -151,7 +151,7 @@ export default defineConfig(({ command, isPreview }) => ({
     port: 8080,
     strictPort: true,
     watch: {
-      ignored: ["**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**"],
+      ignored: ["**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
     },
   },
   preview: {

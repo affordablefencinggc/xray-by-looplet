@@ -1,0 +1,9 @@
+﻿# IW-WIREFRAME standalone startup
+
+2026-09-05. User explicitly corrected the missing wireframe step after the shaded Caroline reconstruction. This slice adds actual architectural wireframe presentation and Python-generated vector exports. It uses the retained geometry agent thread, not a fresh-chat claim. Root owns orchestration/final approval; UI agent owns Three.js wireframe controls and browser proof. This agent owns the Python SVG exporter/tests, fixed public SVG outputs and its evidence.
+
+The input is the actual source-bound Caroline scene, SHA `f6baebcb3ab7a1a1add1596aec48f88fd339f143216d46c32000898b2358b835`, linked to PDF SHA `f62cf82411d5343fd67f2c51b9a0092d70c885c147f9e7b417a6204b4edf11eb`. It contains the corrected rear gable closure, 1,180 parts, 34 wall runs, 28 openings and two floors. Ruffles is historical and not the target.
+
+Agreed URLs with the UI agent: `/models/caroline/wireframe-axonometric.svg`, `/models/caroline/wireframe-ground.svg`, `/models/caroline/wireframe-upper.svg`. Exports contain native SVG vector paths, never PNGs or image embeds. Edge extraction drops internal coplanar triangle diagonals. X-ray hidden-edge policy includes concealed architectural edges; it is not a hidden-line technical drawing. Repetitive clapboard/louver marks, redundant flashing strips and room colour overlays are omitted explicitly for legibility. Part IDs, source references, both source hashes and metric projection metadata are retained.
+
+Geometry/source scene remains frozen during additive SVG work. No new dependencies, external services, credentials, database, staging or commits are needed. Acceptance requires parsed SVG structure, nonempty finite vector geometry, stable part IDs, known original mesh-edge preservation, diagonal suppression, source-hash rejection and visual review of actual exports. UI must separately prove its interactive wireframe mode and vector download behavior.
