@@ -1,13 +1,13 @@
 # X-Ray by Looplet — Verification Sweeper Ledger
-Generated: 2026-09-03T15:14:21.086Z
+Generated: 2026-09-05T04:00:42.039Z
 Mode: Single Sweep
 
 ## Workspace Health Snapshot
 - **Git Branch**: `feat/v1-production-ready`
 - **Conflict Markers**: ✅ None
-- **Git State**: 0 modified, 2 staged, 8 untracked
+- **Git State**: 0 modified, 1 staged, 10 untracked
 - **Relative Imports**: ✅ 100% resolved
-- **TODO Progress**: 85 / 85 (100%)
+- **TODO Progress**: 0 / 0 (0%)
 - **Active / In-Progress Tasks**: None
 - **FastMCP Tools**: engine_info, run_takeoff, quote_draft, run_takeoff_calibrated, marked_pdf, wireframe_scene
 - **Dev Server**: Online (8080)
@@ -21,9 +21,11 @@ _None detected._
 - `.claude/`
 - `.grok/skills/ledger/`
 - `engine/bin/`
+- `planning/handovers/`
+- `proof/audit/`
 - `scripts/chat-autopilot-cdp.cjs`
-- `scripts/verify-full-features.mjs`
-- `scripts/verify-real-spa.mjs`
+- `src/studio/construction/`
+- `startup.ps1`
 
 ## Active In-Progress Slices
 _None currently running._
