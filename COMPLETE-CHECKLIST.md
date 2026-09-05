@@ -65,3 +65,19 @@
 - Visual proof: `screenshots/current-flow-trace.png`, `screenshots/current-flow-takeoff.png`, and `screenshots/current-flow-mobile-calibration.png` were inspected.
 - Production proof: `screenshots/sc05-built-toolbar-final2.json` reports desktop/mobile 200, visible content, no overflow/errors, and no divergence; the same interaction audit and mobile toolbar geometry assertion pass against the built app.
 - Recovery reference: branch `feat/v1-production-ready`, commit pending review.
+
+## 2026-09-05T05:34:55.641Z — IW-023 visible local screenshot gallery (bounded)
+
+Independent reviewer /root/iw_sc02_contract approved; root inspected desktop/mobile.21 real local images decode per viewport, all image links200, no console errors/overflow;5 independent regressions and4 author gallery regressions pass after2 corrected findings. Code: proof/audit/IW-VERIFY-01/gallery-change-attempt02.patch SHA-256 6ba51455a42926d797807b9565d7aaf8af97a6128d054f89055ecb2a72a8ce0e. Screenshots: screenshots/industry-gallery-review/desktop-gallery-attempt-02.png and mobile-gallery-attempt-02.png, visibly embedded evidence in live tracker. Review: planning/handovers/IW-GALLERY-REVIEW/completion.md. Recovery branch feat/v1-production-ready, HEAD1bf54983bb3ff168358f4987c8481e8cc23fb760, dirty shared tree, no commit/stage/merge. Only gallery approved; no app/core/runtime/native completion inferred.
+
+## 2026-09-05T06:09:59.411Z — IW022 / NEW-006 / NEW-007 bounded runtime foundation
+
+Independent parent root executed12 real IndexedDB cases, reviewed source/API/harness and inspected desktop report. Accepted only declared create/open/list/archive/commands/CAS/snapshot/hash/corruption/abort cases. No app integration, migration, general eviction/backup or whole slice approval. Patch proof/audit/IW022/code.patch SHA-256 c9d6ffccaaa568edb48aee08e8784993f035cd6c9ee811e4d958c00a3d027fec; exact source/approval planning/handovers/IW022/root-review.json. Embedded screenshot proof/audit/IW-FULL-FEATURES/runtime-root/desktop.png, actual captured origin http://127.0.0.1:49804/. Branch feat/v1-production-ready; HEAD1bf54983bb3ff168358f4987c8481e8cc23fb760, dirty shared tree, no commit/stage/merge.
+
+## 2026-09-05T06:44:21.994Z — independently accepted bounded PDF and UI repairs
+
+NEW-010: root independently reviewed exact PDF source-outline module and tests, executed 14 tests plus 19 subtests with the wireframe suite and inspected original/generated desktop screenshots. Accepted partial 2D path presentation only, no semantic or quantity authority. Review proof/audit/IW-FULL-FEATURES/pdf-root-review/review.json; code diff proof/audit/IW-FULL-FEATURES/pdf-root-review/code.patch SHA-256 d3f206366804b348cbe6f85d2e49b9b1af6560b665f88b62e9d82e6bf62a36db. Actual execution report and source images are embedded in the canonical feature row.
+
+Six UI control/label repairs: root independently ran seven actual desktop cases and inspected Sketch, net length and reopened recipe proof. Review proof/audit/IW-FULL-FEATURES/repair-review/root-approval.json; source patch proof/audit/IW-UI-AUDIT/repair/code.patch SHA-256 4ca4e00898f1b57ab440d2cca9a81be68fa4e86bfdd90721cfd2497b9125e899. Capabilities focus/Escape, source-page/Sketch labels, Gate pointer priority, current net label and recipe reopening accepted only at this bounded case scope. Persistence, drag history, neutral UI and whole commercial features remain open.
+
+Recovery: adopted feat/v1-production-ready @ 1bf54983bb3ff168358f4987c8481e8cc23fb760, shared dirty tree; no commit, staging or merge.

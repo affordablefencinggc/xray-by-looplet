@@ -1,0 +1,23 @@
+actual-web-import: notimplemented
+Actual importPlanFile returned inspected original SVG bytes and takeoff:null. Native source independently also returns None; no extraction/wireframe invocation exists in the UI import flow.
+{"revision":{"id":"document-21d15139-82ae-4e8b-9676-e24fa1e22ce9","name":"plan.svg","kind":"svg","importedAt":"2026-09-05T06:19:28.269Z","pageCount":1,"sha256":"a606f3a6e56922f30e5e9fdddfa2f9722e515caaac79f6cfe41d576d2f67370b","source":"web"},"binary":{"documentId":"document-21d15139-82ae-4e8b-9676-e24fa1e22ce9","name":"plan.svg","kind":"svg","mimeType":"image/svg+xml","sizeBytes":95,"sha256":"a606f3a6e56922f30e5e9fdddfa2f9722e515caaac79f6cfe41d576d2f67370b","bytes":{"0":60,"1":115,"2":118,"3":103,"4":32,"5":120,"6":109,"7":108,"8":110,"9":115,"10":61,"11":34,"12":104,"13":116,"14":116,"15":112,"16":58,"17":47,"18":47,"19":119,"20":119,"21":119,"22":46,"23":119,"24":51,"25":46,"26":111,"27":114,"28":103,"29":47,"30":50,"31":48,"32":48,"33":48,"34":47,"35":115,"36":118,"37":103,"38":34,"39":32,"40":119,"41":105,"42":100,"43":116,"44":104,"45":61,"46":34,"47":49,"48":48,"49":48,"50":34,"51":32,"52":104,"53":101,"54":105,"55":103,"56":104,"57":116,"58":61,"59":34,"60":49,"61":48,"62":48,"63":34,"64":62,"65":60,"66":112,"67":97,"68":116,"69":104,"70":32,"71":100,"72":61,"73":34,"74":77,"75":48,"76":32,"77":48,"78":76,"79":49,"80":48,"81":48,"82":32,"83":49,"84":48,"85":48,"86":34,"87":47,"88":62,"89":60,"90":47,"91":115,"92":118,"93":103,"94":62}},"takeoff":null,"note":"SVG validated from file contents; 1 page."}
+
+actual-crm-handoff: notimplemented
+Actual bridge call refuses handoff and returns no URL. No authenticated transport or receipt is implemented.
+{"success":false,"url":null,"reason":"External handoff is unavailable until an authenticated server transport, idempotency key, and durable receipt are implemented."}
+
+actual-sync-boundary: notimplemented
+Actual queue creation throws; flush returns blocked with zero synced. This executes the compatibility boundary, not a server request.
+{"synced":0,"remaining":0,"blocked":true,"reason":"Sync is unavailable until an authenticated server transport and durable acknowledgement receipt are implemented."}
+
+tauri-frontend-entry: fail
+Tauri beforeBuildCommand selects the legacy Vite SPA config, whose default root index.html does not exist. Exact build execution is deferred to avoid replacing shared output; missing required entry is directly verified.
+{"command":"npx vite build --config vite.config.spa.ts","entryExists":false}
+
+sidecar-packaging-contract: fail
+Reviewed dry run exits0 after checking Python entry existence only. Tauri bundle has no externalBin and bundles Python source, not the frozen executable. No packaged sidecar was executed.
+{"externalBin":null,"resources":{"../engine/python":"engine/python"},"dryExit":0}
+
+auth-off-contract: notimplemented
+Authentication is explicitly off by user-approved project policy. Local actor attribution is not authenticated identity or tenancy.
+{"authEnabled":"false"}

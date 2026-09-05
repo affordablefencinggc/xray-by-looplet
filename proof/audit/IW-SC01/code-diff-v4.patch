@@ -1,0 +1,474 @@
+diff --git a/scripts/industry-ledger.mjs b/scripts/industry-ledger.mjs
+new file mode 100644
+index 0000000..b82a57d
+--- /dev/null
++++ b/scripts/industry-ledger.mjs
+@@ -0,0 +1,139 @@
++import { createHash } from 'node:crypto';
++import { createServer } from 'node:http';
++import { existsSync, readFileSync, realpathSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
++import { dirname, resolve, relative, isAbsolute, sep } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
++export const LEDGER = 'planning/control/ledger.json';
++export const STATES = ['queued','ready','running','blocked','awaiting-verification','verified','superseded','intentional-off'];
++export const HISTORICAL = ['XRAY-MASTER-LEDGER.md','SC07-BRIDGE-ACCEPTANCE.md','SC08-REVIEW-PROOF-ACCEPTANCE.md','SC09-PRICING-ACCEPTANCE.md','SC10-SC13-SC16-INTEGRATION-RELEASE-ACCEPTANCE.md','SC11-SC12-DESKTOP-CONTINUITY-ACCEPTANCE.md','planning/residual-acceptance-product.md','planning/residual-acceptance-engine.md','planning/residual-acceptance-release.md'];
++const MINDMAP='XRAY-TOPDOWN-MINDMAP-TODO.md';
++export const hash = value => createHash('sha256').update(value).digest('hex');
++export function safePath(root, path) {
++  if (typeof path !== 'string' || !path || path.includes('\\') || path.includes(':') || path.includes('%') || path.split('/').some(p => !p || p === '.' || p === '..') || isAbsolute(path)) throw Error('Unsafe relative path');
++  const result = resolve(root, path);
++  const rel = relative(realpathSync(root), existsSync(result) ? realpathSync(result) : result);
++  if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) throw Error('Path escapes repository');
++  return result;
++}
++export const readLedger = (root = ROOT) => JSON.parse(readFileSync(safePath(root, LEDGER), 'utf8'));
++export function sliceStatus(tasks) {
++ if(tasks.length && tasks.every(t=>['verified','superseded','intentional-off'].includes(t.status))) return tasks.some(t=>t.status==='verified')?'verified':'intentional-off';
++ for(const status of ['blocked','running','awaiting-verification','ready'])if(tasks.some(t=>t.status===status))return status;
++ return 'queued';
++}
++export function inputDigest(task, root = ROOT) {
++  return hash(JSON.stringify((task.inputs ?? []).map(p => [p, hash(readFileSync(safePath(root, p)))])));
++}
++export function validate(data, root = ROOT) {
++  const errors = [];
++  const fail = s => errors.push(s);
++  if (data.schemaVersion !== 1) fail('schemaVersion must be 1');
++  if (data.approval?.quote !== 'Implement the plan.') fail('Missing exact approval');
++  if (!Array.isArray(data.slices) || !Array.isArray(data.tasks) || !Array.isArray(data.inventory?.features) || !Array.isArray(data.inventory?.acceptance)) return {ok:false,errors:[...errors,'Missing required collections']};
++  const sliceIds = data.slices.map(x => x.id);
++  if (JSON.stringify(sliceIds) !== JSON.stringify(Array.from({length:10},(_,i)=>`IW-SC${String(i+1).padStart(2,'0')}`))) fail('Expected IW-SC01 through IW-SC10');
++  const taskMap = new Map(data.tasks.map(t => [t.id,t]));
++  if(taskMap.size !== data.tasks.length) fail('Duplicate task ID');
++  if(!Array.isArray(data.coverage) || !Array.isArray(data.decisions) || !Array.isArray(data.externalQueue))fail('Coverage, decisions and externalQueue arrays required');
++  for(const task of data.tasks) if(!Array.isArray(task.scope) || !task.scope.length || !Array.isArray(task.evidence) || !Array.isArray(task.inputs) || !task.startupHandover || !task.completionHandover)fail(`${task.id}: scope, evidence, inputs and handover paths required`);
++  if(errors.length)return {ok:false,errors};
++  if(new Set(data.coverage.map(c=>c.id)).size!==data.coverage.length)fail('Duplicate industry acceptance ID');
++  for(const row of data.coverage)if(!row.id || !taskMap.has(row.task) || !row.machine || !row.human)fail('Industry coverage requires ID, task and machine/human acceptance');
++  const expectedInventory={features:new Map(),acceptance:new Map()};
++  for(const source of HISTORICAL) {
++    try {readFileSync(safePath(root,source),'utf8').split(/\r?\n/).forEach((text,index)=>{
++      const match=text.match(/^\| ([A-Z]+-\d{3}) \|/);
++      if(match)expectedInventory[source===HISTORICAL[0]?'features':'acceptance'].set(match[1],{source,line:index+1});
++    });}catch{fail(`Missing historical inventory source: ${source}`);}
++  }
++  for(const [name,rows,count] of [['features',data.inventory.features,139],['acceptance',data.inventory.acceptance,359]]) {
++    if(rows.length !== count || new Set(rows.map(r=>r.id)).size !== count) fail(`Expected ${count} unique ${name}`);
++    if(JSON.stringify(rows.map(r=>r.id).sort())!==JSON.stringify([...expectedInventory[name].keys()].sort()))fail(`${name}: exact source-derived ID set required`);
++    for(const row of rows) {
++      const expected=expectedInventory[name].get(row.id);
++      if(!expected || expected.source!==row.source || expected.line!==row.line)fail(`${row.id}: wrong inventory category or source binding`);
++      if(!sliceIds.includes(row.slice) || !['provisional','reconciled'].includes(row.mapping)) fail(`${row.id}: invalid mapping`);
++      try { const lines=readFileSync(safePath(root,row.source),'utf8').split(/\r?\n/); if(!HISTORICAL.includes(row.source) || lines[row.line-1] !== row.text || !row.text.startsWith(`| ${row.id} |`)) fail(`${row.id}: stale source row`); } catch {fail(`${row.id}: missing source`);}
++    }
++  }
++  for(const source of data.inventory.sources ?? []) {
++    try {if(!HISTORICAL.includes(source.path) || hash(readFileSync(safePath(root,source.path)))!==source.sha256) fail(`Stale inventory source: ${source.path}`);} catch {fail('Missing inventory source');}
++  }
++  if(JSON.stringify((data.inventory.sources ?? []).map(s=>s.path).sort())!==JSON.stringify([...HISTORICAL].sort())) fail('Inventory source manifest must contain each exact source path once');
++  const entities = [...data.slices,...data.tasks];
++  const all = new Map(entities.map(t=>[t.id,t]));
++  for(const entity of entities) {
++    if(!STATES.includes(entity.status)) fail(`${entity.id}: invalid status`);
++    if(!entity.title || !Array.isArray(entity.dependsOn)) { fail(`${entity.id}: missing title/dependencies`); continue; }
++    for(const dep of entity.dependsOn) {
++      if(!all.has(dep) || dep===entity.id) fail(`${entity.id}: unknown/self dependency ${dep}`);
++      if((entity.status==='verified' || (taskMap.has(entity.id) && ['ready','running'].includes(entity.status))) && all.get(dep)?.status !== 'verified') fail(`${entity.id}: dependency not verified: ${dep}`);
++    }
++    if(entity.status==='blocked' && !entity.blocker) fail(`${entity.id}: blocked requires reason`);
++    if(['superseded','intentional-off'].includes(entity.status) && !entity.disposition) fail(`${entity.id}: disposition required`);
++    if(entity.status==='superseded' && !all.has(entity.replacedBy)) fail(`${entity.id}: replacement required`);
++  }
++  function visit(id, stack=new Set()) {if(stack.has(id)){fail(`Dependency cycle: ${id}`);return;} const next=new Set(stack).add(id); for(const dep of all.get(id)?.dependsOn ?? []) if(all.has(dep)) visit(dep,next);}
++  for(const id of all.keys()) visit(id);
++  for(const task of data.tasks) {
++    if(!sliceIds.includes(task.slice) || !task.owner || !task.acceptance?.machine || !task.acceptance?.human || !Number.isInteger(task.revision) || task.revision<1) fail(`${task.id}: incomplete task contract`);
++    for(const path of [...task.inputs,...task.evidence.map(x=>x.path),task.startupHandover,task.completionHandover]) {try{safePath(root,path);}catch{fail(`${task.id}: unsafe path`);}}
++    if(task.status !== 'verified') continue;
++    if(!(task.inputs?.length)) fail(`${task.id}: verified requires input files`);
++    let digest; try{digest=inputDigest(task,root);}catch{fail(`${task.id}: inputs missing`);}
++    for(const path of [task.startupHandover,task.completionHandover])try{const info=statSync(safePath(root,path));if(!info.isFile() || !info.size)fail(`${task.id}: empty or non-file handover`);}catch{fail(`${task.id}: handover missing`);}
++    const required = task.visual ? ['patch','executed','before','before-mobile','after-desktop','after-mobile'] : ['patch','executed'];
++    for(const kind of required) if(!task.evidence?.some(e=>e.kind===kind)) fail(`${task.id}: missing ${kind} evidence`);
++    for(const evidence of task.evidence ?? []) {
++      try {const p=safePath(root,evidence.path); if(!statSync(p).isFile() || !statSync(p).size || hash(readFileSync(p))!==evidence.sha256 || evidence.revision!==task.revision || evidence.inputDigest!==digest) fail(`${task.id}: stale evidence ${evidence.kind}`);}catch{fail(`${task.id}: evidence missing`);}
++    }
++    const review=task.review;
++    if(!review || review.reviewer===task.owner || !review.reviewer || review.decision!=='approved' || review.revision!==task.revision || review.inputDigest!==digest || !review.reviewedAt || !Number.isFinite(Date.parse(review.reviewedAt))) fail(`${task.id}: fresh independent approval required`);
++    else {try{const path=safePath(root,review.path);const info=statSync(path);if(!info.isFile() || !info.size || hash(readFileSync(path))!==review.sha256) fail(`${task.id}: empty, non-file or stale review attachment`);}catch{fail(`${task.id}: review attachment missing`);}}
++  }
++  for(const slice of data.slices) {if(slice.status!==sliceStatus(data.tasks.filter(t=>t.slice===slice.id)))fail(`${slice.id}: slice status must derive from tasks`);if(slice.status==='verified' && (!data.tasks.some(t=>t.slice===slice.id) || data.tasks.some(t=>t.slice===slice.id && !['verified','intentional-off','superseded'].includes(t.status)))) fail(`${slice.id}: unfinished tasks`);}
++  if(data.slices.find(s=>s.id==='IW-SC10')?.status==='verified' && [...data.inventory.features,...data.inventory.acceptance].some(r=>r.mapping!=='reconciled')) fail('Release requires complete historical reconciliation');
++  return {ok:errors.length===0,errors,counts:{slices:data.slices.length,tasks:data.tasks.length,features:data.inventory.features.length,acceptance:data.inventory.acceptance.length,verified:data.tasks.filter(t=>t.status==='verified').length}};
++}
++const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++const link = (path,label) => `<a href="/artifact?path=${encodeURIComponent(path)}">${esc(label)}</a>`;
++export function startupPacket(data, task) {return `Task ${task.id}: ${task.title}\nAuthorization: "${data.approval.quote}"\nBranch: ${data.baseline.branch}\nBaseline: ${data.baseline.commit}\nLatest recorded workspace observation: ${JSON.stringify(data.workspaceObservation)}\nRe-run git branch --show-current, git rev-parse HEAD and git status --short; recorded dirty files are observations, not a clean-tree claim.\nOwner: ${task.owner}\nScope: ${task.scope.join(', ')}\nDependencies: ${task.dependsOn.join(', ') || 'none'}\nCurrent state: ${task.status}\nStartup handover: ${task.startupHandover}\nCompletion handover: ${task.completionHandover}\nMachine exit: ${task.acceptance.machine}\nHuman exit: ${task.acceptance.human}\nRead AGENTS.md, any AGENTS.project.md, .agents/skills/ledger/SKILL.md, planning/control/ledger.json and planning/control/README.md. Check branch and dirty state. Write your startup handover before changes. Preserve unknown files. No self-verification, commits, migrations, autopilot or sweeper. Only the assigned ledger writer updates canonical state. Deliver patch, input hashes, executed output, before/after screenshots where meaningful, and completion handover for independent review.\nScope: all construction trades; universal count/length/area/volume; AUD; local-first browser and Windows x64; no auth/database; fencing optional.`;}
++export function render(data) {
++ const taskRows=data.tasks.map(t=>`<article class="task searchable" data-status="${esc(t.status)}" data-search="${esc([t.id,t.title,t.slice,t.owner,t.status].join(' ').toLowerCase())}" id="${esc(t.id)}"><div class="task-heading"><div><span class="eyebrow">${esc(t.id)} / ${esc(t.slice)}</span><h3>${esc(t.title)}</h3></div><span class="status">${esc(t.status)}</span></div><p>${esc(t.summary)}</p><details><summary>Acceptance, dependencies & proof</summary><dl><dt>Owner / revision</dt><dd>${esc(t.owner)} / ${t.revision}</dd><dt>Depends on</dt><dd>${t.dependsOn.map(d=>`<a href="#${esc(d)}">${esc(d)}</a>`).join(', ') || 'None'}</dd><dt>Machine acceptance</dt><dd>${esc(t.acceptance.machine)}</dd><dt>Human acceptance</dt><dd>${esc(t.acceptance.human)}</dd><dt>Proof</dt><dd>${t.evidence.length?t.evidence.map(e=>link(e.path,e.kind)).join(' · '):'No submitted evidence. Independent verification pending.'}</dd></dl><label for="packet-${esc(t.id)}">Startup packet</label><textarea id="packet-${esc(t.id)}" readonly rows="7">${esc(startupPacket(data,t))}</textarea><button data-copy="packet-${esc(t.id)}">Copy startup packet</button></details></article>`).join('');
++ return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Industry-wide delivery ledger · Xray</title><link rel="stylesheet" href="/dashboard.css"><script src="/dashboard.js" defer></script></head><body><a class="skip" href="#main">Skip to ledger</a><header><a class="brand" href="/">XRAY <span>DELIVERY CONTROL</span></a><span class="local">Local · read only</span></header><main id="main"><div class="intro"><p class="eyebrow">INDUSTRY-WIDE / SOURCE TO VERIFIED ESTIMATE</p><h1>Industry-wide delivery</h1><p>Universal count, length, area and volume. Proven trade packs extend the core. Fencing is optional.</p></div><div class="stats"><div><strong>${data.slices.length}</strong><span>Delivery slices</span></div><div><strong>${data.inventory.features.length}</strong><span>Preserved features</span></div><div><strong>${data.inventory.acceptance.length}</strong><span>Acceptance rows</span></div><div><strong>${data.tasks.filter(t=>t.status==='verified').length} / ${data.tasks.length}</strong><span>Verified tasks</span></div></div><p class="notice">Historical mapping is provisional. Imported completion claims are not verification. Canonical state lives in repository files; this dashboard cannot change it.</p><nav aria-label="Ledger views">${['tasks','dependencies','decisions','inventory','external','handover'].map((n,i)=>`<button data-view="${n}" aria-pressed="${!i}">${n[0].toUpperCase()+n.slice(1)}</button>`).join('')}</nav><div class="filters"><label>Search ledger<input id="search" type="search" placeholder="Task, trade, source or decision"></label><label>Task status<select id="status"><option value="all">All statuses</option>${STATES.map(s=>`<option>${s}</option>`).join('')}</select></label></div><p id="result-count" role="status" aria-live="polite"></p><section data-panel="tasks" aria-label="Tasks">${taskRows}</section><section data-panel="dependencies" aria-label="Dependencies" hidden><h2>Delivery sequence</h2>${data.slices.map(s=>`<article class="searchable" data-search="${esc((s.id+' '+s.title).toLowerCase())}" id="${s.id}"><span class="eyebrow">${s.id} · ${s.status}</span><h3>${esc(s.title)}</h3><p>${esc(s.summary)}</p><p>Depends on: ${s.dependsOn.join(', ')||'None'}</p><p>Machine: ${esc(s.acceptance.machine)}</p><p>Human: ${esc(s.acceptance.human)}</p></article>`).join('')}</section><section data-panel="decisions" aria-label="Decisions" hidden><h2>Recorded decisions</h2>${data.decisions.map(d=>`<article class="searchable" data-search="${esc((d.id+' '+d.title+' '+d.detail).toLowerCase())}"><span class="eyebrow">${esc(d.id)} · ${esc(d.status)}</span><h3>${esc(d.title)}</h3><p>${esc(d.detail)}</p></article>`).join('')}</section><section data-panel="inventory" aria-label="Historical inventory" hidden><h2>Nothing silently dropped</h2><p>Every original row remains attached to its exact source line. Reconciliation is a separate open task.</p>${[...data.inventory.features,...data.inventory.acceptance].map(r=>`<article class="inventory-row searchable" data-search="${esc((r.id+' '+r.text+' '+r.slice).toLowerCase())}"><strong>${esc(r.id)}</strong><span>${esc(r.text.split('|')[2].trim())}</span><small>${r.slice} · ${r.mapping} · ${link(r.source,`source line ${r.line}`)}</small></article>`).join('')}</section><section data-panel="external" aria-label="External queue" hidden><h2>External dependencies</h2>${data.externalQueue.map(q=>`<article class="searchable" data-search="${esc((q.id+' '+q.title+' '+q.reason).toLowerCase())}"><span class="eyebrow">${esc(q.id)} · ${esc(q.status)}</span><h3>${esc(q.title)}</h3><p>${esc(q.reason)}</p><p>Owner: ${esc(q.owner)} · Blocks: ${esc(q.blocks.join(', '))}</p></article>`).join('')}</section><section data-panel="handover" aria-label="Handover" hidden><h2>Resume with the files</h2><p>Single ledger writer: ${esc(data.writer)}. Updates require a reviewable file diff and validation. Reload this page after file updates.</p><p>${link('planning/control/README.md','Operating contract')} · ${link('planning/handovers/IW-SC01/startup.md','SC01 startup handover')} · ${link('INDUSTRY-WIDE-TODO.md','Live to-do')} · <a href="/historical">Historical baseline</a> · <a href="/ledger.json">Canonical JSON</a></p><p>Authorization recorded verbatim: “${esc(data.approval.quote)}”</p><p>Baseline: ${esc(data.baseline.branch)} @ ${esc(data.baseline.commit)}</p><p>Default decisions: AUD · existing visual system · local-first browser / Windows x64 · auth/database off.</p></section><p id="copy-result" role="status" aria-live="polite"></p></main><footer>Generated from planning/control/ledger.json · ${esc(data.updatedAt)} · Not part of the deployed application</footer></body></html>`;
++}
++export function artifactAllowed(path,data) {
++ const explicit=new Set([...HISTORICAL,MINDMAP,'planning/control/README.md','planning/handovers/IW-SC01/startup.md','INDUSTRY-WIDE-TODO.md','INDUSTRY-WIDE-LEDGER.md']);
++ for(const t of data.tasks) {for(const e of t.evidence ?? []) if(/^(proof\/audit\/IW-[A-Z0-9-]+\/|screenshots\/industry-ledger\/|planning\/handovers\/IW-[A-Z0-9-]+\/)/.test(e.path)) explicit.add(e.path); if(t.review?.path?.startsWith('planning/handovers/'))explicit.add(t.review.path);}
++ return explicit.has(path) && /\.(md|json|txt|log|patch|png)$/.test(path);
++}
++export function serve(root=ROOT,port=8097) {
++ const server=createServer((req,res)=>{
++  const headers={'X-Content-Type-Options':'nosniff','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"};
++  const send=(code,body,type='text/plain; charset=utf-8')=>{res.writeHead(code,{...headers,'Content-Type':type});res.end(body);};
++  if(req.method!=='GET' && req.method!=='HEAD') return send(405,'Read only');
++  if(req.headers.host!==`127.0.0.1:${server.address().port}` && req.headers.host!==`localhost:${server.address().port}`) return send(403,'Invalid host');
++  if(req.headers.origin && ![`http://127.0.0.1:${server.address().port}`,`http://localhost:${server.address().port}`].includes(req.headers.origin))return send(403,'Invalid origin');
++  try {
++   const url=new URL(req.url,'http://127.0.0.1'); const data=readLedger(root); const verdict=validate(data,root);
++   if(!verdict.ok) return send(503,JSON.stringify(verdict));
++   if(url.pathname==='/favicon.ico')return send(204,'');
++   if(url.pathname==='/')return send(200,render(data),'text/html; charset=utf-8');
++   if(url.pathname==='/ledger.json')return send(200,JSON.stringify(data),'application/json');
++   if(url.pathname==='/dashboard.css' || url.pathname==='/dashboard.js')return send(200,readFileSync(safePath(root,'planning/control'+url.pathname)),url.pathname.endsWith('.css')?'text/css':'text/javascript');
++   if(url.pathname==='/historical') return send(200,`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Historical baseline · Xray</title><link rel="stylesheet" href="/dashboard.css"><main><p class="eyebrow">HISTORICAL BASELINE / READ ONLY</p><h1>Before the industry-wide tracker</h1><p>The existing mindmap below is preserved verbatim, including inherited checked items. This historical view is rendered for comparison; it is not a screenshot of a previously existing dashboard.</p><p>Baseline ${esc(data.baseline.commit)}. Historical checked claims require independent re-verification.</p><h2>Historical mindmap and completion claims</h2><pre id="historical-mindmap">${esc(readFileSync(safePath(root,MINDMAP),'utf8'))}</pre></main></html>`,'text/html; charset=utf-8');
++   if(url.pathname==='/artifact') {const path=url.searchParams.get('path');const p=safePath(root,path);if(!artifactAllowed(path,data))return send(404,'Artifact not allowlisted');return send(200,readFileSync(p),path.endsWith('.png')?'image/png':'text/plain; charset=utf-8');}
++   return send(404,'Not found');
++  } catch {return send(400,'Invalid request or unavailable file');}
++ });
++ server.listen(port,'127.0.0.1',()=>console.log(`Industry ledger: http://127.0.0.1:${server.address().port}`));return server;
++}
++if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
++ const command=process.argv[2];
++ if(command==='validate'){const result=validate(readLedger());console.log(JSON.stringify(result,null,2));process.exitCode=result.ok?0:1;}
++ else if(command==='render'){const data=readLedger();const result=validate(data);if(!result.ok){console.error(JSON.stringify(result));process.exitCode=1;}else{const out=safePath(ROOT,'planning/control/index.html');mkdirSync(dirname(out),{recursive:true});const html=render(data);writeFileSync(out,html);writeFileSync(safePath(ROOT,'planning/control/dashboard.html'),html);console.log('Rendered planning/control/index.html and dashboard.html alias');}}
++ else if(command==='serve'){const port=Number(process.argv[3]??8097);if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Port must be 1024–65535');serve(ROOT,port);}
++ else {console.error('Usage: node scripts/industry-ledger.mjs validate|render|serve [port]');process.exitCode=1;}
++}
+diff --git a/scripts/industry-ledger-seed.mjs b/scripts/industry-ledger-seed.mjs
+new file mode 100644
+index 0000000..b201a19
+--- /dev/null
++++ b/scripts/industry-ledger-seed.mjs
+@@ -0,0 +1,46 @@
++// One-time bootstrap. Refuses to replace canonical state.
++import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
++import { dirname, resolve } from 'node:path';
++import { ROOT, LEDGER, HISTORICAL, hash, sliceStatus } from './industry-ledger.mjs';
++if(existsSync(resolve(ROOT,LEDGER))) throw Error('Ledger already exists; edit canonical JSON through the assigned writer');
++const titles=['Baseline and delivery tracker','Trade-neutral contracts','Source transforms and alignment','Durability and lifecycle','Universal takeoff','Quantities, review and proven packs','Estimates and proof','Desktop and continuity','Integration and security','Release and reconciliation'];
++const summaries=['Preserve the historical roadmap, expose truthful state, and require fresh independent proof.','Freeze canonical source, geometry, measurement, quantity, review, cost and pack contracts for every trade.','Bind every source revision, crop, rotation, calibration and overlay to a deterministic transform.','Preserve job state through reopen, invalid data, cancellation and atomic deletion.','Create count, length, area and volume measurements using shared units and provenance.','Compile reviewed quantities through isolated versioned packs; fencing is an optional extension.','Produce auditable AUD estimates with explicit rate, waste, tax and provenance assumptions.','Deliver local-first browser and Windows x64 lifecycle, CLI host commands and continuity.','Exercise bridge boundaries, offline work, integration surfaces and security without adding auth/database.','Reconcile all inherited requirements, validate full workflows and prove release readiness.'];
++const ids=titles.map((_,i)=>`IW-SC${String(i+1).padStart(2,'0')}`);
++const slices=titles.map((title,i)=>({id:ids[i],title,summary:summaries[i],status:i===0?'running':'queued',dependsOn:i===0?[]:[ids[i-1]],acceptance:{machine:`Deterministic ${title.toLowerCase()} checks pass with fresh file hashes, patch and execution logs.`,human:`Independent reviewer executes the ${title.toLowerCase()} acceptance flow and inspects meaningful before/after evidence.`}}));
++const task=(id,slice,title,summary,owner,scope,dependsOn=[],visual=true)=>({id,slice,title,summary,owner,scope,dependsOn,status:id==='IW-001'?'running':'queued',revision:1,visual,inputs:[],evidence:[],review:null,acceptance:{machine:'Named deterministic checks, negative cases and changed-file diff check pass; record exact commands, output and file hashes.',human:'Independent reviewer reproduces behavior; inspect before and desktop/mobile after screenshots where meaningful; no self-verification.'}});
++const tasks=[
++ task('IW-001',ids[0],'Build the file-backed delivery tracker','Read-only local dashboard, strict evidence gates, dependency views, historical index and startup packets.','iw_sc01_tracker',['planning/control/**','scripts/industry-ledger*.mjs','planning/handovers/IW-SC01/**','proof/audit/IW-SC01/**','screenshots/industry-ledger/**','INDUSTRY-WIDE-LEDGER.md','INDUSTRY-WIDE-TODO.md']),
++ task('IW-002',ids[0],'Reconcile the 139 features and 359 acceptance rows','Preserve each original ID and line, then independently approve its new slice, scope and disposition. No inherited done claim becomes verified.','unassigned',['planning/control/ledger.json'],['IW-001'],false),
++ task('IW-003',ids[0],'Reproduce the runtime baseline','Capture current UI and exact build/typecheck/runtime gates. Record pre-existing failures without repairing unrelated code.','audit_engine_release',['startup.sh','startup.ps1','planning/handovers/runtime-baseline/**','proof/audit/runtime-baseline/**']),
++ task('IW-004',ids[1],'Freeze source-to-estimate contracts','Shared construction contracts: source identity, transform, measurements, units, quantities, review, estimates and pack capabilities.','iw_sc02_contract',['src/studio/construction/**','contracts/construction/**','planning/industry-contract.md'],[],false),
++ task('IW-005',ids[2],'Reproduce and repair overlay/source alignment','Inspect crop/rotation/page origin and calibration transforms; test the overlay against actual visible source landmarks.','unassigned',['assignment required: source/preview/calibration boundaries'],['IW-004']),
++ task('IW-006',ids[3],'Reproduce recipe reopen loss','Open, edit, persist and reopen optional pack recipes; prove the same source-bound recipe returns.','unassigned',['assignment required: recipe persistence'],['IW-004']),
++ task('IW-007',ids[3],'Reproduce corrupt recipe overwrite','Inject corrupt recipe state and prove recovery cannot silently overwrite valid work or claim a successful save.','unassigned',['assignment required: recipe persistence'],['IW-006']),
++ task('IW-008',ids[3],'Reproduce photo deletion atomicity','Photo, evidence references and saved job must remain consistent across successful deletion and failure rollback.','unassigned',['assignment required: evidence lifecycle'],['IW-004']),
++ task('IW-009',ids[3],'Reproduce pending BOM cancellation','Cancel or change job/source during compile; stale pending results must not overwrite the active job.','unassigned',['assignment required: BOM lifecycle'],['IW-004']),
++ task('IW-010',ids[4],'Implement universal count and length','Source-bound counting and calibrated length with unit conversion, editing and persisted proof.','unassigned',['assignment required: takeoff tools'],['IW-005']),
++ task('IW-011',ids[4],'Implement universal area and volume','Reviewed areas, openings and explicit depth assumptions compile to canonical area/volume quantities.','unassigned',['assignment required: takeoff tools'],['IW-010']),
++ task('IW-012',ids[5],'Bind quantities to review and provenance','Every quantity has source revision, geometry, unit and review lineage; stale review blocks verified estimates.','unassigned',['assignment required: quantity/review'],['IW-011']),
++ task('IW-013',ids[5],'Prove isolated trade packs','Versioned capability registry isolates pack failures; prove multiple trades with fencing optional and no trade-specific core defaults.','unassigned',['assignment required: pack registry'],['IW-012']),
++ task('IW-014',ids[6],'Build auditable AUD estimates','Explicit rates, tax, waste, exclusions and revision binding; deterministic rounding and source-to-line proof.','unassigned',['assignment required: estimate compiler/UI'],['IW-012']),
++ task('IW-015',ids[6],'Export and reopen verified estimate proof','Outputs remain bound to exact source, takeoff, rates and review; stale or missing evidence rejects verified state.','unassigned',['assignment required: estimate proof'],['IW-014']),
++ task('IW-016',ids[7],'Reproduce missing CLI host commands','Inventory documented versus executable host commands and prove implemented commands on Windows x64.','unassigned',['assignment required: engine/host CLI'],['IW-004'],false),
++ task('IW-017',ids[7],'Prove desktop and local continuity','Browser and Windows x64 project reopen, offline work, worker restart and sidecar lifecycle preserve state.','unassigned',['assignment required: desktop/continuity'],['IW-016','IW-009']),
++ task('IW-018',ids[8],'Reproduce stale evidence and unsafe automation','Audit stale proof acceptance and unsafe autopilot/sweeper behavior by inspection and bounded tests; do not execute unsafe automation.','unassigned',['assignment required: proof/security'],['IW-001'],false),
++ task('IW-019',ids[8],'Prove integration and security boundaries','Validate allowlists, input bounds and actual bridge behavior without auth/database activation or external writes.','unassigned',['assignment required: integration/security'],['IW-018','IW-017']),
++ task('IW-020',ids[9],'Run the industry-wide release proof','Full source→measurement→quantity→review→AUD estimate workflow, multiple construction trades, desktop/mobile and Windows x64.','unassigned',['assignment required: release proof'],['IW-002','IW-013','IW-015','IW-019']),
++];
++tasks[0].acceptance={machine:'node --test scripts/industry-ledger.test.mjs passes missing/stale evidence, status misuse, dependency, path traversal, method/host/origin and allowlist cases; validate and render pass; full inventory preserved.',human:'Inspect historical before and new desktop/mobile screenshots; execute search, status filtering, view changes, proof navigation and startup copy; independent reviewer approval required.'};
++// SC02 contract discovery can proceed alongside SC01; verified slice order remains enforced.
++tasks[3].status='running';
++const sourceRecords=HISTORICAL.map(path=>({path,sha256:hash(readFileSync(resolve(ROOT,path)))}));
++function classify(id){const p=id.split('-')[0];return ({UI:ids[7],SITE:ids[1],TRACE:ids[4],TAKE:ids[5],QUOTE:ids[6],DATA:ids[3],ENG:ids[2],MCP:ids[8],DESK:ids[7],WEB:ids[7],CI:ids[9],CRM:ids[8],SYNC:ids[7],SEC:ids[8],OFF:ids[7],AUTH:ids[8],COLLAB:ids[8],INT:ids[8],REL:ids[9],LEG:ids[8],BR:ids[1],RP:ids[5],PR:ids[6],IR:ids[8],DC:ids[7],FC:ids[9]})[p]??ids[9];}
++const features=[],acceptance=[];
++for(const source of HISTORICAL)readFileSync(resolve(ROOT,source),'utf8').split(/\r?\n/).forEach((text,i)=>{const m=text.match(/^\| ([A-Z]+-\d{3}) \|/);if(!m)return; const row={id:m[1],source,line:i+1,text,slice:classify(m[1]),mapping:'provisional',disposition:'retained; reconcile scope and acceptance before release'}; (source===HISTORICAL[0]?features:acceptance).push(row);});
++const data={schemaVersion:1,title:'Industry-wide source-to-verified-estimate delivery',updatedAt:new Date().toISOString(),writer:'iw_sc01_tracker; future writes only by explicit parent assignment',approval:{quote:'Implement the plan.',recordedBy:'parent task packet',recordedAt:new Date().toISOString(),note:'Timestamp records ledger entry, not the time the user originally spoke.'},baseline:{branch:'feat/v1-production-ready',commit:'7ba4a14d1eccdcde1cfc15293adbf08918524c4f'},slices,tasks,inventory:{sources:sourceRecords,features,acceptance,reconciliationTask:'IW-002'},decisions:[{id:'DEC-001',status:'accepted',title:'All construction trades',detail:'Source to verified estimate with count, length, area and volume. Proven trade packs extend neutral contracts; fencing is optional.'},{id:'DEC-002',status:'accepted',title:'Routine defaults',detail:'Keep the existing visual system. AUD. Local-first browser and Windows x64. Authentication and database remain off.'},{id:'DEC-003',status:'accepted',title:'Proof before verified',detail:'Fresh patch and executed proof, screenshots where meaningful, and independent reviewer approval. Imported historical completion labels are not trusted proof.'},{id:'DEC-004',status:'accepted',title:'One canonical ledger writer',detail:'Root orchestrates only. Assigned agents write bounded handovers; only the assigned ledger writer edits planning/control/ledger.json. No dashboard status mutation.'},{id:'DEC-005',status:'exception-recorded',title:'Runtime audit thread reuse',detail:'Parent reports two fresh-agent spawn attempts rejected by the thread limit; retained audit_engine_release is reused only for startup/runtime baseline. Its startup packet, not old conversation, is authoritative.'}],externalQueue:[{id:'EXT-001',title:'Independent verification of tracker',status:'queued',owner:'parent-assigned independent reviewer',blocks:['IW-001'],reason:'Implementer submits evidence and completion handover; independent reviewer must reproduce gates before verified.'},{id:'EXT-002',title:'Representative trade/source corpus',status:'queued',owner:'parent/domain reviewer',blocks:['IW-013','IW-020'],reason:'Use owned representative plans across multiple trades; record gaps and provenance. No unlicensed or fabricated real-job claims.'},{id:'EXT-003',title:'Windows release signing and external integrations',status:'queued',owner:'parent/release owner',blocks:['IW-020'],reason:'Any unavailable signing credentials or external integration proof remain explicit release dependencies; no secrets requested or created by tracker.'}]};
++data.coverage=[];
++data.workspaceObservation={at:new Date().toISOString(),note:'Bootstrap only: record git branch, HEAD and dirty state before beginning work.'};
++for(const t of data.tasks){t.startupHandover=`planning/handovers/${t.slice}/${t.id}-startup.md`;t.completionHandover=`planning/handovers/${t.slice}/${t.id}-completion.md`;}
++data.tasks[0].startupHandover='planning/handovers/IW-SC01/startup.md';data.tasks[0].completionHandover='planning/handovers/IW-SC01/completion.md';
++for(const s of data.slices)s.status=sliceStatus(data.tasks.filter(t=>t.slice===s.id));
++mkdirSync(dirname(resolve(ROOT,LEDGER)),{recursive:true});writeFileSync(resolve(ROOT,LEDGER),JSON.stringify(data,null,2)+'\n');console.log(`Seeded ${features.length} features, ${acceptance.length} acceptance rows and ${tasks.length} tasks. No tasks verified.`);
+diff --git a/scripts/industry-ledger.test.mjs b/scripts/industry-ledger.test.mjs
+new file mode 100644
+index 0000000..2817c7e
+--- /dev/null
++++ b/scripts/industry-ledger.test.mjs
+@@ -0,0 +1,27 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
++import { request } from 'node:http';
++import { once } from 'node:events';
++import { ROOT, readLedger, validate, safePath, hash, inputDigest, render, serve, artifactAllowed, sliceStatus } from './industry-ledger.mjs';
++const fresh=()=>structuredClone(readLedger());
++const rejects=(mutate,pattern)=>{const d=fresh();mutate(d);const v=validate(d);assert.equal(v.ok,false);assert.match(v.errors.join('\n'),pattern);};
++test('canonical inventory preserves 139 features and 359 acceptance rows',()=>{const result=validate(fresh());assert.equal(result.ok,true,JSON.stringify(result));assert.equal(result.counts.features,139);assert.equal(result.counts.acceptance,359);assert.equal(result.counts.verified,0);});
++test('missing historical row and stale source text fail',()=>{rejects(d=>d.inventory.features.pop(),/139 unique/);rejects(d=>d.inventory.acceptance[0].text='invented',/stale source row/);});
++test('feature cannot be replaced by a real acceptance row with equal counts',()=>rejects(d=>{d.inventory.features[0]=structuredClone(d.inventory.acceptance[0]);},/exact source-derived ID set required/));
++test('duplicate manifest path cannot replace a required source with equal counts',()=>rejects(d=>{d.inventory.sources[d.inventory.sources.length-1]=structuredClone(d.inventory.sources[0]);},/each exact source path once/));
++test('status misuse and dependency bypass fail',()=>{rejects(d=>d.tasks[0].status='done',/invalid status/);rejects(d=>d.tasks[1].status='ready',/dependency not verified/);rejects(d=>d.tasks[0].status='blocked',/blocked requires reason/);rejects(d=>d.tasks[0].status='intentional-off',/disposition required/);rejects(d=>d.tasks[0].status='superseded',/replacement required/);});
++test('cycles fail closed',()=>rejects(d=>{d.tasks[0].dependsOn=['IW-002'];},/Dependency cycle/));
++test('missing verified evidence and independent review fail',()=>rejects(d=>d.tasks[0].status='verified',/missing patch evidence[\s\S]*fresh independent approval/));
++test('stale evidence and self-review fail',()=>rejects(d=>{const t=d.tasks[0];t.status='verified';t.inputs=['scripts/industry-ledger.mjs'];t.evidence=[{kind:'patch',path:'scripts/industry-ledger.mjs',sha256:'stale',revision:0,inputDigest:'stale'}];t.review={reviewer:t.owner,decision:'approved'};},/stale evidence[\s\S]*fresh independent approval/));
++test('valid attachment structure accepts independent nonvisual verification',()=>{const d=fresh(),t=d.tasks[0];const path='scripts/industry-ledger.mjs';t.visual=false;t.inputs=[path];t.startupHandover=path;t.completionHandover=path;t.status='verified';for(const s of d.slices)s.status=sliceStatus(d.tasks.filter(t=>t.slice===s.id));const digest=inputDigest(t);const sha256=hash(readFileSync(safePath(ROOT,path)));t.evidence=['patch','executed'].map(kind=>({kind,path,sha256,revision:t.revision,inputDigest:digest}));t.review={reviewer:'independent-test-fixture',decision:'approved',reviewedAt:new Date().toISOString(),path,sha256,revision:t.revision,inputDigest:digest};assert.equal(validate(d).ok,true);t.review.inputDigest='old';assert.equal(validate(d).ok,false);});
++test('malformed task collections fail cleanly rather than crash',()=>{rejects(d=>delete d.tasks[0].scope,/scope/);rejects(d=>delete d.tasks[0].evidence,/evidence/);rejects(d=>delete d.coverage,/Coverage/);});
++test('zero-byte independently attributed review cannot verify a task',()=>{const reviewPath='proof/audit/IW-SC01/empty-review-test.txt';writeFileSync(reviewPath,'');try{rejects(d=>{const t=d.tasks[0],path='scripts/industry-ledger.mjs';t.visual=false;t.inputs=[path];t.startupHandover=path;t.completionHandover=path;t.status='verified';const digest=inputDigest(t);t.evidence=['patch','executed'].map(kind=>({kind,path,sha256:hash(readFileSync(path)),revision:t.revision,inputDigest:digest}));t.review={reviewer:'independent-test-fixture',decision:'approved',reviewedAt:new Date().toISOString(),path:reviewPath,sha256:hash(''),revision:t.revision,inputDigest:digest};for(const s of d.slices)s.status=sliceStatus(d.tasks.filter(t=>t.slice===s.id));},/empty, non-file or stale review attachment/);}finally{unlinkSync(reviewPath);}});
++test('path traversal and alternate encodings are rejected',()=>{for(const p of ['../package.json','/package.json','C:/secret','planning\\control\\ledger.json','planning/control/../../.env','planning/%2e%2e/.env','planning//control'])assert.throws(()=>safePath(ROOT,p));rejects(d=>d.tasks[0].inputs=['../secret'],/unsafe path/);});
++test('artifact allowlist excludes repo source and secrets',()=>{const d=fresh();assert.equal(artifactAllowed('package.json',d),false);assert.equal(artifactAllowed('.env',d),false);assert.equal(artifactAllowed('planning/control/README.md',d),true);d.tasks[0].evidence.push({path:'package.json'});assert.equal(artifactAllowed('package.json',d),false);});
++test('HTML escapes ledger strings and avoids localStorage state',()=>{const d=fresh();d.tasks[0].title='<script>alert(1)</script>';const html=render(d);assert.ok(html.includes('&lt;script&gt;'));assert.ok(!html.includes('<script>alert'));assert.ok(!readFileSync(safePath(ROOT,'planning/control/dashboard.js'),'utf8').includes('localStorage'));});
++test('read-only HTTP server rejects traversal, unknown files, wrong host/origin and writes',async()=>{
++ const server=serve(ROOT,0);await once(server,'listening');const port=server.address().port;
++ const get=(path,method='GET',headers={})=>new Promise((resolve,reject)=>{const req=request({host:'127.0.0.1',port,path,method,headers},res=>{let body='';res.on('data',x=>body+=x);res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body}));});req.on('error',reject);req.end();});
++ try{assert.equal((await get('/')).status,200);assert.equal((await get('/ledger.json')).status,200);assert.equal((await get('/','POST')).status,405);assert.equal((await get('/','GET',{Host:'evil.test'})).status,403);assert.equal((await get('/','GET',{Origin:'https://evil.test'})).status,403);assert.equal((await get('/artifact?path=..%2Fpackage.json')).status,400);assert.equal((await get('/artifact?path=package.json')).status,404);assert.equal((await get('/.env')).status,404);const file=await get('/artifact?path=planning%2Fcontrol%2FREADME.md');assert.equal(file.status,200);assert.match(file.headers['content-security-policy'],/frame-ancestors 'none'/);assert.equal(file.headers['x-content-type-options'],'nosniff');}finally{await new Promise(r=>server.close(r));}
++});
+diff --git a/scripts/industry-ledger-ui.mjs b/scripts/industry-ledger-ui.mjs
+new file mode 100644
+index 0000000..4a8f871
+--- /dev/null
++++ b/scripts/industry-ledger-ui.mjs
+@@ -0,0 +1,49 @@
++// Documented browser-qa fallback: CUA and agent-browser unavailable in this session.
++import { chromium } from 'playwright';
++import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
++import { ROOT, hash, safePath } from './industry-ledger.mjs';
++const base='http://127.0.0.1:8097';
++const revision=process.argv[2] || 'v3';
++if(!/^[a-z0-9-]+$/.test(revision))throw Error('Safe proof revision required');
++mkdirSync(safePath(ROOT,'screenshots/industry-ledger'),{recursive:true});
++mkdirSync(safePath(ROOT,'proof/audit/IW-SC01'),{recursive:true});
++const report={at:new Date().toISOString(),tool:'installed Playwright fallback',limitation:'BROWSER-TOOL-01: CUA trusted Node process exited twice; agent-browser unavailable',historicalMindmapSha256:hash(readFileSync(safePath(ROOT,'XRAY-TOPDOWN-MINDMAP-TODO.md'))),viewports:{},interactions:[]};
++const browser=await chromium.launch({headless:true,channel:'msedge'});
++try{
++ for(const [name,width,height] of [['desktop',1280,900],['mobile',390,844]]){
++  const context=await browser.newContext({viewport:{width,height},permissions:['clipboard-read','clipboard-write']});
++  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
++  await page.goto(base+'/historical');await page.locator('#historical-mindmap').waitFor();
++  // Scroll the source's preserved checked completion claims into the capture.
++  await page.evaluate(()=>window.scrollTo(0,760));
++  await page.screenshot({path:safePath(ROOT,`screenshots/industry-ledger/before-${revision}-${name}.png`)});
++  await page.goto(base);await page.getByRole('heading',{name:'Industry-wide delivery'}).waitFor();
++  await page.screenshot({path:safePath(ROOT,`screenshots/industry-ledger/after-${revision}-${name}.png`)});
++  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
++  if(overflow)throw Error(name+' horizontal overflow');
++  const search=page.getByRole('searchbox');
++  await search.fill('corrupt recipe');
++  if(await page.locator('[data-panel="tasks"] .task:visible').count()!==1)throw Error('Task search failed');
++  await search.fill('no-such-task');await page.getByText('0 tasks shown — try a different search or status.').waitFor();
++  await search.fill('');await page.getByLabel('Task status').selectOption('verified');
++  if(await page.locator('[data-panel="tasks"] .task:visible').count()!==0)throw Error('Initial tasks incorrectly verified');
++  await page.getByLabel('Task status').selectOption('all');
++  await page.getByRole('button',{name:'Dependencies',exact:true}).click();await page.getByRole('heading',{name:'Delivery sequence'}).waitFor();
++  await page.getByRole('button',{name:'Decisions',exact:true}).click();await page.getByRole('heading',{name:'All construction trades',exact:true}).waitFor();
++  await page.getByRole('button',{name:'Inventory',exact:true}).click();await search.fill('BR-001');
++  if(await page.locator('[data-panel="inventory"] .inventory-row:visible').count()<1)throw Error('Inventory search failed');
++  await search.fill('');await page.getByRole('button',{name:'External',exact:true}).click();await page.getByRole('heading',{name:'Independent verification of tracker'}).waitFor();
++  await page.getByRole('button',{name:'Handover',exact:true}).click();await page.getByRole('link',{name:'Operating contract'}).click();await page.waitForURL('**/artifact?path=planning%2Fcontrol%2FREADME.md');
++  if(!(await page.locator('body').innerText()).includes('Industry-wide delivery control'))throw Error('Proof/handbook navigation failed');
++  await page.goto(base);await page.locator('#IW-001 summary').click();await page.locator('#IW-001 button[data-copy]').click();
++  await page.getByText('Startup packet copied.',{exact:true}).waitFor();
++  const copied=await page.evaluate(()=>navigator.clipboard.readText());if(!copied.includes('Task IW-001') || !copied.includes('Startup handover:'))throw Error('Clipboard packet mismatch');
++  await page.locator('#IW-001').scrollIntoViewIfNeeded();await page.screenshot({path:safePath(ROOT,`screenshots/industry-ledger/task-${revision}-${name}.png`)});
++  if(errors.length)throw Error(name+' browser errors: '+errors.join('; '));
++  report.viewports[name]={width,height,visibleContent:true,horizontalOverflow:overflow,consoleErrors:errors,screenshots:[`before-${revision}-${name}.png`,`after-${revision}-${name}.png`,`task-${revision}-${name}.png`]};
++  report.interactions.push(`${name}: task search, empty state, status filtering, dependencies, decisions, inventory, external queue, handover link, packet copy passed`);
++  await context.close();
++ }
++ report.ok=true;
++}catch(error){report.ok=false;report.error=String(error);process.exitCode=1;}
++finally{await browser.close();writeFileSync(safePath(ROOT,`proof/audit/IW-SC01/browser-${revision}.json`),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));}
+diff --git a/planning/control/dashboard.css b/planning/control/dashboard.css
+new file mode 100644
+index 0000000..784730a
+--- /dev/null
++++ b/planning/control/dashboard.css
+@@ -0,0 +1,4 @@
++:root{--bg:#ebe4d4;--paper:#f2ede3;--ink:#1c1812;--muted:#6b6256;--line:#d4cbb8;--accent:#356bb6;--space:8px;--radius:8px;--sans:'IBM Plex Sans','Segoe UI',sans-serif;--mono:'IBM Plex Mono',Consolas,monospace}
++*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans)}a{color:var(--accent);text-underline-offset:3px}button,input,select,textarea{font:inherit}button,summary{cursor:pointer}button,input,select{min-height:44px}button,input,select,textarea{border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;background:var(--paper);color:var(--ink)}button:hover,button[aria-pressed=true]{background:var(--ink);color:var(--paper)}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}header{padding:24px 5%;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{color:var(--ink);text-decoration:none;font-size:24px;font-weight:600;letter-spacing:-1px}.brand span{display:inline-block;margin-left:16px;font:12px var(--mono);letter-spacing:1px;color:var(--muted)}.local{font:12px var(--mono);color:var(--muted)}main{max-width:1200px;margin:auto;padding:48px 32px}.intro{max-width:760px;margin-bottom:32px}.eyebrow{font:12px/1.5 var(--mono);letter-spacing:1px;color:var(--muted)}h1{font-size:48px;line-height:1.1;font-weight:500;letter-spacing:-2px;margin:16px 0 24px}h2{font-size:28px;font-weight:500}h3{font-size:20px;line-height:1.3;margin:8px 0;font-weight:600}p{margin:12px 0;color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:24px 0;gap:24px}.stats strong{font-size:32px;font-weight:500;display:block}.stats span{color:var(--muted);font-size:14px}.notice{padding:16px 0;font-size:14px;max-width:920px}nav{display:flex;gap:8px;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid var(--line)}.filters{display:grid;grid-template-columns:1fr 240px;gap:24px;padding-top:24px}label{display:block;font-size:14px;font-weight:500}input,select,textarea{display:block;width:100%;margin-top:8px}#result-count{font:12px var(--mono);margin:24px 0}article{padding:24px 0;border-bottom:1px solid var(--line)}.task-heading{display:flex;justify-content:space-between;gap:24px}.status{font:12px/1.4 var(--mono);padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);height:fit-content;white-space:nowrap}details{margin-top:16px}summary{min-height:44px;display:list-item;padding:8px 0;color:var(--accent)}dl{display:grid;grid-template-columns:180px 1fr;gap:12px 24px;background:var(--paper);padding:24px;border-radius:var(--radius)}dt{color:var(--muted);font-size:14px}dd{margin:0;overflow-wrap:anywhere}textarea{font:12px/1.5 var(--mono);resize:vertical;margin-bottom:12px}.inventory-row{display:grid;grid-template-columns:90px 1fr;gap:8px 24px}.inventory-row small{grid-column:2;color:var(--muted)}pre{font:12px/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;padding:24px;background:var(--paper)}footer{max-width:1200px;margin:auto;padding:32px;color:var(--muted);font:12px/1.5 var(--mono)}[hidden]{display:none!important}.skip{position:absolute;top:8px;left:8px;transform:translateY(-200%);background:var(--paper);padding:12px;z-index:2}.skip:focus{transform:none}
++header{padding-top:16px;padding-bottom:16px}main{padding-top:24px}.intro{margin-bottom:16px}.intro h1{font-size:32px;letter-spacing:-1px;margin:8px 0}.intro p{margin:8px 0}.stats{padding:16px 0}.stats strong{font-size:24px}.notice{padding:8px 0;margin:8px 0}nav{padding:8px 0}.filters{padding-top:16px}#result-count{margin:16px 0}article{padding:16px 0}
++@media(max-width:640px){header{padding:12px 24px}.brand span{display:block;margin:4px 0 0;font-size:10px}.local{font-size:10px}main{padding:16px 24px}.intro h1{font-size:26px;letter-spacing:-1px}.intro p{font-size:14px}.eyebrow{font-size:10px}.stats{grid-template-columns:repeat(4,1fr);gap:12px}.stats strong{font-size:22px}.stats span{font-size:11px;line-height:1.3;display:block}.notice{font-size:12px}.filters{grid-template-columns:1fr;gap:12px}.task-heading{display:block}.status{display:inline-block;margin-top:8px}dl{grid-template-columns:1fr;gap:8px;padding:16px}dd{margin-bottom:12px}.inventory-row{grid-template-columns:1fr}.inventory-row small{grid-column:1}nav button{flex:1 0 auto;font-size:14px}footer{padding:24px;overflow-wrap:anywhere}}
+diff --git a/planning/control/dashboard.js b/planning/control/dashboard.js
+new file mode 100644
+index 0000000..fb578aa
+--- /dev/null
++++ b/planning/control/dashboard.js
+@@ -0,0 +1,26 @@
++const search=document.querySelector('#search');
++const status=document.querySelector('#status');
++let active='tasks';
++function filter(){
++ const panel=document.querySelector(`[data-panel="${active}"]`);
++ let count=0;
++ for(const row of panel.querySelectorAll('.searchable')){
++  row.hidden=!(row.dataset.search.includes(search.value.trim().toLowerCase()) && (active!=='tasks' || status.value==='all' || row.dataset.status===status.value));
++  if(!row.hidden)count++;
++ }
++ document.querySelector('#result-count').textContent=active==='handover'?'Handover instructions':`${count} ${active==='inventory'?'historical rows':active} shown${count===0?' — try a different search or status.':''}`;
++}
++for(const button of document.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{
++ active=button.dataset.view;
++ for(const b of document.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b===button));
++ for(const panel of document.querySelectorAll('[data-panel]'))panel.hidden=panel.dataset.panel!==active;
++ status.disabled=active!=='tasks';
++ filter();
++});
++search.addEventListener('input',filter);status.addEventListener('change',filter);
++for(const button of document.querySelectorAll('[data-copy]'))button.addEventListener('click',async()=>{
++ const field=document.getElementById(button.dataset.copy);
++ try{await navigator.clipboard.writeText(field.value);document.querySelector('#copy-result').textContent='Startup packet copied.';}
++ catch{field.focus();field.select();document.querySelector('#copy-result').textContent='Packet selected. Use your copy command.';}
++});
++filter();
+diff --git a/planning/control/README.md b/planning/control/README.md
+new file mode 100644
+index 0000000..961bd27
+--- /dev/null
++++ b/planning/control/README.md
+@@ -0,0 +1,29 @@
++# Industry-wide delivery control
++
++This is a local read-only tracker outside the deployed product. `ledger.json` is the sole authoritative state; HTML is generated. No localStorage, HTTP writes, auth, database, package changes or deployment route is added.
++
++Run from the repository: `node scripts/industry-ledger.mjs validate`, `node scripts/industry-ledger.mjs render`, `node scripts/industry-ledger.mjs serve` (127.0.0.1:8097). Run tests with `node --test scripts/industry-ledger.test.mjs`. The renderer is the build gate for this standalone Node/HTML surface. Product build/typecheck gates remain owned by the runtime baseline worker; the package build includes migrations and is intentionally not run by this tracker task.
++
++The server serves only its generated dashboard, the canonical JSON, two fixed assets, historical baseline and explicit proof attachments. It validates the ledger on each request, binds loopback, rejects non-GET/HEAD requests, checks Host/Origin, rejects traversal and symlink escapes, sends no-store/nosniff and a restrictive CSP. It does not expose arbitrary source files, directories or secrets. Never move these files into the public app.
++
++## State and ownership
++
++Only the parent-assigned ledger writer edits JSON. Implementers produce their own startup/completion handovers and request an update through the parent. JSON updates are reviewed file diffs, never dashboard toggles. `queued`, `ready`, `running`, `blocked`, `awaiting-verification`, `verified`, `superseded`, `intentional-off` are the only states. Ready/running/verified tasks require verified declared dependencies. Blocked requires a reason; superseded requires a replacement and disposition; intentional-off requires an explicit disposition. Slice verification requires all tasks closed with valid disposition. The current contract discovery task may run independently of SC01; later slice verification still follows the declared slice dependency chain.
++
++No task begins verified. Submitted evidence moves implemented work to awaiting-verification. A separate reviewer must reproduce its gate and attach a review before a writer can mark verified. The validator rejects missing or stale inputs, patch, executed output, before/desktop/mobile captures for visual tasks, self-review, missing review attachments, invalid states, missing inventory rows and dependency misuse. SHA-256 integrity proves attachment consistency, not that an agent's assertion is true; the independent reviewer must inspect the content and reproduce behavior.
++
++For verification, task `inputs` names the exact implementation files. `inputDigest` is SHA-256 of JSON-serialized `[path, SHA-256(file bytes)]` pairs in that order. Every evidence record has `kind`, `path`, `sha256`, `revision`, `inputDigest`. Review has `reviewer`, `decision: approved`, `path`, `sha256`, `reviewedAt`, `revision`, `inputDigest`. Any input edit invalidates all prior records. Do not include the ledger, evidence itself or generated dashboard HTML as an input: this creates self-referential hashes. Review attachments remain local files; the dashboard only links safe explicit artifact paths.
++
++## Scope and historical reconciliation
++
++All construction trades. Source→verified estimate. Universal count/length/area/volume. Optional proven packs; fencing is not the core. AUD. Existing cream/charcoal visual language. Local-first browser and Windows x64. Auth/database off.
++
++All 139 historical feature IDs and 359 acceptance rows are retained verbatim with exact source line and source hash. These are frozen baseline counts, not a cap on industry-wide work: the separate `coverage` collection adds new task-bound machine/human acceptance rows. Prefix-based historical assignments are provisional indexing, not a completed crosswalk. IW-002 must reconcile individual semantics, owning slice, acceptance, removal/supersession and explicit off decisions. Historical checked items and claims remain untrusted until fresh proof; originals are untouched. Release validation rejects any provisional row.
++
++## Fresh-agent startup packet
++
++Read AGENTS.md, any AGENTS.project.md, ledger skill, this file, `ledger.json`, and the assigned task handovers. Check current branch/HEAD and dirty files. Confirm the named owner, exact allowed files, dependencies and acceptance. Write startup handover before edits. Never overwrite unknown files, use git add -A, create worktrees/commits, run migrations or unsafe autopilot/sweeper. Root orchestrates only. Submit exact files, commands, outputs, hashes, before/after captures and patch in completion handover. Request independent verification via parent. Do not self-verify or change another worker's scope. The dashboard's per-task Copy startup packet button supplies the current assignment.
++
++## Known capability limitation
++
++BROWSER-TOOL-01: CUA getState failed twice with trusted Node process unexpectedly exiting; agent-browser was unavailable (PowerShell script policy, then absent package/cache EPERM). Per browser-qa fallback, installed Playwright is used to execute UI interactions and persist desktop/mobile screenshots. This limits the live supported-browser glimpse, not the saved executed proof. Runtime baseline thread reuse was explicitly assigned after two fresh spawn rejections; DEC-005 records that exception.
+diff --git a/INDUSTRY-WIDE-LEDGER.md b/INDUSTRY-WIDE-LEDGER.md
+new file mode 100644
+index 0000000..de715be
+--- /dev/null
++++ b/INDUSTRY-WIDE-LEDGER.md
+@@ -0,0 +1,22 @@
++# Industry-wide delivery ledger
++
++Approved: user said **"Implement the plan."** Baseline: `feat/v1-production-ready` at `7ba4a14d1eccdcde1cfc15293adbf08918524c4f`. No branch created or committed by this slice. Existing master ledgers are preserved.
++
++Canonical state: [planning/control/ledger.json](planning/control/ledger.json). Operating contract: [planning/control/README.md](planning/control/README.md). Local tracker: http://127.0.0.1:8097/. This markdown is a navigation summary, not a second state store.
++
++Goal: all construction trades, source to verified estimate, universal count/length/area/volume, optional proven packs. AUD, existing visual system, local-first browser and Windows x64, no auth/database.
++
++| Slice | Scope |
++| --- | --- |
++| IW-SC01 | Baseline, file-backed tracker and historical reconciliation |
++| IW-SC02 | Neutral source, geometry, measurement, quantity, review and estimate contracts |
++| IW-SC03 | Source transforms and overlay alignment |
++| IW-SC04 | Durability, reopen, corruption, atomic deletion and cancellation |
++| IW-SC05 | Universal count, length, area and volume takeoff |
++| IW-SC06 | Quantities, review and proven isolated packs |
++| IW-SC07 | AUD estimates, source binding and proof |
++| IW-SC08 | Desktop, CLI host and local continuity |
++| IW-SC09 | Integration, stale evidence and security |
++| IW-SC10 | Historical reconciliation and release proof |
++
++The 139 historical feature IDs and 359 acceptance rows are indexed without silent omissions. Provisional mappings require independent reconciliation. Inherited checked items are not fresh verification. No initial task is verified. A completed implementation must carry a patch, executed proof, meaningful screenshots and a fresh independent review before verification.
+diff --git a/INDUSTRY-WIDE-TODO.md b/INDUSTRY-WIDE-TODO.md
+new file mode 100644
+index 0000000..9e395d2
+--- /dev/null
++++ b/INDUSTRY-WIDE-TODO.md
+@@ -0,0 +1,14 @@
++# Industry-wide live to-do
++
++Current task status lives only in [planning/control/ledger.json](planning/control/ledger.json); reload the local dashboard to see file updates.
++
++- [ ] IW-001: submit tracker implementation, before/after screenshots, execution logs and complete patch for independent verification.
++- [ ] IW-002: reconcile each of 139 features and 359 acceptance rows; provisional mapping is not completion.
++- [ ] IW-003: runtime baseline worker records real build/typecheck/dev/built behavior.
++- [ ] IW-004: neutral construction contracts and independent contract review.
++- [ ] IW-005–009: independently reproduce alignment, recipe reopen/corruption, photo deletion atomicity and pending BOM cancellation defects before repairing bounded surfaces.
++- [ ] IW-010–015: universal takeoff, reviewed quantities, optional proven packs and auditable AUD estimates.
++- [ ] IW-016–019: executable host commands, desktop continuity, stale evidence, automation and integration security.
++- [ ] IW-020: full release proof across trades and all inherited requirements.
++
++No check is completed by the implementer. Use per-task dashboard startup packets and bounded handovers for the next thread.
+diff --git a/planning/handovers/IW-SC01/startup.md b/planning/handovers/IW-SC01/startup.md
+new file mode 100644
+index 0000000..958e3d4
+--- /dev/null
++++ b/planning/handovers/IW-SC01/startup.md
+@@ -0,0 +1,12 @@
++# IW-SC01 startup handover
++
++- Agent: iw_sc01_tracker (sole writer of planning/control and industry tracker).
++- Authorization: user approved verbatim: "Implement the plan."
++- Observed baseline: feat/v1-production-ready at 7ba4a14d1eccdcde1cfc15293adbf08918524c4f.
++- Existing untracked artifacts preserved: .agents/, .autopilot/, .claude/, .grok/skills/ledger/, engine/bin/, scripts/chat-autopilot-cdp.cjs. Git also reports pre-existing access warnings for global ignore and .pytest_cache.
++- Scope: planning/control/**, scripts/industry-ledger*.mjs, planning/handovers/IW-SC01/**, proof/audit/IW-SC01/**, screenshots/industry-ledger/**, INDUSTRY-WIDE-LEDGER.md, INDUSTRY-WIDE-TODO.md only.
++- No existing master ledger, application, package, migrations, secrets, commits or worktrees are changed. No autopilot or sweeper is run.
++- Contract: ten slices; all construction trades; source to verified estimate; count/length/area/volume; proven trade packs optional (fencing is one pack); AUD; existing visual system; local-first browser and Windows x64; auth/database off.
++- Plan: preserve the complete historical feature/acceptance inventory with source hashes and line references, implement JSON validation/render/read-only loopback serving, capture honest before and after states, test failure gates and UI, deliver patch and execution evidence for independent review.
++- Initial status: running. No task is verified by its implementer.
++- Exit: separate reviewer validates fresh file-bound evidence, patch, desktop/mobile rendering and interactions before any verified transition.
+diff --git a/planning/handovers/IW-SC01/completion.md b/planning/handovers/IW-SC01/completion.md
+new file mode 100644
+index 0000000..e705bbd
+--- /dev/null
++++ b/planning/handovers/IW-SC01/completion.md
+@@ -0,0 +1,40 @@
++# IW-SC01 implementation completion handover
++
++Status: **awaiting-verification**. This is a submitted implementation, not independent verification or completion of SC01. IW-002 historical reconciliation and IW-003 baseline review remain open. No task is marked verified.
++
++Live tracker: http://127.0.0.1:8097/ . Node server is read-only, loopback-only and left running. Entry artifacts are planning/control/index.html and dashboard.html (compatibility alias); the live route renders current JSON on each request. Reload after a ledger update. Do not launch app or migration commands for this standalone tracker.
++
++Authorization: user said verbatim **"Implement the plan."** Initial branch/HEAD: feat/v1-production-ready / 7ba4a14d1eccdcde1cfc15293adbf08918524c4f. HEAD externally advanced during work to 1bf54983bb3ff168358f4987c8481e8cc23fb760; no tracker commit was made. Exact final observation is in ledger.json and submission-manifest-v4.json. Unknown SWEEPER-VERIFICATION-LEDGER.md mutation and untracked {} are preserved and flagged; this agent never ran sweeper/autopilot/hooks, npm test, application build or migrations.
++
++## Delivered files and boundaries
++
++- planning/control/ledger.json: canonical ten-slice, twenty-one-task state; historical 139-feature / 359-row index with source hashes and exact lines; separate expanding industry coverage; decisions, external queue, current workspace observation and per-task handover references.
++- planning/control/dashboard.css, dashboard.js, README.md, index.html, dashboard.html: existing cream/charcoal system, compact task-oriented layout, accessible search/filter/views, copyable startup packets, explicit proof links and operating contract. No browser persistence or status toggles.
++- scripts/industry-ledger.mjs: builtin Node validate/render/serve; canonical input hashes; independent-review gate; parent statuses derived from leaves; fixed assets and narrow explicit artifact allowlist; traversal, host/origin, write and stale-file rejection.
++- scripts/industry-ledger-seed.mjs: one-time bootstrap, refuses overwriting canonical state.
++- scripts/industry-ledger.test.mjs and industry-ledger-ui.mjs: negative gates and actual browser interaction capture.
++- INDUSTRY-WIDE-LEDGER.md, INDUSTRY-WIDE-TODO.md, this startup/completion handover; proof/audit/IW-SC01 and screenshots/industry-ledger outputs.
++
++No existing master ledger, app/package, configuration, database, migration or other worker's surface was edited. New code and documents are included in code-diff-v4.patch; full text submission is in submission-v4.patch, including ledger and generated HTML. Binary screenshots are SHA-256 indexed by submission-manifest-v4.json rather than embedded in a text patch. The manifest excludes itself and the full submission patch to avoid self-referential hashes.
++
++## Executed proof
++
++- `node --test scripts/industry-ledger.test.mjs`: 15 tests passed, including inventory omission/staleness, status/dependency misuse, missing patch/evidence/review, stale digest/revision, self-review, malformed arrays, path traversal/encoding, HTML escaping and server write/host/origin/allowlist checks. Exact latest output: proof/audit/IW-SC01/tests-v4.txt.
++- `node scripts/industry-ledger.mjs validate`: canonical state valid, ten slices, twenty-one tasks, 139 features, 359 historical rows, zero verified tasks. Latest output: proof/audit/IW-SC01/validation-v4.json.
++- `node scripts/industry-ledger.mjs render`: standalone generated output rebuilt. Application build/typecheck belong to the runtime baseline worker; no claim is made here about their result.
++- `node scripts/industry-ledger-ui.mjs v4`: installed Playwright / Edge fallback, desktop 1280×900 and mobile 390×844. Search, no-result state, status filtering, dependency/decision/inventory/external views, handover artifact navigation and clipboard packet content pass. Zero browser console/page errors and zero horizontal overflow. Report: proof/audit/IW-SC01/browser-v4.json.
++- Historical before screenshots render the untouched original mindmap verbatim, with checked claims visible. This is an honest historical-document rendering, not a previously existing dashboard. New after/task captures show the actual running tracker. Earlier v1/v2 captures are retained; v4 is current submission evidence. The compact v2 layout was visually inspected at both sizes, with task list appearing in the first viewport; v4 changes only state/proof contents and is inspected again before submission.
++
++Initial browser run exposed a favicon 404; fixed with explicit 204 response and subsequent browser passes are clean. Earlier failed browser report is retained separately. BROWSER-TOOL-01: two CUA attempts failed (trusted Node process exited) and agent-browser was unavailable (PowerShell policy then missing package/cache EPERM); therefore the documented installed-Playwright fallback produced persisted proof. Parent independently reported the missing IDE sandbox helper; no in-IDE browser success is claimed.
++
++## Next-agent packet
++
++Read AGENTS.md, AGENTS.project.md if present, .agents/skills/ledger/SKILL.md, planning/control/README.md, planning/control/ledger.json and this handover. Re-run git branch --show-current, git rev-parse HEAD and git status --short: initial baseline is not a current clean-tree claim. Preserve concurrent work, unknown {} and SWEEPER mutation. The parent remains orchestration-only and assigns the single canonical writer.
++
++Independent reviewer: reproduce the three CLI gates and browser flow; inspect current before/after desktop/mobile captures, code-diff-v4.patch, submission-v4.patch and manifest; test an actual changed input against a verification record. Review attachment must include reviewer identity, approved decision, task revision and exact inputDigest. Never accept the implementer's test fixture as reviewer proof. Do not mark IW-001 verified until independent review is attached; do not mark SC01 verified while reconciliation/baseline tasks remain open.
++
++Next bounded implementation is parent-assigned coordinate/source alignment, not an inferred expansion by this tracker. All construction trades remain in scope; universal count/length/area/volume; optional proven packs; AUD; local-first browser and Windows x64; auth/database off. The 139/359 imported rows remain provisional and no inherited checked claim was promoted. Resolve external queue dependencies through the parent; do not send messages or write to external systems.
++
++Independent review found and reproduced LEDGER-01 (cross-category feature substitution with unchanged counts) and LEDGER-02 (duplicate source manifest with unchanged count). Both were corrected by comparing the exact source-derived feature/acceptance ID sets and source-line bindings, and the exact unique historical source-path set. Two regression tests were added. Task revision2 / v4 proof supersedes v3 verification submission; prior artifacts remain preserved. Independent re-verification is still required.
++
++LEDGER-03 independent review subsequently reproduced acceptance of an empty reviewer attachment. Review and handover attachments now must be regular nonempty files; a third regression test covers this. Current task count21 includes independent verifier IW-021. Runtime and contract tasks are awaiting-verification, with their author handovers linked; IW-016 records independent existing-host compatibility work and parent-approved dependency rationale DEC-006.

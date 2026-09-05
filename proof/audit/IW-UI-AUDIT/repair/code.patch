@@ -1,0 +1,434 @@
+diff --git a/scripts/preview-built.mjs b/scripts/preview-built.mjs
+index 8830b13..8af5a84 100644
+--- a/scripts/preview-built.mjs
++++ b/scripts/preview-built.mjs
+@@ -7,8 +7,10 @@ const host = process.env.PREVIEW_HOST ?? "127.0.0.1";
+ const port = Number(process.env.PREVIEW_PORT ?? 8081);
+ const staticRoot = resolve(".vercel/output/static");
+ const mime = {
++  ".html": "text/html; charset=utf-8",
+   ".css": "text/css; charset=utf-8",
+   ".js": "text/javascript; charset=utf-8",
++  ".mjs": "text/javascript; charset=utf-8",
+   ".json": "application/json; charset=utf-8",
+   ".svg": "image/svg+xml",
+   ".png": "image/png",
+diff --git a/src/studio/IsoCanvas.tsx b/src/studio/IsoCanvas.tsx
+index ba639d0..255a674 100644
+--- a/src/studio/IsoCanvas.tsx
++++ b/src/studio/IsoCanvas.tsx
+@@ -10,6 +10,7 @@ import { buildWtcGeometry } from "./wtcModel";
+ import { buildFencingGeometry } from "./fencingModel";
+ import type { CalibrationPoint } from "./calibration";
+ import type { FenceRun } from "./domain";
++import { sourceViewport, sourceToCanvas, canvasToSource, pointOnSource, snapSourcePoint, type SourceBounds } from "./documentViewport";
+ 
+ export function IsoCanvas() {
+   const ref = useRef<HTMLCanvasElement>(null);
+@@ -193,11 +194,14 @@ export type PlanCanvasViewport = {
+   pan: CalibrationPoint;
+   kind: SheetKind;
+   floors: number;
++  sourceBounds?: SourceBounds | null;
+ };
+ 
+ export type PlanCanvasProps = {
+   interactive: boolean;
+   sourceMode?: "procedural" | "overlay";
++  sourceBounds?: SourceBounds | null;
++  legacyReadOnly?: boolean;
+   calibrationCaptureActive?: boolean;
+   calibrationPoints?: readonly CalibrationPoint[];
+   onCalibrationPoint?: (point: CalibrationPoint) => void;
+@@ -232,6 +236,11 @@ export function canvasPointToDocumentPoint(
+   point: CalibrationPoint,
+   viewport: PlanCanvasViewport,
+ ): CalibrationPoint {
++  if(viewport.sourceBounds) {
++    const frame=sourceViewport(viewport.sourceBounds,viewport.width,viewport.height,viewport.zoom,viewport.pan);
++    if(!frame)throw Error("Source viewport is unavailable.");
++    return canvasToSource(point,frame);
++  }
+   const geometry = getPlanCanvasGeometry(viewport);
+   const untransformedX = geometry.centerX
+     + (point.x - geometry.centerX - viewport.pan.x) / viewport.zoom;
+@@ -251,6 +260,11 @@ export function documentPointToCanvasPoint(
+   point: CalibrationPoint,
+   viewport: PlanCanvasViewport,
+ ): CalibrationPoint {
++  if(viewport.sourceBounds) {
++    const frame=sourceViewport(viewport.sourceBounds,viewport.width,viewport.height,viewport.zoom,viewport.pan);
++    if(!frame)throw Error("Source viewport is unavailable.");
++    return sourceToCanvas(point,frame);
++  }
+   const geometry = getPlanCanvasGeometry(viewport);
+   const untransformedX = geometry.offsetX + point.x * geometry.scale;
+   const untransformedY = viewport.kind === "elev"
+@@ -354,9 +368,11 @@ export function resolveTracingCanvasPointerMode(input: {
+   runHit: boolean;
+   vertexEditingEnabled: boolean;
+   runSelectionEnabled: boolean;
++  placementToolActive?: boolean;
+ }): "calibration" | "move-vertex" | "select-run" | "pan" | "trace" {
+   if (input.calibrationCaptureActive) return "calibration";
+   if (!input.interactive || input.button === 2 || input.button === 1 || input.shiftKey) return "pan";
++  if (input.placementToolActive) return "trace";
+   if (input.vertexEditingEnabled && input.vertexHit) return "move-vertex";
+   if (input.runSelectionEnabled && input.runHit) return "select-run";
+   return input.toolActive ? "trace" : "pan";
+@@ -365,6 +381,8 @@ export function resolveTracingCanvasPointerMode(input: {
+ export function PlanCanvas({
+   interactive,
+   sourceMode = "procedural",
++  sourceBounds = null,
++  legacyReadOnly = false,
+   calibrationCaptureActive = false,
+   calibrationPoints = [],
+   onCalibrationPoint,
+@@ -418,7 +436,7 @@ export function PlanCanvas({
+     const kind = SHEETS[s.sheet]?.kind ?? "elev";
+     return canvasPointToDocumentPoint(
+       { x: e.clientX - r.left, y: e.clientY - r.top },
+-      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors },
++      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors, sourceBounds },
+     );
+   }
+ 
+@@ -466,6 +484,7 @@ export function PlanCanvas({
+ 
+       const navy = s.skin === "navy";
+       ctx.clearRect(0, 0, w, h);
++      if(sourceMode === "overlay" && (!sourceBounds || legacyReadOnly))return;
+       if (sourceMode === "procedural") {
+         ctx.fillStyle = navy ? PAL.navy : PAL.paper;
+         ctx.fillRect(0, 0, w, h);
+@@ -488,7 +507,9 @@ export function PlanCanvas({
+       const sc = Math.min(sx_factor, sy_factor);
+       const ox = (w - 18 * sc) / 2;
+       const oy = (h - totalH * sc) / 2;
++      const sourceFrame=sourceBounds?sourceViewport(sourceBounds,w,h):null;
+       const to = (x: number, z_or_y: number): [number, number] => {
++        if(sourceMode === "overlay" && sourceFrame){const p=sourceToCanvas({x,y:z_or_y},sourceFrame);return [p.x,p.y];}
+         if (kind === "elev") {
+           return [ox + x * sc, oy + (totalH - z_or_y) * sc];
+         } else {
+@@ -590,7 +611,7 @@ export function PlanCanvas({
+         }
+         
+         ctx.fillText(dynamicSheetTitle, tb0[0] + 6 / zoom, tb0[1] + 26 / zoom);
+-        ctx.fillText("SCALE: 1:100 @ A1 · TRUE VECTORS", tb0[0] + 6 / zoom, tb0[1] + 36 / zoom);
++        ctx.fillText("LOCAL SKETCH · UNVERIFIED SCALE", tb0[0] + 6 / zoom, tb0[1] + 36 / zoom);
+       }
+ 
+       if (s.showBld && sourceMode === "procedural") {
+@@ -802,7 +823,7 @@ export function PlanCanvas({
+         ctx.font = `bold ${Math.max(9, 10 / zoom)}px monospace`;
+         ctx.fillStyle = navy ? "#7fdbff" : "#050b14";
+         ctx.fillText(
+-          `SNAP (${hoverSnap.point.x.toFixed(2)}m, ${hoverSnap.point.y.toFixed(2)}m)`,
++          `SNAP (${hoverSnap.point.x.toFixed(2)}, ${hoverSnap.point.y.toFixed(2)}) ${sourceMode === "overlay" ? "source units" : "m"}`,
+           sp[0] + sz * 1.6,
+           sp[1] - sz * 0.6
+         );
+@@ -866,6 +887,8 @@ export function PlanCanvas({
+     s.scaleM,
+     interactive,
+     sourceMode,
++    sourceBounds,
++    legacyReadOnly,
+     calibrationCaptureActive,
+     calibrationPoints,
+     selectedRunId,
+@@ -893,6 +916,7 @@ export function PlanCanvas({
+         onPointerDown={(e) => {
+           const canvas = ref.current;
+           if (!canvas) return;
++          if(sourceMode === "overlay" && !sourceBounds)return;
+           const rect = canvas.getBoundingClientRect();
+           const canvasPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+           const viewport: PlanCanvasViewport = {
+@@ -902,6 +926,7 @@ export function PlanCanvas({
+             pan,
+             kind: SHEETS[s.sheet]?.kind ?? "elev",
+             floors: s.floors,
++            sourceBounds,
+           };
+           const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
+           const vertexHit = selectedRun && onMoveVertex
+@@ -911,17 +936,19 @@ export function PlanCanvas({
+             ? hitTestFenceRuns(canvasPoint, currentRuns, viewport)
+             : null;
+           const mode = resolveTracingCanvasPointerMode({
+-            calibrationCaptureActive,
+-            interactive,
++            calibrationCaptureActive: calibrationCaptureActive && !legacyReadOnly,
++            interactive: interactive && !legacyReadOnly,
+             button: e.button,
+             shiftKey: e.shiftKey,
+             toolActive: s.tool !== "none",
++            placementToolActive: s.tool === "count",
+             vertexHit: Boolean(vertexHit),
+             runHit: Boolean(runHit),
+             vertexEditingEnabled: Boolean(onMoveVertex),
+             runSelectionEnabled: Boolean(onSelectRun),
+           });
+           lastPointerMode.current = mode;
++          if(sourceMode === "overlay" && sourceBounds && mode !== "pan" && !pointOnSource(toWorld(e),sourceBounds))return;
+           if (mode === "calibration") {
+             if (hoverSnap) setHoverSnap(null);
+             onCalibrationPoint?.(toWorld(e));
+@@ -949,13 +976,18 @@ export function PlanCanvas({
+           } else {
+             const st = useStudio.getState();
+             if (st.tool !== "none") {
+-              const targetPoint = hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : toWorld(e);
++              const world=toWorld(e);
++              const frame=sourceBounds?sourceViewport(sourceBounds,rect.width,rect.height,zoom,pan):null;
++              const targetPoint = sourceMode === "overlay" && frame
++                ? snapSourcePoint(world,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled).point
++                : hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : world;
+               st.addPoint(targetPoint);
+             }
+           }
+         }}
+         onPointerMove={(e) => {
+-          if (calibrationCaptureActive) {
++          if(sourceMode === "overlay" && !sourceBounds)return;
++          if (calibrationCaptureActive && !legacyReadOnly) {
+             if (hoverSnap) setHoverSnap(null);
+           } else if (drag.current?.kind === "vertex") {
+             onMoveVertex?.(drag.current.runId, drag.current.vertexIndex, toWorld(e));
+@@ -966,7 +998,7 @@ export function PlanCanvas({
+             s.setPan2d({ x: s.pan2d.x + dx, y: s.pan2d.y + dy });
+             drag.current.x = e.clientX;
+             drag.current.y = e.clientY;
+-          } else if (interactive && s.tool !== "none") {
++          } else if (interactive && !legacyReadOnly && s.tool !== "none") {
+             const w = toWorld(e);
+             const canvas = ref.current;
+             if (canvas) {
+@@ -977,7 +1009,10 @@ export function PlanCanvas({
+               const sy_factor = (canvas.clientHeight - pad * 2) / totalH;
+               const sc = Math.min(sx_factor, sy_factor);
+               const snapRadius = 24 / (sc * zoom);
+-              const target = getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
++              const frame=sourceBounds?sourceViewport(sourceBounds,canvas.clientWidth,canvas.clientHeight,zoom,pan):null;
++              const target = sourceMode === "overlay" && frame
++                ? snapSourcePoint(w,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled)
++                : getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
+               setHoverSnap(target);
+             }
+           } else {
+@@ -1009,7 +1044,7 @@ export function PlanCanvas({
+           e.preventDefault();
+         }}
+         onDoubleClick={() => {
+-          if (interactive && !calibrationCaptureActive && lastPointerMode.current === "trace") {
++          if (interactive && !legacyReadOnly && (sourceMode !== "overlay" || sourceBounds) && !calibrationCaptureActive && lastPointerMode.current === "trace") {
+             useStudio.getState().commitPending();
+           }
+         }}
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index b20c534..410c1e0 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -304,12 +304,15 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
+ 
+ function MeasurePane() {
+   const s = useStudio();
++  const [sourceReady,setSourceReady]=useState(false);
++  const calibration=s.currentCalibration;
++  const legacyReadOnly=calibration.coordinateSpace !== "source-page-v1" && (calibration.candidates.length>0 || calibration.locked || s.job.runs.some(run=>run.sheet===s.sheet) || s.job.gates.some(gate=>gate.sheet===s.sheet));
+   const selectedRunRecord = s.selectedRunId ? s.job.runs.find((run) => run.id === s.selectedRunId) ?? null : null;
+   const selectedRun = selectedRunRecord ? editableRun(selectedRunRecord) : null;
+   return (
+     <div className="measure-workspace">
+       <div className="measure-main-column">
+-        <div className="measure-tools" aria-label="Measurement tools">
++        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly}>
+           <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
+           <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
+           <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>Gate <kbd>C</kbd></button>
+@@ -317,14 +320,17 @@ function MeasurePane() {
+           <span className="measure-tools-spacer" />
+           <button type="button" className="pill" onClick={s.commitPending} disabled={s.pending.length < 2}>Finish trace</button>
+           <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>Cancel</button>
+-        </div>
++        </fieldset>
++        {legacyReadOnly ? <div className="integrity-notice" role="status"><strong>Saved measurements need source-coordinate recovery</strong><span>These older coordinates are preserved read-only. They cannot prove alignment to this source or authorize quantities. Export the current manifest in Proof before a reviewed retrace; automatic conversion is unavailable.</span><button type="button" className="pill" onClick={()=>s.setPane("proof")}>Open Proof for export</button></div> : null}
+         {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
+         {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
+         {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+-        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview">
+-          <PlanCanvas
++        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview" zoom={s.zoom2d} pan={s.pan2d} showSource={s.showSrc} onSourceReady={setSourceReady}>
++          {(page)=><PlanCanvas
+             interactive
+             sourceMode="overlay"
++            sourceBounds={page?.bounds ?? null}
++            legacyReadOnly={legacyReadOnly}
+             calibrationCaptureActive={Boolean(s.calibrationCapture)}
+             calibrationPoints={s.calibrationCapture?.points ?? []}
+             onCalibrationPoint={s.addCalibrationPoint}
+@@ -333,11 +339,11 @@ function MeasurePane() {
+             onSelectRun={s.selectRun}
+             onSelectVertex={s.selectVertex}
+             onMoveVertex={s.moveRunVertex}
+-          />
++          />}
+         </DocumentPreview>
+         <MarkupList />
+       </div>
+-      <MeasureInspector selectedRun={selectedRun} />
++      <fieldset className="measure-inspector-boundary" disabled={!sourceReady || legacyReadOnly}><MeasureInspector selectedRun={selectedRun} sourceReady={sourceReady} legacyReadOnly={legacyReadOnly} /></fieldset>
+     </div>
+   );
+ }
+@@ -350,7 +356,7 @@ function placedGate(gate: GateRecord): PlacedGate {
+   return { ...gate, revision: gate.revision ?? 1, segmentIndex: gate.segmentIndex ?? null, segmentT: gate.segmentT ?? null };
+ }
+ 
+-function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | null }) {
++function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = false }: { selectedRun: EditableFenceRun | null; sourceReady?: boolean; legacyReadOnly?: boolean }) {
+   const s = useStudio();
+   const [distanceValue, setDistanceValue] = useState("");
+   const [unit, setUnit] = useState<CalibrationInputUnit>("m");
+@@ -367,6 +373,7 @@ function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | nul
+     if (s.calibrationCapture?.points.length !== 2) return;
+     s.upsertManualCalibrationCandidate({
+       distance: { value: Number(distanceValue), unit },
++      coordinateSpace: "source-page-v1",
+       provenance: { method: "two-point", evidence: `Sheet ${s.sheet + 1} manual known distance`, documentId: s.job.activeDocumentId },
+     });
+   }
+@@ -387,6 +394,8 @@ function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | nul
+   return (
+     <aside className="measure-inspector" aria-label="Measure inspector">
+       <CalibrationPanel
++        disabled={!sourceReady || legacyReadOnly}
++        compatibilityBlocked={legacyReadOnly}
+         sheetNumber={s.sheet + 1}
+         calibration={s.currentCalibration}
+         captureActive={Boolean(s.calibrationCapture)}
+@@ -567,18 +576,7 @@ function Stage() {
+     >
+       {!s.chromeHidden && (
+         <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-1.5 bg-gradient-to-b from-navy/90 to-transparent px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em]">
+-          <span className="text-cbar">Source sheet</span>
+-          <select
+-            className="rounded-full bg-navy px-2.5 py-1.5 text-paper"
+-            value={s.sheet}
+-            onChange={(e) => s.setSheet(Number(e.target.value))}
+-          >
+-            {SHEETS.map((sh) => (
+-              <option key={sh.index} value={sh.index}>
+-                {sh.title}
+-              </option>
+-            ))}
+-          </select>
++          <span className="text-cbar">Local presentation geometry</span>
+           <span className="text-cbar">Presentation height (m)</span>
+           <input
+             className="w-16 rounded-full bg-navy px-2.5 py-1.5 text-paper"
+@@ -589,7 +587,7 @@ function Stage() {
+             onChange={(e) => s.setHeight(Number(e.target.value) || 0)}
+           />
+           <button type="button" className="stage-btn" aria-pressed={s.showSrc} onClick={() => s.toggle("showSrc")}>
+-            Source vectors
++            Reference lines
+           </button>
+           <button type="button" className="stage-btn" aria-pressed={s.showBld} onClick={() => s.toggle("showBld")}>
+             Building
+@@ -846,7 +844,9 @@ function MarkupList() {
+             {m.label} · sheet {m.sheet + 1}
+           </span>
+           <span>
+-            {m.value.toFixed(m.kind === "count" ? 0 : 2)} {m.unit}
++            {(m.kind === "length"
++              ? s.job.runs.find((run) => run.id === m.id)?.netLengthM ?? m.value
++              : m.value).toFixed(m.kind === "count" ? 0 : 2)} {m.unit}
+             <button type="button" className="pill ml-2" onClick={() => s.removeMarkup(m.id)}>
+               ×
+             </button>
+@@ -1102,12 +1102,12 @@ function CostPane() {
+   return (
+     <div className="cost-workspace">
+       {recipePersistenceError ? <IntegrityNotice title="Recipe decisions need attention" message={recipePersistenceError} /> : null}
+-      {recipeAssumptions?.some((assumption) => assumption.status === "unresolved") ? (
++      {recipeAssumptions?.length ? (
+         <div className="cost-controlbar">
+           <span className="kicker">Recipe review</span>
+           <label className="field cost-reviewer-field">
+             <span>Responsible estimator</span>
+-            <input value={reviewer} onChange={(event) => setReviewer(event.currentTarget.value)} placeholder="Name required to accept assumptions" />
++            <input value={reviewer} onChange={(event) => setReviewer(event.currentTarget.value)} placeholder="Name required to accept or reopen assumptions" />
+           </label>
+           <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
+         </div>
+@@ -1181,17 +1181,43 @@ function ProofPane() {
+ }
+ 
+ function Capabilities({ onClose }: { onClose: () => void }) {
++  const dialogRef = useRef<HTMLDivElement>(null);
++  const closeRef = useRef(onClose);
++  closeRef.current = onClose;
++  useEffect(() => {
++    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
++    const dialog = dialogRef.current;
++    dialog?.querySelector<HTMLButtonElement>("button")?.focus();
++    const onKey = (event: KeyboardEvent) => {
++      if (event.key === "Escape") {
++        event.preventDefault();
++        event.stopImmediatePropagation();
++        closeRef.current();
++      } else if (event.key === "Tab") {
++        const controls = Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') ?? []);
++        const first = controls[0], last = controls.at(-1);
++        if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
++          event.preventDefault(); last?.focus();
++        } else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) {
++          event.preventDefault(); first?.focus();
++        }
++      }
++    };
++    window.addEventListener("keydown", onKey, true);
++    return () => { window.removeEventListener("keydown", onKey, true); previousFocus?.focus(); };
++  }, []);
+   return (
+     <div className="fixed inset-0 z-50 grid place-items-center bg-navy/40 p-6" onClick={onClose}>
+-      <div className="max-w-lg rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
+-        <h2 className="font-mono text-sm tracking-[0.16em]">CAPABILITIES</h2>
++      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="capabilities-title" className="max-w-lg rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
++        <h2 id="capabilities-title" className="font-mono text-sm tracking-[0.16em]">CAPABILITIES</h2>
+         <ul className="mt-3 list-disc space-y-1 pl-5">
+           <li>Open and integrity-check supported plan bytes</li>
+           <li>Browse the current sheet rail and local presentation views</li>
+           <li>Inspect a local isometric wireframe</li>
+           <li>Stand 3D / Lay Flat / Plan / Isometric / Fit</li>
+           <li>Canvas colour (charcoal navy or paper) and lift-up full canvas</li>
+-          <li>Measure length, area, count after you set scale</li>
++          <li>Measure fence runs and associated gates after locking source scale</li>
++          <li>Area sketches and added trade names last only for the current session</li>
+           <li>Manual sketch layer, raised only by presentation height</li>
+           <li>Open-ended trades — nothing defaulted</li>
+           <li>Inspect recorded markup totals without invented materials or prices</li>
+diff --git a/src/studio/tracingCanvas.test.ts b/src/studio/tracingCanvas.test.ts
+index 1a0c93c..4c0075a 100644
+--- a/src/studio/tracingCanvas.test.ts
++++ b/src/studio/tracingCanvas.test.ts
+@@ -114,6 +114,15 @@ describe("PlanCanvas editing interaction precedence", () => {
+     assert.equal(resolveTracingCanvasPointerMode({ ...base, shiftKey: true }), "pan");
+   });
+ 
++  it("places a gate on a hit run or vertex without stealing calibration or pan gestures", () => {
++    const gate = { ...base, placementToolActive: true };
++    assert.equal(resolveTracingCanvasPointerMode(gate), "trace");
++    assert.equal(resolveTracingCanvasPointerMode({ ...gate, calibrationCaptureActive: true }), "calibration");
++    assert.equal(resolveTracingCanvasPointerMode({ ...gate, button: 1 }), "pan");
++    assert.equal(resolveTracingCanvasPointerMode({ ...gate, shiftKey: true }), "pan");
++    assert.equal(resolveTracingCanvasPointerMode({ ...gate, interactive: false }), "pan");
++  });
++
+   it("chooses vertex drag, run selection, trace, then ordinary pan without overlap", () => {
+     assert.equal(resolveTracingCanvasPointerMode(base), "move-vertex");
+     assert.equal(resolveTracingCanvasPointerMode({ ...base, vertexHit: false }), "select-run");

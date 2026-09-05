@@ -1,0 +1,5 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {serve,readLedger,ROOT} from '../../../scripts/industry-ledger.mjs';
+test('native PNG viewer alone permits its browser-generated style',async()=>{const server=serve(ROOT,0);await once(server,'listening');try{const origin=`http://127.0.0.1:${server.address().port}`,html=await fetch(origin);await html.arrayBuffer();assert.match(html.headers.get('content-security-policy'),/style-src 'self'/);assert.doesNotMatch(html.headers.get('content-security-policy'),/unsafe-inline/);const e=readLedger().fullFeatureAudit.features.find(f=>f.id==='NEW-006').evidence.find(e=>e.screenshot),png=await fetch(origin+'/artifact?path='+encodeURIComponent(e.path));await png.arrayBuffer();assert.equal(png.headers.get('content-type'),'image/png');assert.match(png.headers.get('content-security-policy'),/style-src 'unsafe-inline'/);assert.match(png.headers.get('content-security-policy'),/script-src 'self'/);}finally{server.closeAllConnections();await new Promise(r=>server.close(r));}});

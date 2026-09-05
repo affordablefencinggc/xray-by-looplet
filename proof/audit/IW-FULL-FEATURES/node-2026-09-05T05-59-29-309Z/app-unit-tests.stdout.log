@@ -1,0 +1,2188 @@
+TAP version 13
+# Subtest: callTool failure memo
+    # Subtest: replays an identical failure within the memo window without refetching
+    ok 1 - replays an identical failure within the memo window without refetching
+      ---
+      duration_ms: 4.6293
+      type: 'test'
+      ...
+    # Subtest: keys by token identity so a reminted token shares the memo entry
+    ok 2 - keys by token identity so a reminted token shares the memo entry
+      ---
+      duration_ms: 1.3329
+      type: 'test'
+      ...
+    # Subtest: sweeps expired entries on write so unique keys do not accumulate
+    ok 3 - sweeps expired entries on write so unique keys do not accumulate
+      ---
+      duration_ms: 2.1978
+      type: 'test'
+      ...
+    # Subtest: never memoizes login-required 401s
+    ok 4 - never memoizes login-required 401s
+      ---
+      duration_ms: 5.2165
+      type: 'test'
+      ...
+    1..4
+ok 1 - callTool failure memo
+  ---
+  duration_ms: 15.0224
+  type: 'suite'
+  ...
+# Subtest: callTool
+    # Subtest: resolves ok:false for non-serializable args instead of rejecting
+    ok 1 - resolves ok:false for non-serializable args instead of rejecting
+      ---
+      duration_ms: 1.0605
+      type: 'test'
+      ...
+    1..1
+ok 2 - callTool
+  ---
+  duration_ms: 1.3668
+  type: 'suite'
+  ...
+# Subtest: isLoginRequired
+    # Subtest: is true only for login-required failures
+    ok 1 - is true only for login-required failures
+      ---
+      duration_ms: 0.2494
+      type: 'test'
+      ...
+    1..1
+ok 3 - isLoginRequired
+  ---
+  duration_ms: 0.5943
+  type: 'suite'
+  ...
+# Subtest: redirectToLoginIfRequired
+    # Subtest: no-ops when login is not required
+    ok 1 - no-ops when login is not required
+      ---
+      duration_ms: 0.9071
+      type: 'test'
+      ...
+    # Subtest: navigates to the server-built loginUrl in the browser
+    ok 2 - navigates to the server-built loginUrl in the browser
+      ---
+      duration_ms: 0.2922
+      type: 'test'
+      ...
+    # Subtest: opens a new tab instead of navigating when framed
+    ok 3 - opens a new tab instead of navigating when framed
+      ---
+      duration_ms: 0.2084
+      type: 'test'
+      ...
+    # Subtest: falls back to navigation when framed and the popup is blocked
+    ok 4 - falls back to navigation when framed and the popup is blocked
+      ---
+      duration_ms: 0.2273
+      type: 'test'
+      ...
+    # Subtest: returns false when the result has no loginUrl
+    ok 5 - returns false when the result has no loginUrl
+      ---
+      duration_ms: 0.1628
+      type: 'test'
+      ...
+    # Subtest: returns false on the server (no window)
+    ok 6 - returns false on the server (no window)
+      ---
+      duration_ms: 0.1073
+      type: 'test'
+      ...
+    1..6
+ok 4 - redirectToLoginIfRequired
+  ---
+  duration_ms: 2.7138
+  type: 'suite'
+  ...
+# Subtest: classifyCallToolError
+    # Subtest: returns null for successful results
+    ok 1 - returns null for successful results
+      ---
+      duration_ms: 0.2553
+      type: 'test'
+      ...
+    # Subtest: classifies login-required before message matching
+    ok 2 - classifies login-required before message matching
+      ---
+      duration_ms: 0.1116
+      type: 'test'
+      ...
+    # Subtest: classifies not_connected and failed_precondition
+    ok 3 - classifies not_connected and failed_precondition
+      ---
+      duration_ms: 0.1006
+      type: 'test'
+      ...
+    # Subtest: classifies scope_denied without claiming a missing grant
+    ok 4 - classifies scope_denied without claiming a missing grant
+      ---
+      duration_ms: 0.1056
+      type: 'test'
+      ...
+    # Subtest: classifies access_denied
+    ok 5 - classifies access_denied
+      ---
+      duration_ms: 0.0771
+      type: 'test'
+      ...
+    # Subtest: falls back to a generic error with the raw message
+    ok 6 - falls back to a generic error with the raw message
+      ---
+      duration_ms: 0.0945
+      type: 'test'
+      ...
+    1..6
+ok 5 - classifyCallToolError
+  ---
+  duration_ms: 0.9764
+  type: 'suite'
+  ...
+# Subtest: verifyGateIdentityToken
+    # Subtest: returns the identity for a valid token
+    ok 1 - returns the identity for a valid token
+      ---
+      duration_ms: 12.7122
+      type: 'test'
+      ...
+    # Subtest: omits optional claims as nulls
+    ok 2 - omits optional claims as nulls
+      ---
+      duration_ms: 3.2287
+      type: 'test'
+      ...
+    # Subtest: rejects a wrong audience
+    ok 3 - rejects a wrong audience
+      ---
+      duration_ms: 1.6642
+      type: 'test'
+      ...
+    # Subtest: rejects a wrong issuer
+    ok 4 - rejects a wrong issuer
+      ---
+      duration_ms: 1.4805
+      type: 'test'
+      ...
+    # Subtest: rejects an expired token
+    ok 5 - rejects an expired token
+      ---
+      duration_ms: 2.2989
+      type: 'test'
+      ...
+    # Subtest: rejects a token without exp
+    ok 6 - rejects a token without exp
+      ---
+      duration_ms: 1.6485
+      type: 'test'
+      ...
+    # Subtest: rejects a token signed by a different key with the same kid
+    ok 7 - rejects a token signed by a different key with the same kid
+      ---
+      duration_ms: 1.2601
+      type: 'test'
+      ...
+    # Subtest: refetches the JWKS when the kid rotates
+    ok 8 - refetches the JWKS when the kid rotates
+      ---
+      duration_ms: 2.3196
+      type: 'test'
+      ...
+    1..8
+ok 6 - verifyGateIdentityToken
+  ---
+  duration_ms: 28.56
+  type: 'suite'
+  ...
+# Subtest: gateIdentityFromHeaders
+    # Subtest: verifies the header token end to end and fails closed without it
+    ok 1 - verifies the header token end to end and fails closed without it
+      ---
+      duration_ms: 30.4285
+      type: 'test'
+      ...
+    # Subtest: activates on a deployed-shaped request without GROK_GATE_ORIGIN
+    ok 2 - activates on a deployed-shaped request without GROK_GATE_ORIGIN
+      ---
+      duration_ms: 2.8952
+      type: 'test'
+      ...
+    # Subtest: verifies a preview-audience token with no gate env vars via the loopback default
+    ok 3 - verifies a preview-audience token with no gate env vars via the loopback default
+      ---
+      duration_ms: 3.5359
+      type: 'test'
+      ...
+    # Subtest: rejects a wrong-issuer token in the loopback default mode
+    ok 4 - rejects a wrong-issuer token in the loopback default mode
+      ---
+      duration_ms: 4.2932
+      type: 'test'
+      ...
+    # Subtest: verifies a preview-audience token when only GROK_GATE_ORIGIN is set
+    ok 5 - verifies a preview-audience token when only GROK_GATE_ORIGIN is set
+      ---
+      duration_ms: 1.834
+      type: 'test'
+      ...
+    # Subtest: rejects a preview-audience token when GROK_PROJECT_ID is set
+    ok 6 - rejects a preview-audience token when GROK_PROJECT_ID is set
+      ---
+      duration_ms: 11.4852
+      type: 'test'
+      ...
+    # Subtest: rejects an app-audience token in preview mode
+    ok 7 - rejects an app-audience token in preview mode
+      ---
+      duration_ms: 7.8968
+      type: 'test'
+      ...
+    1..7
+ok 7 - gateIdentityFromHeaders
+  ---
+  duration_ms: 63.4737
+  type: 'suite'
+  ...
+# Subtest: gateIdentityEnabled
+    # Subtest: is enabled by default with no gate env vars
+    ok 1 - is enabled by default with no gate env vars
+      ---
+      duration_ms: 0.1958
+      type: 'test'
+      ...
+    # Subtest: is disabled when VITE_AUTH_ENABLED is false
+    ok 2 - is disabled when VITE_AUTH_ENABLED is false
+      ---
+      duration_ms: 0.1773
+      type: 'test'
+      ...
+    1..2
+ok 8 - gateIdentityEnabled
+  ---
+  duration_ms: 0.5049
+  type: 'suite'
+  ...
+# Subtest: gateTokenAudience
+    # Subtest: pins app:<id> when GROK_PROJECT_ID is set, even alongside GROK_GATE_ORIGIN
+    ok 1 - pins app:<id> when GROK_PROJECT_ID is set, even alongside GROK_GATE_ORIGIN
+      ---
+      duration_ms: 0.1566
+      type: 'test'
+      ...
+    # Subtest: pins preview when GROK_PROJECT_ID is unset
+    ok 2 - pins preview when GROK_PROJECT_ID is unset
+      ---
+      duration_ms: 0.1292
+      type: 'test'
+      ...
+    1..2
+ok 9 - gateTokenAudience
+  ---
+  duration_ms: 0.3883
+  type: 'suite'
+  ...
+# Subtest: gateIdentityUserInfo
+    # Subtest: falls back to a synthetic email and name for sub-only claims
+    ok 1 - falls back to a synthetic email and name for sub-only claims
+      ---
+      duration_ms: 0.1705
+      type: 'test'
+      ...
+    # Subtest: keeps real claims, lowercasing the email and marking it verified
+    ok 2 - keeps real claims, lowercasing the email and marking it verified
+      ---
+      duration_ms: 0.1151
+      type: 'test'
+      ...
+    1..2
+ok 10 - gateIdentityUserInfo
+  ---
+  duration_ms: 0.3881
+  type: 'suite'
+  ...
+# Subtest: sessionBoundToGateIdentity
+    # Subtest: keeps the session when it is bound to the same gate sub
+    ok 1 - keeps the session when it is bound to the same gate sub
+      ---
+      duration_ms: 0.1644
+      type: 'test'
+      ...
+    # Subtest: rotates when the session belongs to a different gate sub
+    ok 2 - rotates when the session belongs to a different gate sub
+      ---
+      duration_ms: 0.0731
+      type: 'test'
+      ...
+    # Subtest: rotates when the session user has no gate-bound account
+    ok 3 - rotates when the session user has no gate-bound account
+      ---
+      duration_ms: 0.0703
+      type: 'test'
+      ...
+    1..3
+ok 11 - sessionBoundToGateIdentity
+  ---
+  duration_ms: 0.426
+  type: 'suite'
+  ...
+# Subtest: resolveSignInGateState
+    # Subtest: is pending while the session check is in flight, user or not
+    ok 1 - is pending while the session check is in flight, user or not
+      ---
+      duration_ms: 0.5741
+      type: 'test'
+      ...
+    # Subtest: is signed_in once a user is present
+    ok 2 - is signed_in once a user is present
+      ---
+      duration_ms: 0.1802
+      type: 'test'
+      ...
+    # Subtest: is signed_out only after the check resolved with no user
+    ok 3 - is signed_out only after the check resolved with no user
+      ---
+      duration_ms: 0.0897
+      type: 'test'
+      ...
+    1..3
+ok 12 - resolveSignInGateState
+  ---
+  duration_ms: 1.8418
+  type: 'suite'
+  ...
+# Subtest: SC-07H BOM panel states
+    # Subtest: distinguishes no recipe from a confirmed recipe that is ready to compile
+    ok 1 - distinguishes no recipe from a confirmed recipe that is ready to compile
+      ---
+      duration_ms: 10.8083
+      type: 'test'
+      ...
+    # Subtest: keeps browser-only generation explicitly unavailable
+    ok 2 - keeps browser-only generation explicitly unavailable
+      ---
+      duration_ms: 1.2092
+      type: 'test'
+      ...
+    # Subtest: requires explicit confirmation for every unresolved recipe assumption
+    ok 3 - requires explicit confirmation for every unresolved recipe assumption
+      ---
+      duration_ms: 0.8898
+      type: 'test'
+      ...
+    # Subtest: renders compiling state with a cancellable pending build
+    ok 4 - renders compiling state with a cancellable pending build
+      ---
+      duration_ms: 0.7033
+      type: 'test'
+      ...
+    # Subtest: separates transport failure from domain issues and offers the correct recovery
+    ok 5 - separates transport failure from domain issues and offers the correct recovery
+      ---
+      duration_ms: 1.3622
+      type: 'test'
+      ...
+    # Subtest: renders a current result with quantity, calculation, confidence and complete lineage
+    ok 6 - renders a current result with quantity, calculation, confidence and complete lineage
+      ---
+      duration_ms: 13.8569
+      type: 'test'
+      ...
+    # Subtest: retains a stale snapshot but warns that it is not current
+    ok 7 - retains a stale snapshot but warns that it is not current
+      ---
+      duration_ms: 25.3922
+      type: 'test'
+      ...
+    # Subtest: keeps stale regeneration unavailable in a browser-only host
+    ok 8 - keeps stale regeneration unavailable in a browser-only host
+      ---
+      duration_ms: 21.13
+      type: 'test'
+      ...
+    # Subtest: does not make commercial, pricing, tax or handoff claims
+    ok 9 - does not make commercial, pricing, tax or handoff claims
+      ---
+      duration_ms: 19.8521
+      type: 'test'
+      ...
+    1..9
+ok 13 - SC-07H BOM panel states
+  ---
+  duration_ms: 96.716
+  type: 'suite'
+  ...
+# Subtest: job-to-BOM compiler
+    # Subtest: rejects preserved imported legacy calibration even when locked and approved
+    ok 1 - rejects preserved imported legacy calibration even when locked and approved
+      ---
+      duration_ms: 20.528
+      type: 'test'
+      ...
+    # Subtest: compiles an approved, verified job into sorted integer-millimetre input
+    ok 2 - compiles an approved, verified job into sorted integer-millimetre input
+      ---
+      duration_ms: 41.4716
+      type: 'test'
+      ...
+    # Subtest: fails closed for runtime originals and stale lengths
+    ok 3 - fails closed for runtime originals and stale lengths
+      ---
+      duration_ms: 3.5096
+      type: 'test'
+      ...
+    # Subtest: rejects structurally invalid approval attribution before compilation
+    ok 4 - rejects structurally invalid approval attribution before compilation
+      ---
+      duration_ms: 2.0271
+      type: 'test'
+      ...
+    # Subtest: blocks unresolved recipe assumptions instead of applying a default
+    ok 5 - blocks unresolved recipe assumptions instead of applying a default
+      ---
+      duration_ms: 1.8465
+      type: 'test'
+      ...
+    # Subtest: treats the approved bay width as input and the recipe maximum as a hard capability
+    ok 6 - treats the approved bay width as input and the recipe maximum as a hard capability
+      ---
+      duration_ms: 3.3988
+      type: 'test'
+      ...
+    # Subtest: copies exact typed gate hardware facts from one supported recipe model
+    ok 7 - copies exact typed gate hardware facts from one supported recipe model
+      ---
+      duration_ms: 10.6461
+      type: 'test'
+      ...
+    # Subtest: shares exact same-sheet endpoints and T-junction vertices independent of run order
+    ok 8 - shares exact same-sheet endpoints and T-junction vertices independent of run order
+      ---
+      duration_ms: 47.875
+      type: 'test'
+      ...
+    1..8
+ok 14 - job-to-BOM compiler
+  ---
+  duration_ms: 133.2093
+  type: 'suite'
+  ...
+# Subtest: SC-07 BOM contract
+    # Subtest: strictly rejects unknown fields and non-canonical decimals
+    ok 1 - strictly rejects unknown fields and non-canonical decimals
+      ---
+      duration_ms: 87.196
+      type: 'test'
+      ...
+    # Subtest: accepts every frozen request, response and blocker fixture
+    ok 2 - accepts every frozen request, response and blocker fixture
+      ---
+      duration_ms: 167.4865
+      type: 'test'
+      ...
+    # Subtest: excludes requestId and inputDigest from the canonical digest
+    ok 3 - excludes requestId and inputDigest from the canonical digest
+      ---
+      duration_ms: 6.8671
+      type: 'test'
+      ...
+    # Subtest: rejects overlapping gate openings at the contract boundary
+    ok 4 - rejects overlapping gate openings at the contract boundary
+      ---
+      duration_ms: 3.857
+      type: 'test'
+      ...
+    # Subtest: requires a calibration on every used run sheet
+    ok 5 - requires a calibration on every used run sheet
+      ---
+      duration_ms: 3.0893
+      type: 'test'
+      ...
+    # Subtest: freezes the audited A-I worked quantities rather than old global formulas
+    ok 6 - freezes the audited A-I worked quantities rather than old global formulas
+      ---
+      duration_ms: 2.2256
+      type: 'test'
+      ...
+    # Subtest: requires typed gate hardware counts and explicit material capabilities
+    ok 7 - requires typed gate hardware counts and explicit material capabilities
+      ---
+      duration_ms: 6.3522
+      type: 'test'
+      ...
+    # Subtest: rejects ambiguous, zero-increment and unit-mismatched allowances
+    ok 8 - rejects ambiguous, zero-increment and unit-mismatched allowances
+      ---
+      duration_ms: 4.9361
+      type: 'test'
+      ...
+    # Subtest: never admits pricing or Looplet fields on BOM lines
+    ok 9 - never admits pricing or Looplet fields on BOM lines
+      ---
+      duration_ms: 2.6969
+      type: 'test'
+      ...
+    # Subtest: retains an import-safe compiler API
+    ok 10 - retains an import-safe compiler API
+      ---
+      duration_ms: 0.3239
+      type: 'test'
+      ...
+    1..10
+ok 15 - SC-07 BOM contract
+  ---
+  duration_ms: 288.4155
+  type: 'suite'
+  ...
+# Subtest: SC-07F BOM persistence adapter
+    # Subtest: saves, reloads and clears exact validated bytes under a versioned job key
+    ok 1 - saves, reloads and clears exact validated bytes under a versioned job key
+      ---
+      duration_ms: 51.5055
+      type: 'test'
+      ...
+    # Subtest: uses collision-safe job-specific keys
+    ok 2 - uses collision-safe job-specific keys
+      ---
+      duration_ms: 0.6629
+      type: 'test'
+      ...
+    # Subtest: never falls back to fabricated state for corrupt, unknown or cross-job bytes
+    ok 3 - never falls back to fabricated state for corrupt, unknown or cross-job bytes
+      ---
+      duration_ms: 50.8807
+      type: 'test'
+      ...
+    # Subtest: validates before touching storage
+    ok 4 - validates before touching storage
+      ---
+      duration_ms: 45.7293
+      type: 'test'
+      ...
+    # Subtest: restores the exact previous bytes when setItem mutates and then throws
+    ok 5 - restores the exact previous bytes when setItem mutates and then throws
+      ---
+      duration_ms: 43.9536
+      type: 'test'
+      ...
+    # Subtest: removes a partially-created key when the first write fails
+    ok 6 - removes a partially-created key when the first write fails
+      ---
+      duration_ms: 25.0199
+      type: 'test'
+      ...
+    # Subtest: restores cleared bytes when removeItem mutates and then throws
+    ok 7 - restores cleared bytes when removeItem mutates and then throws
+      ---
+      duration_ms: 10.5387
+      type: 'test'
+      ...
+    # Subtest: reports when even rollback cannot preserve previous bytes
+    ok 8 - reports when even rollback cannot preserve previous bytes
+      ---
+      duration_ms: 33.2
+      type: 'test'
+      ...
+    # Subtest: fails closed when storage is unavailable or throws on read
+    ok 9 - fails closed when storage is unavailable or throws on read
+      ---
+      duration_ms: 11.4129
+      type: 'test'
+      ...
+    1..9
+ok 16 - SC-07F BOM persistence adapter
+  ---
+  duration_ms: 277.6788
+  type: 'suite'
+  ...
+# Subtest: SC-07B emits the frozen colorbond golden response
+ok 17 - SC-07B emits the frozen colorbond golden response
+  ---
+  duration_ms: 60.851
+  type: 'test'
+  ...
+# Subtest: SC-07B emits the frozen timber-paling golden response
+ok 18 - SC-07B emits the frozen timber-paling golden response
+  ---
+  duration_ms: 57.6531
+  type: 'test'
+  ...
+# Subtest: SC-07B emits the frozen chain-wire golden response
+ok 19 - SC-07B emits the frozen chain-wire golden response
+  ---
+  duration_ms: 47.8748
+  type: 'test'
+  ...
+# Subtest: SC-07B emits the frozen concrete-allowance golden response
+ok 20 - SC-07B emits the frozen concrete-allowance golden response
+  ---
+  duration_ms: 29.527
+  type: 'test'
+  ...
+# Subtest: SC-07B distributes A, D and E spans deterministically before cover rounding
+ok 21 - SC-07B distributes A, D and E spans deterministically before cover rounding
+  ---
+  duration_ms: 12.0109
+  type: 'test'
+  ...
+# Subtest: SC-07B preserves exact H rational stages before display and increment rounding
+ok 22 - SC-07B preserves exact H rational stages before display and increment rounding
+  ---
+  duration_ms: 6.9202
+  type: 'test'
+  ...
+# Subtest: SC-07B merges exact B/C topology nodes while keeping separate sheet identities
+ok 23 - SC-07B merges exact B/C topology nodes while keeping separate sheet identities
+  ---
+  duration_ms: 32.415
+  type: 'test'
+  ...
+# Subtest: SC-07B fails closed on a changed digest, overlap and unknown fields
+ok 24 - SC-07B fails closed on a changed digest, overlap and unknown fields
+  ---
+  duration_ms: 10.2768
+  type: 'test'
+  ...
+# Subtest: SC-07B marks gate boundaries at segment starts, ends and across a full segment
+ok 25 - SC-07B marks gate boundaries at segment starts, ends and across a full segment
+  ---
+  duration_ms: 13.4112
+  type: 'test'
+  ...
+# Subtest: SC-07B counts only residual-span incidences whose winning chain-wire role is strainer
+ok 26 - SC-07B counts only residual-span incidences whose winning chain-wire role is strainer
+  ---
+  duration_ms: 7.0526
+  type: 'test'
+  ...
+# Subtest: SC-07B applies decimal factors and a single typed allowance exactly to non-concrete components
+ok 27 - SC-07B applies decimal factors and a single typed allowance exactly to non-concrete components
+  ---
+  duration_ms: 5.1494
+  type: 'test'
+  ...
+# Subtest: SC-07B independently rejects unresolved referenced assumptions and allowances
+ok 28 - SC-07B independently rejects unresolved referenced assumptions and allowances
+  ---
+  duration_ms: 38.2342
+  type: 'test'
+  ...
+# Subtest: SC-07B calculation prose reconciles aggregate multi-run and multi-gate facts
+ok 29 - SC-07B calculation prose reconciles aggregate multi-run and multi-gate facts
+  ---
+  duration_ms: 3.8849
+  type: 'test'
+  ...
+# Subtest: SC-07F durable BOM state
+    # Subtest: commits a successful response with every immutable binding atomically
+    ok 1 - commits a successful response with every immutable binding atomically
+      ---
+      duration_ms: 99.0239
+      type: 'test'
+      ...
+    # Subtest: rejects stale request identities and expected job revisions without changing state
+    ok 2 - rejects stale request identities and expected job revisions without changing state
+      ---
+      duration_ms: 6.1866
+      type: 'test'
+      ...
+    # Subtest: rejects every mismatched success binding without a partial commit
+    ok 3 - rejects every mismatched success binding without a partial commit
+      ---
+      duration_ms: 12.6998
+      type: 'test'
+      ...
+    # Subtest: records source, recipe, ruleset and job invalidation reasons deterministically
+    ok 4 - records source, recipe, ruleset and job invalidation reasons deterministically
+      ---
+      duration_ms: 8.352
+      type: 'test'
+      ...
+    # Subtest: cancels an obsolete pending build so out-of-order completion cannot win
+    ok 5 - cancels an obsolete pending build so out-of-order completion cannot win
+      ---
+      duration_ms: 3.7142
+      type: 'test'
+      ...
+    # Subtest: lets the newest request identity win regardless of callback completion order
+    ok 6 - lets the newest request identity win regardless of callback completion order
+      ---
+      duration_ms: 7.831
+      type: 'test'
+      ...
+    # Subtest: retains and marks the last snapshot stale when a bound source changes
+    ok 7 - retains and marks the last snapshot stale when a bound source changes
+      ---
+      duration_ms: 21.5413
+      type: 'test'
+      ...
+    # Subtest: marks an existing snapshot stale atomically when a changed request begins
+    ok 8 - marks an existing snapshot stale atomically when a changed request begins
+      ---
+      duration_ms: 5.7709
+      type: 'test'
+      ...
+    # Subtest: preserves the previous snapshot across domain, transport and contract failures
+    ok 9 - preserves the previous snapshot across domain, transport and contract failures
+      ---
+      duration_ms: 9.3734
+      type: 'test'
+      ...
+    # Subtest: rejects null or wrong domain-failure digests against an active bound request
+    ok 10 - rejects null or wrong domain-failure digests against an active bound request
+      ---
+      duration_ms: 8.821
+      type: 'test'
+      ...
+    # Subtest: round-trips the full validated envelope and fails closed on migrations or unknown fields
+    ok 11 - round-trips the full validated envelope and fails closed on migrations or unknown fields
+      ---
+      duration_ms: 5.7876
+      type: 'test'
+      ...
+    1..11
+ok 30 - SC-07F durable BOM state
+  ---
+  duration_ms: 192.1615
+  type: 'suite'
+  ...
+# Subtest: studio durable BOM integration
+    # Subtest: begins and atomically commits only the response bound to the active job revision
+    ok 1 - begins and atomically commits only the response bound to the active job revision
+      ---
+      duration_ms: 75.1417
+      type: 'test'
+      ...
+    # Subtest: marks the retained snapshot stale as soon as the job revision changes
+    ok 2 - marks the retained snapshot stale as soon as the job revision changes
+      ---
+      duration_ms: 6.4334
+      type: 'test'
+      ...
+    # Subtest: retains but invalidates the snapshot when recipe decisions change
+    ok 3 - retains but invalidates the snapshot when recipe decisions change
+      ---
+      duration_ms: 8.6168
+      type: 'test'
+      ...
+    # Subtest: rejects a late completion after the active job changes
+    ok 4 - rejects a late completion after the active job changes
+      ---
+      duration_ms: 3.7397
+      type: 'test'
+      ...
+    # Subtest: refuses to start a request compiled from a stale job or source
+    ok 5 - refuses to start a request compiled from a stale job or source
+      ---
+      duration_ms: 2.8646
+      type: 'test'
+      ...
+    1..5
+ok 31 - studio durable BOM integration
+  ---
+  duration_ms: 99.3545
+  type: 'suite'
+  ...
+# Subtest: Tauri BOM adapter
+    # Subtest: passes the exact inspected source bytes beside the request JSON
+    ok 1 - passes the exact inspected source bytes beside the request JSON
+      ---
+      duration_ms: 1.6743
+      type: 'test'
+      ...
+    # Subtest: uses the exact status command and fails before invoking when already aborted
+    ok 2 - uses the exact status command and fails before invoking when already aborted
+      ---
+      duration_ms: 0.8381
+      type: 'test'
+      ...
+    # Subtest: sends targeted cancellation while the matching invocation is pending
+    ok 3 - sends targeted cancellation while the matching invocation is pending
+      ---
+      duration_ms: 3.63
+      type: 'test'
+      ...
+    # Subtest: BR-012 BR-031 keeps concurrent cancellation keyed to only the matching request
+    ok 4 - BR-012 BR-031 keeps concurrent cancellation keyed to only the matching request
+      ---
+      duration_ms: 7.1183
+      type: 'test'
+      ...
+    # Subtest: rejects an invalid request id without calling Tauri
+    ok 5 - rejects an invalid request id without calling Tauri
+      ---
+      duration_ms: 0.5534
+      type: 'test'
+      ...
+    # Subtest: BR-024 keeps BOM invocation on its own command and rejects null or absent results
+    ok 6 - BR-024 keeps BOM invocation on its own command and rejects null or absent results
+      ---
+      duration_ms: 62.5472
+      type: 'test'
+      ...
+    1..6
+ok 32 - Tauri BOM adapter
+  ---
+  duration_ms: 78.0778
+  type: 'suite'
+  ...
+# Subtest: BR-001 BR-002 BR-004 rejects wrong schema, unknown fields, and changed input before invoking the adapter
+ok 33 - BR-001 BR-002 BR-004 rejects wrong schema, unknown fields, and changed input before invoking the adapter
+  ---
+  duration_ms: 74.0237
+  type: 'test'
+  ...
+# Subtest: BR-005 BR-006 BR-007 validates exact request, digest, document, job, recipe, and ruleset identity
+ok 34 - BR-005 BR-006 BR-007 validates exact request, digest, document, job, recipe, and ruleset identity
+  ---
+  duration_ms: 47.779
+  type: 'test'
+  ...
+# Subtest: BR-005 response_request_id_must_match rejects both outer and inner correlation mismatches
+ok 35 - BR-005 response_request_id_must_match rejects both outer and inner correlation mismatches
+  ---
+  duration_ms: 15.4438
+  type: 'test'
+  ...
+# Subtest: BR-007 source_bindings_round_trip rejects every changed immutable binding field
+ok 36 - BR-007 source_bindings_round_trip rejects every changed immutable binding field
+  ---
+  duration_ms: 27.6179
+  type: 'test'
+  ...
+# Subtest: BR-003 BR-015 BR-016 BR-020 validates a closed, strict, sanitised transport envelope
+ok 37 - BR-003 BR-015 BR-016 BR-020 validates a closed, strict, sanitised transport envelope
+  ---
+  duration_ms: 22.5314
+  type: 'test'
+  ...
+# Subtest: BR-015 typed_error_parser_is_exhaustive and preserves each valid IPC error distinctly
+ok 38 - BR-015 typed_error_parser_is_exhaustive and preserves each valid IPC error distinctly
+  ---
+  duration_ms: 30.7551
+  type: 'test'
+  ...
+# Subtest: BR-020 error_ui_does_not_render_sensitive_detail rejects every unsafe IPC detail class
+ok 39 - BR-020 error_ui_does_not_render_sensitive_detail rejects every unsafe IPC detail class
+  ---
+  duration_ms: 33.1865
+  type: 'test'
+  ...
+# Subtest: BR-008 accepts exact request-byte boundary and rejects boundary-minus-one before invocation
+ok 40 - BR-008 accepts exact request-byte boundary and rejects boundary-minus-one before invocation
+  ---
+  duration_ms: 4.5803
+  type: 'test'
+  ...
+# Subtest: BR-009 accepts exact response-byte boundary and rejects boundary-plus-one
+ok 41 - BR-009 accepts exact response-byte boundary and rejects boundary-plus-one
+  ---
+  duration_ms: 4.1413
+  type: 'test'
+  ...
+# Subtest: BR-011 timeout aborts the adapter and returns a typed timeout
+ok 42 - BR-011 timeout aborts the adapter and returns a typed timeout
+  ---
+  duration_ms: 19.0953
+  type: 'test'
+  ...
+# Subtest: BR-012 cancellation is distinct from timeout and aborts the adapter
+ok 43 - BR-012 cancellation is distinct from timeout and aborts the adapter
+  ---
+  duration_ms: 17.1305
+  type: 'test'
+  ...
+# Subtest: BR-012 BR-028 cancellation wins over a late success while current-binding validation is pending
+ok 44 - BR-012 BR-028 cancellation wins over a late success while current-binding validation is pending
+  ---
+  duration_ms: 8.2937
+  type: 'test'
+  ...
+# Subtest: BR-011 timeout wins promptly while current-binding validation is pending
+ok 45 - BR-011 timeout wins promptly while current-binding validation is pending
+  ---
+  duration_ms: 21.0136
+  type: 'test'
+  ...
+# Subtest: BR-014 pending invocation does not block the event-loop heartbeat
+ok 46 - BR-014 pending invocation does not block the event-loop heartbeat
+  ---
+  duration_ms: 18.7104
+  type: 'test'
+  ...
+# Subtest: BR-021 BR-025 BR-026 runtime status and web behavior are truthful
+ok 47 - BR-021 BR-025 BR-026 runtime status and web behavior are truthful
+  ---
+  duration_ms: 12.0259
+  type: 'test'
+  ...
+# Subtest: BR-023 BR-028 BR-031 stale source hook rejects a valid old completion
+ok 48 - BR-023 BR-028 BR-031 stale source hook rejects a valid old completion
+  ---
+  duration_ms: 9.8492
+  type: 'test'
+  ...
+# Subtest: BR-024 BR-032 preserves a valid kernel-domain failure inside a successful transport
+ok 49 - BR-024 BR-032 preserves a valid kernel-domain failure inside a successful transport
+  ---
+  duration_ms: 6.8427
+  type: 'test'
+  ...
+# Subtest: BR-030 retry changes request identity but keeps canonical digest and source binding
+ok 50 - BR-030 retry changes request identity but keeps canonical digest and source binding
+  ---
+  duration_ms: 2.5715
+  type: 'test'
+  ...
+# Subtest: BR-033 BR-034 rejects commercial and path fields before the fake adapter runs
+ok 51 - BR-033 BR-034 rejects commercial and path fields before the fake adapter runs
+  ---
+  duration_ms: 4.3783
+  type: 'test'
+  ...
+# Subtest: BR-033 transport_payload_rejects_forbidden_commercial_fields at nested request and response boundaries
+ok 52 - BR-033 transport_payload_rejects_forbidden_commercial_fields at nested request and response boundaries
+  ---
+  duration_ms: 8.2194
+  type: 'test'
+  ...
+# Subtest: BR-035 transport tests use only an injected in-memory adapter
+ok 53 - BR-035 transport tests use only an injected in-memory adapter
+  ---
+  duration_ms: 7.3398
+  type: 'test'
+  ...
+# Subtest: calibration units and geometry
+    # Subtest: converts every supported input unit to metres
+    ok 1 - converts every supported input unit to metres
+      ---
+      duration_ms: 1.0123
+      type: 'test'
+      ...
+    # Subtest: round-trips points through an explicit rotated, scaled and translated transform
+    ok 2 - round-trips points through an explicit rotated, scaled and translated transform
+      ---
+      duration_ms: 0.8505
+      type: 'test'
+      ...
+    # Subtest: derives a two-point scale from canvas points and explicit input units
+    ok 3 - derives a two-point scale from canvas points and explicit input units
+      ---
+      duration_ms: 5.1415
+      type: 'test'
+      ...
+    # Subtest: rejects zero-length points, singular transforms and inconsistent converted distances
+    ok 4 - rejects zero-length points, singular transforms and inconsistent converted distances
+      ---
+      duration_ms: 0.9653
+      type: 'test'
+      ...
+    1..4
+ok 54 - calibration units and geometry
+  ---
+  duration_ms: 9.0387
+  type: 'suite'
+  ...
+# Subtest: calibration candidate trust and locking
+    # Subtest: creates declared and inferred scale candidates with auditable provenance
+    ok 1 - creates declared and inferred scale candidates with auditable provenance
+      ---
+      duration_ms: 0.5904
+      type: 'test'
+      ...
+    # Subtest: selects deterministically when candidates agree within tolerance
+    ok 2 - selects deterministically when candidates agree within tolerance
+      ---
+      duration_ms: 0.5047
+      type: 'test'
+      ...
+    # Subtest: detects conflicts independent of input order and requires explicit resolution
+    ok 3 - detects conflicts independent of input order and requires explicit resolution
+      ---
+      duration_ms: 0.9392
+      type: 'test'
+      ...
+    # Subtest: treats the exact relative tolerance boundary as agreement
+    ok 4 - treats the exact relative tolerance boundary as agreement
+      ---
+      duration_ms: 35.5995
+      type: 'test'
+      ...
+    # Subtest: enforces candidate, selection, conflict and lock invariants
+    ok 5 - enforces candidate, selection, conflict and lock invariants
+      ---
+      duration_ms: 1.1287
+      type: 'test'
+      ...
+    1..5
+ok 55 - calibration candidate trust and locking
+  ---
+  duration_ms: 39.2619
+  type: 'suite'
+  ...
+# Subtest: page-specific job calibration contract
+    # Subtest: retrieves calibration only for its page and rejects duplicate page records
+    ok 1 - retrieves calibration only for its page and rejects duplicate page records
+      ---
+      duration_ms: 12.0747
+      type: 'test'
+      ...
+    # Subtest: migrates unlocked and valid locked version-1 calibration records
+    ok 2 - migrates unlocked and valid locked version-1 calibration records
+      ---
+      duration_ms: 4.916
+      type: 'test'
+      ...
+    1..2
+ok 56 - page-specific job calibration contract
+  ---
+  duration_ms: 17.3704
+  type: 'suite'
+  ...
+# Subtest: PlanCanvas calibration coordinates
+    # Subtest: round-trips plan document coordinates through zoomed and panned canvas space
+    ok 1 - round-trips plan document coordinates through zoomed and panned canvas space
+      ---
+      duration_ms: 0.5267
+      type: 'test'
+      ...
+    # Subtest: preserves the elevation canvas's inverted vertical document axis
+    ok 2 - preserves the elevation canvas's inverted vertical document axis
+      ---
+      duration_ms: 0.1033
+      type: 'test'
+      ...
+    1..2
+ok 57 - PlanCanvas calibration coordinates
+  ---
+  duration_ms: 1.2651
+  type: 'suite'
+  ...
+# Subtest: PlanCanvas calibration interaction precedence
+    # Subtest: captures calibration before pan or trace gestures
+    ok 1 - captures calibration before pan or trace gestures
+      ---
+      duration_ms: 0.1468
+      type: 'test'
+      ...
+    # Subtest: keeps the existing pan and trace behavior when capture is inactive
+    ok 2 - keeps the existing pan and trace behavior when capture is inactive
+      ---
+      duration_ms: 0.0757
+      type: 'test'
+      ...
+    1..2
+ok 58 - PlanCanvas calibration interaction precedence
+  ---
+  duration_ms: 0.3245
+  type: 'suite'
+  ...
+# Subtest: calibration panel trust states
+    # Subtest: derives only locked calibrations as trusted
+    ok 1 - derives only locked calibrations as trusted
+      ---
+      duration_ms: 2.2525
+      type: 'test'
+      ...
+    # Subtest: renders candidate comparison and explicit conflict guidance without implying trust
+    ok 2 - renders candidate comparison and explicit conflict guidance without implying trust
+      ---
+      duration_ms: 34.4314
+      type: 'test'
+      ...
+    # Subtest: exposes capture progress and replaces lock controls after a trusted lock
+    ok 3 - exposes capture progress and replaces lock controls after a trusted lock
+      ---
+      duration_ms: 2.4162
+      type: 'test'
+      ...
+    1..3
+ok 59 - calibration panel trust states
+  ---
+  duration_ms: 42.9774
+  type: 'suite'
+  ...
+# Subtest: studio calibration store
+    # Subtest: preserves imported legacy evidence and rejects lock, retrace and recalibration authority
+    ok 1 - preserves imported legacy evidence and rejects lock, retrace and recalibration authority
+      ---
+      duration_ms: 12.8726
+      type: 'test'
+      ...
+    # Subtest: isolates locked scales per page and loads only the current page scale
+    ok 2 - isolates locked scales per page and loads only the current page scale
+      ---
+      duration_ms: 7.3466
+      type: 'test'
+      ...
+    # Subtest: requires explicit resolution before conflicting candidates can be locked
+    ok 3 - requires explicit resolution before conflicting candidates can be locked
+      ---
+      duration_ms: 4.3976
+      type: 'test'
+      ...
+    # Subtest: captures exactly two points and creates or updates a manual candidate
+    ok 4 - captures exactly two points and creates or updates a manual candidate
+      ---
+      duration_ms: 6.9901
+      type: 'test'
+      ...
+    # Subtest: fails closed for metric markups until the current page calibration is locked
+    ok 5 - fails closed for metric markups until the current page calibration is locked
+      ---
+      duration_ms: 2.6245
+      type: 'test'
+      ...
+    # Subtest: uses the locked calibration itself for length and area measurements
+    ok 6 - uses the locked calibration itself for length and area measurements
+      ---
+      duration_ms: 2.7389
+      type: 'test'
+      ...
+    # Subtest: round-trips the page calibration through the durable job schema
+    ok 7 - round-trips the page calibration through the durable job schema
+      ---
+      duration_ms: 3.4903
+      type: 'test'
+      ...
+    1..7
+ok 60 - studio calibration store
+  ---
+  duration_ms: 43.5038
+  type: 'suite'
+  ...
+# Subtest: quantity draft contains observations but no invented rates or totals
+ok 61 - quantity draft contains observations but no invented rates or totals
+  ---
+  duration_ms: 1.7851
+  type: 'test'
+  ...
+# Subtest: external handoff always fails closed and does not write browser state
+ok 62 - external handoff always fails closed and does not write browser state
+  ---
+  duration_ms: 0.3122
+  type: 'test'
+  ...
+# Subtest: DXF document preview geometry
+    # Subtest: converts LINE and closed LWPOLYLINE entities into bounded SVG paths
+    ok 1 - converts LINE and closed LWPOLYLINE entities into bounded SVG paths
+      ---
+      duration_ms: 1.157
+      type: 'test'
+      ...
+    # Subtest: reads classic POLYLINE and VERTEX sequences from Uint8Array bytes
+    ok 2 - reads classic POLYLINE and VERTEX sequences from Uint8Array bytes
+      ---
+      duration_ms: 0.2402
+      type: 'test'
+      ...
+    # Subtest: fails closed for malformed or unsupported ASCII DXF content
+    ok 3 - fails closed for malformed or unsupported ASCII DXF content
+      ---
+      duration_ms: 0.109
+      type: 'test'
+      ...
+    1..3
+ok 63 - DXF document preview geometry
+  ---
+  duration_ms: 2.3287
+  type: 'suite'
+  ...
+# Subtest: inspectPlanBytes
+    # Subtest: inspects a PDF, hashes the real bytes, and counts page-tree leaves
+    ok 1 - inspects a PDF, hashes the real bytes, and counts page-tree leaves
+      ---
+      duration_ms: 12.5793
+      type: 'test'
+      ...
+    # Subtest: accepts minimal ASCII DXF and assigns one logical page
+    ok 2 - accepts minimal ASCII DXF and assigns one logical page
+      ---
+      duration_ms: 1.8361
+      type: 'test'
+      ...
+    # Subtest: accepts minimal SVG and preserves a supplied takeoff
+    ok 3 - accepts minimal SVG and preserves a supplied takeoff
+      ---
+      duration_ms: 1.2099
+      type: 'test'
+      ...
+# Warning: Indexing all PDF objects
+    # Subtest: gives every import a unique document id
+    ok 4 - gives every import a unique document id
+      ---
+      duration_ms: 3.3387
+      type: 'test'
+      ...
+    # Subtest: rejects empty and unsupported files
+    ok 5 - rejects empty and unsupported files
+      ---
+      duration_ms: 0.8444
+      type: 'test'
+      ...
+    # Subtest: rejects extension/content mismatches and bad magic
+    ok 6 - rejects extension/content mismatches and bad magic
+      ---
+      duration_ms: 0.5086
+      type: 'test'
+      ...
+    # Subtest: rejects bytes beyond the 100 MB boundary before hashing
+    ok 7 - rejects bytes beyond the 100 MB boundary before hashing
+      ---
+      duration_ms: 0.5113
+      type: 'test'
+      ...
+    # Subtest: fails conservatively when a PDF page tree cannot be counted
+    ok 8 - fails conservatively when a PDF page tree cannot be counted
+      ---
+      duration_ms: 245.0447
+      type: 'test'
+      ...
+    # Subtest: rejects a PDF whose declared count contradicts its page tree
+    ok 9 - rejects a PDF whose declared count contradicts its page tree
+      ---
+      duration_ms: 0.5284
+      type: 'test'
+      ...
+    # Subtest: counts the repository's compressed and uncompressed PDF fixtures
+    ok 10 - counts the repository's compressed and uncompressed PDF fixtures
+      ---
+      duration_ms: 90.0868
+      type: 'test'
+      ...
+    1..10
+ok 64 - inspectPlanBytes
+  ---
+  duration_ms: 359.6658
+  type: 'suite'
+  ...
+# Subtest: fencing job domain
+    # Subtest: round-trips the versioned default job
+    ok 1 - round-trips the versioned default job
+      ---
+      duration_ms: 11.8993
+      type: 'test'
+      ...
+    # Subtest: fails closed for unknown schema versions
+    ok 2 - fails closed for unknown schema versions
+      ---
+      duration_ms: 1.9873
+      type: 'test'
+      ...
+    # Subtest: requires v2 entity revisions and a resolvable active document
+    ok 3 - requires v2 entity revisions and a resolvable active document
+      ---
+      duration_ms: 4.7439
+      type: 'test'
+      ...
+    # Subtest: requires review attribution and exact gate placement
+    ok 4 - requires review attribution and exact gate placement
+      ---
+      duration_ms: 7.5047
+      type: 'test'
+      ...
+    # Subtest: rejects malformed geometry and negative quantities
+    ok 5 - rejects malformed geometry and negative quantities
+      ---
+      duration_ms: 3.2771
+      type: 'test'
+      ...
+    # Subtest: rejects duplicate calibrations for the same sheet
+    ok 6 - rejects duplicate calibrations for the same sheet
+      ---
+      duration_ms: 0.5259
+      type: 'test'
+      ...
+    # Subtest: rejects duplicate trace IDs, broken gate associations and inconsistent enriched lengths
+    ok 7 - rejects duplicate trace IDs, broken gate associations and inconsistent enriched lengths
+      ---
+      duration_ms: 0.7675
+      type: 'test'
+      ...
+    # Subtest: reports explicit quote-readiness blockers
+    ok 8 - reports explicit quote-readiness blockers
+      ---
+      duration_ms: 3.1476
+      type: 'test'
+      ...
+    # Subtest: migrates version 1 records into the complete evidence contract
+    ok 9 - migrates version 1 records into the complete evidence contract
+      ---
+      duration_ms: 2.8255
+      type: 'test'
+      ...
+    # Subtest: validates corner, post, photo-link and revision topology
+    ok 10 - validates corner, post, photo-link and revision topology
+      ---
+      duration_ms: 2.6167
+      type: 'test'
+      ...
+    # Subtest: reports complete gate and legacy-photo evidence blockers
+    ok 11 - reports complete gate and legacy-photo evidence blockers
+      ---
+      duration_ms: 0.3677
+      type: 'test'
+      ...
+    1..11
+ok 65 - fencing job domain
+  ---
+  duration_ms: 41.6441
+  type: 'suite'
+  ...
+# Subtest: Elevation Stack Engine
+    # Subtest: generates 1 floor when floors=1 in standing mode
+    ok 1 - generates 1 floor when floors=1 in standing mode
+      ---
+      duration_ms: 1.0268
+      type: 'test'
+      ...
+    # Subtest: stacks 3 floors vertically with correct Z offsets and slab bands
+    ok 2 - stacks 3 floors vertically with correct Z offsets and slab bands
+      ---
+      duration_ms: 2.0276
+      type: 'test'
+      ...
+    # Subtest: applies explode vertical separation between storeys
+    ok 3 - applies explode vertical separation between storeys
+      ---
+      duration_ms: 0.369
+      type: 'test'
+      ...
+    # Subtest: dims non-active floors when activeFloor is specified
+    ok 4 - dims non-active floors when activeFloor is specified
+      ---
+      duration_ms: 0.6898
+      type: 'test'
+      ...
+    # Subtest: generates datum elevation level lines
+    ok 5 - generates datum elevation level lines
+      ---
+      duration_ms: 0.492
+      type: 'test'
+      ...
+    1..5
+ok 66 - Elevation Stack Engine
+  ---
+  duration_ms: 19.1319
+  type: 'suite'
+  ...
+# Subtest: truthful workbench host detection
+    # Subtest: reports only an active Tauri bridge as desktop-capable
+    ok 1 - reports only an active Tauri bridge as desktop-capable
+      ---
+      duration_ms: 0.8131
+      type: 'test'
+      ...
+    # Subtest: BR-025 does not advertise the dormant legacy Electron runTakeoff bridge
+    ok 2 - BR-025 does not advertise the dormant legacy Electron runTakeoff bridge
+      ---
+      duration_ms: 0.1671
+      type: 'test'
+      ...
+    1..2
+ok 67 - truthful workbench host detection
+  ---
+  duration_ms: 2.1148
+  type: 'suite'
+  ...
+# Subtest: photo evidence import
+    # Subtest: hashes real bytes and produces matching v2 metadata/content
+    ok 1 - hashes real bytes and produces matching v2 metadata/content
+      ---
+      duration_ms: 29.9488
+      type: 'test'
+      ...
+    # Subtest: generates a unique ID for each import
+    ok 2 - generates a unique ID for each import
+      ---
+      duration_ms: 10.2327
+      type: 'test'
+      ...
+    # Subtest: accepts declared WebP content with a matching RIFF/WEBP signature
+    ok 3 - accepts declared WebP content with a matching RIFF/WEBP signature
+      ---
+      duration_ms: 2.0175
+      type: 'test'
+      ...
+    # Subtest: accepts the exact 25 MiB boundary and rejects one byte beyond it before reading
+    ok 4 - accepts the exact 25 MiB boundary and rejects one byte beyond it before reading
+      ---
+      duration_ms: 77.4761
+      type: 'test'
+      ...
+    # Subtest: fails closed for empty, unsupported, malformed, and type-mismatched files
+    ok 5 - fails closed for empty, unsupported, malformed, and type-mismatched files
+      ---
+      duration_ms: 0.9654
+      type: 'test'
+      ...
+    # Subtest: rejects invalid ordering and timestamps
+    ok 6 - rejects invalid ordering and timestamps
+      ---
+      duration_ms: 0.3992
+      type: 'test'
+      ...
+    1..6
+ok 68 - photo evidence import
+  ---
+  duration_ms: 123.169
+  type: 'suite'
+  ...
+# Subtest: photo content stores
+    # Subtest: rehashes retrieved bytes instead of trusting stored hash metadata
+    ok 1 - rehashes retrieved bytes instead of trusting stored hash metadata
+      ---
+      duration_ms: 9.8082
+      type: 'test'
+      ...
+    # Subtest: supports isolated memory CRUD and listing
+    ok 2 - supports isolated memory CRUD and listing
+      ---
+      duration_ms: 0.7286
+      type: 'test'
+      ...
+    # Subtest: fails clearly when browser IndexedDB is unavailable
+    ok 3 - fails clearly when browser IndexedDB is unavailable
+      ---
+      duration_ms: 0.5015
+      type: 'test'
+      ...
+    # Subtest: creates a revocable object URL for verified content
+    ok 4 - creates a revocable object URL for verified content
+      ---
+      duration_ms: 2.464
+      type: 'test'
+      ...
+    1..4
+ok 69 - photo content stores
+  ---
+  duration_ms: 14.001
+  type: 'suite'
+  ...
+# Subtest: revision-safe evidence commands
+    # Subtest: approves/rejects atomically and rejects stale decisions
+    ok 1 - approves/rejects atomically and rejects stale decisions
+      ---
+      duration_ms: 27.5988
+      type: 'test'
+      ...
+    # Subtest: invalidates approvals when specifications or linked evidence changes
+    ok 2 - invalidates approvals when specifications or linked evidence changes
+      ---
+      duration_ms: 5.4195
+      type: 'test'
+      ...
+    # Subtest: updates run and gate specifications atomically with deterministic revision events
+    ok 3 - updates run and gate specifications atomically with deterministic revision events
+      ---
+      duration_ms: 2.5635
+      type: 'test'
+      ...
+    # Subtest: adds and updates bidirectional links while incrementing every mutated entity
+    ok 4 - adds and updates bidirectional links while incrementing every mutated entity
+      ---
+      duration_ms: 1.4881
+      type: 'test'
+      ...
+    # Subtest: keeps photo order contiguous through reorder and remove
+    ok 5 - keeps photo order contiguous through reorder and remove
+      ---
+      duration_ms: 2.0518
+      type: 'test'
+      ...
+    # Subtest: rejects missing links and invalid patches without mutating the source
+    ok 6 - rejects missing links and invalid patches without mutating the source
+      ---
+      duration_ms: 1.3774
+      type: 'test'
+      ...
+    # Subtest: caps revision history at 1000 events without reusing sequences
+    ok 7 - caps revision history at 1000 events without reusing sequences
+      ---
+      duration_ms: 11.2823
+      type: 'test'
+      ...
+    1..7
+ok 70 - revision-safe evidence commands
+  ---
+  duration_ms: 55.0431
+  type: 'suite'
+  ...
+# Subtest: studio specification and evidence commands
+    # Subtest: updates run and gate specifications with caller-provided revisions
+    ok 1 - updates run and gate specifications with caller-provided revisions
+      ---
+      duration_ms: 24.8032
+      type: 'test'
+      ...
+    # Subtest: adds, links, updates, reorders and removes metadata with contiguous order
+    ok 2 - adds, links, updates, reorders and removes metadata with contiguous order
+      ---
+      duration_ms: 11.537
+      type: 'test'
+      ...
+    # Subtest: rejects a stale remove before touching binary storage
+    ok 3 - rejects a stale remove before touching binary storage
+      ---
+      duration_ms: 1.6204
+      type: 'test'
+      ...
+    # Subtest: fails an unavailable browser photo import atomically
+    ok 4 - fails an unavailable browser photo import atomically
+      ---
+      duration_ms: 9.4347
+      type: 'test'
+      ...
+    # Subtest: records exactly one global revision event for site, name, calibration and trace commands
+    ok 5 - records exactly one global revision event for site, name, calibration and trace commands
+      ---
+      duration_ms: 5.4901
+      type: 'test'
+      ...
+    # Subtest: exposes atomic store approval commands and invalidates approval on geometry changes
+    ok 6 - exposes atomic store approval commands and invalidates approval on geometry changes
+      ---
+      duration_ms: 6.6549
+      type: 'test'
+      ...
+    # Subtest: hydrates as one idempotent flight and revokes stale preview URLs
+    ok 7 - hydrates as one idempotent flight and revokes stale preview URLs
+      ---
+      duration_ms: 2.5508
+      type: 'test'
+      ...
+    # Subtest: rehashes retrieved plan bytes against canonical document metadata
+    ok 8 - rehashes retrieved plan bytes against canonical document metadata
+      ---
+      duration_ms: 12.3653
+      type: 'test'
+      ...
+    1..8
+ok 71 - studio specification and evidence commands
+  ---
+  duration_ms: 77.4946
+  type: 'suite'
+  ...
+# Subtest: Solid Shaded Faces Engine
+    # Subtest: should return an empty list of faces if showSurfaces is disabled
+    ok 1 - should return an empty list of faces if showSurfaces is disabled
+      ---
+      duration_ms: 1.4743
+      type: 'test'
+      ...
+    # Subtest: should return an empty list of faces if showSrc is disabled
+    ok 2 - should return an empty list of faces if showSrc is disabled
+      ---
+      duration_ms: 0.1736
+      type: 'test'
+      ...
+    # Subtest: should return only roof faces when showBld is false but showRoof is true
+    ok 3 - should return only roof faces when showBld is false but showRoof is true
+      ---
+      duration_ms: 0.2263
+      type: 'test'
+      ...
+    # Subtest: should return only building faces when showRoof is false but showBld is true
+    ok 4 - should return only building faces when showRoof is false but showBld is true
+      ---
+      duration_ms: 0.1921
+      type: 'test'
+      ...
+    # Subtest: should scale building floors correctly with storeys property
+    ok 5 - should scale building floors correctly with storeys property
+      ---
+      duration_ms: 0.1659
+      type: 'test'
+      ...
+    # Subtest: should use the correct skin colors
+    ok 6 - should use the correct skin colors
+      ---
+      duration_ms: 0.3034
+      type: 'test'
+      ...
+    # Subtest: should calculate correct vertical coordinates for 3D walls
+    ok 7 - should calculate correct vertical coordinates for 3D walls
+      ---
+      duration_ms: 0.2331
+      type: 'test'
+      ...
+    1..7
+ok 72 - Solid Shaded Faces Engine
+  ---
+  duration_ms: 5.2424
+  type: 'suite'
+  ...
+# Subtest: job-scoped fencing recipe persistence
+    # Subtest: round-trips exact validated recipe decisions only for the owning job
+    ok 1 - round-trips exact validated recipe decisions only for the owning job
+      ---
+      duration_ms: 51.6816
+      type: 'test'
+      ...
+    # Subtest: rejects corrupt, cross-job and digest-tampered bytes
+    ok 2 - rejects corrupt, cross-job and digest-tampered bytes
+      ---
+      duration_ms: 10.5699
+      type: 'test'
+      ...
+    # Subtest: fails closed when storage cannot retain exact bytes
+    ok 3 - fails closed when storage cannot retain exact bytes
+      ---
+      duration_ms: 7.1666
+      type: 'test'
+      ...
+    1..3
+ok 73 - job-scoped fencing recipe persistence
+  ---
+  duration_ms: 71.5575
+  type: 'suite'
+  ...
+# Subtest: SC-07H fencing recipe preparation
+    # Subtest: creates a deterministic contract-valid candidate set and real digest
+    ok 1 - creates a deterministic contract-valid candidate set and real digest
+      ---
+      duration_ms: 45.0869
+      type: 'test'
+      ...
+    # Subtest: starts every candidate real-world assumption unresolved and unattributed
+    ok 2 - starts every candidate real-world assumption unresolved and unattributed
+      ---
+      duration_ms: 4.8942
+      type: 'test'
+      ...
+    # Subtest: selects only an exact supported system/profile and fails closed otherwise
+    ok 3 - selects only an exact supported system/profile and fails closed otherwise
+      ---
+      duration_ms: 17.3825
+      type: 'test'
+      ...
+    # Subtest: accepts and reopens one assumption immutably with actor/time audit events
+    ok 4 - accepts and reopens one assumption immutably with actor/time audit events
+      ---
+      duration_ms: 13.7297
+      type: 'test'
+      ...
+    # Subtest: rejects stale revisions and invalid or redundant transitions
+    ok 5 - rejects stale revisions and invalid or redundant transitions
+      ---
+      duration_ms: 11.1419
+      type: 'test'
+      ...
+    1..5
+ok 74 - SC-07H fencing recipe preparation
+  ---
+  duration_ms: 93.9101
+  type: 'suite'
+  ...
+# Subtest: fencing job persistence
+    # Subtest: saves and loads a validated job
+    ok 1 - saves and loads a validated job
+      ---
+      duration_ms: 12.7903
+      type: 'test'
+      ...
+    # Subtest: fails closed when stored JSON is corrupt
+    ok 2 - fails closed when stored JSON is corrupt
+      ---
+      duration_ms: 0.4331
+      type: 'test'
+      ...
+    # Subtest: fails closed for an unknown schema version
+    ok 3 - fails closed for an unknown schema version
+      ---
+      duration_ms: 0.7929
+      type: 'test'
+      ...
+    # Subtest: loads and migrates the legacy storage key without stranding saved work
+    ok 4 - loads and migrates the legacy storage key without stranding saved work
+      ---
+      duration_ms: 0.7678
+      type: 'test'
+      ...
+    # Subtest: does not overwrite storage with an invalid job
+    ok 5 - does not overwrite storage with an invalid job
+      ---
+      duration_ms: 1.7431
+      type: 'test'
+      ...
+    # Subtest: clears the saved job
+    ok 6 - clears the saved job
+      ---
+      duration_ms: 0.5916
+      type: 'test'
+      ...
+    1..6
+ok 75 - fencing job persistence
+  ---
+  duration_ms: 18.5282
+  type: 'suite'
+  ...
+# Subtest: photo evidence panel
+    # Subtest: renders real previews, revision/hash provenance, captions, links, ordering and removal
+    ok 1 - renders real previews, revision/hash provenance, captions, links, ordering and removal
+      ---
+      duration_ms: 7.658
+      type: 'test'
+      ...
+    # Subtest: renders empty and explicit error states
+    ok 2 - renders empty and explicit error states
+      ---
+      duration_ms: 0.7622
+      type: 'test'
+      ...
+    # Subtest: passes expected revisions through every persisted mutation
+    ok 3 - passes expected revisions through every persisted mutation
+      ---
+      duration_ms: 0.1387
+      type: 'test'
+      ...
+    1..3
+ok 76 - photo evidence panel
+  ---
+  duration_ms: 9.291
+  type: 'suite'
+  ...
+# Subtest: runtime quote readiness
+    # Subtest: fails closed while hydration is incomplete
+    ok 1 - fails closed while hydration is incomplete
+      ---
+      duration_ms: 15.5603
+      type: 'test'
+      ...
+    # Subtest: adds missing/corrupt original blockers beside pure domain blockers
+    ok 2 - adds missing/corrupt original blockers beside pure domain blockers
+      ---
+      duration_ms: 0.8534
+      type: 'test'
+      ...
+    1..2
+ok 77 - runtime quote readiness
+  ---
+  duration_ms: 18.9514
+  type: 'suite'
+  ...
+# Subtest: Keyboard Shortcuts Engine
+    # Subtest: shouldIgnoreShortcuts
+        # Subtest: returns false for null activeElement
+        ok 1 - returns false for null activeElement
+          ---
+          duration_ms: 0.7293
+          type: 'test'
+          ...
+        # Subtest: returns true for INPUT, TEXTAREA, and SELECT elements
+        ok 2 - returns true for INPUT, TEXTAREA, and SELECT elements
+          ---
+          duration_ms: 0.2656
+          type: 'test'
+          ...
+        # Subtest: returns true for contenteditable elements
+        ok 3 - returns true for contenteditable elements
+          ---
+          duration_ms: 0.2511
+          type: 'test'
+          ...
+        # Subtest: returns false for standard elements
+        ok 4 - returns false for standard elements
+          ---
+          duration_ms: 0.1503
+          type: 'test'
+          ...
+        1..4
+    ok 1 - shouldIgnoreShortcuts
+      ---
+      duration_ms: 2.5673
+      type: 'suite'
+      ...
+    # Subtest: handleStudioKeyDown
+        # Subtest: handles L for Length tool
+        ok 1 - handles L for Length tool
+          ---
+          duration_ms: 2.5416
+          type: 'test'
+          ...
+        # Subtest: handles uppercase keys (A for Area)
+        ok 2 - handles uppercase keys (A for Area)
+          ---
+          duration_ms: 0.2366
+          type: 'test'
+          ...
+        # Subtest: handles C for Count tool
+        ok 3 - handles C for Count tool
+          ---
+          duration_ms: 0.1475
+          type: 'test'
+          ...
+        # Subtest: handles M as the visible Move tool without routing to the removed Sketch pane
+        ok 4 - handles M as the visible Move tool without routing to the removed Sketch pane
+          ---
+          duration_ms: 0.128
+          type: 'test'
+          ...
+        # Subtest: handles Escape to cancel / clear pending
+        ok 5 - handles Escape to cancel / clear pending
+          ---
+          duration_ms: 0.1848
+          type: 'test'
+          ...
+        # Subtest: handles Enter to commit pending if there are pending points
+        ok 6 - handles Enter to commit pending if there are pending points
+          ---
+          duration_ms: 0.3079
+          type: 'test'
+          ...
+        # Subtest: does not handle Enter if pendingLength is 0
+        ok 7 - does not handle Enter if pendingLength is 0
+          ---
+          duration_ms: 0.192
+          type: 'test'
+          ...
+        # Subtest: handles numeric keys (1-9) to switch panes
+        ok 8 - handles numeric keys (1-9) to switch panes
+          ---
+          duration_ms: 0.164
+          type: 'test'
+          ...
+        # Subtest: ignores keys that are not registered
+        ok 9 - ignores keys that are not registered
+          ---
+          duration_ms: 0.1079
+          type: 'test'
+          ...
+        1..9
+    ok 2 - handleStudioKeyDown
+      ---
+      duration_ms: 4.6117
+      type: 'suite'
+      ...
+    1..2
+ok 78 - Keyboard Shortcuts Engine
+  ---
+  duration_ms: 7.7207
+  type: 'suite'
+  ...
+# Subtest: Vector Snapping Engine
+    # Subtest: should return the original cursor point if snapping is disabled
+    ok 1 - should return the original cursor point if snapping is disabled
+      ---
+      duration_ms: 1.8213
+      type: 'test'
+      ...
+    # Subtest: should return the original cursor point if no vertices are within the snap radius
+    ok 2 - should return the original cursor point if no vertices are within the snap radius
+      ---
+      duration_ms: 0.2483
+      type: 'test'
+      ...
+    # Subtest: should snap to the nearest PLAN vertex if within the snap radius
+    ok 3 - should snap to the nearest PLAN vertex if within the snap radius
+      ---
+      duration_ms: 0.2133
+      type: 'test'
+      ...
+    # Subtest: should snap to manual markups if they are closer than other candidate points
+    ok 4 - should snap to manual markups if they are closer than other candidate points
+      ---
+      duration_ms: 0.179
+      type: 'test'
+      ...
+    # Subtest: should snap to pending points when active
+    ok 5 - should snap to pending points when active
+      ---
+      duration_ms: 1.2978
+      type: 'test'
+      ...
+    # Subtest: should snap to elevation vertices correctly when sheetKind is elev and floors is 1
+    ok 6 - should snap to elevation vertices correctly when sheetKind is elev and floors is 1
+      ---
+      duration_ms: 0.4065
+      type: 'test'
+      ...
+    # Subtest: should snap to stacked elevation vertices correctly when sheetKind is elev and floors is 3
+    ok 7 - should snap to stacked elevation vertices correctly when sheetKind is elev and floors is 3
+      ---
+      duration_ms: 0.4956
+      type: 'test'
+      ...
+    1..7
+ok 79 - Vector Snapping Engine
+  ---
+  duration_ms: 7.5097
+  type: 'suite'
+  ...
+# Subtest: run specification panel
+    # Subtest: renders every frozen estimator group and revision
+    ok 1 - renders every frozen estimator group and revision
+      ---
+      duration_ms: 7.7813
+      type: 'test'
+      ...
+    # Subtest: binds all updates to the selected run ID and expected revision
+    ok 2 - binds all updates to the selected run ID and expected revision
+      ---
+      duration_ms: 0.1639
+      type: 'test'
+      ...
+    1..2
+ok 80 - run specification panel
+  ---
+  duration_ms: 8.5647
+  type: 'suite'
+  ...
+# Subtest: trace editor panel
+    # Subtest: allows split only at internal vertices and removal only when geometry remains valid
+    ok 1 - allows split only at internal vertices and removal only when geometry remains valid
+      ---
+      duration_ms: 0.7378
+      type: 'test'
+      ...
+    # Subtest: renders revisioned length accounting and makes merge an explicit endpoint action
+    ok 2 - renders revisioned length accounting and makes merge an explicit endpoint action
+      ---
+      duration_ms: 6.6924
+      type: 'test'
+      ...
+    # Subtest: renders controlled gate type, width and run association fields
+    ok 3 - renders controlled gate type, width and run association fields
+      ---
+      duration_ms: 2.99
+      type: 'test'
+      ...
+    # Subtest: renders a clear empty state with disabled history actions
+    ok 4 - renders a clear empty state with disabled history actions
+      ---
+      duration_ms: 0.4139
+      type: 'test'
+      ...
+    1..4
+ok 81 - trace editor panel
+  ---
+  duration_ms: 11.9362
+  type: 'suite'
+  ...
+# Subtest: trace measurement and migration
+    # Subtest: measures every polyline segment against the locked page calibration
+    ok 1 - measures every polyline segment against the locked page calibration
+      ---
+      duration_ms: 7.5363
+      type: 'test'
+      ...
+    # Subtest: migrates existing v1 two-point runs and gates without changing IDs
+    ok 2 - migrates existing v1 two-point runs and gates without changing IDs
+      ---
+      duration_ms: 1.7209
+      type: 'test'
+      ...
+    # Subtest: unions overlapping gate openings and caps deductions to gross length
+    ok 3 - unions overlapping gate openings and caps deductions to gross length
+      ---
+      duration_ms: 2.0135
+      type: 'test'
+      ...
+    # Subtest: projects gate points deterministically onto a run
+    ok 4 - projects gate points deterministically onto a run
+      ---
+      duration_ms: 0.6274
+      type: 'test'
+      ...
+    1..4
+ok 82 - trace measurement and migration
+  ---
+  duration_ms: 13.1912
+  type: 'suite'
+  ...
+# Subtest: pure editable trace commands
+    # Subtest: moves, inserts and removes vertices with stable IDs and monotonic revisions
+    ok 1 - moves, inserts and removes vertices with stable IDs and monotonic revisions
+      ---
+      duration_ms: 2.8137
+      type: 'test'
+      ...
+    # Subtest: rejects edits that produce zero-length geometry
+    ok 2 - rejects edits that produce zero-length geometry
+      ---
+      duration_ms: 0.4766
+      type: 'test'
+      ...
+    # Subtest: repairs corner and post vertex annotations across topology edits
+    ok 3 - repairs corner and post vertex annotations across topology edits
+      ---
+      duration_ms: 1.1458
+      type: 'test'
+      ...
+    # Subtest: splits only at an internal vertex and deterministically reassigns gates
+    ok 4 - splits only at an internal vertex and deterministically reassigns gates
+      ---
+      duration_ms: 0.7261
+      type: 'test'
+      ...
+    # Subtest: merges compatible runs using explicit endpoint orientation
+    ok 5 - merges compatible runs using explicit endpoint orientation
+      ---
+      duration_ms: 3.3349
+      type: 'test'
+      ...
+    # Subtest: places and removes a gate while recomputing net length and preserving undo state
+    ok 6 - places and removes a gate while recomputing net length and preserving undo state
+      ---
+      duration_ms: 1.5713
+      type: 'test'
+      ...
+    1..6
+ok 83 - pure editable trace commands
+  ---
+  duration_ms: 10.65
+  type: 'suite'
+  ...
+# Subtest: trace topology and serialized domain invariants
+    # Subtest: reports duplicate IDs, stale lengths and invalid gate topology
+    ok 1 - reports duplicate IDs, stale lengths and invalid gate topology
+      ---
+      duration_ms: 0.9521
+      type: 'test'
+      ...
+    # Subtest: migrates legacy serialized run/gate fields and validates domain relationships
+    ok 2 - migrates legacy serialized run/gate fields and validates domain relationships
+      ---
+      duration_ms: 14.6676
+      type: 'test'
+      ...
+    1..2
+ok 84 - trace topology and serialized domain invariants
+  ---
+  duration_ms: 15.846
+  type: 'suite'
+  ...
+# Subtest: PlanCanvas run and vertex hit-testing
+    # Subtest: selects the closest segment of a multi-segment run in screen pixels
+    ok 1 - selects the closest segment of a multi-segment run in screen pixels
+      ---
+      duration_ms: 0.5555
+      type: 'test'
+      ...
+    # Subtest: does not select paths beyond the screen-space tolerance
+    ok 2 - does not select paths beyond the screen-space tolerance
+      ---
+      duration_ms: 0.1233
+      type: 'test'
+      ...
+    # Subtest: finds the nearest visible handle and keeps drag coordinates stable
+    ok 3 - finds the nearest visible handle and keeps drag coordinates stable
+      ---
+      duration_ms: 0.5901
+      type: 'test'
+      ...
+    1..3
+ok 85 - PlanCanvas run and vertex hit-testing
+  ---
+  duration_ms: 1.908
+  type: 'suite'
+  ...
+# Subtest: PlanCanvas editing interaction precedence
+    # Subtest: keeps calibration ahead of every editing action
+    ok 1 - keeps calibration ahead of every editing action
+      ---
+      duration_ms: 0.1365
+      type: 'test'
+      ...
+    # Subtest: reserves explicit middle/right/shift gestures for pan
+    ok 2 - reserves explicit middle/right/shift gestures for pan
+      ---
+      duration_ms: 0.0784
+      type: 'test'
+      ...
+    # Subtest: chooses vertex drag, run selection, trace, then ordinary pan without overlap
+    ok 3 - chooses vertex drag, run selection, trace, then ordinary pan without overlap
+      ---
+      duration_ms: 0.0749
+      type: 'test'
+      ...
+    1..3
+ok 86 - PlanCanvas editing interaction precedence
+  ---
+  duration_ms: 0.4222
+  type: 'suite'
+  ...
+# Subtest: studio editable tracing store
+    # Subtest: preserves legacy target-page geometry during cross-page move
+    ok 1 - preserves legacy target-page geometry during cross-page move
+      ---
+      duration_ms: 12.1669
+      type: 'test'
+      ...
+    # Subtest: preserves legacy target-page geometry during cross-page remove
+    ok 2 - preserves legacy target-page geometry during cross-page remove
+      ---
+      duration_ms: 2.2093
+      type: 'test'
+      ...
+    # Subtest: preserves legacy target-page geometry during cross-page undo
+    ok 3 - preserves legacy target-page geometry during cross-page undo
+      ---
+      duration_ms: 2.3579
+      type: 'test'
+      ...
+    # Subtest: preserves legacy target-page geometry during cross-page redo
+    ok 4 - preserves legacy target-page geometry during cross-page redo
+      ---
+      duration_ms: 2.9954
+      type: 'test'
+      ...
+    # Subtest: permits a current-source target while preserving unrelated legacy page evidence
+    ok 5 - permits a current-source target while preserving unrelated legacy page evidence
+      ---
+      duration_ms: 4.2608
+      type: 'test'
+      ...
+    # Subtest: commits a multi-segment run only on explicit completion
+    ok 6 - commits a multi-segment run only on explicit completion
+      ---
+      duration_ms: 4.48
+      type: 'test'
+      ...
+    # Subtest: moves, inserts and removes selected vertices through revision-safe commands
+    ok 7 - moves, inserts and removes selected vertices through revision-safe commands
+      ---
+      duration_ms: 2.3424
+      type: 'test'
+      ...
+    # Subtest: projects gate edits, deducts width, and restores them with undo and redo
+    ok 8 - projects gate edits, deducts width, and restores them with undo and redo
+      ---
+      duration_ms: 4.3746
+      type: 'test'
+      ...
+    # Subtest: splits and merges explicit endpoints while repairing selection
+    ok 9 - splits and merges explicit endpoints while repairing selection
+      ---
+      duration_ms: 3.1782
+      type: 'test'
+      ...
+    # Subtest: removes a run and its gates atomically, then restores both
+    ok 10 - removes a run and its gates atomically, then restores both
+      ---
+      duration_ms: 1.5535
+      type: 'test'
+      ...
+    # Subtest: bounds command history, clears redo on a branch, and blocks stale calibration
+    ok 11 - bounds command history, clears redo on a branch, and blocks stale calibration
+      ---
+      duration_ms: 29.5945
+      type: 'test'
+      ...
+    1..11
+ok 87 - studio editable tracing store
+  ---
+  duration_ms: 71.0099
+  type: 'suite'
+  ...
+1..87
+# tests 301
+# suites 53
+# pass 301
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1217.076
