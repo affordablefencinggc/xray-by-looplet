@@ -6,6 +6,7 @@ import {validatePng} from './proof-png.mjs';
 export const CURRENT_INPUTS = Object.freeze([
  'src/studio/SourceBuildingViewer.tsx', 'src/studio/sourceBuilding.ts',
  'src/studio/buildingAppearance.ts', 'src/studio/buildingAppearance.test.ts',
+ 'src/studio/BuildingVisualSettings.tsx',
  'src/studio/ModelScope.ts', 'src/studio/ModelScope.test.ts',
  'src/studio/sourceBuilding.css', 'src/studio/Studio.tsx', 'src/studio/documents.ts',
  'package.json', 'package-lock.json', 'vite.config.ts',
@@ -88,23 +89,31 @@ export function validateCurrentPacket(packet, root) {
  for (const execution of packet.executions) {
   requireValue(['dev', 'built'].includes(execution.environment) && !environments.has(execution.environment), 'Duplicate or invalid execution environment');
   environments.add(execution.environment);
-  requireValue(artifact(execution.report?.path) && execution.report.path.endsWith('.json'), 'Invalid execution report path');
-  const report = JSON.parse(boundFile(root, execution.report));
-  artifacts.push(execution.report);
-  sameInputs(report.inputs, packet.inputs);
-  requireValue(report.environment === execution.environment && report.target === 'caroline' && timestamp(report.completedAt), 'Execution environment or identity mismatch');
-  requireValue(Array.isArray(report.results) && report.results.length > 0 && report.results.every(r => r.status === 'pass'), 'Current execution contains failed or missing results');
-  requireValue(Array.isArray(report.errors) && report.errors.length === 0, 'Current execution has browser errors');
-  const origin = new URL(report.origin);
-  requireValue(origin.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(origin.hostname), 'Execution origin must identify local app');
-  requireValue(Array.isArray(report.captures) && Array.isArray(execution.screenshots) && execution.screenshots.length >= 2, 'Missing current before/after screenshots');
-  const captures = new Map(report.captures.map(c => [c.path, c]));
-  requireValue(captures.size === report.captures.length, 'Duplicate execution captures');
+  requireValue(execution.additionalReports === undefined || (Array.isArray(execution.additionalReports) && execution.additionalReports.length <= 3), 'Invalid additional execution reports');
+  const reports = [execution.report, ...(execution.additionalReports ?? [])], captures = new Map(), reportPaths = new Set();
+  for (const entry of reports) {
+   requireValue(artifact(entry?.path) && entry.path.endsWith('.json') && !reportPaths.has(entry.path), 'Invalid or duplicate execution report path');
+   reportPaths.add(entry.path);
+   const report = JSON.parse(boundFile(root, entry)); artifacts.push(entry);
+   sameInputs(report.inputs, packet.inputs);
+   requireValue(report.environment === execution.environment && report.target === 'caroline' && timestamp(report.completedAt), 'Execution environment or identity mismatch');
+   requireValue(Array.isArray(report.results) && report.results.length > 0 && report.results.every(r => r.status === 'pass'), 'Current execution contains failed or missing results');
+   requireValue(Array.isArray(report.errors) && report.errors.length === 0, 'Current execution has browser errors');
+   const origin = new URL(report.origin);
+   requireValue(origin.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(origin.hostname), 'Execution origin must identify local app');
+   requireValue(Array.isArray(report.captures), 'Missing execution captures');
+   for (const capture of report.captures) {
+    requireValue(!captures.has(capture.path), 'Duplicate execution capture ownership');
+    captures.set(capture.path, {capture, report, origin, reportPath: entry.path});
+   }
+   lastExecution = Math.max(lastExecution, Date.parse(report.completedAt));
+  }
+  requireValue(Array.isArray(execution.screenshots) && execution.screenshots.length >= 2, 'Missing current before/after screenshots');
   const phases = new Set(), used = new Set();
   for (const image of execution.screenshots) {
    requireValue(artifact(image.path) && image.path.endsWith('.png') && !used.has(image.path), 'Invalid or duplicate current screenshot');
    used.add(image.path);
-   const capture = captures.get(image.path), bytes = boundFile(root, image);
+   const owner = captures.get(image.path), {capture, report, origin} = owner ?? {}, bytes = boundFile(root, image);
    requireValue(capture && capture.sha256 === image.sha256 && ['before', 'after'].includes(capture.phase) && capture.kind === 'application-ui' && typeof capture.scenario === 'string' && capture.scenario.trim(), 'Screenshot is not bound to execution capture');
    requireValue(timestamp(capture.capturedAt) && Date.parse(capture.capturedAt) <= Date.parse(report.completedAt), 'Invalid screenshot capture time');
    requireValue(new URL(capture.url).origin === origin.origin, 'Screenshot URL differs from executed app');
@@ -112,10 +121,9 @@ export function validateCurrentPacket(packet, root) {
    const dimensions = validatePng(bytes);
    requireValue(capture.viewport?.width === dimensions.width && capture.viewport?.height === dimensions.height, 'Screenshot dimensions differ from captured viewport');
    phases.add(capture.phase); artifacts.push(image);
-   screenshots.push({...capture, environment: execution.environment});
+   screenshots.push({...capture, environment: execution.environment, reportPath: owner.reportPath});
   }
   requireValue(phases.has('before') && phases.has('after'), 'Missing current before/after pair');
-  lastExecution = Math.max(lastExecution, Date.parse(report.completedAt));
  }
  for (const environment of ['dev', 'built']) if (!environments.has(environment)) blockers.push(`Missing ${environment} execution`);
  if (!packet.review) blockers.push('Independent review pending');

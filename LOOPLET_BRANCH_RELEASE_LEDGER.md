@@ -13,3 +13,5 @@ No new branch was created because work was already in progress on this user-owne
 | 2026-09-05T06:09:59.411Z | feat/v1-production-ready (adopted) | 1bf54983bb3ff168358f4987c8481e8cc23fb760 | IW022 bounded independent runtime approval |12 actual IndexedDB cases; no commit/stage/merge. Recovery proof/audit/IW022/code.patch SHA-256 c9d6ffccaaa568edb48aee08e8784993f035cd6c9ee811e4d958c00a3d027fec |
 
 | 2026-09-05T06:44:21.994Z | feat/v1-production-ready (adopted, no new branch) | 1bf54983bb3ff168358f4987c8481e8cc23fb760 | Bounded PDF and six UI repairs independently accepted; full150 feature assessment separate | Shared dirty tree; no commit/stage/merge. Recovery planning/handovers/IW-FULL-FEATURES/completion.md and source-bound reviews/patches. |
+
+| 2026-09-05T09:51:45.938Z | feat/model-wireframe-navigation | 6803da9d20906c2c304435e55b98c8e71668f4ea | User-requested new branch after explicit159-file unfinished Caroline/wireframe checkpoint | Active local branch; nine commits preserved. Normal push rejected by automatic approval review; no remote publication or merge. Recovery planning/handovers/IW-CHECKPOINT/disposition.json. |

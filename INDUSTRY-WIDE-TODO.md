@@ -26,3 +26,11 @@ Next local repairs: component/area reload loss; one-drag undo transaction; seven
 - [ ] Finish historical tracker/source snapshot closure and review stage06.
 - [ ] Reconstruct Caroline - Blueprints and Renderings - 2025-08-08.pdf and independently review actual building geometry.
 - [ ] Verify interactive source-bound viewer and embed its current-work screenshots. Ruffles is prior-fixture evidence only.
+
+## Checkpoint continuation - 2026-09-05T09:51:45.938Z
+
+- [x] Preserve eight reviewed stages plus unfinished159-file checkpoint6803da9 and create local feat/model-wireframe-navigation.
+- [ ] Publish to the explicitly approved destination/payload only after automatic approval review permits; latest checkpoint push rejected.
+- [ ] Finish current1180-part Caroline SVG, Solid/Wireframe and Sheets/Models rail tests on dev and built output, then independently review matching proof.
+- [ ] Expand current proof input binding to include SVG/public source assets and populate execution/review packet; canonical150 remains historical.
+- [ ] Implement source-faithful presentation rendering and verify true packaged offline startup separately.

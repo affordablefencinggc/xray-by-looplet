@@ -25,6 +25,14 @@ function fixture() {
  return packet;
 }
 function changeReport(packet, change) {const e=packet.executions[0],r=JSON.parse(readFileSync(join(root,e.report.path)));change(r);e.report=save(e.report.path,r);}
+function additionalReport(packet) {
+ packet.status='awaiting independent review';delete packet.review;
+ const execution=packet.executions[0],report=JSON.parse(readFileSync(join(root,execution.report.path)));
+ report.captures=report.captures.map(c=>({...c,...save(c.path.replace('.png','-additional.png'),png)}));
+ const entry=save(execution.report.path.replace('.json','-additional.json'),report);
+ execution.additionalReports=[entry];execution.screenshots.push(...report.captures.map(({path,bytes,sha256})=>({path,bytes,sha256})));
+ return {execution,report,entry};
+}
 
 test('verified current packet requires exact sources, dev+built captures and independent review',()=>{const p=fixture(),v=validateCurrentPacket(p,root);assert.equal(v.verified,true);assert.equal(v.screenshots.length,4);assert.deepEqual(v.blockers,[]);});
 test('pending packet cannot promote missing production execution or review',()=>{const p=fixture();p.status='in progress';p.executions.pop();delete p.review;assert.deepEqual(validateCurrentPacket(p,root).blockers,['Missing built execution','Independent review pending']);p.status='verified';assert.throws(()=>validateCurrentPacket(p,root),/requires dev, built/);});
@@ -42,6 +50,10 @@ test('failed browser result rejects',()=>{const p=fixture();changeReport(p,r=>r.
 test('missing required Python/source trace input rejects',()=>{const p=fixture();p.inputs.pop();assert.throws(()=>validateCurrentPacket(p,root),/Missing required/);});
 test('path traversal and duplicate source bindings reject',()=>{const p=fixture();p.diff.path='proof/audit/IW-CURRENT-WORK/../outside.patch';assert.throws(()=>validateCurrentPacket(p,root),/Unsafe/);const p2=fixture();p2.inputs.push(p2.inputs[0]);assert.throws(()=>validateCurrentPacket(p2,root),/duplicate current inputs/);});
 test('packet itself is hash-bound before loading',()=>{const p=fixture(),ref=save('proof/audit/IW-CURRENT-WORK/packet.json',p);assert.equal(readCurrentProof(root,ref).verified,true);save(ref.path,{...p,status:'in progress'});assert.throws(()=>readCurrentProof(root,ref),/Stale current proof/);});
+test('additional raw report captures retain exact ownership with identical inputs',()=>{const p=fixture(),extra=additionalReport(p),v=validateCurrentPacket(p,root);assert.equal(v.screenshots.length,6);assert.equal(v.screenshots.find(c=>c.path===extra.report.captures[0].path).reportPath,extra.entry.path);});
+test('additional raw report source mismatch rejects',()=>{const p=fixture(),e=additionalReport(p);e.report.inputs[0].sha256='0'.repeat(64);e.execution.additionalReports=[save(e.entry.path,e.report)];assert.throws(()=>validateCurrentPacket(p,root),/input hashes differ/);});
+test('additional raw report browser error rejects',()=>{const p=fixture(),e=additionalReport(p);e.report.errors.push('actual failure');e.execution.additionalReports=[save(e.entry.path,e.report)];assert.throws(()=>validateCurrentPacket(p,root),/browser errors/);});
+test('a second raw report cannot claim another report capture',()=>{const p=fixture(),e=additionalReport(p),original=JSON.parse(readFileSync(join(root,e.execution.report.path)));e.report.captures[0]=original.captures[0];e.execution.additionalReports=[save(e.entry.path,e.report)];assert.throws(()=>validateCurrentPacket(p,root),/capture ownership/);});
 
 test('current artifact HTTP route serves only recomputed intact proof and withholds tampered captures',async()=>{
  const {serve,readCurrentWork} = await import('./industry-ledger.mjs');

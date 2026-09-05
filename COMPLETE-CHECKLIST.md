@@ -81,3 +81,7 @@ NEW-010: root independently reviewed exact PDF source-outline module and tests, 
 Six UI control/label repairs: root independently ran seven actual desktop cases and inspected Sketch, net length and reopened recipe proof. Review proof/audit/IW-FULL-FEATURES/repair-review/root-approval.json; source patch proof/audit/IW-UI-AUDIT/repair/code.patch SHA-256 4ca4e00898f1b57ab440d2cca9a81be68fa4e86bfdd90721cfd2497b9125e899. Capabilities focus/Escape, source-page/Sketch labels, Gate pointer priority, current net label and recipe reopening accepted only at this bounded case scope. Persistence, drag history, neutral UI and whole commercial features remain open.
 
 Recovery: adopted feat/v1-production-ready @ 1bf54983bb3ff168358f4987c8481e8cc23fb760, shared dirty tree; no commit, staging or merge.
+
+## 2026-09-05T09:51:45.938Z - reviewed staging and unfinished checkpoint preserved locally
+
+Eight reviewed local delivery commits and explicit159-file WIP checkpoint6803da9 are preserved. Exact checkpoint manifest SHA256 bbc7e4648b7753dc1a44fa024ffe6dbd2c198c25ac512356777f87920b77317a; current control27 gates and genuine desktop checkpoint screenshot pass. New local branch feat/model-wireframe-navigation created at checkpoint. No model/SVG/navigation/render completion or successful push is claimed. Recovery planning/handovers/IW-CHECKPOINT/completion.md and disposition.json.

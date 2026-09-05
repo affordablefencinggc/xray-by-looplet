@@ -1,10 +1,11 @@
 # IW staged delivery - current handover
 
-2026-09-05. **Seven reviewable commits exist locally; none has been pushed.** Stages01-05 and the precise ignore cleanup were authorized by parent and committed after isolated verification. UI source freeze ended after bf1f20e; the new viewer agent may now change Studio/styles/package. Do not request fresh approval for those already committed source sets or assume the UI remains frozen.
+Current branch feat/model-wireframe-navigation. Thirteen reviewed local stages exist through64f0d8d, plus external506af08 preserved without our approval. No push succeeded; the exact destination and blueprint/model payload approval question remains pending after automatic review rejected publication. Do not retry or change origin. The original nine-stage checkpoint remains on feat/v1-production-ready at6803da9.
 
-Branch: feat/v1-production-ready. Last completed delivery commit: 2293d91 (historical audit/control). Last old application source commit: 4dcc3ee. Exact full SHAs and per-commit paths are in local-commits.json. No merge, new branch/worktree, reset, stash, broad staging, force push, unknown executable, migration or source cleanup was performed.
+The current Caroline packet has root approval only for its five named workflows,39 accepted scoped checks per environment,42 exact inputs and22 curated images. The historical150-feature ledger remains byte-identical. Final proof/control closure is being sealed separately. Later Agentation and precision-scope requests require new source validation; they are not part of this accepted packet.
 
-## Delivery completed locally
+## Historical delivery record (first seven stages)
+
 
 - 638c8bd: neutral construction contracts/quantities/lifecycle/legacy preservation, 19 files. Isolated snapshot:24 core tests, schema freshness and typecheck passed.
 - 5e9f82a: precise ignore rules and inventory,3 files.209 generated/profile/binary paths newly ignored. Existing global rules had hidden required proof; inverse exceptions made625 evidence/new concurrent paths visible, so total untracked count initially rose. Parent independently verified profile/dependency/executable/cache exclusions and required screenshot/new source visibility.
