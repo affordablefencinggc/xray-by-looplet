@@ -1,0 +1,35 @@
+PASS Create/open hashes real original bytes and restores after repository reconnect
+{"revision":1,"sourceSha256":"7c18ad369af9775660a0101603ce4a11bcd4e25ad063c67372be62c34fa0bf39","snapshotCount":1}
+
+PASS Multiple jobs isolate identical asset IDs and list deterministic summaries
+{"jobs":["alpha","beta"]}
+
+PASS All six command kinds execute with local attribution and immutable snapshots
+{"revision":7,"reviewActor":"local-estimator","allCommandKinds":6}
+
+PASS Two actual tabs race one expected revision; exactly one commit succeeds
+{"outcomes":["committed","conflict"]}
+
+PASS Invalid hash, missing originals, future schema and forged review cannot write
+{"rejected":4,"preservedRevision":8}
+
+PASS Real transaction abort rolls back staged head/snapshot/assets/audit atomically
+{"result":"storage","preservedStores":4}
+
+PASS Corrupt stored bytes reject open/commands while prior snapshot remains immutable
+{"openCode":"corrupt","commandCode":"invalid","snapshotsPreserved":9}
+
+PASS Corrupt/future stored head is preserved; explicit earlier snapshot remains readable
+{"headCode":"corrupt","recoverableSnapshotRevision":1}
+
+PASS Archive retains originals/history, hides default list, prevents later commands
+{"activeJobs":1,"totalJobs":2,"archiveRevision":2}
+
+PASS Revision/actor boundaries, package review invalidation and command identity replay reject safely
+{"staleRevision":"conflict","unknownFields":"invalid","reviewAfterPackageChange":"draft","replay":"conflict"}
+
+PASS Original retrieval returns byte-faithful copies and 100 MiB cap rejects oversized input
+{"faithfulOriginal":true,"defensiveCopy":true,"oversizeCode":"invalid","maxOriginalBytes":104857600}
+
+PASS Corrupt previous snapshot fails closed without manufacturing recovery history
+{"rejected":true,"preservedRevision":9}
