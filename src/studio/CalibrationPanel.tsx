@@ -16,6 +16,7 @@ export type CalibrationPanelProps = {
   onLock: () => void;
   onUnlock: () => void;
   disabled?: boolean;
+  compatibilityBlocked?: boolean;
   error?: string | null;
 };
 
@@ -45,9 +46,10 @@ export function CalibrationPanel({
   onLock,
   onUnlock,
   disabled = false,
+  compatibilityBlocked = false,
   error = null,
 }: CalibrationPanelProps) {
-  const panelState = deriveCalibrationPanelState(calibration);
+  const panelState = compatibilityBlocked ? "uncalibrated" : deriveCalibrationPanelState(calibration);
   const selectedCandidateId = calibration?.selectedCandidateId ?? null;
   const candidates = calibration?.candidates ?? [];
   const distance = Number(distanceValue);
@@ -66,7 +68,7 @@ export function CalibrationPanel({
       </header>
 
       <p className="calibration-trust-copy">
-        {panelState === "locked"
+        {compatibilityBlocked ? "Legacy coordinates are preserved, but their source alignment is unverified. Export the current manifest in Proof before a reviewed retrace." : panelState === "locked"
           ? "Scale is locked for measurements on this sheet."
           : "Measurements remain untrusted until you choose evidence and lock the scale."}
       </p>

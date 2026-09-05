@@ -89,7 +89,7 @@ function approvedJob(): FencingJob {
     confidence: 1,
     provenance: { method: "two-point", evidence: "Known boundary", documentId: "doc-plan" },
   });
-  job.calibrations = [lockCalibration({ ...job.calibrations[0], candidates: [candidate] })];
+  job.calibrations = [lockCalibration({ ...job.calibrations[0], coordinateSpace: "source-page-v1", candidates: [candidate] })];
   job.runs = [
     {
       id: "run-north",
@@ -130,6 +130,11 @@ const READY = {
 };
 
 describe("job-to-BOM compiler", () => {
+  it("rejects preserved imported legacy calibration even when locked and approved",async()=>{
+    const job=approvedJob();delete job.calibrations[0].coordinateSpace;const before=JSON.stringify(job);
+    const result=await compileBomRequest({job,recipeSet:recipeSet(),runtimeAssets:READY,hydrationSettled:true,requestId:"legacy-rejected"});
+    assert.equal(result.ok,false);if(!result.ok)assert.ok(result.issues.some(issue=>/legacy source coordinates/i.test(issue.message)));assert.equal(JSON.stringify(job),before);
+  });
   it("compiles an approved, verified job into sorted integer-millimetre input", async () => {
     const result = await compileBomRequest({
       job: approvedJob(),

@@ -10,6 +10,7 @@ import { buildWtcGeometry } from "./wtcModel";
 import { buildFencingGeometry } from "./fencingModel";
 import type { CalibrationPoint } from "./calibration";
 import type { FenceRun } from "./domain";
+import { sourceViewport, sourceToCanvas, canvasToSource, pointOnSource, snapSourcePoint, type SourceBounds } from "./documentViewport";
 
 export function IsoCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -193,11 +194,14 @@ export type PlanCanvasViewport = {
   pan: CalibrationPoint;
   kind: SheetKind;
   floors: number;
+  sourceBounds?: SourceBounds | null;
 };
 
 export type PlanCanvasProps = {
   interactive: boolean;
   sourceMode?: "procedural" | "overlay";
+  sourceBounds?: SourceBounds | null;
+  legacyReadOnly?: boolean;
   calibrationCaptureActive?: boolean;
   calibrationPoints?: readonly CalibrationPoint[];
   onCalibrationPoint?: (point: CalibrationPoint) => void;
@@ -232,6 +236,11 @@ export function canvasPointToDocumentPoint(
   point: CalibrationPoint,
   viewport: PlanCanvasViewport,
 ): CalibrationPoint {
+  if(viewport.sourceBounds) {
+    const frame=sourceViewport(viewport.sourceBounds,viewport.width,viewport.height,viewport.zoom,viewport.pan);
+    if(!frame)throw Error("Source viewport is unavailable.");
+    return canvasToSource(point,frame);
+  }
   const geometry = getPlanCanvasGeometry(viewport);
   const untransformedX = geometry.centerX
     + (point.x - geometry.centerX - viewport.pan.x) / viewport.zoom;
@@ -251,6 +260,11 @@ export function documentPointToCanvasPoint(
   point: CalibrationPoint,
   viewport: PlanCanvasViewport,
 ): CalibrationPoint {
+  if(viewport.sourceBounds) {
+    const frame=sourceViewport(viewport.sourceBounds,viewport.width,viewport.height,viewport.zoom,viewport.pan);
+    if(!frame)throw Error("Source viewport is unavailable.");
+    return sourceToCanvas(point,frame);
+  }
   const geometry = getPlanCanvasGeometry(viewport);
   const untransformedX = geometry.offsetX + point.x * geometry.scale;
   const untransformedY = viewport.kind === "elev"
@@ -354,9 +368,11 @@ export function resolveTracingCanvasPointerMode(input: {
   runHit: boolean;
   vertexEditingEnabled: boolean;
   runSelectionEnabled: boolean;
+  placementToolActive?: boolean;
 }): "calibration" | "move-vertex" | "select-run" | "pan" | "trace" {
   if (input.calibrationCaptureActive) return "calibration";
   if (!input.interactive || input.button === 2 || input.button === 1 || input.shiftKey) return "pan";
+  if (input.placementToolActive) return "trace";
   if (input.vertexEditingEnabled && input.vertexHit) return "move-vertex";
   if (input.runSelectionEnabled && input.runHit) return "select-run";
   return input.toolActive ? "trace" : "pan";
@@ -365,6 +381,8 @@ export function resolveTracingCanvasPointerMode(input: {
 export function PlanCanvas({
   interactive,
   sourceMode = "procedural",
+  sourceBounds = null,
+  legacyReadOnly = false,
   calibrationCaptureActive = false,
   calibrationPoints = [],
   onCalibrationPoint,
@@ -418,7 +436,7 @@ export function PlanCanvas({
     const kind = SHEETS[s.sheet]?.kind ?? "elev";
     return canvasPointToDocumentPoint(
       { x: e.clientX - r.left, y: e.clientY - r.top },
-      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors },
+      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors, sourceBounds },
     );
   }
 
@@ -466,6 +484,7 @@ export function PlanCanvas({
 
       const navy = s.skin === "navy";
       ctx.clearRect(0, 0, w, h);
+      if(sourceMode === "overlay" && (!sourceBounds || legacyReadOnly))return;
       if (sourceMode === "procedural") {
         ctx.fillStyle = navy ? PAL.navy : PAL.paper;
         ctx.fillRect(0, 0, w, h);
@@ -488,7 +507,9 @@ export function PlanCanvas({
       const sc = Math.min(sx_factor, sy_factor);
       const ox = (w - 18 * sc) / 2;
       const oy = (h - totalH * sc) / 2;
+      const sourceFrame=sourceBounds?sourceViewport(sourceBounds,w,h):null;
       const to = (x: number, z_or_y: number): [number, number] => {
+        if(sourceMode === "overlay" && sourceFrame){const p=sourceToCanvas({x,y:z_or_y},sourceFrame);return [p.x,p.y];}
         if (kind === "elev") {
           return [ox + x * sc, oy + (totalH - z_or_y) * sc];
         } else {
@@ -590,7 +611,7 @@ export function PlanCanvas({
         }
         
         ctx.fillText(dynamicSheetTitle, tb0[0] + 6 / zoom, tb0[1] + 26 / zoom);
-        ctx.fillText("SCALE: 1:100 @ A1 · TRUE VECTORS", tb0[0] + 6 / zoom, tb0[1] + 36 / zoom);
+        ctx.fillText("LOCAL SKETCH · UNVERIFIED SCALE", tb0[0] + 6 / zoom, tb0[1] + 36 / zoom);
       }
 
       if (s.showBld && sourceMode === "procedural") {
@@ -802,7 +823,7 @@ export function PlanCanvas({
         ctx.font = `bold ${Math.max(9, 10 / zoom)}px monospace`;
         ctx.fillStyle = navy ? "#7fdbff" : "#050b14";
         ctx.fillText(
-          `SNAP (${hoverSnap.point.x.toFixed(2)}m, ${hoverSnap.point.y.toFixed(2)}m)`,
+          `SNAP (${hoverSnap.point.x.toFixed(2)}, ${hoverSnap.point.y.toFixed(2)}) ${sourceMode === "overlay" ? "source units" : "m"}`,
           sp[0] + sz * 1.6,
           sp[1] - sz * 0.6
         );
@@ -866,6 +887,8 @@ export function PlanCanvas({
     s.scaleM,
     interactive,
     sourceMode,
+    sourceBounds,
+    legacyReadOnly,
     calibrationCaptureActive,
     calibrationPoints,
     selectedRunId,
@@ -893,6 +916,7 @@ export function PlanCanvas({
         onPointerDown={(e) => {
           const canvas = ref.current;
           if (!canvas) return;
+          if(sourceMode === "overlay" && !sourceBounds)return;
           const rect = canvas.getBoundingClientRect();
           const canvasPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
           const viewport: PlanCanvasViewport = {
@@ -902,6 +926,7 @@ export function PlanCanvas({
             pan,
             kind: SHEETS[s.sheet]?.kind ?? "elev",
             floors: s.floors,
+            sourceBounds,
           };
           const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
           const vertexHit = selectedRun && onMoveVertex
@@ -911,17 +936,19 @@ export function PlanCanvas({
             ? hitTestFenceRuns(canvasPoint, currentRuns, viewport)
             : null;
           const mode = resolveTracingCanvasPointerMode({
-            calibrationCaptureActive,
-            interactive,
+            calibrationCaptureActive: calibrationCaptureActive && !legacyReadOnly,
+            interactive: interactive && !legacyReadOnly,
             button: e.button,
             shiftKey: e.shiftKey,
             toolActive: s.tool !== "none",
+            placementToolActive: s.tool === "count",
             vertexHit: Boolean(vertexHit),
             runHit: Boolean(runHit),
             vertexEditingEnabled: Boolean(onMoveVertex),
             runSelectionEnabled: Boolean(onSelectRun),
           });
           lastPointerMode.current = mode;
+          if(sourceMode === "overlay" && sourceBounds && mode !== "pan" && !pointOnSource(toWorld(e),sourceBounds))return;
           if (mode === "calibration") {
             if (hoverSnap) setHoverSnap(null);
             onCalibrationPoint?.(toWorld(e));
@@ -949,13 +976,18 @@ export function PlanCanvas({
           } else {
             const st = useStudio.getState();
             if (st.tool !== "none") {
-              const targetPoint = hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : toWorld(e);
+              const world=toWorld(e);
+              const frame=sourceBounds?sourceViewport(sourceBounds,rect.width,rect.height,zoom,pan):null;
+              const targetPoint = sourceMode === "overlay" && frame
+                ? snapSourcePoint(world,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled).point
+                : hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : world;
               st.addPoint(targetPoint);
             }
           }
         }}
         onPointerMove={(e) => {
-          if (calibrationCaptureActive) {
+          if(sourceMode === "overlay" && !sourceBounds)return;
+          if (calibrationCaptureActive && !legacyReadOnly) {
             if (hoverSnap) setHoverSnap(null);
           } else if (drag.current?.kind === "vertex") {
             onMoveVertex?.(drag.current.runId, drag.current.vertexIndex, toWorld(e));
@@ -966,7 +998,7 @@ export function PlanCanvas({
             s.setPan2d({ x: s.pan2d.x + dx, y: s.pan2d.y + dy });
             drag.current.x = e.clientX;
             drag.current.y = e.clientY;
-          } else if (interactive && s.tool !== "none") {
+          } else if (interactive && !legacyReadOnly && s.tool !== "none") {
             const w = toWorld(e);
             const canvas = ref.current;
             if (canvas) {
@@ -977,7 +1009,10 @@ export function PlanCanvas({
               const sy_factor = (canvas.clientHeight - pad * 2) / totalH;
               const sc = Math.min(sx_factor, sy_factor);
               const snapRadius = 24 / (sc * zoom);
-              const target = getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
+              const frame=sourceBounds?sourceViewport(sourceBounds,canvas.clientWidth,canvas.clientHeight,zoom,pan):null;
+              const target = sourceMode === "overlay" && frame
+                ? snapSourcePoint(w,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled)
+                : getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
               setHoverSnap(target);
             }
           } else {
@@ -1009,7 +1044,7 @@ export function PlanCanvas({
           e.preventDefault();
         }}
         onDoubleClick={() => {
-          if (interactive && !calibrationCaptureActive && lastPointerMode.current === "trace") {
+          if (interactive && !legacyReadOnly && (sourceMode !== "overlay" || sourceBounds) && !calibrationCaptureActive && lastPointerMode.current === "trace") {
             useStudio.getState().commitPending();
           }
         }}

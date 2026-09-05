@@ -1,0 +1,984 @@
+diff --git a/scripts/preview-built.mjs b/scripts/preview-built.mjs
+index 8830b13..ac0eefb 100644
+--- a/scripts/preview-built.mjs
++++ b/scripts/preview-built.mjs
+@@ -9,6 +9,7 @@ const staticRoot = resolve(".vercel/output/static");
+ const mime = {
+   ".css": "text/css; charset=utf-8",
+   ".js": "text/javascript; charset=utf-8",
++  ".mjs": "text/javascript; charset=utf-8",
+   ".json": "application/json; charset=utf-8",
+   ".svg": "image/svg+xml",
+   ".png": "image/png",
+diff --git a/src/studio/CalibrationPanel.tsx b/src/studio/CalibrationPanel.tsx
+index 848af62..08fb8ce 100644
+--- a/src/studio/CalibrationPanel.tsx
++++ b/src/studio/CalibrationPanel.tsx
+@@ -16,6 +16,7 @@ export type CalibrationPanelProps = {
+   onLock: () => void;
+   onUnlock: () => void;
+   disabled?: boolean;
++  compatibilityBlocked?: boolean;
+   error?: string | null;
+ };
+ 
+@@ -45,9 +46,10 @@ export function CalibrationPanel({
+   onLock,
+   onUnlock,
+   disabled = false,
++  compatibilityBlocked = false,
+   error = null,
+ }: CalibrationPanelProps) {
+-  const panelState = deriveCalibrationPanelState(calibration);
++  const panelState = compatibilityBlocked ? "uncalibrated" : deriveCalibrationPanelState(calibration);
+   const selectedCandidateId = calibration?.selectedCandidateId ?? null;
+   const candidates = calibration?.candidates ?? [];
+   const distance = Number(distanceValue);
+@@ -66,7 +68,7 @@ export function CalibrationPanel({
+       </header>
+ 
+       <p className="calibration-trust-copy">
+-        {panelState === "locked"
++        {compatibilityBlocked ? "Legacy coordinates are preserved, but their source alignment is unverified. Export the current manifest in Proof before a reviewed retrace." : panelState === "locked"
+           ? "Scale is locked for measurements on this sheet."
+           : "Measurements remain untrusted until you choose evidence and lock the scale."}
+       </p>
+diff --git a/src/studio/DocumentPreview.tsx b/src/studio/DocumentPreview.tsx
+index a98bd2a..d0edb21 100644
+--- a/src/studio/DocumentPreview.tsx
++++ b/src/studio/DocumentPreview.tsx
+@@ -1,5 +1,6 @@
+-import { useEffect, useMemo, useState, type ReactNode } from "react";
++import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+ import type { PlanBinary } from "./documentContract";
++import { parseSvgViewBox, svgSourceBounds, sourceViewport, sourceToCanvas, type SourcePage, type SourcePoint } from "./documentViewport";
+ 
+ type Point = { x: number; y: number };
+ type DxfPath = { d: string; closed: boolean };
+@@ -176,55 +177,106 @@ export type DocumentPreviewProps = {
+   className?: string;
+   loading?: boolean;
+   error?: string | null;
+-  children?: ReactNode;
++  zoom?: number;
++  pan?: SourcePoint;
++  showSource?: boolean;
++  onSourceReady?: (ready: boolean) => void;
++  children?: ReactNode | ((page: SourcePage | null) => ReactNode);
+ };
+ 
+-export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, className = "", loading = false, error = null, children }: DocumentPreviewProps) {
+-  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+-  const [loadError, setLoadError] = useState(false);
++type ReadySource = { key: string; page: SourcePage; url: string | null; kind: "svg" | "pdf" | "dxf" };
++
++export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, className = "", loading = false, error = null, zoom = 1, pan = {x:0,y:0}, showSource = true, onSourceReady, children }: DocumentPreviewProps) {
++  const viewportRef = useRef<HTMLDivElement>(null);
++  const [size, setSize] = useState({width:0,height:0});
++  const [readySource, setReadySource] = useState<ReadySource | null>(null);
++  const [loadedKey, setLoadedKey] = useState<string | null>(null);
++  const [failure, setFailure] = useState<{key:string; message:string}|null>(null);
+   const dxf = useMemo(() => binary?.kind === "dxf" ? dxfToSvgGeometry(binary.bytes) : null, [binary]);
++  const key = `${binary?.documentId ?? "none"}:${binary?.sha256 ?? ""}:${pageIndex}`;
++  const ready = readySource?.key === key ? readySource : null;
++  const available = !loading && !error && ready && (ready.kind === "dxf" || loadedKey === key) && failure?.key !== key;
++  const page = Math.floor(pageIndex) + 1;
+ 
+   useEffect(() => {
+-    setLoadError(false);
+-    if (!binary || binary.kind === "dxf") {
+-      setObjectUrl(null);
+-      return;
++    const element=viewportRef.current;if(!element)return;
++    const measure=()=>setSize({width:element.clientWidth,height:element.clientHeight});
++    measure();const observer=new ResizeObserver(measure);observer.observe(element);return()=>observer.disconnect();
++  }, []);
++  useEffect(() => { onSourceReady?.(Boolean(available)); }, [Boolean(available),onSourceReady]);
++  useEffect(() => {
++    let cancelled=false;let url:string|null=null;
++    let destroy:(()=>Promise<void>)|undefined;
++    setFailure(null);setLoadedKey(null);setReadySource(null);
++    if(!binary || loading || error)return;
++    async function prepare() {
++      if(!Number.isInteger(pageIndex) || pageIndex<0 || (pageCount && pageIndex>=pageCount))throw Error("The requested source page is unavailable.");
++      if(binary!.kind === "dxf") {
++        if(!dxf)throw Error("No supported LINE, LWPOLYLINE or POLYLINE geometry was found in this ASCII DXF.");
++        const [x,y,width,height]=dxf.viewBox.split(" ").map(Number);
++        if(!cancelled)setReadySource({key,kind:"dxf",url:null,page:{bounds:{x,y,width,height},rotation:0,crop:null}});
++      } else if(binary!.kind === "svg") {
++        const xml=new TextDecoder().decode(binary!.bytes);
++        const parsed=new DOMParser().parseFromString(xml,"image/svg+xml");
++        if(parsed.querySelector("parsererror") || parsed.documentElement.localName!=="svg" || parsed.documentElement.namespaceURI!=="http://www.w3.org/2000/svg")throw Error("The SVG source is not a valid SVG document.");
++        const viewBox=parseSvgViewBox(new XMLSerializer().serializeToString(parsed.documentElement));
++        if(!viewBox)throw Error("This SVG has no finite viewBox or absolute page dimensions. Measurement is unavailable; the original file remains attached.");
++        const bounds=svgSourceBounds(viewBox,parsed.documentElement.getAttribute("width"),parsed.documentElement.getAttribute("height"));
++        url=URL.createObjectURL(new Blob([Uint8Array.from(binary!.bytes)],{type:"image/svg+xml"}));
++        if(!cancelled)setReadySource({key,kind:"svg",url,page:{bounds,rotation:0,crop:null}});
++      } else {
++        const [{getDocument,GlobalWorkerOptions},{default:workerUrl}]=await Promise.all([
++          import("pdfjs-dist/legacy/build/pdf.mjs"),import("pdfjs-dist/legacy/build/pdf.worker.mjs?url")
++        ]);
++        if(cancelled)return;
++        GlobalWorkerOptions.workerSrc=workerUrl;
++        const task=getDocument({data:Uint8Array.from(binary!.bytes)});destroy=()=>task.destroy();
++        const document=await task.promise;
++        if(cancelled)return;
++        if(page>document.numPages)throw Error("The requested PDF page is unavailable.");
++        const pdfPage=await document.getPage(page);
++        const intrinsic=pdfPage.getViewport({scale:1});
++        const renderScale=Math.min(2,4096/intrinsic.width,4096/intrinsic.height,Math.sqrt(16000000/(intrinsic.width*intrinsic.height)));
++        if(!Number.isFinite(renderScale) || renderScale<=0)throw Error("The PDF page has invalid dimensions.");
++        const raster=pdfPage.getViewport({scale:renderScale});
++        const canvas=window.document.createElement("canvas");canvas.width=Math.ceil(raster.width);canvas.height=Math.ceil(raster.height);
++        await pdfPage.render({canvas,viewport:raster}).promise;
++        if(cancelled)return;
++        const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("PDF page rendering failed.")),"image/png"));
++        if(cancelled)return;
++        url=URL.createObjectURL(blob);
++        setReadySource({key,kind:"pdf",url,page:{bounds:{x:0,y:0,width:intrinsic.width,height:intrinsic.height},rotation:pdfPage.rotate,crop:[...pdfPage.view]}});
++      }
+     }
+-    const mimeType = binary.kind === "pdf" ? "application/pdf" : "image/svg+xml";
+-    const url = URL.createObjectURL(new Blob([Uint8Array.from(binary.bytes)], { type: binary.mimeType || mimeType }));
+-    setObjectUrl(url);
+-    return () => URL.revokeObjectURL(url);
+-  }, [binary]);
+-
+-  const page = Math.max(1, Math.floor(pageIndex) + 1);
+-  const classes = `document-preview ${className}`.trim();
+-  let source: ReactNode;
+-
+-  if (error) {
+-    source = <PreviewMessage title="Plan preview needs attention" detail={error} alert />;
+-  } else if (loading) {
+-    source = <PreviewMessage title="Retrieving verified plan" detail="Checking the stored file bytes before previewing this source." />;
+-  } else if (!binary) {
+-    source = <PreviewMessage title="Plan preview unavailable" detail="Import a PDF, DXF or SVG plan to view its source here." />;
+-  } else if (binary.kind === "svg") {
+-    source = objectUrl && !loadError ? <img src={objectUrl} alt={`${binary.name} source plan`} onError={() => setLoadError(true)} /> : <PreviewMessage title="SVG preview unavailable" detail="The imported SVG could not be displayed by this browser." />;
+-  } else if (binary.kind === "pdf") {
+-    source = objectUrl ? <object data={`${objectUrl}#page=${page}&view=FitH`} type="application/pdf" aria-label={`${binary.name}, PDF page ${page}`}><PreviewMessage title="PDF preview unavailable" detail="This browser does not support embedded PDF pages. The imported file remains attached to the job." /></object> : <PreviewMessage title="Preparing PDF preview" detail={`Loading page ${page}.`} />;
+-  } else if (binary.kind === "dxf") {
+-    source = dxf ? <svg viewBox={dxf.viewBox} role="img" aria-label={`${binary.name}, DXF linework`} preserveAspectRatio="xMidYMid meet"><g>{dxf.paths.map((path, index) => <path key={`${index}-${path.d}`} d={path.d} />)}</g></svg> : <PreviewMessage title="DXF preview unavailable" detail="No supported LINE, LWPOLYLINE or POLYLINE geometry was found in this ASCII DXF." />;
+-  } else {
+-    source = <PreviewMessage title="Plan format unsupported" detail="This preview supports PDF, SVG and ASCII DXF sources." />;
+-  }
++    void prepare().catch(reason=>{if(!cancelled)setFailure({key,message:reason instanceof Error?reason.message:"Source preview failed."});});
++    return()=>{cancelled=true;if(url)URL.revokeObjectURL(url);void destroy?.().catch(()=>{});};
++  }, [binary,pageIndex,pageCount,loading,error,key,dxf]);
++
++  const viewport=ready?sourceViewport(ready.page.bounds,size.width,size.height,zoom,pan):null;
++  const origin=viewport && ready?sourceToCanvas({x:ready.page.bounds.x,y:ready.page.bounds.y},viewport):null;
++  const style=viewport && ready && origin?{left:origin.x,top:origin.y,width:ready.page.bounds.width*viewport.scale,height:ready.page.bounds.height*viewport.scale,visibility:showSource?"visible" as const:"hidden" as const}:undefined;
++  let message:ReactNode=null;
++  if(error)message=<PreviewMessage title="Plan preview needs attention" detail={error} alert />;
++  else if(loading)message=<PreviewMessage title="Retrieving verified plan" detail="Checking the stored file bytes before previewing this source." />;
++  else if(!binary)message=<PreviewMessage title="Plan preview unavailable" detail="Import a PDF, DXF or SVG plan to view its source here." />;
++  else if(failure?.key===key)message=<PreviewMessage title="Plan preview unavailable" detail={failure.message} alert />;
++  else if(!available)message=<PreviewMessage title="Preparing source page" detail={`Loading page ${page}. Measurement begins when the source is ready.`} />;
+ 
+-  return <figure className={classes} aria-busy={loading || undefined}>
++  return <figure className={`document-preview ${className}`.trim()} aria-busy={!available || undefined} data-source-ready={Boolean(available)}>
+     {binary ? <figcaption className="document-preview-caption">
+       <span className="document-preview-name">{binary.name}</span>
+       <span className="document-preview-page">Page {page}{pageCount ? ` of ${pageCount}` : ""}</span>
+       <span className="document-preview-kind">{binary.kind.toUpperCase()} · {formatFileSize(binary.sizeBytes)}</span>
+       <code className="document-preview-hash" title={binary.sha256}>SHA-256 {binary.sha256}</code>
+     </figcaption> : null}
+-    <div className="document-preview-source" aria-live="polite">{source}</div>
+-    {children ? <div className="document-preview-overlay">{children}</div> : null}
++    <div className="document-preview-viewport" ref={viewportRef}>
++      <div className="document-preview-source" aria-live="polite">
++        {ready && viewport && ready.kind === "dxf" && dxf ? <svg className="document-source-page" style={style} viewBox={dxf.viewBox} role="img" aria-label={`${binary?.name}, DXF linework`} preserveAspectRatio="none"><g>{dxf.paths.map((path,index)=><path key={index} d={path.d}/>)}</g></svg> : null}
++        {ready?.url && viewport ? <img className="document-source-page" style={style} src={ready.url} alt={`${binary?.name} source plan`} data-source-rotation={ready.page.rotation} data-source-crop={ready.page.crop?.join(",")} onLoad={()=>setLoadedKey(key)} onError={()=>setFailure({key,message:"The source image could not be rendered. Original bytes remain attached."})}/> : null}
++        {message}
++      </div>
++      {children ? <div className="document-preview-overlay">{typeof children === "function" ? children(available ? ready.page : null) : children}</div> : null}
++    </div>
+   </figure>;
+ }
+ 
+diff --git a/src/studio/IsoCanvas.tsx b/src/studio/IsoCanvas.tsx
+index ba639d0..0b0bd5a 100644
+--- a/src/studio/IsoCanvas.tsx
++++ b/src/studio/IsoCanvas.tsx
+@@ -10,6 +10,7 @@ import { buildWtcGeometry } from "./wtcModel";
+ import { buildFencingGeometry } from "./fencingModel";
+ import type { CalibrationPoint } from "./calibration";
+ import type { FenceRun } from "./domain";
++import { sourceViewport, sourceToCanvas, canvasToSource, pointOnSource, snapSourcePoint, type SourceBounds } from "./documentViewport";
+ 
+ export function IsoCanvas() {
+   const ref = useRef<HTMLCanvasElement>(null);
+@@ -193,11 +194,14 @@ export type PlanCanvasViewport = {
+   pan: CalibrationPoint;
+   kind: SheetKind;
+   floors: number;
++  sourceBounds?: SourceBounds | null;
+ };
+ 
+ export type PlanCanvasProps = {
+   interactive: boolean;
+   sourceMode?: "procedural" | "overlay";
++  sourceBounds?: SourceBounds | null;
++  legacyReadOnly?: boolean;
+   calibrationCaptureActive?: boolean;
+   calibrationPoints?: readonly CalibrationPoint[];
+   onCalibrationPoint?: (point: CalibrationPoint) => void;
+@@ -232,6 +236,11 @@ export function canvasPointToDocumentPoint(
+   point: CalibrationPoint,
+   viewport: PlanCanvasViewport,
+ ): CalibrationPoint {
++  if(viewport.sourceBounds) {
++    const frame=sourceViewport(viewport.sourceBounds,viewport.width,viewport.height,viewport.zoom,viewport.pan);
++    if(!frame)throw Error("Source viewport is unavailable.");
++    return canvasToSource(point,frame);
++  }
+   const geometry = getPlanCanvasGeometry(viewport);
+   const untransformedX = geometry.centerX
+     + (point.x - geometry.centerX - viewport.pan.x) / viewport.zoom;
+@@ -251,6 +260,11 @@ export function documentPointToCanvasPoint(
+   point: CalibrationPoint,
+   viewport: PlanCanvasViewport,
+ ): CalibrationPoint {
++  if(viewport.sourceBounds) {
++    const frame=sourceViewport(viewport.sourceBounds,viewport.width,viewport.height,viewport.zoom,viewport.pan);
++    if(!frame)throw Error("Source viewport is unavailable.");
++    return sourceToCanvas(point,frame);
++  }
+   const geometry = getPlanCanvasGeometry(viewport);
+   const untransformedX = geometry.offsetX + point.x * geometry.scale;
+   const untransformedY = viewport.kind === "elev"
+@@ -365,6 +379,8 @@ export function resolveTracingCanvasPointerMode(input: {
+ export function PlanCanvas({
+   interactive,
+   sourceMode = "procedural",
++  sourceBounds = null,
++  legacyReadOnly = false,
+   calibrationCaptureActive = false,
+   calibrationPoints = [],
+   onCalibrationPoint,
+@@ -418,7 +434,7 @@ export function PlanCanvas({
+     const kind = SHEETS[s.sheet]?.kind ?? "elev";
+     return canvasPointToDocumentPoint(
+       { x: e.clientX - r.left, y: e.clientY - r.top },
+-      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors },
++      { width: r.width, height: r.height, zoom, pan, kind, floors: s.floors, sourceBounds },
+     );
+   }
+ 
+@@ -466,6 +482,7 @@ export function PlanCanvas({
+ 
+       const navy = s.skin === "navy";
+       ctx.clearRect(0, 0, w, h);
++      if(sourceMode === "overlay" && (!sourceBounds || legacyReadOnly))return;
+       if (sourceMode === "procedural") {
+         ctx.fillStyle = navy ? PAL.navy : PAL.paper;
+         ctx.fillRect(0, 0, w, h);
+@@ -488,7 +505,9 @@ export function PlanCanvas({
+       const sc = Math.min(sx_factor, sy_factor);
+       const ox = (w - 18 * sc) / 2;
+       const oy = (h - totalH * sc) / 2;
++      const sourceFrame=sourceBounds?sourceViewport(sourceBounds,w,h):null;
+       const to = (x: number, z_or_y: number): [number, number] => {
++        if(sourceMode === "overlay" && sourceFrame){const p=sourceToCanvas({x,y:z_or_y},sourceFrame);return [p.x,p.y];}
+         if (kind === "elev") {
+           return [ox + x * sc, oy + (totalH - z_or_y) * sc];
+         } else {
+@@ -802,7 +821,7 @@ export function PlanCanvas({
+         ctx.font = `bold ${Math.max(9, 10 / zoom)}px monospace`;
+         ctx.fillStyle = navy ? "#7fdbff" : "#050b14";
+         ctx.fillText(
+-          `SNAP (${hoverSnap.point.x.toFixed(2)}m, ${hoverSnap.point.y.toFixed(2)}m)`,
++          `SNAP (${hoverSnap.point.x.toFixed(2)}, ${hoverSnap.point.y.toFixed(2)}) ${sourceMode === "overlay" ? "source units" : "m"}`,
+           sp[0] + sz * 1.6,
+           sp[1] - sz * 0.6
+         );
+@@ -866,6 +885,8 @@ export function PlanCanvas({
+     s.scaleM,
+     interactive,
+     sourceMode,
++    sourceBounds,
++    legacyReadOnly,
+     calibrationCaptureActive,
+     calibrationPoints,
+     selectedRunId,
+@@ -893,6 +914,7 @@ export function PlanCanvas({
+         onPointerDown={(e) => {
+           const canvas = ref.current;
+           if (!canvas) return;
++          if(sourceMode === "overlay" && !sourceBounds)return;
+           const rect = canvas.getBoundingClientRect();
+           const canvasPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+           const viewport: PlanCanvasViewport = {
+@@ -902,6 +924,7 @@ export function PlanCanvas({
+             pan,
+             kind: SHEETS[s.sheet]?.kind ?? "elev",
+             floors: s.floors,
++            sourceBounds,
+           };
+           const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
+           const vertexHit = selectedRun && onMoveVertex
+@@ -911,8 +934,8 @@ export function PlanCanvas({
+             ? hitTestFenceRuns(canvasPoint, currentRuns, viewport)
+             : null;
+           const mode = resolveTracingCanvasPointerMode({
+-            calibrationCaptureActive,
+-            interactive,
++            calibrationCaptureActive: calibrationCaptureActive && !legacyReadOnly,
++            interactive: interactive && !legacyReadOnly,
+             button: e.button,
+             shiftKey: e.shiftKey,
+             toolActive: s.tool !== "none",
+@@ -922,6 +945,7 @@ export function PlanCanvas({
+             runSelectionEnabled: Boolean(onSelectRun),
+           });
+           lastPointerMode.current = mode;
++          if(sourceMode === "overlay" && sourceBounds && mode !== "pan" && !pointOnSource(toWorld(e),sourceBounds))return;
+           if (mode === "calibration") {
+             if (hoverSnap) setHoverSnap(null);
+             onCalibrationPoint?.(toWorld(e));
+@@ -949,13 +973,18 @@ export function PlanCanvas({
+           } else {
+             const st = useStudio.getState();
+             if (st.tool !== "none") {
+-              const targetPoint = hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : toWorld(e);
++              const world=toWorld(e);
++              const frame=sourceBounds?sourceViewport(sourceBounds,rect.width,rect.height,zoom,pan):null;
++              const targetPoint = sourceMode === "overlay" && frame
++                ? snapSourcePoint(world,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled).point
++                : hoverSnap && hoverSnap.snapped && s.snappingEnabled ? hoverSnap.point : world;
+               st.addPoint(targetPoint);
+             }
+           }
+         }}
+         onPointerMove={(e) => {
+-          if (calibrationCaptureActive) {
++          if(sourceMode === "overlay" && !sourceBounds)return;
++          if (calibrationCaptureActive && !legacyReadOnly) {
+             if (hoverSnap) setHoverSnap(null);
+           } else if (drag.current?.kind === "vertex") {
+             onMoveVertex?.(drag.current.runId, drag.current.vertexIndex, toWorld(e));
+@@ -966,7 +995,7 @@ export function PlanCanvas({
+             s.setPan2d({ x: s.pan2d.x + dx, y: s.pan2d.y + dy });
+             drag.current.x = e.clientX;
+             drag.current.y = e.clientY;
+-          } else if (interactive && s.tool !== "none") {
++          } else if (interactive && !legacyReadOnly && s.tool !== "none") {
+             const w = toWorld(e);
+             const canvas = ref.current;
+             if (canvas) {
+@@ -977,7 +1006,10 @@ export function PlanCanvas({
+               const sy_factor = (canvas.clientHeight - pad * 2) / totalH;
+               const sc = Math.min(sx_factor, sy_factor);
+               const snapRadius = 24 / (sc * zoom);
+-              const target = getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
++              const frame=sourceBounds?sourceViewport(sourceBounds,canvas.clientWidth,canvas.clientHeight,zoom,pan):null;
++              const target = sourceMode === "overlay" && frame
++                ? snapSourcePoint(w,[...currentRuns.flatMap(run=>run.points),...s.pending],24/frame.scale,s.snappingEnabled)
++                : getSnapPoint(w, s.markups, s.pending, snapRadius, s.snappingEnabled, kind, s.floors);
+               setHoverSnap(target);
+             }
+           } else {
+@@ -1009,7 +1041,7 @@ export function PlanCanvas({
+           e.preventDefault();
+         }}
+         onDoubleClick={() => {
+-          if (interactive && !calibrationCaptureActive && lastPointerMode.current === "trace") {
++          if (interactive && !legacyReadOnly && (sourceMode !== "overlay" || sourceBounds) && !calibrationCaptureActive && lastPointerMode.current === "trace") {
+             useStudio.getState().commitPending();
+           }
+         }}
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index b20c534..ccf0a5c 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -304,12 +304,15 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
+ 
+ function MeasurePane() {
+   const s = useStudio();
++  const [sourceReady,setSourceReady]=useState(false);
++  const calibration=s.currentCalibration;
++  const legacyReadOnly=calibration.coordinateSpace !== "source-page-v1" && (calibration.candidates.length>0 || calibration.locked || s.job.runs.some(run=>run.sheet===s.sheet) || s.job.gates.some(gate=>gate.sheet===s.sheet));
+   const selectedRunRecord = s.selectedRunId ? s.job.runs.find((run) => run.id === s.selectedRunId) ?? null : null;
+   const selectedRun = selectedRunRecord ? editableRun(selectedRunRecord) : null;
+   return (
+     <div className="measure-workspace">
+       <div className="measure-main-column">
+-        <div className="measure-tools" aria-label="Measurement tools">
++        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly}>
+           <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
+           <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
+           <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>Gate <kbd>C</kbd></button>
+@@ -317,14 +320,17 @@ function MeasurePane() {
+           <span className="measure-tools-spacer" />
+           <button type="button" className="pill" onClick={s.commitPending} disabled={s.pending.length < 2}>Finish trace</button>
+           <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>Cancel</button>
+-        </div>
++        </fieldset>
++        {legacyReadOnly ? <div className="integrity-notice" role="status"><strong>Saved measurements need source-coordinate recovery</strong><span>These older coordinates are preserved read-only. They cannot prove alignment to this source or authorize quantities. Export the current manifest in Proof before a reviewed retrace; automatic conversion is unavailable.</span><button type="button" className="pill" onClick={()=>s.setPane("proof")}>Open Proof for export</button></div> : null}
+         {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
+         {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
+         {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+-        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview">
+-          <PlanCanvas
++        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview" zoom={s.zoom2d} pan={s.pan2d} showSource={s.showSrc} onSourceReady={setSourceReady}>
++          {(page)=><PlanCanvas
+             interactive
+             sourceMode="overlay"
++            sourceBounds={page?.bounds ?? null}
++            legacyReadOnly={legacyReadOnly}
+             calibrationCaptureActive={Boolean(s.calibrationCapture)}
+             calibrationPoints={s.calibrationCapture?.points ?? []}
+             onCalibrationPoint={s.addCalibrationPoint}
+@@ -333,11 +339,11 @@ function MeasurePane() {
+             onSelectRun={s.selectRun}
+             onSelectVertex={s.selectVertex}
+             onMoveVertex={s.moveRunVertex}
+-          />
++          />}
+         </DocumentPreview>
+         <MarkupList />
+       </div>
+-      <MeasureInspector selectedRun={selectedRun} />
++      <fieldset className="measure-inspector-boundary" disabled={!sourceReady || legacyReadOnly}><MeasureInspector selectedRun={selectedRun} sourceReady={sourceReady} legacyReadOnly={legacyReadOnly} /></fieldset>
+     </div>
+   );
+ }
+@@ -350,7 +356,7 @@ function placedGate(gate: GateRecord): PlacedGate {
+   return { ...gate, revision: gate.revision ?? 1, segmentIndex: gate.segmentIndex ?? null, segmentT: gate.segmentT ?? null };
+ }
+ 
+-function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | null }) {
++function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = false }: { selectedRun: EditableFenceRun | null; sourceReady?: boolean; legacyReadOnly?: boolean }) {
+   const s = useStudio();
+   const [distanceValue, setDistanceValue] = useState("");
+   const [unit, setUnit] = useState<CalibrationInputUnit>("m");
+@@ -367,6 +373,7 @@ function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | nul
+     if (s.calibrationCapture?.points.length !== 2) return;
+     s.upsertManualCalibrationCandidate({
+       distance: { value: Number(distanceValue), unit },
++      coordinateSpace: "source-page-v1",
+       provenance: { method: "two-point", evidence: `Sheet ${s.sheet + 1} manual known distance`, documentId: s.job.activeDocumentId },
+     });
+   }
+@@ -387,6 +394,8 @@ function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | nul
+   return (
+     <aside className="measure-inspector" aria-label="Measure inspector">
+       <CalibrationPanel
++        disabled={!sourceReady || legacyReadOnly}
++        compatibilityBlocked={legacyReadOnly}
+         sheetNumber={s.sheet + 1}
+         calibration={s.currentCalibration}
+         captureActive={Boolean(s.calibrationCapture)}
+diff --git a/src/studio/bomCompiler.test.ts b/src/studio/bomCompiler.test.ts
+index c31bf18..48a6dd6 100644
+--- a/src/studio/bomCompiler.test.ts
++++ b/src/studio/bomCompiler.test.ts
+@@ -89,7 +89,7 @@ function approvedJob(): FencingJob {
+     confidence: 1,
+     provenance: { method: "two-point", evidence: "Known boundary", documentId: "doc-plan" },
+   });
+-  job.calibrations = [lockCalibration({ ...job.calibrations[0], candidates: [candidate] })];
++  job.calibrations = [lockCalibration({ ...job.calibrations[0], coordinateSpace: "source-page-v1", candidates: [candidate] })];
+   job.runs = [
+     {
+       id: "run-north",
+@@ -130,6 +130,11 @@ const READY = {
+ };
+ 
+ describe("job-to-BOM compiler", () => {
++  it("rejects preserved imported legacy calibration even when locked and approved",async()=>{
++    const job=approvedJob();delete job.calibrations[0].coordinateSpace;const before=JSON.stringify(job);
++    const result=await compileBomRequest({job,recipeSet:recipeSet(),runtimeAssets:READY,hydrationSettled:true,requestId:"legacy-rejected"});
++    assert.equal(result.ok,false);if(!result.ok)assert.ok(result.issues.some(issue=>/legacy source coordinates/i.test(issue.message)));assert.equal(JSON.stringify(job),before);
++  });
+   it("compiles an approved, verified job into sorted integer-millimetre input", async () => {
+     const result = await compileBomRequest({
+       job: approvedJob(),
+diff --git a/src/studio/bomCompiler.ts b/src/studio/bomCompiler.ts
+index 2e7790b..8e5be05 100644
+--- a/src/studio/bomCompiler.ts
++++ b/src/studio/bomCompiler.ts
+@@ -104,6 +104,10 @@ export async function compileBomRequest(
+   }>();
+   for (const sheet of [...new Set(job.runs.map((run) => run.sheet))].sort((left, right) => left - right)) {
+     const calibration = job.calibrations.find((entry) => entry.sheet === sheet);
++    if(document?.source !== "sample" && calibration?.coordinateSpace !== "source-page-v1") {
++      issues.push(problem("calibration", `Sheet ${sheet + 1} uses legacy source coordinates; reviewed recovery is required before quantities can be compiled.`, `sheet-${sheet}`, "calibrations.coordinateSpace"));
++      continue;
++    }
+     if (!calibration?.locked || !calibration.selectedCandidateId) continue;
+     const candidate = calibration.candidates.find((entry) => entry.id === calibration.selectedCandidateId);
+     if (!candidate || !nearlyEqual(candidate.metresPerUnit, calibration.metresPerUnit)) {
+diff --git a/src/studio/calibration.ts b/src/studio/calibration.ts
+index 6ae6572..f10505e 100644
+--- a/src/studio/calibration.ts
++++ b/src/studio/calibration.ts
+@@ -75,6 +75,8 @@ export const calibrationConflictSchema = z.object({
+ 
+ export const calibrationSchema = z.object({
+   sheet: z.number().int().nonnegative(),
++  /** Absence identifies preserved pre-IW005 procedural coordinates. */
++  coordinateSpace: z.enum(["legacy-procedural-v0", "source-page-v1"]).optional(),
+   metresPerUnit: z.number().positive().finite(),
+   source: z.enum(["unverified", "declared", "inferred", "manual"]),
+   confidence: z.number().min(0).max(1),
+@@ -120,6 +122,10 @@ export type CalibrationInputDistance = z.infer<typeof calibrationInputDistanceSc
+ export type CalibrationCandidate = z.infer<typeof calibrationCandidateSchema>;
+ export type Calibration = z.infer<typeof calibrationSchema>;
+ 
++export function isSourcePageCalibration(calibration: Pick<Calibration,"coordinateSpace"> | null | undefined): boolean {
++  return calibration?.coordinateSpace === "source-page-v1";
++}
++
+ const METRES_PER_UNIT: Record<CalibrationInputUnit, number> = {
+   m: 1,
+   cm: 0.01,
+diff --git a/src/studio/calibrationStore.test.ts b/src/studio/calibrationStore.test.ts
+index 42983d9..c36c4cd 100644
+--- a/src/studio/calibrationStore.test.ts
++++ b/src/studio/calibrationStore.test.ts
+@@ -19,7 +19,8 @@ function twoPageJob(): FencingJob {
+     source: "web",
+   };
+   job.activeDocumentId = "doc-test";
+-  job.calibrations = [createUnverifiedCalibration(0), createUnverifiedCalibration(1)];
++  // This fixture declares intrinsic page units; legacy fixtures below deliberately omit the marker.
++  job.calibrations = [0,1].map(sheet=>({...createUnverifiedCalibration(sheet),coordinateSpace:"source-page-v1" as const}));
+   return job;
+ }
+ 
+@@ -50,6 +51,12 @@ function declared(id: string, metresPerUnit: number) {
+ 
+ describe("studio calibration store", () => {
+   beforeEach(() => resetStore());
++  it("preserves imported legacy evidence and rejects lock, retrace and recalibration authority",()=>{
++    const store=useStudio.getState();store.ingestCalibrationCandidate(declared("old",.1));store.lockCurrentCalibration();
++    const original=structuredClone(useStudio.getState().job);delete original.calibrations[0].coordinateSpace;
++    resetStore(original);const before=JSON.stringify(original);useStudio.getState().setTool("length");useStudio.getState().addPoint({x:2,y:4});useStudio.getState().commitPending();useStudio.getState().startCalibrationCapture();useStudio.getState().lockCurrentCalibration();
++    assert.equal(JSON.stringify(useStudio.getState().job),before);assert.match(useStudio.getState().calibrationError!,/legacy/i);assert.equal(useStudio.getState().calibrationCapture,null);assert.equal(useStudio.getState().pending.length,0);
++  });
+ 
+   it("isolates locked scales per page and loads only the current page scale", () => {
+     const store = useStudio.getState();
+@@ -111,7 +118,7 @@ describe("studio calibration store", () => {
+     assert.equal(useStudio.getState().calibrationCapture?.points.length, 2);
+     assert.match(useStudio.getState().calibrationError ?? "", /already captured/i);
+ 
+-    useStudio.getState().upsertManualCalibrationCandidate({
++    useStudio.getState().upsertManualCalibrationCandidate({ coordinateSpace: "source-page-v1",
+       distance: { value: 5, unit: "m" },
+       provenance: { ...provenance, method: "two-point ruler" },
+     });
+@@ -122,7 +129,7 @@ describe("studio calibration store", () => {
+     useStudio.getState().startCalibrationCapture();
+     useStudio.getState().addCalibrationPoint({ x: 0, y: 0 });
+     useStudio.getState().addCalibrationPoint({ x: 20, y: 0 });
+-    useStudio.getState().upsertManualCalibrationCandidate({
++    useStudio.getState().upsertManualCalibrationCandidate({ coordinateSpace: "source-page-v1",
+       distance: { value: 5, unit: "m" },
+       provenance: { ...provenance, method: "corrected two-point ruler" },
+     });
+diff --git a/src/studio/documentPreview.test.ts b/src/studio/documentPreview.test.ts
+index b88eacd..f59e322 100644
+--- a/src/studio/documentPreview.test.ts
++++ b/src/studio/documentPreview.test.ts
+@@ -22,6 +22,7 @@ const compiled = ts.transpileModule(source, {
+   fileName: "DocumentPreview.tsx",
+ }).outputText;
+ writeFileSync(compiledPath, compiled);
++writeFileSync(join(compiledDir, "documentViewport.js"), ts.transpileModule(readFileSync(join(here,"documentViewport.ts"),"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText);
+ const require = createRequire(import.meta.url);
+ const { dxfToSvgGeometry } = require(compiledPath) as typeof import("./DocumentPreview");
+ 
+diff --git a/src/studio/domain.test.ts b/src/studio/domain.test.ts
+index ecabf43..0fc40ca 100644
+--- a/src/studio/domain.test.ts
++++ b/src/studio/domain.test.ts
+@@ -174,7 +174,7 @@ describe("fencing job domain", () => {
+         documentId: job.activeDocumentId,
+       },
+     });
+-    job.calibrations[0] = lockCalibration({ ...job.calibrations[0], candidates: [manual] });
++    job.calibrations[0] = lockCalibration({ ...job.calibrations[0], coordinateSpace: "source-page-v1", candidates: [manual] });
+     job.documents[0] = { ...job.documents[0], source: "web" };
+     job.runs.push({
+       id: "run-1",
+@@ -203,7 +203,7 @@ describe("fencing job domain", () => {
+     };
+     job.calibrations.push(
+       lockCalibration({
+-        ...createUnverifiedCalibration(2),
++        ...createUnverifiedCalibration(2), coordinateSpace: "source-page-v1",
+         candidates: [{ ...manual, id: "manual-sheet-2" }],
+       }),
+     );
+diff --git a/src/studio/domain.ts b/src/studio/domain.ts
+index ed1dca5..3d3c41c 100644
+--- a/src/studio/domain.ts
++++ b/src/studio/domain.ts
+@@ -990,10 +990,12 @@ export function getJobBlockers(job: FencingJob): JobBlocker[] {
+   const sheetsNeedingCalibration = measurementSheets.length > 0 ? measurementSheets : [0];
+   for (const sheet of sheetsNeedingCalibration) {
+     const calibration = job.calibrations.find((entry) => entry.sheet === sheet);
+-    if (!calibration?.locked || calibration.source === "unverified") {
++    if (!calibration?.locked || calibration.source === "unverified" || (activeDocument?.source !== "sample" && calibration.coordinateSpace !== "source-page-v1")) {
+       blockers.push({
+         code: "calibration",
+-        message: `Confirm and lock the drawing scale for sheet ${sheet + 1}.`,
++        message: calibration?.locked && calibration.coordinateSpace !== "source-page-v1" && activeDocument?.source !== "sample"
++          ? `Sheet ${sheet + 1} uses legacy source coordinates. Export the preserved evidence before a reviewed retrace; quantities are unverified.`
++          : `Confirm and lock the drawing scale for sheet ${sheet + 1}.`,
+       });
+     }
+   }
+diff --git a/src/studio/store.ts b/src/studio/store.ts
+index ad8b588..823450b 100644
+--- a/src/studio/store.ts
++++ b/src/studio/store.ts
+@@ -105,6 +105,7 @@ export type ManualCalibrationInput = {
+   provenance: CalibrationCandidate["provenance"];
+   candidateId?: string;
+   confidence?: number;
++  coordinateSpace?: Calibration["coordinateSpace"];
+ };
+ 
+ export const TRACE_HISTORY_LIMIT = 100;
+@@ -335,6 +336,30 @@ function activeCalibration(job: FencingJob, sheet: number): Calibration {
+   return getCalibrationForSheet(job.calibrations, sheet) ?? createUnverifiedCalibration(sheet);
+ }
+ 
++function usesImportedSource(job: FencingJob): boolean {
++  return Boolean(job.documents.find(document=>document.id===job.activeDocumentId && document.source!=="sample"));
++}
++function hasLegacySourceEvidence(job: FencingJob,sheet:number): boolean {
++  const calibration=activeCalibration(job,sheet);
++  return usesImportedSource(job) && calibration.coordinateSpace!=="source-page-v1" && (calibration.candidates.length>0 || calibration.locked || calibrationHasGeometry(job,sheet));
++}
++function assertSourceCoordinateAuthority(job:FencingJob,sheet:number) {
++  if(usesImportedSource(job) && activeCalibration(job,sheet).coordinateSpace!=="source-page-v1")throw Error("Legacy source coordinates are unverified. Preserve/export the evidence before a reviewed retrace.");
++}
++function assertTraceChangeAuthority(job:FencingJob,next:TraceState) {
++  // Commands/history can target another page. Validate every changed, inserted
++  // or removed entity's actual page, including both sides of a reassociation.
++  for(const kind of ["runs","gates"] as const) {
++    const before=job[kind],after=next[kind];
++    for(const id of new Set([...before.map(e=>e.id),...after.map(e=>e.id)])) {
++      const old=before.find(e=>e.id===id),incoming=after.find(e=>e.id===id);
++      if(old && incoming && sameDurableEntity(old,incoming))continue;
++      if(old)assertSourceCoordinateAuthority(job,old.sheet);
++      if(incoming)assertSourceCoordinateAuthority(job,incoming.sheet);
++    }
++  }
++}
++
+ function scaleForCalibration(calibration: Calibration): number {
+   return calibration.locked ? calibration.metresPerUnit : 1;
+ }
+@@ -553,6 +578,7 @@ function calibrationHasGeometry(job: FencingJob, sheet: number): boolean {
+ }
+ 
+ function assertCalibrationCanChange(job: FencingJob, sheet: number) {
++  if(hasLegacySourceEvidence(job,sheet))throw Error("Legacy source coordinates are preserved read-only. Export the current manifest in Proof before a reviewed retrace.");
+   if (calibrationHasGeometry(job, sheet)) {
+     throw new Error("Remove measurements from this sheet before changing its locked calibration.");
+   }
+@@ -909,7 +935,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+   setScale: () =>
+     set(calibrationFailure("Use a verified calibration candidate and lock it before measuring.")),
+   startCalibrationCapture: () => {
+-    const { sheet } = get();
++    const { sheet,job } = get();
++    if(hasLegacySourceEvidence(job,sheet)){set(calibrationFailure("Legacy source coordinates require reviewed recovery; export the current manifest in Proof."));return;}
+     set({
+       calibrationCapture: { sheet, points: [] },
+       calibrationError: null,
+@@ -949,6 +976,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+       }
+       assertCalibrationCanChange(state.job, state.sheet);
+       const calibration = activeCalibration(state.job, state.sheet);
++      if(usesImportedSource(state.job) && input.coordinateSpace!=="source-page-v1")throw Error("Source calibration requires explicit source-page-v1 coordinates.");
+       const candidateId = input.candidateId ?? `manual-sheet-${state.sheet}`;
+       const candidate = createTwoPointCalibrationCandidate({
+         id: candidateId,
+@@ -963,7 +991,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+         ...calibration.candidates.filter((entry) => entry.id !== candidateId),
+         candidate,
+       ];
+-      const next = unlockedCalibrationWithCandidates(calibration, candidates);
++      const next = unlockedCalibrationWithCandidates({...calibration,coordinateSpace:input.coordinateSpace ?? calibration.coordinateSpace}, candidates);
+       set({
+         job: revisedCalibration(
+           state.job,
+@@ -1040,6 +1068,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+   lockCurrentCalibration: (candidateId) => {
+     try {
+       const state = get();
++      if(hasLegacySourceEvidence(state.job,state.sheet))throw Error("Legacy source calibration cannot authorize measurements; export before reviewed recovery.");
+       const calibration = activeCalibration(state.job, state.sheet);
+       if (
+         calibration.locked &&
+@@ -1142,6 +1171,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+       return;
+     }
+     const { tool, pending, sheet, job } = get();
++    try{assertSourceCoordinateAuthority(job,sheet);}catch(error){set(calibrationFailure((error as Error).message));return;}
+     if (tool === "count") {
+       const runId = get().selectedRunId;
+       if (!runId) {
+@@ -1165,6 +1195,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+   },
+   commitPending: () => {
+     const { tool, pending, sheet, markups, job } = get();
++    try{assertSourceCoordinateAuthority(job,sheet);}catch(error){set(calibrationFailure((error as Error).message));return;}
+     const calibration = activeCalibration(job, sheet);
+     if ((tool === "length" || tool === "area" || tool === "sketch") && !calibration.locked) {
+       set(
+@@ -1292,6 +1323,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+       const state = get();
+       const previous = traceStateFromJob(state.job);
+       const result = applyTraceCommand(previous, command, state.job.calibrations);
++      assertTraceChangeAuthority(state.job,result.next);
+       const history: TraceHistoryEntry = { command, previous: result.previous, next: result.next };
+       set({
+         job: revisedTraceJob(state.job, result.next, traceRevisionDescriptor(state.job, command)),
+@@ -1474,6 +1506,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+         runs: previous.runs.filter((entry) => entry.id !== runId),
+         gates: previous.gates.filter((gate) => gate.runId !== runId),
+       };
++      assertTraceChangeAuthority(state.job,next);
+       const history: TraceHistoryEntry = {
+         command: { type: "remove-run", runId, expectedRevision: run.revision },
+         previous,
+@@ -1500,6 +1533,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+     const state = get();
+     const entry = state.traceUndoStack.at(-1);
+     if (!entry) return;
++    try { assertTraceChangeAuthority(state.job,entry.previous); }
++    catch(error) { set({traceError:error instanceof Error?error.message:String(error)}); return; }
+     set({
+       job: revisedTraceJob(state.job, entry.previous, {
+         entityType: "job",
+@@ -1518,6 +1553,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+     const state = get();
+     const entry = state.traceRedoStack.at(-1);
+     if (!entry) return;
++    try { assertTraceChangeAuthority(state.job,entry.next); }
++    catch(error) { set({traceError:error instanceof Error?error.message:String(error)}); return; }
+     set({
+       job: revisedTraceJob(state.job, entry.next, {
+         entityType: "job",
+diff --git a/src/studio/tracingStore.test.ts b/src/studio/tracingStore.test.ts
+index d64e464..fe0ed1a 100644
+--- a/src/studio/tracingStore.test.ts
++++ b/src/studio/tracingStore.test.ts
+@@ -15,7 +15,8 @@ function lockedCalibration() {
+     confidence: 1,
+     provenance: { method: "two-point", evidence: "Verified site dimension", documentId: "doc-trace" },
+   });
+-  return lockCalibration({ ...base, candidates: [candidate] });
++  // These points are intrinsic source-page units, with ten units calibrated to ten metres.
++  return lockCalibration({ ...base, coordinateSpace: "source-page-v1", candidates: [candidate] });
+ }
+ 
+ function traceJob(): FencingJob {
+@@ -59,6 +60,44 @@ function createPolyline() {
+ describe("studio editable tracing store", () => {
+   beforeEach(resetStore);
+ 
++  for (const operation of ["move", "remove", "undo", "redo"] as const) {
++    it(`preserves legacy target-page geometry during cross-page ${operation}`, () => {
++      const run = createPolyline();
++      if (operation === "undo" || operation === "redo") {
++        useStudio.getState().moveRunVertex(run.id, 2, { x: 3, y: 5 });
++        if (operation === "redo") useStudio.getState().undoTrace();
++      }
++      const job = structuredClone(useStudio.getState().job);
++      delete job.calibrations[0].coordinateSpace;
++      job.documents[0].pageCount = 2;
++      const current = { ...lockedCalibration(), sheet: 1 };
++      job.calibrations.push(current);
++      useStudio.setState({ job, sheet: 1, currentCalibration: current });
++      const before = JSON.stringify(job);
++      if (operation === "move") useStudio.getState().moveRunVertex(run.id, 1, { x: 4, y: 0 });
++      if (operation === "remove") useStudio.getState().removeRun(run.id);
++      if (operation === "undo") useStudio.getState().undoTrace();
++      if (operation === "redo") useStudio.getState().redoTrace();
++      assert.equal(JSON.stringify(useStudio.getState().job), before, "the target legacy sheet must remain byte-identical");
++      assert.match(useStudio.getState().traceError ?? "", /legacy|source.page/i);
++    });
++  }
++  it("permits a current-source target while preserving unrelated legacy page evidence", () => {
++    const old = createPolyline();
++    const job = structuredClone(useStudio.getState().job);
++    delete job.calibrations[0].coordinateSpace;
++    job.documents[0].pageCount = 2;
++    const current = { ...lockedCalibration(), sheet: 1 };
++    job.calibrations.push(current);
++    job.runs.push({ ...structuredClone(old), id: "current-page-run", sheet: 1 });
++    useStudio.setState({job, sheet: 0, currentCalibration:job.calibrations[0]});
++    const preserved = JSON.stringify(job.runs[0]);
++    useStudio.getState().moveRunVertex("current-page-run", 2, { x: 3, y: 6 });
++    assert.equal(useStudio.getState().traceError, null);
++    assert.equal(useStudio.getState().job.runs[1].lengthM, 9);
++    assert.equal(JSON.stringify(useStudio.getState().job.runs[0]), preserved);
++  });
++
+   it("commits a multi-segment run only on explicit completion", () => {
+     useStudio.getState().setTool("length");
+     useStudio.getState().addPoint({ x: 0, y: 0 });
+diff --git a/src/styles.css b/src/styles.css
+index 0c01a02..cd3ae9d 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -281,15 +281,9 @@
+   .source-ingest-steps span { grid-row: 1 / span 2; color: var(--color-cyan); font-family: var(--font-mono); font-size: 9px; }
+   .source-ingest-steps strong { font-size: 10px; font-weight: 500; }
+   .source-ingest-steps small { color: var(--color-cbar); font-size: 9px; }
+-  .document-preview-source,
+-  .document-preview-source object,
+-  .document-preview-source img,
+-  .document-preview-source svg {
+-    width: 100%;
+-    height: 100%;
+-    min-height: inherit;
+-  }
+-  .document-preview-source { flex: 1 1 auto; min-height: 0; }
++  .document-preview-viewport { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
++  .document-preview-source { position: absolute; inset: 0; }
++  .document-source-page { position: absolute; display: block; max-width: none; max-height: none; }
+   .document-preview-caption {
+     display: flex;
+     flex: 0 0 auto;
+@@ -314,13 +308,14 @@
+     font-family: var(--font-mono);
+     font-size: 9px;
+   }
+-  .document-preview-source object,
+-  .document-preview-source img { display: block; object-fit: contain; }
+-  .document-preview-source svg { padding: 24px; stroke: var(--color-ink); stroke-width: 1.25; fill: none; }
++  .document-preview-source img { object-fit: fill; }
++  .document-preview-source svg { stroke: var(--color-ink); stroke-width: 1.25; fill: none; }
+   .document-preview-message { min-height: inherit; display: grid; place-content: center; gap: 4px; padding: 32px; text-align: center; }
+   .document-preview-message span { color: var(--color-muted); }
+   .document-preview-overlay { position: absolute; inset: 0; }
+   .document-preview-overlay canvas { background: transparent !important; }
++  .measure-inspector-boundary { min-width: 0; min-height: 0; overflow: auto; padding: 0; margin: 0; border: 0; }
++  .measure-tools { min-width: 0; padding: 0; margin: 0; border: 0; }
+   .source-metadata { display: grid; grid-template-columns: minmax(0, 2fr) 100px minmax(0, 3fr); border-top: 1px solid var(--color-line); }
+   .source-metadata div { min-width: 0; padding: 8px 10px; border-right: 1px solid var(--color-line); }
+   .source-metadata div:last-child { border-right: 0; }
+diff --git a/src/studio/documentViewport.ts b/src/studio/documentViewport.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/documentViewport.ts
+@@ -0,0 +1,55 @@
++/** source-page-v1 uses the displayed source page's intrinsic units, top-left axes.
++ * PDF crop/rotation are applied by PDF.js before this viewport; SVG uses its
++ * viewBox, DXF the extracted linework bounds. Camera changes never edit points.
++ */
++export type SourcePoint = { x: number; y: number };
++export type SourceBounds = { x: number; y: number; width: number; height: number };
++export type SourcePage = { bounds: SourceBounds; rotation: number; crop: readonly number[] | null };
++export type SourceViewport = { scale: number; x: number; y: number; bounds: SourceBounds };
++
++export function validSourceBounds(bounds: SourceBounds): boolean {
++  return [bounds.x,bounds.y,bounds.width,bounds.height].every(n=>Number.isFinite(n) && Math.abs(n)<=1e9)
++    && bounds.width>0 && bounds.height>0;
++}
++
++export function sourceViewport(bounds: SourceBounds, width: number, height: number, zoom=1, pan: SourcePoint={x:0,y:0}): SourceViewport | null {
++  if(!validSourceBounds(bounds) || ![width,height,zoom,pan.x,pan.y].every(Number.isFinite) || width<=0 || height<=0 || zoom<=0)return null;
++  const inset=Math.min(16,width/8,height/8);
++  const fit=Math.min((width-2*inset)/bounds.width,(height-2*inset)/bounds.height);
++  const scale=fit*zoom;
++  const x=width/2+pan.x-(bounds.x+bounds.width/2)*scale,y=height/2+pan.y-(bounds.y+bounds.height/2)*scale;
++  if(![scale,x,y,bounds.width*scale,bounds.height*scale].every(Number.isFinite) || scale<=Number.EPSILON || scale>1e12)return null;
++  return {bounds,scale,x,y};
++}
++export function sourceToCanvas(point:SourcePoint,viewport:SourceViewport):SourcePoint {return {x:point.x*viewport.scale+viewport.x,y:point.y*viewport.scale+viewport.y};}
++export function canvasToSource(point:SourcePoint,viewport:SourceViewport):SourcePoint {return {x:(point.x-viewport.x)/viewport.scale,y:(point.y-viewport.y)/viewport.scale};}
++/** A standalone SVG can letterbox its viewBox inside a differently shaped root
++ * viewport. In that case use the actual viewport units, including its margins. */
++export function svgSourceBounds(viewBox:SourceBounds, width:string|null, height:string|null):SourceBounds {
++  const absolute=(raw:string|null)=>{const match=raw?.trim().match(/^([+\d.eE-]+)(px|pt|pc|mm|cm|in)?$/);if(!match)return NaN;const units:Record<string,number>={px:1,pt:96/72,pc:16,mm:96/25.4,cm:96/2.54,in:96};return Number(match[1])*units[match[2]||'px'];};
++  const root={x:0,y:0,width:absolute(width),height:absolute(height)};
++  return validSourceBounds(root) && Math.abs(root.width/root.height-viewBox.width/viewBox.height)>1e-9 ? root : viewBox;
++}
++export function pointOnSource(point:SourcePoint,bounds:SourceBounds):boolean {return point.x>=bounds.x && point.y>=bounds.y && point.x<=bounds.x+bounds.width && point.y<=bounds.y+bounds.height;}
++
++/** Source overlays snap only to reviewed/manual source points, never demo CAD. */
++export function snapSourcePoint(point:SourcePoint, candidates:readonly SourcePoint[], radius:number, enabled:boolean) {
++  let best=point,distance=radius;
++  if(enabled)for(const candidate of candidates){const d=Math.hypot(point.x-candidate.x,point.y-candidate.y);if(d<distance){best=candidate;distance=d;}}
++  return {point:{...best},snapped:best!==point,distance:best===point?0:distance,kind:'markup' as const};
++}
++
++export function parseSvgViewBox(svg:string):SourceBounds|null {
++  // Consume only XML preamble/comments before the real root, never a nested or
++  // commented-out svg. Browser callers additionally validate with DOMParser.
++  const opening=svg.replace(/^\uFEFF/,"").match(/^\s*(?:(?:<\?xml[\s\S]*?\?>|<!--[\s\S]*?-->)\s*)*(<svg\b(?:[^>"']|"[^"]*"|'[^']*')*>)/);
++  const root=opening?.[1];if(!root)return null;
++  const attrs=new Map<string,string>();
++  for(const match of root.matchAll(/\s([^\s="'<>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)){
++    if(attrs.has(match[1]))return null;attrs.set(match[1],match[2]??match[3]);
++  }
++  const viewBox=attrs.get("viewBox");
++  if(viewBox){const n=viewBox.trim().split(/[\s,]+/).map(Number);const b={x:n[0],y:n[1],width:n[2],height:n[3]};return n.length===4 && validSourceBounds(b)?b:null;}
++  const dimension=(key:string)=>{const raw=attrs.get(key);if(!raw)return NaN;const m=raw.trim().match(/^([+\d.eE-]+)(px|pt|pc|mm|cm|in)?$/);if(!m)return NaN;const factors:Record<string,number>={px:1,pt:96/72,pc:16,mm:96/25.4,cm:96/2.54,in:96};return Number(m[1])*(factors[m[2]||'px']);};
++  const b={x:0,y:0,width:dimension('width'),height:dimension('height')};return validSourceBounds(b)?b:null;
++}
+diff --git a/src/studio/documentViewport.test.ts b/src/studio/documentViewport.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/documentViewport.test.ts
+@@ -0,0 +1,48 @@
++import { describe,it } from "node:test";
++import assert from "node:assert/strict";
++import {sourceViewport,sourceToCanvas,canvasToSource,parseSvgViewBox,svgSourceBounds,snapSourcePoint,pointOnSource} from "./documentViewport.ts";
++describe("actual source viewport",()=>{
++  it("round trips landscape, portrait, nonzero crop origins, zoom/pan and mobile resize",()=>{
++    for(const bounds of [{x:0,y:0,width:12000,height:8000},{x:-200,y:40,width:200,height:600},{x:0,y:0,width:400,height:200}])
++      for(const [width,height] of [[1280,700],[374,350],[700,1280]])for(const zoom of [.2,1,1.25,4]){
++        const frame=sourceViewport(bounds,width,height,zoom,{x:37,y:-19})!;
++        const p={x:bounds.x+bounds.width*.23,y:bounds.y+bounds.height*.64};const q=canvasToSource(sourceToCanvas(p,frame),frame);
++        assert.ok(Math.abs(p.x-q.x)<1e-8 && Math.abs(p.y-q.y)<1e-8);
++        const a=sourceToCanvas({x:bounds.x,y:bounds.y},frame),b=sourceToCanvas({x:bounds.x+bounds.width,y:bounds.y+bounds.height},frame);
++        assert.ok(Math.abs((b.x-a.x)/(b.y-a.y)-bounds.width/bounds.height)<1e-8);
++      }
++  });
++  it("keeps calibrated real landmark length invariant across the camera",()=>{
++    const bounds={x:0,y:0,width:12000,height:8000},a={x:200,y:200},b={x:11800,y:200};
++    for(const zoom of [.25,1,1.25,5])for(const w of [374,756,1100]){
++      const frame=sourceViewport(bounds,w,543,zoom,{x:38,y:22})!;
++      const p=canvasToSource(sourceToCanvas(a,frame),frame),q=canvasToSource(sourceToCanvas(b,frame),frame);
++      assert.ok(Math.abs(Math.hypot(p.x-q.x,p.y-q.y)*.001-11.6)<1e-9);
++    }
++  });
++  it("rejects invalid, absent and percentage-only source dimensions",()=>{
++    assert.equal(parseSvgViewBox('<svg width="100%" height="100%">'),null);
++    assert.equal(parseSvgViewBox('<svg viewBox="0 0 0 40">'),null);
++    assert.equal(sourceViewport({x:0,y:0,width:Infinity,height:8},390,800),null);
++    assert.equal(sourceViewport({x:0,y:0,width:12,height:8},0,800),null);
++    assert.equal(sourceViewport({x:0,y:0,width:12,height:8},390,800,Number.MIN_VALUE),null);
++    assert.equal(sourceViewport({x:0,y:0,width:12,height:8},390,800,Number.MAX_VALUE),null);
++    assert.deepEqual(parseSvgViewBox('<!-- <svg viewBox="0 0 1 1"> --><svg viewBox="10 20 300 400">'),{x:10,y:20,width:300,height:400});
++    assert.deepEqual(parseSvgViewBox(`<svg data-note=" viewBox='0 0 1 1'" viewBox="10 20 300 400">`),{x:10,y:20,width:300,height:400});
++    assert.equal(parseSvgViewBox('<svg data-width="100" height="200">'),null);
++    assert.deepEqual(parseSvgViewBox('<svg width="12000mm" height="8000mm" viewBox="-10 20 12000 8000">'),{x:-10,y:20,width:12000,height:8000});
++    assert.deepEqual(parseSvgViewBox('<svg width="1in" height="2in">'),{x:0,y:0,width:96,height:192});
++  });
++  it("source mode cannot snap to hidden procedural geometry",()=>{
++    assert.equal(snapSourcePoint({x:6.1,y:3.4},[],100,true).snapped,false);
++    assert.deepEqual(snapSourcePoint({x:202,y:200},[{x:200,y:200}],3,true).point,{x:200,y:200});
++    assert.equal(pointOnSource({x:-1,y:20},{x:0,y:0,width:30,height:30}),false);
++  });
++  it("retains SVG root viewport margins when its aspect differs from viewBox",()=>{
++    const box={x:10,y:20,width:100,height:100};
++    assert.deepEqual(svgSourceBounds(box,"200","100"),{x:0,y:0,width:200,height:100});
++    assert.deepEqual(svgSourceBounds(box,"2in","1in"),{x:0,y:0,width:192,height:96});
++    assert.deepEqual(svgSourceBounds(box,"100%","100%"),box);
++    assert.deepEqual(svgSourceBounds(box,"200","200"),box);
++  });
++});

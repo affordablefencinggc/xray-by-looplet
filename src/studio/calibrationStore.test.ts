@@ -19,7 +19,8 @@ function twoPageJob(): FencingJob {
     source: "web",
   };
   job.activeDocumentId = "doc-test";
-  job.calibrations = [createUnverifiedCalibration(0), createUnverifiedCalibration(1)];
+  // This fixture declares intrinsic page units; legacy fixtures below deliberately omit the marker.
+  job.calibrations = [0,1].map(sheet=>({...createUnverifiedCalibration(sheet),coordinateSpace:"source-page-v1" as const}));
   return job;
 }
 
@@ -50,6 +51,12 @@ function declared(id: string, metresPerUnit: number) {
 
 describe("studio calibration store", () => {
   beforeEach(() => resetStore());
+  it("preserves imported legacy evidence and rejects lock, retrace and recalibration authority",()=>{
+    const store=useStudio.getState();store.ingestCalibrationCandidate(declared("old",.1));store.lockCurrentCalibration();
+    const original=structuredClone(useStudio.getState().job);delete original.calibrations[0].coordinateSpace;
+    resetStore(original);const before=JSON.stringify(original);useStudio.getState().setTool("length");useStudio.getState().addPoint({x:2,y:4});useStudio.getState().commitPending();useStudio.getState().startCalibrationCapture();useStudio.getState().lockCurrentCalibration();
+    assert.equal(JSON.stringify(useStudio.getState().job),before);assert.match(useStudio.getState().calibrationError!,/legacy/i);assert.equal(useStudio.getState().calibrationCapture,null);assert.equal(useStudio.getState().pending.length,0);
+  });
 
   it("isolates locked scales per page and loads only the current page scale", () => {
     const store = useStudio.getState();
@@ -111,7 +118,7 @@ describe("studio calibration store", () => {
     assert.equal(useStudio.getState().calibrationCapture?.points.length, 2);
     assert.match(useStudio.getState().calibrationError ?? "", /already captured/i);
 
-    useStudio.getState().upsertManualCalibrationCandidate({
+    useStudio.getState().upsertManualCalibrationCandidate({ coordinateSpace: "source-page-v1",
       distance: { value: 5, unit: "m" },
       provenance: { ...provenance, method: "two-point ruler" },
     });
@@ -122,7 +129,7 @@ describe("studio calibration store", () => {
     useStudio.getState().startCalibrationCapture();
     useStudio.getState().addCalibrationPoint({ x: 0, y: 0 });
     useStudio.getState().addCalibrationPoint({ x: 20, y: 0 });
-    useStudio.getState().upsertManualCalibrationCandidate({
+    useStudio.getState().upsertManualCalibrationCandidate({ coordinateSpace: "source-page-v1",
       distance: { value: 5, unit: "m" },
       provenance: { ...provenance, method: "corrected two-point ruler" },
     });

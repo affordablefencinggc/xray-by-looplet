@@ -990,10 +990,12 @@ export function getJobBlockers(job: FencingJob): JobBlocker[] {
   const sheetsNeedingCalibration = measurementSheets.length > 0 ? measurementSheets : [0];
   for (const sheet of sheetsNeedingCalibration) {
     const calibration = job.calibrations.find((entry) => entry.sheet === sheet);
-    if (!calibration?.locked || calibration.source === "unverified") {
+    if (!calibration?.locked || calibration.source === "unverified" || (activeDocument?.source !== "sample" && calibration.coordinateSpace !== "source-page-v1")) {
       blockers.push({
         code: "calibration",
-        message: `Confirm and lock the drawing scale for sheet ${sheet + 1}.`,
+        message: calibration?.locked && calibration.coordinateSpace !== "source-page-v1" && activeDocument?.source !== "sample"
+          ? `Sheet ${sheet + 1} uses legacy source coordinates. Export the preserved evidence before a reviewed retrace; quantities are unverified.`
+          : `Confirm and lock the drawing scale for sheet ${sheet + 1}.`,
       });
     }
   }

@@ -15,7 +15,8 @@ function lockedCalibration() {
     confidence: 1,
     provenance: { method: "two-point", evidence: "Verified site dimension", documentId: "doc-trace" },
   });
-  return lockCalibration({ ...base, candidates: [candidate] });
+  // These points are intrinsic source-page units, with ten units calibrated to ten metres.
+  return lockCalibration({ ...base, coordinateSpace: "source-page-v1", candidates: [candidate] });
 }
 
 function traceJob(): FencingJob {
@@ -58,6 +59,44 @@ function createPolyline() {
 
 describe("studio editable tracing store", () => {
   beforeEach(resetStore);
+
+  for (const operation of ["move", "remove", "undo", "redo"] as const) {
+    it(`preserves legacy target-page geometry during cross-page ${operation}`, () => {
+      const run = createPolyline();
+      if (operation === "undo" || operation === "redo") {
+        useStudio.getState().moveRunVertex(run.id, 2, { x: 3, y: 5 });
+        if (operation === "redo") useStudio.getState().undoTrace();
+      }
+      const job = structuredClone(useStudio.getState().job);
+      delete job.calibrations[0].coordinateSpace;
+      job.documents[0].pageCount = 2;
+      const current = { ...lockedCalibration(), sheet: 1 };
+      job.calibrations.push(current);
+      useStudio.setState({ job, sheet: 1, currentCalibration: current });
+      const before = JSON.stringify(job);
+      if (operation === "move") useStudio.getState().moveRunVertex(run.id, 1, { x: 4, y: 0 });
+      if (operation === "remove") useStudio.getState().removeRun(run.id);
+      if (operation === "undo") useStudio.getState().undoTrace();
+      if (operation === "redo") useStudio.getState().redoTrace();
+      assert.equal(JSON.stringify(useStudio.getState().job), before, "the target legacy sheet must remain byte-identical");
+      assert.match(useStudio.getState().traceError ?? "", /legacy|source.page/i);
+    });
+  }
+  it("permits a current-source target while preserving unrelated legacy page evidence", () => {
+    const old = createPolyline();
+    const job = structuredClone(useStudio.getState().job);
+    delete job.calibrations[0].coordinateSpace;
+    job.documents[0].pageCount = 2;
+    const current = { ...lockedCalibration(), sheet: 1 };
+    job.calibrations.push(current);
+    job.runs.push({ ...structuredClone(old), id: "current-page-run", sheet: 1 });
+    useStudio.setState({job, sheet: 0, currentCalibration:job.calibrations[0]});
+    const preserved = JSON.stringify(job.runs[0]);
+    useStudio.getState().moveRunVertex("current-page-run", 2, { x: 3, y: 6 });
+    assert.equal(useStudio.getState().traceError, null);
+    assert.equal(useStudio.getState().job.runs[1].lengthM, 9);
+    assert.equal(JSON.stringify(useStudio.getState().job.runs[0]), preserved);
+  });
 
   it("commits a multi-segment run only on explicit completion", () => {
     useStudio.getState().setTool("length");

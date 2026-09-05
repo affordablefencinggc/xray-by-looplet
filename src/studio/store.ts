@@ -105,6 +105,7 @@ export type ManualCalibrationInput = {
   provenance: CalibrationCandidate["provenance"];
   candidateId?: string;
   confidence?: number;
+  coordinateSpace?: Calibration["coordinateSpace"];
 };
 
 export const TRACE_HISTORY_LIMIT = 100;
@@ -335,6 +336,30 @@ function activeCalibration(job: FencingJob, sheet: number): Calibration {
   return getCalibrationForSheet(job.calibrations, sheet) ?? createUnverifiedCalibration(sheet);
 }
 
+function usesImportedSource(job: FencingJob): boolean {
+  return Boolean(job.documents.find(document=>document.id===job.activeDocumentId && document.source!=="sample"));
+}
+function hasLegacySourceEvidence(job: FencingJob,sheet:number): boolean {
+  const calibration=activeCalibration(job,sheet);
+  return usesImportedSource(job) && calibration.coordinateSpace!=="source-page-v1" && (calibration.candidates.length>0 || calibration.locked || calibrationHasGeometry(job,sheet));
+}
+function assertSourceCoordinateAuthority(job:FencingJob,sheet:number) {
+  if(usesImportedSource(job) && activeCalibration(job,sheet).coordinateSpace!=="source-page-v1")throw Error("Legacy source coordinates are unverified. Preserve/export the evidence before a reviewed retrace.");
+}
+function assertTraceChangeAuthority(job:FencingJob,next:TraceState) {
+  // Commands/history can target another page. Validate every changed, inserted
+  // or removed entity's actual page, including both sides of a reassociation.
+  for(const kind of ["runs","gates"] as const) {
+    const before=job[kind],after=next[kind];
+    for(const id of new Set([...before.map(e=>e.id),...after.map(e=>e.id)])) {
+      const old=before.find(e=>e.id===id),incoming=after.find(e=>e.id===id);
+      if(old && incoming && sameDurableEntity(old,incoming))continue;
+      if(old)assertSourceCoordinateAuthority(job,old.sheet);
+      if(incoming)assertSourceCoordinateAuthority(job,incoming.sheet);
+    }
+  }
+}
+
 function scaleForCalibration(calibration: Calibration): number {
   return calibration.locked ? calibration.metresPerUnit : 1;
 }
@@ -553,6 +578,7 @@ function calibrationHasGeometry(job: FencingJob, sheet: number): boolean {
 }
 
 function assertCalibrationCanChange(job: FencingJob, sheet: number) {
+  if(hasLegacySourceEvidence(job,sheet))throw Error("Legacy source coordinates are preserved read-only. Export the current manifest in Proof before a reviewed retrace.");
   if (calibrationHasGeometry(job, sheet)) {
     throw new Error("Remove measurements from this sheet before changing its locked calibration.");
   }
@@ -909,7 +935,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   setScale: () =>
     set(calibrationFailure("Use a verified calibration candidate and lock it before measuring.")),
   startCalibrationCapture: () => {
-    const { sheet } = get();
+    const { sheet,job } = get();
+    if(hasLegacySourceEvidence(job,sheet)){set(calibrationFailure("Legacy source coordinates require reviewed recovery; export the current manifest in Proof."));return;}
     set({
       calibrationCapture: { sheet, points: [] },
       calibrationError: null,
@@ -949,6 +976,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       }
       assertCalibrationCanChange(state.job, state.sheet);
       const calibration = activeCalibration(state.job, state.sheet);
+      if(usesImportedSource(state.job) && input.coordinateSpace!=="source-page-v1")throw Error("Source calibration requires explicit source-page-v1 coordinates.");
       const candidateId = input.candidateId ?? `manual-sheet-${state.sheet}`;
       const candidate = createTwoPointCalibrationCandidate({
         id: candidateId,
@@ -963,7 +991,7 @@ export const useStudio = create<StudioState>((set, get) => ({
         ...calibration.candidates.filter((entry) => entry.id !== candidateId),
         candidate,
       ];
-      const next = unlockedCalibrationWithCandidates(calibration, candidates);
+      const next = unlockedCalibrationWithCandidates({...calibration,coordinateSpace:input.coordinateSpace ?? calibration.coordinateSpace}, candidates);
       set({
         job: revisedCalibration(
           state.job,
@@ -1040,6 +1068,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   lockCurrentCalibration: (candidateId) => {
     try {
       const state = get();
+      if(hasLegacySourceEvidence(state.job,state.sheet))throw Error("Legacy source calibration cannot authorize measurements; export before reviewed recovery.");
       const calibration = activeCalibration(state.job, state.sheet);
       if (
         calibration.locked &&
@@ -1142,6 +1171,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       return;
     }
     const { tool, pending, sheet, job } = get();
+    try{assertSourceCoordinateAuthority(job,sheet);}catch(error){set(calibrationFailure((error as Error).message));return;}
     if (tool === "count") {
       const runId = get().selectedRunId;
       if (!runId) {
@@ -1165,6 +1195,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
   commitPending: () => {
     const { tool, pending, sheet, markups, job } = get();
+    try{assertSourceCoordinateAuthority(job,sheet);}catch(error){set(calibrationFailure((error as Error).message));return;}
     const calibration = activeCalibration(job, sheet);
     if ((tool === "length" || tool === "area" || tool === "sketch") && !calibration.locked) {
       set(
@@ -1292,6 +1323,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       const state = get();
       const previous = traceStateFromJob(state.job);
       const result = applyTraceCommand(previous, command, state.job.calibrations);
+      assertTraceChangeAuthority(state.job,result.next);
       const history: TraceHistoryEntry = { command, previous: result.previous, next: result.next };
       set({
         job: revisedTraceJob(state.job, result.next, traceRevisionDescriptor(state.job, command)),
@@ -1474,6 +1506,7 @@ export const useStudio = create<StudioState>((set, get) => ({
         runs: previous.runs.filter((entry) => entry.id !== runId),
         gates: previous.gates.filter((gate) => gate.runId !== runId),
       };
+      assertTraceChangeAuthority(state.job,next);
       const history: TraceHistoryEntry = {
         command: { type: "remove-run", runId, expectedRevision: run.revision },
         previous,
@@ -1500,6 +1533,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     const state = get();
     const entry = state.traceUndoStack.at(-1);
     if (!entry) return;
+    try { assertTraceChangeAuthority(state.job,entry.previous); }
+    catch(error) { set({traceError:error instanceof Error?error.message:String(error)}); return; }
     set({
       job: revisedTraceJob(state.job, entry.previous, {
         entityType: "job",
@@ -1518,6 +1553,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     const state = get();
     const entry = state.traceRedoStack.at(-1);
     if (!entry) return;
+    try { assertTraceChangeAuthority(state.job,entry.next); }
+    catch(error) { set({traceError:error instanceof Error?error.message:String(error)}); return; }
     set({
       job: revisedTraceJob(state.job, entry.next, {
         entityType: "job",

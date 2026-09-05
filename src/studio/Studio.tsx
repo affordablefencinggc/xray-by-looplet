@@ -304,12 +304,15 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
 
 function MeasurePane() {
   const s = useStudio();
+  const [sourceReady,setSourceReady]=useState(false);
+  const calibration=s.currentCalibration;
+  const legacyReadOnly=calibration.coordinateSpace !== "source-page-v1" && (calibration.candidates.length>0 || calibration.locked || s.job.runs.some(run=>run.sheet===s.sheet) || s.job.gates.some(gate=>gate.sheet===s.sheet));
   const selectedRunRecord = s.selectedRunId ? s.job.runs.find((run) => run.id === s.selectedRunId) ?? null : null;
   const selectedRun = selectedRunRecord ? editableRun(selectedRunRecord) : null;
   return (
     <div className="measure-workspace">
       <div className="measure-main-column">
-        <div className="measure-tools" aria-label="Measurement tools">
+        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly}>
           <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
           <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
           <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>Gate <kbd>C</kbd></button>
@@ -317,14 +320,17 @@ function MeasurePane() {
           <span className="measure-tools-spacer" />
           <button type="button" className="pill" onClick={s.commitPending} disabled={s.pending.length < 2}>Finish trace</button>
           <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>Cancel</button>
-        </div>
+        </fieldset>
+        {legacyReadOnly ? <div className="integrity-notice" role="status"><strong>Saved measurements need source-coordinate recovery</strong><span>These older coordinates are preserved read-only. They cannot prove alignment to this source or authorize quantities. Export the current manifest in Proof before a reviewed retrace; automatic conversion is unavailable.</span><button type="button" className="pill" onClick={()=>s.setPane("proof")}>Open Proof for export</button></div> : null}
         {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
         {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
         {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
-        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview">
-          <PlanCanvas
+        <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview" zoom={s.zoom2d} pan={s.pan2d} showSource={s.showSrc} onSourceReady={setSourceReady}>
+          {(page)=><PlanCanvas
             interactive
             sourceMode="overlay"
+            sourceBounds={page?.bounds ?? null}
+            legacyReadOnly={legacyReadOnly}
             calibrationCaptureActive={Boolean(s.calibrationCapture)}
             calibrationPoints={s.calibrationCapture?.points ?? []}
             onCalibrationPoint={s.addCalibrationPoint}
@@ -333,11 +339,11 @@ function MeasurePane() {
             onSelectRun={s.selectRun}
             onSelectVertex={s.selectVertex}
             onMoveVertex={s.moveRunVertex}
-          />
+          />}
         </DocumentPreview>
         <MarkupList />
       </div>
-      <MeasureInspector selectedRun={selectedRun} />
+      <fieldset className="measure-inspector-boundary" disabled={!sourceReady || legacyReadOnly}><MeasureInspector selectedRun={selectedRun} sourceReady={sourceReady} legacyReadOnly={legacyReadOnly} /></fieldset>
     </div>
   );
 }
@@ -350,7 +356,7 @@ function placedGate(gate: GateRecord): PlacedGate {
   return { ...gate, revision: gate.revision ?? 1, segmentIndex: gate.segmentIndex ?? null, segmentT: gate.segmentT ?? null };
 }
 
-function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | null }) {
+function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = false }: { selectedRun: EditableFenceRun | null; sourceReady?: boolean; legacyReadOnly?: boolean }) {
   const s = useStudio();
   const [distanceValue, setDistanceValue] = useState("");
   const [unit, setUnit] = useState<CalibrationInputUnit>("m");
@@ -367,6 +373,7 @@ function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | nul
     if (s.calibrationCapture?.points.length !== 2) return;
     s.upsertManualCalibrationCandidate({
       distance: { value: Number(distanceValue), unit },
+      coordinateSpace: "source-page-v1",
       provenance: { method: "two-point", evidence: `Sheet ${s.sheet + 1} manual known distance`, documentId: s.job.activeDocumentId },
     });
   }
@@ -387,6 +394,8 @@ function MeasureInspector({ selectedRun }: { selectedRun: EditableFenceRun | nul
   return (
     <aside className="measure-inspector" aria-label="Measure inspector">
       <CalibrationPanel
+        disabled={!sourceReady || legacyReadOnly}
+        compatibilityBlocked={legacyReadOnly}
         sheetNumber={s.sheet + 1}
         calibration={s.currentCalibration}
         captureActive={Boolean(s.calibrationCapture)}
@@ -567,18 +576,7 @@ function Stage() {
     >
       {!s.chromeHidden && (
         <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-1.5 bg-gradient-to-b from-navy/90 to-transparent px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em]">
-          <span className="text-cbar">Source sheet</span>
-          <select
-            className="rounded-full bg-navy px-2.5 py-1.5 text-paper"
-            value={s.sheet}
-            onChange={(e) => s.setSheet(Number(e.target.value))}
-          >
-            {SHEETS.map((sh) => (
-              <option key={sh.index} value={sh.index}>
-                {sh.title}
-              </option>
-            ))}
-          </select>
+          <span className="text-cbar">Local presentation geometry</span>
           <span className="text-cbar">Presentation height (m)</span>
           <input
             className="w-16 rounded-full bg-navy px-2.5 py-1.5 text-paper"
@@ -589,7 +587,7 @@ function Stage() {
             onChange={(e) => s.setHeight(Number(e.target.value) || 0)}
           />
           <button type="button" className="stage-btn" aria-pressed={s.showSrc} onClick={() => s.toggle("showSrc")}>
-            Source vectors
+            Reference lines
           </button>
           <button type="button" className="stage-btn" aria-pressed={s.showBld} onClick={() => s.toggle("showBld")}>
             Building
@@ -846,7 +844,9 @@ function MarkupList() {
             {m.label} · sheet {m.sheet + 1}
           </span>
           <span>
-            {m.value.toFixed(m.kind === "count" ? 0 : 2)} {m.unit}
+            {(m.kind === "length"
+              ? s.job.runs.find((run) => run.id === m.id)?.netLengthM ?? m.value
+              : m.value).toFixed(m.kind === "count" ? 0 : 2)} {m.unit}
             <button type="button" className="pill ml-2" onClick={() => s.removeMarkup(m.id)}>
               ×
             </button>
@@ -1102,12 +1102,12 @@ function CostPane() {
   return (
     <div className="cost-workspace">
       {recipePersistenceError ? <IntegrityNotice title="Recipe decisions need attention" message={recipePersistenceError} /> : null}
-      {recipeAssumptions?.some((assumption) => assumption.status === "unresolved") ? (
+      {recipeAssumptions?.length ? (
         <div className="cost-controlbar">
           <span className="kicker">Recipe review</span>
           <label className="field cost-reviewer-field">
             <span>Responsible estimator</span>
-            <input value={reviewer} onChange={(event) => setReviewer(event.currentTarget.value)} placeholder="Name required to accept assumptions" />
+            <input value={reviewer} onChange={(event) => setReviewer(event.currentTarget.value)} placeholder="Name required to accept or reopen assumptions" />
           </label>
           <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
         </div>
@@ -1181,17 +1181,43 @@ function ProofPane() {
 }
 
 function Capabilities({ onClose }: { onClose: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    dialog?.querySelector<HTMLButtonElement>("button")?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closeRef.current();
+      } else if (event.key === "Tab") {
+        const controls = Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') ?? []);
+        const first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
+          event.preventDefault(); last?.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) {
+          event.preventDefault(); first?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => { window.removeEventListener("keydown", onKey, true); previousFocus?.focus(); };
+  }, []);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy/40 p-6" onClick={onClose}>
-      <div className="max-w-lg rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="font-mono text-sm tracking-[0.16em]">CAPABILITIES</h2>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="capabilities-title" className="max-w-lg rounded-2xl bg-paper p-6 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 id="capabilities-title" className="font-mono text-sm tracking-[0.16em]">CAPABILITIES</h2>
         <ul className="mt-3 list-disc space-y-1 pl-5">
           <li>Open and integrity-check supported plan bytes</li>
           <li>Browse the current sheet rail and local presentation views</li>
           <li>Inspect a local isometric wireframe</li>
           <li>Stand 3D / Lay Flat / Plan / Isometric / Fit</li>
           <li>Canvas colour (charcoal navy or paper) and lift-up full canvas</li>
-          <li>Measure length, area, count after you set scale</li>
+          <li>Measure fence runs and associated gates after locking source scale</li>
+          <li>Area sketches and added trade names last only for the current session</li>
           <li>Manual sketch layer, raised only by presentation height</li>
           <li>Open-ended trades — nothing defaulted</li>
           <li>Inspect recorded markup totals without invented materials or prices</li>

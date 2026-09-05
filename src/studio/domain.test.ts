@@ -174,7 +174,7 @@ describe("fencing job domain", () => {
         documentId: job.activeDocumentId,
       },
     });
-    job.calibrations[0] = lockCalibration({ ...job.calibrations[0], candidates: [manual] });
+    job.calibrations[0] = lockCalibration({ ...job.calibrations[0], coordinateSpace: "source-page-v1", candidates: [manual] });
     job.documents[0] = { ...job.documents[0], source: "web" };
     job.runs.push({
       id: "run-1",
@@ -203,7 +203,7 @@ describe("fencing job domain", () => {
     };
     job.calibrations.push(
       lockCalibration({
-        ...createUnverifiedCalibration(2),
+        ...createUnverifiedCalibration(2), coordinateSpace: "source-page-v1",
         candidates: [{ ...manual, id: "manual-sheet-2" }],
       }),
     );

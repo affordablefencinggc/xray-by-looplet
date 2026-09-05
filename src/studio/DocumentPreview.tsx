@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PlanBinary } from "./documentContract";
+import { parseSvgViewBox, svgSourceBounds, sourceViewport, sourceToCanvas, type SourcePage, type SourcePoint } from "./documentViewport";
 
 type Point = { x: number; y: number };
 type DxfPath = { d: string; closed: boolean };
@@ -176,55 +177,106 @@ export type DocumentPreviewProps = {
   className?: string;
   loading?: boolean;
   error?: string | null;
-  children?: ReactNode;
+  zoom?: number;
+  pan?: SourcePoint;
+  showSource?: boolean;
+  onSourceReady?: (ready: boolean) => void;
+  children?: ReactNode | ((page: SourcePage | null) => ReactNode);
 };
 
-export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, className = "", loading = false, error = null, children }: DocumentPreviewProps) {
-  const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState(false);
+type ReadySource = { key: string; page: SourcePage; url: string | null; kind: "svg" | "pdf" | "dxf" };
+
+export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, className = "", loading = false, error = null, zoom = 1, pan = {x:0,y:0}, showSource = true, onSourceReady, children }: DocumentPreviewProps) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({width:0,height:0});
+  const [readySource, setReadySource] = useState<ReadySource | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{key:string; message:string}|null>(null);
   const dxf = useMemo(() => binary?.kind === "dxf" ? dxfToSvgGeometry(binary.bytes) : null, [binary]);
+  const key = `${binary?.documentId ?? "none"}:${binary?.sha256 ?? ""}:${pageIndex}`;
+  const ready = readySource?.key === key ? readySource : null;
+  const available = !loading && !error && ready && (ready.kind === "dxf" || loadedKey === key) && failure?.key !== key;
+  const page = Math.floor(pageIndex) + 1;
 
   useEffect(() => {
-    setLoadError(false);
-    if (!binary || binary.kind === "dxf") {
-      setObjectUrl(null);
-      return;
+    const element=viewportRef.current;if(!element)return;
+    const measure=()=>setSize({width:element.clientWidth,height:element.clientHeight});
+    measure();const observer=new ResizeObserver(measure);observer.observe(element);return()=>observer.disconnect();
+  }, []);
+  useEffect(() => { onSourceReady?.(Boolean(available)); }, [Boolean(available),onSourceReady]);
+  useEffect(() => {
+    let cancelled=false;let url:string|null=null;
+    let destroy:(()=>Promise<void>)|undefined;
+    setFailure(null);setLoadedKey(null);setReadySource(null);
+    if(!binary || loading || error)return;
+    async function prepare() {
+      if(!Number.isInteger(pageIndex) || pageIndex<0 || (pageCount && pageIndex>=pageCount))throw Error("The requested source page is unavailable.");
+      if(binary!.kind === "dxf") {
+        if(!dxf)throw Error("No supported LINE, LWPOLYLINE or POLYLINE geometry was found in this ASCII DXF.");
+        const [x,y,width,height]=dxf.viewBox.split(" ").map(Number);
+        if(!cancelled)setReadySource({key,kind:"dxf",url:null,page:{bounds:{x,y,width,height},rotation:0,crop:null}});
+      } else if(binary!.kind === "svg") {
+        const xml=new TextDecoder().decode(binary!.bytes);
+        const parsed=new DOMParser().parseFromString(xml,"image/svg+xml");
+        if(parsed.querySelector("parsererror") || parsed.documentElement.localName!=="svg" || parsed.documentElement.namespaceURI!=="http://www.w3.org/2000/svg")throw Error("The SVG source is not a valid SVG document.");
+        const viewBox=parseSvgViewBox(new XMLSerializer().serializeToString(parsed.documentElement));
+        if(!viewBox)throw Error("This SVG has no finite viewBox or absolute page dimensions. Measurement is unavailable; the original file remains attached.");
+        const bounds=svgSourceBounds(viewBox,parsed.documentElement.getAttribute("width"),parsed.documentElement.getAttribute("height"));
+        url=URL.createObjectURL(new Blob([Uint8Array.from(binary!.bytes)],{type:"image/svg+xml"}));
+        if(!cancelled)setReadySource({key,kind:"svg",url,page:{bounds,rotation:0,crop:null}});
+      } else {
+        const [{getDocument,GlobalWorkerOptions},{default:workerUrl}]=await Promise.all([
+          import("pdfjs-dist/legacy/build/pdf.mjs"),import("pdfjs-dist/legacy/build/pdf.worker.mjs?url")
+        ]);
+        if(cancelled)return;
+        GlobalWorkerOptions.workerSrc=workerUrl;
+        const task=getDocument({data:Uint8Array.from(binary!.bytes)});destroy=()=>task.destroy();
+        const document=await task.promise;
+        if(cancelled)return;
+        if(page>document.numPages)throw Error("The requested PDF page is unavailable.");
+        const pdfPage=await document.getPage(page);
+        const intrinsic=pdfPage.getViewport({scale:1});
+        const renderScale=Math.min(2,4096/intrinsic.width,4096/intrinsic.height,Math.sqrt(16000000/(intrinsic.width*intrinsic.height)));
+        if(!Number.isFinite(renderScale) || renderScale<=0)throw Error("The PDF page has invalid dimensions.");
+        const raster=pdfPage.getViewport({scale:renderScale});
+        const canvas=window.document.createElement("canvas");canvas.width=Math.ceil(raster.width);canvas.height=Math.ceil(raster.height);
+        await pdfPage.render({canvas,viewport:raster}).promise;
+        if(cancelled)return;
+        const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("PDF page rendering failed.")),"image/png"));
+        if(cancelled)return;
+        url=URL.createObjectURL(blob);
+        setReadySource({key,kind:"pdf",url,page:{bounds:{x:0,y:0,width:intrinsic.width,height:intrinsic.height},rotation:pdfPage.rotate,crop:[...pdfPage.view]}});
+      }
     }
-    const mimeType = binary.kind === "pdf" ? "application/pdf" : "image/svg+xml";
-    const url = URL.createObjectURL(new Blob([Uint8Array.from(binary.bytes)], { type: binary.mimeType || mimeType }));
-    setObjectUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [binary]);
+    void prepare().catch(reason=>{if(!cancelled)setFailure({key,message:reason instanceof Error?reason.message:"Source preview failed."});});
+    return()=>{cancelled=true;if(url)URL.revokeObjectURL(url);void destroy?.().catch(()=>{});};
+  }, [binary,pageIndex,pageCount,loading,error,key,dxf]);
 
-  const page = Math.max(1, Math.floor(pageIndex) + 1);
-  const classes = `document-preview ${className}`.trim();
-  let source: ReactNode;
+  const viewport=ready?sourceViewport(ready.page.bounds,size.width,size.height,zoom,pan):null;
+  const origin=viewport && ready?sourceToCanvas({x:ready.page.bounds.x,y:ready.page.bounds.y},viewport):null;
+  const style=viewport && ready && origin?{left:origin.x,top:origin.y,width:ready.page.bounds.width*viewport.scale,height:ready.page.bounds.height*viewport.scale,visibility:showSource?"visible" as const:"hidden" as const}:undefined;
+  let message:ReactNode=null;
+  if(error)message=<PreviewMessage title="Plan preview needs attention" detail={error} alert />;
+  else if(loading)message=<PreviewMessage title="Retrieving verified plan" detail="Checking the stored file bytes before previewing this source." />;
+  else if(!binary)message=<PreviewMessage title="Plan preview unavailable" detail="Import a PDF, DXF or SVG plan to view its source here." />;
+  else if(failure?.key===key)message=<PreviewMessage title="Plan preview unavailable" detail={failure.message} alert />;
+  else if(!available)message=<PreviewMessage title="Preparing source page" detail={`Loading page ${page}. Measurement begins when the source is ready.`} />;
 
-  if (error) {
-    source = <PreviewMessage title="Plan preview needs attention" detail={error} alert />;
-  } else if (loading) {
-    source = <PreviewMessage title="Retrieving verified plan" detail="Checking the stored file bytes before previewing this source." />;
-  } else if (!binary) {
-    source = <PreviewMessage title="Plan preview unavailable" detail="Import a PDF, DXF or SVG plan to view its source here." />;
-  } else if (binary.kind === "svg") {
-    source = objectUrl && !loadError ? <img src={objectUrl} alt={`${binary.name} source plan`} onError={() => setLoadError(true)} /> : <PreviewMessage title="SVG preview unavailable" detail="The imported SVG could not be displayed by this browser." />;
-  } else if (binary.kind === "pdf") {
-    source = objectUrl ? <object data={`${objectUrl}#page=${page}&view=FitH`} type="application/pdf" aria-label={`${binary.name}, PDF page ${page}`}><PreviewMessage title="PDF preview unavailable" detail="This browser does not support embedded PDF pages. The imported file remains attached to the job." /></object> : <PreviewMessage title="Preparing PDF preview" detail={`Loading page ${page}.`} />;
-  } else if (binary.kind === "dxf") {
-    source = dxf ? <svg viewBox={dxf.viewBox} role="img" aria-label={`${binary.name}, DXF linework`} preserveAspectRatio="xMidYMid meet"><g>{dxf.paths.map((path, index) => <path key={`${index}-${path.d}`} d={path.d} />)}</g></svg> : <PreviewMessage title="DXF preview unavailable" detail="No supported LINE, LWPOLYLINE or POLYLINE geometry was found in this ASCII DXF." />;
-  } else {
-    source = <PreviewMessage title="Plan format unsupported" detail="This preview supports PDF, SVG and ASCII DXF sources." />;
-  }
-
-  return <figure className={classes} aria-busy={loading || undefined}>
+  return <figure className={`document-preview ${className}`.trim()} aria-busy={!available || undefined} data-source-ready={Boolean(available)}>
     {binary ? <figcaption className="document-preview-caption">
       <span className="document-preview-name">{binary.name}</span>
       <span className="document-preview-page">Page {page}{pageCount ? ` of ${pageCount}` : ""}</span>
       <span className="document-preview-kind">{binary.kind.toUpperCase()} · {formatFileSize(binary.sizeBytes)}</span>
       <code className="document-preview-hash" title={binary.sha256}>SHA-256 {binary.sha256}</code>
     </figcaption> : null}
-    <div className="document-preview-source" aria-live="polite">{source}</div>
-    {children ? <div className="document-preview-overlay">{children}</div> : null}
+    <div className="document-preview-viewport" ref={viewportRef}>
+      <div className="document-preview-source" aria-live="polite">
+        {ready && viewport && ready.kind === "dxf" && dxf ? <svg className="document-source-page" style={style} viewBox={dxf.viewBox} role="img" aria-label={`${binary?.name}, DXF linework`} preserveAspectRatio="none"><g>{dxf.paths.map((path,index)=><path key={index} d={path.d}/>)}</g></svg> : null}
+        {ready?.url && viewport ? <img className="document-source-page" style={style} src={ready.url} alt={`${binary?.name} source plan`} data-source-rotation={ready.page.rotation} data-source-crop={ready.page.crop?.join(",")} onLoad={()=>setLoadedKey(key)} onError={()=>setFailure({key,message:"The source image could not be rendered. Original bytes remain attached."})}/> : null}
+        {message}
+      </div>
+      {children ? <div className="document-preview-overlay">{typeof children === "function" ? children(available ? ready.page : null) : children}</div> : null}
+    </div>
   </figure>;
 }
 

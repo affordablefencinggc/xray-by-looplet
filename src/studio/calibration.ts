@@ -75,6 +75,8 @@ export const calibrationConflictSchema = z.object({
 
 export const calibrationSchema = z.object({
   sheet: z.number().int().nonnegative(),
+  /** Absence identifies preserved pre-IW005 procedural coordinates. */
+  coordinateSpace: z.enum(["legacy-procedural-v0", "source-page-v1"]).optional(),
   metresPerUnit: z.number().positive().finite(),
   source: z.enum(["unverified", "declared", "inferred", "manual"]),
   confidence: z.number().min(0).max(1),
@@ -119,6 +121,10 @@ export type CalibrationInputUnit = z.infer<typeof calibrationInputUnitSchema>;
 export type CalibrationInputDistance = z.infer<typeof calibrationInputDistanceSchema>;
 export type CalibrationCandidate = z.infer<typeof calibrationCandidateSchema>;
 export type Calibration = z.infer<typeof calibrationSchema>;
+
+export function isSourcePageCalibration(calibration: Pick<Calibration,"coordinateSpace"> | null | undefined): boolean {
+  return calibration?.coordinateSpace === "source-page-v1";
+}
 
 const METRES_PER_UNIT: Record<CalibrationInputUnit, number> = {
   m: 1,

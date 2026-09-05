@@ -114,6 +114,15 @@ describe("PlanCanvas editing interaction precedence", () => {
     assert.equal(resolveTracingCanvasPointerMode({ ...base, shiftKey: true }), "pan");
   });
 
+  it("places a gate on a hit run or vertex without stealing calibration or pan gestures", () => {
+    const gate = { ...base, placementToolActive: true };
+    assert.equal(resolveTracingCanvasPointerMode(gate), "trace");
+    assert.equal(resolveTracingCanvasPointerMode({ ...gate, calibrationCaptureActive: true }), "calibration");
+    assert.equal(resolveTracingCanvasPointerMode({ ...gate, button: 1 }), "pan");
+    assert.equal(resolveTracingCanvasPointerMode({ ...gate, shiftKey: true }), "pan");
+    assert.equal(resolveTracingCanvasPointerMode({ ...gate, interactive: false }), "pan");
+  });
+
   it("chooses vertex drag, run selection, trace, then ordinary pan without overlap", () => {
     assert.equal(resolveTracingCanvasPointerMode(base), "move-vertex");
     assert.equal(resolveTracingCanvasPointerMode({ ...base, vertexHit: false }), "select-run");

@@ -104,6 +104,10 @@ export async function compileBomRequest(
   }>();
   for (const sheet of [...new Set(job.runs.map((run) => run.sheet))].sort((left, right) => left - right)) {
     const calibration = job.calibrations.find((entry) => entry.sheet === sheet);
+    if(document?.source !== "sample" && calibration?.coordinateSpace !== "source-page-v1") {
+      issues.push(problem("calibration", `Sheet ${sheet + 1} uses legacy source coordinates; reviewed recovery is required before quantities can be compiled.`, `sheet-${sheet}`, "calibrations.coordinateSpace"));
+      continue;
+    }
     if (!calibration?.locked || !calibration.selectedCandidateId) continue;
     const candidate = calibration.candidates.find((entry) => entry.id === calibration.selectedCandidateId);
     if (!candidate || !nearlyEqual(candidate.metresPerUnit, calibration.metresPerUnit)) {

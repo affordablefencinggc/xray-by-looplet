@@ -22,6 +22,7 @@ const compiled = ts.transpileModule(source, {
   fileName: "DocumentPreview.tsx",
 }).outputText;
 writeFileSync(compiledPath, compiled);
+writeFileSync(join(compiledDir, "documentViewport.js"), ts.transpileModule(readFileSync(join(here,"documentViewport.ts"),"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText);
 const require = createRequire(import.meta.url);
 const { dxfToSvgGeometry } = require(compiledPath) as typeof import("./DocumentPreview");
 
