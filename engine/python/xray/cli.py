@@ -11,18 +11,33 @@ import sys
 from pathlib import Path
 
 from xray import ENGINE_NAME, __version__
-from xray import engine
-from xray.markup_writer import write_marked_pdf
+
+
+class _SafeArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **{**kwargs, "allow_abbrev": False})
+
+    def error(self, message):
+        # Argument values can contain private paths or request fragments.
+        self.exit(2, "error: Invalid command or arguments.\n")
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(
+    ap = _SafeArgumentParser(
         prog="xray",
         description="X-Ray by Looplet - sees through plans. PDF in, quantities out.",
     )
     ap.add_argument("--version", action="version",
                     version=f"{ENGINE_NAME} {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
+    status_p = sub.add_parser("contract-status", help="report the implemented frozen BOM contract")
+    status_p.add_argument("--json", action="store_true", required=True,
+                          help="emit the machine-readable compatibility status")
+    bom_p = sub.add_parser("job-to-bom", help="evaluate the frozen fencing compatibility request")
+    bom_p.add_argument("--request-stdin", action="store_true", required=True,
+                       help="read one bounded UTF-8 JSON request from stdin")
+    bom_p.add_argument("--result", required=True, metavar="PATH",
+                       help="absent result file in the host working directory")
     run_p = sub.add_parser("run", help="run a takeoff on a plan PDF")
     run_p.add_argument("pdf", help="path to the plan PDF")
     run_p.add_argument("--out", default=None, metavar="DIR",
@@ -68,6 +83,17 @@ def _summary(result: dict) -> str:
 
 def main(argv=None) -> int:
     args = _build_parser().parse_args(argv)
+    if args.cmd == "contract-status":
+        from xray.bom_protocol import ProtocolError, contract_status
+        try:
+            print(json.dumps(contract_status(), separators=(",", ":")))
+            return 0
+        except ProtocolError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+    if args.cmd == "job-to-bom":
+        from xray.bom_protocol import run_job_to_bom
+        return run_job_to_bom(sys.stdin.buffer, args.result)
     if args.cmd != "run":  # pragma: no cover - argparse enforces this
         return 2
 
@@ -75,6 +101,9 @@ def main(argv=None) -> int:
     if not pdf.is_file():
         print(f"error: no such file: {pdf}", file=sys.stderr)
         return 1
+    # Contract/status commands do not need optional PDF/CAD/OCR imports.
+    from xray import engine
+    from xray.markup_writer import write_marked_pdf
     out_dir = Path(args.out) if args.out else pdf.parent
     out_dir.mkdir(parents=True, exist_ok=True)
 
