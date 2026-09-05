@@ -1,8 +1,8 @@
 # IW staged delivery - current handover
 
-2026-09-05. **Six reviewable commits exist locally; none has been pushed.** Stages01-05 and the precise ignore cleanup were authorized by parent and committed after isolated verification. UI source freeze ended after bf1f20e; the new viewer agent may now change Studio/styles/package. Do not request fresh approval for those already committed source sets or assume the UI remains frozen.
+2026-09-05. **Seven reviewable commits exist locally; none has been pushed.** Stages01-05 and the precise ignore cleanup were authorized by parent and committed after isolated verification. UI source freeze ended after bf1f20e; the new viewer agent may now change Studio/styles/package. Do not request fresh approval for those already committed source sets or assume the UI remains frozen.
 
-Branch: feat/v1-production-ready. Last completed source commit: 4dcc3ee. Exact full SHAs and per-commit paths are in local-commits.json. No merge, new branch/worktree, reset, stash, broad staging, force push, unknown executable, migration or source cleanup was performed.
+Branch: feat/v1-production-ready. Last completed delivery commit: 2293d91 (historical audit/control). Last old application source commit: 4dcc3ee. Exact full SHAs and per-commit paths are in local-commits.json. No merge, new branch/worktree, reset, stash, broad staging, force push, unknown executable, migration or source cleanup was performed.
 
 ## Delivery completed locally
 
@@ -21,11 +21,11 @@ Intermediate source verification used a temporary Git archive of baseline1bf5498
 
 Automatic approval review rejected the first normal push of638c8bd to the existing configured destination https://github.com/affordablefencinggc/xray-by-looplet.git, branch feat/v1-production-ready. Exact reason: "Pushing the19-file commit exports repository and audit contents to an external GitHub destination; the user requested staged pushes but did not specifically authorize this payload to this unverified destination."
 
-Parent relayed the rejection and requested explicit user destination/payload approval. No indirect retry occurred. The actual remote hash was verified as1bf54983bb3ff168358f4987c8481e8cc23fb760 before the rejection; a successful remote read is not a push. Follow the user's eventual answer and ordinary approval review. Current six-commit concrete payload is local-commits.json; parent must ensure the eventual approval covers any additional stage06 payload too.
+Parent relayed the rejection and requested explicit user destination/payload approval. No indirect retry occurred. The actual remote hash was verified as1bf54983bb3ff168358f4987c8481e8cc23fb760 before the rejection; a successful remote read is not a push. Follow the user's eventual answer and ordinary approval review. Current seven-commit concrete payload is local-commits.json; parent must ensure the eventual approval covers any additional stage06 payload too.
 
 ## Stage06 current status
 
-Historical tracker/proof closure is being prepared and is NOT committed yet. Root approved an explicit historical-input snapshot mechanism, then independently ran all9 historical-scope tests successfully. Exact candidate manifest and final desktop capture are required before parent approves stage06 commit.
+Stage06 historical tracker/proof closure was independently approved and committed as2293d91:244 exact paths bound to manifest SHAa00b581132ef548a0b719ff1654f096ed761c4eb033978e28865d66658b6bbdd. Fresh Git archive plus only the candidate set passes45 gates and historical validation. Root inspected current/historical desktop captures. Explicit historical-input mode and the incomplete-only current-work guard are implemented.
 
 Canonical planning/control/ledger.json bytes remain unchanged: SHA-2568edad333cef954f01231821973d285f64733cec447eed56726df474f924cfe00. All150 assessment states remain3 scoped passes,92 blocked/partial,40 absent and15 failures.156 rendered artifact links/images all exist and are allowlisted (13.6MB).210 canonical path references contain178 existing entries;32 missing paths are planned startup/completion packets shown as text for unfinished work, not accepted proof links.
 
@@ -44,3 +44,5 @@ When new viewer proof is reviewed, its actual source/viewer screenshots must be 
 Keep startup.sh, startup.ps1, SWEEPER-VERIFICATION-LEDGER.md, unknown{}, local skill copies and other external/user files untouched. Unknown engine/bin executable is ignored, never executed or deleted. IW005 legacy-browser profiles/crashdumps, isolated Python/MCP dependencies, cache/build outputs and generated duplicate scenes/marked PDFs remain local and are excluded from commits. Raw logs and industry screenshots are now trackable, but exact paths only may be staged. Do not blanket-add proof/audit or hide failed evidence.
 
 Use startup.md for the original inventory; six numbered source manifests for frozen hashes; per-stage *-stage-paths.txt for exact committed payloads; 06-canonical-closure.json and06-rendered-artifacts.json for historical proof closure. Recheck actual branch/HEAD/index before any remaining git operation, since new agents share this checkout.
+
+Public requirements packet: planning/handovers/IW-PUBLIC-REQUIREMENTS/crosswalk.md and sources.json. Eighteen queued groups and thirteen pinned documentation links; this read-only source is distinct from configured origin. No remote code was fetched or executed. The tracker links this packet separately, without canonical150 changes.
