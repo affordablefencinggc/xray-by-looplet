@@ -106,13 +106,15 @@ def make_svg(scene, scene_sha, view):
         item.text = text
         return item
     root = ET.Element('{'+NS+'}svg', {'viewBox': f'0 0 {width:.4f} {height:.4f}', 'width': f'{width:.4f}', 'height': f'{height:.4f}', 'role': 'img', 'aria-labelledby': 'drawing-title drawing-description'})
-    title = "Caroline's Farmhouse — " + ('axonometric wireframe' if view == 'axonometric' else view + ' floor wireframe')
+    source = scene['source']
+    source_title = source.get('title') or source['name']
+    title = source_title + ' — ' + ('axonometric wireframe' if view == 'axonometric' else view + ' floor wireframe')
     node(root, 'title', {'id': 'drawing-title'}, title)
     node(root, 'desc', {'id': 'drawing-description'}, POLICY)
     metadata = {'schema': 'xray.building-wireframe/v1', 'source': scene['source'], 'sceneSha256': scene_sha, 'units': 'm', 'view': view, 'projectionMatrix': matrix, 'svgUnitsPerMetre': scale, 'translation': offset, 'projectedBoundsMetres': {'min': low, 'max': high}, 'hiddenEdgePolicy': POLICY, 'omittedLabels': sorted(OMITTED_LABELS), 'parts': len(groups), 'segments': sum(len(e) for _, e in groups)}
     node(root, 'metadata', {'id': 'source-provenance'}, json.dumps(metadata, sort_keys=True))
-    node(root, 'rect', {'width': '100%', 'height': '100%', 'fill': '#ffffff'})
-    text_attrs = {'x': str(margin), 'font-family': 'Arial, sans-serif', 'fill': '#20352f'}
+    node(root, 'rect', {'id': 'drawing-background', 'width': '100%', 'height': '100%', 'fill': '#ffffff'})
+    text_attrs = {'x': str(margin), 'font-family': 'Arial, sans-serif', 'fill': '#20352f', 'data-palette-role': 'text'}
     node(root, 'text', {**text_attrs, 'y': '34', 'font-size': '21', 'font-weight': '600'}, title)
     node(root, 'text', {**text_attrs, 'y': '57', 'font-size': '12'}, 'Actual source geometry · X-ray edges include concealed parts · Curated approximate reconstruction')
     node(root, 'text', {**text_attrs, 'y': '76', 'font-size': '11'}, 'Vector units: 100 SVG units per metre in the declared orthographic projection.')
@@ -125,7 +127,11 @@ def make_svg(scene, scene_sha, view):
         for a, b in edges:
             commands.append(f'M{a[0]*scale+offset[0]:.4f},{a[1]*scale+offset[1]:.4f}L{b[0]*scale+offset[0]:.4f},{b[1]*scale+offset[1]:.4f}')
         node(group, 'path', {'d': ' '.join(commands), 'vector-effect': 'non-scaling-stroke'})
-    node(root, 'text', {**text_attrs, 'y': f'{height-53:.4f}', 'font-size': '11'}, 'Jay Osborne / FreeFarmhouse · Adaptation CC BY-SA 4.0 · Source pages 4–18; other designs excluded.')
+    pages = sorted({ref['page'] for part, _ in groups for ref in part['sourceRefs']})
+    attribution = source.get('author') or 'Source author not specified'
+    license_label = ('Adaptation '+source['license']) if source.get('license') else 'Source license not specified'
+    footer = attribution+' · '+license_label+' · Referenced pages: '+', '.join(map(str, pages))
+    node(root, 'text', {**text_attrs, 'y': f'{height-53:.4f}', 'font-size': '11'}, footer)
     node(root, 'text', {**text_attrs, 'y': f'{height-35:.4f}', 'font-size': '9'}, 'PDF SHA-256: '+scene['source']['sha256'])
     node(root, 'text', {**text_attrs, 'y': f'{height-19:.4f}', 'font-size': '9'}, 'Scene SHA-256: '+scene_sha)
     return ET.tostring(root, encoding='utf-8', xml_declaration=True), metadata
