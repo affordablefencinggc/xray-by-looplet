@@ -1,0 +1,3 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {readLedger,validatePng,validate,render} from '../../../scripts/industry-ledger.mjs';
+const d=readLedger();for(const e of d.tasks.flatMap(t=>t.evidence).filter(e=>e.screenshot)){e.screenshot.captureDimensions=validatePng(readFileSync(e.path));}d.updatedAt=new Date().toISOString();const v=validate(d);if(!v.ok)throw Error(JSON.stringify(v));writeFileSync('planning/control/ledger.json',JSON.stringify(d,null,2)+'\n');writeFileSync('planning/control/index.html',render(d));writeFileSync('planning/control/dashboard.html',render(d));console.log(JSON.stringify(v));

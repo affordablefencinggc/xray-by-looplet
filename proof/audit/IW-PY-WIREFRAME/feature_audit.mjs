@@ -1,0 +1,53 @@
+import {readFileSync,writeFileSync} from 'node:fs';import{createHash}from'node:crypto';
+const root='proof/audit/IW-PY-WIREFRAME/',ledger=JSON.parse(readFileSync('planning/control/ledger.json')),probe=JSON.parse(readFileSync(root+'feature-probes.json'));
+const definitions={
+'ENG-001':['partial','residential-ruffles-seeka-real-pipeline','Real24-page source traversed extraction/checks/packs; no universal pack correctness claim.'],
+'ENG-002':['bounded-pass','empty.pdf,wrong.pdf,broken.pdf','Actual preflight rejects empty, wrong-magic and truncated PDF inputs; full security corpus remains broader.'],
+'ENG-003':['partial','residential-ruffles-seeka-real-pipeline','1616 text entities extracted; original PDF takeoff still has no symbols/geometry. Additive path viewer is separate.'],
+'ENG-004':['partial','reassemble.py:reassemble','Word reassembly executed on both real plan sets; semantic accuracy of every join is not established.'],
+'ENG-005':['partial','grammar.py:classify','Classification executes on real pages; calibrated confidence and representative confusion matrix remain unproven.'],
+'ENG-006':['partial','mcp-stdio-attempt-05/07.response.json','Known1000mm over100points produces10mm/pt; invalid calibration is now rejected at MCP. Automatic scale accuracy remains unverified.'],
+'ENG-007':['partial','chains.py:find_chain_checks','Real plan chains executed and check records retained in source takeoffs; full dimension/trigonometric corpus remains unproven.'],
+'ENG-008':['partial','tables.py:extract_tables','Real shed and electrical schedule table parsing executed; schedule quantity outputs preserved, no general table reconstruction approval.'],
+'ENG-009':['bounded-pass','pack-failure-isolation','Deliberately failing synthetic pack produces flagged check while surviving fencing quantities remain; versioned allowlisted registry still absent.'],
+'ENG-010':['partial','synthetic-fence-five-metres','Synthetic source-bound fence length and gate proposal quantities execute; no PDF fence recognition claim.'],
+'ENG-011':['failed','synthetic-fence-five-metres','Legacy5m run at2.4m maximum spacing yields3posts; required ceiling implies4. Frozen job-to-BOM kernel is separate.'],
+'ENG-012':['partial','synthetic-fence-five-metres','One explicit gate symbol is counted; types/width/deductions/hardware are not established by that count.'],
+'ENG-013':['partial','synthetic-fence-bom-colorbond,synthetic-fence-bom-paling,synthetic-fence-bom-chainmesh','All3legacy systems execute on explicit synthetic inputs; not reviewed recipes or generic quantity authority.'],
+'ENG-014':['partial','synthetic-fence-bom-colorbond','Concrete/cap output executes using legacy assumptions; site-approved dimensions and safe override policy remain unproven.'],
+'ENG-015':['failed','legacy-pricing-import','Actual import raises ModuleNotFoundError for pricing.costing; broken legacy hook remains outside exact AUD estimate boundary.'],
+'ENG-016':['partial','electrical-schedule-real-pipeline','Repository synthetic schedule yields13quantities; this is not a representative complex electrical project.'],
+'ENG-017':['partial','residential-ruffles-seeka-real-pipeline','Real24-page plan yields7quantities; rectangular-envelope assumptions and proposed-work scope remain explicit limitations.'],
+'ENG-018':['failed','open-polyline-on-column-layer','An open polyline with no enclosed area is counted as a reconciled structural member solely by layer name.'],
+'ENG-019':['partial','shed-manners-aline-real-pipeline','Real5-page shed set yields13quantities and marked/report artifacts; complete pack/domain correctness not proven.'],
+'ENG-020':['failed','survey-millimetre-elevation','1000→2000mm elevations produce1000m site fall rather than1m; unit conversion is missing.'],
+'ENG-021':['bounded-pass','cli-attempt-01/results.json,cli-attempt-02/results.json','192/480nested positions wrong before affine repair; zero after. Final metadata derives orthogonal affine axes; shear/nondefaultOCS explicitly reject. Full CAD support is not claimed.'],
+'ENG-022':['bounded-pass','pytest-attempt-02.stdout.log','Existing legacy DXF parser tests execute for lines, polylines, circle/arc/dimension/point; not the production adapter.'],
+'ENG-023':['failed','svg-double-scale-length','Actual nested scale(2) is ignored: 10-unit source line remains10 instead of20.'],
+'ENG-024':['failed','minimal-ifc-adapter','Minimal IFC with no unit/placement evidence produces origin(0,0) and verified metres; unsupported authority claim remains.'],
+'ENG-025':['absent-capability','ocr-real-backend-probe,ocr-synthetic-plumbing-only','No real OCR backend available. Stub plumbing executes and is explicitly synthetic; no recognition result is claimed.'],
+'ENG-026':['partial','cli-attempt-01,cli-attempt-02','Actual marked PDFs are generated and MCP publication is now exclusive; identical input output bytes vary due historical annotation IDs/time, so deterministic marked proof is not established.'],
+'ENG-027':['partial','cli-attempt-02','Actual --report creates HTML for all3PDFs and syntheticCAD; accessible/priced/reviewed final quote is not thereby proven.'],
+'ENG-028':['partial','mcp-stdio-attempt-05/06.response.json','Actual stdio quote_draft returns generic unpriced envelope; not an approved Looplet handoff contract.'],
+'ENG-029':['bounded-pass','pytest-attempt-02.stdout.log','Existing orders kernel tests execute bounded stock/cut/allowance scenarios; no UI or supplier-price integration claim.'],
+'ENG-030':['partial','explicit-synthetic-wall-assembly','Explicit6m×2.4m wall recipe executes with cited synthetic input; defaults/production domain approval not established.'],
+'ENG-031':['partial','cli-attempt-02','Every actualCLIrun invokes assess_input and prints grade/guidance; calibrated issue quality not established.'],
+'ENG-032':['partial','synthetic-cad-graph','Graph constructed from480nativeDXF placements with type/component/measure/quantity counts; complete cross-revision review/proof graph remains unproven.'],
+'ENG-033':['bounded-pass','browser-results-attempt-02.json,mcp-stdio-attempt-05/03.response.json','480placed symbols preserve IDs/XY, typed extrusion and assumedheight; emptyPDF rejects. Desktoporbit/plan/resize/injection tests run. No reconstructed building.'],
+'ENG-034':['partial','synthetic-cad-box-solid-presentation','Actual box/glTF function emits presentation nodes and roundtrip counts; semantic shapes and solid correctness not established.'],
+'ENG-035':['failed','negative-floor-rollup','Explicitpositive3-floor calculation executes; negative floor count is also accepted and yields negative height/area.'],
+'ENG-036':['bounded-pass','cli-attempt-02/results.json,checks.json','Real run/report/markedPDF and frozen status/job-to-BOM subprocess tests execute with declared pinned dependencies; source-built native packaging remains separate.'],
+'MCP-001':['bounded-pass','mcp-stdio-attempt-05/summary.json','Actual initialized stdio process lists exactly6tools and processes requests; no remote identity/tenancy/path policy approval.'],
+'MCP-002':['bounded-pass','mcp-stdio-attempt-05/04.response.json','Actual engine_info returns name/version; does not advertise generic industry capability.'],
+'MCP-003':['partial','mcp-stdio-attempt-05/05.response.json','Actual stdio shed takeoff returns real source-bound output; no general quantity correctness claim.'],
+'MCP-004':['partial','mcp-stdio-attempt-05/06.response.json','Actual stdio electrical quote draft returns13unpriced lines; no external send or receipt.'],
+'MCP-005':['bounded-pass','mcp-stdio-attempt-05/07.response.json,mcp-stdio-attempt-05/08.response.json','Positive calibration runs; coincidentpoints/negative distance now isError. Additional strict page/finite bounds tested.'],
+'MCP-006':['bounded-pass','mcp-stdio-attempt-05/09.response.json,mcp-stdio-attempt-05/10.response.json','Existingownedfile preserved and freshvalidatedPDF published via atomic no-overwrite link; broad trusted-output-directory policy remains separate.'],
+'MCP-007':['bounded-pass','mcp-stdio-attempt-05/03.response.json,mcp-stdio-attempt-05/11.response.json,mcp-stdio-attempt-05/12.response.json','480and5nativeplacements return; PDFreturnsisError. Initial40s timeout captured at native lazy import; startup preload lowers480response to~0.03s.'],
+'MCP-008':['absent-capability','http-worker-route-inventory','Actual filesystem inventory finds no HTTPworker entry module; stdio server is not an HTTP service.'],
+};
+const originals=ledger.inventory.features.filter(x=>/^(ENG|MCP)-/.test(x.id));if(originals.length!==44||Object.keys(definitions).length!==44)throw Error('Feature coverage mismatch');
+const rows=originals.map(x=>{const d=definitions[x.id];if(!d)throw Error(x.id);return{id:x.id,title:x.text.split('|')[2].trim(),source:x.source,sourceLine:x.line,sourceText:x.text,sourceTextSha256:createHash('sha256').update(x.text).digest('hex'),outcome:d[0],scenarioEvidence:d[1].split(','),finding:d[2],implementationVerification:'not-promoted',nextAction:d[0]==='failed'?'Create bounded repair/regression slice for observed failure.':'Independent review plus remaining representative/domain/security corpus before feature-wide approval.'}});
+rows.push({id:'NEW-009',title:'Frozen job-to-BOM compatibility CLI',outcome:'bounded-pass',scenarioEvidence:['protocol-final-attempt-02/summary.json','final-tests.log'],finding:'Fresh actual CLI status advertises only frozen fencing-v1; four golden stdin requests match complete response JSON, malformed/future requests reject with no result and empty stdout. Native sidecar packaging remains unproven.',implementationVerification:'not-promoted'});
+rows.push({id:'NEW-010',title:'Bounded PDF source path wireframe',outcome:'bounded-pass',scenarioEvidence:['residential-final/complete.json','shed-final/complete.json','browser-results-attempt-02.json'],finding:'Actual real24/5page vector paths, explicitpartial omissions, exactpagehash/pointunits, curves/CTM/crop/rotation tests and sourcepixelcomparison. No quantities or semantic3D.',implementationVerification:'awaiting-independent-review'});
+const output={schema:'xray.engine-feature-audit/v1',scope:'44historicalengine/MCPfeatures + frozenCLI + additivePDFpathfeature; boundedobservations, no blanket verified states',rows,probeEvidence:'feature-probes.json',actualFunctionCalls:probe.actualFunctionCalls};writeFileSync(root+'feature-audit.json',JSON.stringify(output,null,2)+'\n');console.log(JSON.stringify({rows:rows.length,outcomes:rows.reduce((a,r)=>(a[r.outcome]=(a[r.outcome]||0)+1,a),{})}));

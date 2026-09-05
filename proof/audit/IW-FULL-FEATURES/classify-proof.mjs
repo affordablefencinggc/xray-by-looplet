@@ -1,0 +1,4 @@
+import {writeFileSync} from 'node:fs';
+import {readLedger,validate,render} from '../../../scripts/industry-ledger.mjs';
+const d=readLedger();for(const f of d.fullFeatureAudit.features){f.proofClass=['UI','SITE','TRACE','TAKE','QUOTE','DATA','LEG'].includes(f.group)?'ui':'non-ui';if(['NEW-006','NEW-007'].includes(f.id))for(const e of f.evidence)if(e.screenshot)e.screenshot.proofType='execution-report';}
+d.updatedAt=new Date().toISOString();const v=validate(d);if(!v.ok)throw Error(JSON.stringify(v));writeFileSync('planning/control/ledger.json',JSON.stringify(d,null,2)+'\n');writeFileSync('proof/audit/IW-FULL-FEATURES/inventory.json',JSON.stringify(d.fullFeatureAudit,null,2)+'\n');for(const p of ['index','dashboard'])writeFileSync(`planning/control/${p}.html`,render(d));console.log('Explicit UI/non-UI proof classes; only independently accepted runtime rows remain pass.');
