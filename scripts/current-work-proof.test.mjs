@@ -1,9 +1,10 @@
 import {test, after} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync, copyFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, dirname, resolve} from 'node:path';
 import {createHash} from 'node:crypto';
+import {once} from 'node:events';
 import {CURRENT_INPUTS, currentPacketDigest, validateCurrentPacket, readCurrentProof} from './current-work-proof.mjs';
 
 const parent = realpathSync(tmpdir()), root = mkdtempSync(join(parent, 'xray-current-proof-'));
@@ -41,5 +42,26 @@ test('failed browser result rejects',()=>{const p=fixture();changeReport(p,r=>r.
 test('missing required Python/source trace input rejects',()=>{const p=fixture();p.inputs.pop();assert.throws(()=>validateCurrentPacket(p,root),/Missing required/);});
 test('path traversal and duplicate source bindings reject',()=>{const p=fixture();p.diff.path='proof/audit/IW-CURRENT-WORK/../outside.patch';assert.throws(()=>validateCurrentPacket(p,root),/Unsafe/);const p2=fixture();p2.inputs.push(p2.inputs[0]);assert.throws(()=>validateCurrentPacket(p2,root),/duplicate current inputs/);});
 test('packet itself is hash-bound before loading',()=>{const p=fixture(),ref=save('proof/audit/IW-CURRENT-WORK/packet.json',p);assert.equal(readCurrentProof(root,ref).verified,true);save(ref.path,{...p,status:'in progress'});assert.throws(()=>readCurrentProof(root,ref),/Stale current proof/);});
+
+test('current artifact HTTP route serves only recomputed intact proof and withholds tampered captures',async()=>{
+ const {serve,readCurrentWork} = await import('./industry-ledger.mjs');
+ const closure=JSON.parse(readFileSync('planning/handovers/IW-STAGED-DELIVERY/06-canonical-closure.json'));
+ const manifestPath='proof/audit/IW-HISTORICAL-SOURCE/manifest.json',manifest=JSON.parse(readFileSync(manifestPath));
+ const paths=new Set([...closure.references.filter(r=>r.exists).map(r=>r.path),...closure.verifiedInputPaths,manifestPath,...manifest.files.map(f=>f.snapshotPath),'planning/control/current-work.json','planning/handovers/IW-PUBLIC-REQUIREMENTS/crosswalk.md']);
+ for(const path of paths){mkdirSync(dirname(join(root,path)),{recursive:true});copyFileSync(path,join(root,path));}
+ const packet=fixture();packet.status='awaiting independent review';delete packet.review;
+ const ref=save('proof/audit/IW-CURRENT-WORK/http-packet.json',packet),work=JSON.parse(readFileSync(join(root,'planning/control/current-work.json')));
+ work.work=[{id:'IW-WIREFRAME',title:'Synthetic HTTP gate fixture',status:'in progress',detail:'Synthetic unit proof only, not product acceptance.',proof:ref}];save('planning/control/current-work.json',work);
+ assert.equal(readCurrentWork(root).work[0].proofValidation.ok,true);
+ const server=serve(root,0,{scope:'historical'});await once(server,'listening');
+ const origin='http://127.0.0.1:'+server.address().port,route=path=>origin+'/current-artifact?path='+encodeURIComponent(path);
+ try{
+  const image=packet.executions[0].screenshots[0];let response=await fetch(route(image.path));assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');assert.equal(hash(Buffer.from(await response.arrayBuffer())),image.sha256);
+  assert.equal((await fetch(route('package.json'))).status,404);
+  let html=await(await fetch(origin)).text();assert.match(html,/Author-tested snapshot - independent acceptance pending/);
+  save(image.path,'tampered image');assert.equal((await fetch(route(image.path))).status,404);
+  html=await(await fetch(origin)).text();assert.match(html,/captures are withheld/);assert.doesNotMatch(html,/src="\/current-artifact/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
 
 after(()=>{const path=resolve(root);assert.equal(dirname(path),parent);assert.ok(path.startsWith(join(parent,'xray-current-proof-')));rmSync(path,{recursive:true});});

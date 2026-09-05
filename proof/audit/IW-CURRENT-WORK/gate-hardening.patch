@@ -1,0 +1,111 @@
+diff --git a/proof/audit/IW-STAGED-DELIVERY/historical-scope.test.mjs b/proof/audit/IW-STAGED-DELIVERY/historical-scope.test.mjs
+index 2b10c0f..582e11f 100644
+--- a/proof/audit/IW-STAGED-DELIVERY/historical-scope.test.mjs
++++ b/proof/audit/IW-STAGED-DELIVERY/historical-scope.test.mjs
+@@ -23,4 +23,5 @@ test('existing artifact hash validation remains enforced for historical mode',()
+ test('current work and historical acceptance are rendered separately',()=>{const work=readCurrentWork(root),html=render(data,{...historical,currentWork:work});assert.match(html,/CURRENT WORK/);assert.match(html,/HISTORICAL ASSESSMENT SNAPSHOT/);assert.match(html,/archived source inputs/);assert.match(html,/push pending/);assert.match(html,/No completed 3D or release claim/);assert.equal(data.fullFeatureAudit.features.length,150);});
+ test('current work cannot claim completion without a separate reviewed proof gate',()=>{const p='planning/control/current-work.json',work=JSON.parse(readFileSync(join(root,p),'utf8'));for(const status of ['complete','verified','done']){work.work[0].status=status;changed(p,JSON.stringify(work),()=>assert.throws(()=>readCurrentWork(root),/Invalid current-work metadata/));}});
+ test('current requirements link rejects changed or missing content',()=>{const p='planning/handovers/IW-PUBLIC-REQUIREMENTS/crosswalk.md';changed(p,'tampered requirements',()=>assert.throws(()=>readCurrentWork(root),/missing or stale/));const full=join(root,p),old=readFileSync(full);try{unlinkSync(full);assert.throws(()=>readCurrentWork(root));}finally{writeFileSync(full,old);}});
++test('untrusted current metadata cannot inject a verified proof verdict',()=>{const p='planning/control/current-work.json',work=JSON.parse(readFileSync(join(root,p),'utf8'));work.work[0].status='verified';work.work[0].proofValidation={ok:true,verified:true};changed(p,JSON.stringify(work),()=>assert.throws(()=>readCurrentWork(root),/requires matching current proof/));});
+ after(()=>{const absolute=resolve(root);assert.equal(dirname(absolute),temporaryParent);assert.ok(absolute.startsWith(join(temporaryParent,'xray-historical-scope-')));rmSync(absolute,{recursive:true});});
+diff --git a/scripts/current-work-proof.mjs b/scripts/current-work-proof.mjs
+index e058984..578e438 100644
+--- a/scripts/current-work-proof.mjs
++++ b/scripts/current-work-proof.mjs
+@@ -5,12 +5,38 @@ import {validatePng} from './proof-png.mjs';
+ 
+ export const CURRENT_INPUTS = Object.freeze([
+  'src/studio/SourceBuildingViewer.tsx', 'src/studio/sourceBuilding.ts',
++ 'src/studio/buildingAppearance.ts', 'src/studio/buildingAppearance.test.ts',
++ 'src/studio/ModelScope.ts', 'src/studio/ModelScope.test.ts',
+  'src/studio/sourceBuilding.css', 'src/studio/Studio.tsx', 'src/studio/documents.ts',
+  'package.json', 'package-lock.json', 'vite.config.ts',
+  'public/models/caroline/source-building.json',
+  'engine/python/xray/source_building.py', 'engine/python/xray/caroline_building.py',
+  'engine/fixtures/caroline-source-trace.json',
+  'engine/fixtures/caroline-blueprints-renderings-2025-08-08.pdf',
++ 'src/studio/sourceBuilding.test.ts',
++ 'src/studio/documentsComplex.test.ts',
++ 'engine/python/xray/test_source_building.py',
++ 'engine/python/xray/test_caroline_building.py',
++ 'engine/python/xray/building_svg.py',
++ 'engine/python/xray/test_building_svg.py',
++ 'public/models/caroline/source.pdf',
++ 'public/models/caroline/source-page-4.png',
++ 'public/models/caroline/source-page-5.png',
++ 'public/models/caroline/source-page-6.png',
++ 'public/models/caroline/source-page-7.png',
++ 'public/models/caroline/source-page-8.png',
++ 'public/models/caroline/source-page-9.png',
++ 'public/models/caroline/source-page-12.png',
++ 'public/models/caroline/source-page-13.png',
++ 'public/models/caroline/source-page-14.png',
++ 'public/models/caroline/source-page-15.png',
++ 'public/models/caroline/source-page-16.png',
++ 'public/models/caroline/source-page-17.png',
++ 'public/models/caroline/source-page-18.png',
++ 'public/models/caroline/wireframe-axonometric.svg',
++ 'public/models/caroline/wireframe-ground.svg',
++ 'public/models/caroline/wireframe-upper.svg',
++ 'public/models/caroline/wireframe-manifest.json',
+ ]);
+ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+ const requireValue = (condition, message) => {if (!condition) throw Error(message);};
+diff --git a/scripts/current-work-proof.test.mjs b/scripts/current-work-proof.test.mjs
+index 6b2aa44..3a22898 100644
+--- a/scripts/current-work-proof.test.mjs
++++ b/scripts/current-work-proof.test.mjs
+@@ -1,9 +1,10 @@
+ import {test, after} from 'node:test';
+ import assert from 'node:assert/strict';
+-import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync} from 'node:fs';
++import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync, copyFileSync} from 'node:fs';
+ import {tmpdir} from 'node:os';
+ import {join, dirname, resolve} from 'node:path';
+-import {createHash} from 'node:crypto';
++import {createHash} from 'node:crypto';
++import {once} from 'node:events';
+ import {CURRENT_INPUTS, currentPacketDigest, validateCurrentPacket, readCurrentProof} from './current-work-proof.mjs';
+ 
+ const parent = realpathSync(tmpdir()), root = mkdtempSync(join(parent, 'xray-current-proof-'));
+@@ -40,6 +41,27 @@ test('report environment mismatch rejects',()=>{const p=fixture();changeReport(p
+ test('failed browser result rejects',()=>{const p=fixture();changeReport(p,r=>r.results[0].status='fail');assert.throws(()=>validateCurrentPacket(p,root),/failed or missing results/);});
+ test('missing required Python/source trace input rejects',()=>{const p=fixture();p.inputs.pop();assert.throws(()=>validateCurrentPacket(p,root),/Missing required/);});
+ test('path traversal and duplicate source bindings reject',()=>{const p=fixture();p.diff.path='proof/audit/IW-CURRENT-WORK/../outside.patch';assert.throws(()=>validateCurrentPacket(p,root),/Unsafe/);const p2=fixture();p2.inputs.push(p2.inputs[0]);assert.throws(()=>validateCurrentPacket(p2,root),/duplicate current inputs/);});
+-test('packet itself is hash-bound before loading',()=>{const p=fixture(),ref=save('proof/audit/IW-CURRENT-WORK/packet.json',p);assert.equal(readCurrentProof(root,ref).verified,true);save(ref.path,{...p,status:'in progress'});assert.throws(()=>readCurrentProof(root,ref),/Stale current proof/);});
++test('packet itself is hash-bound before loading',()=>{const p=fixture(),ref=save('proof/audit/IW-CURRENT-WORK/packet.json',p);assert.equal(readCurrentProof(root,ref).verified,true);save(ref.path,{...p,status:'in progress'});assert.throws(()=>readCurrentProof(root,ref),/Stale current proof/);});
++
++test('current artifact HTTP route serves only recomputed intact proof and withholds tampered captures',async()=>{
++ const {serve,readCurrentWork} = await import('./industry-ledger.mjs');
++ const closure=JSON.parse(readFileSync('planning/handovers/IW-STAGED-DELIVERY/06-canonical-closure.json'));
++ const manifestPath='proof/audit/IW-HISTORICAL-SOURCE/manifest.json',manifest=JSON.parse(readFileSync(manifestPath));
++ const paths=new Set([...closure.references.filter(r=>r.exists).map(r=>r.path),...closure.verifiedInputPaths,manifestPath,...manifest.files.map(f=>f.snapshotPath),'planning/control/current-work.json','planning/handovers/IW-PUBLIC-REQUIREMENTS/crosswalk.md']);
++ for(const path of paths){mkdirSync(dirname(join(root,path)),{recursive:true});copyFileSync(path,join(root,path));}
++ const packet=fixture();packet.status='awaiting independent review';delete packet.review;
++ const ref=save('proof/audit/IW-CURRENT-WORK/http-packet.json',packet),work=JSON.parse(readFileSync(join(root,'planning/control/current-work.json')));
++ work.work=[{id:'IW-WIREFRAME',title:'Synthetic HTTP gate fixture',status:'in progress',detail:'Synthetic unit proof only, not product acceptance.',proof:ref}];save('planning/control/current-work.json',work);
++ assert.equal(readCurrentWork(root).work[0].proofValidation.ok,true);
++ const server=serve(root,0,{scope:'historical'});await once(server,'listening');
++ const origin='http://127.0.0.1:'+server.address().port,route=path=>origin+'/current-artifact?path='+encodeURIComponent(path);
++ try{
++  const image=packet.executions[0].screenshots[0];let response=await fetch(route(image.path));assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');assert.equal(hash(Buffer.from(await response.arrayBuffer())),image.sha256);
++  assert.equal((await fetch(route('package.json'))).status,404);
++  let html=await(await fetch(origin)).text();assert.match(html,/Author-tested snapshot - independent acceptance pending/);
++  save(image.path,'tampered image');assert.equal((await fetch(route(image.path))).status,404);
++  html=await(await fetch(origin)).text();assert.match(html,/captures are withheld/);assert.doesNotMatch(html,/src="\/current-artifact/);
++ }finally{await new Promise(resolve=>server.close(resolve));}
++});
+ 
+ after(()=>{const path=resolve(root);assert.equal(dirname(path),parent);assert.ok(path.startsWith(join(parent,'xray-current-proof-')));rmSync(path,{recursive:true});});
+diff --git a/scripts/industry-ledger.mjs b/scripts/industry-ledger.mjs
+index 95bfdc7..38a40d8 100644
+--- a/scripts/industry-ledger.mjs
++++ b/scripts/industry-ledger.mjs
+@@ -184,6 +184,7 @@ export function readCurrentWork(root=ROOT) {
+  const data=JSON.parse(readFileSync(p,'utf8'));
+  if(data.schema!=='xray.current-work/v1'||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.stages)||!Array.isArray(data.work)||data.stages.some(s=>!/^([a-f0-9]{40})$/.test(s.sha)||!s.title||!s.status)||data.work.some(w=>!w.id||!w.title||!['queued','in progress','awaiting independent review','blocked','verified'].includes(w.status)||!w.detail))throw Error('Invalid current-work metadata');
+  for(const work of data.work){
++  delete work.proofValidation;
+   if(work.proof){try{work.proofValidation=readCurrentProof(root,work.proof);if(!work.proofValidation.packet.workIds.includes(work.id))throw Error('Packet does not cover this work');}catch(error){work.proofValidation={ok:false,error:String(error.message)};}}
+   if(work.status==='verified'&&(!work.proofValidation?.verified||!work.proofValidation?.ok))throw Error('Invalid current-work metadata: verified work requires matching current proof');
+  }

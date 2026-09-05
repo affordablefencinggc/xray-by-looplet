@@ -184,6 +184,7 @@ export function readCurrentWork(root=ROOT) {
  const data=JSON.parse(readFileSync(p,'utf8'));
  if(data.schema!=='xray.current-work/v1'||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.stages)||!Array.isArray(data.work)||data.stages.some(s=>!/^([a-f0-9]{40})$/.test(s.sha)||!s.title||!s.status)||data.work.some(w=>!w.id||!w.title||!['queued','in progress','awaiting independent review','blocked','verified'].includes(w.status)||!w.detail))throw Error('Invalid current-work metadata');
  for(const work of data.work){
+  delete work.proofValidation;
   if(work.proof){try{work.proofValidation=readCurrentProof(root,work.proof);if(!work.proofValidation.packet.workIds.includes(work.id))throw Error('Packet does not cover this work');}catch(error){work.proofValidation={ok:false,error:String(error.message)};}}
   if(work.status==='verified'&&(!work.proofValidation?.verified||!work.proofValidation?.ok))throw Error('Invalid current-work metadata: verified work requires matching current proof');
  }
