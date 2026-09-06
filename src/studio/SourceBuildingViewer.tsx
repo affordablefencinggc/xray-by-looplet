@@ -176,7 +176,7 @@ function createBuildingScene(
     edgeMaterial = new THREE.LineBasicMaterial({
       color: "#273735",
       transparent: true,
-      opacity: 0.26,
+      opacity: model.presentation?.edgeOpacity ?? 0.26,
     }),
     highlight = new THREE.MeshStandardMaterial({
       color: "#b8d3cb",
@@ -245,7 +245,7 @@ function createBuildingScene(
     const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
     perspective.aspect = aspect;
     perspective.updateProjectionMatrix();
-    const dir = new THREE.Vector3(0.8, 0.67, 1.2).normalize(),
+    const dir = new THREE.Vector3(...(model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
       right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(),
       up = new THREE.Vector3().crossVectors(dir, right),
       tan = Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
@@ -282,7 +282,7 @@ function createBuildingScene(
     orthographic.bottom = -half;
     orthographic.zoom = 1;
     orthographic.position.copy(center).add(new THREE.Vector3(0, span * 2, 0));
-    orthographic.up.set(0, 0, -1);
+    orthographic.up.fromArray(model.presentation?.planUp ?? [0, 0, -1]);
     orthographic.lookAt(center);
     orthographic.updateProjectionMatrix();
     controls.target.copy(center);
@@ -777,56 +777,6 @@ export function SourceBuildingViewer() {
       className="source-building"
       data-model-status={ready ? "ready" : checking ? "checking" : model ? "unmatched" : "loading"}
     >
-      <div className="building-heading">
-        <div>
-          <span className="building-eyebrow">
-            SOURCE RECONSTRUCTION / {config.title.toUpperCase()}
-          </span>
-          <h1>{ready ? "The drawing, in three dimensions" : `Explore ${config.title}`}</h1>
-        </div>
-        {!ready && (
-          <select
-            className="building-scene-picker"
-            aria-label="Prepared building"
-            value={config.id}
-            disabled={loading}
-            onChange={(e) => setChosen(e.target.value)}
-          >
-            {BUILDING_CATALOG.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
-        )}
-        <span className="building-source-state">
-          {ready ? (
-            <>
-              <span className="building-dot" />
-              Original PDF matched / {model.source.pageCount} sheets
-            </>
-          ) : config.sample ? (
-            "Sample reconstruction - visual fidelity incomplete"
-          ) : (
-            "Curated from your architectural plans"
-          )}
-        </span>
-      </div>
-      {(error || documentError) && (
-        <div className="building-error" role="alert">
-          {error || documentError}
-          <button
-            type="button"
-            aria-label="Dismiss model error"
-            onClick={() => {
-              setError(null);
-              useStudio.setState({ documentError: null });
-            }}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
       <div className="building-workspace">
         <nav className="building-left-nav" aria-label="Source sheets and models">
           <h2>MODELS</h2>
@@ -872,7 +822,58 @@ export function SourceBuildingViewer() {
               );
             })}
         </nav>
-        <div className="building-stage">
+        <div className="building-center-column">
+          <div className="building-heading">
+            <div>
+              <span className="building-eyebrow">
+                SOURCE RECONSTRUCTION / {config.title.toUpperCase()}
+              </span>
+              <h1>{ready ? "The drawing, in three dimensions" : `Explore ${config.title}`}</h1>
+            </div>
+            {!ready && (
+              <select
+                className="building-scene-picker"
+                aria-label="Prepared building"
+                value={config.id}
+                disabled={loading}
+                onChange={(e) => setChosen(e.target.value)}
+              >
+                {BUILDING_CATALOG.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            )}
+            <span className="building-source-state">
+              {ready ? (
+                <>
+                  <span className="building-dot" />
+                  Original PDF matched / {model.source.pageCount} sheets
+                </>
+              ) : config.sample ? (
+                "Sample reconstruction - visual fidelity incomplete"
+              ) : (
+                "Curated from your architectural plans"
+              )}
+            </span>
+          </div>
+          {(error || documentError) && (
+            <div className="building-error" role="alert">
+              {error || documentError}
+              <button
+                type="button"
+                aria-label="Dismiss model error"
+                onClick={() => {
+                  setError(null);
+                  useStudio.setState({ documentError: null });
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          <div className="building-stage">
           {ready && (
             <BuildingVisualSettings
               value={appearance}
@@ -1075,6 +1076,7 @@ export function SourceBuildingViewer() {
               </div>
             </div>
           )}
+        </div>
         </div>
         <aside className="building-inspector" aria-label="Building source evidence">
           <div className="building-inspector-title">

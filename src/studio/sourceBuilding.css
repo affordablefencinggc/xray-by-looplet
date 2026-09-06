@@ -67,6 +67,28 @@
   grid-template-columns: 168px minmax(0, 1fr) 270px;
   flex: 1;
   min-height: 0;
+  height: 100%;
+}
+.building-center-column {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.building-center-column > .building-heading {
+  flex-shrink: 0;
+  background: var(--color-paper);
+}
+.building-center-column > .building-stage {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  position: relative;
 }
 .building-stage {
   position: relative;
@@ -75,10 +97,14 @@
   background: #e5e5df;
 }
 .building-left-nav {
+  grid-column: 1;
+  grid-row: 1;
   overflow: auto;
   border-right: 1px solid var(--color-line);
   padding: 14px 10px;
   background: var(--color-bg);
+  height: 100%;
+  min-height: 0;
 }
 .building-left-nav h2 {
   margin: 5px 4px 10px;
@@ -597,4 +623,97 @@
   font-size: 11px;
   font-weight: 700;
   padding: 0 4px;
+}
+
+@media (max-width: 900px) {
+  .studio-main.source-model-main {
+    overflow: auto;
+  }
+  .source-building {
+    height: auto;
+    min-height: 100%;
+  }
+  .building-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px;
+  }
+  .building-source-state {
+    max-width: none;
+  }
+  .building-workspace {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+  }
+  .building-stage {
+    order: 0;
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    height: 720px;
+    min-width: 0;
+  }
+  .building-visual-settings {
+    position: relative;
+    top: auto;
+    right: auto;
+    align-self: flex-end;
+    margin: 8px;
+    order: 0;
+  }
+  .building-toolbar {
+    position: relative;
+    inset: auto;
+    margin: 0 8px 8px;
+    order: 1;
+  }
+  .building-tool-group {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .building-toolbar button,
+  .building-toolbar select,
+  .building-appearance-triggers button,
+  .building-svg-export button {
+    min-height: 44px;
+  }
+  .building-canvas {
+    position: relative;
+    inset: auto;
+    flex: 1;
+    min-height: 300px;
+    order: 2;
+  }
+  .building-svg-export {
+    position: relative;
+    inset: auto;
+    align-self: flex-end;
+    margin: 8px;
+    padding: 0 10px;
+    order: 3;
+  }
+  .building-canvas-note {
+    position: relative;
+    inset: auto;
+    margin: 0 8px 8px;
+    order: 4;
+  }
+  .building-inspector {
+    order: 1;
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid var(--color-line);
+  }
+  .building-left-nav {
+    order: 2;
+    max-height: 280px;
+    border-right: 0;
+    border-top: 1px solid var(--color-line);
+  }
+  .building-left-nav button,
+  .building-part-picker select,
+  .building-part-evidence select {
+    min-height: 44px;
+  }
 }

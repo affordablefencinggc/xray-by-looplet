@@ -4,6 +4,22 @@ export const BUILDING_SCENE_URL = "/models/ruffles/source-building.json";
 export const BUILDING_SOURCE_URL = "/models/ruffles/source.pdf";
 export const BUILDING_CATALOG = [
   {
+    id: "redburn",
+    title: "Redburn BR250157",
+    sceneUrl: "/models/redburn/source-building.json",
+    sourceUrl: "/models/redburn/source.pdf",
+    sha256: "b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38",
+    sample: false,
+  },
+  {
+    id: "crown-wharf",
+    title: "Crown Wharf A4 tower",
+    sceneUrl: "/models/crown-wharf/source-building.json",
+    sourceUrl: "/models/crown-wharf/source.pdf",
+    sha256: "32a99e7680a94f7690bc1639913563f279a3452bcb9f0dd4e4ef63997ab2639a",
+    sample: false,
+  },
+  {
     id: "caroline",
     title: "Caroline",
     sceneUrl: "/models/caroline/source-building.json",
@@ -46,6 +62,7 @@ const sourceRef = z
 const object = z
   .object({
     level: z.enum(["ground", "upper", "roof"]).optional(),
+    storey: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).optional(),
     id: z.string().min(1).max(200),
     category: z.enum([
       "wall",
@@ -93,8 +110,18 @@ const sceneSchema = z
       .strict(),
     units: z.literal("m"),
     coordinateSystem: z.string().min(1).max(300),
+    presentation: z.object({
+      cameraDirection: vector.refine((v) => v[1] > 0 && Math.hypot(v[0], v[2]) > 0),
+      planUp: vector.refine((v) => v[1] === 0 && Math.hypot(v[0], v[2]) > 0).optional(),
+      edgeOpacity: z.number().min(0).max(1),
+    }).strict().optional(),
     bounds: z.object({ min: vector, max: vector }).strict(),
     floorElevations: z.object({ ground: number, upper: number }).strict().optional(),
+    storeys: z.array(z.object({
+      id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).refine((id) => !["all", "ground", "upper"].includes(id)),
+      label: z.string().min(1).max(100),
+      elevation: number,
+    }).strict()).min(1).max(100).optional(),
     materials: z.record(
       z.string().min(1).max(100),
       z
@@ -163,7 +190,14 @@ export function parseSourceBuilding(input: unknown): SourceBuilding {
   )
     throw Error("Floor elevations are outside the source building.");
   let coordinates = 0;
+  const storeys = new Map(scene.storeys?.map((s) => [s.id, s]));
+  if (scene.storeys && (storeys.size !== scene.storeys.length || scene.storeys.some((s, i) =>
+    s.elevation < scene.bounds.min[1] || s.elevation > scene.bounds.max[1] ||
+    (i > 0 && s.elevation <= scene.storeys![i - 1].elevation))))
+    throw Error("Storey identities or elevations are inconsistent.");
   for (const part of scene.objects) {
+    if ((scene.storeys && !part.storey) || (part.storey && !storeys.has(part.storey)))
+      throw Error("Part refers to an unavailable storey.");
     if (ids.has(part.id) || !Object.hasOwn(scene.materials, part.material))
       throw Error("Duplicate part or missing material.");
     ids.add(part.id);
@@ -192,6 +226,14 @@ export function parseSourceBuilding(input: unknown): SourceBuilding {
     }
   }
   return scene;
+}
+
+export function buildingPartOnFloor(part: BuildingPart, floor: string): boolean {
+  if (floor === "all") return true;
+  if (part.storey) return part.storey === floor;
+  if (floor === "ground") return part.level !== "upper" && part.level !== "roof";
+  if (floor === "upper") return part.level !== "ground";
+  return false;
 }
 
 export async function sourceBytesMatch(

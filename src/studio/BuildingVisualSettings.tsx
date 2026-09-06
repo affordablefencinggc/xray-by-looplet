@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ModelScopeOptions } from "./ModelScope";
-import { ChevronRight, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import { ChevronRight, Download, RotateCcw, SlidersHorizontal, X } from "lucide-react";
 import {
   DEFAULT_APPEARANCE,
   VISUAL_PRESETS,
+  MODEL_PALETTES,
+  ENVIRONMENTS,
   nextPreset,
   presetAppearance,
   type BuildingAppearance,
@@ -60,12 +62,18 @@ export function BuildingVisualSettings({
   warning,
   scope,
   onScopeChange,
+  viewLabel,
+  viewDetail,
+  onExportPng,
 }: {
   value: BuildingAppearance;
   onChange: (v: BuildingAppearance) => void;
   warning: string | null;
   scope: ModelScopeOptions;
   onScopeChange: (value: ModelScopeOptions) => void;
+  viewLabel?: string;
+  viewDetail?: string;
+  onExportPng?: () => void;
 }) {
   const [open, setOpen] = useState(false),
     trigger = useRef<HTMLButtonElement>(null);
@@ -86,6 +94,12 @@ export function BuildingVisualSettings({
   return (
     <div className="building-visual-settings">
       <div className="building-appearance-triggers">
+        {viewLabel && (
+          <div className="building-projection-badge" title={viewDetail}>
+            <strong>{viewLabel}</strong>
+            <span>{viewDetail}</span>
+          </div>
+        )}
         <button
           type="button"
           aria-label="Scope zoom"
@@ -168,6 +182,90 @@ export function BuildingVisualSettings({
               onChange={(wire) => custom({ wire })}
             />
           </div>
+          <fieldset className="visual-scope-controls">
+            <legend>Solid model palette</legend>
+            <div className="model-palette-swatches">
+              {MODEL_PALETTES.map((p) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  aria-label={`Model palette ${p.name}`}
+                  aria-pressed={value.modelPalette === p.id}
+                  title={p.name}
+                  style={{ background: p.color }}
+                  onClick={() => onChange({ ...value, modelPalette: p.id, modelColor: p.color })}
+                >
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="visual-next-preset"
+              onClick={() => {
+                const p =
+                  MODEL_PALETTES[
+                    (MODEL_PALETTES.findIndex((p) => p.id === value.modelPalette) + 1) %
+                      MODEL_PALETTES.length
+                  ];
+                onChange({ ...value, modelPalette: p.id, modelColor: p.color });
+              }}
+            >
+              Next model colour <ChevronRight size={14} />
+            </button>
+            <AppearanceColor
+              label="Model colour"
+              value={value.modelColor}
+              onChange={(modelColor) => onChange({ ...value, modelPalette: "custom", modelColor })}
+            />
+          </fieldset>
+          <fieldset className="visual-scope-controls">
+            <legend>Atmosphere</legend>
+            <label>
+              Background effect
+              <select
+                aria-label="Background effect"
+                value={value.environment}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    environment: e.target.value as BuildingAppearance["environment"],
+                  })
+                }
+              >
+                {ENVIRONMENTS.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Weather intensity <output>{Math.round(value.weatherIntensity * 100)}%</output>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step=".1"
+                aria-label="Weather intensity"
+                value={value.weatherIntensity}
+                onChange={(e) => onChange({ ...value, weatherIntensity: Number(e.target.value) })}
+              />
+            </label>
+            <label className="visual-check">
+              <input
+                type="checkbox"
+                checked={value.animateWeather}
+                onChange={(e) => onChange({ ...value, animateWeather: e.target.checked })}
+              />
+              Animate storm sky
+            </label>
+            <p>
+              Weather is a presentation effect, not a wind-load simulation. Reduced-motion
+              preferences pause animation. PNG captures the atmosphere; SVG remains a technical
+              drawing.
+            </p>
+          </fieldset>
           <label>
             Wire opacity <output>{Math.round(value.opacity * 100)}%</output>
             <input
@@ -237,6 +335,7 @@ export function BuildingVisualSettings({
             </p>
           </fieldset>
           {warning && <p role="status">{warning}</p>}
+          {onExportPng && <button type="button" className="visual-reset" aria-label="Download model PNG" onClick={onExportPng}><Download size={15} />Export model PNG</button>}
           <button
             type="button"
             className="visual-reset"
