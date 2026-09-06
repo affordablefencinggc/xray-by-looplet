@@ -1,0 +1,25 @@
+diff --git a/proof/audit/IW-COMPLEX-PLAN-TRIAL/Studio-before.tsx b/src/studio/Studio.tsx
+index f50e93a..6f47ea5 100644
+--- a/proof/audit/IW-COMPLEX-PLAN-TRIAL/Studio-before.tsx
++++ b/src/studio/Studio.tsx
+@@ -1,6 +1,6 @@
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronUp, Download, ExternalLink, FileUp, FolderOpen, RefreshCw, Ruler, ScanLine, Search } from "lucide-react";
+-import { HOUSE, SHEETS } from "./geometry";
++import { HOUSE } from "./geometry";
+ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
+ import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
+ import { useStudio, type Pane } from "./store";
+@@ -1114,9 +1114,9 @@ function RightRail() {
+         </p>
+         <div className="kicker mt-2.5">On this sheet</div>
+         <p className="mt-2">
+-          {SHEETS[s.sheet].kind === "elev"
+-            ? "Elevation · local building and roof presentation layers."
+-            : "Plan · rooms as native walls. Trades only appear if you add them."}
++          {s.activePlanBinary
++            ? `Source page ${s.sheet + 1}. Drawing type and material quantities require review of this source.`
++            : "Open a source drawing to inspect its pages and evidence."}
+         </p>
+         {s.trades.length > 0 && (
+           <>

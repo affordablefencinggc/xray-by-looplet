@@ -1,0 +1,2 @@
+﻿import {chromium} from 'playwright';import fs from 'node:fs';
+const b=await chromium.connectOverCDP('http://127.0.0.1:9238');const p=b.contexts()[0].pages()[0];await p.getByRole('button',{name:'Sketch',exact:true}).click();await p.getByText('Calibrate this source before drawing',{exact:true}).waitFor();await p.getByRole('button',{name:'Fit sheet',exact:true}).click();await p.screenshot({path:'screenshots/sketch-example/01-ready-to-film.png'});console.log((await p.locator('body').innerText()).slice(0,3500));await b.close();

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X-Ray by Looplet // Spatial-to-Financial Platform (A4 Promo)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #0b0e14;
+      --paper: #f9f6f0;
+      --paper-card: #ffffff;
+      --ink-primary: #12151a;
+      --ink-secondary: #525a66;
+      --ink-muted: #838d99;
+      --border-light: #e4dcce;
+      --border-dark: #232a35;
+      --navy-deep: #070a0f;
+      --navy-card: #121824;
+      --cyan: #0284c7;
+      --cyan-glow: #38bdf8;
+      --gold: #d97706;
+      --gold-bright: #fbbf24;
+      --emerald: #059669;
+      --emerald-bright: #10b981;
+      --red: #dc2626;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-canvas);
+      color: var(--ink-primary);
+      font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Screen Top App Bar */
+    .top-toolbar {
+      width: 100%;
+      background: #11151c;
+      border-bottom: 1px solid #202733;
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+    }
+
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      background: #050b14;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #f59e0b;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-tag {
+      background: #1e2633;
+      color: #38bdf8;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .btn-secondary {
+      background: #1e2530;
+      color: #e2e8f0;
+      border: 1px solid #333d4d;
+    }
+
+    .btn-secondary:hover {
+      background: #2a3444;
+      color: #ffffff;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #050b14;
+      border: 1px solid #fbbf24;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      transform: translateY(-1px);
+    }
+
+    /* Outer Wrapper with Blueprint Workbench Grid */
+    .document-stage {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px 80px;
+      background: radial-gradient(circle at 50% 10%, #161e2b 0%, #080b10 100%);
+    }
+
+    /* =========================================================
+       EXACT A4 PROPORTION SHEET CONTAINER
+       Standard A4 is 210mm x 297mm (1 : 1.4142)
+       Scaled to 920px wide x 1301px tall
+       ========================================================= */
+    .a4-page {
+      width: 920px;
+      min-height: 1301px;
+      background: var(--paper);
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 34px 38px 30px;
+      background-image: 
+        radial-gradient(#dcd2c1 0.8px, transparent 0.8px),
+        linear-gradient(to right, rgba(220, 210, 193, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(220, 210, 193, 0.4) 1px, transparent 1px);
+      background-size: 20px 20px, 100px 100px, 100px 100px;
+    }
+
+    /* Technical Corner Registration Marks */
+    .corner-mark {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-color: #8c806d;
+      pointer-events: none;
+    }
+    .corner-tl { top: 12px; left: 12px; border-top: 1.5px solid; border-left: 1.5px solid; }
+    .corner-tr { top: 12px; right: 12px; border-top: 1.5px solid; border-right: 1.5px solid; }
+    .corner-bl { bottom: 12px; left: 12px; border-bottom: 1.5px solid; border-left: 1.5px solid; }
+    .corner-br { bottom: 12px; right: 12px; border-bottom: 1.5px solid; border-right: 1.5px solid; }
+
+    /* Top Metadata Strip */
+    .doc-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 16px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9.5px;
+      color: var(--ink-secondary);
+      letter-spacing: 0.8px;
+    }
+
+    .pills-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .meta-pill {
+      background: #090e17;
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-weight: 600;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .meta-pill span.dot-cyan { width: 5px; height: 5px; background: #38bdf8; border-radius: 50%; }
+    .meta-pill span.dot-gold { width: 5px; height: 5px; background: #f59e0b; border-radius: 50%; }
+    .meta-pill span.dot-green { width: 5px; height: 5px; background: #10b981; border-radius: 50%; }
+
+    /* =========================================================
+       HERO HEADER SECTION
+       ========================================================= */
+    .hero-header {
+      margin-bottom: 18px;
+    }
+
+    .hero-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .hero-kicker {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .hero-headline {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: var(--navy-deep);
+      letter-spacing: -0.6px;
+      margin-bottom: 8px;
+    }
+
+    .hero-subhead {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+
+    .hero-lead {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--ink-secondary);
+      max-width: 780px;
+    }
+
+    .hero-lead strong {
+      color: var(--ink-primary);
+    }
+
+    /* =========================================================
+       HERO VISUAL SHOWCASE: REAL 3D ENGINE VIEWPORT
+       ========================================================= */
+    .showcase-stage {
+      background: #090e17;
+      border-radius: 10px;
+      border: 1px solid #232c3b;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+      position: relative;
+      margin-bottom: 20px;
+      overflow: hidden;
+      color: #ffffff;
+    }
+
+    /* Window Chrome Top Bar */
+    .stage-header {
+      background: #131924;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #212b3d;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+    }
+
+    .stage-nav-modes {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mode-tag {
+      background: #1c2433;
+      padding: 3px 8px;
+      border-radius: 3px;
+      color: #94a3b8;
+      font-weight: 600;
+      border: 1px solid #2b374d;
+    }
+
+    .mode-tag.active {
+      background: #38bdf8;
+      color: #050b14;
+      border-color: #38bdf8;
+    }
+
+    .stage-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    /* The Dual-Image Mixed Visual Stage */
+    .stage-body {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      height: 335px;
+      position: relative;
+      background: #05080e;
+    }
+
+    /* Left: Highrise Real Model with Reticle */
+    .visual-left {
+      position: relative;
+      border-right: 1px solid #1a2332;
+      overflow: hidden;
+      background: #070b12;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tower-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 30%;
+      filter: contrast(1.05) brightness(1.02);
+    }
+
+    /* Glowing HUD Callout overlay on Tower */
+    .hud-callout {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(7, 11, 18, 0.88);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      line-height: 1.4;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .hud-callout .highlight { color: #38bdf8; font-weight: 700; }
+
+    .evidence-badge {
+      position: absolute;
+      bottom: 12px;
+      left: 14px;
+      background: rgba(5, 11, 20, 0.92);
+      border: 1px solid #f59e0b;
+      padding: 6px 10px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+    }
+    .evidence-badge .ev-icon {
+      width: 18px;
+      height: 18px;
+      background: #f59e0b;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      border-radius: 2px;
+    }
+
+    /* Right: Residential Model */
+    .visual-right {
+      position: relative;
+      background: #080d15;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .house-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 45% 42%;
+      transform: scale(1.08);
+    }
+
+    /* Floating Technical Chips */
+    .chip-tag {
+      position: absolute;
+      background: rgba(11, 17, 26, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8.5px;
+      color: #e2e8f0;
+      padding: 3px 7px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+    .chip-house { top: 12px; right: 12px; border-color: #38bdf8; color: #38bdf8; }
+    .chip-spec { bottom: 12px; right: 12px; border-color: #10b981; color: #10b981; }
+
+    /* Bottom Status Strip inside Model stage */
+    .stage-footer {
+      background: #0c1119;
+      padding: 6px 14px;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid #1d2635;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      color: #8b99ac;
+    }
+
+    /* =========================================================
+       THE 3 PILLARS (THE CLOSED-LOOP WORKFLOW)
+       ========================================================= */
+    .workflow-section {
+      margin-bottom: 20px;
+    }
+
+    .section-lead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--navy-deep);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      position: relative;
+    }
+
+    .pillar-card {
+      background: var(--paper-card);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 14px 14px 12px;
+      box-shadow: 0 4px 12px rgba(28, 24, 18, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .pillar-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: 8px 8px 0 0;
+    }
+    .pillar-1::before { background: var(--cyan); }
+    .pillar-2::before { background: var(--gold); }
+    .pillar-3::before { background: var(--emerald); }
+
+    .pillar-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .pillar-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .pillar-1 .pillar-num { background: var(--cyan); }
+    .pillar-2 .pillar-num { background: var(--gold); }
+    .pillar-3 .pillar-num { background: var(--emerald); }
+
+    .pillar-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--navy-deep);
+    }
+
+    .pillar-summary {
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--ink-secondary);
+      margin-bottom: 10px;
+    }
+
+    .pillar-features {
+      list-style: none;
+      margin-bottom: 12px;
+    }
+
+    .pillar-features li {
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: var(--ink-primary);
+      margin-bottom: 5px;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .pillar-features li::before {
+      content: "▪";
+      font-size: 12px;
+      line-height: 1;
+    }
+    .pillar-1 .pillar-features li::before { color: var(--cyan); }
+    .pillar-2 .pillar-features li::before { color: var(--gold); }
+    .pillar-3 .pillar-features li::before { color: var(--emerald); }
+
+    .pillar-metric {
+      background: #f4ede0;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--navy-deep);
+      border-left: 2px solid;
+    }
+    .pillar-1 .pillar-metric { border-color: var(--cyan); }
+    .pillar-2 .pillar-metric { border-color: var(--gold); }
+    .pillar-3 .pillar-metric { border-color: var(--emerald); }
+
+    /* =========================================================
+       COMPARISON MATRIX (DELTEK VS LOOPLET)
+       ========================================================= */
+    .comparison-section {
+      background: #ffffff;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+    }
+
+    .comp-header-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 1fr;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid var(--border-light);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .comp-header-row .col-deltek { color: var(--red); }
+    .comp-header-row .col-looplet { color: var(--cyan); }
+
+    .comp-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 1fr;
+      padding: 7px 0;
+      border-bottom: 1px solid #f0eae0;
+      font-size: 11px;
+      align-items: center;
+    }
+    .comp-row:last-child { border-bottom: none; }
+
+    .comp-label {
+      font-weight: 700;
+      color: var(--navy-deep);
+    }
+
+    .comp-deltek {
+      color: #991b1b;
+      padding-right: 12px;
+      font-size: 10.5px;
+    }
+
+    .comp-looplet {
+      color: var(--navy-deep);
+      font-weight: 600;
+      font-size: 10.5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* =========================================================
+       FOOTER CALL TO ACTION
+       ========================================================= */
+    .footer-cta {
+      background: linear-gradient(135deg, #070c14 0%, #111a28 100%);
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 14px 20px;
+      color: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .cta-text h4 {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 3px;
+      color: #ffffff;
+    }
+
+    .cta-text p {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .cta-button-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cta-url {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .cta-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #050b14;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 9px 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      border: 1px solid #fbbf24;
+      letter-spacing: 0.3px;
+    }
+
+    .doc-bottom-copyright {
+      margin-top: 10px;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8px;
+      color: #8c8273;
+    }
+
+    /* =========================================================
+       PRINT-TO-PDF RULES FOR EXACT A4 PAPER
+       ========================================================= */
+    @media print {
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+      }
+      .top-toolbar {
+        display: none !important;
+      }
+      .document-stage {
+        padding: 0 !important;
+        background: none !important;
+      }
+      .a4-page {
+        width: 100% !important;
+        min-height: 100vh !important;
+        box-shadow: none !important;
+        padding: 24px 30px !important;
+        border: none !important;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Screen Top Control Bar -->
+  <header class="top-toolbar">
+    <div class="brand-meta">
+      <div class="brand-logo">
+        <svg width="18" height="18" viewBox="0 0 32 32">
+          <polygon points="16,6 26,12 16,18 6,12" fill="#e8b339"/>
+          <polygon points="6,12 16,18 16,27 6,21" fill="#1c1812"/>
+          <polygon points="16,18 26,12 26,21 16,27" fill="#ebe4d4"/>
+          <polyline points="6,12 16,18 26,12" fill="none" stroke="#7ec4e8" stroke-width="1.2"/>
+        </svg>
+      </div>
+      <span class="brand-title">X-RAY BY LOOPLET</span>
+      <span class="brand-tag">A4 PROMO AD // PRINT &amp; WEB READY</span>
+    </div>
+    <div class="toolbar-actions">
+      <button class="btn btn-secondary" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+        Save as PDF / Print
+      </button>
+      <a class="btn btn-primary" href="images/promo/tower-ui.png" target="_blank">
+        Inspect Raw Model ➔
+      </a>
+    </div>
+  </header>
+
+  <!-- Centered A4 Canvas Stage -->
+  <main class="document-stage">
+    <article class="a4-page">
+      
+      <!-- Corner Marks -->
+      <div class="corner-mark corner-tl"></div>
+      <div class="corner-mark corner-tr"></div>
+      <div class="corner-mark corner-bl"></div>
+      <div class="corner-mark corner-br"></div>
+
+      <!-- Header Strip -->
+      <div class="doc-meta-bar">
+        <span>LOOPLET ECOSYSTEM // SPEC: XR-A4-2026 // SPATIAL-TO-FINANCIAL LEDGER</span>
+        <div class="pills-group">
+          <span class="meta-pill"><span class="dot-cyan"></span>X-RAY 3D</span>
+          <span class="meta-pill"><span class="dot-gold"></span>CRM PROPOSALS</span>
+          <span class="meta-pill"><span class="dot-green"></span>LIVE LEDGER</span>
+        </div>
+      </div>
+
+      <!-- Hero Typography -->
+      <section class="hero-header">
+        <div class="hero-badge-row">
+          <span class="hero-kicker">Unified Architecture &amp; Construction Intelligence</span>
+        </div>
+        <h1 class="hero-headline">The Blueprint Is The Estimate.<br>The Estimate Is The Ledger.</h1>
+        <div class="hero-subhead">From 2D Drawing ➔ Calibrated 3D Proof ➔ 1-Click Quote ➔ Automated Accounting</div>
+        <p class="hero-lead">
+          Legacy ERPs like Deltek charge <strong>$30,000+/year</strong> for blind databases that can't read a single line of your plans. 
+          <strong>Looplet unites computer-vision takeoff with 3D client proposals and live job costing</strong> — eliminating re-keying and protecting profit margins on every build.
+        </p>
+      </section>
+
+      <!-- HERO SHOWCASE: REAL 3D ENGINE VIEWPORT -->
+      <section class="showcase-stage">
+        <!-- Stage App Window Bar -->
+        <div class="stage-header">
+          <div class="stage-nav-modes">
+            <span class="mode-tag active">Solid 3D</span>
+            <span class="mode-tag">Wireframe</span>
+            <span class="mode-tag">Orbit</span>
+            <span class="mode-tag">Plan</span>
+            <span class="mode-tag">Roof Cutaway</span>
+            <span class="mode-tag">Explode</span>
+          </div>
+          <div class="stage-status">
+            <span>● 2,190 SOURCE-LINKED MESHES</span>
+            <span style="color:#94a3b8; margin-left:8px;">SCALE 1:100</span>
+          </div>
+        </div>
+
+        <!-- Stage Body: High-Rise Tower + Residential Split -->
+        <div class="stage-body">
+          <!-- Left: Highrise Tower with Reticle -->
+          <div class="visual-left">
+            <img src="images/promo/tower-ui.png" alt="Crown Wharf Tower 3D Reconstruction" class="tower-img">
+            <div class="hud-callout">
+              <div>LEVEL 30 • <span class="highlight">CC4 COLUMN</span></div>
+              <div style="color:#94a3b8; font-size:8px;">2.44 × 500 RC • PAGE 34 SCHEDULE</div>
+            </div>
+            <div class="evidence-badge">
+              <div class="ev-icon">✓</div>
+              <div>
+                <strong style="color:#fff;">DRAWING EVIDENCE PINNED</strong><br>
+                <span style="color:#cbd5e1; font-size:8px;">Every 3D mesh is backed by original PDF vector</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Residential Model -->
+          <div class="visual-right">
+            <img src="images/promo/house-ui.png" alt="Residential 3D Takeoff Model" class="house-img">
+            <span class="chip-tag chip-house">RESIDENTIAL RUFFLES // ROOF TAKEOFF</span>
+            <span class="chip-tag chip-spec">HIP &amp; VALLEY 22.5° // 284.6 m²</span>
+          </div>
+        </div>
+
+        <!-- Stage Footer Strip -->
+        <div class="stage-footer">
+          <span>SOURCE MODELS: Crown Wharf Block A4 Structural &amp; Ruffles Sample Plans</span>
+          <span>100% MATHEMATICALLY VERIFIABLE TAKEOFF</span>
+        </div>
+      </section>
+
+      <!-- THE 3 UNIFIED PILLARS -->
+      <section class="workflow-section">
+        <div class="section-lead">
+          <div class="section-title">
+            <span style="color:var(--gold);">//</span> The Closed-Loop Workflow Pipeline
+          </div>
+          <span style="font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--ink-secondary);">
+            ZERO DATA RE-ENTRY ➔ INSTANT DEAL EXECUTION
+          </span>
+        </div>
+
+        <div class="pipeline-grid">
+          <!-- Pillar 1: X-Ray -->
+          <div class="pillar-card pillar-1">
+            <div>
+              <div class="pillar-header">
+                <div class="pillar-num">01</div>
+                <div class="pillar-title">X-Ray Plan Takeoff</div>
+              </div>
+              <p class="pillar-summary">
+                Computer-vision reads complex 2D PDF blueprints into calibrated, source-linked 3D meshes.
+              </p>
+              <ul class="pillar-features">
+                <li>Automated slab, wall, and roof geometry</li>
+                <li>Exact lineal &amp; area Bill of Materials (BOM)</li>
+                <li>Click any 3D element to inspect original plan page</li>
+              </ul>
+            </div>
+            <div class="pillar-metric">
+              10x FASTER TAKEOFF // 0% MEASURE ERROR
+            </div>
+          </div>
+
+          <!-- Pillar 2: CRM -->
+          <div class="pillar-card pillar-2">
+            <div>
+              <div class="pillar-header">
+                <div class="pillar-num">02</div>
+                <div class="pillar-title">Looplet 3D CRM</div>
+              </div>
+              <p class="pillar-summary">
+                Transform lifeless bid spreadsheets into client-facing 3D interactive proposals.
+              </p>
+              <ul class="pillar-features">
+                <li>Clients orbit their exact build in browser (Zero CAD)</li>
+                <li>Line items backed by visual proof cards</li>
+                <li>1-click variation sign-off with legal change audits</li>
+              </ul>
+            </div>
+            <div class="pillar-metric">
+              3.4x HIGHER WIN-RATE ON COMMERCIAL BIDS
+            </div>
+          </div>
+
+          <!-- Pillar 3: Accounting -->
+          <div class="pillar-card pillar-3">
+            <div>
+              <div class="pillar-header">
+                <div class="pillar-num">03</div>
+                <div class="pillar-title">Looplet Accounting</div>
+              </div>
+              <p class="pillar-summary">
+                Quantities flow straight into your live ledger. Automated purchasing and AIA milestone claims.
+              </p>
+              <ul class="pillar-features">
+                <li>Auto Purchase Orders matched to exact takeoff counts</li>
+                <li>Milestone progress invoicing tied to physical completion</li>
+                <li>Plan revisions instantly recalculate job P&amp;L margin</li>
+              </ul>
+            </div>
+            <div class="pillar-metric">
+              ZERO MARGIN LEAKS // LIVE JOB COSTING
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HEAD TO HEAD COMPARISON MATRIX -->
+      <section class="comparison-section">
+        <div class="comp-header-row">
+          <span>CAPABILITY</span>
+          <span class="col-deltek">LEGACY SILOS (DELTEK + BLUEBEAM + EXCEL)</span>
+          <span class="col-looplet">LOOPLET UNIFIED ENGINE</span>
+        </div>
+
+        <div class="comp-row">
+          <div class="comp-label">Plan &amp; 3D Awareness</div>
+          <div class="comp-deltek">❌ Completely blind; PDFs are static attachments</div>
+          <div class="comp-looplet">✅ Native 3D digital twin + computer-vision takeoff</div>
+        </div>
+
+        <div class="comp-row">
+          <div class="comp-label">Takeoff-to-Ledger Flow</div>
+          <div class="comp-deltek">❌ 4 fragmented tools; manual human copy-pasting</div>
+          <div class="comp-looplet">✅ Single thread: Blueprint ➔ Quote ➔ Ledger</div>
+        </div>
+
+        <div class="comp-row">
+          <div class="comp-label">Client Quote Impact</div>
+          <div class="comp-deltek">❌ Flat text PDFs that invite price haggling</div>
+          <div class="comp-looplet">✅ Interactive 3D proposals with drawing proof</div>
+        </div>
+
+        <div class="comp-row">
+          <div class="comp-label">Annual Software Cost</div>
+          <div class="comp-deltek">❌ $15,000 – $45,000+/yr in bloated per-seat fees</div>
+          <div class="comp-looplet">✅ Fraction of legacy cost; 10x the operational velocity</div>
+        </div>
+      </section>
+
+      <!-- FOOTER / CALL TO ACTION -->
+      <footer class="footer-cta">
+        <div class="cta-text">
+          <h4>Stop Estimating In The Dark. Give Your Ledger 3D Vision.</h4>
+          <p>Tauri Desktop (Offline-First Performance) + Seamless Cloud Collaboration for Modern AEC Teams.</p>
+        </div>
+        <div class="cta-button-group">
+          <span class="cta-url">looplet.com/xray</span>
+          <a href="images/promo/tower-ui.png" target="_blank" class="cta-btn">LAUNCH DEMO ➔</a>
+        </div>
+      </footer>
+
+      <!-- Bottom Legal Micro-Print -->
+      <div class="doc-bottom-copyright">
+        © 2026 LOOPLET LTD. X-RAY™ SPATIAL ESTIMATION ENGINE. DELTEK®, BLUEBEAM®, AND AUTODESK® ARE TRADEMARKS OF THEIR RESPECTIVE HOLDERS.
+      </div>
+
+    </article>
+  </main>
+
+</body>
+</html>

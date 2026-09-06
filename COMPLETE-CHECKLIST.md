@@ -85,3 +85,86 @@ Recovery: adopted feat/v1-production-ready @ 1bf54983bb3ff168358f4987c8481e8cc23
 ## 2026-09-05T09:51:45.938Z - reviewed staging and unfinished checkpoint preserved locally
 
 Eight reviewed local delivery commits and explicit159-file WIP checkpoint6803da9 are preserved. Exact checkpoint manifest SHA256 bbc7e4648b7753dc1a44fa024ffe6dbd2c198c25ac512356777f87920b77317a; current control27 gates and genuine desktop checkpoint screenshot pass. New local branch feat/model-wireframe-navigation created at checkpoint. No model/SVG/navigation/render completion or successful push is claimed. Recovery planning/handovers/IW-CHECKPOINT/completion.md and disposition.json.
+
+
+## 2026-09-06 ? Inventory integrity takeover
+
+- SC-01/02/03 verified: failed-restore lock persists through edits/save, resolved rule requirements clear, material changes advance revisions and require re-review. Custom marks/evidence/review annotations survive; count-only changes retain surviving approval.
+- Machine proof: 195 script + 338 TypeScript tests, 33 targeted tests, final typecheck/build and diff check pass.
+- Actual dev/built desktop/mobile Components, filter/search/inspection, reload, protected bytes and explicit recovery pass with zero browser errors/overflow. Playwright fallback; screenshots inspected.
+- Also repaired the native HTML fallback overriding the web build, live rule labels and mobile row wrapping discovered during QA.
+- Exact code diff, source hashes, screenshots, logs and scope limits: proof/audit/IW-INVENTORY-INTEGRITY/completion.md.
+- Recovery: adopted feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe; shared changes preserved, no staging/commit/merge/publication.
+
+## 2026-09-06 ? bounded complex-plan trial and requested 3D captures
+
+58-page source import/navigation/reload and mobile trial passed on dev and built output; discovered demo-sheet indexing crash repaired. Actual Caroline solid/cutaway/wireframe exports visually inspected. Full evidence and limitations: proof/audit/IW-COMPLEX-PLAN-TRIAL/completion.md. Later production smoke has asset 404s; release verification remains open. Actual stock-volume/weight totals await a source schedule.
+
+## 2026-09-06 ? Altitude source takeoff and storage calculations
+
+Source-bound, persistent takeoff view shipped with provisional 252/209 entrance allowances, unknown window/structural groups, evidence navigation, review/revision, protected persistence and packaging m3/specified kg calculations. Build/typecheck and 541 tests pass. Dev/built desktop/mobile behavioral proof clean; actual whole-building totals and 3D remain source-dependent. Exact diff + proof: proof/audit/IW-ALTITUDE-TAKEOFF/completion.md.
+
+## 2026-09-06 - Actual material register and safe saved-data upgrade
+
+Materials & storage now accepts actual stock lines, units, packaging, specified unit/full-package weight and source references, with duplicate protection, revisions, partial totals and CSV export. Existing takeoff rows survive v1-to-v2 upgrade. Build/typecheck and 554 tests pass; actual desktop/mobile dev/built behaviors pass with zero browser errors/overflow. Exact diff, inspected screenshots, logs and generic-smoke caveats: proof/audit/IW-MATERIAL-REGISTER/completion.md. Recovery branch feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe; no staging/commit/publication. Actual project stock and tower 3D remain unresolved.
+
+## 2026-09-06 - Per-tool browser proof and mobile model repair
+
+29 takeoff/material/real-plan and existing Caroline 3D scenarios pass in both dev and final built output. The audit reproduced a zero-width mobile model viewport and intercepted controls; responsive model layout repaired and exercised without forced clicks. Build/typecheck and 554 tests pass. Proof matrix output/takeoff/tool-proof.md; exact diff, before/after images, source hashes and smoke caveats proof/audit/IW-NEW-TOOLS-PROOF/completion.md. Altitude actual stock totals and 3D remain source-dependent. Branch feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe; no staging/commit/publication.
+
+## 2026-09-06 - Bulk material CSV and backup restore
+
+Validated bulk CSV with add/update preview, stable IDs and atomic persistence; backup export and legacy/current restore with previous-snapshot archival/download, revision/review handling and conflict/failure protection. Build/typecheck and 567 tests pass. Eleven actual dev/built desktop/mobile scenarios per environment and 20 existing built tool scenarios pass. Exact diff, hashes, inspected screenshots and smoke caveats: proof/audit/IW-BULK-RESTORE/completion.md. Temporary verification services stopped. Recovery branch feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe; no staging/commit/publication.
+
+## 2026-09-06 - General construction run specifications (decoupling phase 2)
+
+General length/strip-area/rectangular-volume runs now have source-bound calculations, relevant readiness fields, persistence and review invalidation, with fence-engine exclusion and preserved legacy behavior. Mobile inspector layout repaired. Typecheck/build and 574 tests pass; eight actual browser scenarios pass in each of dev/built with desktop/mobile screenshots inspected. Exact diff and scope: proof/audit/IW-GENERAL-RUNS/completion.md. Remaining: polygon/count readiness, ConstructionJob storage migration, general assembly BOM packs. Branch feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe; no staging/commit/publication. Temporary services stopped.
+
+## 2026-09-06 - Crown Wharf A4 structural review model
+
+Source-linked high-rise reconstruction with 33 selectable floor/roof references, 2,180 explicitly inferred meshes, high-rise camera fit, floor explosion and evidence/PNG export. Typecheck/build and 587 tests pass; nine actual desktop/mobile browser scenarios pass per dev/built, including all floors and Caroline regression. Exact diff and inspected visual/executed proof: proof/audit/IW-CROWN-WHARF-3D/completion.md. This is Crown Wharf, not Altitude or verified stock/BOM geometry; omitted and approximated construction details remain explicit. Branch feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe; no staging/commit/publication. Temporary services stopped.
+
+## 2026-09-06 - Installed desktop updated with Crown Wharf and shortcut
+
+Rebuilt/installed the current desktop package, preserved existing profile data, created verified X-Ray by Looplet desktop shortcut and launched the app. Actual packaged/installed WebView checks pass: source-bound tower, floor/evidence and reload. Executable identity verified including documented NSIS marker; native screenshots inspected. Proof: proof/audit/IW-CROWN-WHARF-DESKTOP/completion.md. No product-source changes or commits; task-owned CDP apps closed.
+
+## 2026-09-06 ? Workspace panels, navigation and gallery
+
+- [x] SC-01?12 and SC-14?18: adjustable rails, compact drawer, themed Render/Settings, Fly/Walk arrival, 25% inspection camera shift, CRM-style evidence gallery, red isometric floor locator and compact silver model controls. Installed desktop updated; saved profile retained.
+- [x] Typecheck, 597 tests, web/NSIS builds; 14 dev + 14 built interaction checks, six photo checks each, 11 packaged + 11 installed checks; desktop/mobile visual proof.
+- [ ] SC-13 real accounts: awaiting account service/connection; no simulated login. App MCP transport not verified by these UI checks.
+- Proof and exact code diff: [proof/audit/IW-WORKSPACE-PANELS/completion.md](proof/audit/IW-WORKSPACE-PANELS/completion.md). Branch feat/model-wireframe-navigation; baseline 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe.
+
+## 2026-09-06 ? Rail recovery and CRM-style model camera
+
+- [x] SC-01?05: persistent recovery handles while collapsed, click/drag/keyboard reopen; PNG inside Visual settings; alternating neutral controls; thin dark thumbnail borders; steady-angle CRM-style inspection pan, no forward travel within 20m, no resize/settle camera jump.
+- [x] Typecheck/build/NSIS; 603 tests; eight scenarios each dev/built/native/installed; real browser PNG and recorded motion proof. Installed update retains user profile. Snapshot of 760 project files and installed binary saved before continuing camera changes.
+- [Proof, exact diff, snapshot record and installed identity](proof/audit/IW-RAIL-RECOVERY/completion.md).
+
+
+## 2026-09-06 - Structural connection counting trial
+
+Completed the authorized public-document trial on feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe. Official Thornton Fire Station 8 drawings support a preliminary bounded count of 32 bolts across 16 physical connections on eight interior roof beams. Source-linked inspector, saved review, safe recovery and actual JSON export verified in dev, built, packaged and installed apps. Typecheck, 612 tests, web/NSIS builds and desktop/mobile smoke checks passed. Installed update retains user data; normal app open, test services stopped. Exact code diff and executed/visual proof: [completion](proof/audit/IW-CONNECTION-COUNT/completion.md). No staging, commit, merge or push. Full-building/high-rise completeness remains unproven.
+
+
+## 2026-09-06 - General project material workflow
+
+Completed and installed SC-01 through SC-05 of the general material register/source workflow on feat/model-wireframe-navigation, baseline 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe. Ten public source documents (1,260 pages), local text/OCR candidates, physical deduplication, dimensional/quantity/weight/packaging fields, source-bound previews, transactional IndexedDB and archived backup recovery. Prepared inventory contains 79 pending-review lines across several material families. Typecheck, 633 automated tests, web/NSIS builds, desktop/mobile smoke and 13 scenarios each on dev/built/native/installed apps passed. Existing app data and index retained; normal installed app reopened, task test listeners stopped. No stage, commit, merge, push or worktree. [Exact diff and executed/visual proof](proof/audit/IW-PROJECT-MATERIALS/completion.md). Whole-building reconciliation, missing fabrication/fire information and unresolved material/packaging quantities remain open in [PROJECT-MATERIALS-TODO.md](PROJECT-MATERIALS-TODO.md); this is not a full-building completeness claim.
+
+
+## 2026-09-06 - AI material review workflow
+
+Implemented and installed SC-01 through SC-05 on feat/model-wireframe-navigation, baseline 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe. Source-bound AI proposals, review/promotion/linking/exclusion, benchmark export, persistent backup recovery and web/native Gemini adapters; removed canned Copilot results. Typecheck, 652 JS/TS tests, 27 Rust tests, web/NSIS builds, 46 AI UI scenario runs and 13 existing material UI regressions passed. Actual live provider execution remains open (no key available); fixture tests are not a real accuracy result. Architectural requirements recorded as planned in ARCHITECTURE-ROADMAP.md. User profile/index retained, updated normal app open, test services stopped. No stage, commit, merge, push or worktree. [Exact diff, screenshots, execution scope and installed identity](proof/audit/IW-AI-MATERIALS/completion.md).
+
+
+## 2026-09-06 - Desktop refresh and Gemini local configuration
+
+Rebuilt and installed current source on feat/model-wireframe-navigation; saved user clipboard credential only in ignored .env.local and verified Gemini 3.8 Flash model access. Added the local desktop launcher and updated the desktop icon so reopening loads those settings. Existing user profile and index preserved. Typecheck, 652 tests, package build, 22 native UI scenario runs and actual configured-launch checks passed. No live drawing generation performed. [Rebuild, screenshot, launcher diff and installed identity proof](proof/audit/IW-DESKTOP-REFRESH-20260906/completion.md). No commit, merge or push.
+
+- [x] 2026-09-06 requested desktop rebuild: existing source packaged, 652 tests + typecheck, 11 packaged and 11 installed UI checks, installed identity verified, profile retained and normal app reopened. Proof: proof/audit/IW-DESKTOP-REBUILD-20260906/completion.md. Product code unchanged; no commit.
+
+
+- [x] 2026-09-06 Sketch filming demonstration, silver native title bar and collapsible Live assistant installed. Proof: proof/audit/IW-SKETCH-SILVER/completion.md and code.diff; 654 tests, typecheck, 8 native scenario runs, 2 built layout checks. Source-bound review handoff; no fabricated chat or AI accuracy claim.
+
+
+- [x] 2026-09-06 | feat/model-wireframe-navigation | Redburn BR250157 Three.js reconstruction installed:186 source-linked assemblies, original13-page PDF, plan/cutaway views. Typecheck,655 tests, web/NSIS builds and9 UI scenarios across web/native plus filming repeat passed. Inferred geometry and unresolved outdoor datum remain explicit; no quantity accuracy claim. Proof: proof/audit/IW-REDBURN-3D/completion.md. No stage/commit/merge/push.

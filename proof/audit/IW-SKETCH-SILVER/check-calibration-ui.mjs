@@ -1,0 +1,1 @@
+﻿import {chromium} from 'playwright';const b=await chromium.connectOverCDP('http://127.0.0.1:9238');const p=b.contexts()[0].pages()[0];console.log(await p.locator('.calibration-panel').innerText());console.log(await p.locator('.calibration-panel select').evaluateAll(es=>es.map(e=>({value:e.value,html:e.outerHTML}))));await b.close();

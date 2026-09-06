@@ -1,0 +1,527 @@
+diff --git a/src/studio/domain.ts b/src/studio/domain.ts
+index ac68d10..4dafb66 100644
+--- a/src/studio/domain.ts
++++ b/src/studio/domain.ts
+@@ -77,7 +77,19 @@ export const documentRevisionSchema = z.object({
+   source: z.enum(["sample", "web", "desktop"]),
+ });
+ 
++/** Present only for general takeoffs. Absent means the established fencing specification. */
++export const constructionRunSpecificationSchema = z.object({
++  assembly: z.enum(["generic", "wall", "partition", "slab", "conduit"]),
++  trade: z.string().max(120),
++  quantity: z.enum(["length", "area", "volume"]),
++  widthM: z.number().finite().positive().max(10000).nullable(),
++  depthM: z.number().finite().positive().max(1000).nullable(),
++  reference: z.string().max(2000),
++}).strict();
++
+ export const runSpecificationSchema = z.object({
++  construction: constructionRunSpecificationSchema.optional(),
++  constructionEnabled: z.boolean().optional(),
+   system: fenceSystemSchema,
+   customSystem: z.string().max(120),
+   profile: z.string().max(120),
+@@ -106,6 +118,9 @@ export const runSpecificationSchema = z.object({
+   corners: z.array(runCornerSchema),
+   postOverrides: z.array(postOverrideSchema),
+   notes: z.string().max(2000),
++}).refine((spec) => spec.constructionEnabled !== true || spec.construction !== undefined, {
++  message: "General construction requires a construction specification.",
++  path: ["construction"],
+ });
+ 
+ export const gateSpecificationSchema = z.object({
+@@ -809,6 +824,21 @@ export function createGateSpecification(): GateSpecification {
+   };
+ }
+ 
++/** New source projects start trade-neutral; existing runs retain their established workflow. */
++export function createNewRunSpecification(job: Pick<FencingJob, "runs" | "documents" | "activeDocumentId">): RunSpecification {
++  const previous = job.runs.at(-1)?.specification;
++  const general = previous
++    ? Boolean(previous.construction && previous.constructionEnabled !== false)
++    : job.documents.some((doc) => doc.id === job.activeDocumentId && doc.source !== "sample");
++  return {
++    ...createRunSpecification(),
++    ...(general ? { constructionEnabled: true, construction: {
++      assembly: "generic" as const, trade: "", quantity: "length" as const,
++      widthM: null, depthM: null, reference: "",
++    } } : {}),
++  };
++}
++
+ export function createDefaultJob(now = new Date().toISOString()): FencingJob {
+   return {
+     schemaVersion: JOB_SCHEMA_VERSION,
+@@ -1064,6 +1094,14 @@ export type JobBlocker = {
+ 
+ export function missingRunSpecificationFields(specification: RunSpecification): string[] {
+   const missing: string[] = [];
++  if (specification.construction && specification.constructionEnabled !== false) {
++    const general = specification.construction;
++    if (!general.trade.trim()) missing.push("trade / work package");
++    if (!general.reference.trim()) missing.push("quantity source reference");
++    if (general.quantity !== "length" && general.widthM === null) missing.push("section width / height");
++    if (general.quantity === "volume" && general.depthM === null) missing.push("section depth / thickness");
++    return missing;
++  }
+   if (specification.system === "unselected") missing.push("system");
+   if (specification.system === "custom" && !specification.customSystem.trim())
+     missing.push("custom system");
+@@ -1130,6 +1168,13 @@ export function getJobBlockers(job: FencingJob): JobBlocker[] {
+     blockers.push({ code: "runs", message: "Trace at least one takeoff run." });
+   for (const run of job.runs) {
+     const missing = missingRunSpecificationFields(run.specification);
++    if (run.specification.construction && run.specification.constructionEnabled !== false) {
++      const calibration = job.calibrations.find((entry) => entry.sheet === run.sheet);
++      const candidate = calibration?.candidates.find((entry) => entry.id === calibration.selectedCandidateId);
++      if (!candidate || candidate.provenance.documentId !== activeDocument?.id) {
++        blockers.push({ code: "calibration", message: `${run.label} needs calibration evidence tied to the active drawing.`, entityId: run.id });
++      }
++    }
+     if (missing.length > 0) {
+       blockers.push({
+         code: "run-specification",
+diff --git a/src/studio/SpecificationPanel.tsx b/src/studio/SpecificationPanel.tsx
+index f413882..3006614 100644
+--- a/src/studio/SpecificationPanel.tsx
++++ b/src/studio/SpecificationPanel.tsx
+@@ -1,10 +1,12 @@
+ import type { RunCorner, RunSpecification } from "./domain";
+ import type { EditableFenceRun } from "./tracing";
++import type { ConstructionRunQuantity } from "./construction/runQuantity";
+ 
+ export type SpecificationPanelProps = {
+   run: EditableFenceRun;
+   onUpdate: (runId: string, expectedRevision: number, patch: Partial<RunSpecification>) => void;
+   error?: string | null;
++  quantity?: ConstructionRunQuantity;
+ };
+ 
+ const SYSTEMS: readonly [RunSpecification["system"], string][] = [
+@@ -12,9 +14,13 @@ const SYSTEMS: readonly [RunSpecification["system"], string][] = [
+   ["pool", "Pool barrier"], ["chain-wire", "Chain wire / Mesh"], ["custom", "Custom"],
+ ];
+ 
+-export function SpecificationPanel({ run, onUpdate, error = null }: SpecificationPanelProps) {
++export function SpecificationPanel({ run, onUpdate, error = null, quantity }: SpecificationPanelProps) {
+   const spec = run.specification;
++  const general = spec.constructionEnabled !== false ? spec.construction : undefined;
+   const patch = (value: Partial<RunSpecification>) => onUpdate(run.id, run.revision, value);
++  const patchGeneral = (value: Partial<NonNullable<RunSpecification["construction"]>>) => {
++    if (general) patch({ construction: { ...general, ...value } });
++  };
+   const updateCorner = (vertexIndex: number, treatment: RunCorner["treatment"] | "none") => {
+     const existing = spec.corners.find((corner) => corner.vertexIndex === vertexIndex);
+     if (treatment === "none") {
+@@ -45,6 +51,25 @@ export function SpecificationPanel({ run, onUpdate, error = null }: Specificatio
+ 
+       {error ? <div className="specification-error" role="alert"><strong>Run specification needs attention</strong><span>{error}</span></div> : null}
+ 
++      <SelectField label="Takeoff type" value={general ? "construction" : "fencing"} onChange={(value) => patch({ constructionEnabled: value === "construction", construction: spec.construction ?? (value === "construction" ? {
++        assembly: "generic", trade: "", quantity: "length", widthM: null, depthM: null, reference: "",
++      } : undefined) })} options={[["fencing", "Fencing"], ["construction", "General construction"]]} />
++      {general ? <>
++        <div className="specification-grid">
++          <SelectField label="Construction assembly" value={general.assembly} onChange={(assembly) => patchGeneral({ assembly: assembly as typeof general.assembly })} options={[["generic", "General assembly"], ["wall", "Wall"], ["partition", "Partition"], ["slab", "Slab / strip"], ["conduit", "Conduit / route"]]} />
++          <TextField label="Trade / work package" value={general.trade} onChange={(trade) => patchGeneral({ trade })} placeholder="Concrete, electrical, interiors…" />
++          <SelectField label="Quantity basis" value={general.quantity} onChange={(value) => patchGeneral({ quantity: value as typeof general.quantity })} options={[["length", "Run length (m)"], ["area", "Strip / face area (m²)"], ["volume", "Rectangular volume (m³)"]]} />
++          {general.quantity !== "length" ? <NumberField label="Section width / height (m)" value={general.widthM} min={0.000001} step="any" max={10000} onChange={(widthM) => patchGeneral({ widthM })} /> : null}
++          {general.quantity === "volume" ? <NumberField label="Section depth / thickness (m)" value={general.depthM} min={0.000001} step="any" max={1000} onChange={(depthM) => patchGeneral({ depthM })} /> : null}
++          <TextField wide label="Quantity source reference" value={general.reference} onChange={(reference) => patchGeneral({ reference })} placeholder="Drawing detail or schedule supporting these dimensions" />
++        </div>
++        <div className="specification-group" role="status" aria-label="General run quantity">
++          <strong>{quantity?.value != null ? `${Number(quantity.value.toPrecision(10))} ${quantity.unit}` : "Quantity unavailable"}</strong>
++          <p>{quantity?.reason ?? quantity?.formula ?? "Verify the source and scale to calculate."}</p>
++          <p>Gross traced length × section dimensions. Openings and overlaps are not deducted. This is measured geometry; packaged storage volume and weight belong in the material register.</p>
++          <small>Review: {run.review.status}. General takeoffs do not generate fencing materials.</small>
++        </div>
++      </> : <>
+       <div className="specification-grid">
+         <SelectField label="Assembly / system" value={spec.system} onChange={(value) => patch({ system: value as RunSpecification["system"] })} options={SYSTEMS} />
+         <TextField label="Profile / product" value={spec.profile} onChange={(profile) => patch({ profile })} placeholder="Panel or product profile" />
+@@ -116,6 +141,7 @@ export function SpecificationPanel({ run, onUpdate, error = null }: Specificatio
+         </div>
+       </details>
+ 
++      </>}
+       <label className="field"><span>Run notes</span><textarea rows={3} value={spec.notes} onChange={(event) => patch({ notes: event.currentTarget.value })} placeholder="Special construction, access or estimating notes" /></label>
+     </section>
+   );
+@@ -125,12 +151,12 @@ function TextField({ label, value, onChange, placeholder, wide = false }: { labe
+   return <label className={`field${wide ? " field-wide" : ""}`}><span>{label}</span><input value={value} onChange={(event) => onChange(event.currentTarget.value)} placeholder={placeholder} /></label>;
+ }
+ 
+-function NumberField({ label, value, onChange, min = 0.01, max, placeholder }: { label: string; value: number | null; onChange: (value: number | null) => void; min?: number; max: number; placeholder?: string }) {
+-  return <label className="field"><span>{label}</span><input type="number" inputMode="decimal" min={min} max={max} step="0.01" value={value ?? ""} onChange={(event) => onChange(numberOrNull(event.currentTarget.value))} placeholder={placeholder} /></label>;
++function NumberField({ label, value, onChange, min = 0.01, max, placeholder, step = 0.01 }: { label: string; value: number | null; onChange: (value: number | null) => void; min?: number; max: number; placeholder?: string; step?: number | "any" }) {
++  return <label className="field"><span>{label}</span><input type="number" inputMode="decimal" min={min} max={max} step={step} value={value ?? ""} onChange={(event) => onChange(numberOrNull(event.currentTarget.value))} placeholder={placeholder} /></label>;
+ }
+ 
+ function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: readonly (readonly [string, string])[] }) {
+-  return <label className="field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.currentTarget.value)}>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></label>;
++  return <label className="field"><span>{label}</span><select aria-label={label} value={value} onChange={(event) => onChange(event.currentTarget.value)}>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></label>;
+ }
+ 
+ function ToggleField({ label, detail, checked, onChange, wide = false }: { label: string; detail: string; checked: boolean; onChange: (checked: boolean) => void; wide?: boolean }) {
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 22d2d87..e240d42 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -16,6 +16,7 @@ import { CalibrationPanel } from "./CalibrationPanel";
+ import { DocumentPreview } from "./DocumentPreview";
+ import { PhotoEvidencePanel } from "./PhotoEvidencePanel";
+ import { SpecificationPanel } from "./SpecificationPanel";
++import { constructionRunQuantity } from "./construction/runQuantity";
+ import { TraceEditorPanel, type TraceEditMode, type TraceMergeEndpoint } from "./TraceEditorPanel";
+ import { getQuoteReadiness } from "./quoteReadiness";
+ import type { CalibrationInputUnit } from "./calibration";
+@@ -451,7 +452,7 @@ function MeasureInspector({ selectedRun, sourceReady = false, legacyReadOnly = f
+         onRemoveGate={(gateId) => s.removeGate(gateId)}
+       />
+       {editMode === "insert" && s.tool === "none" ? <p className="text-xs text-muted">Select a vertex, then use Insert after to add a midpoint next to it.</p> : null}
+-      {selectedRun ? <SpecificationPanel run={selectedRun} onUpdate={s.updateRunSpecification} /> : (
++      {selectedRun ? <SpecificationPanel run={selectedRun} onUpdate={s.updateRunSpecification} error={s.photoError} quantity={constructionRunQuantity(s.job, selectedRun, s.persistenceHydrated && s.assetReadiness.document.state === "ready")} /> : (
+         <section className="inspector-empty"><span className="eyebrow">Run specification</span><strong>Select a run</strong><p>Choose a measured run on the plan to record the construction evidence required for review.</p></section>
+       )}
+       <section className="measure-photo-summary">
+@@ -1339,6 +1340,17 @@ function CostRightRail() {
+   const s = useStudio();
+   const snapshot = s.bomState.snapshot;
+   const document = s.job.documents.find((entry) => entry.id === s.job.activeDocumentId && entry.source !== "sample");
++  const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
++  if (generalRuns.length) return <aside className="studio-right-rail overflow-auto border-l border-line p-3">
++    <h2 className="kicker">Quantity scope</h2>
++    <p>General runs report gross measured geometry. Material assemblies, waste, package dimensions and specified weights require separate inputs.</p>
++    <div className="rail-register mt-2.5">
++      <Row a="General runs" b={String(generalRuns.length)} />
++      <Row a="Approved runs" b={String(generalRuns.filter((run) => run.review.status === "approved").length)} />
++      <Row a="Fencing BOM" b="Unavailable for this job" />
++    </div>
++    <p>{document?.name ?? "Import a source drawing."}</p>
++  </aside>;
+   return (
+     <aside className="studio-right-rail overflow-auto border-l border-line p-3">
+       <div className="mb-2 flex items-start justify-between">
+@@ -1472,6 +1484,8 @@ function ReviewPane() {
+ 
+ function CostPane() {
+   const s = useStudio();
++  const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
++  const hasGeneralRuns = generalRuns.length > 0;
+   const [recipeSet, setRecipeSet] = useState<BomRecipeSet | null>(null);
+   const [compileIssues, setCompileIssues] = useState<readonly BomIssue[]>([]);
+   const [transportStatus, setTransportStatus] = useState<BomTransportStatus>({ phase: "idle" });
+@@ -1481,6 +1495,11 @@ function CostPane() {
+   const buildAbort = useRef<AbortController | null>(null);
+ 
+   useEffect(() => {
++    if (hasGeneralRuns) {
++      setRecipeSet(null);
++      setRecipePersistenceError(null);
++      return;
++    }
+     let current = true;
+     void (async () => {
+       const loaded = await loadFencingRecipeSet(s.job.id);
+@@ -1504,7 +1523,7 @@ function CostPane() {
+       current = false;
+       buildToken.current += 1;
+     };
+-  }, [s.job.id]);
++  }, [s.job.id, hasGeneralRuns]);
+ 
+   const activeRecipes = useMemo(() => {
+     if (!recipeSet || s.job.runs.length === 0) return [];
+@@ -1666,6 +1685,20 @@ function CostPane() {
+ 
+   return (
+     <div className="cost-workspace">
++      {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">
++        <header className="specification-heading-row"><div><span className="eyebrow">Measured geometry</span><h2>General construction quantities</h2></div></header>
++        <p>Gross quantities by run. Openings, overlap and waste are not deducted. These require appropriate assembly rules before material ordering; the fencing BOM is unavailable for a job containing general takeoffs.</p>
++        {generalRuns.map((run) => {
++          const quantity = constructionRunQuantity(s.job, run, s.persistenceHydrated && s.assetReadiness.document.state === "ready");
++          return <div className="specification-group" key={run.id}>
++            <strong>{run.label}: {quantity.value === null ? "Quantity unavailable" : `${Number(quantity.value.toPrecision(10))} ${quantity.unit}`}</strong>
++            <p>{quantity.reason ?? quantity.formula}</p>
++            <p>{run.specification.construction!.trade} · {run.specification.construction!.reference}</p>
++            <small>Revision {run.revision} · {run.review.status}</small>
++            <button className="button button-secondary" onClick={() => { s.selectRun(run.id); s.setPane("measure"); }}>Edit {run.label}</button>
++          </div>;
++        })}
++      </section> : null}
+       {recipePersistenceError ? <IntegrityNotice title="Recipe decisions need attention" message={recipePersistenceError} /> : null}
+       {recipeAssumptions?.length ? (
+         <div className="cost-controlbar">
+@@ -1677,19 +1710,19 @@ function CostPane() {
+           <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
+         </div>
+       ) : null}
+-      <BomPanel
++      {!hasGeneralRuns ? <BomPanel
+         state={s.bomState}
+         compileIssues={compileIssues}
+         transportStatus={transportStatus}
+         recipeAssumptions={recipeAssumptions}
+-        generationAvailable={bomHost === "tauri"}
++        generationAvailable={bomHost === "tauri" && generalRuns.length === 0}
+         onGenerate={() => void generateBom()}
+         onCancel={cancelBom}
+         onRetry={() => void generateBom()}
+         onAcceptAssumption={(assumptionId) => void acceptAssumption(assumptionId)}
+         onReopenAssumption={(assumptionId) => void reopenAssumption(assumptionId)}
+         onOpenEvidence={openBomEvidence}
+-      />
++      /> : null}
+     </div>
+   );
+ }
+diff --git a/src/studio/store.ts b/src/studio/store.ts
+index c80e77a..035367b 100644
+--- a/src/studio/store.ts
++++ b/src/studio/store.ts
+@@ -5,7 +5,7 @@ import {
+   createGateSpecification,
+   createId,
+   createReviewDecision,
+-  createRunSpecification,
++  createNewRunSpecification,
+   type FencingJob,
+   type GateRecord,
+   type GateSpecification,
+@@ -1414,7 +1414,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+             label: `Run ${String(runNumber).padStart(2, "0")}`,
+             points: pending,
+             lengthM: 0,
+-            specification: createRunSpecification(),
++            specification: createNewRunSpecification(job),
+             photoIds: [],
+             review: createReviewDecision(),
+           },
+diff --git a/src/studio/bomCompiler.ts b/src/studio/bomCompiler.ts
+index 8e5be05..e29ebd5 100644
+--- a/src/studio/bomCompiler.ts
++++ b/src/studio/bomCompiler.ts
+@@ -54,6 +54,15 @@ export async function compileBomRequest(
+ 
+   const job = parsedJob.data;
+   const recipeSet = parsedRecipes.data;
++  // Never reinterpret a general takeoff using retained legacy fence attributes.
++  const generalRuns = job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
++  if (generalRuns.length) {
++    return { ok: false, issues: generalRuns.map((run) => problem(
++      "unsupported-configuration",
++      `${run.label} is a general construction takeoff. Its measured quantities are available separately; the fencing BOM cannot build this job.`,
++      run.id, "runs.specification.construction",
++    )) };
++  }
+   const readiness = getQuoteReadiness(job, input.runtimeAssets, input.hydrationSettled);
+   readiness.blockers.forEach((blocker) => {
+     const code =
+diff --git a/src/studio/bomCompiler.test.ts b/src/studio/bomCompiler.test.ts
+index 48a6dd6..bf568fe 100644
+--- a/src/studio/bomCompiler.test.ts
++++ b/src/studio/bomCompiler.test.ts
+@@ -130,6 +130,15 @@ const READY = {
+ };
+ 
+ describe("job-to-BOM compiler", () => {
++  it("rejects general runs even when retained fence attributes match a valid recipe", async () => {
++    const job = approvedJob();
++    job.runs[0].specification.construction = { assembly: "wall", trade: "Masonry", quantity: "area", widthM: 3, depthM: null, reference: "QA wall section" };
++    const result = await compileBomRequest({ job, recipeSet: recipeSet(), runtimeAssets: READY, hydrationSettled: true, requestId: "general" });
++    assert.equal(result.ok, false);
++    if (!result.ok) assert.deepEqual(result.issues.map((issue) => issue.code), ["unsupported-configuration"]);
++    job.runs[0].specification.constructionEnabled = false;
++    assert.equal((await compileBomRequest({ job, recipeSet: recipeSet(), runtimeAssets: READY, hydrationSettled: true, requestId: "fence-again" })).ok, true);
++  });
+   it("rejects preserved imported legacy calibration even when locked and approved",async()=>{
+     const job=approvedJob();delete job.calibrations[0].coordinateSpace;const before=JSON.stringify(job);
+     const result=await compileBomRequest({job,recipeSet:recipeSet(),runtimeAssets:READY,hydrationSettled:true,requestId:"legacy-rejected"});
+diff --git a/src/studio/specificationPanel.test.ts b/src/studio/specificationPanel.test.ts
+index 22967d2..734cd6c 100644
+--- a/src/studio/specificationPanel.test.ts
++++ b/src/studio/specificationPanel.test.ts
+@@ -40,6 +40,13 @@ function run(): EditableFenceRun {
+ }
+ 
+ describe("run specification panel", () => {
++  it("renders construction inputs and quantity evidence without fence controls", () => {
++    const value = run();
++    value.specification.construction = { assembly: "slab", trade: "Concrete", quantity: "volume", widthM: 2, depthM: 0.2, reference: "QA section" };
++    const markup = renderToStaticMarkup(React.createElement(SpecificationPanel, { run: value, onUpdate: () => {}, quantity: { value: 4, unit: "m³", formula: "10 m × 2 m × 0.2 m", reason: null } }));
++    assert.match(markup, /4 m³/); assert.match(markup, /Quantity source reference/);
++    assert.doesNotMatch(markup, /Bay width|Post overrides|Sleepers|Corner treatments/);
++  });
+   it("renders every frozen estimator group and revision", () => {
+     const markup = renderToStaticMarkup(React.createElement(SpecificationPanel, { run: run(), onUpdate: () => {} }));
+     for (const label of [
+diff --git a/src/styles.css b/src/styles.css
+index a877250..65fabd1 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -903,6 +903,12 @@
+   .proof-artifact-grid { grid-template-columns: minmax(0, 1fr); }
+ }
+ 
++/* Stacked measurement panes must retain the inspector's content height. */
++@media (max-width: 940px) {
++  .measure-workspace { align-content: start; grid-auto-rows: max-content; }
++  .measure-inspector-boundary { min-height: auto; overflow: visible; }
++}
++
+ /* Source-bound high-rise takeoff */
+ .source-takeoff { display: grid; gap: 1rem; min-width: 0; }
+ .takeoff-heading, .takeoff-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }
+diff --git a/package.json b/package.json
+index d91aa30..54263d3 100644
+--- a/package.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/construction/runQuantity.ts b/src/studio/construction/runQuantity.ts
+index e69de29..f69f5e3 100644
+--- a/src/studio/construction/runQuantity.ts
++++ b/src/studio/construction/runQuantity.ts
+@@ -0,0 +1,45 @@
++import { measureCanvasDistanceM } from "../calibration.ts";
++import { missingRunSpecificationFields, type FenceRun, type FencingJob } from "../domain.ts";
++
++export type ConstructionRunQuantity = {
++  value: number | null;
++  unit: "m" | "m²" | "m³";
++  formula: string;
++  reason: string | null;
++};
++
++/** Gross geometry only: openings, waste, packaging and mass require their own rules. */
++export function constructionRunQuantity(job: FencingJob, run: FenceRun, sourceReady: boolean): ConstructionRunQuantity {
++  const spec = run.specification.construction;
++  const unit = spec?.quantity === "volume" ? "m³" : spec?.quantity === "area" ? "m²" : "m";
++  const unavailable = (reason: string): ConstructionRunQuantity => ({ value: null, unit, formula: "", reason });
++  if (!spec || run.specification.constructionEnabled === false) return unavailable("Select a general construction takeoff.");
++  const missing = missingRunSpecificationFields(run.specification);
++  if (missing.length) return unavailable(`Required: ${missing.join(", ")}.`);
++  const doc = job.documents.find((entry) => entry.id === job.activeDocumentId);
++  if (!sourceReady || !doc?.sha256 || doc.source === "sample") return unavailable("Verify the original source drawing before calculating.");
++  if (doc.pageCount !== null && run.sheet >= doc.pageCount) return unavailable("The run sheet is outside the source drawing.");
++  const calibration = job.calibrations.find((entry) => entry.sheet === run.sheet);
++  const candidate = calibration?.candidates.find((entry) => entry.id === calibration.selectedCandidateId);
++  if (!calibration?.locked || calibration.coordinateSpace !== "source-page-v1" || !candidate ||
++      candidate.provenance.documentId !== doc.id || calibration.source === "unverified") {
++    return unavailable("Lock a source-bound calibration for this run's sheet.");
++  }
++  if (Math.abs(candidate.metresPerUnit - calibration.metresPerUnit) > 1e-9 * Math.max(candidate.metresPerUnit, calibration.metresPerUnit)) {
++    return unavailable("The scale no longer matches its reviewed candidate.");
++  }
++  let length = 0;
++  try {
++    for (let i = 1; i < run.points.length; i++) length += measureCanvasDistanceM(run.points[i - 1], run.points[i], calibration, run.sheet);
++  } catch {
++    return unavailable("The run geometry could not be measured with this calibration.");
++  }
++  if (!Number.isFinite(length) || length <= 0) return unavailable("Trace a positive run length.");
++  const width = spec.quantity === "length" ? 1 : spec.widthM!;
++  const depth = spec.quantity === "volume" ? spec.depthM! : 1;
++  const value = length * width * depth;
++  if (!Number.isFinite(value) || value <= 0) return unavailable("The quantity must be positive and finite.");
++  const format = (n: number) => Number(n.toPrecision(10)).toString();
++  const formula = `${format(length)} m${spec.quantity !== "length" ? ` × ${format(width)} m` : ""}${spec.quantity === "volume" ? ` × ${format(depth)} m` : ""}`;
++  return { value, unit, formula, reason: null };
++}
+diff --git a/src/studio/construction/runQuantity.test.ts b/src/studio/construction/runQuantity.test.ts
+index e69de29..32e0f27 100644
+--- a/src/studio/construction/runQuantity.test.ts
++++ b/src/studio/construction/runQuantity.test.ts
+@@ -0,0 +1,82 @@
++import assert from "node:assert/strict";
++import { describe, it } from "node:test";
++import { createDefaultJob, createNewRunSpecification, createRunSpecification, getJobBlockers, missingRunSpecificationFields, parseFencingJob, runSpecificationSchema } from "../domain.ts";
++import { createTwoPointCalibrationCandidate, lockCalibration } from "../calibration.ts";
++import { applyEvidenceCommand } from "../evidenceCommands.ts";
++import { loadFencingJob, saveFencingJob } from "../persistence.ts";
++import { constructionRunQuantity } from "./runQuantity.ts";
++
++function fixture() {
++  const job = createDefaultJob("2026-09-06T00:00:00.000Z");
++  job.documents = [{ id: "source", name: "QA drawing.svg", kind: "svg", importedAt: job.createdAt, pageCount: 1, sha256: "a".repeat(64), source: "web" }];
++  job.activeDocumentId = "source";
++  const candidate = createTwoPointCalibrationCandidate({ id: "scale", source: "manual", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], distance: { value: 10, unit: "m" }, transform: job.calibrations[0].transform, confidence: 1, provenance: { method: "two-point", evidence: "QA dimension", documentId: "source" } });
++  job.calibrations = [lockCalibration({ ...job.calibrations[0], coordinateSpace: "source-page-v1", candidates: [candidate] })];
++  job.runs = [{ id: "general", revision: 3, sheet: 0, label: "QA strip", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], lengthM: 10, grossLengthM: 10, gateDeductionM: 0, netLengthM: 10, photoIds: [], review: { status: "approved", decidedBy: "QA", decidedAt: job.updatedAt, note: "QA only" }, specification: { ...createRunSpecification(), construction: { assembly: "slab", trade: "Concrete", quantity: "volume", widthM: 2, depthM: 0.2, reference: "QA section dimensions" } } }];
++  job.gates = []; job.photos = [];
++  return parseFencingJob(job);
++}
++
++describe("general construction run quantities", () => {
++  it("starts source projects with general runs and follows existing fencing jobs", () => {
++    const job = fixture(); job.runs = [];
++    assert.equal(createNewRunSpecification(job).constructionEnabled, true);
++    job.runs = fixture().runs;
++    job.runs[0].specification = createRunSpecification();
++    assert.equal(createNewRunSpecification(job).construction, undefined);
++    assert.equal(createNewRunSpecification(createDefaultJob()).construction, undefined);
++  });
++  it("requires general dimensions and references without fence requirements; legacy stays strict", () => {
++    const job = fixture(), spec = job.runs[0].specification;
++    assert.deepEqual(missingRunSpecificationFields(spec), []);
++    assert.deepEqual(getJobBlockers(job), []);
++    spec.construction!.widthM = null; spec.construction!.reference = " ";
++    assert.deepEqual(missingRunSpecificationFields(spec), ["quantity source reference", "section width / height"]);
++    assert.ok(missingRunSpecificationFields(createRunSpecification()).includes("bay width"));
++    assert.equal(runSpecificationSchema.safeParse({ ...createRunSpecification(), constructionEnabled: true }).success, false);
++    for (const widthM of [0, -1, Infinity, NaN]) assert.equal(runSpecificationSchema.safeParse({ ...spec, construction: { ...spec.construction, widthM } }).success, false);
++  });
++  it("calculates all three bases from calibrated geometry, ignoring stale stored length", () => {
++    const job = fixture(), run = job.runs[0];
++    assert.equal(constructionRunQuantity(job, run, true).value, 4);
++    assert.equal(constructionRunQuantity(job, run, true).formula, "10 m × 2 m × 0.2 m");
++    run.specification.construction!.quantity = "area";
++    run.lengthM = 99; run.grossLengthM = 99;
++    assert.equal(constructionRunQuantity(job, run, true).value, 20);
++    run.specification.construction!.quantity = "length";
++    run.specification.construction!.widthM = null;
++    assert.equal(constructionRunQuantity(job, run, true).value, 10);
++    run.points[1].x = 50;
++    assert.equal(constructionRunQuantity(job, run, true).value, 5);
++    run.points[1].x = 0.01;
++    Object.assign(run.specification.construction!, { quantity: "volume", widthM: 0.001, depthM: 0.001 });
++    const tiny = constructionRunQuantity(job, run, true);
++    assert.ok(Math.abs(tiny.value! - 1e-9) < 1e-20);
++    assert.equal(tiny.formula, "0.001 m × 0.001 m × 0.001 m");
++  });
++  it("withholds quantities for missing originals, unlocked or foreign calibration, and incomplete dimensions", () => {
++    for (const mutate of [
++      (job: ReturnType<typeof fixture>) => { job.calibrations[0].locked = false; },
++      (job: ReturnType<typeof fixture>) => { job.calibrations[0].coordinateSpace = undefined; },
++      (job: ReturnType<typeof fixture>) => { job.calibrations[0].candidates[0].provenance.documentId = "other"; },
++      (job: ReturnType<typeof fixture>) => { job.calibrations[0].metresPerUnit *= 2; },
++      (job: ReturnType<typeof fixture>) => { job.runs[0].specification.construction!.depthM = null; },
++      (job: ReturnType<typeof fixture>) => { job.runs[0].sheet = 1; },
++    ]) { const job = fixture(); mutate(job); assert.equal(constructionRunQuantity(job, job.runs[0], true).value, null); }
++    const job = fixture(); assert.equal(constructionRunQuantity(job, job.runs[0], false).value, null);
++  });
++  it("persists general fields and revisions; edits invalidate review and reject stale updates", () => {
++    const original = fixture(), run = original.runs[0];
++    const changed = applyEvidenceCommand(original, { type: "update-run-specification", runId: run.id, expectedRevision: 3, patch: { construction: { ...run.specification.construction!, depthM: 0.3 } } });
++    assert.equal(changed.runs[0].revision, 4); assert.equal(changed.runs[0].review.status, "needs-review");
++    assert.equal(constructionRunQuantity(changed, changed.runs[0], true).value, 6);
++    assert.throws(() => applyEvidenceCommand(changed, { type: "update-run-specification", runId: run.id, expectedRevision: 3, patch: {} }));
++    const data = new Map<string, string>(), storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } };
++    assert.equal(saveFencingJob(changed, storage).ok, true);
++    assert.deepEqual(loadFencingJob(storage).job, changed);
++    const fence = applyEvidenceCommand(changed, { type: "update-run-specification", runId: run.id, expectedRevision: 4, patch: { constructionEnabled: false } });
++    assert.deepEqual(fence.runs[0].specification.construction, changed.runs[0].specification.construction);
++    assert.ok(missingRunSpecificationFields(fence.runs[0].specification).includes("bay width"));
++    assert.equal(constructionRunQuantity(fence, fence.runs[0], true).value, null);
++  });
++});

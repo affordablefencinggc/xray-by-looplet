@@ -1,0 +1,405 @@
+diff --git a/proof/audit/IW-SKETCH-SILVER/before/lib.rs b/src-tauri/src/lib.rs
+index 28e5c5d..bd4d834 100644
+--- a/proof/audit/IW-SKETCH-SILVER/before/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -2,6 +2,8 @@
+ //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
+ 
+ mod material_ai;
++#[cfg(target_os = "windows")]
++mod window_chrome;
+ use material_ai::*;
+ 
+ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+@@ -673,7 +675,18 @@ pub fn run() {
+         .manage(BomInvocationState::production())
+         .manage(MaterialAiState::default())
+         .plugin(tauri_plugin_dialog::init())
++        .setup(|app| {
++            #[cfg(target_os = "windows")]
++            if let Some(window) = app.get_webview_window("main") {
++                window_chrome::apply(&window.as_ref().window());
++            }
++            Ok(())
++        })
+         .on_window_event(|window, event| {
++            #[cfg(target_os = "windows")]
++            if matches!(event, WindowEvent::ThemeChanged(_) | WindowEvent::Focused(_)) {
++                window_chrome::apply(window);
++            }
+             if matches!(event, WindowEvent::CloseRequested { .. }) {
+                 window.state::<BomInvocationState>().cancel_all();
+             }
+diff --git a/proof/audit/IW-SKETCH-SILVER/before/Studio.tsx b/src/studio/Studio.tsx
+index c9bedeb..4889c48 100644
+--- a/proof/audit/IW-SKETCH-SILVER/before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -17,6 +17,7 @@ import { SourceBuildingViewer } from "./SourceBuildingViewer";
+ import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
+ import { ConnectionTrialPanel, OpenConnectionTrial } from "./ConnectionTrialPanel";
+ import { ProjectMaterialsPanel } from "./ProjectMaterialsPanel";
++import { useLiveAssistant } from "./liveAssistantState";
+ import { CONNECTION_SOURCE } from "./construction/connectionTrial";
+ import { ALTITUDE_SHA } from "./construction/altitudeTakeoff";
+ import { RenderStudio } from "./RenderStudio";
+@@ -483,7 +484,7 @@ function SketchPane() {
+     <>
+       <div className="flex gap-2">
+         <button type="button" className="pill" disabled={!sourceReady || legacyReadOnly || !calibration.locked} aria-pressed={s.tool === "sketch"} onClick={() => s.setTool("sketch")}>
+-          Manual layer <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">M</kbd>
++          Manual layer
+         </button>
+         <button type="button" className="pill" disabled={!sourceReady || legacyReadOnly || !calibration.locked} onClick={() => s.commitPending()}>
+           Commit trace <kbd className="ml-1 text-[9px] opacity-70 font-mono bg-white/10 px-1 py-0.5 rounded">Enter</kbd>
+@@ -506,6 +507,8 @@ function SketchPane() {
+ function ComponentsPane() {
+   const s = useStudio();
+   const [projectMaterials, setProjectMaterials] = useState(false);
++  const assistantReview = useLiveAssistant(state => state.review);
++  useEffect(() => { if (assistantReview) setProjectMaterials(true); }, [assistantReview]);
+   const source = useSourceComponents();
+   const active = s.job.documents.find(d => d.id === s.job.activeDocumentId);
+   const switcher=<nav className="takeoff-filters" aria-label="Component workspaces"><button className="pill" aria-pressed={projectMaterials} onClick={()=>setProjectMaterials(true)}>Project material takeoff</button><button className="pill" aria-pressed={!projectMaterials} onClick={()=>setProjectMaterials(false)}>Components & source trials</button></nav>;
+diff --git a/proof/audit/IW-SKETCH-SILVER/before/WorkspaceRails.tsx b/src/studio/WorkspaceRails.tsx
+index 0cb20a1..4d42d50 100644
+--- a/proof/audit/IW-SKETCH-SILVER/before/WorkspaceRails.tsx
++++ b/src/studio/WorkspaceRails.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent } from "react";
+ import { ChevronLeft, ChevronRight } from "lucide-react";
++import { LiveAssistant } from "./LiveAssistant";
+ import { useStudio } from "./store";
+ import {
+   DEFAULT_RAILS,
+@@ -135,6 +136,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane:
+       }
+     >
+       {children}
++      <LiveAssistant />
+       {rects.map((r) => (
+         <div key={r.side} className={`rail-controls rail-controls-${r.side}`}>
+         <div
+diff --git a/proof/audit/IW-SKETCH-SILVER/before/ProjectMaterialsPanel.tsx b/src/studio/ProjectMaterialsPanel.tsx
+index 13b739d..11130d3 100644
+--- a/proof/audit/IW-SKETCH-SILVER/before/ProjectMaterialsPanel.tsx
++++ b/src/studio/ProjectMaterialsPanel.tsx
+@@ -1,4 +1,5 @@
+ import { AiMaterialReviewPanel } from "./AiMaterialReviewPanel";
++import { useLiveAssistant } from "./liveAssistantState";
+ import { AiEvidenceRegion } from "./AiEvidenceRegion";
+ import { resolveAiProposal } from "./construction/aiMaterialReview";
+ import type { AiProposal } from "./construction/aiMaterials";
+@@ -43,11 +44,13 @@ function download(data: string, name: string, type: string) {
+   setTimeout(() => URL.revokeObjectURL(url), 1000);
+ }
+ export function ProjectMaterialsPanel() {
++  const assistantReview = useLiveAssistant(state => state.review);
+   const s = useStudio(),
+     projectId = s.job.id;
+   const [session, setSession] = useState<ProjectMaterialsSession | null>(null),
+     [tab, setTab] = useState("Materials"),
+     [discipline, setDiscipline] = useState<MaterialSource["discipline"]>("Structural");
++  useEffect(() => { if (assistantReview) setTab("AI review"); }, [assistantReview]);
+   const [aiCandidate, setAiCandidate] = useState<{ runId: string; index: number } | null>(null),
+     [aiBusy, setAiBusy] = useState(false);
+   const [draft, setDraft] = useState<ProjectMaterial | null>(null),
+diff --git a/proof/audit/IW-SKETCH-SILVER/before/AiMaterialReviewPanel.tsx b/src/studio/AiMaterialReviewPanel.tsx
+index 747c47d..b006ecf 100644
+--- a/proof/audit/IW-SKETCH-SILVER/before/AiMaterialReviewPanel.tsx
++++ b/src/studio/AiMaterialReviewPanel.tsx
+@@ -1,4 +1,6 @@
+ import { useEffect, useRef, useState } from "react";
++import { useLiveAssistant, reviewMatchesSource } from "./liveAssistantState";
++import { useStudio } from "./store";
+ import { ScanSearch, Settings2, FileCheck2, X } from "lucide-react";
+ import { z } from "zod";
+ import type { PlanBinary } from "./documentContract";
+@@ -50,6 +52,7 @@ export function AiMaterialReviewPanel({
+   onEvidence,
+   onBusy,
+ }: Props) {
++  const assistantReview = useLiveAssistant(state => state.review);
+   const [connection, setConnection] = useState<MaterialAiStatus | null>(null),
+     [message, setMessage] = useState(""),
+     [key, setKey] = useState(""),
+@@ -89,6 +92,18 @@ export function AiMaterialReviewPanel({
+     abort.current?.abort();
+     setPage(1);
+   }, [binary?.sha256, binary?.documentId, value.projectId]);
++  useEffect(() => {
++    if (!assistantReview) return;
++    const document = useStudio.getState().job.documents.find(item => item.id === binary?.documentId && item.sha256 === binary?.sha256);
++    if (reviewMatchesSource(assistantReview, binary, document?.pageCount ?? 0)) {
++      setPage(assistantReview.page);
++      setFocus(assistantReview.focus);
++      setMessage(source ? "Instructions received from Live assistant. Check the sheet and send when ready." : "Instructions received from Live assistant. Register this drawing under Source documents before sending.");
++    } else {
++      setMessage("The assistant's drawing changed. Prepare a new review for the current source.");
++    }
++    useLiveAssistant.setState({ review: null });
++  }, [assistantReview, binary, source?.pageCount]);
+   useEffect(() => {
+     setTruth(null);
+     setTruthName("");
+diff --git a/proof/audit/IW-SKETCH-SILVER/empty b/src-tauri/src/window_chrome.rs
+index e69de29..e0fcf23 100644
+--- a/proof/audit/IW-SKETCH-SILVER/empty
++++ b/src-tauri/src/window_chrome.rs
+@@ -0,0 +1,34 @@
++//! Native Windows title-bar palette. Keep system caption buttons and hit testing.
++use std::ffi::c_void;
++
++const DWMWA_USE_IMMERSIVE_DARK_MODE: u32 = 20;
++const DWMWA_BORDER_COLOR: u32 = 34;
++const DWMWA_CAPTION_COLOR: u32 = 35;
++const DWMWA_TEXT_COLOR: u32 = 36;
++
++// COLORREF is 0x00BBGGRR: cool silver, a fine silver edge, dark readable controls.
++const SILVER_CAPTION: u32 = 0x00EBE6E2; // #e2e6eb
++const SILVER_BORDER: u32 = 0x00B8AFA7; // #a7afb8
++const CAPTION_INK: u32 = 0x003A3028; // #28303a
++
++#[link(name = "dwmapi")]
++extern "system" {
++    fn DwmSetWindowAttribute(hwnd: *mut c_void, attribute: u32, value: *const c_void, size: u32) -> i32;
++}
++
++pub fn apply(window: &tauri::Window) {
++    let Ok(handle) = window.hwnd() else { return };
++    for (attribute, value) in [
++        (DWMWA_USE_IMMERSIVE_DARK_MODE, 0_u32),
++        (DWMWA_CAPTION_COLOR, SILVER_CAPTION),
++        (DWMWA_TEXT_COLOR, CAPTION_INK),
++        (DWMWA_BORDER_COLOR, SILVER_BORDER),
++    ] {
++        // SAFETY: Tauri supplies a live HWND; each call borrows a four-byte value
++        // synchronously. Older Windows versions may reject color attributes;
++        // retain their native caption rather than preventing app startup.
++        unsafe {
++            DwmSetWindowAttribute(handle.0, attribute, (&value as *const u32).cast(), 4);
++        }
++    }
++}
+diff --git a/proof/audit/IW-SKETCH-SILVER/empty b/src/studio/LiveAssistant.tsx
+index e69de29..6c96faa 100644
+--- a/proof/audit/IW-SKETCH-SILVER/empty
++++ b/src/studio/LiveAssistant.tsx
+@@ -0,0 +1,88 @@
++import { useEffect, useRef, useState } from "react";
++import { ArrowUpRight, Bot, ChevronUp, FileSearch, Minus, PlayCircle, RefreshCw, X } from "lucide-react";
++import { useStudio } from "./store";
++import { useLiveAssistant } from "./liveAssistantState";
++import { getMaterialAiStatus, type MaterialAiStatus } from "./materialAiTransport";
++import { inspectPlanBytes } from "./documents";
++import "./liveAssistant.css";
++
++export function LiveAssistant() {
++  const { open, draft, guide } = useLiveAssistant();
++  const binary = useStudio(s => s.activePlanBinary);
++  const sheet = useStudio(s => s.sheet);
++  const hydrated = useStudio(s => s.persistenceHydrated);
++  const [status, setStatus] = useState<MaterialAiStatus | null>(null);
++  const [message, setMessage] = useState("");
++  const [loading, setLoading] = useState(false);
++  const [refresh, setRefresh] = useState(0);
++  const input = useRef<HTMLTextAreaElement>(null);
++  const launcher = useRef<HTMLButtonElement>(null);
++  useEffect(() => {
++    if (!open) return;
++    let active = true;
++    setStatus(null);
++    getMaterialAiStatus().then(value => { if (active) setStatus(value); })
++      .catch(() => { if (active) setMessage("Connection status is unavailable. Open AI review to check configuration."); });
++    input.current?.focus();
++    return () => { active = false; };
++  }, [open, refresh]);
++  const collapse = () => { useLiveAssistant.setState({ open: false }); launcher.current?.focus(); };
++  const prepareReview = () => {
++    if (!binary || binary.kind !== "pdf") { setMessage("Open a PDF drawing to prepare an AI review."); return; }
++    useLiveAssistant.setState({
++      open: false,
++      review: { id: crypto.randomUUID(), documentId: binary.documentId, sha256: binary.sha256, page: sheet + 1, focus: draft.trim() },
++    });
++    useStudio.getState().setPane("components");
++  };
++  const practice = async () => {
++    setLoading(true); setMessage("");
++    try {
++      const response = await fetch("/examples/sketch-practice-room.svg");
++      if (!response.ok) throw Error("Practice plan could not be opened.");
++      const imported = await inspectPlanBytes({ name: "DEMONSTRATION - Sketch practice room.svg", bytes: new Uint8Array(await response.arrayBuffer()), source: "web", takeoff: null });
++      await useStudio.getState().importPlan(imported);
++      useStudio.getState().setPane("measure");
++      setMessage("Practice plan opened. Enter 6 m, then pick points A and B and lock the scale.");
++    } catch (error) { setMessage(error instanceof Error ? error.message : "Practice plan could not be opened."); }
++    finally { setLoading(false); }
++  };
++  return (
++    <aside className={`live-assistant ${open ? "is-open" : ""}`} aria-label="Live assistant">
++      {open && <section className="live-assistant-panel" id="live-assistant-panel" role="region" aria-label="Drawing assistant panel"
++        onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); collapse(); } }}>
++        <header className="live-assistant-header">
++          <span className="live-assistant-emblem"><Bot size={25} aria-hidden="true" /></span>
++          <div className="live-assistant-identity"><strong>Live assistant</strong><span>{status ? status.configured ? `${status.provider} configured` : "Connect AI in drawing review" : "Checking connection…"}</span></div>
++          <button type="button" className="live-assistant-icon" aria-label="Collapse live assistant" onClick={collapse}><Minus size={18} /></button>
++        </header>
++        <div className="live-assistant-body">
++          <div className="live-assistant-context"><FileSearch size={14} aria-hidden="true" /><span>{binary ? `${binary.name} · Sheet ${sheet + 1}` : "No drawing selected"}</span></div>
++          <form onSubmit={event => { event.preventDefault(); prepareReview(); }}>
++            <label className="sr-only" htmlFor="live-assistant-prompt">Drawing review instructions</label>
++            <textarea ref={input} id="live-assistant-prompt" value={draft} maxLength={1500} rows={3}
++              placeholder="What should we look for in this drawing?"
++              onChange={event => useLiveAssistant.setState({ draft: event.target.value })} />
++            <div className="live-assistant-compose-footer"><span>Source-linked materials. Your review.</span><button type="submit" aria-label="Prepare drawing review" disabled={!hydrated || binary?.kind !== "pdf"}><ArrowUpRight size={18} /><span>Prepare review</span></button></div>
++          </form>
++          <div className="live-assistant-suggestions" aria-label="Drawing review suggestions">
++            <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "List every visible material on this sheet, with its source evidence. Flag unknown quantities and avoid counting repeated views twice." }); input.current?.focus(); }}>All materials</button>
++            <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "Find missing dimensions, quantities and material specifications on this sheet. Keep unsupported values unresolved." }); input.current?.focus(); }}>Missing details</button>
++          </div>
++          <p className="live-assistant-disclosure">Opens AI review with these instructions. The drawing is sent only when you press “Send selected sheet to Gemini” there.</p>
++          {guide && <section className="live-assistant-guide" aria-label="Sketch walkthrough">
++            <div><strong>Your first Sketch</strong><button type="button" className="live-assistant-icon" aria-label="Close Sketch guide" onClick={() => useLiveAssistant.setState({ guide: false })}><X size={15}/></button></div>
++            <ol><li><b>Open the practice plan.</b> A labelled 6 × 4 m room.</li><li><b>Measure → Known distance: 6 m.</b> Pick A and B, then Lock scale.</li><li><b>Sketch → Manual layer.</b> Click A → B → C → D → A.</li><li><b>Commit trace.</b> The outline saves as an annotation. Esc cancels unfinished points.</li></ol>
++            <button type="button" className="live-assistant-practice" disabled={loading || !hydrated} onClick={practice}>{loading ? "Opening practice plan…" : "Open practice plan"}<ArrowUpRight size={15}/></button>
++            <p>Demonstration data. Sketch annotations do not create walls, quantities or a 3D model.</p>
++          </section>}
++          {message && <p className="live-assistant-message" role="status">{message}</p>}
++        </div>
++        <footer className="live-assistant-footer"><button type="button" onClick={() => useLiveAssistant.setState({ guide: !guide })} aria-expanded={guide}><PlayCircle size={16}/>Sketch guide</button><span>{status?.configured ? status.model : "Drawing workspace"}</span><button type="button" className="live-assistant-icon" aria-label="Refresh assistant connection" onClick={() => { setMessage(""); setRefresh(v => v + 1); }}><RefreshCw size={15}/></button></footer>
++      </section>}
++      <button ref={launcher} type="button" className="live-assistant-launcher" aria-expanded={open} aria-controls="live-assistant-panel" onClick={() => useLiveAssistant.setState({ open: !open })}>
++        <Bot size={17} aria-hidden="true"/><strong>Live assistant</strong><span>Drawing tools</span><ChevronUp size={15} className={open ? "is-flipped" : ""}/>
++      </button>
++    </aside>
++  );
++}
+diff --git a/proof/audit/IW-SKETCH-SILVER/empty b/src/studio/liveAssistant.css
+index e69de29..ea3f166 100644
+--- a/proof/audit/IW-SKETCH-SILVER/empty
++++ b/src/studio/liveAssistant.css
+@@ -0,0 +1,51 @@
++.live-assistant {
++  --assistant-silver: #e2e6eb;
++  --assistant-edge: #a7afb8;
++  --assistant-ink: #28303a;
++  --assistant-shadow: #17233026;
++  position: fixed;
++  right: 12px;
++  bottom: 34px;
++  width: min(calc(var(--right-menu-width, 380px) - 24px), calc(100vw - 24px));
++  z-index: 38;
++  color: var(--color-ink);
++  font-family: inherit;
++}
++.live-assistant-launcher { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 6px 12px; border: 1px solid var(--assistant-edge); border-radius: 10px 10px 5px 5px; background: linear-gradient(180deg, var(--color-paper), var(--assistant-silver)); color: var(--assistant-ink); box-shadow: 0 -2px 9px var(--assistant-shadow), inset 0 1px 0 var(--color-paper); text-align: left; }
++.live-assistant-launcher strong { font-size: 12px; white-space: nowrap; }
++.live-assistant-launcher span { margin-left: auto; font-size: 10px; opacity: .75; }
++.live-assistant-launcher svg:last-child { transition: transform 220ms ease; }
++.live-assistant-launcher .is-flipped { transform: rotate(180deg); }
++.live-assistant-panel { position: absolute; right: 0; bottom: calc(100% + 8px); width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 128px); overflow: auto; overscroll-behavior: contain; border: 1px solid var(--assistant-edge); border-radius: 20px; background: var(--color-paper); box-shadow: 0 18px 50px var(--assistant-shadow), 0 0 0 3px color-mix(in srgb, var(--assistant-silver) 65%, transparent); animation: assistant-reveal 240ms cubic-bezier(.22, .68, .28, 1); }
++.live-assistant-header { display: flex; align-items: center; gap: 11px; padding: 16px 16px 12px; background: linear-gradient(145deg, var(--color-paper), var(--assistant-silver)); border-bottom: 1px solid var(--color-line); color: var(--assistant-ink); }
++.live-assistant-emblem { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 13px; background: var(--assistant-ink); color: var(--assistant-silver); border: 1px solid var(--assistant-edge); box-shadow: inset 0 1px 5px #ffffff40; }
++.live-assistant-identity { display: grid; gap: 3px; min-width: 0; flex: 1; }
++.live-assistant-identity strong { font-size: 17px; letter-spacing: -.025em; }
++.live-assistant-identity span { font-size: 11px; }
++.live-assistant-icon { display: grid; place-items: center; flex: 0 0 auto; min-width: 32px; min-height: 32px; background: transparent; color: inherit; border: 0; border-radius: 7px; }
++.live-assistant-icon:hover { background: color-mix(in srgb, var(--assistant-edge) 25%, transparent); }
++.live-assistant-body { padding: 14px 16px 6px; }
++.live-assistant-context { display: flex; align-items: center; gap: 7px; color: var(--color-muted); margin-bottom: 10px; font-size: 11px; }
++.live-assistant-context span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
++.live-assistant form { border: 1px solid var(--color-line); background: var(--color-bg); border-radius: 12px; padding: 11px; box-shadow: 0 2px 4px var(--assistant-shadow); }
++.live-assistant textarea { width: 100%; min-height: 76px; max-height: 180px; resize: vertical; border: 0; outline: none; background: transparent; color: var(--color-ink); font: inherit; font-size: 14px; line-height: 1.5; }
++.live-assistant form:focus-within { outline: 2px solid var(--assistant-edge); outline-offset: 2px; }
++.live-assistant-compose-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
++.live-assistant-compose-footer > span { font-size: 10px; color: var(--color-muted); max-width: 150px; }
++.live-assistant-compose-footer button, .live-assistant-practice { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; border: 1px solid var(--assistant-edge); border-radius: 8px; padding: 7px 10px; background: var(--assistant-silver); color: var(--assistant-ink); font-size: 11px; font-weight: 600; }
++.live-assistant button:disabled { opacity: .5; cursor: not-allowed; }
++.live-assistant-suggestions { display: flex; flex-wrap: wrap; gap: 7px; margin: 13px 0 9px; }
++.live-assistant-suggestions button, .live-assistant-footer > button:not(.live-assistant-icon) { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 6px 9px; border: 1px solid var(--color-line); border-radius: 7px; background: var(--color-card); color: var(--color-ink); font-size: 11px; }
++.live-assistant-disclosure, .live-assistant-guide p { font-size: 11px; line-height: 1.5; color: var(--color-muted); margin: 8px 0; }
++.live-assistant-footer { display: flex; align-items: center; gap: 8px; padding: 10px 16px 13px; }
++.live-assistant-footer > span { font-size: 10px; color: var(--color-muted); margin-left: auto; }
++.live-assistant-guide { padding: 12px; margin: 12px 0; border: 1px solid var(--color-line); background: var(--color-card); border-radius: 10px; }
++.live-assistant-guide > div { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
++.live-assistant-guide ol { padding-left: 20px; font-size: 12px; line-height: 1.55; }
++.live-assistant-guide li + li { margin-top: 8px; }
++.live-assistant-guide b { font-weight: 600; }
++.live-assistant-message { font-size: 12px; line-height: 1.5; padding: 10px; background: var(--color-card); border-left: 2px solid var(--assistant-edge); }
++.workspace-rails .studio-right-rail, .workspace-rails .building-inspector, .workspace-rails .measure-inspector { padding-bottom: 74px; }
++@keyframes assistant-reveal { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
++@media (max-width: 940px) { .live-assistant { width: min(320px, calc(100vw - 24px)); } .live-assistant button { min-height: 40px; } }
++@media (prefers-reduced-motion: reduce) { .live-assistant-panel { animation: none; } .live-assistant-launcher svg:last-child { transition: none; } }
+diff --git a/proof/audit/IW-SKETCH-SILVER/empty b/src/studio/liveAssistantState.ts
+index e69de29..6e9692d 100644
+--- a/proof/audit/IW-SKETCH-SILVER/empty
++++ b/src/studio/liveAssistantState.ts
+@@ -0,0 +1,21 @@
++import { create } from "zustand";
++
++export type AssistantReviewRequest = {
++  id: string;
++  documentId: string;
++  sha256: string;
++  page: number;
++  focus: string;
++};
++
++export function reviewMatchesSource(request: AssistantReviewRequest, binary: { documentId: string; sha256: string } | null, pageCount: number) {
++  return !!binary && request.documentId === binary.documentId && request.sha256 === binary.sha256
++    && Number.isInteger(request.page) && request.page >= 1 && request.page <= pageCount;
++}
++
++export const useLiveAssistant = create<{
++  open: boolean;
++  draft: string;
++  guide: boolean;
++  review: AssistantReviewRequest | null;
++}>(() => ({ open: false, draft: "", guide: false, review: null }));
+diff --git a/proof/audit/IW-SKETCH-SILVER/empty b/src/studio/liveAssistantState.test.ts
+index e69de29..12bc01d 100644
+--- a/proof/audit/IW-SKETCH-SILVER/empty
++++ b/src/studio/liveAssistantState.test.ts
+@@ -0,0 +1,16 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { reviewMatchesSource, type AssistantReviewRequest } from "./liveAssistantState.ts";
++
++const request: AssistantReviewRequest = { id: "request-1", documentId: "plan-a", sha256: "a".repeat(64), page: 3, focus: "Check visible materials" };
++const source = { documentId: request.documentId, sha256: request.sha256 };
++test("assistant preserves the selected sheet only for the matching original document", () => {
++  assert.equal(reviewMatchesSource(request, source, 3), true);
++  assert.equal(reviewMatchesSource(request, { ...source, documentId: "plan-b" }, 3), false);
++  assert.equal(reviewMatchesSource(request, { ...source, sha256: "b".repeat(64) }, 3), false);
++});
++test("assistant rejects missing sources and pages outside the actual document", () => {
++  assert.equal(reviewMatchesSource(request, null, 3), false);
++  assert.equal(reviewMatchesSource(request, source, 2), false);
++  for (const page of [0, -1, 1.5, NaN, Infinity]) assert.equal(reviewMatchesSource({ ...request, page }, source, 3), false);
++});
+diff --git a/proof/audit/IW-SKETCH-SILVER/empty b/public/examples/sketch-practice-room.svg
+index e69de29..916845b 100644
+--- a/proof/audit/IW-SKETCH-SILVER/empty
++++ b/public/examples/sketch-practice-room.svg
+@@ -0,0 +1,22 @@
++<svg xmlns="http://www.w3.org/2000/svg" width="900" height="680" viewBox="0 0 900 680">
++<rect width="900" height="680" fill="#fcfbf8"/>
++<g font-family="Arial, sans-serif" fill="#28303a">
++<text x="55" y="48" font-size="12" letter-spacing="2">X-RAY / SKETCH STARTER / DEMONSTRATION DATA</text>
++<text x="55" y="85" font-size="30" font-weight="bold">A small studio. Your first trace.</text>
++<text x="55" y="111" font-size="14" fill="#647078">Practice annotations only - not a construction document.</text>
++<g stroke="#89949f" stroke-width="1" fill="none"><path d="M210 140V170 M690 140V170 M210 150H690 M180 180H200 M180 500H200 M190 180V500"/><path d="M205 145L215 155 M685 145L695 155 M185 175L195 185 M185 495L195 505"/></g>
++<text x="450" y="143" font-size="16" text-anchor="middle">6.00 m - calibrate A to B</text>
++<text x="175" y="340" font-size="16" text-anchor="middle" transform="rotate(-90 175 340)">4.00 m</text>
++<rect x="210" y="180" width="480" height="320" fill="#eef1f0" stroke="#a7afb8" stroke-width="3"/>
++<path d="M450 180V420" stroke="#a7afb8" stroke-width="3"/>
++<path d="M450 420V500" stroke="#a7afb8" stroke-width="1" stroke-dasharray="4 4"/>
++<text x="330" y="315" font-size="22" text-anchor="middle">WORKROOM</text><text x="330" y="341" font-size="14" text-anchor="middle">3 x 4 m</text>
++<text x="570" y="315" font-size="22" text-anchor="middle">MEETING</text><text x="570" y="341" font-size="14" text-anchor="middle">3 x 4 m</text>
++<text x="460" y="458" font-size="11" fill="#647078">1 m passage</text>
++<text x="462" y="218" font-size="11" fill="#647078">3 m divider</text>
++<g fill="#28303a"><circle cx="210" cy="180" r="4"/><circle cx="690" cy="180" r="4"/><circle cx="690" cy="500" r="4"/><circle cx="210" cy="500" r="4"/></g>
++<g font-size="16" font-weight="bold"><text x="188" y="179">A</text><text x="702" y="183">B</text><text x="702" y="507">C</text><text x="188" y="507">D</text></g>
++<path d="M55 555H845" stroke="#d6dadd"/>
++<text x="55" y="585" font-size="14" font-weight="bold">01 / SCALE</text><text x="315" y="585" font-size="14" font-weight="bold">02 / TRACE</text><text x="595" y="585" font-size="14" font-weight="bold">03 / SAVE</text>
++<g font-size="12" fill="#647078"><text x="55" y="608">Measure: 6 m, pick A and B.</text><text x="55" y="628">Lock the scale.</text><text x="315" y="608">Sketch: Manual layer.</text><text x="315" y="628">Click A - B - C - D - A.</text><text x="595" y="608">Commit trace. Expected: 20 m.</text><text x="595" y="628">Divider: expected 3 m.</text></g>
++</g></svg>

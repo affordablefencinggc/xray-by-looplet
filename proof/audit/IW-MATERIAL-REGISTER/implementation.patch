@@ -1,0 +1,403 @@
+diff --git a/proof/audit/IW-MATERIAL-REGISTER/panel-before.tsx b/src/studio/SourceTakeoffPanel.tsx
+index 33ee2c7..97a5e5b 100644
+--- a/proof/audit/IW-MATERIAL-REGISTER/panel-before.tsx
++++ b/src/studio/SourceTakeoffPanel.tsx
+@@ -1,6 +1,8 @@
+ import { useEffect, useState } from "react";
+ import { ArrowUpRight, Download } from "lucide-react";
+ import { useStudio } from "./store";
++import { MaterialRegisterPanel } from "./MaterialRegisterPanel";
++import type { MaterialLine } from "./construction/materialRegister";
+ import { ALTITUDE_SHA, TAKEOFF_DEFINITIONS, persistTakeoff, restoreTakeoff, rowQuantity, stockTotals, updateTakeoffRow,
+   type TakeoffRow, type TakeoffSession } from "./construction/altitudeTakeoff";
+ 
+@@ -12,6 +14,8 @@ export function SourceTakeoffPanel() {
+   const [selected, setSelected] = useState("residential-entrance");
+   const [message, setMessage] = useState("");
+   const [category, setCategory] = useState("All");
++  const [tab, setTab] = useState<"counts" | "materials">("counts");
++  const [materialEditing, setMaterialEditing] = useState(false);
+   const projectId = s.job.id;
+   useEffect(() => { setSession(restoreTakeoff(window.localStorage, projectId)); }, [projectId]);
+   if (!session) return <p role="status">Restoring source takeoff…</p>;
+@@ -36,13 +40,19 @@ export function SourceTakeoffPanel() {
+     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+     const a = document.createElement("a"); a.href = url; a.download = "altitude-source-takeoff.json"; a.click(); URL.revokeObjectURL(url);
+   }
++  function saveMaterials(materials: MaterialLine[]): string | null {
++    if (!session || !sourceReady) return "Open the original drawing before saving materials.";
++    const saved = persistTakeoff(window.localStorage, session, { ...session.value, revision: session.value.revision + 1, materials });
++    setSession(saved);
++    return saved.error;
++  }
+   return <section className="source-takeoff" aria-label="Altitude source takeoff">
+     <header className="takeoff-heading">
+       <div><span className="kicker">Source takeoff · Altitude</span><h1>Counted from the tower drawings</h1>
+         <p>Preliminary · typical floors only · 15 December 2015 design guidance</p></div>
+       <div className="takeoff-actions">
+-        <button className="pill" onClick={() => save()} disabled={session.blocked || !sourceReady}>Save inventory</button>
+-        <button className="pill" onClick={exportInventory} disabled={session.blocked}><Download size={15} /> Export count</button>
++        <button className="pill" onClick={() => save()} disabled={session.blocked || !sourceReady || materialEditing}>Save inventory</button>
++        <button className="pill" onClick={exportInventory} disabled={session.blocked || materialEditing}><Download size={15} /> Export count</button>
+       </div>
+     </header>
+     {session.error && <div role="alert" className="takeoff-notice">
+@@ -50,6 +60,13 @@ export function SourceTakeoffPanel() {
+       <button className="pill" onClick={() => { setSession(restoreTakeoff(window.localStorage, projectId)); setMessage(""); }}>Retry restore</button>
+     </div>}
+     <p role="status" className="takeoff-save-status">{message || (session.blocked ? "Prepared reference counts shown below; saved inventory could not be loaded." : session.raw ? "Saved inventory restored for this drawing." : "Prepared source counts. Save inventory to keep this takeoff in the project.")}</p>
++    <nav className="takeoff-filters" aria-label="Inventory views">
++      <button className="pill" aria-pressed={tab === "counts"} disabled={materialEditing} onClick={() => setTab("counts")}>Drawing allowances</button>
++      <button className="pill" aria-pressed={tab === "materials"} onClick={() => setTab("materials")}>Materials & storage</button>
++    </nav>
++    {materialEditing && <p className="takeoff-help">Save material or cancel changes below before switching inventory views or exporting.</p>}
++    {tab === "materials" && <MaterialRegisterPanel inventory={inventory} blocked={session.blocked || !sourceReady} onSave={saveMaterials} onEditingChange={setMaterialEditing} />}
++    <div hidden={tab !== "counts"} className="takeoff-count-view">
+     <div className="takeoff-summary">
+       <div><span>Entrance allowances</span><strong>{number(inventory.rows.filter(r => r.id.endsWith("entrance")).every(r => rowQuantity(r) !== null) ? inventory.rows.filter(r => r.id.endsWith("entrance")).reduce((sum, r) => sum + rowQuantity(r)!, 0) : null)}</strong><small>Inferred from units/rooms · not door leaves</small></div>
+       <div><span>Uncounted groups</span><strong>{inventory.rows.filter(r => r.countPerFloor === null).length}</strong><small>Unknown quantities stay visible</small></div>
+@@ -78,6 +95,7 @@ export function SourceTakeoffPanel() {
+         <TakeoffEditor key={`${row.id}:${row.revision}`} row={row} blocked={session.blocked || !sourceReady} onSave={save} />
+       </aside>
+     </div>
++    </div>
+   </section>;
+ }
+ 
+diff --git a/proof/audit/IW-MATERIAL-REGISTER/takeoff-before.ts b/src/studio/construction/altitudeTakeoff.ts
+index f0c90a4..ef4269e 100644
+--- a/proof/audit/IW-MATERIAL-REGISTER/takeoff-before.ts
++++ b/src/studio/construction/altitudeTakeoff.ts
+@@ -1,4 +1,5 @@
+ import { z } from "zod";
++import { materialLinesSchema } from "./materialRegister.ts";
+ 
+ export const ALTITUDE_SHA = "0136bfd4e943f648a74ce0877e5c20ea835b045a679483f465f0a1738a6805a7";
+ const residentialFloors = [...Array.from({ length: 23 }, (_, i) => i + 8), 44, 45, 46, 47, 48];
+@@ -39,7 +40,7 @@ const rowSchema = z.object({
+   stock: stockInputSchema,
+ }).strict();
+ export type TakeoffRow = z.infer<typeof rowSchema>;
+-export const takeoffSchema = z.object({
++const legacyTakeoffSchema = z.object({
+   schema: z.literal("xray.source-takeoff/v1"),
+   sourceSha256: z.literal(ALTITUDE_SHA),
+   projectId: z.string().min(1), revision: z.number().int().positive(),
+@@ -53,9 +54,21 @@ export const takeoffSchema = z.object({
+     if (row.review === "reviewed" && (row.countPerFloor === null || !row.note.trim())) ctx.addIssue({ code: "custom", message: "Review needs a count and a note; unknown is not zero." });
+   }
+ });
++const currentTakeoffSchema = z.object({
++  ...legacyTakeoffSchema.shape, schema: z.literal("xray.source-takeoff/v2"), materials: materialLinesSchema,
++}).strict().superRefine((value, ctx) => {
++  const { materials: _materials, ...old } = value;
++  const validated = legacyTakeoffSchema.safeParse({ ...old, schema: "xray.source-takeoff/v1" });
++  if (!validated.success) for (const issue of validated.error.issues) ctx.addIssue({ code: "custom", path: issue.path, message: issue.message });
++});
++// Validate the entire old snapshot before upgrading. No migration write occurs on read.
++export const takeoffSchema = z.union([
++  currentTakeoffSchema,
++  legacyTakeoffSchema.transform(value => ({ ...value, schema: "xray.source-takeoff/v2" as const, materials: [] })),
++]);
+ export type SourceTakeoff = z.infer<typeof takeoffSchema>;
+ export function createAltitudeTakeoff(projectId: string): SourceTakeoff {
+-  return takeoffSchema.parse({ schema: "xray.source-takeoff/v1", sourceSha256: ALTITUDE_SHA, projectId, revision: 1,
++  return takeoffSchema.parse({ schema: "xray.source-takeoff/v2", materials: [], sourceSha256: ALTITUDE_SHA, projectId, revision: 1,
+     rows: TAKEOFF_DEFINITIONS.map(d => ({ id: d.id, countPerFloor: d.observed, revision: 1, review: "pending", note: "",
+       stock: { unitsPerPackage: null, lengthM: null, widthM: null, heightM: null, unitWeightKg: null, reference: "" } })) });
+ }
+diff --git a/proof/audit/IW-MATERIAL-REGISTER/package-before.json b/package.json
+index 27041ce..3387a83 100644
+--- a/proof/audit/IW-MATERIAL-REGISTER/package-before.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/proof/audit/IW-MATERIAL-REGISTER/styles-before.css b/src/styles.css
+index 8307f02..dfd34f9 100644
+--- a/proof/audit/IW-MATERIAL-REGISTER/styles-before.css
++++ b/src/styles.css
+@@ -938,3 +938,21 @@
+ .takeoff-editor .takeoff-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+ @media (max-width: 1050px) { .takeoff-layout { grid-template-columns: 1fr; } .takeoff-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+ @media (max-width: 430px) { .takeoff-input-grid { grid-template-columns: 1fr; } .takeoff-summary strong { font-size: 1.3rem; } .takeoff-row { padding: .75rem; } }
++
++/* Actual material register, separate from drawing allowances. */
++.takeoff-count-view:not([hidden]), .material-register { display: grid; gap: 1rem; }
++.material-register h2 { font-size: 1.3rem; font-weight: 650; }
++.material-register h3 { font-size: 1.1rem; font-weight: 650; }
++.material-empty { background: var(--color-card); border: 1px solid var(--color-line); border-radius: .75rem; padding: 2rem; display: grid; gap: .75rem; }
++.material-empty p { max-width: 65ch; font-size: .9rem; line-height: 1.5; }
++.material-lines { display: grid; gap: .5rem; }
++.material-line { display: grid; grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr) minmax(120px, 1fr); gap: 1rem; text-align: left; border: 1px solid var(--color-line); border-radius: .75rem; padding: 1rem; background: var(--color-card); color: var(--color-ink); }
++.material-line b, .material-line small { display: block; overflow-wrap: anywhere; }
++.material-line b { font-size: .95rem; }
++.material-line small { font-size: .8rem; color: var(--color-muted); margin-top: .35rem; }
++.material-editor { padding: 1.25rem; border: 1px solid var(--color-line); border-radius: .75rem; background: var(--color-card); }
++.material-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
++.material-editor select { min-height: 44px; border: 1px solid var(--color-line); border-radius: .4rem; background: var(--color-paper); color: var(--color-ink); padding: .65rem; min-width: 0; }
++.material-preview { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem; background: var(--color-paper); border-radius: .4rem; font-size: .9rem; }
++.material-preview b { display: block; margin-top: .25rem; }
++@media (max-width: 650px) { .material-line { grid-template-columns: 1fr 1fr; } .material-line > span:first-child { grid-column: 1 / -1; } .material-editor-grid { grid-template-columns: 1fr; } .material-empty { padding: 1rem; } }
+diff --git a/src/studio/MaterialRegisterPanel.tsx b/src/studio/MaterialRegisterPanel.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/studio/MaterialRegisterPanel.tsx
+@@ -0,0 +1,77 @@
++import { useState } from "react";
++import { Download, Plus } from "lucide-react";
++import { MATERIAL_UNITS, materialErrorMessage, materialLineSchema, materialLineTotals, materialRegisterCsv, materialRegisterTotals, newMaterialLine, saveMaterialLine, type MaterialLine } from "./construction/materialRegister";
++import type { SourceTakeoff } from "./construction/altitudeTakeoff";
++
++const display = (n: number | null, unit = "") => n === null ? "Unknown" : `${n > 0 && n < .001 ? n.toPrecision(3) : n.toLocaleString(undefined, { maximumFractionDigits: 3 })}${unit}`;
++export function MaterialRegisterPanel({ inventory, blocked, onSave, onEditingChange }: {
++  inventory: SourceTakeoff; blocked: boolean; onSave: (materials: MaterialLine[]) => string | null; onEditingChange: (editing: boolean) => void;
++}) {
++  const [editing, setEditing] = useState<MaterialLine | null>(null);
++  const [status, setStatus] = useState("");
++  function edit(line: MaterialLine | null) { setEditing(line); onEditingChange(line !== null); }
++  const totals = materialRegisterTotals(inventory.materials);
++  function exportCsv() {
++    const url = URL.createObjectURL(new Blob([materialRegisterCsv(inventory.materials, inventory)], { type: "text/csv;charset=utf-8" }));
++    const link = document.createElement("a"); link.href = url; link.download = "altitude-material-register.csv"; link.click(); URL.revokeObjectURL(url);
++  }
++  function save(draft: MaterialLine) {
++    try {
++      const lines = saveMaterialLine(inventory.materials, draft), error = onSave(lines);
++      if (error) return error;
++      edit(null); setStatus("Material saved to this project. Quantities and packaging will be restored after reload."); return null;
++    } catch (error) { return materialErrorMessage(error); }
++  }
++  return <section aria-label="Material register" className="material-register">
++    <div className="takeoff-heading"><div><h2>Materials & storage</h2><p>Actual stock lines from schedules, orders or suppliers. Inferred door allowances are not added to this list.</p></div>
++      <div className="takeoff-actions"><button className="pill" disabled={blocked || editing !== null} onClick={() => { edit(newMaterialLine(crypto.randomUUID())); setStatus(""); }}><Plus size={15} /> Add material</button>
++        <button className="pill" disabled={blocked || inventory.materials.length === 0 || editing !== null} onClick={exportCsv}><Download size={15} /> Export materials CSV</button></div></div>
++    <div className="takeoff-summary">
++      <div><span>Stock lines</span><strong>{totals.lineCount}</strong><small>Each stock code is counted once</small></div>
++      <div><span>{totals.volumeComplete ? "Listed stock volume" : "Known stock volume"}</span><strong>{display(totals.knownVolumeM3, " m³")}</strong><small>{totals.volumeCoverage} / {totals.lineCount} lines have calculable volume</small></div>
++      <div><span>{totals.weightComplete ? "Listed specified weight" : "Known specified weight"}</span><strong>{display(totals.knownWeightKg, " kg")}</strong><small>{totals.weightCoverage} / {totals.lineCount} lines have calculable weight</small></div>
++      <div><span>Coverage</span><strong>{totals.lineCount === 0 ? "Not entered" : totals.volumeComplete && totals.weightComplete ? "Listed lines" : "Partial"}</strong><small>Whole-building completeness is not established</small></div>
++    </div>
++    <p className="takeoff-boundary">Storage uses whole package counts, rounded up, and the supplied outer dimensions. Unit-based weight uses the stock quantity; package-based weight uses whole packs. A partially filled last pack may weigh less than the full-pack estimate. Aisles, stacking restrictions and handling space are not included.</p>
++    {status && <p role="status">{status}</p>}
++    {editing ? <MaterialEditor key={`${editing.id}:${editing.revision}`} line={editing} blocked={blocked} onSave={save} onCancel={() => edit(null)} /> :
++      inventory.materials.length === 0 ? <div className="material-empty"><h3>No stock list entered yet</h3><p>Add the first material using its actual quantity and a schedule or supplier reference. Dimensions and weight can stay blank until specified.</p><p>The tower's design-guidance PDF does not supply a material order.</p></div> :
++        <div className="material-lines">{inventory.materials.map(line => {
++          const t = materialLineTotals(line);
++          return <button className="material-line" key={line.id} onClick={() => { edit(line); setStatus(""); }}>
++            <span><b>{line.description}</b><small>{line.stockCode} · revision {line.revision}</small><small>{line.reference}</small></span>
++            <span><b>{display(line.quantity)} {MATERIAL_UNITS[line.unit]}</b><small>{display(t.packageCount)} packages</small></span>
++            <span><b>{display(t.volumeM3, " m³")}</b><small>{display(t.weightKg, " kg")}</small></span>
++          </button>;
++        })}</div>}
++  </section>;
++}
++
++function MaterialEditor({ line, blocked, onSave, onCancel }: {
++  line: MaterialLine; blocked: boolean; onSave: (draft: MaterialLine) => string | null; onCancel: () => void;
++}) {
++  const [draft, setDraft] = useState(line), [error, setError] = useState<string | null>(null);
++  const preview = materialLineSchema.safeParse({ ...draft, stockCode: draft.stockCode.trim() || "preview", description: draft.description.trim() || "preview", reference: draft.reference.trim() || "preview" });
++  const totals = preview.success ? materialLineTotals(preview.data) : { packageCount: null, volumeM3: null, weightKg: null };
++  function numeric(key: "quantity" | "unitsPerPackage" | "lengthM" | "widthM" | "heightM" | "specifiedWeightKg", label: string) {
++    return <label key={key}>{label}<input type="number" aria-label={label} disabled={key === "specifiedWeightKg" && draft.unit === "kg" && draft.weightBasis === "unit"} min={key === "quantity" ? 0 : key === "unitsPerPackage" && draft.unit === "each" ? 1 : .000001} max={1e9} step={draft.unit === "each" && ["quantity", "unitsPerPackage"].includes(key) ? 1 : "any"} value={draft[key] ?? ""} placeholder="Unknown" onChange={e => setDraft({ ...draft, [key]: e.target.value === "" ? null : Number(e.target.value) })} /></label>;
++  }
++  return <form className="takeoff-editor material-editor" onSubmit={e => { e.preventDefault(); setError(onSave(draft)); }}>
++    <h3>{line.description ? "Edit material" : "Add material"}</h3>
++    <div className="material-editor-grid">
++      <label>Stock code / order line<input aria-label="Stock code / order line" value={draft.stockCode} maxLength={100} required onChange={e => setDraft({ ...draft, stockCode: e.target.value })} /></label>
++      <label>Material description<input aria-label="Material description" value={draft.description} maxLength={300} required onChange={e => setDraft({ ...draft, description: e.target.value })} /></label>
++      {numeric("quantity", "Stock quantity")}
++      <label>Quantity unit<select aria-label="Quantity unit" value={draft.unit} onChange={e => setDraft({ ...draft, unit: e.target.value as MaterialLine["unit"], specifiedWeightKg: e.target.value === "kg" && draft.weightBasis === "unit" ? null : draft.specifiedWeightKg })}>{Object.entries(MATERIAL_UNITS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
++      {numeric("unitsPerPackage", `Quantity per package (${MATERIAL_UNITS[draft.unit]})`)}
++      {numeric("lengthM", "Outer package length (m)")}{numeric("widthM", "Outer package width (m)")}{numeric("heightM", "Outer package height (m)")}
++      {numeric("specifiedWeightKg", "Specified weight (kg)")}
++      <label>Weight applies to<select aria-label="Weight applies to" value={draft.weightBasis} onChange={e => setDraft({ ...draft, weightBasis: e.target.value as MaterialLine["weightBasis"], specifiedWeightKg: e.target.value === "unit" && draft.unit === "kg" ? null : draft.specifiedWeightKg })}><option value="unit">One {MATERIAL_UNITS[draft.unit]} of stock</option><option value="package">One full package</option></select></label>
++    </div>
++    <label>Schedule / order / supplier reference<textarea aria-label="Schedule / order / supplier reference" required maxLength={2000} value={draft.reference} placeholder="Document, revision and line/page; include the source of packaging and weight" onChange={e => setDraft({ ...draft, reference: e.target.value })} /></label>
++    <div className="material-preview" aria-label="Material calculation preview"><span>Packages <b>{display(totals.packageCount)}</b></span><span>Packed volume <b>{display(totals.volumeM3, " m³")}</b></span><span>Specified weight <b>{display(totals.weightKg, " kg")}</b></span></div>
++    <p className="takeoff-help">Preview uses this unsaved line only. Stock entered in kg already gives its unit-based weight. No packing density is inferred. A zero stock quantity contributes zero; blanks remain unknown.</p>
++    {error && <p role="alert" className="takeoff-notice">{error}</p>}
++    <div className="takeoff-actions"><button className="pill" disabled={blocked} type="submit">Save material</button><button className="pill" type="button" onClick={onCancel}>Cancel changes</button></div>
++  </form>;
++}
+diff --git a/src/studio/construction/materialRegister.ts b/src/studio/construction/materialRegister.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/construction/materialRegister.ts
+@@ -0,0 +1,83 @@
++import { z } from "zod";
++
++const positive = z.number().finite().min(.000001).max(1e9).nullable();
++export const materialLineSchema = z.object({
++  id: z.string().min(1).max(100),
++  stockCode: z.string().trim().min(1, "Enter a unique stock code or order line.").max(100),
++  description: z.string().trim().min(1, "Enter a material description.").max(300),
++  quantity: z.number().finite().nonnegative().max(1e9).nullable(),
++  unit: z.enum(["each", "m", "m2", "m3", "kg"]),
++  unitsPerPackage: positive,
++  lengthM: positive, widthM: positive, heightM: positive,
++  specifiedWeightKg: positive,
++  weightBasis: z.enum(["unit", "package"]),
++  reference: z.string().trim().min(1, "Add the source schedule, order or supplier reference.").max(2000),
++  revision: z.number().int().positive(),
++}).strict().superRefine((line, ctx) => {
++  if (line.unit === "each" && line.quantity !== null && !Number.isInteger(line.quantity))
++    ctx.addIssue({ code: "custom", path: ["quantity"], message: "Each quantities must be whole numbers." });
++  if (line.unit === "each" && line.unitsPerPackage !== null && !Number.isInteger(line.unitsPerPackage))
++    ctx.addIssue({ code: "custom", path: ["unitsPerPackage"], message: "A package must cover a whole number of items." });
++  if (line.unit === "kg" && line.weightBasis === "unit" && line.specifiedWeightKg !== null && line.specifiedWeightKg !== 1)
++    ctx.addIssue({ code: "custom", path: ["specifiedWeightKg"], message: "Stock measured in kg already specifies its unit weight. Use package weight for gross packed weight." });
++});
++export type MaterialLine = z.infer<typeof materialLineSchema>;
++export function materialErrorMessage(error: unknown): string {
++  return error instanceof z.ZodError ? error.issues.map(issue => issue.message).join(" ") : error instanceof Error ? error.message : String(error);
++}
++export const materialLinesSchema = z.array(materialLineSchema).max(5000).superRefine((lines, ctx) => {
++  const ids = new Set<string>(), codes = new Set<string>();
++  for (const line of lines) {
++    const code = line.stockCode.toLowerCase();
++    if (ids.has(line.id) || codes.has(code)) ctx.addIssue({ code: "custom", message: `Duplicate material line: ${line.stockCode}. Edit the existing line or use its distinct order-line reference.` });
++    ids.add(line.id); codes.add(code);
++  }
++});
++export function newMaterialLine(id: string): MaterialLine {
++  return { id, stockCode: "", description: "", quantity: null, unit: "each", unitsPerPackage: null, lengthM: null, widthM: null,
++    heightM: null, specifiedWeightKg: null, weightBasis: "unit", reference: "", revision: 1 };
++}
++export function saveMaterialLine(lines: MaterialLine[], draft: MaterialLine): MaterialLine[] {
++  const previous = lines.find(line => line.id === draft.id);
++  if (previous && previous.revision !== draft.revision) throw Error("This material changed since it was opened. Cancel changes and reopen the latest line.");
++  const next = materialLineSchema.parse({ ...draft, revision: previous ? previous.revision + 1 : 1 });
++  return materialLinesSchema.parse(previous ? lines.map(line => line.id === next.id ? next : line) : [...lines, next]);
++}
++export function materialLineTotals(line: MaterialLine) {
++  const q = line.quantity;
++  const ratio = q === null || line.unitsPerPackage === null ? null : q / line.unitsPerPackage;
++  // Decimal stock units can put an exact whole-pack quotient just above an integer.
++  const roundedRatio = ratio === null ? null : Math.abs(ratio - Math.round(ratio)) <= Number.EPSILON * Math.max(1, Math.abs(ratio)) * 4 ? Math.round(ratio) : Math.ceil(ratio);
++  const packageCount = q === 0 ? 0 : roundedRatio;
++  const volumeM3 = q === 0 ? 0 : packageCount === null || line.lengthM === null || line.widthM === null || line.heightM === null ? null : packageCount * line.lengthM * line.widthM * line.heightM;
++  const weightMultiplier = line.weightBasis === "unit" ? q : packageCount;
++  const weightKg = q === 0 ? 0 : line.weightBasis === "unit" && line.unit === "kg" ? q : line.specifiedWeightKg === null || weightMultiplier === null ? null : line.specifiedWeightKg * weightMultiplier;
++  const packageCapacityQuantity = packageCount === null || line.unitsPerPackage === null ? null : packageCount * line.unitsPerPackage;
++  return { packageCount, volumeM3, weightKg, packageCapacityQuantity };
++}
++export function materialRegisterTotals(lines: MaterialLine[]) {
++  const calculated = lines.map(line => ({ id: line.id, ...materialLineTotals(line) }));
++  const volumes = calculated.filter(line => line.volumeM3 !== null), weights = calculated.filter(line => line.weightKg !== null);
++  return {
++    lineCount: lines.length, volumeCoverage: volumes.length, weightCoverage: weights.length,
++    knownVolumeM3: volumes.length ? volumes.reduce((sum, line) => sum + line.volumeM3!, 0) : null,
++    knownWeightKg: weights.length ? weights.reduce((sum, line) => sum + line.weightKg!, 0) : null,
++    volumeComplete: lines.length > 0 && volumes.length === lines.length,
++    weightComplete: lines.length > 0 && weights.length === lines.length,
++  };
++}
++export const MATERIAL_UNITS = { each: "each", m: "m", m2: "m²", m3: "m³", kg: "kg" } as const;
++export function materialRegisterCsv(lines: MaterialLine[], context: { projectId: string; sourceSha256: string }): string {
++  const cell = (value: unknown) => {
++    let text = value === null || value === undefined ? "" : String(value);
++    // Spreadsheet programs must treat user descriptions as data, not formulas.
++    if (/^[\s]*[=+@-]/.test(text)) text = `'${text}`;
++    return `"${text.replaceAll('"', '""')}"`;
++  };
++  const headers = ["Stock code", "Description", "Stock quantity", "Unit", "Units per package", "Package length m", "Package width m", "Package height m", "Package count", "Capacity of counted packages", "Storage m3", "Specified kg", "Weight basis", "Calculated weight kg", "Source reference", "Revision", "Project", "Drawing SHA-256"];
++  return "\uFEFF" + [headers, ...lines.map(line => {
++    const t = materialLineTotals(line);
++    return [line.stockCode, line.description, line.quantity, line.unit, line.unitsPerPackage, line.lengthM, line.widthM, line.heightM,
++      t.packageCount, t.packageCapacityQuantity, t.volumeM3, line.specifiedWeightKg, line.weightBasis, t.weightKg, line.reference, line.revision, context.projectId, context.sourceSha256];
++  })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
+diff --git a/src/studio/construction/materialRegister.test.ts b/src/studio/construction/materialRegister.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/construction/materialRegister.test.ts
+@@ -0,0 +1,81 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { materialLineSchema, materialLinesSchema, materialLineTotals, materialRegisterCsv, materialRegisterTotals, newMaterialLine, saveMaterialLine } from "./materialRegister.ts";
++import { createAltitudeTakeoff, persistTakeoff, restoreTakeoff, takeoffKey, takeoffSchema, updateTakeoffRow } from "./altitudeTakeoff.ts";
++
++function fixture() {
++  return materialLineSchema.parse({ ...newMaterialLine("stock-one"), stockCode: "A-01", description: "QA synthetic material", quantity: 23,
++    unitsPerPackage: 10, lengthM: 2, widthM: 1, heightM: .5, specifiedWeightKg: 4, reference: "QA fixture only" });
++}
++test("stock packages round up; unit weight differs from full-package weight", () => {
++  const line = fixture();
++  assert.deepEqual(materialLineTotals(line), { packageCount: 3, packageCapacityQuantity: 30, volumeM3: 3, weightKg: 92 });
++  assert.equal(materialLineTotals({ ...line, weightBasis: "package", specifiedWeightKg: 50 }).weightKg, 150);
++});
++test("decimal bulk units avoid spurious extra packs while partial packs still round up", () => {
++  const line = { ...fixture(), unit: "m3" as const, quantity: .28, unitsPerPackage: .01 };
++  assert.equal(materialLineTotals(line).packageCount, 28);
++  assert.equal(materialLineTotals({ ...line, quantity: .281 }).packageCount, 29);
++});
++test("empty and unknown material list cannot report a complete zero total", () => {
++  assert.equal(materialRegisterTotals([]).knownVolumeM3, null);
++  assert.equal(materialRegisterTotals([]).volumeComplete, false);
++  const unknown = { ...fixture(), id: "unknown", stockCode: "B", quantity: null };
++  const totals = materialRegisterTotals([fixture(), unknown]);
++  assert.equal(totals.knownVolumeM3, 3);
++  assert.equal(totals.volumeCoverage, 1);
++  assert.equal(totals.volumeComplete, false);
++  assert.equal(materialLineTotals({ ...fixture(), quantity: 0, lengthM: null, specifiedWeightKg: null }).weightKg, 0);
++  assert.equal(materialLineTotals({ ...fixture(), quantity: 0, unitsPerPackage: null }).packageCount, 0);
++});
++test("weight can be specified without packing dimensions; package weights need capacity", () => {
++  assert.equal(materialLineTotals({ ...fixture(), lengthM: null }).weightKg, 92);
++  assert.equal(materialLineTotals({ ...fixture(), lengthM: null }).volumeM3, null);
++  assert.equal(materialLineTotals({ ...fixture(), weightBasis: "package", unitsPerPackage: null }).weightKg, null);
++});
++test("a stock quantity specified in kg is already a weight; no density is inferred", () => {
++  const line = { ...fixture(), unit: "kg" as const, quantity: 125, specifiedWeightKg: null };
++  assert.equal(materialLineTotals(line).weightKg, 125);
++  assert.equal(materialLineSchema.safeParse({ ...line, specifiedWeightKg: 2 }).success, false);
++});
++test("duplicate stock codes/IDs, invalid quantities and missing sources are rejected", () => {
++  assert.equal(materialLinesSchema.safeParse([fixture(), { ...fixture(), id: "second", stockCode: " a-01 " }]).success, false);
++  assert.equal(materialLinesSchema.safeParse([fixture(), { ...fixture(), stockCode: "other" }]).success, false);
++  for (const patch of [{ quantity: -1 }, { quantity: 1.5 }, { unitsPerPackage: 0 }, { lengthM: Infinity }, { reference: " " }])
++    assert.equal(materialLineSchema.safeParse({ ...fixture(), ...patch }).success, false);
++});
++test("edits advance revision and reject a stale material editor", () => {
++  const next = saveMaterialLine([fixture()], { ...fixture(), quantity: 24 });
++  assert.equal(next.length, 1); assert.equal(next[0].revision, 2);
++  assert.throws(() => saveMaterialLine(next, { ...fixture(), quantity: 25 }), /changed since/);
++});
++test("CSV preserves quantities, escaping, unknown blanks and source identity without formulas", () => {
++  const csv = materialRegisterCsv([{ ...fixture(), description: '=HYPERLINK("x")', reference: 'Sheet 1, line 2\nQA' }], { projectId: "job", sourceSha256: "source-hash" });
++  assert.ok(csv.startsWith('\uFEFF"Stock code"'));
++  assert.ok(csv.includes('"\'=HYPERLINK(""x"")"'));
++  assert.ok(csv.includes('"Sheet 1, line 2\nQA"'));
++  assert.ok(csv.includes('"3","30","3","4","unit","92"'));
++  assert.ok(csv.includes('"job","source-hash"'));
++});
++test("validated v1 upgrade preserves existing rows/reviews/stock and does not write on restore", () => {
++  let value = createAltitudeTakeoff("job");
++  value = updateTakeoffRow(value, { ...value.rows[0], review: "reviewed", note: "Reviewed legacy count" });
++  const { materials: _materials, ...base } = value;
++  const legacy = { ...base, schema: "xray.source-takeoff/v1" };
++  const raw = JSON.stringify(legacy), data = new Map([[takeoffKey("job"), raw]]);
++  const db = { getItem(k: string) { return data.get(k) ?? null; }, setItem(k: string, v: string) { data.set(k, v); } };
++  const session = restoreTakeoff(db, "job");
++  assert.equal(session.blocked, false); assert.equal(session.value.schema, "xray.source-takeoff/v2");
++  assert.deepEqual(session.value.rows, legacy.rows); assert.deepEqual(session.value.materials, []);
++  assert.equal(data.get(takeoffKey("job")), raw);
++  const saved = persistTakeoff(db, session, { ...session.value, materials: [fixture()] });
++  assert.equal(saved.error, null);
++  const reloaded = restoreTakeoff(db, "job");
++  assert.deepEqual(reloaded.value.materials, [fixture()]); assert.deepEqual(reloaded.value.rows, legacy.rows);
++});
++test("malformed v1 and invalid v2 material collections fail closed", () => {
++  const value = createAltitudeTakeoff("job"), { materials: _materials, ...base } = value;
++  assert.equal(takeoffSchema.safeParse({ ...base, schema: "xray.source-takeoff/v1", unrecognisedData: "must not be discarded" }).success, false);
++  assert.equal(takeoffSchema.safeParse({ ...value, materials: [fixture(), fixture()] }).success, false);
++  assert.equal(takeoffSchema.safeParse({ ...value, schema: "xray.source-takeoff/v99" }).success, false);
++});

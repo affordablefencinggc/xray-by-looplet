@@ -1,0 +1,1 @@
+﻿import fs from 'node:fs';const p='package.json';fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace('src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts','src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts'));

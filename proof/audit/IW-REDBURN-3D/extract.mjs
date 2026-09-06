@@ -1,0 +1,2 @@
+﻿import fs from 'node:fs';import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
+const doc=await getDocument({data:new Uint8Array(fs.readFileSync('public/models/redburn/source.pdf')),useSystemFonts:true}).promise;console.log('pages',doc.numPages);const pages=[];for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i),text=(await p.getTextContent()).items.map(x=>x.str).join(' ');pages.push({page:i,view:p.view,text});console.log(i,text.slice(0,190));}fs.writeFileSync('proof/audit/IW-REDBURN-3D/source-text.json',JSON.stringify(pages,null,2));await doc.destroy();

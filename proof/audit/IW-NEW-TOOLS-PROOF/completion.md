@@ -1,0 +1,23 @@
+# New tools: executed proof and mobile 3D repair
+
+Authorized by user: "continue on after that all the way through to testing out each new tool with proof", 2026-09-06. Adopted feat/model-wireframe-navigation at 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe. No staging, commit, merge or publication; unrelated shared changes preserved.
+
+The audit covers the new takeoff/material flows, repaired component inventory behaviors, complex-plan handling and existing requested 3D view/export controls. [Per-tool matrix and artifacts](../../../output/takeoff/tool-proof.md).
+
+**Found and fixed:** the source-building grid reserved 140px and 235px for side panels at 390px viewport width, collapsing the canvas and intercepting model-control clicks. The regression failed against the prior built app (model-before.json and screenshots/new-tools-proof/model-mobile-before.png). At widths up to 900px the model now occupies the full content width, controls have their own flow above the canvas, and evidence/source navigation follow below. Touch controls are at least 44px high; model canvas is at least 300px high. Desktop layout is retained.
+
+Exact product delta: [mobile-model-repair.patch](mobile-model-repair.patch). Original CSS is sourceBuilding-before.css. Final source, patch and replay-script hashes: [source-hashes.json](source-hashes.json). Replay scripts: controls-proof.mjs and model-proof.mjs. No other product edits were needed in this audit.
+
+**Executed:** 20 real-plan/count/material scenarios and 9 model scenarios pass in each environment. The 20 scenarios test actual Altitude import, every category, evidence disclosure, count/review/packaging validation, unknown/zero distinction, all five stock units, both weight bases, CSV escaping and source identity, full JSON export, conflicting-save recovery, reload/mobile export/navigation, six distant PDF pages, and oversized-file rejection preserving existing work. The 9 model scenarios cover real Caroline source matching, rendering, visual presets, solid/wireframe, plan/orbit, floors/roof, cutaway/explode, actual pointer orbit/wheel zoom/Fit, PNG and SVG exports, and mobile controls. Mobile viewport geometry is explicitly checked; no forced clicks bypassed the original defect.
+
+Latest reports: screenshots/new-tools-proof/{dev,built,model-dev,model-built}/report.json. Model PNGs include source attribution and are actual viewer exports. SVG was downloaded, parsed and reopened in the browser for a visually inspected render. All stock fixtures are fictional QA lines in isolated browser contexts. The intentional oversized-file error is an expected product validation notice; uncaught browser and console error arrays are empty.
+
+Earlier integrity, material persistence and takeoff regression flows were also rerun against the current source/build before the final CSS-only repair. These verify demo fastener filtering, revision/re-review/RFI behavior, unavailable-document evidence, protected restore, v1 migration, rejected writes, retries, duplicates and drawing isolation. Final built count and model audits were rerun after the CSS repair and rebuild.
+
+**Machine:** build exit 0 (build-exit.json/build.txt), typecheck pass (typecheck.txt), 198 script tests + 356 TypeScript tests = 554 passed (tests.txt), git diff --check pass. Build uses existing npm scripts. Development server and fresh built preview remain running.
+
+**Visual:** dev and built desktop/mobile screenshots inspected. Generic smoke also renders content with no uncaught errors or overflow. Its baseline comparison retains development-only diagnostic/annotation canvas/text differences and its branding heuristic misclassifies this utility canvas as a game; do not describe generic comparison as clean parity. Browser replay used the documented Playwright/Edge fallback because agent-browser is absent.
+
+**Audit adjustments:** initial assertions incorrectly expected a changed unknown count to be rejected rather than saved pending review, expected a newline in a single-line input, and expected an optional page-count suffix in the caption. Assertions were corrected to the intended contracts and actual source identity; the separate second attempt to approve an unknown count is still rejected. These were harness expectations, not product fixes. The mobile model failure was a reproduced product defect and was repaired.
+
+**Limits:** Altitude is 2015 early-design guidance. Actual construction stock, full verified counts, storage/weight totals and a source-derived Altitude 3D model remain unestablished. Caroline's curated approximate 1,180-part model is not the tower. No unrelated app-wide or construction-authority completion is claimed.

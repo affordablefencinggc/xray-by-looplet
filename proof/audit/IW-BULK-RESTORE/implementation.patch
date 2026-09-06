@@ -1,0 +1,499 @@
+diff --git a/proof/audit/IW-BULK-RESTORE/panel-before.tsx b/src/studio/SourceTakeoffPanel.tsx
+index 97a5e5b..69364a8 100644
+--- a/proof/audit/IW-BULK-RESTORE/panel-before.tsx
++++ b/src/studio/SourceTakeoffPanel.tsx
+@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
+ import { ArrowUpRight, Download } from "lucide-react";
+ import { useStudio } from "./store";
+ import { MaterialRegisterPanel } from "./MaterialRegisterPanel";
++import { TakeoffTransferPanel } from "./TakeoffTransferPanel";
++import { applyTakeoffTransfer, type TransferPreview } from "./construction/takeoffTransfer";
+ import type { MaterialLine } from "./construction/materialRegister";
+ import { ALTITUDE_SHA, TAKEOFF_DEFINITIONS, persistTakeoff, restoreTakeoff, rowQuantity, stockTotals, updateTakeoffRow,
+   type TakeoffRow, type TakeoffSession } from "./construction/altitudeTakeoff";
+@@ -16,6 +18,8 @@ export function SourceTakeoffPanel() {
+   const [category, setCategory] = useState("All");
+   const [tab, setTab] = useState<"counts" | "materials">("counts");
+   const [materialEditing, setMaterialEditing] = useState(false);
++  const [transferEditing, setTransferEditing] = useState(false);
++  const [countDirty, setCountDirty] = useState(false);
+   const projectId = s.job.id;
+   useEffect(() => { setSession(restoreTakeoff(window.localStorage, projectId)); }, [projectId]);
+   if (!session) return <p role="status">Restoring source takeoff…</p>;
+@@ -46,13 +50,18 @@ export function SourceTakeoffPanel() {
+     setSession(saved);
+     return saved.error;
+   }
++  function applyTransfer(preview: TransferPreview): string | null {
++    if (!session || !sourceReady) return "Open the original drawing before importing.";
++    const saved = applyTakeoffTransfer(window.localStorage, session, preview, `${Date.now()}-${crypto.randomUUID()}`);
++    setSession(saved); setMessage(saved.error ? "" : "Imported inventory saved to this project."); return saved.error;
++  }
+   return <section className="source-takeoff" aria-label="Altitude source takeoff">
+     <header className="takeoff-heading">
+       <div><span className="kicker">Source takeoff · Altitude</span><h1>Counted from the tower drawings</h1>
+         <p>Preliminary · typical floors only · 15 December 2015 design guidance</p></div>
+       <div className="takeoff-actions">
+-        <button className="pill" onClick={() => save()} disabled={session.blocked || !sourceReady || materialEditing}>Save inventory</button>
+-        <button className="pill" onClick={exportInventory} disabled={session.blocked || materialEditing}><Download size={15} /> Export count</button>
++        <button className="pill" onClick={() => save()} disabled={session.blocked || !sourceReady || materialEditing || transferEditing || countDirty}>Save inventory</button>
++        <button className="pill" onClick={exportInventory} disabled={session.blocked || materialEditing || transferEditing || countDirty}><Download size={15} /> Export count</button>
+       </div>
+     </header>
+     {session.error && <div role="alert" className="takeoff-notice">
+@@ -60,12 +69,14 @@ export function SourceTakeoffPanel() {
+       <button className="pill" onClick={() => { setSession(restoreTakeoff(window.localStorage, projectId)); setMessage(""); }}>Retry restore</button>
+     </div>}
+     <p role="status" className="takeoff-save-status">{message || (session.blocked ? "Prepared reference counts shown below; saved inventory could not be loaded." : session.raw ? "Saved inventory restored for this drawing." : "Prepared source counts. Save inventory to keep this takeoff in the project.")}</p>
++    <TakeoffTransferPanel session={session} disabled={materialEditing || countDirty} sourceReady={sourceReady} onBusyChange={setTransferEditing} onApply={applyTransfer} />
++    {countDirty && <p className="takeoff-help">Save the edited group before importing or exporting inventory.</p>}
+     <nav className="takeoff-filters" aria-label="Inventory views">
+-      <button className="pill" aria-pressed={tab === "counts"} disabled={materialEditing} onClick={() => setTab("counts")}>Drawing allowances</button>
+-      <button className="pill" aria-pressed={tab === "materials"} onClick={() => setTab("materials")}>Materials & storage</button>
++      <button className="pill" aria-pressed={tab === "counts"} disabled={materialEditing || transferEditing} onClick={() => setTab("counts")}>Drawing allowances</button>
++      <button className="pill" aria-pressed={tab === "materials"} disabled={transferEditing || countDirty} onClick={() => setTab("materials")}>Materials & storage</button>
+     </nav>
+     {materialEditing && <p className="takeoff-help">Save material or cancel changes below before switching inventory views or exporting.</p>}
+-    {tab === "materials" && <MaterialRegisterPanel inventory={inventory} blocked={session.blocked || !sourceReady} onSave={saveMaterials} onEditingChange={setMaterialEditing} />}
++    {tab === "materials" && <MaterialRegisterPanel inventory={inventory} blocked={session.blocked || !sourceReady || transferEditing} onSave={saveMaterials} onEditingChange={setMaterialEditing} />}
+     <div hidden={tab !== "counts"} className="takeoff-count-view">
+     <div className="takeoff-summary">
+       <div><span>Entrance allowances</span><strong>{number(inventory.rows.filter(r => r.id.endsWith("entrance")).every(r => rowQuantity(r) !== null) ? inventory.rows.filter(r => r.id.endsWith("entrance")).reduce((sum, r) => sum + rowQuantity(r)!, 0) : null)}</strong><small>Inferred from units/rooms · not door leaves</small></div>
+@@ -79,7 +90,7 @@ export function SourceTakeoffPanel() {
+         <nav className="takeoff-filters" aria-label="Takeoff categories">{["All", "Doors", "Windows", "Structure"].map(c => <button className="pill" key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</nav>
+         {inventory.rows.filter(r => category === "All" || TAKEOFF_DEFINITIONS.find(d => d.id === r.id)!.category === category).map(r => {
+           const d = TAKEOFF_DEFINITIONS.find(d => d.id === r.id)!;
+-          return <button key={r.id} className="takeoff-row" aria-pressed={selected === r.id} onClick={() => { setSelected(r.id); setMessage(""); }}>
++          return <button key={r.id} className="takeoff-row" disabled={transferEditing} aria-pressed={selected === r.id} onClick={() => { setSelected(r.id); setMessage(""); }}>
+             <span><b>{d.name}</b><small>Page {d.page} · {r.countPerFloor === null ? "Count unresolved" : `${r.countPerFloor} per floor × ${d.floors.length} floors`}</small></span>
+             <span className="takeoff-row-total"><b>{number(rowQuantity(r))}</b><small>{r.review === "reviewed" ? "Count reviewed" : "Needs review"}</small></span>
+           </button>;
+@@ -89,18 +100,20 @@ export function SourceTakeoffPanel() {
+       <aside className="takeoff-inspector" aria-label="Takeoff inspector">
+         <span className="kicker">{def.category} · revision {row.revision}</span><h2>{def.name}</h2>
+         <p>{def.basis}</p>
+-        <button className="pill" disabled={!sourceReady} onClick={() => { if (sourceReady) { s.setSheet(def.page - 1); s.setPane("sheets"); } }}><ArrowUpRight size={15} /> View source page {def.page}</button>
++        <button className="pill" disabled={!sourceReady || transferEditing} onClick={() => { if (sourceReady) { s.setSheet(def.page - 1); s.setPane("sheets"); } }}><ArrowUpRight size={15} /> View source page {def.page}</button>
+         <details><summary>Included floors and evidence</summary><p>Floors {def.floors.join(", ")}</p><p>{activeDoc?.name}</p><p className="takeoff-hash">SHA-256 {ALTITUDE_SHA}</p></details>
+         <div className="takeoff-notice"><b>Still needed</b><p>{def.missing}</p></div>
+-        <TakeoffEditor key={`${row.id}:${row.revision}`} row={row} blocked={session.blocked || !sourceReady} onSave={save} />
++        <TakeoffEditor key={`${row.id}:${row.revision}`} row={row} blocked={session.blocked || !sourceReady || transferEditing} onSave={save} onDirtyChange={setCountDirty} />
+       </aside>
+     </div>
+     </div>
+   </section>;
+ }
+ 
+-function TakeoffEditor({ row, blocked, onSave }: { row: TakeoffRow; blocked: boolean; onSave: (row: TakeoffRow) => void }) {
+-  const [draft, setDraft] = useState(row);
++function TakeoffEditor({ row, blocked, onSave, onDirtyChange }: { row: TakeoffRow; blocked: boolean; onSave: (row: TakeoffRow) => void; onDirtyChange: (dirty: boolean) => void }) {
++  const [draft, updateDraft] = useState(row);
++  useEffect(() => { onDirtyChange(false); return () => onDirtyChange(false); }, [onDirtyChange]);
++  const setDraft = (next: TakeoffRow) => { updateDraft(next); onDirtyChange(JSON.stringify(next) !== JSON.stringify(row)); };
+   const stock = draft.stock;
+   return <form className="takeoff-editor" onSubmit={e => { e.preventDefault(); onSave(draft); }}>
+     <label>Count per typical floor<input type="number" min="0" max="100000" step="1" value={draft.countPerFloor ?? ""} placeholder="Unknown" onChange={e => setDraft({ ...draft, countPerFloor: e.target.value === "" ? null : Number(e.target.value) })} /></label>
+@@ -115,6 +128,6 @@ function TakeoffEditor({ row, blocked, onSave }: { row: TakeoffRow; blocked: boo
+       ] as const).map(([key, label, step]) => <label key={key}>{label}<input type="number" min={key === "unitsPerPackage" ? 1 : 0.000001} max={key === "unitsPerPackage" ? 1e6 : 1e9} step={step} value={stock[key] ?? ""} placeholder="Unknown" onChange={e => setDraft({ ...draft, stock: { ...stock, [key]: e.target.value === "" ? null : Number(e.target.value) } })} /></label>)}</div>
+       <label>Supplier / specification reference<textarea aria-label="Supplier / specification reference" maxLength={1000} value={stock.reference} placeholder="Source, product and what one package covers" onChange={e => setDraft({ ...draft, stock: { ...stock, reference: e.target.value } })} /></label>
+     </fieldset>
+-    <button className="pill" type="submit" disabled={blocked}>Save group</button>
++    <div className="takeoff-actions"><button className="pill" type="submit" disabled={blocked}>Save group</button><button className="pill" type="button" onClick={() => setDraft(row)}>Cancel group changes</button></div>
+   </form>;
+ }
+diff --git a/proof/audit/IW-BULK-RESTORE/material-before.ts b/src/studio/construction/materialRegister.ts
+index ff9e330..5451435 100644
+--- a/proof/audit/IW-BULK-RESTORE/material-before.ts
++++ b/src/studio/construction/materialRegister.ts
+@@ -71,13 +71,13 @@ export function materialRegisterCsv(lines: MaterialLine[], context: { projectId:
+   const cell = (value: unknown) => {
+     let text = value === null || value === undefined ? "" : String(value);
+     // Spreadsheet programs must treat user descriptions as data, not formulas.
+-    if (/^[\s]*[=+@-]/.test(text)) text = `'${text}`;
++    if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`;
+     return `"${text.replaceAll('"', '""')}"`;
+   };
+-  const headers = ["Stock code", "Description", "Stock quantity", "Unit", "Units per package", "Package length m", "Package width m", "Package height m", "Package count", "Capacity of counted packages", "Storage m3", "Specified kg", "Weight basis", "Calculated weight kg", "Source reference", "Revision", "Project", "Drawing SHA-256"];
++  const headers = ["Stock code", "Description", "Stock quantity", "Unit", "Units per package", "Package length m", "Package width m", "Package height m", "Package count", "Capacity of counted packages", "Storage m3", "Specified kg", "Weight basis", "Calculated weight kg", "Source reference", "Revision", "Project", "Drawing SHA-256", "Text encoding"];
+   return "\uFEFF" + [headers, ...lines.map(line => {
+     const t = materialLineTotals(line);
+     return [line.stockCode, line.description, line.quantity, line.unit, line.unitsPerPackage, line.lengthM, line.widthM, line.heightM,
+-      t.packageCount, t.packageCapacityQuantity, t.volumeM3, line.specifiedWeightKg, line.weightBasis, t.weightKg, line.reference, line.revision, context.projectId, context.sourceSha256];
++      t.packageCount, t.packageCapacityQuantity, t.volumeM3, line.specifiedWeightKg, line.weightBasis, t.weightKg, line.reference, line.revision, context.projectId, context.sourceSha256, "xray-apostrophe/v1"];
+   })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+ }
+diff --git a/proof/audit/IW-BULK-RESTORE/material-panel-before.tsx b/src/studio/MaterialRegisterPanel.tsx
+index 54754c3..b632aa5 100644
+--- a/proof/audit/IW-BULK-RESTORE/material-panel-before.tsx
++++ b/src/studio/MaterialRegisterPanel.tsx
+@@ -38,7 +38,7 @@ export function MaterialRegisterPanel({ inventory, blocked, onSave, onEditingCha
+       inventory.materials.length === 0 ? <div className="material-empty"><h3>No stock list entered yet</h3><p>Add the first material using its actual quantity and a schedule or supplier reference. Dimensions and weight can stay blank until specified.</p><p>The tower's design-guidance PDF does not supply a material order.</p></div> :
+         <div className="material-lines">{inventory.materials.map(line => {
+           const t = materialLineTotals(line);
+-          return <button className="material-line" key={line.id} onClick={() => { edit(line); setStatus(""); }}>
++          return <button className="material-line" disabled={blocked} key={line.id} onClick={() => { edit(line); setStatus(""); }}>
+             <span><b>{line.description}</b><small>{line.stockCode} · revision {line.revision}</small><small>{line.reference}</small></span>
+             <span><b>{display(line.quantity)} {MATERIAL_UNITS[line.unit]}</b><small>{display(t.packageCount)} packages</small></span>
+             <span><b>{display(t.volumeM3, " m³")}</b><small>{display(t.weightKg, " kg")}</small></span>
+diff --git a/proof/audit/IW-BULK-RESTORE/styles-before.css b/src/styles.css
+index dfd34f9..a877250 100644
+--- a/proof/audit/IW-BULK-RESTORE/styles-before.css
++++ b/src/styles.css
+@@ -943,6 +943,16 @@
+ .takeoff-count-view:not([hidden]), .material-register { display: grid; gap: 1rem; }
+ .material-register h2 { font-size: 1.3rem; font-weight: 650; }
+ .material-register h3 { font-size: 1.1rem; font-weight: 650; }
++.takeoff-transfer { display: grid; gap: .75rem; min-width: 0; }
++.takeoff-transfer .takeoff-actions { justify-content: flex-start; }
++.takeoff-transfer > .takeoff-editor { padding: 1rem; border: 1px solid var(--color-line); border-radius: .6rem; background: var(--color-card); }
++.takeoff-transfer h2 { font-size: 1.15rem; font-weight: 650; }
++.transfer-error { white-space: pre-wrap; overflow-wrap: anywhere; }
++.transfer-lines, .transfer-counts { display: grid; gap: .5rem; }
++.transfer-lines details, .transfer-counts details { border: 1px solid var(--color-line); border-radius: 6px; padding: .75rem; min-width: 0; overflow-wrap: anywhere; }
++.transfer-lines summary, .transfer-counts summary { cursor: pointer; min-height: 32px; }
++.transfer-field, .transfer-field-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; padding: .5rem 0; border-top: 1px solid var(--color-line); font-size: 12px; }
++.transfer-field span { white-space: pre-wrap; overflow-wrap: anywhere; }
+ .material-empty { background: var(--color-card); border: 1px solid var(--color-line); border-radius: .75rem; padding: 2rem; display: grid; gap: .75rem; }
+ .material-empty p { max-width: 65ch; font-size: .9rem; line-height: 1.5; }
+ .material-lines { display: grid; gap: .5rem; }
+diff --git a/proof/audit/IW-BULK-RESTORE/package-before.json b/package.json
+index 3387a83..d91aa30 100644
+--- a/proof/audit/IW-BULK-RESTORE/package-before.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/TakeoffTransferPanel.tsx b/src/studio/TakeoffTransferPanel.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/studio/TakeoffTransferPanel.tsx
+@@ -0,0 +1,85 @@
++import { useEffect, useRef, useState } from "react";
++import { TAKEOFF_DEFINITIONS, takeoffKey, type TakeoffSession } from "./construction/altitudeTakeoff";
++import { materialErrorMessage, MATERIAL_UNITS, type MaterialLine } from "./construction/materialRegister";
++import { TRANSFER_LIMIT_BYTES, BACKUP_LIMIT_BYTES, materialCsvTemplate, parseMaterialCsv, parseTakeoffBackup, previewBackupRestore, previewMaterialImport, takeoffBackup, type TransferPreview } from "./construction/takeoffTransfer";
++
++function download(text: string, name: string, type = "application/json") {
++  const url = URL.createObjectURL(new Blob([text], { type })); const link = document.createElement("a"); link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url);
++}
++const show = (v: unknown) => v === null || v === undefined || v === "" ? "Unknown" : String(v);
++const fields: [keyof MaterialLine, string][] = [["description", "Description"], ["quantity", "Quantity"], ["unit", "Unit"], ["unitsPerPackage", "Quantity per package"], ["lengthM", "Package length m"], ["widthM", "Package width m"], ["heightM", "Package height m"], ["specifiedWeightKg", "Specified kg"], ["weightBasis", "Weight applies to"], ["reference", "Source reference"]];
++type Selection = { name: string; session: TakeoffSession } & ({ kind: "csv"; lines: MaterialLine[] } | { kind: "backup"; backup: ReturnType<typeof parseTakeoffBackup> });
++
++export function TakeoffTransferPanel({ session, disabled, sourceReady, onBusyChange, onApply }: {
++  session: TakeoffSession; disabled: boolean; sourceReady: boolean; onBusyChange: (busy: boolean) => void; onApply: (preview: TransferPreview) => string | null;
++}) {
++  const csvInput = useRef<HTMLInputElement>(null), backupInput = useRef<HTMLInputElement>(null), generation = useRef(0);
++  const [selection, setSelection] = useState<Selection | null>(null), [reading, setReading] = useState(false), [error, setError] = useState("");
++  const [updateMatches, setUpdateMatches] = useState(false), [page, setPage] = useState(0), [status, setStatus] = useState("");
++  const [previous, setPrevious] = useState<string | null>(null);
++  useEffect(() => () => { generation.current++; }, []);
++  useEffect(() => {
++    try {
++      const prefix = takeoffKey(session.value.projectId) + ":recovery:";
++      const latest = Object.keys(window.localStorage).filter(key => key.startsWith(prefix)).sort().at(-1);
++      setPrevious(latest ? window.localStorage.getItem(latest) : null);
++    } catch { setPrevious(null); }
++  }, [session.raw, session.value.projectId]);
++  const busy = selection !== null || reading;
++  function cancel() { generation.current++; setSelection(null); setReading(false); setError(""); onBusyChange(false); }
++  async function select(file: File | undefined, kind: "csv" | "backup") {
++    if (!file) return;
++    const token = ++generation.current; setReading(true); setSelection(null); setError(""); setStatus(""); setUpdateMatches(false); setPage(0); onBusyChange(true);
++    try {
++      const limit = kind === "csv" ? TRANSFER_LIMIT_BYTES : BACKUP_LIMIT_BYTES;
++      if (file.size > limit) throw Error(`File exceeds the ${limit / 1024 / 1024} MB import limit.`);
++      const text = await file.text(); if (token !== generation.current) return;
++      setSelection(kind === "csv" ? { kind, name: file.name, session, lines: parseMaterialCsv(text) } : { kind, name: file.name, session, backup: parseTakeoffBackup(text) });
++      setReading(false);
++    } catch (e) { if (token === generation.current) { setError(materialErrorMessage(e)); setReading(false); onBusyChange(false); } }
++  }
++  let preview: TransferPreview | null = null, previewError = "";
++  if (selection) try { preview = selection.kind === "csv" ? previewMaterialImport(selection.session, selection.lines, updateMatches) : previewBackupRestore(selection.session, selection.backup); } catch (e) { previewError = materialErrorMessage(e); }
++  return <section className="takeoff-transfer" aria-label="Import and backup">
++    <div className="takeoff-actions">
++      <button className="pill" disabled={disabled || busy || session.blocked || !sourceReady} onClick={() => csvInput.current?.click()}>Import materials CSV</button>
++      <button className="pill" disabled={busy} onClick={() => download(materialCsvTemplate(), "material-import-template.csv", "text/csv;charset=utf-8")}>Download CSV template</button>
++      <button className="pill" disabled={disabled || busy || session.blocked || !sourceReady} onClick={() => download(takeoffBackup(session.value), "altitude-inventory-backup.json")}>Download backup</button>
++      <button className="pill" disabled={disabled || busy || !sourceReady} onClick={() => backupInput.current?.click()}>Restore backup</button>
++      {previous !== null && <button className="pill" onClick={() => download(previous, "previous-inventory-snapshot.json")}>Download previous snapshot</button>}
++      {session.error && session.raw !== null && <button className="pill" onClick={() => download(session.raw!, "preserved-inventory-snapshot.json")}>Download saved snapshot</button>}
++    </div>
++    <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Materials CSV file" onChange={e => { void select(e.target.files?.[0], "csv"); e.target.value = ""; }} />
++    <input ref={backupInput} type="file" accept=".json,application/json" hidden aria-label="Inventory backup file" onChange={e => { void select(e.target.files?.[0], "backup"); e.target.value = ""; }} />
++    <p className="takeoff-help">CSV: UTF-8, comma-separated, up to 5 MB / 5,000 lines. Use the template or a materials CSV export. Blank quantities stay unknown. JSON backups: up to 25 MB, containing counts, notes and materials; original drawing files are separate.</p>
++    {status && <p role="status">{status}</p>}
++    {reading && <p role="status">Reading file… <button className="pill" onClick={cancel}>Cancel import</button></p>}
++    {(error || previewError) && <p role="alert" className="takeoff-notice transfer-error">{error || previewError}</p>}
++    {selection && <div className="takeoff-editor" aria-label="Transfer preview">
++      <h2>{selection.kind === "csv" ? "Preview material import" : "Preview backup restore"}</h2><p>{selection.name}</p>
++      {selection.kind === "csv" ? <>
++        <label className="takeoff-check"><input type="checkbox" checked={updateMatches} onChange={e => { setUpdateMatches(e.target.checked); setPage(0); setError(""); }} /> Update matching stock codes</label>
++        <p className="takeoff-help">Matching codes keep their IDs. An update replaces all material fields, including clearing fields that are blank or absent in the CSV. Other stock lines and drawing counts are retained. Exported calculated totals are recomputed; a CSV Project column is informational.</p>
++      </> : <p className="takeoff-notice">This replaces all five drawing groups and the material register. Restored counts will need review again. Notes and stock references are restored. The previous saved snapshot must be archived locally before replacement. {preview && preview.fromProject !== session.value.projectId ? `Copies the backup from project ${preview.fromProject} into this project for the same drawing.` : ""}</p>}
++      {preview && <>
++        <p role="status">{session.blocked && preview.kind === "backup" ? `Existing quantities unavailable. Backup contains ${preview.value.materials.length} material lines and five drawing groups.` : `${preview.changes.filter(c => c.action === "Add").length} added · ${preview.changes.filter(c => c.action === "Update").length} updated · ${preview.changes.filter(c => c.action === "Keep").length} unchanged · ${preview.changes.filter(c => c.action === "Remove").length} removed`}</p>
++        {preview.kind === "backup" && <div className="transfer-counts">{preview.value.rows.map(row => {
++          const old = session.value.rows.find(r => r.id === row.id)!;
++          return <details key={row.id}><summary>{TAKEOFF_DEFINITIONS.find(d => d.id === row.id)!.name}: {session.blocked ? "Unavailable" : show(old.countPerFloor)} → {show(row.countPerFloor)} per floor</summary>
++            <p>Restored note: {row.note || "No note"}</p><p>Packaging: {show(row.stock.unitsPerPackage)} items · {show(row.stock.lengthM)} × {show(row.stock.widthM)} × {show(row.stock.heightM)} m · {show(row.stock.unitWeightKg)} kg per item</p><p>Reference: {row.stock.reference || "Unknown"}</p><p>Review after restore: pending</p></details>;
++        })}</div>}
++        <div className="transfer-lines">{preview.changes.slice(page * 50, (page + 1) * 50).map((change, index) => <details key={`${page}:${index}`}>
++          <summary>{session.blocked ? "Restore" : change.action} · {change.code} · {change.after?.description ?? change.before?.description} · {session.blocked ? "Unavailable" : show(change.before?.quantity)} → {show(change.after?.quantity)} {change.after ? MATERIAL_UNITS[change.after.unit] : ""}</summary>
++          <div className="transfer-field-head"><b>Field</b><b>Current</b><b>After import</b></div>
++          {fields.map(([key, title]) => <div className="transfer-field" key={key}><span>{title}</span><span>{session.blocked ? "Unavailable" : show(change.before?.[key])}</span><span>{show(change.after?.[key])}</span></div>)}
++        </details>)}</div>
++        {preview.changes.length > 50 && <div className="takeoff-actions"><button className="pill" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous preview page</button><span>Page {page + 1} / {Math.ceil(preview.changes.length / 50)}</span><button className="pill" disabled={(page + 1) * 50 >= preview.changes.length} onClick={() => setPage(page + 1)}>Next preview page</button></div>}
++      </>}
++      <div className="takeoff-actions"><button className="pill" disabled={!preview || !sourceReady || disabled} onClick={() => {
++        if (!preview) return; const failure = onApply(preview);
++        if (failure) { setError(failure); return; }
++        const restored = preview.kind === "backup", hadPrevious = selection.session.raw !== null; cancel(); setStatus(restored ? `Backup restored. ${hadPrevious ? "Previous saved data retained in a local recovery archive. " : ""}Counts need review.` : "Materials imported and saved. Available after reload.");
++      }}>{selection.kind === "csv" ? "Apply material import" : "Replace inventory with backup"}</button><button className="pill" onClick={cancel}>Cancel import</button></div>
++    </div>}
++  </section>;
++}
+diff --git a/src/studio/construction/takeoffTransfer.ts b/src/studio/construction/takeoffTransfer.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/construction/takeoffTransfer.ts
+@@ -0,0 +1,126 @@
++import { z } from "zod";
++import { ALTITUDE_SHA, persistTakeoff, takeoffKey, takeoffSchema, type SourceTakeoff, type TakeoffSession } from "./altitudeTakeoff.ts";
++import { materialErrorMessage, materialLineSchema, materialLinesSchema, type MaterialLine } from "./materialRegister.ts";
++
++export const TRANSFER_LIMIT_BYTES = 5 * 1024 * 1024;
++export const BACKUP_LIMIT_BYTES = 25 * 1024 * 1024;
++export const CSV_HEADERS = ["Stock code", "Description", "Stock quantity", "Unit", "Units per package", "Package length m", "Package width m", "Package height m", "Specified kg", "Weight basis", "Source reference"];
++export const materialCsvTemplate = () => CSV_HEADERS.join(",") + "\r\n";
++const allowedHeaders = [...CSV_HEADERS, "Package count", "Capacity of counted packages", "Storage m3", "Calculated weight kg", "Revision", "Project", "Drawing SHA-256", "Text encoding"].map(h => h.toLowerCase());
++function sizeCheck(text: string, limit = TRANSFER_LIMIT_BYTES) {
++  if (new TextEncoder().encode(text).length > limit) throw Error(`File exceeds the ${limit / 1024 / 1024} MB import limit.`);
++}
++// Comma-separated UTF-8, including escaped quotes and multiline quoted cells.
++export function parseCsv(text: string): string[][] {
++  sizeCheck(text); text = text.replace(/^\uFEFF/, "");
++  const rows: string[][] = []; let row: string[] = [], cell = "", quoted = false, closed = false;
++  const endCell = () => { row.push(cell); cell = ""; closed = false; if (row.length > 40) throw Error("CSV has too many columns."); };
++  const endRow = () => { endCell(); if (row.some(v => v.trim() !== "")) rows.push(row); row = []; if (rows.length > 5001) throw Error("Import at most 5,000 material lines."); };
++  for (let i = 0; i < text.length; i++) {
++    const c = text[i];
++    if (quoted) {
++      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else { quoted = false; closed = true; } }
++      else cell += c;
++    } else if (c === ",") endCell();
++    else if (c === "\r" || c === "\n") { if (c === "\r" && text[i + 1] === "\n") i++; endRow(); }
++    else if (closed) throw Error("Unexpected text after a closing CSV quote.");
++    else if (c === '"') { if (cell !== "") throw Error("Quotes must enclose the entire CSV field."); quoted = true; }
++    else cell += c;
++  }
++  if (quoted) throw Error("CSV has an unclosed quoted field.");
++  if (cell !== "" || row.length || closed) endRow();
++  return rows;
++}
++export function parseMaterialCsv(text: string, makeId: () => string = () => crypto.randomUUID()): MaterialLine[] {
++  const [head, ...rows] = parseCsv(text);
++  if (!head || !rows.length) throw Error("CSV needs a header and at least one material line.");
++  const headers = head.map(h => h.trim().toLowerCase());
++  if (new Set(headers).size !== headers.length) throw Error("CSV contains duplicate column headings.");
++  for (const header of headers) if (!allowedHeaders.includes(header)) throw Error(`Unknown CSV column: ${header}. Use the template headings.`);
++  for (const required of ["stock code", "description", "unit", "source reference"]) if (!headers.includes(required)) throw Error(`Missing CSV column: ${required}.`);
++  const errors: string[] = [], lines: MaterialLine[] = [];
++  rows.forEach((cells, index) => {
++    try {
++      if (cells.length !== headers.length) throw Error("Column count does not match the header.");
++      const get = (name: string) => cells[headers.indexOf(name)] ?? "";
++      const encoding = get("text encoding");
++      if (encoding && encoding !== "xray-apostrophe/v1") throw Error("Unsupported CSV text encoding.");
++      const string = (name: string) => { const v = get(name); return encoding && v.startsWith("'") && /^[\s]*[=+@'-]/.test(v.slice(1)) ? v.slice(1) : v; };
++      const numeric = (name: string) => {
++        const v = get(name).trim(); if (!v) return null;
++        if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(v)) throw Error(`${name} must be a decimal number, without units or thousands separators.`);
++        const n = Number(v); if (!Number.isFinite(n)) throw Error(`${name} must be finite.`); return n;
++      };
++      if (get("drawing sha-256").trim() && get("drawing sha-256").trim() !== ALTITUDE_SHA) throw Error("This CSV references another drawing.");
++      const unit = string("unit").trim().toLowerCase().replace("²", "2").replace("³", "3");
++      lines.push(materialLineSchema.parse({ id: makeId(), stockCode: string("stock code"), description: string("description"),
++        quantity: numeric("stock quantity"), unit, unitsPerPackage: numeric("units per package"), lengthM: numeric("package length m"),
++        widthM: numeric("package width m"), heightM: numeric("package height m"), specifiedWeightKg: numeric("specified kg"),
++        weightBasis: string("weight basis").trim().toLowerCase() || "unit", reference: string("source reference"), revision: 1 }));
++    } catch (error) { if (errors.length < 20) errors.push(`Record ${index + 1}: ${materialErrorMessage(error)}`); }
++  });
++  if (errors.length) throw Error(errors.join("\n"));
++  return materialLinesSchema.parse(lines);
++}
++const comparable = (line: MaterialLine) => { const { id: _id, revision: _revision, ...fields } = line; return JSON.stringify(fields); };
++export type TransferChange = { code: string; action: "Add" | "Update" | "Keep" | "Remove"; before: MaterialLine | null; after: MaterialLine | null };
++export type TransferPreview = { kind: "csv" | "backup"; value: SourceTakeoff; base: string; raw: string | null; changes: TransferChange[]; fromProject: string };
++export function previewMaterialImport(session: TakeoffSession, incoming: MaterialLine[], updateMatches: boolean): TransferPreview {
++  if (session.blocked) throw Error("Recover the saved inventory before importing CSV.");
++  const parsed = materialLinesSchema.parse(incoming), values = [...session.value.materials], changes: TransferChange[] = [];
++  for (const line of parsed) {
++    const index = values.findIndex(v => v.stockCode.toLowerCase() === line.stockCode.toLowerCase()), old = values[index];
++    if (old && !updateMatches) throw Error(`Stock code ${line.stockCode} already exists. Enable updates to preview replacing its fields.`);
++    const changed = old && comparable(old) !== comparable(line);
++    const next = old ? changed ? { ...line, id: old.id, revision: old.revision + 1 } : old : line;
++    if (old) values[index] = next; else values.push(next);
++    changes.push({ code: line.stockCode, action: old ? changed ? "Update" : "Keep" : "Add", before: old ?? null, after: next });
++  }
++  return { kind: "csv", value: takeoffSchema.parse({ ...session.value, revision: session.value.revision + 1, materials: values }),
++    base: JSON.stringify(session.value), raw: session.raw, changes, fromProject: session.value.projectId };
++}
++const backupSchema = z.object({ schema: z.literal("xray.source-takeoff-backup/v1"), exportedAt: z.string().datetime(), inventory: takeoffSchema }).strict();
++export function takeoffBackup(value: SourceTakeoff): string {
++  return JSON.stringify(backupSchema.parse({ schema: "xray.source-takeoff-backup/v1", exportedAt: new Date().toISOString(), inventory: value }), null, 2);
++}
++export function parseTakeoffBackup(text: string): SourceTakeoff {
++  sizeCheck(text, BACKUP_LIMIT_BYTES); const data: unknown = JSON.parse(text.replace(/^\uFEFF/, ""));
++  if (data && typeof data === "object" && "schema" in data && data.schema === "xray.source-takeoff-backup/v1") return backupSchema.parse(data).inventory;
++  // Previous Export count files include explanatory/derived fields; only saved inputs are restored.
++  if (data && typeof data === "object" && "schema" in data && ["xray.source-takeoff/v1", "xray.source-takeoff/v2"].includes(String(data.schema))) {
++    const { status: _status, sourceDocument: _sourceDocument, groups: _groups, stock: _stock, ...value } = data as Record<string, unknown>;
++    return takeoffSchema.parse(value);
++  }
++  throw Error("Unsupported backup format or version.");
++}
++export function previewBackupRestore(session: TakeoffSession, backup: SourceTakeoff): TransferPreview {
++  const parsed = takeoffSchema.parse(backup), current = session.value;
++  const materials = parsed.materials.map(line => ({ ...line, revision: Math.max(line.revision, current.materials.find(m => m.id === line.id)?.revision ?? 0) + 1 }));
++  const value = takeoffSchema.parse({ ...parsed, projectId: current.projectId, revision: Math.max(current.revision, parsed.revision) + 1, materials,
++    rows: parsed.rows.map(row => ({ ...row, review: "pending", revision: Math.max(row.revision, current.rows.find(r => r.id === row.id)!.revision) + 1 })) });
++  const changes: TransferChange[] = materials.map(line => {
++    const old = current.materials.find(m => m.id === line.id); return { code: line.stockCode, action: old ? "Update" : "Add", before: old ?? null, after: line };
++  });
++  for (const old of current.materials) if (!materials.some(m => m.id === old.id)) changes.push({ code: old.stockCode, action: "Remove", before: old, after: null });
++  return { kind: "backup", value, base: JSON.stringify(current), raw: session.raw, changes, fromProject: parsed.projectId };
++}
++type StoragePort = Pick<Storage, "getItem" | "setItem">;
++export function applyTakeoffTransfer(storage: StoragePort, session: TakeoffSession, preview: TransferPreview, archiveId: string): TakeoffSession & { archiveKey?: string } {
++  try {
++    if (preview.base !== JSON.stringify(session.value) || preview.raw !== session.raw) throw Error("Inventory changed since preview. Cancel and select the file again.");
++    const next = takeoffSchema.parse(preview.value);
++    if (next.projectId !== session.value.projectId) throw Error("Project identity changed.");
++    if (preview.kind === "csv") return persistTakeoff(storage, session, next);
++    const key = takeoffKey(next.projectId), original = storage.getItem(key);
++    if (original !== preview.raw) throw Error("Saved inventory changed since preview. Retry restore before applying this backup.");
++    let archiveKey: string | undefined;
++    if (original !== null) {
++      archiveKey = `${key}:recovery:${archiveId}`;
++      if (!archiveId || storage.getItem(archiveKey) !== null) throw Error("Recovery archive already exists. Select the backup again.");
++      storage.setItem(archiveKey, original);
++      if (storage.getItem(archiveKey) !== original) throw Error("Previous snapshot could not be preserved. Restore cancelled.");
++    }
++    const raw = JSON.stringify(next); storage.setItem(key, raw);
++    return { value: next, raw, blocked: false, error: null, archiveKey };
++  } catch (error) { return { ...session, error: `Import was not applied: ${materialErrorMessage(error)}` }; }
++}
+diff --git a/src/studio/construction/takeoffTransfer.test.ts b/src/studio/construction/takeoffTransfer.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/construction/takeoffTransfer.test.ts
+@@ -0,0 +1,102 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { createAltitudeTakeoff, restoreTakeoff, takeoffKey } from "./altitudeTakeoff.ts";
++import { materialRegisterCsv, materialLineSchema, newMaterialLine } from "./materialRegister.ts";
++import { applyTakeoffTransfer, materialCsvTemplate, parseCsv, parseMaterialCsv, parseTakeoffBackup, previewBackupRestore, previewMaterialImport, takeoffBackup, TRANSFER_LIMIT_BYTES } from "./takeoffTransfer.ts";
++
++const line = (code = "A") => ({ ...newMaterialLine("id-" + code), stockCode: code, description: 'QA "part"', quantity: 23, unit: "each" as const, reference: "QA reference\nline 2" });
++function fixture() {
++  const value = { ...createAltitudeTakeoff("job-a"), materials: [line()] }, data = new Map([[takeoffKey(value.projectId), JSON.stringify(value)]]);
++  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, text: string) => { data.set(key, text); } };
++  return { value, data, storage, session: restoreTakeoff(storage, value.projectId) };
++}
++test("CSV parser handles BOM, CRLF, embedded commas/newlines and doubled quotes", () => {
++  assert.deepEqual(parseCsv('\uFEFFa,b\r\n"one,two","three\n""four"""\r\n'), [["a", "b"], ["one,two", 'three\n"four"']]);
++  for (const csv of ['a\n"unfinished', 'a\nx"x', 'a\n"x"junk']) assert.throws(() => parseCsv(csv));
++});
++test("new exported CSV round-trips formula escapes and literal apostrophes losslessly", () => {
++  const { value } = fixture();
++  const lines = ["=sum(1)", "'literal", "'=literal", " plain"].map(code => materialLineSchema.parse({ ...line(code.trim()), description: "  +formula", reference: "'quoted reference\nline 2" }));
++  const imported = parseMaterialCsv(materialRegisterCsv(lines, value));
++  assert.deepEqual(imported.map(({ id: _id, ...v }) => v), lines.map(({ id: _id, ...v }) => v));
++});
++test("template, unknowns and all supported units import without inferring numbers", () => {
++  const csv = materialCsvTemplate() + ["each", "m", "m²", "m³", "kg"].map((u, i) => `${i},QA,,${u},,,,,,,QA`).join("\n");
++  const lines = parseMaterialCsv(csv); assert.deepEqual(lines.map(l => l.unit), ["each", "m", "m2", "m3", "kg"]);
++  assert.ok(lines.every(l => l.quantity === null && l.specifiedWeightKg === null));
++  assert.throws(() => parseMaterialCsv(materialCsvTemplate()), /at least one/);
++});
++test("CSV rejects duplicate codes/headers, unknown columns and other drawing identity", () => {
++  const { value } = fixture();
++  assert.throws(() => parseMaterialCsv(materialRegisterCsv([line("A"), line(" a ")], value)), /Duplicate/);
++  assert.throws(() => parseMaterialCsv('Stock code,stock CODE\nA,B'), /duplicate column/);
++  assert.throws(() => parseMaterialCsv('Stock code,price\nA,5'), /Unknown CSV column/);
++  assert.throws(() => parseMaterialCsv(materialRegisterCsv([line()], { ...value, sourceSha256: "wrong" })), /another drawing/);
++});
++test("invalid CSV fails the entire import with record-specific errors", () => {
++  const head = "Stock code,Description,Unit,Source reference,Stock quantity\n";
++  for (const quantity of ["0x20", "Infinity", "23 kg", "-2", "1.5"]) assert.throws(() => parseMaterialCsv(head + `A,QA,each,QA,${quantity}`), /Record 1/);
++  assert.throws(() => parseMaterialCsv(head + 'A,QA,each,QA,2\nB,QA,each,,2'), /Record 2/);
++  assert.throws(() => parseMaterialCsv(head + 'A,QA,each,QA'), /Column count/);
++  assert.throws(() => parseCsv("a".repeat(TRANSFER_LIMIT_BYTES + 1)), /5 MB/);
++  assert.throws(() => parseCsv("a\n" + "x\n".repeat(5001)), /5,000/);
++});
++test("CSV additions preserve counts; explicit updates retain IDs and advance changed revisions", () => {
++  const { session } = fixture();
++  assert.throws(() => previewMaterialImport(session, [line()], false), /already exists/);
++  const incoming = { ...line(), id: "new-id", quantity: 25 };
++  const preview = previewMaterialImport(session, [incoming, line("B")], true);
++  assert.equal(preview.value.materials[0].id, "id-A"); assert.equal(preview.value.materials[0].revision, 2);
++  assert.deepEqual(preview.value.rows, session.value.rows); assert.deepEqual(preview.changes.map(c => c.action), ["Update", "Add"]);
++  assert.equal(previewMaterialImport(session, [line()], true).changes[0].action, "Keep");
++  const withPackaging = { ...session, value: { ...session.value, materials: [{ ...line(), lengthM: 2 }] } };
++  const cleared = previewMaterialImport(withPackaging, [line()], true);
++  assert.equal(cleared.value.materials[0].lengthM, null); assert.equal(cleared.value.materials[0].revision, 2);
++});
++test("a changed local session or stored snapshot cannot be overwritten by an old CSV preview", () => {
++  const { session, storage, data } = fixture(); const preview = previewMaterialImport(session, [line("B")], false);
++  assert.match(applyTakeoffTransfer(storage, { ...session, value: { ...session.value, revision: 9 } }, preview, "test").error!, /changed since preview/);
++  data.set(takeoffKey(session.value.projectId), "newer saved bytes");
++  const result = applyTakeoffTransfer(storage, session, preview, "test"); assert.equal(result.blocked, true); assert.equal(storage.getItem(takeoffKey(session.value.projectId)), "newer saved bytes");
++});
++test("backup roundtrip and legacy exports retain notes, counts, references and IDs", () => {
++  const { value } = fixture(); value.rows[0].note = "Reviewed QA note"; value.rows[0].review = "reviewed";
++  assert.deepEqual(parseTakeoffBackup(takeoffBackup(value)), value);
++  assert.deepEqual(parseTakeoffBackup(JSON.stringify({ ...value, status: "Preliminary", groups: [], stock: {}, sourceDocument: "plan.pdf" })), value);
++  const { materials: _materials, ...old } = value; const migrated = parseTakeoffBackup(JSON.stringify({ ...old, schema: "xray.source-takeoff/v1" }));
++  assert.deepEqual(migrated.rows, value.rows); assert.deepEqual(migrated.materials, []);
++  // Formatted backups can exceed the compact CSV limit without exceeding the backup limit.
++  assert.deepEqual(parseTakeoffBackup(" ".repeat(TRANSFER_LIMIT_BYTES) + takeoffBackup(value)), value);
++});
++test("unsupported, foreign, extra or corrupt backup data is rejected", () => {
++  const { value } = fixture();
++  for (const invalid of [{ ...value, schema: "xray.source-takeoff/v99" }, { ...value, sourceSha256: "other" }, { ...value, unexpected: true }, { ...value, materials: [line(), line()] }]) assert.throws(() => parseTakeoffBackup(JSON.stringify(invalid)));
++  assert.throws(() => parseTakeoffBackup("invalid json"));
++});
++test("restore preview remaps same-drawing project, resets review and shows removals", () => {
++  const { session } = fixture(); const backup = createAltitudeTakeoff("other-project"); backup.rows[0].note = "reviewed"; backup.rows[0].review = "reviewed";
++  const preview = previewBackupRestore(session, backup); assert.equal(preview.fromProject, "other-project"); assert.equal(preview.value.projectId, session.value.projectId);
++  assert.equal(preview.value.rows[0].review, "pending"); assert.equal(preview.value.rows[0].note, "reviewed"); assert.equal(preview.changes[0].action, "Remove");
++});
++test("explicit backup restore archives unreadable saved bytes before releasing recovery lock", () => {
++  const { storage, data, value } = fixture(); const key = takeoffKey(value.projectId), unreadable = '{"schema":"future"}'; data.set(key, unreadable);
++  const session = restoreTakeoff(storage, value.projectId); assert.equal(session.blocked, true);
++  assert.throws(() => previewMaterialImport(session, [line("B")], false), /Recover/);
++  const result = applyTakeoffTransfer(storage, session, previewBackupRestore(session, value), "archive-1");
++  assert.equal(result.blocked, false); assert.equal(result.error, null); assert.equal(storage.getItem(result.archiveKey!), unreadable);
++  assert.equal(restoreTakeoff(storage, value.projectId).value.materials.length, 1);
++});
++test("archive write failure prevents restore, and primary write failure preserves saved bytes", () => {
++  for (const failArchive of [true, false]) {
++    const { session, storage, data, value } = fixture(), original = session.raw;
++    const failing = { ...storage, setItem: (key: string, text: string) => { if (key.includes(":recovery:") === failArchive) throw Error("Quota failure"); data.set(key, text); } };
++    const result = applyTakeoffTransfer(failing, session, previewBackupRestore(session, value), "archive-1");
++    assert.match(result.error!, /Quota/); assert.equal(storage.getItem(takeoffKey(value.projectId)), original);
++    if (!failArchive) assert.equal(storage.getItem(takeoffKey(value.projectId) + ":recovery:archive-1"), original);
++  }
++});
++test("restore refuses changed saved bytes and existing recovery archive IDs", () => {
++  const { session, storage, data, value } = fixture(); const preview = previewBackupRestore(session, value), key = takeoffKey(value.projectId);
++  data.set(key + ":recovery:taken", "old archive"); assert.match(applyTakeoffTransfer(storage, session, preview, "taken").error!, /archive already exists/);
++  data.set(key, "changed bytes"); assert.match(applyTakeoffTransfer(storage, session, preview, "fresh").error!, /changed since preview/); assert.equal(storage.getItem(key), "changed bytes");
++});

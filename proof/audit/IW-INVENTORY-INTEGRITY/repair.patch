@@ -1,0 +1,510 @@
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/package.json b/package.json
+index 7ee7e33..5fbad2f 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/package.json
++++ b/package.json
+@@ -23,7 +23,7 @@
+     "test:bom-parity": "node --experimental-strip-types scripts/verify-bom-cross-language.mjs",
+     "test:plan": "node scripts/verify-master-plan.mjs",
+     "test:review-fixes": "node --experimental-strip-types scripts/verify_review_fixes.mjs",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/store.ts b/src/studio/store.ts
+index 5360bc2..c80e77a 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/store.ts
++++ b/src/studio/store.ts
+@@ -211,6 +211,7 @@ type StudioState = {
+   trades: Trade[];
+   componentInventory: ComponentInventory;
+   inventoryPersistenceError: string | null;
++  inventoryRecoveryBlocked: boolean;
+   selectedComponentId: string | null;
+   componentFilterDiscipline: "all" | ComponentDiscipline;
+   componentFilterCategory: "all" | string;
+@@ -828,6 +829,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+   trades: [],
+   componentInventory: createSampleStructuralInventory(),
+   inventoryPersistenceError: null,
++  inventoryRecoveryBlocked: false,
+   selectedComponentId: "conn-c1-01",
+   componentFilterDiscipline: "all",
+   componentFilterCategory: "all",
+@@ -1833,20 +1835,28 @@ export const useStudio = create<StudioState>((set, get) => ({
+   setComponentSearchQuery: (query) => set({ componentSearchQuery: query }),
+   resetSampleInventory: () => {
+     const sample = createSampleStructuralInventory();
++    // Explicit replacement is a recovery action. Only a successful write can
++    // release an unreadable-data lock; a failed reset must retain protection.
++    const result = saveComponentInventory(get().job.id, sample);
+     set({
+       componentInventory: sample,
+       selectedComponentId: "conn-c1-01",
+-      inventoryPersistenceError: null,
++      inventoryRecoveryBlocked: result.ok ? false : get().inventoryRecoveryBlocked,
++      inventoryPersistenceError: result.ok ? null
++        : `Component inventory could not be saved (${result.reason}${result.preservedPrevious ? "; previous snapshot preserved" : ""}).`,
+     });
+-    saveComponentInventory(get().job.id, sample);
+   },
+   setComponentInventory: (inventory) => {
+     const validated = componentInventorySchema.parse(inventory);
+-    set({ componentInventory: validated, inventoryPersistenceError: null });
+-    saveComponentInventory(get().job.id, validated);
++    // Editing in memory does not acknowledge a failed restore. The hydrated
++    // autosave subscription uses the same guarded action as explicit Save.
++    set({ componentInventory: validated });
+   },
+   saveCurrentInventory: () => {
+     const state = get();
++    if (state.inventoryRecoveryBlocked) {
++      return { ok: false, reason: "recovery-required", preservedPrevious: true };
++    }
+     const result = saveComponentInventory(state.job.id, state.componentInventory);
+     if (result.ok) {
+       if (state.inventoryPersistenceError) set({ inventoryPersistenceError: null });
+@@ -1860,9 +1870,10 @@ export const useStudio = create<StudioState>((set, get) => ({
+     const state = get();
+     const result = loadComponentInventory(state.job.id);
+     if (result.ok) {
+-      set({ componentInventory: result.inventory, inventoryPersistenceError: null });
++      set({ componentInventory: result.inventory, inventoryPersistenceError: null, inventoryRecoveryBlocked: false });
+     } else if (result.reason !== "not-found") {
+       set({
++        inventoryRecoveryBlocked: true,
+         inventoryPersistenceError: `Saved component inventory could not be restored (${result.reason}). Unreadable data preserved in storage; autosave blocked until recovery.`,
+       });
+     }
+@@ -2194,6 +2205,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+         }
+         set({
+           inventoryPersistenceError,
++          inventoryRecoveryBlocked: inventoryPersistenceError !== null,
+           persistenceError: loaded.error,
+           persistenceHydrated: true,
+           hydrationStatus: loaded.error ? "error" : "ready",
+@@ -2258,6 +2270,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+         bomPersistenceError,
+         componentInventory,
+         inventoryPersistenceError,
++        inventoryRecoveryBlocked: inventoryPersistenceError !== null,
+         markups: markupsFromJob(job),
+         trades: job.componentRegistry ?? [],
+         currentCalibration: loadedCalibration,
+@@ -2398,13 +2411,9 @@ if (typeof window !== "undefined") {
+   });
+   useStudio.subscribe((state, previous) => {
+     if (!state.persistenceHydrated) return;
+-    if (state.inventoryPersistenceError) return;
++    if (state.inventoryRecoveryBlocked) return;
+     if (state.componentInventory === previous.componentInventory && previous.persistenceHydrated) return;
+-    const result = saveComponentInventory(state.job.id, state.componentInventory);
+-    const error = result.ok
+-      ? null
+-      : `Component inventory could not be saved (${result.reason}${result.preservedPrevious ? "; previous snapshot preserved" : ""}).`;
+-    if (state.inventoryPersistenceError !== error) useStudio.setState({ inventoryPersistenceError: error });
++    state.saveCurrentInventory();
+   });
+ }
+ 
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 845539d..f50e93a 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -586,16 +586,20 @@ function ComponentsPane() {
+             <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+             <div>
+               <p className="font-semibold">{s.inventoryPersistenceError}</p>
+-              <p className="text-[11px] text-muted">Unreadable data is preserved in storage. Autosave is paused until recovery.</p>
++              <p className="text-[11px] text-muted">
++                {s.inventoryRecoveryBlocked
++                  ? "Saved data is protected. Edits stay in this session until you restore it or explicitly replace it with demo data."
++                  : "Your latest edits are still in this session. Retry saving to keep them after reload."}
++              </p>
+             </div>
+           </div>
+           <div className="flex items-center gap-2">
+             <button
+               type="button"
+               className="pill text-xs bg-paper hover:bg-paper/80 font-medium"
+-              onClick={() => s.loadCurrentInventory()}
++              onClick={() => s.inventoryRecoveryBlocked ? s.loadCurrentInventory() : s.saveCurrentInventory()}
+             >
+-              Retry restore
++              {s.inventoryRecoveryBlocked ? "Retry restore" : "Retry save"}
+             </button>
+             <button
+               type="button"
+@@ -712,6 +716,15 @@ function ComponentsPane() {
+           filteredConnections.map((conn) => {
+             const compType = typesMap.get(conn.typeId);
+             const childBolts = childBoltsByParent.get(conn.id) ?? [];
++            const appliedRuleIds = new Set(childBolts.flatMap((child) =>
++              child.quantityBasis.method === "detail-rule" ? [child.quantityBasis.ruleId] : [],
++            ));
++            const ruleSummary = inventory.assemblyRules
++              .filter((rule) => appliedRuleIds.has(rule.id))
++              .flatMap((rule) => rule.childQuotas.map((quota) =>
++                `${quota.count}× ${typesMap.get(quota.typeId)?.standardName ?? quota.typeId}`,
++              ))
++              .join("; ");
+             const isAutoExpanded = s.componentFilterCategory === "fastener" || Boolean(s.componentSearchQuery.trim());
+             const isExpanded = expandedConnections[conn.id] ?? isAutoExpanded;
+             const isSelected = s.selectedComponentId === conn.id;
+@@ -743,7 +756,7 @@ function ComponentsPane() {
+               >
+                 {/* Connection Row */}
+                 <div
+-                  className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-paper/40 rounded-t-2xl"
++                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3.5 cursor-pointer hover:bg-paper/40 rounded-t-2xl"
+                   onClick={() => s.selectComponent(conn.id)}
+                 >
+                   <div className="flex items-center gap-3">
+@@ -774,15 +787,15 @@ function ComponentsPane() {
+                           </span>
+                         )}
+                       </div>
+-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted">
++                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                         <span>{compType?.materialGrade}</span>
+                         <span>&bull;</span>
+-                        <span>Detail Rule: 4x M20 Bolts (Detail 4/S-501)</span>
++                        <span>{ruleSummary ? `Detail Rule: ${ruleSummary}` : "Direct component count"}</span>
+                       </div>
+                     </div>
+                   </div>
+ 
+-                  <div className="flex items-center gap-2">
++                  <div className="flex flex-wrap items-center gap-2">
+                     {conn.evidenceIds.map((eId) => {
+                       const ev = evidenceMap.get(eId);
+                       if (!ev) return null;
+@@ -1162,8 +1175,12 @@ function ComponentsRightRail() {
+                     {selected.unresolvedProperties.length} RFI
+                   </span>
+                 )}
+-                <span className="rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-medium capitalize">
+-                  {selected.review.status}
++                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
++                  selected.review.status === "verified"
++                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
++                    : "bg-amber-500/20 text-amber-700 dark:text-amber-300"
++                }`}>
++                  {selected.review.status === "stale_revision" ? "Needs re-review" : selected.review.status}
+                 </span>
+               </div>
+             </div>
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/construction/inventory.ts b/src/studio/construction/inventory.ts
+index 2da45d4..62bb293 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/construction/inventory.ts
++++ b/src/studio/construction/inventory.ts
+@@ -559,9 +559,9 @@ export function updateDisplayMark(
+ 
+ /**
+  * Propagates an updated assembly rule: preserves surviving rule-generated children
+- * in place (retaining custom display marks, revisions, user-added evidence bindings,
+- * and review status), adds new child instances if quotas increase, and prunes instances
+- * if quotas decrease.
++ * in place, retaining identity, user marks, evidence and review annotations.
++ * Material changes advance the component revision and invalidate prior approval;
++ * count-only changes leave surviving components unchanged.
+  */
+ export function updateAssemblyRule(
+   inventory: ComponentInventory,
+@@ -608,9 +608,8 @@ export function updateAssemblyRule(
+         const existingChild = existingChildMap.get(childStableId);
+ 
+         if (existingChild) {
+-          // SURVIVING COMPONENT: Preserve user edits, but update rule-derived properties!
+-          // Preserves: id, stableIdentifier, displayMark (custom user names), revision, review status/notes.
+-          // Updates: typeId (e.g. M20 -> M24), unresolvedProperties, quantityBasis ruleId, position offset, and evidence.
++          // Match the previous quota by role: type may have changed, identity has not.
++          const previousQuota = existingRule.childQuotas.find((q) => q.role === quota.role);
+           const evidenceIds = existingChild.evidenceIds.includes(updatedRule.detailEvidenceId)
+             ? existingChild.evidenceIds
+             : [...existingChild.evidenceIds, updatedRule.detailEvidenceId];
+@@ -622,14 +621,31 @@ export function updateAssemblyRule(
+                   y: parent.spatial.position.y + quota.relativeOffset.y,
+                   z: parent.spatial.position.z + quota.relativeOffset.z,
+                 }
+-              : existingChild.spatial.position;
++              : parent.spatial.position;
+ 
++          // Replace requirements owned by the previous rule; retain unrelated
++          // component-specific flags. The old quota also covers existing v1 data.
++          const previousRuleFields = new Set(previousQuota?.unresolvedFields ?? []);
+           const mergedUnresolved = Array.from(
+-            new Set([...existingChild.unresolvedProperties, ...quota.unresolvedFields]),
++            new Set([
++              ...existingChild.unresolvedProperties.filter((field) => !previousRuleFields.has(field)),
++              ...quota.unresolvedFields,
++            ]),
+           );
++          const materialChanged =
++            existingChild.typeId !== quota.typeId ||
++            existingChild.spatial.position?.x !== childPos?.x ||
++            existingChild.spatial.position?.y !== childPos?.y ||
++            existingChild.spatial.position?.z !== childPos?.z ||
++            existingChild.unresolvedProperties.length !== mergedUnresolved.length ||
++            mergedUnresolved.some((field) => !existingChild.unresolvedProperties.includes(field));
+ 
+           keptOrNewChildren.push({
+             ...existingChild,
++            revision: existingChild.revision + (materialChanged ? 1 : 0),
++            review: materialChanged && existingChild.review.status !== "draft"
++              ? { ...existingChild.review, status: "stale_revision" }
++              : existingChild.review,
+             typeId: quota.typeId,
+             spatial: {
+               ...existingChild.spatial,
+@@ -926,4 +942,3 @@ export function createSampleStructuralInventory(): ComponentInventory {
+ 
+   return inv;
+ }
+-
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/construction/inventory.test.ts b/src/studio/construction/inventory.test.ts
+index ade47b3..37678ff 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/construction/inventory.test.ts
++++ b/src/studio/construction/inventory.test.ts
+@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
+ import assert from "node:assert/strict";
+ import {
+   createEmptyInventory,
++  createSampleStructuralInventory,
+   addEvidenceBinding,
+   addComponentType,
+   addAssemblyRule,
+@@ -825,3 +826,77 @@ describe("Evidence-Backed Component Inventory Schema (xray.component-inventory/v
+   });
+ });
+ 
++describe("assembly rule reconciliation", () => {
++  it("clears resolved rule requirements while retaining component-specific flags and evidence", () => {
++    let inv = createSampleStructuralInventory();
++    const rule = inv.assemblyRules[0];
++    inv = updateAssemblyRule(inv, rule.id, rule.childQuotas.map((q) => ({
++      ...q, unresolvedFields: ["embedment", "torque"],
++    })), "Engineer");
++    const bolt = inv.instances.find((i) => i.parentAssemblyInstanceId !== null)!;
++    inv = {
++      ...inv,
++      instances: inv.instances.map((i) => i.id === bolt.id ? {
++        ...i, displayMark: "Custom north bolt", unresolvedProperties: [...i.unresolvedProperties, "site-check"],
++      } : i),
++    };
++    inv = updateAssemblyRule(inv, rule.id, rule.childQuotas.map((q) => ({
++      ...q, unresolvedFields: ["torque", "washer-grade"],
++    })), "Engineer");
++    assert.deepEqual(inv.instances.find((i) => i.id === bolt.id)!.unresolvedProperties.sort(),
++      ["site-check", "torque", "washer-grade"].sort());
++    inv = updateAssemblyRule(inv, rule.id, rule.childQuotas, "Engineer");
++    const after = inv.instances.find((i) => i.id === bolt.id)!;
++    assert.deepEqual(after.unresolvedProperties, ["site-check"]);
++    assert.equal(queryInventory(inv).unresolvedCount, 1);
++    assert.equal(after.displayMark, "Custom north bolt");
++    assert.deepEqual(after.evidenceIds, bolt.evidenceIds);
++  });
++
++  it("advances materially changed components and marks their previous review stale without losing annotations", () => {
++    let inv = createSampleStructuralInventory();
++    const rule = inv.assemblyRules[0];
++    const bolt = inv.instances.find((i) => i.parentAssemblyInstanceId !== null)!;
++    const review = { status: "verified" as const, reviewedBy: "Original reviewer", reviewedAt: "2026-09-06T00:00:00.000Z", note: "M20 approved from section" };
++    inv = { ...inv, instances: inv.instances.map((i) => i.id === bolt.id ? {
++      ...i, revision: 3, displayMark: "Custom anchor", review,
++    } : i) };
++    const oldType = inv.types.find((t) => t.id === bolt.typeId)!;
++    inv = addComponentType(inv, { ...oldType, id: "fastener/m24", standardName: "M24 Bolt",
++      nominalDimensions: { ...oldType.nominalDimensions, diameter: { value: 24, unit: "mm" } } });
++    const quotas = rule.childQuotas.map((q) => ({ ...q, typeId: "fastener/m24" }));
++    inv = updateAssemblyRule(inv, rule.id, quotas, "Rule editor");
++    const after = inv.instances.find((i) => i.id === bolt.id)!;
++    assert.equal(after.typeId, "fastener/m24");
++    assert.equal(after.revision, 4);
++    assert.deepEqual(after.review, { ...review, status: "stale_revision" });
++    assert.equal(after.displayMark, "Custom anchor");
++    assert.deepEqual(after.evidenceIds, bolt.evidenceIds);
++    assert.equal(after.stableIdentifier, bolt.stableIdentifier);
++    const unchanged = updateAssemblyRule(inv, rule.id, quotas, "Rule editor");
++    assert.deepEqual(unchanged.instances.find((i) => i.id === bolt.id), after,
++      "Reapplying an identical rule must not advance component revisions");
++  });
++
++  it("requires re-review when missing requirements or rule-derived positions change", () => {
++    for (const change of ["requirement", "offset", "remove-offset"] as const) {
++      let inv = createSampleStructuralInventory();
++      const rule = inv.assemblyRules[0];
++      const bolt = inv.instances.find((i) => i.parentAssemblyInstanceId !== null)!;
++      inv = { ...inv, instances: inv.instances.map((i) => i.id === bolt.id ? {
++        ...i, review: { ...i.review, status: "verified" as const },
++      } : i) };
++      const quotas = rule.childQuotas.map((q) => ({ ...q,
++        unresolvedFields: change === "requirement" ? ["embedment"] : q.unresolvedFields,
++        relativeOffset: change === "offset" ? { x: 0.2, y: 0, z: 0 } : change === "remove-offset" ? null : q.relativeOffset,
++      }));
++      inv = updateAssemblyRule(inv, rule.id, quotas, "Engineer");
++      const after = inv.instances.find((i) => i.id === bolt.id)!;
++      assert.equal(after.revision, bolt.revision + 1, change);
++      assert.equal(after.review.status, "stale_revision", change);
++      if (change === "remove-offset") {
++        assert.deepEqual(after.spatial.position, inv.instances.find((i) => i.id === bolt.parentAssemblyInstanceId)!.spatial.position);
++      }
++    }
++  });
++});
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/construction/inventoryPersistence.ts b/src/studio/construction/inventoryPersistence.ts
+index 1f65247..90ef127 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/src/studio/construction/inventoryPersistence.ts
++++ b/src/studio/construction/inventoryPersistence.ts
+@@ -27,7 +27,7 @@ export type InventoryPersistenceWriteResult =
+   | { ok: true; key: string }
+   | {
+       ok: false;
+-      reason: "storage-unavailable" | "invalid-schema" | "read-failed" | "write-failed";
++      reason: "storage-unavailable" | "invalid-schema" | "read-failed" | "write-failed" | "recovery-required";
+       preservedPrevious: boolean;
+     };
+ 
+diff --git a/src/studio/construction/inventoryStore.test.ts b/src/studio/construction/inventoryStore.test.ts
+new file mode 100644
+index 0000000..8908112
+--- /dev/null
++++ b/src/studio/construction/inventoryStore.test.ts
+@@ -0,0 +1,122 @@
++import assert from "node:assert/strict";
++import { beforeEach, describe, it } from "node:test";
++import { createSampleStructuralInventory, updateDisplayMark } from "./inventory.ts";
++import { inventoryStorageKey } from "./inventoryPersistence.ts";
++
++// Install storage BEFORE importing the store so its real browser autosave
++// subscriptions run. These tests exercise actions, not a copy of their logic.
++const data = new Map<string, string>();
++let failWrites = false;
++let inventoryWrites = 0;
++Object.defineProperty(globalThis, "window", {
++  configurable: true,
++  value: {
++    localStorage: {
++      getItem: (key: string) => data.get(key) ?? null,
++      setItem: (key: string, value: string) => {
++        if (key.startsWith("xray:component-inventory:")) {
++          inventoryWrites++;
++          if (failWrites) throw new Error("Quota exceeded");
++        }
++        data.set(key, value);
++      },
++      removeItem: (key: string) => data.delete(key),
++    },
++  },
++});
++const { useStudio, resetStudioHydrationForTests } = await import("../store.ts");
++
++function key() {
++  return inventoryStorageKey(useStudio.getState().job.id);
++}
++
++describe("inventory restore protection through real store actions and autosave", () => {
++  beforeEach(() => {
++    resetStudioHydrationForTests();
++    useStudio.setState(useStudio.getInitialState(), true);
++    data.clear();
++    failWrites = false;
++    inventoryWrites = 0;
++  });
++
++  for (const [reason, payload] of [
++    ["unsupported-version", JSON.stringify({ schema: "xray.component-inventory/v99", revision: 99 })],
++    ["invalid-json", "{unreadable inventory"],
++    ["invalid-schema", JSON.stringify({ schema: "xray.component-inventory/v1", instances: [] })],
++  ]) {
++    it(`preserves ${reason} bytes through hydration, edits, autosave, explicit save and retry`, async () => {
++      const storageKey = key();
++      data.set(storageKey, payload);
++      await useStudio.getState().hydratePersistence();
++      assert.equal(data.get(storageKey), payload);
++      const restoreError = useStudio.getState().inventoryPersistenceError;
++      assert.match(restoreError!, new RegExp(reason));
++
++      const edited = updateDisplayMark(useStudio.getState().componentInventory, "conn-c1-01", "My connection");
++      useStudio.getState().setComponentInventory(edited);
++      assert.equal(data.get(storageKey), payload, "Ordinary edits must never replace unreadable saved data");
++      assert.equal(useStudio.getState().inventoryPersistenceError, restoreError);
++      const saved = useStudio.getState().saveCurrentInventory();
++      assert.equal(saved.ok, false);
++      if (!saved.ok) assert.equal(saved.reason, "recovery-required");
++      assert.equal(data.get(storageKey), payload);
++      assert.equal(useStudio.getState().loadCurrentInventory().ok, false);
++      assert.equal(inventoryWrites, 0, "Blocked actions must not attempt any inventory write");
++
++      // A presentation-error change cannot release the independent recovery lock.
++      useStudio.setState({ inventoryPersistenceError: null });
++      useStudio.setState({ componentInventory: createSampleStructuralInventory() });
++      assert.equal(data.get(storageKey), payload);
++      assert.equal(inventoryWrites, 0);
++    });
++  }
++
++  it("unblocks only after a successful restore and persists the next edit across reload", async () => {
++    data.set(key(), "{broken");
++    await useStudio.getState().hydratePersistence();
++    const restored = updateDisplayMark(createSampleStructuralInventory(), "conn-c1-01", "Recovered connection");
++    data.set(key(), JSON.stringify(restored));
++    assert.equal(useStudio.getState().loadCurrentInventory().ok, true);
++    assert.equal(useStudio.getState().inventoryPersistenceError, null);
++    const edited = updateDisplayMark(useStudio.getState().componentInventory, "conn-c1-01", "Saved after recovery");
++    useStudio.getState().setComponentInventory(edited);
++    assert.deepEqual(JSON.parse(data.get(key())!), edited);
++
++    useStudio.setState({ persistenceHydrated: false, componentInventory: createSampleStructuralInventory() });
++    await useStudio.getState().hydratePersistence();
++    assert.deepEqual(useStudio.getState().componentInventory, edited);
++  });
++
++  it("keeps recovery blocked if explicit demo replacement fails, then permits a successful replacement", async () => {
++    const payload = "{broken saved work";
++    data.set(key(), payload);
++    await useStudio.getState().hydratePersistence();
++    failWrites = true;
++    useStudio.getState().resetSampleInventory();
++    assert.equal(data.get(key()), payload);
++    assert.ok(useStudio.getState().inventoryPersistenceError);
++    failWrites = false;
++    const beforeEditWrites = inventoryWrites;
++    useStudio.getState().setComponentInventory(createSampleStructuralInventory());
++    assert.equal(data.get(key()), payload);
++    assert.equal(inventoryWrites, beforeEditWrites);
++    useStudio.getState().resetSampleInventory();
++    assert.equal(useStudio.getState().inventoryPersistenceError, null);
++    assert.equal(JSON.parse(data.get(key())!).schema, "xray.component-inventory/v1");
++    assert.equal(useStudio.getState().saveCurrentInventory().ok, true);
++  });
++
++  it("reports ordinary write failures and retries without treating them as failed restores", async () => {
++    await useStudio.getState().hydratePersistence();
++    const previous = data.get(key());
++    failWrites = true;
++    const edited = updateDisplayMark(useStudio.getState().componentInventory, "conn-c1-01", "Pending save");
++    useStudio.getState().setComponentInventory(edited);
++    assert.equal(data.get(key()), previous);
++    assert.match(useStudio.getState().inventoryPersistenceError!, /write-failed/);
++    failWrites = false;
++    assert.equal(useStudio.getState().saveCurrentInventory().ok, true);
++    assert.equal(useStudio.getState().inventoryPersistenceError, null);
++    assert.deepEqual(JSON.parse(data.get(key())!), edited);
++  });
++});
+diff --git a/proof/audit/IW-INVENTORY-INTEGRITY/before/vite.config.ts b/vite.config.ts
+index 9d4b483..cb3ceaa 100644
+--- a/proof/audit/IW-INVENTORY-INTEGRITY/before/vite.config.ts
++++ b/vite.config.ts
+@@ -174,6 +174,9 @@ export default defineConfig(({ command, isPreview }) => ({
+       ? [
+           nitro({
+             preset: "vercel",
++            // TanStack owns web rendering. The separate desktop index.html is
++            // a Vite SPA input, not a raw Nitro fallback document.
++            renderer: false,
+             // Auto-registers server/middleware/* (the PWA install page +
+             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
+             // false, so removing this silently unwires /?install=1 on deploys.

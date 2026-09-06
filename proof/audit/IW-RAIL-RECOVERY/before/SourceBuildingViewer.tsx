@@ -1,0 +1,1543 @@
+import { createFirstPersonNavigation } from "./FirstPersonNavigation";
+import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
+import { flushSync } from "react-dom";
+import { createBuildingEnvironment } from "./BuildingEnvironment";
+import type { NavigationMode } from "./navigationMovement";
+import { ComponentLocationMaps } from "./ComponentLocationMaps";
+import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X } from "lucide-react";
+import { useStudio } from "./store";
+import { inspectPlanBytes } from "./documents";
+import {
+  BUILDING_CATALOG,
+  ROOF_CATEGORIES,
+  WALL_CATEGORIES,
+  fetchBuildingBytes,
+  parseSourceBuilding,
+  buildingPartOnFloor,
+  sourceBytesMatch,
+  type SourceBuilding,
+} from "./sourceBuilding";
+import "./sourceBuilding.css";
+import { createModelScope, type ModelScopeOptions } from "./ModelScope";
+import { BuildingVisualSettings } from "./BuildingVisualSettings";
+import { publishModelView } from "./modelViewSnapshot";
+import {
+  DEFAULT_APPEARANCE,
+  MODEL_PALETTES,
+  loadAppearance,
+  saveAppearance,
+  type BuildingAppearance,
+} from "./buildingAppearance";
+
+type ViewOptions = {
+  wireframe: boolean;
+  roof: boolean;
+  cutaway: boolean;
+  explode: boolean;
+  plan: boolean;
+  level: string;
+};
+type SceneApi = {
+  options: (value: ViewOptions) => void;
+  select: (id: string | null) => void;
+  fit: () => void;
+  navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+  stopNavigation: () => void;
+  png: () => void;
+  appearance: (value: BuildingAppearance) => void;
+  scope: (value: ModelScopeOptions) => void;
+  dispose: () => void;
+};
+const sessionViewOptions = new Map<string, ViewOptions>();
+
+function createBuildingScene(
+  host: HTMLDivElement,
+  model: SourceBuilding,
+  onSelect: (id: string | null) => void,
+  onError: (message: string) => void,
+  onScopeZoom: (zoom: number) => void,
+  onNavigation: (mode: NavigationMode) => void,
+  binding: { documentId: string; sceneId: string; sceneSha256: string },
+): SceneApi {
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    preserveDrawingBuffer: true,
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.localClippingEnabled = true;
+  renderer.domElement.setAttribute("aria-label", "Interactive source building model");
+  renderer.domElement.setAttribute("role", "img");
+  renderer.domElement.dataset.sourceSha256 = model.source.sha256;
+  renderer.domElement.dataset.meshCount = String(model.objects.length);
+  host.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const environment = createBuildingEnvironment(scene);
+  scene.background = new THREE.Color("#e5e5df");
+  const bounds = new THREE.Box3(
+      new THREE.Vector3(...model.bounds.min),
+      new THREE.Vector3(...model.bounds.max),
+    ),
+    center = bounds.getCenter(new THREE.Vector3()),
+    size = bounds.getSize(new THREE.Vector3()),
+    span = Math.max(size.x, size.y, size.z);
+  const perspective = new THREE.PerspectiveCamera(36, 1, 0.05, span * 12),
+    orthographic = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, span * 12);
+  let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera = perspective;
+  let controls: OrbitControls<THREE.PerspectiveCamera | THREE.OrthographicCamera> =
+    new OrbitControls(camera, renderer.domElement);
+  let options: ViewOptions = {
+    wireframe: false,
+    roof: true,
+    cutaway: false,
+    explode: false,
+    plan: false,
+    level: "all",
+  };
+  let scope: ReturnType<typeof createModelScope> | null = null;
+  let disposed = false,
+    frame = 0;
+  let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+  let inspection: {
+    from: THREE.Vector3;
+    to: THREE.Vector3;
+    targetFrom: THREE.Vector3;
+    targetTo: THREE.Vector3;
+    started: number;
+  } | null = null;
+  const cancelInspection = () => {
+    inspection = null;
+    renderer.domElement.dataset.inspectionTransition = "idle";
+  };
+  const render = () => {
+    frame = 0;
+    if (disposed) return;
+    const navigating = navigation?.tick();
+    const weatherAnimating = environment.tick();
+    if (navigating)
+      controls.target
+        .copy(camera.position)
+        .add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(10));
+    const inspecting = !!inspection;
+    if (inspection) {
+      const t = Math.min(1, (performance.now() - inspection.started) / 700);
+      const eased = t * t * (3 - 2 * t);
+      camera.position.lerpVectors(inspection.from, inspection.to, eased);
+      controls.target.lerpVectors(inspection.targetFrom, inspection.targetTo, eased);
+      camera.lookAt(controls.target);
+      if (t === 1) cancelInspection();
+    }
+    const changing = navigating || inspecting ? false : controls.update();
+    renderer.render(scene, camera);
+    scope?.render();
+    renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
+    renderer.domElement.dataset.frameCount = String(
+      Number(renderer.domElement.dataset.frameCount ?? 0) + 1,
+    );
+    renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
+    renderer.domElement.dataset.cameraTarget = controls.target.toArray().join(",");
+    renderer.domElement.dataset.cameraZoom = String(camera.zoom);
+    publishModelView({
+      ...binding,
+      sourceSha256: model.source.sha256,
+      view: { ...options },
+      camera: {
+        projection: camera instanceof THREE.PerspectiveCamera ? "perspective" : "orthographic",
+        position: camera.position.toArray() as [number, number, number],
+        target: controls.target.toArray() as [number, number, number],
+        up: camera.up.toArray() as [number, number, number],
+        zoom: camera.zoom,
+        near: camera.near,
+        far: camera.far,
+        projectionMatrix: camera.projectionMatrix.toArray(),
+      },
+    });
+    if (changing || navigating || inspecting || weatherAnimating) invalidate();
+  };
+  const invalidate = () => {
+    if (!disposed && !frame) frame = requestAnimationFrame(render);
+  };
+  const configureControls = () => {
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.12;
+    controls.screenSpacePanning = true;
+    controls.maxPolarAngle = Math.PI * 0.48;
+    controls.minDistance = 2;
+    controls.maxDistance = span * 6;
+    controls.target.copy(center);
+    controls.addEventListener("change", invalidate);
+    controls.addEventListener("start", cancelInspection);
+  };
+  configureControls();
+  const ambient = new THREE.HemisphereLight("#ffffff", "#8f9083", 2.25);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight("#fff6df", 3.2);
+  sun.position.copy(center).add(new THREE.Vector3(-span * 0.5, span * 0.9, span * 0.55));
+  sun.target.position.copy(center);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -span;
+  sun.shadow.camera.right = span;
+  sun.shadow.camera.top = span;
+  sun.shadow.camera.bottom = -span;
+  sun.shadow.camera.near = 0.1;
+  sun.shadow.camera.far = span * 4;
+  sun.shadow.normalBias = 0.04;
+  sun.shadow.bias = -0.00008;
+  scene.add(sun, sun.target);
+  const groundGeometry = new THREE.PlaneGeometry(span * 5, span * 5),
+    groundMaterial = new THREE.MeshStandardMaterial({ color: "#d9dbd3", roughness: 1 }),
+    ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(center.x, bounds.min.y, center.z);
+  ground.receiveShadow = true;
+  scene.add(ground);
+  const meshMap = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>>(),
+    parts = new Map(model.objects.map((p) => [p.id, p])),
+    edges: THREE.LineSegments[] = [],
+    materials = new Map<string, THREE.MeshStandardMaterial>();
+  let upperMin = Infinity;
+  for (const part of model.objects)
+    if (part.level === "upper") {
+      for (let i = 1; i < part.positions.length; i += 3)
+        upperMin = Math.min(upperMin, part.positions[i]);
+    }
+  const cutHeight =
+    model.floorElevations?.upper ?? (Number.isFinite(upperMin) ? Math.max(upperMin, 0) : 0);
+  const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2),
+    edgeMaterial = new THREE.LineBasicMaterial({
+      color: "#273735",
+      transparent: true,
+      opacity: 0.26,
+    }),
+    highlight = new THREE.MeshStandardMaterial({
+      color: "#b8d3cb",
+      emissive: "#234e43",
+      emissiveIntensity: 0.22,
+      roughness: 0.7,
+      side: THREE.DoubleSide,
+    });
+  const wireMaterial = new THREE.LineBasicMaterial({
+    color: "#315f59",
+    transparent: true,
+    opacity: 0.72,
+    depthTest: false,
+  });
+  const clippedWireMaterial = wireMaterial.clone(),
+    selectedWireMaterial = new THREE.LineBasicMaterial({ color: "#b25b21", depthTest: false }),
+    selectedClippedWireMaterial = selectedWireMaterial.clone();
+  for (const part of model.objects) {
+    const spec = model.materials[part.material],
+      key = part.material + ":" + (WALL_CATEGORIES.has(part.category) ? "wall" : "solid");
+    let material = materials.get(key);
+    if (!material) {
+      material = new THREE.MeshStandardMaterial({
+        color: spec.color,
+        roughness: spec.roughness ?? 0.8,
+        metalness: spec.metalness ?? 0,
+        opacity: spec.opacity ?? 1,
+        transparent: (spec.opacity ?? 1) < 1,
+        depthWrite: (spec.opacity ?? 1) >= 1,
+        side: THREE.DoubleSide,
+      });
+      materials.set(key, material);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
+    geometry.setIndex(part.indices);
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = (spec.opacity ?? 1) > 0.9;
+    mesh.receiveShadow = true;
+    mesh.userData = { partId: part.id, baseMaterial: material };
+    meshMap.set(part.id, mesh);
+    scene.add(mesh);
+    {
+      const line = new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 28), edgeMaterial);
+      line.userData.solidEdge = !["room", "fixture", "solar", "fence"].includes(part.category);
+      line.raycast = () => {};
+      mesh.add(line);
+      edges.push(line);
+    }
+  }
+  let selected: string | null = null;
+  const visiblePart = (part: SourceBuilding["objects"][number]) =>
+    !(
+      options.wireframe &&
+      /^(Clapboard reveal|Shutter louver)$/.test(part.label) &&
+      selected !== part.id
+    ) &&
+    (!ROOF_CATEGORIES.has(part.category) || options.roof) &&
+    buildingPartOnFloor(part, options.level);
+  const explodeOffset = (part: SourceBuilding["objects"][number]) => {
+    if (!options.explode) return 0;
+    if (model.storeys && part.storey)
+      return (
+        Math.max(
+          0,
+          model.storeys.findIndex((s) => s.id === part.storey),
+        ) * 1.8
+      );
+    return ROOF_CATEGORIES.has(part.category)
+      ? 4
+      : WALL_CATEGORIES.has(part.category) || part.category === "column"
+        ? 1.5
+        : part.category === "room"
+          ? 0.12
+          : 0;
+  };
+  const fit = () => {
+    const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
+    perspective.aspect = aspect;
+    perspective.updateProjectionMatrix();
+    const dir = new THREE.Vector3(0.8, 0.67, 1.2).normalize(),
+      right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(),
+      up = new THREE.Vector3().crossVectors(dir, right),
+      tan = Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
+    let distance = 1;
+    const effective = new THREE.Box3();
+    const vertex = new THREE.Vector3();
+    for (const part of model.objects)
+      if (visiblePart(part))
+        for (let i = 0; i < part.positions.length; i += 3)
+          effective.expandByPoint(
+            vertex.set(
+              part.positions[i],
+              part.positions[i + 1] + explodeOffset(part),
+              part.positions[i + 2],
+            ),
+          );
+    if (effective.isEmpty()) effective.copy(bounds);
+    const center = effective.getCenter(new THREE.Vector3()),
+      size = effective.getSize(new THREE.Vector3());
+    for (const x of [effective.min.x, effective.max.x])
+      for (const y of [effective.min.y, effective.max.y])
+        for (const z of [effective.min.z, effective.max.z]) {
+          const delta = new THREE.Vector3(x, y, z).sub(center);
+          distance = Math.max(
+            distance,
+            Math.abs(delta.dot(up)) / tan + delta.dot(dir),
+            Math.abs(delta.dot(right)) / (tan * aspect) + delta.dot(dir),
+          );
+        }
+    perspective.position.copy(center).addScaledVector(dir, distance * 1.08);
+    perspective.up.set(0, 1, 0);
+    perspective.lookAt(center);
+    const half = Math.max(size.z / 2, size.x / (2 * aspect)) * 1.25;
+    orthographic.left = -half * aspect;
+    orthographic.right = half * aspect;
+    orthographic.top = half;
+    orthographic.bottom = -half;
+    orthographic.zoom = 1;
+    orthographic.position.copy(center).add(new THREE.Vector3(0, span * 2, 0));
+    orthographic.up.set(0, 0, -1);
+    orthographic.lookAt(center);
+    orthographic.updateProjectionMatrix();
+    controls.target.copy(center);
+    controls.update();
+    invalidate();
+  };
+  const resize = () => {
+    renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
+    fit();
+  };
+  const observer = new ResizeObserver(resize);
+  observer.observe(host);
+  resize();
+  const apply = () => {
+    plane.constant =
+      (model.storeys?.find((s) => s.id === options.level)?.elevation ??
+        (options.level === "upper" ? cutHeight : (model.floorElevations?.ground ?? 0))) +
+      1.2 +
+      (options.explode
+        ? model.storeys
+          ? Math.max(
+              0,
+              model.storeys.findIndex((s) => s.id === options.level),
+            ) * 1.8
+          : 1.5
+        : 0);
+    ground.visible = !options.wireframe;
+    highlight.visible = !options.wireframe;
+    clippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
+    selectedClippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
+    for (const [id, mesh] of meshMap) {
+      const part = parts.get(id)!;
+      mesh.visible = visiblePart(part);
+      mesh.position.y = explodeOffset(part);
+      const base = mesh.userData.baseMaterial as THREE.MeshStandardMaterial;
+      base.visible = !options.wireframe;
+      mesh.castShadow = !options.wireframe && (model.materials[part.material].opacity ?? 1) > 0.9;
+      base.clipShadows = true;
+      base.clippingPlanes = options.cutaway && WALL_CATEGORIES.has(part.category) ? [plane] : [];
+      mesh.material = selected === id ? highlight : base;
+      if (selected === id) highlight.clippingPlanes = base.clippingPlanes;
+      for (const child of mesh.children) {
+        const line = child as THREE.LineSegments;
+        line.material = options.wireframe
+          ? selected === id
+            ? WALL_CATEGORIES.has(part.category)
+              ? selectedClippedWireMaterial
+              : selectedWireMaterial
+            : WALL_CATEGORIES.has(part.category)
+              ? clippedWireMaterial
+              : wireMaterial
+          : edgeMaterial;
+        line.visible =
+          options.wireframe ||
+          (line.userData.solidEdge && (!options.cutaway || !WALL_CATEGORIES.has(part.category)));
+      }
+    }
+    renderer.domElement.dataset.displayMode = options.wireframe ? "wireframe" : "solid";
+    renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
+    renderer.domElement.dataset.level = options.level;
+    renderer.domElement.dataset.roof = String(options.roof);
+    renderer.domElement.dataset.cutaway = String(options.cutaway);
+    renderer.domElement.dataset.explode = String(options.explode);
+    renderer.domElement.dataset.projection = options.plan ? "orthographic-plan" : "perspective";
+    renderer.domElement.dataset.visibleMeshCount = String(
+      [...meshMap.values()].filter((m) => m.visible).length,
+    );
+    invalidate();
+  };
+  const pointer = new THREE.Vector2(),
+    ray = new THREE.Raycaster();
+  const hoverCard = document.createElement("div");
+  hoverCard.className = "building-floor-hover";
+  hoverCard.setAttribute("role", "tooltip");
+  hoverCard.hidden = true;
+  host.appendChild(hoverCard);
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+  function clearHover() {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = null;
+    hoverCard.hidden = true;
+  }
+  function hover(event: PointerEvent) {
+    clearHover();
+    if (event.buttons || navigation?.mode !== "orbit") return;
+    const x = event.clientX,
+      y = event.clientY;
+    hoverTimer = setTimeout(() => {
+      if (disposed || navigation?.mode !== "orbit") return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.set(((x - rect.left) / rect.width) * 2 - 1, (-(y - rect.top) / rect.height) * 2 + 1);
+      ray.setFromCamera(pointer, camera);
+      const hit = ray
+        .intersectObjects(
+          [...meshMap.values()].filter((m) => m.visible),
+          false,
+        )
+        .find(
+          (h) =>
+            !options.cutaway ||
+            !WALL_CATEGORIES.has(parts.get(h.object.userData.partId)!.category) ||
+            h.point.y <= plane.constant,
+        );
+      const part = hit ? parts.get(hit.object.userData.partId) : null;
+      if (!part) return;
+      const storey = model.storeys?.find((s) => s.id === part.storey),
+        floor = storey?.label ?? part.level ?? "Unassigned floor";
+      const title = document.createElement("strong"),
+        detail = document.createElement("span");
+      title.textContent = floor;
+      detail.textContent = `${storey ? `Drawing level ${storey.elevation.toFixed(3)} m | ` : ""}${part.category} | ${part.evidenceState}`;
+      hoverCard.replaceChildren(title, detail);
+      hoverCard.dataset.floor = part.storey ?? part.level ?? "unknown";
+      hoverCard.style.left = `${Math.max(8, Math.min(rect.width - 270, x - rect.left + 16))}px`;
+      hoverCard.style.top = `${Math.max(8, Math.min(rect.height - 85, y - rect.top + 18))}px`;
+      hoverCard.hidden = false;
+    }, 1500);
+  }
+  let down: { x: number; y: number } | null = null;
+  const focusPart = (id: string) => {
+    const mesh = meshMap.get(id);
+    if (!mesh?.visible || navigation?.mode !== "orbit") return;
+    clearHover();
+    const target = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+    const from = camera.position.clone(),
+      to = from.clone().lerp(target, 0.25);
+    renderer.domElement.dataset.inspectionFrom = from.toArray().join(",");
+    renderer.domElement.dataset.inspectionTo = to.toArray().join(",");
+    renderer.domElement.dataset.inspectionTarget = target.toArray().join(",");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      cancelInspection();
+      camera.position.copy(to);
+      controls.target.copy(target);
+      camera.lookAt(target);
+    } else {
+      inspection = {
+        from,
+        to,
+        targetFrom: controls.target.clone(),
+        targetTo: target,
+        started: performance.now(),
+      };
+      renderer.domElement.dataset.inspectionTransition = "moving";
+    }
+    window.dispatchEvent(new CustomEvent("xray:inspect-component"));
+    invalidate();
+  };
+  const onDown = (event: PointerEvent) => {
+    cancelInspection();
+    clearHover();
+    down = { x: event.clientX, y: event.clientY };
+  };
+  const onUp = (event: PointerEvent) => {
+    if (navigation?.mode !== "orbit") return;
+    if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
+      down = null;
+      return;
+    }
+    down = null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.set(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      (-(event.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    ray.setFromCamera(pointer, camera);
+    const hit = ray
+      .intersectObjects(
+        [...meshMap.values()].filter((m) => m.visible),
+        false,
+      )
+      .find(
+        (h) =>
+          !options.cutaway ||
+          !WALL_CATEGORIES.has(parts.get(h.object.userData.partId)!.category) ||
+          h.point.y <= plane.constant,
+      );
+    const id = hit?.object.userData.partId ?? null;
+    if (id && id === selected) focusPart(id);
+    onSelect(id);
+  };
+  const lost = (event: Event) => {
+    event.preventDefault();
+    onError("The 3D graphics context was interrupted. Reopen Model to restore the viewer.");
+  };
+  renderer.domElement.addEventListener("pointerdown", onDown);
+  renderer.domElement.addEventListener("pointerup", onUp);
+  renderer.domElement.addEventListener("pointermove", hover);
+  renderer.domElement.addEventListener("pointerleave", clearHover);
+  renderer.domElement.addEventListener("wheel", clearHover);
+  renderer.domElement.addEventListener("webglcontextlost", lost);
+  scope = createModelScope({
+    host,
+    renderer,
+    scene,
+    getCamera: () => camera,
+    onInvalidate: invalidate,
+    onZoomChange: onScopeZoom,
+  });
+  navigation = createFirstPersonNavigation({
+    canvas: renderer.domElement,
+    camera: perspective,
+    bounds,
+    floor: () =>
+      model.storeys?.find((s) => s.id === options.level)?.elevation ??
+      (options.level === "upper" ? model.floorElevations?.upper : model.floorElevations?.ground) ??
+      bounds.min.y,
+    onChange: (mode) => {
+      controls.enabled = mode === "orbit";
+      onNavigation(mode);
+    },
+    invalidate,
+  });
+  renderer.domElement.dataset.navigation = "orbit";
+  apply();
+  return {
+    async navigate(mode, start) {
+      cancelInspection();
+      clearHover();
+      options = {
+        ...options,
+        level: start?.level ?? options.level,
+        plan: false,
+        cutaway: false,
+        explode: false,
+      };
+      if (camera !== perspective) {
+        perspective.position.copy(camera.position);
+        perspective.quaternion.copy(camera.quaternion);
+        controls.dispose();
+        camera = perspective;
+        controls = new OrbitControls(camera, renderer.domElement);
+        configureControls();
+      }
+      apply();
+      await navigation!.start(mode, start);
+    },
+    stopNavigation() {
+      navigation?.stop();
+    },
+    scope(value) {
+      scope?.setOptions(value);
+      invalidate();
+    },
+    appearance(value) {
+      environment.set(value);
+      const dramatic = ["storm", "cyclone", "midnight", "blue-hour"].includes(value.environment);
+      ground.visible = value.environment === "studio" || options.plan;
+      groundMaterial.color.set(value.background);
+      const palette = MODEL_PALETTES.find((p) => p.id === value.modelPalette);
+      for (const [key, material] of materials) {
+        const spec = model.materials[key.split(":")[0]];
+        material.color.set(value.modelPalette === "source" ? spec.color : value.modelColor);
+        material.metalness =
+          value.modelPalette === "source" ? (spec.metalness ?? 0) : (palette?.metalness ?? 0.15);
+        material.roughness = value.modelPalette === "source" ? (spec.roughness ?? 0.8) : 0.55;
+      }
+      for (const material of [wireMaterial, clippedWireMaterial]) {
+        material.color.set(value.wire);
+        material.opacity = value.opacity;
+      }
+      ambient.intensity = (dramatic ? 1.1 : 2.25) * value.lighting;
+      sun.intensity = (dramatic ? 2 : 3.2) * value.lighting;
+      sun.color.set(value.environment === "sunset" ? "#FFD09C" : dramatic ? "#AAC6F1" : "#FFFFFF");
+      renderer.shadowMap.enabled = value.shadows;
+      renderer.domElement.dataset.appearance = JSON.stringify(value);
+      invalidate();
+    },
+    options(next) {
+      clearHover();
+      const changed = next.plan !== options.plan,
+        exploded = next.explode !== options.explode || next.level !== options.level;
+      if (changed || exploded) cancelInspection();
+      if (navigation?.mode !== "orbit" && (changed || exploded)) navigation?.stop();
+      options = next;
+      if (changed) {
+        controls.dispose();
+        camera = options.plan ? orthographic : perspective;
+        controls = new OrbitControls(camera, renderer.domElement);
+        configureControls();
+        controls.enableRotate = !options.plan;
+        fit();
+      }
+      if (exploded) fit();
+      apply();
+    },
+    select(id) {
+      selected = id;
+      renderer.domElement.dataset.selectedPart = id ?? "";
+      apply();
+      if (id) focusPart(id);
+      else cancelInspection();
+    },
+    fit() {
+      cancelInspection();
+      navigation?.stop();
+      fit();
+    },
+    png() {
+      renderer.render(scene, camera);
+      const anchor = document.createElement("a");
+      anchor.download = model.source.name.replace(/\.pdf$/i, "") + "-reconstruction.png";
+      const output = document.createElement("canvas"),
+        source = renderer.domElement;
+      const scale = renderer.getPixelRatio(),
+        footer = 66 * scale;
+      output.width = source.width;
+      output.height = source.height + footer;
+      const context = output.getContext("2d");
+      if (!context) {
+        onError("The image export canvas is unavailable.");
+        return;
+      }
+      context.drawImage(source, 0, 0);
+      context.fillStyle = "#f2ede3";
+      context.fillRect(0, source.height, output.width, footer);
+      context.fillStyle = "#25372f";
+      context.font = `${11 * scale}px sans-serif`;
+      const attribution = [
+        model.source.title ?? model.source.name,
+        model.source.author,
+        model.source.license,
+      ]
+        .filter(Boolean)
+        .join(" / ");
+      context.fillText(
+        attribution,
+        16 * scale,
+        source.height + 20 * scale,
+        output.width - 32 * scale,
+      );
+      context.fillText(
+        "Curated approximate reconstruction / changes: source drawings converted to 3D / not for construction",
+        16 * scale,
+        source.height + 38 * scale,
+        output.width - 32 * scale,
+      );
+      context.fillText(
+        model.source.licenseUrl ?? `Source SHA-256: ${model.source.sha256}`,
+        16 * scale,
+        source.height + 54 * scale,
+        output.width - 32 * scale,
+      );
+      anchor.href = output.toDataURL("image/png");
+      anchor.click();
+    },
+    dispose() {
+      clearHover();
+      hoverCard.remove();
+      environment.dispose();
+      navigation?.dispose();
+      disposed = true;
+      cancelAnimationFrame(frame);
+      scope?.dispose();
+      observer.disconnect();
+      controls.dispose();
+      renderer.domElement.removeEventListener("pointerdown", onDown);
+      renderer.domElement.removeEventListener("pointerup", onUp);
+      renderer.domElement.removeEventListener("pointermove", hover);
+      renderer.domElement.removeEventListener("pointerleave", clearHover);
+      renderer.domElement.removeEventListener("wheel", clearHover);
+      renderer.domElement.removeEventListener("webglcontextlost", lost);
+      for (const mesh of meshMap.values()) mesh.geometry.dispose();
+      for (const edge of edges) edge.geometry.dispose();
+      for (const material of materials.values()) material.dispose();
+      edgeMaterial.dispose();
+      wireMaterial.dispose();
+      clippedWireMaterial.dispose();
+      selectedWireMaterial.dispose();
+      selectedClippedWireMaterial.dispose();
+      highlight.dispose();
+      groundGeometry.dispose();
+      groundMaterial.dispose();
+      sun.shadow.map?.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    },
+  };
+}
+
+export function SourceBuildingViewer() {
+  const [navigationMode, setNavigationMode] = useState<NavigationMode>("orbit");
+  const [navigationError, setNavigationError] = useState("");
+  const [walkPicker, setWalkPicker] = useState(false);
+  const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
+    enabled: false,
+    zoom: 4,
+    diameter: 240,
+  });
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setScopeOptions((value) => ({ ...value, enabled: false }));
+    };
+    window.addEventListener("keydown", escape, true);
+    return () => window.removeEventListener("keydown", escape, true);
+  }, []);
+  const [appearance, setAppearance] = useState<BuildingAppearance>({ ...DEFAULT_APPEARANCE }),
+    [appearanceLoaded, setAppearanceLoaded] = useState(false),
+    [preferenceWarning, setPreferenceWarning] = useState<string | null>(null),
+    [sceneDigest, setSceneDigest] = useState("");
+  useEffect(() => {
+    try {
+      setAppearance(loadAppearance(window.localStorage));
+    } catch {
+      setPreferenceWarning("Appearance preferences are unavailable in this browser.");
+    }
+    setAppearanceLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!appearanceLoaded) return;
+    try {
+      saveAppearance(window.localStorage, appearance);
+      setPreferenceWarning(null);
+    } catch {
+      setPreferenceWarning("Appearance works here, but these settings could not be saved.");
+    }
+  }, [appearance, appearanceLoaded]);
+  const pageIndex = useStudio((s) => s.sheet),
+    activeDocument = useStudio((s) => s.job.documents.find((d) => d.id === s.job.activeDocumentId));
+  const documentError = useStudio((s) => s.documentError);
+  const binary = useStudio((s) => s.activePlanBinary),
+    hydrated = useStudio((s) => s.persistenceHydrated),
+    [model, setModel] = useState<SourceBuilding | null>(null),
+    [error, setError] = useState<string | null>(null),
+    [loading, setLoading] = useState(false),
+    [matched, setMatched] = useState(false),
+    [checking, setChecking] = useState(false),
+    [selected, setSelected] = useState<string | null>(null),
+    [sourceIndex, setSourceIndex] = useState(0),
+    [options, setOptions] = useState<ViewOptions>(
+      () =>
+        sessionViewOptions.get(binary?.sha256 ?? "") ?? {
+          wireframe: false,
+          roof: true,
+          cutaway: false,
+          explode: false,
+          plan: false,
+          level: "all",
+        },
+    );
+  useEffect(() => {
+    if (binary) sessionViewOptions.set(binary.sha256, options);
+  }, [binary, options]);
+  const [chosen, setChosen] = useState<string>(BUILDING_CATALOG[0].id);
+  const config = BUILDING_CATALOG.find((c) => c.id === chosen)!;
+  const [verifiedBytes, setVerifiedBytes] = useState<Uint8Array | null>(null);
+  const [svgAvailable, setSvgAvailable] = useState(false);
+  const svgProjection = options.plan
+    ? options.level === "upper"
+      ? "upper"
+      : "ground"
+    : "axonometric";
+  const svgUrl = `/models/caroline/wireframe-${svgProjection}.svg`;
+  useEffect(() => {
+    let active = true;
+    setSvgAvailable(false);
+    if (config.id !== "caroline") return;
+    void fetch(svgUrl, { method: "HEAD" })
+      .then((response) => {
+        if (active)
+          setSvgAvailable(
+            response.ok && response.headers.get("content-type")?.includes("image/svg+xml") === true,
+          );
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [config, svgUrl]);
+  useEffect(() => {
+    const entry = BUILDING_CATALOG.find((c) => c.sha256 === binary?.sha256);
+    if (entry) setChosen(entry.id);
+  }, [binary?.sha256]);
+  const host = useRef<HTMLDivElement>(null),
+    api = useRef<SceneApi | null>(null);
+  useEffect(() => {
+    const abort = new AbortController();
+    setModel(null);
+    setMatched(false);
+    setError(null);
+    void fetchBuildingBytes(config.sceneUrl, 20 * 1024 * 1024, abort.signal)
+      .then(async (bytes) => {
+        const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes).buffer);
+        if (!abort.signal.aborted)
+          setSceneDigest(
+            Array.from(new Uint8Array(digest), (v) => v.toString(16).padStart(2, "0")).join(""),
+          );
+        return parseSourceBuilding(JSON.parse(new TextDecoder().decode(bytes)));
+      })
+      .then((value) => {
+        if (value.source.sha256 !== config.sha256)
+          throw Error("Reconstruction source identity does not match the selected plan.");
+        if (!abort.signal.aborted) {
+          setModel(value);
+          setOptions(
+            sessionViewOptions.get(value.source.sha256) ?? {
+              wireframe: false,
+              roof: true,
+              cutaway: false,
+              explode: false,
+              plan: false,
+              level: "all",
+            },
+          );
+        }
+      })
+      .catch((e) => {
+        if (!abort.signal.aborted) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => abort.abort();
+  }, [config]);
+  useEffect(() => {
+    let active = true;
+    setMatched(false);
+    setVerifiedBytes(null);
+    setSelected(null);
+    if (!model || !binary) {
+      setChecking(false);
+      return;
+    }
+    setChecking(true);
+    void sourceBytesMatch(model, binary.bytes, binary.sha256)
+      .then((value) => {
+        if (active) {
+          setMatched(value);
+          setVerifiedBytes(value ? binary.bytes : null);
+          setChecking(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setChecking(false);
+          setError("The imported original could not be verified.");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [model, binary]);
+  useEffect(() => {
+    if (!model || !matched || !host.current || !binary || !sceneDigest) return;
+    try {
+      api.current = createBuildingScene(
+        host.current,
+        model,
+        setSelected,
+        setError,
+        (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
+        setNavigationMode,
+        { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    return () => {
+      api.current?.dispose();
+      api.current = null;
+    };
+  }, [model, matched, binary?.documentId, sceneDigest, config.id]);
+  useEffect(() => api.current?.options(options), [options, matched]);
+  useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
+  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
+  useEffect(() => {
+    api.current?.select(selected);
+    setSourceIndex(0);
+  }, [selected, matched]);
+  async function openSource() {
+    if (!model) return;
+    const previousBinary = useStudio.getState().activePlanBinary;
+    setLoading(true);
+    setError(null);
+    try {
+      const bytes = await fetchBuildingBytes(config.sourceUrl, 100 * 1024 * 1024);
+      const imported = await inspectPlanBytes({
+        name: model.source.name,
+        bytes,
+        source: "web",
+        takeoff: null,
+      });
+      if (!(await sourceBytesMatch(model, imported.binary.bytes, imported.binary.sha256)))
+        throw Error("The original PDF does not match this reconstruction. Nothing was imported.");
+      if (useStudio.getState().activePlanBinary !== previousBinary)
+        throw Error(
+          "A different plan was opened while this source was loading. The newer plan was preserved.",
+        );
+      await useStudio.getState().importPlan(imported);
+      useStudio.getState().setPane("model");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function exportSvg() {
+    try {
+      const bytes = await fetchBuildingBytes(svgUrl, 10 * 1024 * 1024),
+        text = new TextDecoder().decode(bytes);
+      if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw Error("Unsupported SVG document declaration.");
+      const document = new DOMParser().parseFromString(text, "image/svg+xml"),
+        provenance = JSON.parse(
+          document.querySelector("#source-provenance")?.textContent ?? "null",
+        );
+      if (
+        document.querySelector("parsererror,script,foreignObject,image") ||
+        provenance?.source?.sha256 !== model?.source.sha256 ||
+        provenance?.sceneSha256 !== sceneDigest
+      )
+        throw Error("SVG source geometry does not match the current reconstruction.");
+      const background = document.querySelector("#drawing-background"),
+        edges = document.querySelector("#building-edges");
+      if (!background || !edges) throw Error("SVG palette metadata is unavailable.");
+      background.setAttribute("fill", appearance.background);
+      edges.setAttribute("stroke", appearance.wire);
+      edges.setAttribute("stroke-opacity", String(appearance.opacity));
+      for (const label of document.querySelectorAll('[data-palette-role="text"]'))
+        label.setAttribute("fill", appearance.wire);
+      const metadata = document.createElementNS("http://www.w3.org/2000/svg", "metadata");
+      metadata.setAttribute("id", "viewer-appearance");
+      metadata.textContent = JSON.stringify({
+        background: appearance.background,
+        wire: appearance.wire,
+        opacity: appearance.opacity,
+        projection: svgProjection,
+        scope:
+          "Fixed Python-generated projection; palette adapted in viewer; source paths unchanged.",
+      });
+      document.documentElement.append(metadata);
+      const blob = new Blob([new XMLSerializer().serializeToString(document)], {
+          type: "image/svg+xml",
+        }),
+        url = URL.createObjectURL(blob),
+        anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = `caroline-wireframe-${svgProjection}.svg`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+  const part = model?.objects.find((p) => p.id === selected) ?? null,
+    ref = part?.sourceRefs[sourceIndex],
+    sheet = ref
+      ? model?.sourceSheets.find((s) => s.page === ref.page)
+      : (model?.sourceSheets.find(
+          (s) =>
+            model.storeys &&
+            s.page === model.objects.find((p) => p.storey === options.level)?.sourceRefs[0]?.page,
+        ) ??
+        model?.sourceSheets.find((s) =>
+          options.level === "upper"
+            ? /upstairs|upper/i.test(s.title)
+            : options.level === "ground"
+              ? /downstairs|ground plan/i.test(s.title)
+              : s.role === "elevation",
+        ) ??
+        model?.sourceSheets[0]),
+    ready =
+      matched &&
+      !!model &&
+      verifiedBytes === binary?.bytes &&
+      model.source.sha256 === binary?.sha256 &&
+      model.source.sha256 === config.sha256;
+  return (
+    <div
+      className="source-building"
+      data-model-status={ready ? "ready" : checking ? "checking" : model ? "unmatched" : "loading"}
+    >
+      <div className="building-heading">
+        <div>
+          <span className="building-eyebrow">
+            SOURCE RECONSTRUCTION / {config.title.toUpperCase()}
+          </span>
+          <h1>{ready ? "The drawing, in three dimensions" : `Explore ${config.title}`}</h1>
+        </div>
+        {!ready && (
+          <select
+            className="building-scene-picker"
+            aria-label="Prepared building"
+            value={config.id}
+            disabled={loading}
+            onChange={(e) => setChosen(e.target.value)}
+          >
+            {BUILDING_CATALOG.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        )}
+        <span className="building-source-state">
+          {ready ? (
+            <>
+              <span className="building-dot" />
+              Original PDF matched / {model.source.pageCount} sheets
+            </>
+          ) : config.sample ? (
+            "Sample reconstruction - visual fidelity incomplete"
+          ) : (
+            "Reconstructed from source drawings"
+          )}
+        </span>
+      </div>
+      {(error || documentError) && (
+        <div className="building-error" role="alert">
+          {error || documentError}
+          <button
+            type="button"
+            aria-label="Dismiss model error"
+            onClick={() => {
+              setError(null);
+              useStudio.setState({ documentError: null });
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      <div className="building-workspace">
+        <nav className="building-left-nav" aria-label="Source sheets and models">
+          <h2>MODELS</h2>
+          {BUILDING_CATALOG.map((c) => (
+            <button
+              type="button"
+              className={config.id === c.id ? "active" : ""}
+              key={c.id}
+              onClick={() => setChosen(c.id)}
+              disabled={loading}
+            >
+              <Box size={14} />
+              {c.title}
+            </button>
+          ))}
+          <h2>
+            SHEETS <span>{activeDocument?.pageCount ?? 0}</span>
+          </h2>
+          <p className="building-nav-file" title={binary?.name}>
+            {binary?.name ?? "Open a source PDF"}
+          </p>
+          {binary &&
+            Array.from({ length: activeDocument?.pageCount ?? 0 }, (_, i) => {
+              const sourceSheet =
+                model?.source.sha256 === binary.sha256
+                  ? model.sourceSheets.find((p) => p.page === i + 1)
+                  : undefined;
+              return (
+                <button
+                  type="button"
+                  key={i}
+                  className={pageIndex === i ? "active" : ""}
+                  aria-label={`Open source page ${i + 1}`}
+                  onClick={() => {
+                    useStudio.getState().setSheet(i);
+                    useStudio.getState().setPane("sheets");
+                  }}
+                >
+                  <span className="building-page-number">{String(i + 1).padStart(2, "0")}</span>
+                  <span>{sourceSheet?.title ?? `Sheet ${i + 1}`}</span>
+                  {sourceSheet && <img src={sourceSheet.image} alt="" loading="lazy" />}
+                </button>
+              );
+            })}
+        </nav>
+        <div className="building-stage">
+          {ready && (
+            <BuildingVisualSettings
+              viewLabel={
+                options.wireframe
+                  ? "X-ray edges"
+                  : options.plan
+                    ? "Orthographic plan"
+                    : "Perspective"
+              }
+              viewDetail={`${model.objects.length} source-linked ${model.storeys ? "render meshes · approximate" : "parts"}`}
+              value={appearance}
+              onChange={setAppearance}
+              warning={preferenceWarning}
+              scope={scopeOptions}
+              onScopeChange={setScopeOptions}
+            />
+          )}
+          {ready ? (
+            <>
+              <div className="building-canvas" ref={host} />
+              <div className="building-toolbar" aria-label="3D view controls">
+                <div className="building-tool-group">
+                  <button
+                    type="button"
+                    aria-pressed={!options.wireframe}
+                    onClick={() => setOptions((o) => ({ ...o, wireframe: false }))}
+                  >
+                    Solid
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={options.wireframe}
+                    onClick={() => setOptions((o) => ({ ...o, wireframe: true }))}
+                  >
+                    Wireframe
+                  </button>
+                </div>
+                <div className="building-tool-group">
+                  <button
+                    type="button"
+                    aria-pressed={!options.plan}
+                    onClick={() => setOptions((o) => ({ ...o, plan: false }))}
+                  >
+                    <Box size={15} />
+                    Orbit
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={options.plan}
+                    onClick={() => setOptions((o) => ({ ...o, plan: true }))}
+                  >
+                    <ScanLine size={15} />
+                    Plan
+                  </button>
+                  <button type="button" onClick={() => api.current?.fit()}>
+                    <Expand size={15} />
+                    Fit
+                  </button>
+                </div>
+                <div className="building-tool-group">
+                  {model.objects.some((p) => p.level) && (
+                    <select
+                      aria-label="Building floor"
+                      value={options.level}
+                      onChange={(e) => {
+                        setSelected(null);
+                        setOptions((o) => ({
+                          ...o,
+                          level: e.target.value as ViewOptions["level"],
+                          roof: e.target.value === "all" || e.target.value === "RF",
+                          cutaway: e.target.value === "all" ? false : o.cutaway,
+                        }));
+                      }}
+                    >
+                      <option value="all">Whole building</option>
+                      {model.storeys ? (
+                        model.storeys.map((storey) => (
+                          <option key={storey.id} value={storey.id}>
+                            {storey.label}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="ground">Ground floor</option>
+                          <option value="upper">Upper floor</option>
+                        </>
+                      )}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    aria-pressed={options.roof}
+                    onClick={() =>
+                      setOptions((o) => ({
+                        ...o,
+                        roof: !o.roof,
+                        level: !o.roof ? "all" : o.level,
+                        cutaway: !o.roof ? false : o.cutaway,
+                      }))
+                    }
+                  >
+                    Roof {options.roof ? "on" : "off"}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={options.cutaway}
+                    onClick={() =>
+                      setOptions((o) => ({
+                        ...o,
+                        cutaway: !o.cutaway,
+                        level:
+                          !o.cutaway && o.level === "all" && model.floorElevations
+                            ? (model.storeys?.[0].id ?? "ground")
+                            : o.level,
+                        roof: o.cutaway ? o.roof : false,
+                      }))
+                    }
+                  >
+                    Wall cutaway
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={options.explode}
+                    onClick={() => setOptions((o) => ({ ...o, explode: !o.explode }))}
+                  >
+                    <Layers size={15} />
+                    Explode
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Download model PNG"
+                  onClick={() => api.current?.png()}
+                >
+                  <Download size={15} />
+                  <span>PNG</span>
+                </button>
+              </div>
+              {config.id === "caroline" && (
+                <div className="building-svg-export">
+                  {svgAvailable ? (
+                    <button type="button" onClick={() => void exportSvg()}>
+                      <Download size={13} /> SVG /{" "}
+                      {options.plan
+                        ? options.level === "upper"
+                          ? "upper plan"
+                          : "ground plan"
+                        : "fixed axonometric"}
+                    </button>
+                  ) : (
+                    <span>SVG export preparing</span>
+                  )}
+                </div>
+              )}
+              <div className="building-navigation-tools">
+                <div
+                  className="navigation-button-group"
+                  role="group"
+                  aria-label="Explore the building"
+                >
+                  <button
+                    type="button"
+                    className="pill"
+                    onClick={() => {
+                      setNavigationError("");
+                      setScopeOptions((o) => ({ ...o, enabled: false }));
+                      setOptions((o) => ({ ...o, plan: false, cutaway: false, explode: false }));
+                      void api.current?.navigate("fly").catch((e) => setNavigationError(e.message));
+                    }}
+                  >
+                    Fly / first person
+                  </button>
+                  <button
+                    type="button"
+                    className="pill"
+                    onClick={() => {
+                      setNavigationError("");
+                      api.current?.stopNavigation();
+                      setWalkPicker(true);
+                    }}
+                  >
+                    Walk / cinematic
+                  </button>
+                  {navigationMode !== "orbit" && (
+                    <button
+                      type="button"
+                      className="pill"
+                      onClick={() => api.current?.stopNavigation()}
+                    >
+                      Exit navigation
+                    </button>
+                  )}
+                </div>
+                <div className="navigation-key-guide" aria-label="Navigation keyboard controls">
+                  <div className="navigation-movement">
+                    <div className="wasd-keys" aria-label="W forward, A left, S backward, D right">
+                      <kbd>W</kbd>
+                      <kbd>A</kbd>
+                      <kbd>S</kbd>
+                      <kbd>D</kbd>
+                    </div>
+                    <span>Move</span>
+                  </div>
+                  <span>
+                    <MousePointer2 size={14} /> Mouse to look
+                  </span>
+                  <span>
+                    <kbd>Shift</kbd> Faster
+                  </span>
+                  {navigationMode !== "walk" && (
+                    <span>
+                      <kbd>Space</kbd> / <kbd>Ctrl</kbd> Up / down
+                    </span>
+                  )}
+                  <span className="navigation-escape">
+                    <kbd>Esc</kbd> Exit
+                  </span>
+                </div>
+                <div className="navigation-arrival" role="status">
+                  Moving to your starting point · <kbd>Esc</kbd> cancels
+                </div>
+                {navigationError && <span role="alert">{navigationError}</span>}
+              </div>
+              <div className="building-canvas-note">
+                <MousePointer2 size={13} /> Drag to orbit · wheel to zoom · right-drag to pan ·
+                click a part
+              </div>
+              {walkPicker && (
+                <WalkStartDialog
+                  model={model}
+                  initialFloor={options.level}
+                  onClose={() => setWalkPicker(false)}
+                  onStart={(level, point) => {
+                    const next = { ...options, level, plan: false, cutaway: false, explode: false };
+                    flushSync(() => {
+                      setWalkPicker(false);
+                      setScopeOptions((o) => ({ ...o, enabled: false }));
+                    });
+                    void api.current
+                      ?.navigate("walk", { ...point, level })
+                      .catch((e) => setNavigationError(e.message));
+                    setOptions(next);
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            <div className="building-empty">
+              {model && (
+                <img
+                  src={
+                    model.sourceSheets.find((s) => s.role.includes("elev"))?.image ??
+                    model.sourceSheets[0].image
+                  }
+                  alt={`Original ${config.title} drawing`}
+                />
+              )}
+              <div className="building-empty-content">
+                <label className="building-part-picker">
+                  Prepared reconstruction
+                  <select
+                    value={config.id}
+                    disabled={loading}
+                    onChange={(e) => setChosen(e.target.value)}
+                  >
+                    {BUILDING_CATALOG.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="building-eyebrow">ONE REAL PLAN. ITS OWN BUILDING.</span>
+                <h2>
+                  {checking
+                    ? "Checking original drawing bytes…"
+                    : binary
+                      ? "This plan has no prepared 3D reconstruction"
+                      : "A real building, reconstructed from its source"}
+                </h2>
+                <p>
+                  {binary && !checking
+                    ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
+                    : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore the reconstruction and its drawing evidence.`}
+                </p>
+                <button
+                  type="button"
+                  className="building-primary"
+                  disabled={!model || loading || !hydrated || checking}
+                  onClick={() => void openSource()}
+                >
+                  {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
+                  <Box size={17} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <aside className="building-inspector" aria-label="Building source evidence">
+          {model && part && <ComponentLocationMaps key={part.id} model={model} part={part} />}
+          <div className="building-inspector-title">
+            <span className="building-eyebrow">DRAWING EVIDENCE</span>
+            {part && (
+              <button
+                type="button"
+                aria-label="Clear part selection"
+                onClick={() => setSelected(null)}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+          <h2>{part?.label ?? "Every part has a source"}</h2>
+          <p className="building-evidence-state">
+            {part
+              ? `${part.category} · ${part.evidenceState}`
+              : "Select geometry to inspect the original sheet."}
+          </p>
+          {ready && (
+            <label className="building-part-picker">
+              Building part
+              <select
+                aria-label="Building part"
+                value={selected ?? ""}
+                onChange={(e) => setSelected(e.target.value || null)}
+              >
+                <option value="">Choose a part…</option>
+                {model.objects
+                  .filter((p) => buildingPartOnFloor(p, options.level))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label} · {p.id}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+          {sheet && (
+            <>
+              <a
+                className={part ? "pill" : "building-source-image"}
+                href={sheet.image}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Open original source page ${sheet.page}`}
+              >
+                {part ? (
+                  `Open original page ${sheet.page}`
+                ) : (
+                  <img src={sheet.image} alt={`${sheet.title}, original page ${sheet.page}`} />
+                )}
+                {!part && ref && (
+                  <span
+                    className="building-source-region"
+                    style={{
+                      left: `${(ref.region[0] / sheet.width) * 100}%`,
+                      top: `${(ref.region[1] / sheet.height) * 100}%`,
+                      width: `${((ref.region[2] - ref.region[0]) / sheet.width) * 100}%`,
+                      height: `${((ref.region[3] - ref.region[1]) / sheet.height) * 100}%`,
+                    }}
+                  />
+                )}
+              </a>
+              <div className="building-sheet-label">
+                <b>Page {sheet.page}</b>
+                <span>{sheet.title}</span>
+              </div>
+            </>
+          )}
+          {part && (
+            <div className="building-part-evidence">
+              <label>
+                Evidence reference
+                <select
+                  value={sourceIndex}
+                  onChange={(e) => setSourceIndex(Number(e.target.value))}
+                >
+                  {part.sourceRefs.map((r, i) => (
+                    <option value={i} key={i}>
+                      Page {r.page} · {r.evidenceState}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {ref?.dimension && (
+                <p>
+                  <b>
+                    {ref.dimension.value} {ref.dimension.unit}
+                  </b>
+                  <span>Source annotation: {ref.dimension.text}</span>
+                </p>
+              )}
+              <p>{ref?.note}</p>
+              {part.note && <p>{part.note}</p>}
+            </div>
+          )}
+          <div className="building-boundary">
+            <b>Curated reconstruction</b>
+            {model?.source.author && (
+              <p>
+                {model.source.title}
+                <br />
+                {model.source.author}
+                <br />
+                {model.source.licenseUrl ? (
+                  <a href={model.source.licenseUrl} target="_blank" rel="noreferrer">
+                    {model.source.license}
+                  </a>
+                ) : (
+                  model.source.license
+                )}
+                <br />
+                Adaptation: source drawings reconstructed in 3D.
+              </p>
+            )}
+            <p>
+              Preliminary, approximate geometry. Not for construction or verified quantities.
+              {config.sample
+                ? " Undisclosed interiors are left unpartitioned."
+                : " Source assumptions and omitted details remain explicit."}
+            </p>
+            <details>
+              <summary>Source and assumptions</summary>
+              <p className="building-hash">
+                PDF SHA-256
+                <br />
+                {model?.source.sha256}
+              </p>
+              {model?.assumptions.map((text, i) => (
+                <p key={i}>{text}</p>
+              ))}
+            </details>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}

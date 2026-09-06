@@ -1,0 +1,4 @@
+﻿# Reference-house photoreal visualization
+Built-in image generation, using the supplied 214319 exterior screenshot as primary geometry reference and the 214407 lower-floor plan as support. Output: reference-house-photoreal-v1.png, 1620 x 971 pixels. AI visualization based on the supplied references; exact dimensions and complete specification compliance have not been independently verified.
+
+Prompt intent: preserve the two-storey house, camera angle, stepped site, roof arrangement, three large upper louvre windows, lower folding doors and louvres, covered tiled terrace, concrete piers, balustrade, left exterior stairs, retaining wall, and outdoor sink niche. Upgrade material fidelity and natural afternoon lighting without redesigning or adding structures. No people, cars, pool, furniture, text or watermark. Highest available image quality requested. Primary reference controls visible architecture; supporting plan controls visible context.

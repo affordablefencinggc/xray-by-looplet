@@ -1,0 +1,94 @@
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000..797bf6e
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,14 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <meta name="theme-color" content="#050b14" />
++    <title>X-Ray by Looplet</title>
++    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
++  </head>
++  <body>
++    <div id="root"></div>
++    <script type="module" src="/src/desktop.tsx"></script>
++  </body>
++</html>
+diff --git a/src/desktop.tsx b/src/desktop.tsx
+new file mode 100644
+index 0000000..b52b5fc
+--- /dev/null
++++ b/src/desktop.tsx
+@@ -0,0 +1,43 @@
++import { createRoot } from "react-dom/client";
++import {
++  createMemoryHistory,
++  createRootRoute,
++  createRoute,
++  createRouter,
++  Outlet,
++  RouterProvider,
++} from "@tanstack/react-router";
++import { PreviewHostBridge } from "./components/preview-host-bridge";
++import { AgentationOverlay } from "./components/AgentationOverlay";
++import { AuthProvider } from "./lib/auth/provider";
++import { AppErrorComponent } from "./lib/error-component";
++import { Studio } from "./studio/Studio";
++import "./styles.css";
++
++// The desktop document owns <html>/<body>; reuse the product and providers
++// without mounting TanStack Start's server document inside a second document.
++const rootRoute = createRootRoute({
++  component: () => (
++    <>
++      <PreviewHostBridge />
++      <AuthProvider><Outlet /></AuthProvider>
++      <AgentationOverlay />
++    </>
++  ),
++});
++const indexRoute = createRoute({
++  getParentRoute: () => rootRoute,
++  path: "/",
++  component: Studio,
++});
++const router = createRouter({
++  routeTree: rootRoute.addChildren([indexRoute]),
++  // Packaged URLs end in index.html. Pane state belongs to Studio, while
++  // the router keeps its normal root route and the preview bridge context.
++  history: createMemoryHistory({ initialEntries: [`/${window.location.search}`] }),
++  defaultErrorComponent: AppErrorComponent,
++});
++
++const container = document.getElementById("root");
++if (!container) throw new Error("The desktop application mount is missing.");
++createRoot(container).render(<RouterProvider router={router} />);
+diff --git a/package.json b/package.json
+index 8ebf3a1..313ab14 100644
+--- a/package.json
++++ b/package.json
+@@ -11,6 +11,7 @@
+     "build": "node scripts/with-app-env.mjs vite build && npm run db:migrate",
+     "db:migrate": "node scripts/migrate.mjs",
+     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
++    "build:desktop": "node scripts/with-app-env.mjs vite build --config vite.config.spa.ts",
+     "preview": "node scripts/with-app-env.mjs node scripts/preview-built.mjs",
+     "preview:restart": "node scripts/preview.mjs restart",
+     "preview:stop": "node scripts/preview.mjs stop",
+diff --git a/src-tauri/tauri.conf.json b/src-tauri/tauri.conf.json
+index 23a417a..bcc3ba0 100644
+--- a/src-tauri/tauri.conf.json
++++ b/src-tauri/tauri.conf.json
+@@ -6,7 +6,7 @@
+   "build": {
+     "beforeDevCommand": "",
+     "devUrl": "http://127.0.0.1:8080",
+-    "beforeBuildCommand": "npx vite build --config vite.config.spa.ts",
++    "beforeBuildCommand": "npm run build:desktop",
+     "frontendDist": "../dist"
+   },
+   "app": {

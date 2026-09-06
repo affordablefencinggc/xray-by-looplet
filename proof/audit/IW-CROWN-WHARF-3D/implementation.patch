@@ -1,0 +1,597 @@
+diff --git a/proof/audit/IW-CROWN-WHARF-3D/before/sourceBuilding.ts b/src/studio/sourceBuilding.ts
+index 36532cd..004af35 100644
+--- a/proof/audit/IW-CROWN-WHARF-3D/before/sourceBuilding.ts
++++ b/src/studio/sourceBuilding.ts
+@@ -3,6 +3,14 @@ import { z } from "zod";
+ export const BUILDING_SCENE_URL = "/models/ruffles/source-building.json";
+ export const BUILDING_SOURCE_URL = "/models/ruffles/source.pdf";
+ export const BUILDING_CATALOG = [
++  {
++    id: "crown-wharf",
++    title: "Crown Wharf A4 tower",
++    sceneUrl: "/models/crown-wharf/source-building.json",
++    sourceUrl: "/models/crown-wharf/source.pdf",
++    sha256: "32a99e7680a94f7690bc1639913563f279a3452bcb9f0dd4e4ef63997ab2639a",
++    sample: false,
++  },
+   {
+     id: "caroline",
+     title: "Caroline",
+@@ -46,6 +54,7 @@ const sourceRef = z
+ const object = z
+   .object({
+     level: z.enum(["ground", "upper", "roof"]).optional(),
++    storey: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).optional(),
+     id: z.string().min(1).max(200),
+     category: z.enum([
+       "wall",
+@@ -95,6 +104,11 @@ const sceneSchema = z
+     coordinateSystem: z.string().min(1).max(300),
+     bounds: z.object({ min: vector, max: vector }).strict(),
+     floorElevations: z.object({ ground: number, upper: number }).strict().optional(),
++    storeys: z.array(z.object({
++      id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).refine((id) => !["all", "ground", "upper"].includes(id)),
++      label: z.string().min(1).max(100),
++      elevation: number,
++    }).strict()).min(1).max(100).optional(),
+     materials: z.record(
+       z.string().min(1).max(100),
+       z
+@@ -163,7 +177,14 @@ export function parseSourceBuilding(input: unknown): SourceBuilding {
+   )
+     throw Error("Floor elevations are outside the source building.");
+   let coordinates = 0;
++  const storeys = new Map(scene.storeys?.map((s) => [s.id, s]));
++  if (scene.storeys && (storeys.size !== scene.storeys.length || scene.storeys.some((s, i) =>
++    s.elevation < scene.bounds.min[1] || s.elevation > scene.bounds.max[1] ||
++    (i > 0 && s.elevation <= scene.storeys![i - 1].elevation))))
++    throw Error("Storey identities or elevations are inconsistent.");
+   for (const part of scene.objects) {
++    if ((scene.storeys && !part.storey) || (part.storey && !storeys.has(part.storey)))
++      throw Error("Part refers to an unavailable storey.");
+     if (ids.has(part.id) || !Object.hasOwn(scene.materials, part.material))
+       throw Error("Duplicate part or missing material.");
+     ids.add(part.id);
+@@ -194,6 +215,14 @@ export function parseSourceBuilding(input: unknown): SourceBuilding {
+   return scene;
+ }
+ 
++export function buildingPartOnFloor(part: BuildingPart, floor: string): boolean {
++  if (floor === "all") return true;
++  if (part.storey) return part.storey === floor;
++  if (floor === "ground") return part.level !== "upper" && part.level !== "roof";
++  if (floor === "upper") return part.level !== "ground";
++  return false;
++}
++
+ export async function sourceBytesMatch(
+   scene: SourceBuilding,
+   bytes: Uint8Array,
+diff --git a/proof/audit/IW-CROWN-WHARF-3D/before/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index f33d9bf..b0ef01b 100644
+--- a/proof/audit/IW-CROWN-WHARF-3D/before/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -10,6 +10,7 @@ import {
+   WALL_CATEGORIES,
+   fetchBuildingBytes,
+   parseSourceBuilding,
++  buildingPartOnFloor,
+   sourceBytesMatch,
+   type SourceBuilding,
+ } from "./sourceBuilding";
+@@ -30,7 +31,7 @@ type ViewOptions = {
+   cutaway: boolean;
+   explode: boolean;
+   plan: boolean;
+-  level: "all" | "ground" | "upper";
++  level: string;
+ };
+ type SceneApi = {
+   options: (value: ViewOptions) => void;
+@@ -76,7 +77,7 @@ function createBuildingScene(
+     ),
+     center = bounds.getCenter(new THREE.Vector3()),
+     size = bounds.getSize(new THREE.Vector3()),
+-    span = Math.max(size.x, size.z);
++    span = Math.max(size.x, size.y, size.z);
+   const perspective = new THREE.PerspectiveCamera(36, 1, 0.05, span * 12),
+     orthographic = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, span * 12);
+   let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera = perspective;
+@@ -237,10 +238,13 @@ function createBuildingScene(
+       selected !== part.id
+     ) &&
+     (!ROOF_CATEGORIES.has(part.category) || options.roof) &&
+-    (options.level === "all" ||
+-      (options.level === "ground"
+-        ? part.level !== "upper" && part.level !== "roof"
+-        : part.level !== "ground"));
++    buildingPartOnFloor(part, options.level);
++  const explodeOffset = (part: SourceBuilding["objects"][number]) => {
++    if (!options.explode) return 0;
++    if (model.storeys && part.storey)
++      return Math.max(0, model.storeys.findIndex((s) => s.id === part.storey)) * 1.8;
++    return ROOF_CATEGORIES.has(part.category) ? 4 : WALL_CATEGORIES.has(part.category) || part.category === "column" ? 1.5 : part.category === "room" ? 0.12 : 0;
++  };
+   const fit = () => {
+     const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
+     perspective.aspect = aspect;
+@@ -256,10 +260,9 @@ function createBuildingScene(
+       if (visiblePart(part))
+         for (let i = 0; i < part.positions.length; i += 3)
+           effective.expandByPoint(
+-            vertex.set(part.positions[i], part.positions[i + 1], part.positions[i + 2]),
++            vertex.set(part.positions[i], part.positions[i + 1] + explodeOffset(part), part.positions[i + 2]),
+           );
+     if (effective.isEmpty()) effective.copy(bounds);
+-    if (options.explode) effective.max.y += 4;
+     const center = effective.getCenter(new THREE.Vector3()),
+       size = effective.getSize(new THREE.Vector3());
+     for (const x of [effective.min.x, effective.max.x])
+@@ -298,7 +301,9 @@ function createBuildingScene(
+   resize();
+   const apply = () => {
+     plane.constant =
+-      (options.level === "upper" ? cutHeight : 0) + 1.2 + (options.explode ? 1.5 : 0);
++      (model.storeys?.find((s) => s.id === options.level)?.elevation ??
++        (options.level === "upper" ? cutHeight : model.floorElevations?.ground ?? 0)) + 1.2 +
++      (options.explode ? (model.storeys ? Math.max(0, model.storeys.findIndex((s) => s.id === options.level)) * 1.8 : 1.5) : 0);
+     ground.visible = !options.wireframe;
+     highlight.visible = !options.wireframe;
+     clippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
+@@ -306,15 +311,7 @@ function createBuildingScene(
+     for (const [id, mesh] of meshMap) {
+       const part = parts.get(id)!;
+       mesh.visible = visiblePart(part);
+-      mesh.position.y = options.explode
+-        ? ROOF_CATEGORIES.has(part.category)
+-          ? 4
+-          : WALL_CATEGORIES.has(part.category) || part.category === "column"
+-            ? 1.5
+-            : part.category === "room"
+-              ? 0.12
+-              : 0
+-        : 0;
++      mesh.position.y = explodeOffset(part);
+       const base = mesh.userData.baseMaterial as THREE.MeshStandardMaterial;
+       base.visible = !options.wireframe;
+       mesh.castShadow = !options.wireframe && (model.materials[part.material].opacity ?? 1) > 0.9;
+@@ -620,7 +617,10 @@ export function SourceBuildingViewer() {
+       .then((value) => {
+         if (value.source.sha256 !== config.sha256)
+           throw Error("Reconstruction source identity does not match the selected plan.");
+-        if (!abort.signal.aborted) setModel(value);
++        if (!abort.signal.aborted) {
++          setModel(value);
++          setOptions(sessionViewOptions.get(value.source.sha256) ?? {wireframe:false,roof:true,cutaway:false,explode:false,plan:false,level:"all"});
++        }
+       })
+       .catch((e) => {
+         if (!abort.signal.aborted) setError(e instanceof Error ? e.message : String(e));
+@@ -759,7 +759,8 @@ export function SourceBuildingViewer() {
+     ref = part?.sourceRefs[sourceIndex],
+     sheet = ref
+       ? model?.sourceSheets.find((s) => s.page === ref.page)
+-      : (model?.sourceSheets.find((s) =>
++      : (model?.sourceSheets.find((s) => model.storeys && s.page ===
++          model.objects.find((p) => p.storey === options.level)?.sourceRefs[0]?.page) ?? model?.sourceSheets.find((s) =>
+           options.level === "upper"
+             ? /upstairs|upper/i.test(s.title)
+             : options.level === "ground"
+@@ -808,7 +809,7 @@ export function SourceBuildingViewer() {
+           ) : config.sample ? (
+             "Sample reconstruction - visual fidelity incomplete"
+           ) : (
+-            "Curated from your architectural plans"
++            "Reconstructed from source drawings"
+           )}
+         </span>
+       </div>
+@@ -929,18 +930,25 @@ export function SourceBuildingViewer() {
+                     <select
+                       aria-label="Building floor"
+                       value={options.level}
+-                      onChange={(e) =>
++                      onChange={(e) => {
++                        setSelected(null);
+                         setOptions((o) => ({
+                           ...o,
+                           level: e.target.value as ViewOptions["level"],
+-                          roof: e.target.value === "all",
++                          roof: e.target.value === "all" || e.target.value === "RF",
+                           cutaway: e.target.value === "all" ? false : o.cutaway,
+-                        }))
+-                      }
++                        }));
++                      }}
+                     >
+                       <option value="all">Whole building</option>
+-                      <option value="ground">Ground floor</option>
+-                      <option value="upper">Upper floor</option>
++                      {model.storeys ? model.storeys.map((storey) => (
++                        <option key={storey.id} value={storey.id}>
++                          {storey.label} · +{storey.elevation.toFixed(3)} m
++                        </option>
++                      )) : <>
++                        <option value="ground">Ground floor</option>
++                        <option value="upper">Upper floor</option>
++                      </>}
+                     </select>
+                   )}
+                   <button
+@@ -966,7 +974,7 @@ export function SourceBuildingViewer() {
+                         cutaway: !o.cutaway,
+                         level:
+                           !o.cutaway && o.level === "all" && model.floorElevations
+-                            ? "ground"
++                            ? model.storeys?.[0].id ?? "ground"
+                             : o.level,
+                         roof: o.cutaway ? o.roof : false,
+                       }))
+@@ -1021,7 +1029,7 @@ export function SourceBuildingViewer() {
+                   : options.plan
+                     ? "ORTHOGRAPHIC PLAN"
+                     : "PERSPECTIVE"}
+-                <span>{model.objects.length} source-linked parts</span>
++                <span>{model.objects.length} source-linked {model.storeys ? "render meshes · approximate" : "parts"}</span>
+               </div>
+             </>
+           ) : (
+@@ -1056,12 +1064,12 @@ export function SourceBuildingViewer() {
+                     ? "Checking original drawing bytes…"
+                     : binary
+                       ? "This plan has no prepared 3D reconstruction"
+-                      : "A real home, traced from its source"}
++                      : "A real building, reconstructed from its source"}
+                 </h2>
+                 <p>
+                   {binary && !checking
+                     ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
+-                    : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore its documented walls, openings, roof and rooms.`}
++                    : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore the reconstruction and its drawing evidence.`}
+                 </p>
+                 <button
+                   type="button"
+@@ -1098,9 +1106,9 @@ export function SourceBuildingViewer() {
+           {ready && (
+             <label className="building-part-picker">
+               Building part
+-              <select value={selected ?? ""} onChange={(e) => setSelected(e.target.value || null)}>
++              <select aria-label="Building part" value={selected ?? ""} onChange={(e) => setSelected(e.target.value || null)}>
+                 <option value="">Choose a part…</option>
+-                {model.objects.map((p) => (
++                {model.objects.filter((p) => buildingPartOnFloor(p, options.level)).map((p) => (
+                   <option key={p.id} value={p.id}>
+                     {p.label} · {p.id}
+                   </option>
+@@ -1185,8 +1193,8 @@ export function SourceBuildingViewer() {
+             <p>
+               Preliminary, approximate geometry. Not for construction or verified quantities.
+               {config.sample
+-                ? "Undisclosed interiors are left unpartitioned."
+-                : "The disclosed floor layouts are reconstructed; source assumptions remain explicit."}
++                ? " Undisclosed interiors are left unpartitioned."
++                : " Source assumptions and omitted details remain explicit."}
+             </p>
+             <details>
+               <summary>Source and assumptions</summary>
+diff --git a/proof/audit/IW-CROWN-WHARF-3D/before/modelViewSnapshot.ts b/src/studio/modelViewSnapshot.ts
+index 3bab7b0..552c7f2 100644
+--- a/proof/audit/IW-CROWN-WHARF-3D/before/modelViewSnapshot.ts
++++ b/src/studio/modelViewSnapshot.ts
+@@ -5,7 +5,7 @@ export type ModelViewSnapshot = Readonly<{
+   sourceSha256: string;
+   sceneId: string;
+   sceneSha256: string;
+-  view: Readonly<{ wireframe: boolean; roof: boolean; cutaway: boolean; explode: boolean; plan: boolean; level: "all" | "ground" | "upper" }>;
++  view: Readonly<{ wireframe: boolean; roof: boolean; cutaway: boolean; explode: boolean; plan: boolean; level: string }>;
+   capturedAt: string;
+   camera: Readonly<{
+     projection: "perspective" | "orthographic";
+@@ -30,7 +30,7 @@ const notify = () => listeners.forEach(listener => listener());
+ export function publishModelView(input: ModelViewInput): ModelViewSnapshot {
+   const camera = input.camera;
+   if (!input.documentId || input.documentId.length > 300 || !/^[a-f0-9]{64}$/.test(input.sourceSha256) || !/^[a-f0-9]{64}$/.test(input.sceneSha256) || !/^[a-z0-9-]{1,100}$/.test(input.sceneId)) throw Error("Invalid model view source identity");
+-  if (![input.view.wireframe, input.view.roof, input.view.cutaway, input.view.explode, input.view.plan].every(value => typeof value === "boolean") || !["all", "ground", "upper"].includes(input.view.level) || input.view.plan !== (camera.projection === "orthographic")) throw Error("Invalid model view options");
++  if (![input.view.wireframe, input.view.roof, input.view.cutaway, input.view.explode, input.view.plan].every(value => typeof value === "boolean") || !(typeof input.view.level === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(input.view.level)) || input.view.plan !== (camera.projection === "orthographic")) throw Error("Invalid model view options");
+   if (!["perspective", "orthographic"].includes(camera.projection) || ![camera.position, camera.target, camera.up].every(vector => vector.length === 3 && vector.every(finite)) || camera.up.every(value => value === 0) || !(camera.zoom > 0) || !finite(camera.zoom) || !(camera.near > 0) || !(camera.far > camera.near) || !finite(camera.far) || camera.projectionMatrix.length !== 16 || !camera.projectionMatrix.every(finite)) throw Error("Invalid model view camera");
+   const key = JSON.stringify(input);
+   if (latest && key === latestInputKey) return latest;
+diff --git a/proof/audit/IW-CROWN-WHARF-3D/before/package.json b/package.json
+index 50294e1..ea71e1f 100644
+--- a/proof/audit/IW-CROWN-WHARF-3D/before/package.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/modelViewSnapshot.test.ts b/src/studio/modelViewSnapshot.test.ts
+index 40477a8..67e287b 100644
+--- a/src/studio/modelViewSnapshot.test.ts
++++ b/src/studio/modelViewSnapshot.test.ts
+@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
+ import { publishModelView, latestModelView, recordedModelView, matchingModelView, recordModelView, invalidateModelViews } from "./modelViewSnapshot.ts";
+ const source = "a".repeat(64);
+ const input = () => ({ documentId: "plan-a", sourceSha256: source, sceneId: "caroline", sceneSha256: "c".repeat(64), view: { wireframe: false, roof: true, cutaway: false, explode: false, plan: false, level: "all" as const }, camera: { projection: "perspective" as const, position: [10, 20, 30] as [number, number, number], target: [0, 1, 2] as [number, number, number], up: [0, 1, 0] as [number, number, number], zoom: 1, near: .05, far: 400, projectionMatrix: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1] } });
++test("high-rise floor identity survives camera recording and malformed IDs are rejected", () => {
++  const data = input();
++  const snapshot = publishModelView({ ...data, sceneId: "crown-wharf", view: { ...data.view, level: "L18" } });
++  assert.equal(snapshot.view.level, "L18");
++  assert.equal(recordModelView("plan-a", source).view.level, "L18");
++  for (const level of ["", "x".repeat(81), "floor with spaces"])
++    assert.throws(() => publishModelView({ ...data, view: { ...data.view, level } }));
++});
+ test("records actual structured camera only for the matching document and SHA", () => {
+   invalidateModelViews(null, null); const snapshot = publishModelView(input());
+   assert.equal(recordModelView("plan-a", source), snapshot); assert.deepEqual(recordedModelView()?.camera.position, [10,20,30]);
+diff --git a/scripts/build-crown-wharf-model.mjs b/scripts/build-crown-wharf-model.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/build-crown-wharf-model.mjs
+@@ -0,0 +1,128 @@
++// Reproducible REVIEW geometry from the Arup A4 drawing appendix. Never a BOM input.
++// Trace coordinates below use a 1888 x 1334 review image frame. Horizontal scale is
++// anchored to the written A-K / 09-01 grid dimension chains, not the printed scale.
++import fs from 'node:fs';
++import path from 'node:path';
++import crypto from 'node:crypto';
++import * as THREE from 'three';
++
++const root = path.resolve('public/models/crown-wharf');
++const source = 'artifacts/research/high-rise-structural-2026-09-06/crown-wharf-a4-structural.pdf';
++const sha256 = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex');
++if (sha256 !== '32a99e7680a94f7690bc1639913563f279a3452bcb9f0dd4e4ef63997ab2639a') throw Error('Source changed; review traces before rebuilding.');
++fs.mkdirSync(root, {recursive:true});
++fs.copyFileSync(source, path.join(root, 'source.pdf'));
++const pages = [27,28,29,30,31,32,33,34,35,36];
++const titles = ['Ground level','Level 01','Level 02','Level 03','Levels 04–07','Levels 08–11','Levels 12–17','Levels 18–30','Level 31','Roof and lift overruns'];
++const sheets = pages.map((page,i)=>{
++  const bytes = fs.readFileSync(`screenshots/high-rise-sources/crown-wharf-a4-structural-page-${page}.png`);
++  fs.writeFileSync(path.join(root,`source-page-${page}.png`),bytes);
++  return {page,title:titles[i],image:`/models/crown-wharf/source-page-${page}.png`,width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20),role:page===27?'ground':page===36?'roof':'structural floor plan'};
++});
++const xChain = [1695,5559,3891,4434,1961,4434,3891,5559,1695];
++const zChain = [1695,2813,4110,3537,3537,4110,2813,1695];
++const width = xChain.reduce((a,b)=>a+b,0)/1000;
++const depth = zChain.reduce((a,b)=>a+b,0)/1000;
++const point = ([x,z]) => [(x-454)*width/743-width/2,(z-358)*depth/546-depth/2];
++const rect = (x,z,w,d)=>[[x,z],[x+w,z],[x+w,z+d],[x,z+d]];
++const typicalOutline = [[454,478],[666,358],[1197,358],[1197,750],[1089,904],[454,904]];
++const roofOutline = [[512,510],[674,414],[1145,414],[1145,726],[1057,846],[540,846],[540,727],[590,727],[590,611],[512,611]];
++const coreOutline = [[705,542],[1031,542],[1031,643],[947,643],[947,723],[616,723],[616,622],[705,622]];
++const voids = [rect(714,547,20,58),rect(746,547,36,58),rect(796,547,35,58),rect(845,547,36,58),rect(895,547,17,58),rect(710,667,59,47),rect(801,667,77,47)];
++const balconies = [
++  rect(686,288,74,70),rect(846,304,103,54),rect(1035,288,124,70),
++  rect(1197,359,72,123),rect(360,480,94,103),rect(360,803,94,180),
++  rect(502,904,200,60),rect(705,904,185,78),[[995,904],[1089,904],[1132,843],[1204,894],[1204,978],[995,978]],
++];
++// Approximate centers and orientation visually reviewed on p34. Sizes are the
++// p34 schedule. Lower-level reuse is explicitly inferred, not checked continuity.
++const columns = [
++  ['CC15',689,370,0],['CC21',870,371,0],['CC17',975,371,0],['CC21',1045,371,0],['CC13',1132,371,0],
++  ['CC4',677,486,90],['CC4',582,443,30],['CC4',662,384,30],['CC8',784,430,90],['CC11',875,489,90],['CC4',1118,486,90],
++  ['CC8',1180,480,90],['CC13',1180,604,90],['CC6',1180,699,90],['CC4',1180,744,90],['CC4',1128,811,35],
++  ['CC4',466,567,90],['CC11',466,637,90],['CC11',466,697,90],['CC8',466,744,90],
++  ['CC11',525,887,0],['CC21',637,884,90],['CC17',712,844,90],['CC21',802,884,90],['CC8',914,884,0],['CC21',989,884,90],
++  ['CC6',995,737,0],['CC11',1047,629,90],['CC21',593,630,90],['CC19',593,710,0],
++];
++const sizes = {CC4:[.75,.45],CC6:[1.05,.45],CC8:[1.1,.5],CC11:[1.2,.3],CC13:[1.2,.45],CC15:[1.35,.25],CC17:[1.4,.4],CC19:[1.6,.35],CC21:[1.75,.35]};
++const pageFor = n=>n===0?27:n===1?28:n===2?29:n===3?30:n<=7?31:n<=11?32:n<=17?33:n<=30?34:35;
++const elevationFor = n=>n===0?5.325:n===1?10.725:n===31?101.225:14.025+(n-2)*3;
++const storeys = Array.from({length:32},(_,n)=>({id:n===0?'G':`L${String(n).padStart(2,'0')}`,label:n===0?'Ground':n===31?'Level 31':`Level ${String(n).padStart(2,'0')}`,elevation:elevationFor(n)}));
++storeys.push({id:'RF',label:'Roof and lift overruns',elevation:104.6});
++const objects=[];
++const notes={
++  placement:'Plan position and outline manually approximated against written grid dimensions. Drawing states “Do not scale”; this trace is for visual review only.',
++  continuity:'Typical p34 column positions and sizes are repeated indicatively below level 18. Lower-storey changes, transfers and beam connections are not reconstructed; do not use this model for column counts or concrete quantities.',
++};
++function ref(page,region=[440,280,1290,995],note=notes.placement,dimension) {
++  const sheet=sheets.find(s=>s.page===page);
++  return {page,region:region.map((v,i)=>Math.round(v*(i%2?sheet.height/1334:sheet.width/1888))),evidenceState:'inferred',note,...(dimension?{dimension}:{} )};
++}
++function add(geometry, {id,label,category,storey,material,refs,note}) {
++  const raw=geometry.getAttribute('position').array;
++  const positions=Array.from(raw,v=>Math.round(v*100000)/100000);
++  const indices=geometry.index?Array.from(geometry.index.array):Array.from({length:raw.length/3},(_,i)=>i);
++  objects.push({id,label,category,storey,level:storey==='G'?'ground':storey==='RF'?'roof':'upper',positions,indices,material,sourceRefs:refs,evidenceState:'inferred',note:note??notes.placement});
++  geometry.dispose();
++}
++function plate(outline,holes,y,thickness,meta) {
++  const shape=new THREE.Shape(outline.map(p=>new THREE.Vector2(...point(p))));
++  for(const h of holes)shape.holes.push(new THREE.Path(h.map(p=>new THREE.Vector2(...point(p)))));
++  const g=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:false,steps:1,curveSegments:1});
++  const p=g.getAttribute('position');
++  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getY(i),h=p.getZ(i);p.setXYZ(i,x,y-h,z);}
++  // Mapping (x,z,depth) to (x,-depth,z) preserves orientation.
++  add(g,meta);
++}
++function box(x,z,w,d,y,h,rotation,meta) {
++  const [px,pz]=point([x,z]);const g=new THREE.BoxGeometry(w,h,d);
++  g.rotateY(-rotation*Math.PI/180);g.translate(px,y+h/2,pz);add(g,meta);
++}
++function wall(a,b,y,h,thickness,meta) {
++  const p=point(a),q=point(b),len=Math.hypot(q[0]-p[0],q[1]-p[1]);
++  const g=new THREE.BoxGeometry(len,h,thickness);g.rotateY(-Math.atan2(q[1]-p[1],q[0]-p[0]));g.translate((p[0]+q[0])/2,y+h/2,(p[1]+q[1])/2);add(g,meta);
++}
++for(let n=0;n<32;n++) {
++  const s=storeys[n],next=storeys[n+1],page=pageFor(n),y=s.elevation,h=next.elevation-y-.25;
++  const levelRef=ref(page,n>=4&&n<=30?[1430,55,1615,235]:[440,180,1290,1165],`Storey datum +${y.toFixed(3)} m. ${n===0?'Ground contains different slab levels; +5.325 m used for simplified platform.':n===1?'Main slab SSL +10.725 m; local recesses and roof terrace steps simplified.':n===31?'Uses SSL +101.225 m as a reference only; p35 has multiple slab levels and TOC +101.325 m.':n>=4?'Main-slab level schedule on this sheet.':'Main slab SSL annotation on this sheet.'}`,{value:y,unit:'m',text:`${s.label}: +${y.toFixed(3)} m`});
++  // Ground outline differs substantially from typical floors. Trace p27 is
++  // translated into the common A/09 frame; its multiple levels are flattened.
++  const groundOutline=[[450,428],[795,229],[1040,279],[1025,354],[1073,369],[1073,402],[999,402],[999,478],[1122,478],[1122,520],[1030,520],[1030,682],[1122,682],[1122,793],[1040,897],[1082,926],[1007,1044],[734,1044],[734,1160],[450,1160]].map(([x,z])=>[x+12,z-30]);
++  const outline=n===0?groundOutline:typicalOutline;
++  plate(outline,voids,y,n<=1?.3:.25,{id:`${s.id}-slab`,label:`${s.label} • simplified RC slab`,category:'slab',storey:s.id,material:n===31?'roof':'slab',refs:[ref(page),levelRef],note:'Gross simplified floor plate with indicative lift and stair voids. Local depressions, openings, transfer zones and variable thickness are omitted. Not a net concrete volume.'});
++  if(n===1){
++    const terraces=[[[454,414],[818,203],[1132,272],[1132,358],[666,358],[454,478]],[[502,904],[1089,904],[1012,1011],[620,1011]]];
++    terraces.forEach((p,i)=>plate(p,[],10.525,.3,{id:`L01-terrace-${i}`,label:'Level 01 • approximate terrace',category:'slab',storey:s.id,material:'roof',refs:[ref(28)],note:'Terrace outline approximated from p28, SSL +10.525 m. Detailed offsets omitted.'}));
++  }
++  if(n>=2&&n<=30)balconies.forEach((p,i)=>plate(p,[],y-.075,.175,{id:`${s.id}-balcony-${i}`,label:`${s.label} • indicative balcony ${i+1}`,category:'slab',storey:s.id,material:'balcony',refs:[ref(page)],note:'Approximate balcony projection. Typical 175 mm slab and main-level minus 75 mm offset. Thermal breaks, reinforcement and edge upstands omitted.'}));
++  columns.forEach(([type,x,z,rotation],i)=>{
++    const [w,d]=sizes[type];
++    box(x,z,w,d,y,h,rotation,{id:`${s.id}-column-${i}`,label:`${s.label} • indicative ${type} column`,category:'column',storey:s.id,material:'column',refs:[ref(34,[100,105,286,566],`${type}: ${w*1000} × ${d*1000} mm per p34 schedule; location approximated on p34.`,{value:w*1000,unit:'mm',text:`${type} ${w*1000} × ${d*1000} RC column`}),ref(34),levelRef],note:n<18?notes.continuity:n>30?'Typical columns provisionally continued into level 31; upper transfers and plinths are not reconstructed.':notes.placement});
++  });
++  coreOutline.forEach((p,i)=>wall(p,coreOutline[(i+1)%coreOutline.length],y,h,.25,{id:`${s.id}-core-${i}`,label:`${s.label} • approximate core wall`,category:'wall',storey:s.id,material:'core',refs:[ref(page,[610,530,1040,735]),levelRef],note:'Core outline simplified from the typical layout; W1 250 mm adopted at perimeter. Doorways, coupling beams and wall-thickness transitions omitted.'}));
++  voids.slice(0,5).forEach((p,j)=>p.forEach((a,i)=>wall(a,p[(i+1)%p.length],y,h,.4,{id:`${s.id}-shaft-${j}-${i}`,label:`${s.label} • indicative lift-shaft wall`,category:'wall',storey:s.id,material:'shaft',refs:[ref(34,[700,535,925,620]),levelRef],note:'Indicative W3 400 mm lift enclosure. No lift equipment, openings or reinforcement quantities represented.'})));
++}
++plate(roofOutline,[],104.6,.25,{id:'RF-main',label:'Roof • RC slab at SSL +104.600 m',category:'roof',storey:'RF',material:'roof',refs:[ref(36,[510,410,1150,855],notes.placement,{value:104.6,unit:'m',text:'SSL +104.600 m; 250 mm thk RC slab'})]});
++roofOutline.forEach((p,i)=>wall(p,roofOutline[(i+1)%roofOutline.length],104.6,1.45,.3,{id:`RF-parapet-${i}`,label:'Roof • indicative perimeter upstand',category:'roof-trim',storey:'RF',material:'core',refs:[ref(36)],note:'Simplified roof perimeter to TOU +106.050 m. Local UP2 / UP6 / UP12 variations and terminations are not represented.'}));
++for(const [name,p,top] of [['north',rect(705,540,213,74),106.75],['south',rect(790,650,128,74),107.78]]){
++  p.forEach((a,i)=>wall(a,p[(i+1)%p.length],104.6,top-104.6,.25,{id:`RF-overrun-${name}-${i}`,label:`Lift overrun ${name} • approximate wall`,category:'wall',storey:'RF',material:'shaft',refs:[ref(36)],note:'Approximate position from roof inset; lift overrun geometry requires architectural/detail coordination.'}));
++  plate(p,[],top,.3,{id:`RF-cap-${name}`,label:`Lift overrun ${name} • slab +${top.toFixed(3)} m`,category:'roof',storey:'RF',material:'roof',refs:[ref(36,[700,1020,955,1270],`Lift overrun cap SSL +${top.toFixed(3)} m, 300 mm slab.`)]});
++  const parapetTop=name==='south'?108.69:108.68;
++  p.forEach((a,i)=>wall(a,p[(i+1)%p.length],top,parapetTop-top,.25,{id:`RF-cap-upstand-${name}-${i}`,label:`Lift overrun ${name} • indicative upstand`,category:'roof-trim',storey:'RF',material:'core',refs:[ref(36,[700,1020,955,1270])],note:'Uniform upstand simplification; source has stepped top-of-upstand levels.'}));
++}
++const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
++for(const o of objects)for(let i=0;i<o.positions.length;i++){min[i%3]=Math.min(min[i%3],o.positions[i]);max[i%3]=Math.max(max[i%3],o.positions[i]);}
++const assumptions=[
++  'Crown Wharf Canning Town Block A4, reconstructed from the Arup structural appendix (PDF pages 27–36). This is not Altitude, a BIM import or an as-built model.',
++  'Review visualization only. Written grid chains establish the plan scale; manually traced positions remain approximate. Source drawings say “Do not scale”. Do not derive construction dimensions or procurement quantities from these meshes.',
++  'Ground +5.325 m, level 01 +10.725 m, levels 02–30 +14.025 through +98.025 m; typical spacing 3 m. Level 31 reference +101.225 m with stepped slab simplified. Main roof +104.600 m; lift caps +106.750 and +107.780 m; highest indicative upstand +108.690 m. These are drawing elevations, not building height above sea level inferred from images.',
++  'Ground and level 01 terraces are simplified; lower ground, foundations, pile caps, beams, stairs, reinforcement, facade, glazing, fitout and MEP are omitted. Ground platform is flattened despite multiple documented levels.',
++  notes.continuity,
++  'Upper column centers and rotations are approximate. Core walls, shaft enclosures and balcony projections are simplified. Door openings and local slab steps are omitted; this geometry is not suitable for concrete volume calculations.',
++  'Colors distinguish model categories; they are not specified finishes. Mesh totals are rendering parts, not unique physical components or stock quantities. No nuts, bolts, anchors, mass or storage volume is asserted.',
++  'Drawing status S5 Suitable for Stage Approval. Revision tables include Construction Issue. Verify current coordinated drawings before engineering use.',
++];
++const scene={schema:'xray.source-building/v1',source:{name:path.basename(source),sha256,pageCount:36,title:'Crown Wharf Canning Town — Block A4 structural review model',author:'Source drawings: Arup for Barratt East London'},units:'m',coordinateSystem:'Y up, drawing elevation datum retained; X follows A4 A→K, Z follows 09→01. Written grid dimensions anchor an approximate plan trace.',bounds:{min,max},floorElevations:{ground:5.325,upper:10.725},storeys,materials:{slab:{color:'#dadfdc',roughness:.82},column:{color:'#577f89',roughness:.62},core:{color:'#b5a180',roughness:.75},shaft:{color:'#668e97',roughness:.7},balcony:{color:'#acc7ce',roughness:.72},roof:{color:'#809c91',roughness:.86}},objects,assumptions,sourceSheets:sheets,summary:{floors:32,wallRuns:objects.filter(o=>o.category==='wall').length,openings:0,roofFaces:objects.filter(o=>o.category==='roof').length,objects:objects.length,visibleNamedRooms:0,method:'Written floor elevations and grid dimensions; manually approximated structural geometry with source references.',status:'Approximate structural review model'}};
++fs.writeFileSync(path.join(root,'source-building.json'),JSON.stringify(scene));
++fs.writeFileSync(path.join(root,'README.md'),`# Crown Wharf A4 structural review model\n\nRegenerate: node scripts/build-crown-wharf-model.mjs\n\nSource: https://docs.planning.org.uk/20260225/208/TAEHTIJYHRL00/qkrdx8m88c4v5zqq.pdf\nSHA-256: ${sha256}\n\n${assumptions.map(a=>'- '+a).join('\n')}\n\n${objects.length} render meshes; 32 ground/numbered floor references plus roof. Original document ownership remains with its authors. Source provided for local project review, no redistribution licence asserted.\n`);
++console.log(JSON.stringify({objects:objects.length,storeys:storeys.length,bounds:{min,max},grid:{width,depth},sha256}));
+diff --git a/src/studio/crownWharfBuilding.test.ts b/src/studio/crownWharfBuilding.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/crownWharfBuilding.test.ts
+@@ -0,0 +1,55 @@
++import assert from "node:assert/strict";
++import { readFile } from "node:fs/promises";
++import { test } from "node:test";
++import { parseSourceBuilding, sourceBytesMatch, buildingPartOnFloor } from "./sourceBuilding.ts";
++
++const raw = JSON.parse(await readFile(new URL("../../public/models/crown-wharf/source-building.json", import.meta.url), "utf8"));
++const scene = parseSourceBuilding(raw);
++test("Crown Wharf model binds the original 36-page PDF and documented elevation range", async () => {
++  const bytes = new Uint8Array(await readFile(new URL("../../public/models/crown-wharf/source.pdf", import.meta.url)));
++  assert.equal(await sourceBytesMatch(scene, bytes, scene.source.sha256), true);
++  assert.equal(scene.source.pageCount, 36);
++  assert.equal(scene.storeys?.length, 33);
++  assert.equal(scene.storeys?.find(s => s.id === "L18")?.elevation, 62.025);
++  assert.equal(scene.storeys?.find(s => s.id === "L30")?.elevation, 98.025);
++  assert.equal(scene.storeys?.find(s => s.id === "RF")?.elevation, 104.6);
++  assert.equal(scene.bounds.max[1], 108.69);
++  assert.ok(scene.objects.every(p => p.evidenceState === "inferred"));
++  assert.match(scene.assumptions.join(" "), /not.*quantities|not.*volume/i);
++});
++test("every storey can be isolated without losing its parts or leaking another floor", () => {
++  const seen = new Set<string>();
++  for (const floor of scene.storeys!) {
++    const parts = scene.objects.filter(p => buildingPartOnFloor(p, floor.id));
++    assert.ok(parts.length > 0, floor.id);
++    for (const p of parts) {
++      assert.equal(p.storey, floor.id);
++      assert.equal(seen.has(p.id), false);
++      seen.add(p.id);
++    }
++  }
++  assert.equal(seen.size, scene.objects.length);
++  assert.equal(scene.objects.filter(p => buildingPartOnFloor(p, "all")).length, scene.objects.length);
++  assert.equal(scene.objects.some(p => buildingPartOnFloor(p, "missing-floor")), false);
++  assert.equal(scene.objects.some(p => buildingPartOnFloor(p, "ground")), false);
++});
++test("invalid storey identity, order and membership fail before rendering", () => {
++  for (const mutate of [
++    (s: any) => { s.storeys[1].id = s.storeys[0].id; },
++    (s: any) => { s.storeys[1].elevation = s.storeys[0].elevation; },
++    (s: any) => { s.storeys[0].elevation = -100; },
++    (s: any) => { s.objects[0].storey = "L99"; },
++    (s: any) => { delete s.objects[0].storey; },
++    (s: any) => { delete s.storeys; },
++  ]) {
++    const altered = structuredClone(raw); mutate(altered);
++    assert.throws(() => parseSourceBuilding(altered), /[Ss]torey/);
++  }
++});
++test("legacy two-floor scenes retain their ground and upper filters", async () => {
++  const old = parseSourceBuilding(JSON.parse(await readFile(new URL("../../public/models/caroline/source-building.json", import.meta.url), "utf8")));
++  for (const p of old.objects) {
++    assert.equal(buildingPartOnFloor(p, "ground"), p.level !== "upper" && p.level !== "roof");
++    assert.equal(buildingPartOnFloor(p, "upper"), p.level !== "ground");
++  }
++});
+diff --git a/proof/audit/IW-CROWN-WHARF-3D/browser-proof.mjs b/proof/audit/IW-CROWN-WHARF-3D/browser-proof.mjs
+new file mode 100644
+--- /dev/null
++++ b/proof/audit/IW-CROWN-WHARF-3D/browser-proof.mjs
+@@ -0,0 +1,69 @@
++import assert from 'node:assert/strict';
++import {chromium} from 'playwright';
++import fs from 'node:fs';
++import path from 'node:path';
++import crypto from 'node:crypto';
++const url=process.argv[2]??'http://127.0.0.1:8080/';
++const mode=url.includes('8081')?'built':'dev';
++const dir=path.resolve('screenshots/crown-wharf-3d',mode);fs.mkdirSync(dir,{recursive:true});
++const model=JSON.parse(fs.readFileSync('public/models/crown-wharf/source-building.json'));
++const browser=await chromium.launch({headless:true,channel:'msedge'});
++const page=await browser.newPage({viewport:{width:1600,height:1400}});page.setDefaultTimeout(60000);
++const report={url,model:'Crown Wharf A4 — approximate structural reconstruction',checks:[],errors:[],exports:[]};
++page.on('pageerror',e=>report.errors.push(e.message));page.on('console',e=>{if(e.type()==='error')report.errors.push(e.text());});
++const button=name=>page.getByRole('button',{name,exact:true});
++const canvas=page.getByRole('img',{name:'Interactive source building model',exact:true});
++const data=()=>canvas.evaluate(e=>({...e.dataset}));
++async function state(key,value){await page.waitForFunction(({key,value})=>document.querySelector('[aria-label="Interactive source building model"]')?.dataset[key]===value,{key,value});}
++async function shot(name){await page.screenshot({path:path.join(dir,name+'.png')});}
++async function png(name){const download=page.waitForEvent('download');await button('Download model PNG').click();const p=path.join(dir,name+'.png');await(await download).saveAs(p);const bytes=fs.readFileSync(p);assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.ok(bytes.readUInt32BE(16)>300);report.exports.push({path:p,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),state:await data()});}
++async function check(name,fn){await fn();report.checks.push({name,result:'pass',state:await data()});}
++async function preset(value){await button('Visual settings').click();await page.getByLabel('Visual preset',{exact:true}).selectOption(value);await button('Close visual settings').click();}
++try{
++ await page.goto(url+'?pane=model',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>!document.querySelector('.workbench-loading'));
++ await button('Open Crown Wharf A4 tower plan in 3D').click();await canvas.waitFor();await page.waitForFunction(()=>Number(document.querySelector('[aria-label="Interactive source building model"]')?.dataset.renderCalls)>0);
++ await check('Source SHA and full tower render',async()=>{assert.equal((await data()).sourceSha256,model.source.sha256);assert.equal(Number((await data()).meshCount),model.objects.length);await preset('ivory');await button('Fit').click();await png('01-crown-wharf-tower');await shot('01-tower-app');});
++ await check('All 33 storey selections show exactly their own meshes',async()=>{
++   for(const floor of model.storeys){await page.getByLabel('Building floor',{exact:true}).selectOption(floor.id);await state('level',floor.id);const expected=model.objects.filter(p=>p.storey===floor.id).length;assert.equal(Number((await data()).visibleMeshCount),expected,floor.id);}
++   await png('02-roof-structure');
++ });
++ await check('Level 18 plan and part evidence refer to page 34',async()=>{
++   await page.getByLabel('Building floor',{exact:true}).selectOption('L18');await button('Plan').click();await state('projection','orthographic-plan');
++   await page.getByLabel('Building part',{exact:true}).selectOption('L18-slab');await state('selectedPart','L18-slab');
++   await page.getByRole('complementary',{name:'Building source evidence'}).getByText('Page 34',{exact:true}).waitFor();
++   assert.match(await page.getByRole('complementary',{name:'Building source evidence'}).innerText(),/inferred/);
++   await png('03-level18-plan');await shot('03-floor-evidence');
++ });
++ await check('Storey cutaway and floor change clear hidden selection',async()=>{
++   await button('Clear part selection').click();await button('Orbit').click();await button('Wall cutaway').click();await state('cutaway','true');await state('level','L18');await button('Fit').click();await png('04-level18-cutaway');
++   await page.getByLabel('Building part',{exact:true}).selectOption('L18-column-0');await page.getByLabel('Building floor',{exact:true}).selectOption('L19');await state('selectedPart','');
++   await page.getByLabel('Building floor',{exact:true}).selectOption('all');await state('cutaway','false');
++ });
++ await check('Wireframe and exploded tower export different real pixels',async()=>{
++   await preset('gold');await button('Wireframe').click();await state('displayMode','wireframe');await button('Fit').click();await png('05-crown-wharf-wireframe');
++   await button('Explode').click();await state('explode','true');await png('06-crown-wharf-exploded');assert.notEqual(report.exports.at(-1).sha256,report.exports.at(-2).sha256);await button('Explode').click();await button('Solid').click();await preset('ivory');
++ });
++ await check('Orbit, zoom, fit and roof toggle',async()=>{
++   await button('Fit').click();const before=await data(),box=await canvas.boundingBox();const x=box.x+box.width*.52,y=box.y+box.height*.48;
++   await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+220,y-25,{steps:12});await page.mouse.up();await page.waitForFunction(v=>document.querySelector('[aria-label="Interactive source building model"]')?.dataset.cameraPosition!==v,before.cameraPosition);await png('07-crown-wharf-alternate');
++   const orbited=await data();await page.mouse.wheel(0,-160);await page.waitForFunction(v=>document.querySelector('[aria-label="Interactive source building model"]')?.dataset.cameraPosition!==v,orbited.cameraPosition);
++   await button('Roof on').click();await state('roof','false');assert.ok(Number((await data()).visibleMeshCount)<model.objects.length);await button('Roof off').click();await state('roof','true');await button('Fit').click();
++ });
++ await check('Reload restores the original source and rebuilds the matching model',async()=>{
++   await page.reload({waitUntil:'domcontentloaded'});await canvas.waitFor();await page.waitForFunction(()=>Number(document.querySelector('[aria-label="Interactive source building model"]')?.dataset.renderCalls)>0);assert.equal((await data()).sourceSha256,model.source.sha256);await state('level','all');
++ });
++ await check('Mobile controls, whole tower and floor isolation',async()=>{
++   await page.setViewportSize({width:390,height:844});await button('Fit').click();await canvas.scrollIntoViewIfNeeded();await shot('08-mobile-tower');await png('08-mobile-tower-export');
++   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
++   await page.getByLabel('Building floor',{exact:true}).selectOption('L31');await state('level','L31');await button('Plan').click();await state('projection','orthographic-plan');await canvas.scrollIntoViewIfNeeded();await shot('09-mobile-floor');
++   const box=await canvas.boundingBox();assert.ok(box.width>=300&&box.height>=300);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
++ });
++ await check('Caroline model retains legacy floor controls after switching source',async()=>{
++   await page.setViewportSize({width:1600,height:1100});await button('Caroline').click();await button('Open Caroline plan in 3D').click();await canvas.waitFor();await state('sourceSha256','f62cf82411d5343fd67f2c51b9a0092d70c885c147f9e7b417a6204b4edf11eb');
++   await state('level','all');const all=Number((await data()).visibleMeshCount);
++   for(const level of ['ground','upper']){await page.getByLabel('Building floor',{exact:true}).selectOption(level);await state('level',level);assert.ok(Number((await data()).visibleMeshCount)<all);}
++   await button('Wall cutaway').click();await state('cutaway','true');await button('Fit').click();await shot('10-caroline-regression');
++ });
++ assert.deepEqual(report.errors,[]);report.ok=true;
++}catch(e){report.ok=false;report.failure=String(e.stack);await shot('failure');process.exitCode=1;}
++finally{fs.writeFileSync(path.join(dir,'report.json'),JSON.stringify(report,null,2));await browser.close();console.log(JSON.stringify({mode,ok:report.ok,checks:report.checks.length,errors:report.errors,failure:report.failure}));}

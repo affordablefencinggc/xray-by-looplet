@@ -1,0 +1,564 @@
+diff --git a/proof/audit/IW-RAIL-RECOVERY/before/WorkspaceRails.tsx b/src/studio/WorkspaceRails.tsx
+index 3d7e7d4..6b052f5 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/before/WorkspaceRails.tsx
++++ b/src/studio/WorkspaceRails.tsx
+@@ -1,4 +1,6 @@
+-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
++import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent } from "react";
++import { ChevronLeft, ChevronRight } from "lucide-react";
++import { useStudio } from "./store";
+ import {
+   DEFAULT_RAILS,
+   RAIL_LAYOUT_KEY,
+@@ -11,6 +13,15 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane:
+   const ref = useRef<HTMLDivElement>(null);
+   const [widths, setWidths] = useState<RailWidths>(DEFAULT_RAILS);
+   const [ready, setReady] = useState(false);
++  const [leftCollapsed, setLeftCollapsed] = useState(false);
++  const rightCollapsed = useStudio(s => s.rightCollapsed);
++  const collapsed = { left: leftCollapsed, right: rightCollapsed };
++  const setCollapsed = (side: keyof RailWidths, value: boolean) => {
++    if (side === "left") setLeftCollapsed(value);
++    else useStudio.setState({ rightCollapsed: value });
++  };
++  const drag = useRef<{ side: keyof RailWidths; x: number; width: number; collapsed: boolean; moved: boolean } | null>(null);
++  const suppressClick = useRef(false);
+   const [rects, setRects] = useState<
+     { side: keyof RailWidths; left: number; top: number; height: number }[]
+   >([]);
+@@ -42,15 +53,15 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane:
+               side === "left"
+                 ? ".studio-left-rail, .building-left-nav"
+                 : ".studio-right-rail, .building-inspector, .measure-inspector";
+-            const node = [...(ref.current?.querySelectorAll<HTMLElement>(selector) ?? [])].find(
+-              (n) => n.getBoundingClientRect().width > 0,
+-            );
++            const node = ref.current?.querySelector<HTMLElement>(selector);
+             if (node) {
+-              const r = node.getBoundingClientRect();
++              // A collapsed rail still needs a handle even though its own box is hidden.
++              if (side === "left" && node.matches(".studio-left-rail") && innerWidth < 1180) continue;
++              const r = collapsed[side] ? node.closest(".building-workspace,.studio-layout,.measure-workspace")!.getBoundingClientRect() : node.getBoundingClientRect();
+               if (r.height > 0)
+                 next.push({
+                   side,
+-                  left: side === "left" ? r.right - 8 : r.left - 2,
++                  left: collapsed[side] ? (side === "left" ? r.left : r.right - 10) : side === "left" ? r.right - 8 : r.left - 2,
+                   top: Math.max(r.top, 0),
+                   height: Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)),
+                 });
+@@ -77,27 +88,55 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane:
+       window.removeEventListener("scroll", measure, true);
+       cancelAnimationFrame(frame);
+     };
+-  }, [pane, widths]);
++  }, [pane, widths, leftCollapsed, rightCollapsed]);
+   const change = (side: keyof RailWidths, value: number) =>
+     setWidths((v) => ({
+       ...v,
+       [side]: railWidth(side, value, innerWidth, v[side === "left" ? "right" : "left"]),
+     }));
++  const pointerDown = (side: keyof RailWidths, e: PointerEvent<HTMLElement>) => {
++    if (e.button !== 0) return;
++    e.preventDefault();
++    e.currentTarget.setPointerCapture(e.pointerId);
++    suppressClick.current = false;
++    drag.current = { side, x: e.clientX, width: widths[side], collapsed: collapsed[side], moved: false };
++  };
++  const pointerMove = (e: PointerEvent<HTMLElement>) => {
++    const start = drag.current;
++    if (!start || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
++    const delta = (e.clientX - start.x) * (start.side === "left" ? 1 : -1);
++    if (Math.abs(delta) < 5 && !start.moved) return;
++    start.moved = true;
++    suppressClick.current = true;
++    if (start.collapsed && delta <= 0) return;
++    const width = (start.collapsed ? 0 : start.width) + delta;
++    const shouldCollapse = !start.collapsed && width < 80;
++    setCollapsed(start.side, shouldCollapse);
++    if (!shouldCollapse) change(start.side, width);
++  };
++  const pointerEnd = (e: PointerEvent<HTMLElement>) => {
++    drag.current = null;
++    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
++  };
+   return (
+     <div
+       ref={ref}
+       className="workspace-rails"
++      data-left-collapsed={leftCollapsed}
++      data-right-collapsed={rightCollapsed}
+       style={
+         {
+           "--left-menu-width": `${widths.left}px`,
+           "--right-menu-width": `${widths.right}px`,
++          "--left-menu-track": leftCollapsed ? "0px" : `${widths.left}px`,
++          "--right-menu-track": rightCollapsed ? "0px" : `${widths.right}px`,
+         } as CSSProperties
+       }
+     >
+       {children}
+       {rects.map((r) => (
++        <div key={r.side} className={`rail-controls rail-controls-${r.side}`}>
+         <div
+-          key={r.side}
+           role="separator"
+           tabIndex={0}
+           aria-label={`Resize ${r.side} menu`}
+@@ -113,6 +152,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane:
+             if (["ArrowLeft", "ArrowRight", "Home"].includes(e.key)) {
+               e.preventDefault();
+               e.stopPropagation();
++              setCollapsed(r.side, false);
+               change(
+                 r.side,
+                 e.key === "Home"
+@@ -123,26 +163,32 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane:
+             }
+           }}
+           onPointerDown={(e) => {
+-            if (e.button !== 0) return;
+-            e.preventDefault();
+-            e.currentTarget.setPointerCapture(e.pointerId);
+-            e.currentTarget.dataset.startX = String(e.clientX);
+-            e.currentTarget.dataset.startWidth = String(widths[r.side]);
+-          }}
+-          onPointerMove={(e) => {
+-            if (e.currentTarget.hasPointerCapture(e.pointerId))
+-              change(
+-                r.side,
+-                Number(e.currentTarget.dataset.startWidth) +
+-                  (e.clientX - Number(e.currentTarget.dataset.startX)) *
+-                    (r.side === "left" ? 1 : -1),
+-              );
+-          }}
+-          onPointerUp={(e) => {
+-            if (e.currentTarget.hasPointerCapture(e.pointerId))
+-              e.currentTarget.releasePointerCapture(e.pointerId);
++            pointerDown(r.side, e);
+           }}
++          onPointerMove={pointerMove}
++          onPointerUp={pointerEnd}
++          onPointerCancel={pointerEnd}
+         />
++        <button
++          type="button"
++          className="rail-toggle"
++          aria-label={`${collapsed[r.side] ? "Expand" : "Collapse"} ${r.side} menu`}
++          aria-expanded={!collapsed[r.side]}
++          title={`${collapsed[r.side] ? "Open" : "Collapse"} menu · drag to resize`}
++          style={{ left: Math.max(0, Math.min(innerWidth - 24, r.left - 7)), top: r.top + r.height / 2 - 24 }}
++          onPointerDown={e => pointerDown(r.side, e)}
++          onPointerMove={pointerMove}
++          onPointerUp={pointerEnd}
++          onPointerCancel={pointerEnd}
++          onClick={(e) => {
++            if (suppressClick.current && e.detail !== 0) { suppressClick.current = false; return; }
++            suppressClick.current = false;
++            setCollapsed(r.side, !collapsed[r.side]);
++          }}
++        >
++          {(r.side === "left") !== collapsed[r.side] ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
++        </button>
++        </div>
+       ))}
+     </div>
+   );
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/before/workspacePanels.css b/src/studio/workspacePanels.css
+index 16015e3..d83fb30 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/before/workspacePanels.css
++++ b/src/studio/workspacePanels.css
+@@ -52,11 +52,73 @@
+   position: absolute;
+   left: 3px;
+   top: 45%;
+-  height: 48px;
++  height: 0;
+   width: 2px;
+   border-radius: 4px;
+   background: var(--menu-edge);
+ }
++.rail-toggle {
++  position: fixed;
++  z-index: 36;
++  width: 24px;
++  height: 48px;
++  padding: 0;
++  display: grid;
++  place-items: center;
++  color: var(--color-ink);
++  border: 0;
++  background: transparent;
++  touch-action: none;
++  cursor: ew-resize;
++}
++.rail-toggle::before {
++  content: "";
++  position: absolute;
++  inset: 5px 4px;
++  background: var(--color-paper);
++  border: 1px solid var(--menu-edge);
++  border-radius: 8px;
++  box-shadow: 0 2px 5px #0003;
++}
++.rail-toggle svg { position: relative; pointer-events: none; }
++.workspace-rails .building-tool-group > button:nth-of-type(even):not([aria-pressed="true"]),
++.workspace-rails .navigation-button-group > button:nth-of-type(even):not([aria-pressed="true"]) {
++  background: color-mix(in srgb, var(--menu-edge) 19%, var(--color-paper));
++  color: var(--color-ink);
++}
++.rail-toggle:hover::before, .rail-toggle:focus-visible::before {
++  background: var(--color-card);
++  box-shadow: 0 0 0 2px var(--color-line), 0 2px 5px #0003;
++}
++.workspace-rails:has([data-settings-open="true"]) .rail-controls-right { display: none; }
++@media (min-width: 941px) {
++  .workspace-rails[data-left-collapsed="true"] .building-left-nav,
++  .workspace-rails[data-right-collapsed="true"] .studio-right-rail,
++  .workspace-rails[data-right-collapsed="true"] .building-inspector,
++  .workspace-rails[data-right-collapsed="true"] .measure-inspector-boundary { display: none; }
++  .workspace-rails .building-workspace {
++    grid-template-columns: var(--left-menu-track) minmax(0, 1fr) var(--right-menu-track) !important;
++  }
++  .workspace-rails .building-left-nav { grid-column: 1; grid-row: 1; }
++  .workspace-rails .building-stage { grid-column: 2; grid-row: 1; }
++  .workspace-rails .building-inspector { grid-column: 3; grid-row: 1; }
++  .workspace-rails[data-right-collapsed="true"] .measure-workspace { grid-template-columns: minmax(0, 1fr) !important; }
++}
++@media (min-width: 1180px) {
++  .workspace-rails[data-left-collapsed="true"] .studio-left-rail { display: none; }
++  .workspace-rails .studio-layout:not(.source-model-layout):has(> .studio-left-rail) {
++    grid-template-columns: var(--left-menu-track) minmax(0, 1fr) !important;
++  }
++  .workspace-rails .studio-layout:not(.source-model-layout):has(> .studio-left-rail):has(> .studio-right-rail) {
++    grid-template-columns: var(--left-menu-track) minmax(0, 1fr) var(--right-menu-track) !important;
++  }
++  .workspace-rails .studio-left-rail { grid-column: 1; grid-row: 1; }
++  .workspace-rails .studio-layout:has(> .studio-left-rail) > .studio-main { grid-column: 2; grid-row: 1; }
++  .workspace-rails .studio-right-rail { grid-column: 3; grid-row: 1; }
++}
++@media (min-width: 941px) and (max-width: 1179px) {
++  .workspace-rails[data-right-collapsed="true"] .studio-layout:not(.source-model-layout) { grid-template-columns: minmax(0, 1fr) !important; }
++}
+ .rail-resizer:focus-visible::after,
+ .rail-resizer:hover::after {
+   box-shadow: 0 0 3px #0004;
+@@ -186,8 +248,8 @@
+   background: var(--color-card);
+ }
+ .location-thumbnail[aria-pressed="true"] {
+-  border: 2px solid var(--map-red);
+-  box-shadow: 0 0 0 1px var(--map-red);
++  border: 1px solid var(--menu-edge);
++  box-shadow: none;
+ }
+ .location-thumbnail:focus-visible {
+   outline: 2px solid var(--color-blue);
+@@ -211,8 +273,8 @@
+ }
+ .location-tile:hover,
+ .location-tile:focus-visible {
+-  outline: 2px solid var(--map-red);
+-  outline-offset: 1px;
++  outline: 1px solid var(--menu-edge);
++  outline-offset: -1px;
+ }
+ .location-map {
+   display: block;
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/before/Studio.tsx b/src/studio/Studio.tsx
+index 9addaf9..cc61164 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -221,7 +221,7 @@ function StudioContent() {
+           <WorkspaceDiagnostics />
+         </section>
+ 
+-        {!s.lifted && !s.rightCollapsed && !sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
++        {!s.lifted && !sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
+         {settingsOpen && <SettingsRail section={settingsSection} setSection={setSettingsSection} onClose={()=>setSettingsOpen(false)} onOpenPlan={()=>void openPlan()} />}
+       </div>
+ 
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/before/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index b582d92..3748cc0 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/before/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -1,4 +1,5 @@
+ import { createFirstPersonNavigation } from "./FirstPersonNavigation";
++import { INSPECTION_DURATION, inspectionPath, inspectionEase, sampleInspectionPath } from "./inspectionMotion";
+ import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
+ import { flushSync } from "react-dom";
+ import { createBuildingEnvironment } from "./BuildingEnvironment";
+@@ -109,6 +110,8 @@ function createBuildingScene(
+   let inspection: {
+     from: THREE.Vector3;
+     to: THREE.Vector3;
++    arc: THREE.Vector3;
++    nearby: boolean;
+     targetFrom: THREE.Vector3;
+     targetTo: THREE.Vector3;
+     started: number;
+@@ -128,10 +131,12 @@ function createBuildingScene(
+         .add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(10));
+     const inspecting = !!inspection;
+     if (inspection) {
+-      const t = Math.min(1, (performance.now() - inspection.started) / 700);
+-      const eased = t * t * (3 - 2 * t);
+-      camera.position.lerpVectors(inspection.from, inspection.to, eased);
++      const t = Math.min(1, (performance.now() - inspection.started) / INSPECTION_DURATION);
++      const eased = inspectionEase(t);
++      sampleInspectionPath(inspection, t, camera.position);
++      renderer.domElement.dataset.inspectionProgress = String(t);
+       controls.target.lerpVectors(inspection.targetFrom, inspection.targetTo, eased);
++      controls.target.addScaledVector(inspection.arc, Math.sin(Math.PI * eased));
+       camera.lookAt(controls.target);
+       if (t === 1) cancelInspection();
+     }
+@@ -143,6 +148,7 @@ function createBuildingScene(
+       Number(renderer.domElement.dataset.frameCount ?? 0) + 1,
+     );
+     renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
++    renderer.domElement.dataset.cameraQuaternion = camera.quaternion.toArray().join(",");
+     renderer.domElement.dataset.cameraTarget = controls.target.toArray().join(",");
+     renderer.domElement.dataset.cameraZoom = String(camera.zoom);
+     publishModelView({
+@@ -169,8 +175,8 @@ function createBuildingScene(
+     controls.enableDamping = true;
+     controls.dampingFactor = 0.12;
+     controls.screenSpacePanning = true;
+-    controls.maxPolarAngle = Math.PI * 0.48;
+-    controls.minDistance = 2;
++    controls.maxPolarAngle = Math.PI - 0.001;
++    controls.minDistance = 0.05;
+     controls.maxDistance = span * 6;
+     controls.target.copy(center);
+     controls.addEventListener("change", invalidate);
+@@ -346,9 +352,18 @@ function createBuildingScene(
+     controls.update();
+     invalidate();
+   };
++  let hasSized = false;
+   const resize = () => {
+-    renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
+-    fit();
++    const width = Math.max(host.clientWidth, 1), height = Math.max(host.clientHeight, 1);
++    renderer.setSize(width, height, false);
++    perspective.aspect = width / height;
++    perspective.updateProjectionMatrix();
++    const half = (orthographic.top - orthographic.bottom) / 2;
++    orthographic.left = -half * width / height;
++    orthographic.right = half * width / height;
++    orthographic.updateProjectionMatrix();
++    if (!hasSized) { hasSized = true; fit(); }
++    else invalidate();
+   };
+   const observer = new ResizeObserver(resize);
+   observer.observe(host);
+@@ -463,23 +478,42 @@ function createBuildingScene(
+     const mesh = meshMap.get(id);
+     if (!mesh?.visible || navigation?.mode !== "orbit") return;
+     clearHover();
+-    const target = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+-    const from = camera.position.clone(),
+-      to = from.clone().lerp(target, 0.25);
++    // Cancel residual orbit inertia without jumping away from the live camera pose.
++    const position = camera.position.clone(), rotation = camera.quaternion.clone();
++    const anchor = position.clone().addScaledVector(camera.getWorldDirection(new THREE.Vector3()), Math.max(0.1, position.distanceTo(controls.target)));
++    controls.dispose();
++    controls = new OrbitControls(camera, renderer.domElement);
++    configureControls();
++    controls.enableRotate = !options.plan;
++    camera.position.copy(position);
++    camera.quaternion.copy(rotation);
++    controls.target.copy(anchor);
++    const bounds = new THREE.Box3().setFromObject(mesh);
++    const target = bounds.getCenter(new THREE.Vector3());
++    const forward = camera.getWorldDirection(new THREE.Vector3());
++    const path = inspectionPath(camera.position, target, forward,
++      new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion),
++      new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), bounds.distanceToPoint(camera.position));
++    const { from, to } = path;
++    const targetTo = anchor.clone().add(to.clone().sub(from));
++    renderer.domElement.dataset.inspectionMode = path.nearby ? "lateral" : "approach";
++    renderer.domElement.dataset.inspectionDistance = String(bounds.distanceToPoint(camera.position));
++    renderer.domElement.dataset.inspectionForward = forward.toArray().join(",");
++    renderer.domElement.dataset.inspectionArc = path.arc.toArray().join(",");
++    renderer.domElement.dataset.inspectionProgress = "0";
+     renderer.domElement.dataset.inspectionFrom = from.toArray().join(",");
+     renderer.domElement.dataset.inspectionTo = to.toArray().join(",");
+     renderer.domElement.dataset.inspectionTarget = target.toArray().join(",");
+     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+       cancelInspection();
+       camera.position.copy(to);
+-      controls.target.copy(target);
+-      camera.lookAt(target);
++      controls.target.copy(targetTo);
++      camera.lookAt(targetTo);
+     } else {
+       inspection = {
+-        from,
+-        to,
++        ...path,
+         targetFrom: controls.target.clone(),
+-        targetTo: target,
++        targetTo,
+         started: performance.now(),
+       };
+       renderer.domElement.dataset.inspectionTransition = "moving";
+@@ -1118,6 +1152,7 @@ export function SourceBuildingViewer() {
+               warning={preferenceWarning}
+               scope={scopeOptions}
+               onScopeChange={setScopeOptions}
++              onExportPng={() => api.current?.png()}
+             />
+           )}
+           {ready ? (
+@@ -1232,14 +1267,6 @@ export function SourceBuildingViewer() {
+                     Explode
+                   </button>
+                 </div>
+-                <button
+-                  type="button"
+-                  aria-label="Download model PNG"
+-                  onClick={() => api.current?.png()}
+-                >
+-                  <Download size={15} />
+-                  <span>PNG</span>
+-                </button>
+               </div>
+               {config.id === "caroline" && (
+                 <div className="building-svg-export">
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/before/BuildingVisualSettings.tsx b/src/studio/BuildingVisualSettings.tsx
+index a51d626..b9ca728 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/before/BuildingVisualSettings.tsx
++++ b/src/studio/BuildingVisualSettings.tsx
+@@ -1,6 +1,6 @@
+ import { useEffect, useRef, useState } from "react";
+ import type { ModelScopeOptions } from "./ModelScope";
+-import { ChevronRight, RotateCcw, SlidersHorizontal, X } from "lucide-react";
++import { ChevronRight, Download, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+ import {
+   DEFAULT_APPEARANCE,
+   VISUAL_PRESETS,
+@@ -64,6 +64,7 @@ export function BuildingVisualSettings({
+   onScopeChange,
+   viewLabel,
+   viewDetail,
++  onExportPng,
+ }: {
+   value: BuildingAppearance;
+   onChange: (v: BuildingAppearance) => void;
+@@ -72,6 +73,7 @@ export function BuildingVisualSettings({
+   onScopeChange: (value: ModelScopeOptions) => void;
+   viewLabel?: string;
+   viewDetail?: string;
++  onExportPng?: () => void;
+ }) {
+   const [open, setOpen] = useState(false),
+     trigger = useRef<HTMLButtonElement>(null);
+@@ -333,6 +335,7 @@ export function BuildingVisualSettings({
+             </p>
+           </fieldset>
+           {warning && <p role="status">{warning}</p>}
++          {onExportPng && <button type="button" className="visual-reset" aria-label="Download model PNG" onClick={onExportPng}><Download size={15} />Export model PNG</button>}
+           <button
+             type="button"
+             className="visual-reset"
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/before/package.json b/package.json
+index bb6f63e..51139b3 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/before/package.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/empty.txt b/src/studio/inspectionMotion.ts
+index e69de29..67221cb 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/empty.txt
++++ b/src/studio/inspectionMotion.ts
+@@ -0,0 +1,35 @@
++import { Vector3 } from "three";
++
++// Looplet CRM canvas cameraFilm timing; React Flow's cubic-in-out easing.
++export const INSPECTION_DURATION = 900;
++export const INSPECTION_STANDOFF = 20;
++
++export function inspectionPath(from: Vector3, target: Vector3, forward: Vector3, right: Vector3, up: Vector3, surfaceDistance: number) {
++  const nearby = surfaceDistance <= INSPECTION_STANDOFF;
++  const offset = target.clone().sub(from);
++  let shift: Vector3;
++  if (nearby) {
++    // Stay in the starting camera's image plane: no forward/backward travel.
++    shift = offset.clone().addScaledVector(forward, -offset.dot(forward)).multiplyScalar(0.25);
++    if (shift.length() < 0.15) shift.copy(right).multiplyScalar(0.5);
++    shift.clampLength(0, 1.5);
++  } else {
++    // Never use the approach itself to cross the 20 m stand-off boundary.
++    const travel = Math.min(offset.length() * 0.25, surfaceDistance - INSPECTION_STANDOFF);
++    shift = offset.clone().normalize().multiplyScalar(travel);
++  }
++  const arc = nearby
++    ? forward.clone().cross(shift).normalize().multiplyScalar(Math.min(0.35, shift.length() * 0.2))
++    : up.clone().multiplyScalar(Math.min(2, shift.length() * 0.1));
++  return { from: from.clone(), to: from.clone().add(shift), arc, nearby };
++}
++
++export function inspectionEase(progress: number) {
++  const t = Math.max(0, Math.min(1, progress));
++  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
++}
++
++export function sampleInspectionPath(path: ReturnType<typeof inspectionPath>, progress: number, out = new Vector3()) {
++  const eased = inspectionEase(progress);
++  return out.lerpVectors(path.from, path.to, eased).addScaledVector(path.arc, Math.sin(Math.PI * eased));
++}
+
+diff --git a/proof/audit/IW-RAIL-RECOVERY/empty.txt b/src/studio/inspectionMotion.test.ts
+index e69de29..8e573e4 100644
+--- a/proof/audit/IW-RAIL-RECOVERY/empty.txt
++++ b/src/studio/inspectionMotion.test.ts
+@@ -0,0 +1,34 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { Vector3 } from "three";
++import { inspectionPath, sampleInspectionPath, inspectionEase, INSPECTION_DURATION } from "./inspectionMotion.ts";
++const from = new Vector3(0, 0, 0), forward = new Vector3(0, 0, -1), right = new Vector3(1, 0, 0), up = new Vector3(0, 1, 0);
++test("Nearby inspection follows a curved image-plane path with no forward travel at any sample", () => {
++  const path = inspectionPath(from, new Vector3(5, 2, -10), forward, right, up, 9);
++  assert.equal(path.nearby, true);
++  for(let i=0;i<=100;i++) assert.ok(Math.abs(sampleInspectionPath(path,i/100).dot(forward))<1e-10);
++  assert.ok(sampleInspectionPath(path,.5).distanceTo(from.clone().lerp(path.to,.5))>.1);
++  assert.ok(path.to.length()<=1.5);
++});
++test("Exactly 20 metres uses lateral motion, including a centred target", () => {
++  const path = inspectionPath(from, new Vector3(0,0,-21), forward, right, up,20);
++  assert.equal(path.nearby,true);assert.equal(path.to.z,0);assert.ok(path.to.x>0);
++});
++test("Far inspection retains a quarter approach with a rounded path", () => {
++  const target = new Vector3(0,0,-100),path=inspectionPath(from,target,forward,right,up,95);
++  assert.equal(path.nearby,false);assert.equal(path.to.z,-25);assert.ok(sampleInspectionPath(path,.5).y>0);
++});
++test("An approach starting just beyond 20 metres stays outside that boundary", () => {
++  const path=inspectionPath(from,new Vector3(0,0,-25),forward,right,up,21);
++  for(let i=0;i<=100;i++)assert.ok(sampleInspectionPath(path,i/100).length()<=1+1e-9);
++});
++test("Glide has a gradual start/stop and exact endpoints", () => {
++  assert.equal(INSPECTION_DURATION,900);assert.ok(inspectionEase(.01)<.00002);assert.ok(1-inspectionEase(.99)<.00002);
++  const path=inspectionPath(from,new Vector3(0,0,-100),forward,right,up,90);
++  assert.ok(sampleInspectionPath(path,0).equals(from));assert.ok(sampleInspectionPath(path,1).distanceTo(path.to)<1e-10);
++});
++test("Nearby restriction follows the camera orientation rather than world Z",()=>{
++  const f=new Vector3(1,1,-1).normalize(),r=new Vector3().crossVectors(f,up).normalize(),u=new Vector3().crossVectors(r,f).normalize();
++  const path=inspectionPath(from,new Vector3(5,9,-2),f,r,u,8);
++  for(let i=0;i<=30;i++)assert.ok(Math.abs(sampleInspectionPath(path,i/30).dot(f))<1e-10);
++});

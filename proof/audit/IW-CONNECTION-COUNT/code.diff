@@ -1,0 +1,306 @@
+diff --git a/proof/audit/IW-CONNECTION-COUNT/before/Studio.tsx b/src/studio/Studio.tsx
+index cc61164..0c4ca3b 100644
+--- a/proof/audit/IW-CONNECTION-COUNT/before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -15,6 +15,8 @@ import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
+ import { invalidateModelViews } from "./modelViewSnapshot";
+ import { SourceBuildingViewer } from "./SourceBuildingViewer";
+ import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
++import { ConnectionTrialPanel, OpenConnectionTrial } from "./ConnectionTrialPanel";
++import { CONNECTION_SOURCE } from "./construction/connectionTrial";
+ import { ALTITUDE_SHA } from "./construction/altitudeTakeoff";
+ import { RenderStudio } from "./RenderStudio";
+ import { CalibrationPanel } from "./CalibrationPanel";
+@@ -65,7 +67,7 @@ function StudioContent() {
+   const activePaneTabRef = useRef<HTMLButtonElement>(null);
+   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
+   const pageCount = activeDocument?.pageCount ?? 1;
+-  const sourceTakeoffActive = s.pane === "components" && activeDocument?.sha256 === ALTITUDE_SHA;
++  const sourceTakeoffActive = s.pane === "components" && (activeDocument?.sha256 === ALTITUDE_SHA || activeDocument?.sha256 === CONNECTION_SOURCE.sha256);
+   useEffect(() => { invalidateModelViews(s.activePlanBinary?.documentId, s.activePlanBinary?.sha256); }, [s.activePlanBinary?.documentId, s.activePlanBinary?.sha256]);
+ 
+   useEffect(() => {
+@@ -504,9 +506,10 @@ function ComponentsPane() {
+   const s = useStudio();
+   const source = useSourceComponents();
+   const active = s.job.documents.find(d => d.id === s.job.activeDocumentId);
+-  if (active?.sha256 === ALTITUDE_SHA) return <SourceTakeoffPanel key={`${s.job.id}:${active.id}`} />;
+-  if (source.available) return <SourceComponentsList />;
+-  return <DemonstrationComponentsPane />;
++  if (active?.sha256 === CONNECTION_SOURCE.sha256) return <ConnectionTrialPanel key={`${s.job.id}:${active.id}`} />;
++  if (active?.sha256 === ALTITUDE_SHA) return <><OpenConnectionTrial /><SourceTakeoffPanel key={`${s.job.id}:${active.id}`} /></>;
++  if (source.available) return <><OpenConnectionTrial /><SourceComponentsList /></>;
++  return <><OpenConnectionTrial /><DemonstrationComponentsPane /></>;
+ }
+ 
+ function DemonstrationComponentsPane() {
+diff --git a/proof/audit/IW-CONNECTION-COUNT/before/styles.css b/src/styles.css
+index 65fabd1..f67e7d0 100644
+--- a/proof/audit/IW-CONNECTION-COUNT/before/styles.css
++++ b/src/styles.css
+@@ -946,6 +946,23 @@
+ @media (max-width: 430px) { .takeoff-input-grid { grid-template-columns: 1fr; } .takeoff-summary strong { font-size: 1.3rem; } .takeoff-row { padding: .75rem; } }
+ 
+ /* Actual material register, separate from drawing allowances. */
++.connection-trial-entry { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding-bottom: 1rem; font-size: .8rem; color: var(--color-muted); }
++.connection-trial-entry .pill { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; }
++.connection-review-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 1rem; align-items: start; }
++.connection-evidence-column { min-width: 0; }
++.connection-evidence { border: 1px solid var(--color-line); border-radius: .4rem; padding: .75rem; background: var(--color-card); margin-bottom: .75rem; }
++.connection-image { position: relative; background: white; }
++.connection-image img { width: 100%; display: block; }
++.connection-evidence figcaption { font-size: .75rem; color: var(--color-muted); padding-top: .75rem; }
++.connection-marker { position: absolute; transform: translate(-50%, -50%); font-size: .6rem; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); }
++.connection-marker[aria-pressed=true] { background: var(--color-ink); color: var(--color-paper); }
++.connection-beam-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .4rem; }
++.connection-beam-grid .pill { font-size: .75rem; padding: .4rem; }
++.connection-beam-grid [aria-pressed=true] { border-color: var(--color-ink); background: var(--color-paper); color: var(--color-ink); }
++.connection-trial details ul { padding-left: 1.2rem; list-style: disc; }
++.connection-trial details p { padding-top: .5rem; color: var(--color-muted); }
++@media (max-width: 1100px) { .connection-review-layout { grid-template-columns: 1fr; } }
++@media (max-width: 600px) { .connection-marker { display: none; } .connection-beam-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+ .takeoff-count-view:not([hidden]), .material-register { display: grid; gap: 1rem; }
+ .material-register h2 { font-size: 1.3rem; font-weight: 650; }
+ .material-register h3 { font-size: 1.1rem; font-weight: 650; }
+diff --git a/proof/audit/IW-CONNECTION-COUNT/before/package.json b/package.json
+index 51139b3..b0ea102 100644
+--- a/proof/audit/IW-CONNECTION-COUNT/before/package.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/ConnectionTrialPanel.tsx b/src/studio/ConnectionTrialPanel.tsx
+new file mode 100644
+index 0000000..429ae1c
+--- /dev/null
++++ b/src/studio/ConnectionTrialPanel.tsx
+@@ -0,0 +1,75 @@
++import { useEffect, useState } from "react";
++import { Download, FileSearch } from "lucide-react";
++import { useStudio } from "./store";
++import { inspectPlanBytes } from "./documents";
++import { CONNECTION_SOURCE, CONNECTION_SCOPE, CONNECTION_EXCLUSIONS, CONNECTION_UNKNOWN, CONNECTION_EVIDENCE, TRIAL_CONNECTIONS,
++  restoreTrial, saveTrial, trialExport, type TrialSession } from "./construction/connectionTrial";
++
++export function OpenConnectionTrial() {
++  const [busy, setBusy] = useState(false), [error, setError] = useState("");
++  async function open() {
++    const before = useStudio.getState();
++    setBusy(true); setError("");
++    try {
++      const response = await fetch(CONNECTION_SOURCE.localUrl);
++      if (!response.ok) throw Error("The reference drawing could not be loaded.");
++      const imported = await inspectPlanBytes({ name: "Thornton Fire Station 8 structural.pdf", bytes: new Uint8Array(await response.arrayBuffer()), source: "web" });
++      if (imported.binary.sha256 !== CONNECTION_SOURCE.sha256) throw Error("Reference drawing identity does not match. Nothing was imported.");
++      const current = useStudio.getState();
++      if (current.job.id !== before.job.id || current.activePlanBinary !== before.activePlanBinary) throw Error("The active project or drawing changed while loading. Please try again.");
++      await current.importPlan(imported);
++      useStudio.getState().setPane("components");
++    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
++    finally { setBusy(false); }
++  }
++  return <div className="connection-trial-entry"><button className="pill" onClick={open} disabled={busy}><FileSearch size={16} />{busy ? "Opening verified drawing…" : "Open structural bolt-count trial"}</button><span>Real bid drawings · one roof span · preliminary</span>{error && <p role="alert">{error}</p>}</div>;
++}
++
++export function ConnectionTrialPanel() {
++  const s = useStudio(), projectId = s.job.id;
++  const [session, setSession] = useState<TrialSession | null>(null);
++  const [selected, setSelected] = useState(TRIAL_CONNECTIONS[0].id);
++  const [note, setNote] = useState(""), [reviewed, setReviewed] = useState(false);
++  const [view, setView] = useState(0), [message, setMessage] = useState("");
++  useEffect(() => { setSession(restoreTrial(localStorage, projectId)); }, [projectId]);
++  const saved = session?.value.reviews.find(r => r.id === selected);
++  useEffect(() => { setNote(saved?.note ?? ""); setReviewed(saved?.reviewed ?? false); }, [saved]);
++  if (!session || !saved) return <p role="status">Restoring connection review…</p>;
++  const active = s.job.documents.find(d => d.id === s.job.activeDocumentId);
++  const sourceReady = active?.sha256 === CONNECTION_SOURCE.sha256 && s.activePlanBinary?.sha256 === CONNECTION_SOURCE.sha256 && s.activePlanBinary.documentId === active.id;
++  const dirty = note !== saved.note || reviewed !== saved.reviewed;
++  const connection = TRIAL_CONNECTIONS.find(c => c.id === selected)!;
++  const evidence = CONNECTION_EVIDENCE[view];
++  function save() {
++    if (!session || !saved || !sourceReady) return;
++    const next = { ...session.value, reviews: session.value.reviews.map(r => r.id === selected ? { ...r, note, reviewed, revision: r.revision + 1 } : r) };
++    const result = saveTrial(localStorage, session, next);
++    setSession(result); setMessage(result.error ? "" : "Review saved to this project. It will survive reload.");
++  }
++  function exportCount() {
++    if (!session || session.blocked || dirty || !sourceReady) return;
++    const url = URL.createObjectURL(new Blob([JSON.stringify(trialExport(session.value), null, 2)], { type: "application/json" }));
++    const link = document.createElement("a"); link.href = url; link.download = "thornton-roof-connection-count.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
++  }
++  return <section className="source-takeoff connection-trial" aria-label="Structural connection counting trial">
++    <header className="takeoff-heading"><div><span className="kicker">Source takeoff / connection trial</span><h1>Follow every bolt to the drawing</h1><p>Thornton Fire Station 8 · structural bid set · 27 September 2024 · low-rise test project</p></div>
++      <button className="pill" disabled={session.blocked || dirty || !sourceReady} onClick={exportCount}><Download size={16} />Export connection count</button></header>
++    <div className="takeoff-summary"><div><span>Interior beams traced</span><strong>8</strong><small>One selected roof span</small></div><div><span>Unique beam ends</span><strong>16</strong><small>Two ends per physical beam</small></div><div><span>Scheduled bolts</span><strong>32</strong><small>7/8″ diameter · ASTM A325N</small></div><div><span>Connections reviewed</span><strong>{session.value.reviews.filter(r => r.reviewed).length} / 16</strong><small>Preliminary until reviewed</small></div></div>
++    <p className="takeoff-boundary"><b>Bounded count.</b> {CONNECTION_SCOPE}</p>
++    {session.error && <div className="takeoff-notice" role="alert">{session.error}<button className="pill" onClick={() => { setSession(restoreTrial(localStorage, projectId)); setMessage(""); }}>Retry restore</button></div>}
++    {!sourceReady && <p role="alert">Open the verified original drawing to review or export this count.</p>}
++    <div className="connection-review-layout"><div className="connection-evidence-column">
++      <figure className="connection-evidence"><div className="connection-image"><img src={`/sources/thornton-connection-trial/${evidence.id}.png`} alt={`${evidence.sheet}: ${evidence.title}`} />
++        {view === 0 && TRIAL_CONNECTIONS.map(c => <button key={c.id} disabled={dirty} className="connection-marker" aria-label={`Inspect beam ${c.beam} ${c.end === "N" ? "north" : "south"} connection`} aria-pressed={selected === c.id} style={{ left: `${(c.point.x - .385) / .16 * 100}%`, top: `${(c.point.y - .452) / .091 * 100}%` }} onClick={() => { setSelected(c.id); setMessage(""); }}>{c.beam.slice(1)}{c.end}</button>)}
++      </div><figcaption>{evidence.sheet} · PDF page {evidence.page} · {evidence.title}</figcaption></figure>
++      <nav className="takeoff-filters" aria-label="Connection evidence">{CONNECTION_EVIDENCE.map((e, i) => <button className="pill" key={e.id} aria-pressed={view === i} onClick={() => setView(i)}>{e.title}</button>)}<button className="pill" disabled={!sourceReady || dirty} onClick={() => { s.setSheet(evidence.page - 1); s.setPane("sheets"); }}>Open full source sheet</button></nav>
++      <div className="connection-beam-grid" aria-label="Physical beam ends">{TRIAL_CONNECTIONS.map(c => <button key={c.id} className="pill" disabled={dirty} aria-pressed={selected === c.id} onClick={() => { setSelected(c.id); setMessage(""); }}>Beam {c.beam} · {c.end}{session.value.reviews.find(r => r.id === c.id)?.reviewed ? " ✓" : ""}</button>)}</div>
++      <div className="takeoff-boundary"><b>How the count is derived</b><p>8 beams × 2 ends × 2 bolts = 32 bolts. Detail 1/S5.1 uses the lesser nominal depth: W10 meeting W24 gives D = 10″. The 8–11″ row on S0.6 specifies two bolts. Repeated detail views are supporting evidence for the same connection.</p><p>{CONNECTION_EXCLUSIONS}</p></div>
++    </div><aside className="takeoff-inspector" aria-label="Connection inspector"><span className="kicker">Physical connection</span><h2>Beam {connection.beam} · {connection.end === "N" ? "north" : "south"} end</h2><code className="takeoff-hash">{connection.id}</code><p>W10×22 to W24×94 · single shear plate<br /><b>2 × 7/8″ ASTM A325N bolts</b></p><p>Revision {saved.revision} · {saved.reviewed ? "Count reviewed" : "Needs review"}</p>
++      <div className="takeoff-editor"><label>Review note<textarea aria-label="Review note" value={note} maxLength={2000} disabled={session.blocked || !sourceReady} onChange={e => { setNote(e.target.value); setReviewed(false); }} placeholder="Record the sheet and detail checked, and any exception." /></label><label className="takeoff-check"><input type="checkbox" checked={reviewed} disabled={session.blocked || !sourceReady || !note.trim()} onChange={e => setReviewed(e.target.checked)} />I checked this connection count against the source</label><div className="takeoff-actions"><button className="pill" disabled={session.blocked || !sourceReady || !dirty} onClick={save}>Save connection review</button>{dirty && <button className="pill" onClick={() => { setNote(saved.note); setReviewed(saved.reviewed); }}>Cancel edit</button>}</div></div>
++      <p role="status" className="takeoff-save-status">{dirty ? "Unsaved review — save or cancel before selecting another connection or exporting." : message || (session.raw ? "Saved review restored." : "Prepared source count; review pending.")}</p>
++      <details open><summary>Unresolved material information</summary><ul>{CONNECTION_UNKNOWN.map(item => <li key={item}>{item}: <b>unknown</b></li>)}</ul><p>These quantities are not established by this trial’s references. Unknown values are exported as null, never zero. No purchasing total is released.</p></details>
++      <details><summary>Document identity & scope</summary><a href={CONNECTION_SOURCE.url} target="_blank" rel="noreferrer">Official City of Thornton drawing set</a><p>{CONNECTION_SOURCE.pages} pages · issue {CONNECTION_SOURCE.issue}</p><p className="takeoff-hash">SHA-256 {CONNECTION_SOURCE.sha256}</p><p>Source coordinates are evidence markers, not scaled measurements. No high-rise reconstruction is inferred from this test.</p></details>
++    </aside></div>
++  </section>;
++}
+diff --git a/src/studio/construction/connectionTrial.ts b/src/studio/construction/connectionTrial.ts
+new file mode 100644
+index 0000000..d733257
+--- /dev/null
++++ b/src/studio/construction/connectionTrial.ts
+@@ -0,0 +1,88 @@
++import { z } from "zod";
++
++export const CONNECTION_SOURCE = {
++  sha256: "28fe1e51d38cbb1347e5875870b60bcd4ed9a9a0b9dc66e1bf5a611ce3f693f6",
++  title: "Thornton Fire Station 8", issue: "2024-09-27", pages: 23,
++  url: "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21725/05-cot-fire-station--8-structure-bid-set.pdf",
++  localUrl: "/sources/thornton-connection-trial/structural.pdf",
++} as const;
++export const CONNECTION_SCOPE = "Eight interior W10×22 beams in the second apparatus-bay roof span from the north, between W24×94 girders at elevations 125′-0¾″ and 125′-4″. S2.2, between grids E–G and 7–8. The two outermost beam lines are excluded.";
++export const CONNECTION_UNKNOWN = ["Bolt length / grip", "Nut specification and quantity", "Washer specification and quantity", "Specified hardware weight (kg)", "Packed storage volume (m³)"];
++export const CONNECTION_EXCLUSIONS = "Other roof spans, outermost beam lines, girder ends, bracing, deck fixings, anchor rods, joists, stairs and all other building hardware. This is a manually traced drawing trial, not automatic whole-building extraction or a procurement release.";
++export const CONNECTION_EVIDENCE = [
++  { id: "plan", sheet: "S2.2", page: 10, title: "Physical beam locations", crop: [.385, .452, .16, .091] },
++  { id: "schedule", sheet: "S0.6", page: 6, title: "Bolted connection schedule", crop: [.62, .427, .21, .32] },
++  { id: "detail", sheet: "S5.1 · detail 1", page: 18, title: "Wide-flange beam to beam", crop: [.665, .045, .211, .293] },
++] as const;
++
++// Nominal depth, not measured depth. S5.1/1 explicitly uses the lesser beam depth.
++export function scheduledBoltCount(beamDepthIn: number, supportDepthIn: number): number {
++  const d = Math.min(beamDepthIn, supportDepthIn);
++  if (![beamDepthIn, supportDepthIn].every(n => Number.isInteger(n) && n > 0 && n <= 36)) throw Error("Depth is outside the verified schedule.");
++  return d <= 11 ? 2 : d <= 14 ? 3 : d <= 17 ? 4 : d <= 20 ? 5 : d <= 23 ? 6 : d <= 29 ? 7 : d <= 32 ? 8 : d <= 35 ? 9 : 10;
++}
++export const TRIAL_CONNECTIONS = Array.from({ length: 8 }, (_, index) => ["N", "S"].map(end => ({
++  id: `FS8-S2.2-B2-I${index + 1}-${end}`,
++  beam: `I${index + 1}`, end, beamDepthIn: 10, supportDepthIn: 24,
++  // Normalized positions on the original page, solely for evidence navigation.
++  point: { x: (782 + index * (233 / 7)) / 1920, y: (end === "N" ? 596 : 684) / 1280 },
++  evidence: ["plan", "schedule", "detail"],
++}))).flat();
++export function compileTrial(connections = TRIAL_CONNECTIONS) {
++  const ids = new Set<string>();
++  const physical = new Set<string>();
++  const bolts = connections.flatMap(connection => {
++    const location = `FS8-S2.2-B2-${connection.beam}-${connection.end}`;
++    if (ids.has(connection.id) || physical.has(location)) throw Error("Duplicate physical connection.");
++    ids.add(connection.id);
++    physical.add(location);
++    return Array.from({ length: scheduledBoltCount(connection.beamDepthIn, connection.supportDepthIn) }, (_, i) => ({
++      stableIdentifier: `${location}/bolt-${i + 1}`, connectionId: connection.id,
++      description: '7/8-inch diameter ASTM A325N bolt', quantity: 1,
++      lengthMm: null, specifiedWeightKg: null, packedVolumeM3: null,
++      evidence: [...new Set(connection.evidence)],
++    }));
++  });
++  return { connectionCount: ids.size, boltCount: bolts.length, bolts };
++}
++
++const reviewSchema = z.object({ id: z.string(), reviewed: z.boolean(), note: z.string().max(2000), revision: z.number().int().positive() }).strict()
++  .refine(r => !r.reviewed || r.note.trim().length > 0, "Add a review note before accepting a connection.");
++export const trialSchema = z.object({
++  schema: z.literal("xray.connection-trial/v1"), sourceSha256: z.literal(CONNECTION_SOURCE.sha256),
++  definitionRevision: z.literal(1), projectId: z.string().min(1), reviews: z.array(reviewSchema).length(16),
++}).strict().refine(v => new Set(v.reviews.map(r => r.id)).size === 16 && v.reviews.every(r => TRIAL_CONNECTIONS.some(c => c.id === r.id)), "Duplicate, missing or unknown physical connection.");
++export type ConnectionTrial = z.infer<typeof trialSchema>;
++export type TrialSession = { value: ConnectionTrial; raw: string | null; blocked: boolean; error: string | null };
++type StoragePort = Pick<Storage, "getItem" | "setItem">;
++export const trialKey = (projectId: string) => `xray:connection-trial:${encodeURIComponent(projectId)}:${CONNECTION_SOURCE.sha256}`;
++export const createTrial = (projectId: string): ConnectionTrial => trialSchema.parse({ schema: "xray.connection-trial/v1", sourceSha256: CONNECTION_SOURCE.sha256, definitionRevision: 1, projectId,
++  reviews: TRIAL_CONNECTIONS.map(c => ({ id: c.id, reviewed: false, note: "", revision: 1 })) });
++export function restoreTrial(storage: StoragePort, projectId: string): TrialSession {
++  let raw: string | null = null;
++  try {
++    raw = storage.getItem(trialKey(projectId));
++    const value = raw === null ? createTrial(projectId) : trialSchema.parse(JSON.parse(raw));
++    if (value.projectId !== projectId) throw Error("Wrong project.");
++    return { value, raw, blocked: false, error: null };
++  } catch { return { value: createTrial(projectId), raw, blocked: true, error: "Saved review could not be restored. Original data is preserved; saving and export are blocked until recovery." }; }
++}
++export function saveTrial(storage: StoragePort, session: TrialSession, value: ConnectionTrial): TrialSession {
++  if (session.blocked) return session;
++  try {
++    const parsed = trialSchema.parse(value), key = trialKey(session.value.projectId);
++    if (parsed.projectId !== session.value.projectId) throw Error("Project identity changed.");
++    if (storage.getItem(key) !== session.raw) return { ...session, blocked: true, error: "Saved review changed in another session. Saving is blocked. Retry restore to recover it." };
++    const raw = JSON.stringify(parsed);
++    storage.setItem(key, raw);
++    return { value: parsed, raw, blocked: false, error: null };
++  } catch (error) { return { ...session, error: `Review was not saved: ${error instanceof Error ? error.message : String(error)}` }; }
++}
++export function trialExport(value: ConnectionTrial) {
++  const parsed = trialSchema.parse(value);
++  return { ...parsed, source: CONNECTION_SOURCE, scope: CONNECTION_SCOPE, exclusions: CONNECTION_EXCLUSIONS,
++    status: "Preliminary bounded connection count; not a whole-building bill of materials",
++    method: "Manually traced physical beam ends × scheduled bolts; repeated detail views do not add physical instances",
++    evidence: CONNECTION_EVIDENCE, connections: TRIAL_CONNECTIONS, ...compileTrial(),
++    unresolved: CONNECTION_UNKNOWN, nuts: null, washers: null, specifiedWeightKg: null, packedVolumeM3: null };
++}
+diff --git a/src/studio/construction/connectionTrial.test.ts b/src/studio/construction/connectionTrial.test.ts
+new file mode 100644
+index 0000000..72b54fd
+--- /dev/null
++++ b/src/studio/construction/connectionTrial.test.ts
+@@ -0,0 +1,48 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { createHash } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { CONNECTION_SOURCE, TRIAL_CONNECTIONS, compileTrial, scheduledBoltCount, createTrial, trialSchema, trialKey, restoreTrial, saveTrial, trialExport } from "./connectionTrial.ts";
++const memory = () => { const data = new Map<string,string>(); return { data, getItem: (k:string) => data.get(k) ?? null, setItem: (k:string,v:string) => { data.set(k,v); } }; };
++test("bundled real PDF matches the frozen source identity", () => {
++  assert.equal(createHash("sha256").update(readFileSync("public/sources/thornton-connection-trial/structural.pdf")).digest("hex"), CONNECTION_SOURCE.sha256);
++});
++test("bounded physical count reconciles to eight independently traced beam pairs", () => {
++  const expected = ["I1","I2","I3","I4","I5","I6","I7","I8"];
++  for (const beam of expected) assert.deepEqual(TRIAL_CONNECTIONS.filter(c=>c.beam===beam).map(c=>c.end).sort(), ["N","S"]);
++  const result = compileTrial(); assert.equal(result.connectionCount,16); assert.equal(result.boltCount,32);
++  assert.equal(new Set(result.bolts.map(b=>b.stableIdentifier)).size,32);
++});
++test("lesser nominal depth and schedule boundaries control the count", () => {
++  assert.equal(scheduledBoltCount(10,24),2); assert.equal(scheduledBoltCount(24,10),2);
++  for (const [d,n] of [[7,2],[8,2],[11,2],[12,3],[14,3],[15,4],[18,5],[21,6],[24,7],[29,7],[30,8],[33,9],[36,10]]) assert.equal(scheduledBoltCount(d,36),n);
++  for (const n of [0,-1,10.5,37,NaN,Infinity]) assert.throws(()=>scheduledBoltCount(n,24));
++});
++test("different record IDs cannot duplicate a physical beam end", () => {
++  assert.throws(()=>compileTrial([...TRIAL_CONNECTIONS,{...TRIAL_CONNECTIONS[0],id:"duplicate-record"}]),/Duplicate physical/);
++});
++test("additional drawing evidence never creates another bolt", () => {
++  const result=compileTrial(TRIAL_CONNECTIONS.map(c=>({...c,evidence:[...c.evidence,"detail","section-view"]})));
++  assert.equal(result.boltCount,32); assert.equal(result.bolts[0].evidence.filter(e=>e==="detail").length,1);
++});
++test("unreadable, newer and wrong-source snapshots are preserved and block ordinary saves", () => {
++  for (const raw of ["broken",JSON.stringify({...createTrial("p"),schema:"future"}),JSON.stringify({...createTrial("p"),sourceSha256:"different"}),JSON.stringify({...createTrial("other")}),JSON.stringify({...createTrial("p"),definitionRevision:2})]) {
++    const store=memory();store.setItem(trialKey("p"),raw);const session=restoreTrial(store,"p");assert.equal(session.blocked,true);
++    assert.equal(saveTrial(store,session,createTrial("p")).blocked,true);assert.equal(store.getItem(trialKey("p")),raw);
++  }
++});
++test("save/reload retains review, note and revision; duplicate reviews fail", () => {
++  const store=memory(), session=restoreTrial(store,"p"),value=createTrial("p");value.reviews[0]={...value.reviews[0],reviewed:true,note:"S2.2 location and S5.1/1 checked",revision:2};
++  const saved=saveTrial(store,session,value);assert.equal(saved.error,null);assert.deepEqual(restoreTrial(store,"p").value,value);
++  value.reviews[1]={...value.reviews[0]};assert.equal(trialSchema.safeParse(value).success,false);
++});
++test("blank approval, denied write and concurrent update cannot erase previous work", () => {
++  const store=memory(),first=saveTrial(store,restoreTrial(store,"p"),createTrial("p")), raw=first.raw;
++  const invalid=createTrial("p");invalid.reviews[0].reviewed=true;assert.ok(saveTrial(store,first,invalid).error);assert.equal(store.getItem(trialKey("p")),raw);
++  const denied={getItem:store.getItem,setItem:()=>{throw Error("quota")}};assert.ok(saveTrial(denied,first,createTrial("p")).error);assert.equal(store.getItem(trialKey("p")),raw);
++  store.setItem(trialKey("p"),"newer session");assert.equal(saveTrial(store,first,createTrial("p")).blocked,true);assert.equal(store.getItem(trialKey("p")),"newer session");
++});
++test("export includes physical IDs, evidence, issue, exclusions and unknown material quantities", () => {
++  const result=trialExport(createTrial("p"));assert.equal(result.bolts.length,32);assert.equal(result.nuts,null);assert.equal(result.washers,null);assert.equal(result.specifiedWeightKg,null);assert.equal(result.packedVolumeM3,null);
++  assert.match(result.exclusions,/all other building hardware/);assert.equal(result.source.issue,"2024-09-27");assert.equal(result.connections.length,16);assert.equal(result.evidence.length,3);
++});

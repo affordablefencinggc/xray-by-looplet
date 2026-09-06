@@ -1,0 +1,2 @@
+﻿import {chromium} from 'playwright';import fs from 'node:fs';
+const b=await chromium.connectOverCDP('http://127.0.0.1:9238');const p=b.contexts()[0].pages()[0];await p.locator('[data-hydration-status=ready]').waitFor();fs.writeFileSync('proof/audit/IW-SKETCH-SILVER/before-job.json',await p.evaluate(()=>localStorage.getItem('xray:fencing-job:v2')||'null'));await p.screenshot({path:'screenshots/sketch-example/00-before.png'});console.log((await p.locator('body').innerText()).slice(0,6000));await b.close();

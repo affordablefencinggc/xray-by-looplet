@@ -1,0 +1,3052 @@
+diff --git a/proof/audit/IW-PROJECT-MATERIALS/before/Studio.tsx b/src/studio/Studio.tsx
+index 0c4ca3b..c9bedeb 100644
+--- a/proof/audit/IW-PROJECT-MATERIALS/before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -16,6 +16,7 @@ import { invalidateModelViews } from "./modelViewSnapshot";
+ import { SourceBuildingViewer } from "./SourceBuildingViewer";
+ import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
+ import { ConnectionTrialPanel, OpenConnectionTrial } from "./ConnectionTrialPanel";
++import { ProjectMaterialsPanel } from "./ProjectMaterialsPanel";
+ import { CONNECTION_SOURCE } from "./construction/connectionTrial";
+ import { ALTITUDE_SHA } from "./construction/altitudeTakeoff";
+ import { RenderStudio } from "./RenderStudio";
+@@ -504,12 +505,15 @@ function SketchPane() {
+ 
+ function ComponentsPane() {
+   const s = useStudio();
++  const [projectMaterials, setProjectMaterials] = useState(false);
+   const source = useSourceComponents();
+   const active = s.job.documents.find(d => d.id === s.job.activeDocumentId);
+-  if (active?.sha256 === CONNECTION_SOURCE.sha256) return <ConnectionTrialPanel key={`${s.job.id}:${active.id}`} />;
+-  if (active?.sha256 === ALTITUDE_SHA) return <><OpenConnectionTrial /><SourceTakeoffPanel key={`${s.job.id}:${active.id}`} /></>;
+-  if (source.available) return <><OpenConnectionTrial /><SourceComponentsList /></>;
+-  return <><OpenConnectionTrial /><DemonstrationComponentsPane /></>;
++  const switcher=<nav className="takeoff-filters" aria-label="Component workspaces"><button className="pill" aria-pressed={projectMaterials} onClick={()=>setProjectMaterials(true)}>Project material takeoff</button><button className="pill" aria-pressed={!projectMaterials} onClick={()=>setProjectMaterials(false)}>Components & source trials</button></nav>;
++  if(projectMaterials)return <>{switcher}<ProjectMaterialsPanel key={s.job.id}/></>;
++  if (active?.sha256 === CONNECTION_SOURCE.sha256) return <>{switcher}<ConnectionTrialPanel key={`${s.job.id}:${active.id}`} /></>;
++  if (active?.sha256 === ALTITUDE_SHA) return <>{switcher}<OpenConnectionTrial /><SourceTakeoffPanel key={`${s.job.id}:${active.id}`} /></>;
++  if (source.available) return <>{switcher}<OpenConnectionTrial /><SourceComponentsList /></>;
++  return <>{switcher}<OpenConnectionTrial /><DemonstrationComponentsPane /></>;
+ }
+ 
+ function DemonstrationComponentsPane() {
+diff --git a/proof/audit/IW-PROJECT-MATERIALS/before/DocumentPreview.tsx b/src/studio/DocumentPreview.tsx
+index 70ea932..99125f5 100644
+--- a/proof/audit/IW-PROJECT-MATERIALS/before/DocumentPreview.tsx
++++ b/src/studio/DocumentPreview.tsx
+@@ -234,7 +234,7 @@ export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, class
+         ]);
+         if(cancelled)return;
+         GlobalWorkerOptions.workerSrc=workerUrl;
+-        const task=getDocument({data:Uint8Array.from(binary!.bytes)});destroy=()=>task.destroy();
++        const task=getDocument({data:Uint8Array.from(binary!.bytes),wasmUrl:new URL("/pdfjs/wasm/",location.href).href,standardFontDataUrl:new URL("/pdfjs/standard_fonts/",location.href).href});destroy=()=>task.destroy();
+         const document=await task.promise;
+         if(cancelled)return;
+         if(page>document.numPages)throw Error("The requested PDF page is unavailable.");
+diff --git a/proof/audit/IW-PROJECT-MATERIALS/before/styles.css b/src/styles.css
+index f67e7d0..3cd18d3 100644
+--- a/proof/audit/IW-PROJECT-MATERIALS/before/styles.css
++++ b/src/styles.css
+@@ -946,6 +946,27 @@
+ @media (max-width: 430px) { .takeoff-input-grid { grid-template-columns: 1fr; } .takeoff-summary strong { font-size: 1.3rem; } .takeoff-row { padding: .75rem; } }
+ 
+ /* Actual material register, separate from drawing allowances. */
++.studio-layout:has(.project-materials) { grid-template-columns: 168px minmax(0,1fr); }
++.studio-layout:has(.project-materials) > .studio-right-rail { display: none; }
++.project-materials select, .project-materials input:not([type=checkbox]):not([type=file]), .project-materials textarea { min-height:44px; border:1px solid var(--color-line); border-radius:.4rem; background:var(--color-paper); color:var(--color-ink); padding:.6rem; min-width:0; max-width:100%; }
++.project-materials select { width:100%; }
++.project-materials .takeoff-check { display:flex;align-items:center;gap:.6rem;min-height:44px; }
++.material-import { position:relative;overflow:hidden;cursor:pointer; }
++.material-import input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%; }
++.project-material-list,.material-discoveries { display:grid;gap:.6rem; }
++.project-material-list article,.material-discoveries article { border:1px solid var(--color-line);background:var(--color-card);border-radius:.4rem;padding:1rem;display:grid;gap:.6rem; }
++.project-material-list article { grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); }
++.project-material-list article .takeoff-actions { grid-column:1/-1;justify-content:flex-start; }
++.project-material-list p,.material-discoveries p { font-size:.8rem;line-height:1.5;overflow-wrap:anywhere; }
++.project-material-list small,.material-discoveries span { display:block;color:var(--color-muted);font-size:.75rem;overflow-wrap:anywhere; }
++.material-candidate-actions { display:grid;grid-template-columns:1fr 1fr;gap:1rem; }
++.material-candidate-actions label { display:grid;gap:.4rem; }
++.project-material-preview { min-height:500px; }
++.material-library {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;}
++.material-library > div {border:1px solid var(--color-line);padding:.75rem;display:flex;gap:.75rem;justify-content:space-between;align-items:center;min-width:0;}
++.material-library small {color:var(--color-muted);font-size:.7rem;}
++@media(max-width:940px){.material-library{grid-template-columns:1fr;}}
++@media(max-width:940px){.studio-layout:has(.project-materials) {grid-template-columns:minmax(0,1fr);} .project-material-list article,.material-candidate-actions {grid-template-columns:1fr;} .project-material-preview {min-height:350px;} }
+ .connection-trial-entry { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding-bottom: 1rem; font-size: .8rem; color: var(--color-muted); }
+ .connection-trial-entry .pill { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; }
+ .connection-review-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 1rem; align-items: start; }
+diff --git a/proof/audit/IW-PROJECT-MATERIALS/before/package.json b/package.json
+index b0ea102..e4e1c17 100644
+--- a/proof/audit/IW-PROJECT-MATERIALS/before/package.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+@@ -88,6 +88,7 @@
+     "sonner": "^2.0.7",
+     "tailwind-merge": "^3.5.0",
+     "tailwindcss": "^4.3.0",
++    "tesseract.js": "^7.0.0",
+     "three": "^0.185.1",
+     "tw-animate-css": "^1.3.4",
+     "vaul": "^1.1.2",
+diff --git a/proof/audit/IW-PROJECT-MATERIALS/before/package-lock.json b/package-lock.json
+index bdfddd5..75c5d98 100644
+--- a/proof/audit/IW-PROJECT-MATERIALS/before/package-lock.json
++++ b/package-lock.json
+@@ -56,6 +56,7 @@
+         "sonner": "^2.0.7",
+         "tailwind-merge": "^3.5.0",
+         "tailwindcss": "^4.3.0",
++        "tesseract.js": "^7.0.0",
+         "three": "^0.185.1",
+         "tw-animate-css": "^1.3.4",
+         "vaul": "^1.1.2",
+@@ -4735,6 +4736,12 @@
+         "@noble/hashes": "^2.0.1"
+       }
+     },
++    "node_modules/bmp-js": {
++      "version": "0.1.0",
++      "resolved": "https://registry.npmjs.org/bmp-js/-/bmp-js-0.1.0.tgz",
++      "integrity": "sha512-vHdS19CnY3hwiNdkaqk93DvjVLfbEcI8mys4UjuWrlX1haDmroo8o4xCzh4wD6DGV6HxRCyauwhHRqMTfERtjw==",
++      "license": "MIT"
++    },
+     "node_modules/brace-expansion": {
+       "version": "1.1.18",
+       "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.18.tgz",
+@@ -5813,6 +5820,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/idb-keyval": {
++      "version": "6.3.0",
++      "resolved": "https://registry.npmjs.org/idb-keyval/-/idb-keyval-6.3.0.tgz",
++      "integrity": "sha512-um+2dgAWmYsu615EXpWVwSmapJhON0G43t3Ka/EVaohzPQXSMqKEqeDK/oIW3Ow+BXaF2PvSc+oBTFp793A5Ow==",
++      "license": "Apache-2.0"
++    },
+     "node_modules/ignore": {
+       "version": "5.3.2",
+       "resolved": "https://registry.npmjs.org/ignore/-/ignore-5.3.2.tgz",
+@@ -5882,6 +5895,12 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/is-url": {
++      "version": "1.2.4",
++      "resolved": "https://registry.npmjs.org/is-url/-/is-url-1.2.4.tgz",
++      "integrity": "sha512-ITvGim8FhRiYe4IQ5uHSkj7pVaPDrCTkNd3yq3cV7iZAcJdHTUMPMEHcqSOy9xZ9qFenQCvi+2wjH9a1nXqHww==",
++      "license": "MIT"
++    },
+     "node_modules/isbot": {
+       "version": "5.2.2",
+       "resolved": "https://registry.npmjs.org/isbot/-/isbot-5.2.2.tgz",
+@@ -6573,6 +6592,26 @@
+         }
+       }
+     },
++    "node_modules/node-fetch": {
++      "version": "2.7.0",
++      "resolved": "https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz",
++      "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
++      "license": "MIT",
++      "dependencies": {
++        "whatwg-url": "^5.0.0"
++      },
++      "engines": {
++        "node": "4.x || >=6.0.0"
++      },
++      "peerDependencies": {
++        "encoding": "^0.1.0"
++      },
++      "peerDependenciesMeta": {
++        "encoding": {
++          "optional": true
++        }
++      }
++    },
+     "node_modules/node-releases": {
+       "version": "2.0.54",
+       "resolved": "https://registry.npmjs.org/node-releases/-/node-releases-2.0.54.tgz",
+@@ -6615,6 +6654,15 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/opencollective-postinstall": {
++      "version": "2.0.3",
++      "resolved": "https://registry.npmjs.org/opencollective-postinstall/-/opencollective-postinstall-2.0.3.tgz",
++      "integrity": "sha512-8AV/sCtuzUeTo8gQK5qDZzARrulB3egtLzFgteqB2tcT4Mw7B8Kt7JcDHmltjz6FOAHsvTevk70gZEbhM4ZS9Q==",
++      "license": "MIT",
++      "bin": {
++        "opencollective-postinstall": "index.js"
++      }
++    },
+     "node_modules/optionator": {
+       "version": "0.9.4",
+       "resolved": "https://registry.npmjs.org/optionator/-/optionator-0.9.4.tgz",
+@@ -7218,6 +7266,12 @@
+         "decimal.js-light": "^2.4.1"
+       }
+     },
++    "node_modules/regenerator-runtime": {
++      "version": "0.13.11",
++      "resolved": "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.13.11.tgz",
++      "integrity": "sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==",
++      "license": "MIT"
++    },
+     "node_modules/resolve-from": {
+       "version": "4.0.0",
+       "resolved": "https://registry.npmjs.org/resolve-from/-/resolve-from-4.0.0.tgz",
+@@ -7464,6 +7518,30 @@
+         "url": "https://opencollective.com/webpack"
+       }
+     },
++    "node_modules/tesseract.js": {
++      "version": "7.0.0",
++      "resolved": "https://registry.npmjs.org/tesseract.js/-/tesseract.js-7.0.0.tgz",
++      "integrity": "sha512-exPBkd+z+wM1BuMkx/Bjv43OeLBxhL5kKWsz/9JY+DXcXdiBjiAch0V49QR3oAJqCaL5qURE0vx9Eo+G5YE7mA==",
++      "hasInstallScript": true,
++      "license": "Apache-2.0",
++      "dependencies": {
++        "bmp-js": "^0.1.0",
++        "idb-keyval": "^6.2.0",
++        "is-url": "^1.2.4",
++        "node-fetch": "^2.6.9",
++        "opencollective-postinstall": "^2.0.3",
++        "regenerator-runtime": "^0.13.3",
++        "tesseract.js-core": "^7.0.0",
++        "wasm-feature-detect": "^1.8.0",
++        "zlibjs": "^0.3.1"
++      }
++    },
++    "node_modules/tesseract.js-core": {
++      "version": "7.0.0",
++      "resolved": "https://registry.npmjs.org/tesseract.js-core/-/tesseract.js-core-7.0.0.tgz",
++      "integrity": "sha512-WnNH518NzmbSq9zgTPeoF8c+xmilS8rFIl1YKbk/ptuuc7p6cLNELNuPAzcmsYw450ca6bLa8j3t0VAtq435Vw==",
++      "license": "Apache-2.0"
++    },
+     "node_modules/three": {
+       "version": "0.185.1",
+       "resolved": "https://registry.npmjs.org/three/-/three-0.185.1.tgz",
+@@ -7492,6 +7570,12 @@
+         "url": "https://github.com/sponsors/SuperchupuDev"
+       }
+     },
++    "node_modules/tr46": {
++      "version": "0.0.3",
++      "resolved": "https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz",
++      "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
++      "license": "MIT"
++    },
+     "node_modules/ts-api-utils": {
+       "version": "2.5.0",
+       "resolved": "https://registry.npmjs.org/ts-api-utils/-/ts-api-utils-2.5.0.tgz",
+@@ -7885,12 +7969,34 @@
+         }
+       }
+     },
++    "node_modules/wasm-feature-detect": {
++      "version": "1.9.0",
++      "resolved": "https://registry.npmjs.org/wasm-feature-detect/-/wasm-feature-detect-1.9.0.tgz",
++      "integrity": "sha512-zonE+xlIIYtxPy++L24ow0hAD8CICb4+FgPyROd3buyXIqsJvUEDkBgfCCoXOd1Hu3DUr0GOfnPIdcGV+YpNaA==",
++      "license": "Apache-2.0"
++    },
++    "node_modules/webidl-conversions": {
++      "version": "3.0.1",
++      "resolved": "https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz",
++      "integrity": "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==",
++      "license": "BSD-2-Clause"
++    },
+     "node_modules/webpack-virtual-modules": {
+       "version": "0.6.2",
+       "resolved": "https://registry.npmjs.org/webpack-virtual-modules/-/webpack-virtual-modules-0.6.2.tgz",
+       "integrity": "sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==",
+       "license": "MIT"
+     },
++    "node_modules/whatwg-url": {
++      "version": "5.0.0",
++      "resolved": "https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz",
++      "integrity": "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==",
++      "license": "MIT",
++      "dependencies": {
++        "tr46": "~0.0.3",
++        "webidl-conversions": "^3.0.0"
++      }
++    },
+     "node_modules/which": {
+       "version": "2.0.2",
+       "resolved": "https://registry.npmjs.org/which/-/which-2.0.2.tgz",
+@@ -7960,6 +8066,15 @@
+         "url": "https://github.com/sponsors/sindresorhus"
+       }
+     },
++    "node_modules/zlibjs": {
++      "version": "0.3.1",
++      "resolved": "https://registry.npmjs.org/zlibjs/-/zlibjs-0.3.1.tgz",
++      "integrity": "sha512-+J9RrgTKOmlxFSDHo0pI1xM6BLVUv+o0ZT9ANtCxGkjIVCCUdx9alUF8Gm+dGLKbkkkidWIHFDZHDMpfITt4+w==",
++      "license": "MIT",
++      "engines": {
++        "node": "*"
++      }
++    },
+     "node_modules/zod": {
+       "version": "4.5.4",
+       "resolved": "https://registry.npmjs.org/zod/-/zod-4.5.4.tgz",
+diff --git a/proof/audit/IW-PROJECT-MATERIALS/before/vite.config.ts b/vite.config.ts
+index cb3ceaa..9810755 100644
+--- a/proof/audit/IW-PROJECT-MATERIALS/before/vite.config.ts
++++ b/vite.config.ts
+@@ -151,7 +151,7 @@ export default defineConfig(({ command, isPreview }) => ({
+     port: 8080,
+     strictPort: true,
+     watch: {
+-      ignored: ["**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
++      ignored: ["**/.vercel/**", "**/.output/**", "**/dist/**", "**/snapshots/**", "**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
+     },
+   },
+   preview: {
+diff --git a/src/studio/ProjectMaterialsPanel.tsx b/src/studio/ProjectMaterialsPanel.tsx
+new file mode 100644
+index 0000000..031ac7f
+--- /dev/null
++++ b/src/studio/ProjectMaterialsPanel.tsx
+@@ -0,0 +1,1030 @@
++import { useEffect, useRef, useState } from "react";
++import { Download, Plus, ScanSearch, FileUp } from "lucide-react";
++import { useStudio } from "./store";
++import { WorkspaceDialog } from "./WorkspaceDialog";
++import { DocumentPreview } from "./DocumentPreview";
++import { addThorntonPreparedMaterials } from "./construction/thorntonMaterials";
++import { THORNTON_LIBRARY } from "./construction/thorntonLibrary";
++import { openMaterialLibrarySource } from "./materialLibrarySource";
++import { MaterialSourceLibrary } from "./MaterialSourceLibrary";
++import { restoreMaterialDatabase, saveMaterialDatabase } from "./projectMaterialsPersistence";
++import { scanMaterialImagePage } from "./materialOcr";
++import { scanMaterialDocument } from "./materialDiscovery";
++import { materialErrorMessage, MATERIAL_UNITS } from "./construction/materialRegister";
++import {
++  DISCIPLINES,
++  attachMaterialSource,
++  newProjectMaterial,
++  putProjectMaterial,
++  disposeDiscovery,
++  materialCoverage,
++  projectMaterialTotals,
++  projectMaterialsCsv,
++  projectMaterialsExport,
++  previewMaterialsBackup,
++  type MaterialSource,
++  type ProjectMaterial,
++  type ProjectMaterials,
++  type ProjectMaterialsSession,
++} from "./construction/projectMaterials";
++
++const show = (n: number | null, unit = "") =>
++  n === null ? "Unknown" : `${n.toLocaleString(undefined, { maximumFractionDigits: 3 })}${unit}`;
++function download(data: string, name: string, type: string) {
++  const url = URL.createObjectURL(new Blob([data], { type })),
++    a = document.createElement("a");
++  a.href = url;
++  a.download = name;
++  a.click();
++  setTimeout(() => URL.revokeObjectURL(url), 1000);
++}
++export function ProjectMaterialsPanel() {
++  const s = useStudio(),
++    projectId = s.job.id;
++  const [session, setSession] = useState<ProjectMaterialsSession | null>(null),
++    [tab, setTab] = useState("Materials"),
++    [discipline, setDiscipline] = useState<MaterialSource["discipline"]>("Structural");
++  const [draft, setDraft] = useState<ProjectMaterial | null>(null),
++    [candidate, setCandidate] = useState<string | null>(null),
++    [filter, setFilter] = useState(""),
++    [status, setStatus] = useState("");
++  const [scan, setScan] = useState<string | null>(null),
++    abort = useRef<AbortController | null>(null),
++    [sheetPage, setSheetPage] = useState(1),
++    [sheetNote, setSheetNote] = useState("");
++  const [reason, setReason] = useState(""),
++    [linkId, setLinkId] = useState(""),
++    [backup, setBackup] = useState<ProjectMaterials | null>(null),
++    [backupConfirmed, setBackupConfirmed] = useState(false);
++  const [viewPage, setViewPage] = useState<{ sha256: string; page: number } | null>(null),
++    [scopeReason, setScopeReason] = useState("");
++  useEffect(() => {
++    let active = true;
++    void restoreMaterialDatabase(projectId).then((v) => {
++      if (active) setSession(v);
++    });
++    return () => {
++      active = false;
++      abort.current?.abort();
++    };
++  }, [projectId]);
++  useEffect(() => {
++    abort.current?.abort();
++    setSheetPage(1);
++    setDraft(null);
++    setCandidate(null);
++    setSheetNote("");
++  }, [s.activePlanBinary?.documentId, s.activePlanBinary?.sha256]);
++  if (!session) return <p role="status">Restoring project material inventory…</p>;
++  const value = session.value,
++    active = s.job.documents.find((d) => d.id === s.job.activeDocumentId),
++    binary = s.activePlanBinary;
++  const source = value.sources.find((d) => d.sha256 === active?.sha256);
++  const sourceReady = !!(
++    active &&
++    binary &&
++    binary.documentId === active.id &&
++    binary.sha256 === active.sha256
++  );
++  const disabled = session.blocked || !!scan,
++    totals = projectMaterialTotals(value),
++    coverage = materialCoverage(value);
++  const sheet = source
++    ? value.sheets.find((p) => p.sha256 === source.sha256 && p.page === sheetPage)
++    : null;
++  const discoveries = source
++    ? value.discoveries.filter((d) => d.sha256 === source.sha256 && d.page === sheetPage)
++    : [];
++  async function commit(next: ProjectMaterials) {
++    const saved = await saveMaterialDatabase(session!, next);
++    setSession(saved);
++    setStatus(saved.error ? "" : "Project material inventory saved.");
++    return !saved.error;
++  }
++  async function change(action: () => ProjectMaterials) {
++    try {
++      return await commit(action());
++    } catch (e) {
++      setStatus(materialErrorMessage(e));
++      return false;
++    }
++  }
++  function register() {
++    if (!active?.sha256 || !active.pageCount || !sourceReady) return;
++    change(() =>
++      attachMaterialSource(value, {
++        sha256: active.sha256!,
++        name: active.name,
++        pageCount: active.pageCount!,
++        discipline,
++      }),
++    );
++  }
++  async function discover(ocr = false) {
++    if (!binary || !source || disabled) return;
++    const original = session,
++      originalBinary = binary,
++      controller = new AbortController();
++    abort.current = controller;
++    setScan("Starting scan…");
++    setStatus("");
++    try {
++      const next = ocr
++        ? await scanMaterialImagePage(binary, value, sheetPage, setScan, controller.signal)
++        : await scanMaterialDocument(
++            binary,
++            value,
++            (page, total) => setScan(`Reading sheet ${page} of ${total}`),
++            controller.signal,
++          );
++      if (
++        controller.signal.aborted ||
++        useStudio.getState().activePlanBinary !== originalBinary ||
++        useStudio.getState().job.id !== projectId
++      )
++        throw Error("Source changed during scan. Saved inventory was preserved.");
++      const saved = await saveMaterialDatabase(original!, next);
++      setSession(saved);
++      setTab("Sheet coverage");
++      setStatus(
++        saved.error
++          ? ""
++          : "Scan saved. Material mentions need reconciliation; none were counted automatically.",
++      );
++    } catch (e) {
++      setStatus(materialErrorMessage(e));
++    } finally {
++      setScan(null);
++      abort.current = null;
++    }
++  }
++  async function saveDraft() {
++    if (!draft) return;
++    const ok = await change(() => {
++      let next = putProjectMaterial(value, draft);
++      if (candidate)
++        next = disposeDiscovery(
++          next,
++          candidate,
++          draft.stock.id,
++          "Created material from source mention; quantity independently established.",
++        );
++      return next;
++    });
++    if (ok) {
++      setDraft(null);
++      setCandidate(null);
++    }
++  }
++  async function showEvidence(sha: string, page: number) {
++    try {
++      let current = useStudio.getState();
++      const doc = current.job.documents.find((d) => d.sha256 === sha && d.source !== "sample");
++      if (doc) {
++        if (current.job.activeDocumentId !== doc.id) await current.selectDocument(doc.id);
++      } else {
++        const library = THORNTON_LIBRARY.find((d) => d.sha256 === sha);
++        if (!library) {
++          setStatus("Attach the original drawing revision to view this evidence.");
++          return;
++        }
++        setStatus("Opening original source revision...");
++        await openMaterialLibrarySource(library);
++      }
++      current = useStudio.getState();
++      if (
++        current.job.id !== projectId ||
++        current.activePlanBinary?.sha256 !== sha ||
++        current.activePlanBinary.documentId !== current.job.activeDocumentId
++      )
++        throw Error("Original drawing could not be restored. Evidence navigation was cancelled.");
++      setStatus("");
++      setViewPage({ sha256: sha, page });
++    } catch (e) {
++      setStatus(materialErrorMessage(e));
++    }
++  }
++  async function readBackup(file: File | undefined) {
++    if (!file) return;
++    try {
++      if (file.size > 20 * 1024 * 1024) throw Error("Backup exceeds the 20 MB limit.");
++      setBackup(previewMaterialsBackup(await file.text(), projectId));
++      setBackupConfirmed(false);
++      setStatus("");
++    } catch (e) {
++      setStatus(materialErrorMessage(e));
++    }
++  }
++  const field = (key: keyof ProjectMaterial, label: string) =>
++    draft ? (
++      <label>
++        {label}
++        <input
++          value={String(draft[key])}
++          onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
++        />
++      </label>
++    ) : null;
++  return (
++    <section className="source-takeoff project-materials" aria-label="Project material takeoff">
++      <header className="takeoff-heading">
++        <div>
++          <span className="kicker">All materials / source register</span>
++          <h1>Every material. Every source.</h1>
++          <p>Project-wide takeoff · quantities, material volume, specified weight and storage</p>
++        </div>
++        <div className="takeoff-actions">
++          <button
++            className="pill"
++            disabled={disabled || !!draft || !!backup}
++            onClick={() =>
++              download(
++                JSON.stringify(projectMaterialsExport(value), null, 2),
++                "project-materials-backup.json",
++                "application/json",
++              )
++            }
++          >
++            <Download size={15} />
++            Backup & report
++          </button>
++          <label className="pill material-import">
++            <FileUp size={15} />
++            Restore backup
++            <input
++              type="file"
++              accept=".json,application/json"
++              disabled={!!scan || !!draft}
++              onChange={(e) => {
++                void readBackup(e.target.files?.[0]);
++                e.target.value = "";
++              }}
++            />
++          </label>
++        </div>
++      </header>
++      {session.error && (
++        <div role="alert" className="takeoff-notice">
++          {session.error}
++          <button
++            className="pill"
++            onClick={async () => {
++              setSession(await restoreMaterialDatabase(projectId));
++              setDraft(null);
++              setBackup(null);
++            }}
++          >
++            Retry restore
++          </button>
++        </div>
++      )}
++      {status && (
++        <p role="status" className="takeoff-notice">
++          {status}
++        </p>
++      )}
++      {backup && (
++        <div className="takeoff-inspector">
++          <h2>Restore preview</h2>
++          <p>
++            {backup.materials.length} material lines · {backup.sources.length} source revisions ·{" "}
++            {backup.sheets.length} sheets. This replaces this project's material register only. The
++            previous raw snapshot is archived in the same transaction before replacement.
++          </p>
++          <label className="takeoff-check">
++            <input
++              type="checkbox"
++              checked={backupConfirmed}
++              onChange={(e) => setBackupConfirmed(e.target.checked)}
++            />
++            I have reviewed this backup and want to replace this material register
++          </label>
++          <div className="takeoff-actions">
++            <button
++              className="pill"
++              disabled={!!scan || !backupConfirmed}
++              onClick={async () => {
++                const saved = await saveMaterialDatabase(session, backup, true);
++                setSession(saved);
++                if (!saved.error) {
++                  setBackup(null);
++                  setStatus(
++                    "Backup restored. Previous raw inventory archived atomically for recovery.",
++                  );
++                }
++              }}
++            >
++              Restore reviewed backup
++            </button>
++            <button className="pill" onClick={() => setBackup(null)}>
++              Cancel restore
++            </button>
++          </div>
++        </div>
++      )}
++      <div className="takeoff-summary">
++        <div>
++          <span>Material lines</span>
++          <strong>{value.materials.length}</strong>
++          <small>{totals.unknownQuantities} quantities unresolved</small>
++        </div>
++        <div>
++          <span>Known material volume</span>
++          <strong>{show(totals.materialVolume.value, " m³")}</strong>
++          <small>
++            {totals.materialVolume.known}/{totals.materialVolume.total} lines · solid material
++          </small>
++        </div>
++        <div>
++          <span>Known specified weight</span>
++          <strong>{show(totals.weight.value, " kg")}</strong>
++          <small>
++            {totals.weight.known}/{totals.weight.total} lines have weight
++          </small>
++        </div>
++        <div>
++          <span>Known storage volume</span>
++          <strong>{show(totals.storageVolume.value, " m³")}</strong>
++          <small>
++            {totals.storageVolume.known}/{totals.storageVolume.total} lines · whole packages
++          </small>
++        </div>
++      </div>
++      <p className="takeoff-boundary">
++        <b>
++          Coverage: {coverage.reviewedSheets}/{coverage.sheets} sheets reviewed.
++        </b>{" "}
++        {coverage.pendingDiscoveries} material candidates need reconciliation. Missing disciplines:{" "}
++        {coverage.missingDisciplines.join(", ") || "none recorded"}. Totals are partial; quantities
++        in different units are never added together. Storage excludes aisles, stacking restrictions
++        and handling space.
++      </p>
++      <details className="takeoff-inspector">
++        <summary>Prepared source inventory · review before adding</summary>
++        <p>
++          79 lines: 37 swinging door leaves, 5 overhead door assemblies, 35 frame assemblies, 8
++          selected roof beams, 16 shear plates, 32 bolts and one RTU-1 rooftop unit. Counts are from
++          reviewed source schedules and a bounded roof span; the whole-building material count is
++          still incomplete.
++        </p>
++        <p>
++          All imported entries require review. Door hardware, other building assemblies, services
++          distribution and most weights/volumes remain unresolved. Existing entries with the same
++          physical keys are preserved.
++        </p>
++        <button
++          className="pill"
++          disabled={disabled || !!draft || !!backup}
++          onClick={() => change(() => addThorntonPreparedMaterials(value))}
++        >
++          Add prepared source inventory
++        </button>
++      </details>
++      <MaterialSourceLibrary
++        disabled={disabled || !!draft || !!backup}
++        onOpened={async (source) => {
++          await change(() => attachMaterialSource(value, source));
++          setTab("Sheet coverage");
++        }}
++      />
++      <nav className="takeoff-filters" aria-label="Project takeoff views">
++        {["Materials", "Sheet coverage", "Source documents"].map((t) => (
++          <button
++            className="pill"
++            key={t}
++            aria-pressed={tab === t}
++            disabled={!!draft || !!backup || !!scan}
++            onClick={() => setTab(t)}
++          >
++            {t}
++          </button>
++        ))}
++      </nav>
++      {tab === "Source documents" && (
++        <div className="takeoff-inspector">
++          <h2>Register drawing disciplines</h2>
++          <p>
++            Open a drawing using the project selector, then register its discipline. Re-importing
++            identical bytes does not create a second source. Revised bytes remain a separate source
++            revision.
++          </p>
++          <div className="takeoff-editor">
++            <label>
++              Active drawing discipline
++              <select
++                aria-label="Active drawing discipline"
++                value={discipline}
++                onChange={(e) => setDiscipline(e.target.value as MaterialSource["discipline"])}
++              >
++                {DISCIPLINES.map((d) => (
++                  <option key={d}>{d}</option>
++                ))}
++              </select>
++            </label>
++            <button
++              className="pill"
++              disabled={disabled || !sourceReady || !!source || !!backup}
++              onClick={register}
++            >
++              {source ? "Active drawing already registered" : "Register active drawing"}
++            </button>
++          </div>
++          {value.sources.map((d) => (
++            <div key={d.sha256}>
++              <b>{d.name}</b>
++              <p>
++                {d.discipline} · {d.pageCount} pages
++              </p>
++              <code className="takeoff-hash">{d.sha256}</code>
++            </div>
++          ))}
++          <h2>Discipline scope</h2>
++          <label className="takeoff-editor">
++            Scope reason
++            <input
++              value={scopeReason}
++              onChange={(e) => setScopeReason(e.target.value)}
++              placeholder="Why this discipline is outside the requested work"
++            />
++          </label>
++          {value.scope.map((d) => (
++            <label key={d.discipline} className="takeoff-check">
++              <input
++                type="checkbox"
++                checked={d.excluded}
++                disabled={disabled || !!backup || (!d.excluded && !scopeReason.trim())}
++                onChange={(e) =>
++                  change(() => ({
++                    ...value,
++                    revision: value.revision + 1,
++                    scope: value.scope.map((x) =>
++                      x.discipline === d.discipline
++                        ? {
++                            ...x,
++                            excluded: e.target.checked,
++                            reason: e.target.checked ? scopeReason : "",
++                          }
++                        : x,
++                    ),
++                  }))
++                }
++              />
++              Exclude {d.discipline} from scope {d.excluded && `— ${d.reason}`}
++            </label>
++          ))}
++        </div>
++      )}
++      {tab === "Sheet coverage" && (
++        <div className="takeoff-inspector">
++          <h2>Read, reconcile, then review</h2>
++          {!source ? (
++            <p>Register the active drawing in Source documents first.</p>
++          ) : (
++            <>
++              <div className="takeoff-actions">
++                <button
++                  className="pill"
++                  disabled={disabled || !sourceReady || !!backup}
++                  onClick={() => void discover()}
++                >
++                  <ScanSearch size={15} />
++                  Scan all source sheets
++                </button>
++                <button
++                  className="pill"
++                  disabled={disabled || !sourceReady || !!backup}
++                  onClick={() => void discover(true)}
++                >
++                  Read selected sheet with OCR
++                </button>
++                {scan && (
++                  <button className="pill" onClick={() => abort.current?.abort()}>
++                    Cancel scan
++                  </button>
++                )}
++                <span role="status">{scan}</span>
++              </div>
++              {sheet?.ocrConfidence !== null && sheet?.ocrConfidence !== undefined && (
++                <p className="takeoff-notice">
++                  OCR confidence: {sheet.ocrConfidence.toFixed(0)}%. Check every recognized tag and
++                  specification against the original image; OCR text is not a verified count.
++                </p>
++              )}
++              <p>
++                Text discovery finds candidate material names and steel designations. It does not
++                detect every symbol or establish physical quantities. Image-only sheets require
++                visual review; a zero-match scan is not an empty-material sheet.
++              </p>
++              <label className="takeoff-editor">
++                Coverage sheet
++                <select
++                  aria-label="Coverage sheet"
++                  value={sheetPage}
++                  disabled={!!scan}
++                  onChange={(e) => {
++                    setSheetPage(Number(e.target.value));
++                    setSheetNote("");
++                  }}
++                >
++                  {value.sheets
++                    .filter((p) => p.sha256 === source.sha256)
++                    .map((p) => (
++                      <option value={p.page} key={p.page}>
++                        {p.title} · {p.scan} · {p.reviewed ? "reviewed" : "needs review"}
++                      </option>
++                    ))}
++                </select>
++              </label>
++              <button
++                className="pill"
++                disabled={!sourceReady}
++                onClick={() => void showEvidence(source.sha256, sheetPage)}
++              >
++                Inspect coverage sheet
++              </button>
++              <div className="material-candidate-actions">
++                <label>
++                  Disposition reason
++                  <input
++                    value={reason}
++                    onChange={(e) => setReason(e.target.value)}
++                    placeholder="Existing detail, outside scope, or not a physical item"
++                  />
++                </label>
++                <label>
++                  Existing physical material
++                  <select
++                    aria-label="Existing physical material"
++                    value={linkId}
++                    onChange={(e) => setLinkId(e.target.value)}
++                  >
++                    <option value="">Choose existing material</option>
++                    {value.materials.map((m) => (
++                      <option value={m.stock.id} key={m.stock.id}>
++                        {m.stock.description} · {m.physicalKey}
++                      </option>
++                    ))}
++                  </select>
++                </label>
++              </div>
++              <div className="material-discoveries">
++                {discoveries.map((d) => (
++                  <article key={d.id}>
++                    <div>
++                      <b>{d.label}</b>
++                      <span>
++                        {d.category} · {d.mentions} text mentions · {d.status}
++                      </span>
++                      <p>{d.excerpt}</p>
++                    </div>
++                    {d.status === "pending" && (
++                      <div className="takeoff-actions">
++                        <button
++                          className="pill"
++                          disabled={disabled || !!backup}
++                          onClick={() => {
++                            const next = newProjectMaterial(source, d.page, crypto.randomUUID());
++                            next.stock.description = d.label;
++                            next.category = d.category;
++                            next.specification = d.excerpt;
++                            setDraft(next);
++                            setCandidate(d.id);
++                            setTab("Materials");
++                          }}
++                        >
++                          Create material
++                        </button>
++                        <button
++                          className="pill"
++                          disabled={disabled || !linkId || !!backup}
++                          onClick={() =>
++                            change(() => disposeDiscovery(value, d.id, linkId, reason))
++                          }
++                        >
++                          Link evidence
++                        </button>
++                        <button
++                          className="pill"
++                          disabled={disabled || !reason.trim() || !!backup}
++                          onClick={() => change(() => disposeDiscovery(value, d.id, null, reason))}
++                        >
++                          Exclude mention
++                        </button>
++                      </div>
++                    )}
++                  </article>
++                ))}
++              </div>
++              <div className="takeoff-editor">
++                <label>
++                  Sheet visual review note
++                  <textarea
++                    aria-label="Sheet visual review note"
++                    value={sheetNote}
++                    onChange={(e) => setSheetNote(e.target.value)}
++                    placeholder="Record checks of plan, details, schedules and material coverage"
++                  />
++                </label>
++                <button
++                  className="pill"
++                  disabled={
++                    disabled ||
++                    !!backup ||
++                    !sheetNote.trim() ||
++                    sheet?.scan === "not-scanned" ||
++                    sheet?.scan === "failed" ||
++                    discoveries.some((d) => d.status === "pending")
++                  }
++                  onClick={() =>
++                    change(() => ({
++                      ...value,
++                      revision: value.revision + 1,
++                      sheets: value.sheets.map((p) =>
++                        p.sha256 === source.sha256 && p.page === sheetPage
++                          ? { ...p, reviewed: true, reviewNote: sheetNote }
++                          : p,
++                      ),
++                    }))
++                  }
++                >
++                  Mark sheet visually reviewed
++                </button>
++              </div>
++            </>
++          )}
++        </div>
++      )}
++      {tab === "Materials" && (
++        <>
++          {draft ? (
++            <div className="takeoff-inspector">
++              <h2>
++                {value.materials.some((m) => m.stock.id === draft.stock.id)
++                  ? "Edit physical material"
++                  : "Add physical material"}
++              </h2>
++              <div className="takeoff-editor">
++                <div className="takeoff-input-grid">
++                  <label>
++                    Description
++                    <input
++                      value={draft.stock.description}
++                      onChange={(e) =>
++                        setDraft({
++                          ...draft,
++                          stock: { ...draft.stock, description: e.target.value },
++                        })
++                      }
++                    />
++                  </label>
++                  <label>
++                    Stock / order line code
++                    <input
++                      value={draft.stock.stockCode}
++                      onChange={(e) =>
++                        setDraft({ ...draft, stock: { ...draft.stock, stockCode: e.target.value } })
++                      }
++                    />
++                  </label>
++                  {field("physicalKey", "Unique physical scope key")}
++                  {field("category", "Material category")}
++                  {field("building", "Building")}
++                  {field("floor", "Floor / level")}
++                  {field("location", "Location / grid / room")}
++                  <label>
++                    Material discipline
++                    <select
++                      aria-label="Material discipline"
++                      value={draft.discipline}
++                      onChange={(e) =>
++                        setDraft({
++                          ...draft,
++                          discipline: e.target.value as MaterialSource["discipline"],
++                        })
++                      }
++                    >
++                      {DISCIPLINES.map((d) => (
++                        <option key={d}>{d}</option>
++                      ))}
++                    </select>
++                  </label>
++                  <label>
++                    Quantity
++                    <input
++                      type="number"
++                      min="0"
++                      step="any"
++                      value={draft.stock.quantity ?? ""}
++                      onChange={(e) =>
++                        setDraft({
++                          ...draft,
++                          stock: {
++                            ...draft.stock,
++                            quantity: e.target.value === "" ? null : Number(e.target.value),
++                          },
++                        })
++                      }
++                    />
++                  </label>
++                  <label>
++                    Stock unit
++                    <select
++                      aria-label="Stock unit"
++                      value={draft.stock.unit}
++                      onChange={(e) =>
++                        setDraft({
++                          ...draft,
++                          stock: {
++                            ...draft.stock,
++                            unit: e.target.value as ProjectMaterial["stock"]["unit"],
++                          },
++                        })
++                      }
++                    >
++                      {Object.entries(MATERIAL_UNITS).map(([v, l]) => (
++                        <option value={v} key={v}>
++                          {l}
++                        </option>
++                      ))}
++                    </select>
++                  </label>
++                  <label>
++                    Quantity basis
++                    <select
++                      aria-label="Quantity basis"
++                      value={draft.quantityBasis}
++                      onChange={(e) =>
++                        setDraft({
++                          ...draft,
++                          quantityBasis: e.target.value as ProjectMaterial["quantityBasis"],
++                        })
++                      }
++                    >
++                      {["unresolved", "counted", "scheduled", "measured", "derived"].map((v) => (
++                        <option key={v}>{v}</option>
++                      ))}
++                    </select>
++                  </label>
++                  {field("calculation", "Quantity calculation / method")}
++                  {field("specification", "Material specification")}
++                  {field("unresolved", "Unresolved components / properties")}
++                </div>
++                <label>
++                  Source / supplier reference
++                  <textarea
++                    value={draft.stock.reference}
++                    onChange={(e) =>
++                      setDraft({ ...draft, stock: { ...draft.stock, reference: e.target.value } })
++                    }
++                  />
++                </label>
++                <fieldset>
++                  <legend>Overall physical dimensions</legend>
++                  <div className="takeoff-input-grid">
++                    {(["length", "width", "height", "depth"] as const).map((key) => (
++                      <label key={key}>
++                        Physical {key} (m)
++                        <input
++                          type="number"
++                          min="0"
++                          step="any"
++                          value={draft.dimensionsM[key] ?? ""}
++                          onChange={(e) =>
++                            setDraft({
++                              ...draft,
++                              dimensionsM: {
++                                ...draft.dimensionsM,
++                                [key]: e.target.value === "" ? null : Number(e.target.value),
++                              },
++                            })
++                          }
++                        />
++                      </label>
++                    ))}
++                    {field("dimensionReference", "Physical dimensions reference")}
++                  </div>
++                </fieldset>
++                <fieldset>
++                  <legend>Material volume, weight and packaging — optional until specified</legend>
++                  <div className="takeoff-input-grid">
++                    <label>
++                      Material volume per stock unit (m³)
++                      <input
++                        type="number"
++                        min="0"
++                        step="any"
++                        value={draft.materialVolumePerUnitM3 ?? ""}
++                        onChange={(e) =>
++                          setDraft({
++                            ...draft,
++                            materialVolumePerUnitM3:
++                              e.target.value === "" ? null : Number(e.target.value),
++                          })
++                        }
++                      />
++                    </label>
++                    {field("volumeReference", "Material volume calculation / reference")}
++                    {(
++                      [
++                        ["specifiedWeightKg", "Specified weight (kg)"],
++                        ["unitsPerPackage", "Stock units per package"],
++                        ["lengthM", "Package length (m)"],
++                        ["widthM", "Package width (m)"],
++                        ["heightM", "Package height (m)"],
++                      ] as const
++                    ).map(([key, label]) => (
++                      <label key={key}>
++                        {label}
++                        <input
++                          type="number"
++                          min="0"
++                          step="any"
++                          value={draft.stock[key] ?? ""}
++                          onChange={(e) =>
++                            setDraft({
++                              ...draft,
++                              stock: {
++                                ...draft.stock,
++                                [key]: e.target.value === "" ? null : Number(e.target.value),
++                              },
++                            })
++                          }
++                        />
++                      </label>
++                    ))}
++                    <label>
++                      Weight basis
++                      <select
++                        aria-label="Weight basis"
++                        value={draft.stock.weightBasis}
++                        onChange={(e) =>
++                          setDraft({
++                            ...draft,
++                            stock: {
++                              ...draft.stock,
++                              weightBasis: e.target.value as "unit" | "package",
++                            },
++                          })
++                        }
++                      >
++                        <option value="unit">Per stock unit</option>
++                        <option value="package">Per whole package</option>
++                      </select>
++                    </label>
++                  </div>
++                </fieldset>
++                <label>
++                  Review note
++                  <textarea
++                    aria-label="Review note"
++                    value={draft.reviewNote}
++                    onChange={(e) => setDraft({ ...draft, reviewNote: e.target.value })}
++                  />
++                </label>
++                <label className="takeoff-check">
++                  <input
++                    type="checkbox"
++                    checked={draft.review === "reviewed"}
++                    onChange={(e) =>
++                      setDraft({ ...draft, review: e.target.checked ? "reviewed" : "pending" })
++                    }
++                  />
++                  Quantity and source checked
++                </label>
++                <p>
++                  Changing material properties clears prior review. Save the change, then reopen and
++                  review the new revision.
++                </p>
++                <div className="takeoff-actions">
++                  <button className="pill" disabled={disabled} onClick={saveDraft}>
++                    Save physical material
++                  </button>
++                  <button
++                    className="pill"
++                    onClick={() => {
++                      setDraft(null);
++                      setCandidate(null);
++                    }}
++                  >
++                    Cancel material edit
++                  </button>
++                </div>
++              </div>
++            </div>
++          ) : (
++            <>
++              <div className="takeoff-actions">
++                <button
++                  className="pill"
++                  disabled={disabled || !source || !sourceReady || !!backup}
++                  onClick={() => {
++                    setDraft(newProjectMaterial(source!, sheetPage, crypto.randomUUID()));
++                    setCandidate(null);
++                  }}
++                >
++                  <Plus size={15} />
++                  Add physical material
++                </button>
++                <button
++                  className="pill"
++                  disabled={disabled || !value.materials.length || !!backup}
++                  onClick={() =>
++                    download(
++                      projectMaterialsCsv(value),
++                      "project-materials.csv",
++                      "text/csv;charset=utf-8",
++                    )
++                  }
++                >
++                  Export materials CSV
++                </button>
++                <input
++                  aria-label="Filter project materials"
++                  placeholder="Search material, floor or location"
++                  value={filter}
++                  onChange={(e) => setFilter(e.target.value)}
++                />
++              </div>
++              {!source && (
++                <p className="takeoff-notice">
++                  Register the active drawing in Source documents to start entering materials.
++                </p>
++              )}
++              {!value.materials.length && (
++                <p className="takeoff-boundary">
++                  No physical material quantities entered. Scan the registered source sheets to find
++                  candidates, then establish each quantity from the actual plan, schedule or
++                  measurement.
++                </p>
++              )}
++              <div className="project-material-list">
++                {value.materials
++                  .filter((m) => JSON.stringify(m).toLowerCase().includes(filter.toLowerCase()))
++                  .map((m) => {
++                    const t = totals.rows.find((r) => r.id === m.stock.id)!;
++                    return (
++                      <article key={m.stock.id}>
++                        <div>
++                          <b>{m.stock.description}</b>
++                          <p>
++                            {m.discipline} / {m.category} · {m.floor} · {m.location}
++                          </p>
++                          <small>
++                            {m.physicalKey} · revision {m.stock.revision} · {m.review}
++                          </small>
++                          {m.unresolved && (
++                            <p className="takeoff-notice">Unresolved: {m.unresolved}</p>
++                          )}
++                        </div>
++                        <div>
++                          <b>
++                            {show(m.stock.quantity)} {MATERIAL_UNITS[m.stock.unit]}
++                          </b>
++                          <p>
++                            Material {show(t.materialVolumeM3, " m³")} · weight{" "}
++                            {show(t.weightKg, " kg")}
++                          </p>
++                          <small>Storage {show(t.volumeM3, " m³")}</small>
++                        </div>
++                        <div className="takeoff-actions">
++                          <button
++                            className="pill"
++                            disabled={disabled || !!backup}
++                            onClick={() => setDraft(structuredClone(m))}
++                          >
++                            Edit {m.stock.stockCode}
++                          </button>
++                          {m.evidence.map((e, i) => (
++                            <button
++                              className="pill"
++                              key={i}
++                              onClick={() => void showEvidence(e.sha256, e.page)}
++                            >
++                              Source page {e.page}
++                            </button>
++                          ))}
++                        </div>
++                      </article>
++                    );
++                  })}
++              </div>
++            </>
++          )}
++        </>
++      )}
++      {viewPage !== null && binary && sourceReady && viewPage.sha256 === binary.sha256 && (
++        <WorkspaceDialog title="source preview" onClose={() => setViewPage(null)}>
++          <p>
++            {active?.name} · original source page {viewPage.page}
++          </p>
++          <DocumentPreview
++            binary={binary}
++            pageIndex={viewPage.page - 1}
++            pageCount={active?.pageCount}
++            className="project-material-preview"
++          />
++        </WorkspaceDialog>
++      )}
++    </section>
++  );
++}
+diff --git a/src/studio/projectMaterialsPersistence.ts b/src/studio/projectMaterialsPersistence.ts
+new file mode 100644
+index 0000000..8af1a8d
+--- /dev/null
++++ b/src/studio/projectMaterialsPersistence.ts
+@@ -0,0 +1,108 @@
++import {
++  createProjectMaterials,
++  projectMaterialsSchema,
++  type ProjectMaterials,
++  type ProjectMaterialsSession,
++} from "./construction/projectMaterials";
++
++// Large projects use IndexedDB, avoiding the small localStorage quota. A single
++// read-write transaction compares and replaces the prior snapshot atomically.
++export const MATERIALS_DB = "xray-project-materials-v1";
++function database(): Promise<IDBDatabase> {
++  return new Promise((resolve, reject) => {
++    const request = indexedDB.open(MATERIALS_DB, 1);
++    request.onupgradeneeded = () => request.result.createObjectStore("inventories");
++    request.onsuccess = () => resolve(request.result);
++    request.onerror = () => reject(request.error);
++    request.onblocked = () =>
++      reject(Error("Material database is blocked by another open version."));
++  });
++}
++export async function restoreMaterialDatabase(projectId: string): Promise<ProjectMaterialsSession> {
++  let raw: string | null = null,
++    db: IDBDatabase | undefined;
++  try {
++    db = await database();
++    raw = await new Promise<string | null>((resolve, reject) => {
++      const request = db!
++        .transaction("inventories", "readonly")
++        .objectStore("inventories")
++        .get(projectId);
++      request.onsuccess = () => resolve(request.result ?? null);
++      request.onerror = () => reject(request.error);
++    });
++    const value =
++      raw === null
++        ? createProjectMaterials(projectId)
++        : projectMaterialsSchema.parse(JSON.parse(raw));
++    if (value.projectId !== projectId) throw Error("Wrong project.");
++    return { value, raw, blocked: false, error: null };
++  } catch {
++    return {
++      value: createProjectMaterials(projectId),
++      raw,
++      blocked: true,
++      error:
++        "Saved material inventory could not be restored. Original data is preserved; writes and exports are blocked until recovery.",
++    };
++  } finally {
++    db?.close();
++  }
++}
++export async function saveMaterialDatabase(
++  session: ProjectMaterialsSession,
++  value: ProjectMaterials,
++  recovery = false,
++): Promise<ProjectMaterialsSession> {
++  if (session.blocked && !recovery) return session;
++  let db: IDBDatabase | undefined,
++    conflict = false;
++  try {
++    const parsed = projectMaterialsSchema.parse(value);
++    if (parsed.projectId !== session.value.projectId) throw Error("Project identity changed.");
++    const raw = JSON.stringify(parsed);
++    db = await database();
++    await new Promise<void>((resolve, reject) => {
++      const tx = db!.transaction("inventories", "readwrite"),
++        store = tx.objectStore("inventories"),
++        request = store.get(parsed.projectId);
++      let writeError: unknown;
++      request.onsuccess = () => {
++        try {
++          if ((request.result ?? null) !== session.raw) {
++            conflict = true;
++            tx.abort();
++            return;
++          }
++          if (recovery && session.raw !== null)
++            store.put(session.raw, `${parsed.projectId}:recovery:${crypto.randomUUID()}`);
++          store.put(raw, parsed.projectId);
++        } catch (error) {
++          writeError = error;
++          tx.abort();
++        }
++      };
++      tx.oncomplete = () => resolve();
++      tx.onabort = () =>
++        reject(
++          writeError ??
++            tx.error ??
++            Error(
++              conflict
++                ? "Inventory changed in another session. Retry restore before writing."
++                : "Material transaction aborted.",
++            ),
++        );
++      tx.onerror = () => reject(tx.error);
++    });
++    return { value: parsed, raw, blocked: false, error: null };
++  } catch (e) {
++    return {
++      ...session,
++      blocked: session.blocked || conflict,
++      error: `Inventory was not saved: ${e instanceof Error ? e.message : String(e)}`,
++    };
++  } finally {
++    db?.close();
++  }
++}
+diff --git a/src/studio/MaterialSourceLibrary.tsx b/src/studio/MaterialSourceLibrary.tsx
+new file mode 100644
+index 0000000..f5d1aca
+--- /dev/null
++++ b/src/studio/MaterialSourceLibrary.tsx
+@@ -0,0 +1,62 @@
++import { useRef, useState } from "react";
++import { THORNTON_LIBRARY } from "./construction/thorntonLibrary";
++import { openMaterialLibrarySource } from "./materialLibrarySource";
++import type { MaterialSource } from "./construction/projectMaterials";
++
++export function MaterialSourceLibrary({
++  disabled,
++  onOpened,
++}: {
++  disabled: boolean;
++  onOpened: (source: MaterialSource) => Promise<void>;
++}) {
++  const details = useRef<HTMLDetailsElement>(null);
++  const [busy, setBusy] = useState<string | null>(null),
++    [error, setError] = useState("");
++  async function open(item: (typeof THORNTON_LIBRARY)[number]) {
++    setBusy(item.sha256);
++    setError("");
++    try {
++      await openMaterialLibrarySource(item);
++      await onOpened({
++        name: item.name,
++        sha256: item.sha256,
++        pageCount: item.pageCount,
++        discipline: item.discipline,
++      });
++      if (details.current) details.current.open = false;
++    } catch (e) {
++      setError(e instanceof Error ? e.message : String(e));
++    } finally {
++      setBusy(null);
++    }
++  }
++  return (
++    <details ref={details} className="takeoff-inspector">
++      <summary>Public project library · Thornton Fire Station 8 · 1,260 pages</summary>
++      <p>
++        Ten original source documents, including architectural, structural, site, landscape,
++        services and specifications. Drawing issue dates vary; review revisions and exclusions.
++        Fire-station alerting is not a sprinkler-system design.
++      </p>
++      {error && <p role="alert">{error}</p>}
++      <div className="material-library">
++        {THORNTON_LIBRARY.map((item) => (
++          <div key={item.sha256}>
++            <div>
++              <b>{item.name.replace("Thornton Fire Station 8 — ", "")}</b>
++              <p>
++                {item.pageCount} pages · {item.issue} · {(item.sizeBytes / 1024 / 1024).toFixed(1)}{" "}
++                MB
++              </p>
++              <small>{item.note}</small>
++            </div>
++            <button className="pill" disabled={disabled || !!busy} onClick={() => void open(item)}>
++              {busy === item.sha256 ? "Opening…" : `Open ${item.name.split(" — ")[1]} source`}
++            </button>
++          </div>
++        ))}
++      </div>
++    </details>
++  );
++}
+diff --git a/src/studio/materialLibrarySource.ts b/src/studio/materialLibrarySource.ts
+new file mode 100644
+index 0000000..717e6e0
+--- /dev/null
++++ b/src/studio/materialLibrarySource.ts
+@@ -0,0 +1,29 @@
++import { THORNTON_LIBRARY } from "./construction/thorntonLibrary";
++import { inspectPlanBytes } from "./documents";
++import { useStudio } from "./store";
++
++export async function openMaterialLibrarySource(item: (typeof THORNTON_LIBRARY)[number]) {
++  const before = useStudio.getState();
++  const existing = before.job.documents.find(
++    (d) => d.sha256 === item.sha256 && d.source !== "sample",
++  );
++  if (existing) await before.selectDocument(existing.id);
++  else {
++    const response = await fetch(item.url);
++    if (!response.ok) throw Error("Reference drawing could not be loaded.");
++    const imported = await inspectPlanBytes({
++      name: `${item.name}.pdf`,
++      bytes: new Uint8Array(await response.arrayBuffer()),
++      source: "web",
++    });
++    if (imported.binary.sha256 !== item.sha256 || imported.revision.pageCount !== item.pageCount)
++      throw Error("Reference bytes or page count differ from the verified source.");
++    const current = useStudio.getState();
++    if (current.job.id !== before.job.id || current.activePlanBinary !== before.activePlanBinary)
++      throw Error("Project or source changed while loading. Newer work preserved.");
++    await current.importPlan(imported);
++  }
++  const current = useStudio.getState();
++  if (current.job.id !== before.job.id || current.activePlanBinary?.sha256 !== item.sha256)
++    throw Error("Source selection changed; registration cancelled.");
++}
+diff --git a/src/studio/materialDiscovery.ts b/src/studio/materialDiscovery.ts
+new file mode 100644
+index 0000000..b1509e4
+--- /dev/null
++++ b/src/studio/materialDiscovery.ts
+@@ -0,0 +1,61 @@
++import type { PlanBinary } from "./documentContract";
++import { applySheetDiscovery, type ProjectMaterials } from "./construction/projectMaterials";
++
++export async function scanMaterialDocument(
++  binary: PlanBinary,
++  value: ProjectMaterials,
++  onProgress: (page: number, total: number) => void,
++  signal: AbortSignal,
++): Promise<ProjectMaterials> {
++  if (binary.kind !== "pdf")
++    throw Error(
++      "Automatic text discovery currently supports PDF. Other sources can be recorded and visually reviewed manually.",
++    );
++  if (!value.sources.some((s) => s.sha256 === binary.sha256))
++    throw Error("Register this source before scanning.");
++  const actual = Array.from(
++    new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(binary.bytes))),
++  )
++    .map((b) => b.toString(16).padStart(2, "0"))
++    .join("");
++  if (actual !== binary.sha256) throw Error("Drawing bytes do not match the source identity.");
++  const [{ getDocument, GlobalWorkerOptions }, { default: workerUrl }] = await Promise.all([
++    import("pdfjs-dist/legacy/build/pdf.mjs"),
++    import("pdfjs-dist/legacy/build/pdf.worker.mjs?url"),
++  ]);
++  GlobalWorkerOptions.workerSrc = workerUrl;
++  const task = getDocument({
++    data: Uint8Array.from(binary.bytes),
++    wasmUrl: new URL("/pdfjs/wasm/", location.href).href,
++    standardFontDataUrl: new URL("/pdfjs/standard_fonts/", location.href).href,
++  });
++  try {
++    const doc = await task.promise;
++    if (doc.numPages !== value.sources.find((s) => s.sha256 === binary.sha256)!.pageCount)
++      throw Error("Drawing page count differs from the registered source.");
++    let next = value;
++    for (let n = 1; n <= doc.numPages; n++) {
++      if (signal.aborted) throw Error("Scan cancelled. Previously saved inventory is unchanged.");
++      const page = await doc.getPage(n),
++        content = await page.getTextContent();
++      const strings = content.items
++        .filter((item): item is typeof item & { str: string } => "str" in item)
++        .map((item) => item.str);
++      const text = strings.join(" "),
++        sheet = strings.find((s) => /^[ASMEPCLF]\d[.\-]\d{1,3}$/i.test(s.trim()));
++      next = applySheetDiscovery(
++        next,
++        binary.sha256,
++        n,
++        sheet ? `${sheet.trim()} · page ${n}` : `Page ${n}`,
++        text,
++      );
++      onProgress(n, doc.numPages);
++      page.cleanup();
++      await new Promise((resolve) => setTimeout(resolve, 0));
++    }
++    return next;
++  } finally {
++    await task.destroy();
++  }
++}
+diff --git a/src/studio/materialOcr.ts b/src/studio/materialOcr.ts
+new file mode 100644
+index 0000000..3d36730
+--- /dev/null
++++ b/src/studio/materialOcr.ts
+@@ -0,0 +1,78 @@
++import type { PlanBinary } from "./documentContract";
++import { applySheetDiscovery, type ProjectMaterials } from "./construction/projectMaterials";
++export async function scanMaterialImagePage(
++  binary: PlanBinary,
++  value: ProjectMaterials,
++  pageNumber: number,
++  progress: (text: string) => void,
++  signal: AbortSignal,
++) {
++  if (
++    binary.kind !== "pdf" ||
++    !value.sources.some((s) => s.sha256 === binary.sha256 && pageNumber <= s.pageCount)
++  )
++    throw Error("Register the matching PDF before OCR.");
++  const hash = Array.from(
++    new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(binary.bytes))),
++  )
++    .map((b) => b.toString(16).padStart(2, "0"))
++    .join("");
++  if (hash !== binary.sha256) throw Error("Source bytes do not match the registered revision.");
++  const [{ getDocument, GlobalWorkerOptions }, { default: workerUrl }, { createWorker }] =
++    await Promise.all([
++      import("pdfjs-dist/legacy/build/pdf.mjs"),
++      import("pdfjs-dist/legacy/build/pdf.worker.mjs?url"),
++      import("tesseract.js"),
++    ]);
++  GlobalWorkerOptions.workerSrc = workerUrl;
++  const task = getDocument({
++    data: Uint8Array.from(binary.bytes),
++    wasmUrl: new URL("/pdfjs/wasm/", location.href).href,
++    standardFontDataUrl: new URL("/pdfjs/standard_fonts/", location.href).href,
++  });
++  let worker: Awaited<ReturnType<typeof createWorker>> | null = null;
++  try {
++    const doc = await task.promise,
++      page = await doc.getPage(pageNumber),
++      base = page.getViewport({ scale: 1 }),
++      viewport = page.getViewport({ scale: Math.min(2, 4096 / Math.max(base.width, base.height)) });
++    const canvas = document.createElement("canvas");
++    canvas.width = Math.ceil(viewport.width);
++    canvas.height = Math.ceil(viewport.height);
++    progress("Rendering source for local OCR…");
++    await page.render({ canvas, canvasContext: canvas.getContext("2d")!, viewport }).promise;
++    if (signal.aborted) throw Error("OCR cancelled; saved inventory preserved.");
++    worker = await createWorker("eng", 1, {
++      workerPath: new URL("/ocr/worker.min.js", location.href).href,
++      corePath: new URL("/ocr", location.href).href,
++      langPath: new URL("/ocr", location.href).href,
++      gzip: false,
++      cacheMethod: "none",
++      logger: (m) => progress(`Local OCR: ${m.status} ${Math.round((m.progress ?? 0) * 100)}%`),
++    });
++    if (signal.aborted) throw Error("OCR cancelled; saved inventory preserved.");
++    let cancel: () => void = () => {};
++    const aborted = new Promise<never>((_, reject) => {
++      cancel = () => reject(Error("OCR cancelled; saved inventory preserved."));
++      signal.addEventListener("abort", cancel, { once: true });
++    });
++    try {
++      const result = await Promise.race([worker.recognize(canvas), aborted]);
++      return applySheetDiscovery(
++        value,
++        binary.sha256,
++        pageNumber,
++        `Page ${pageNumber} · OCR`,
++        result.data.text,
++        result.data.confidence,
++      );
++    } finally {
++      signal.removeEventListener("abort", cancel);
++      canvas.width = 0;
++      canvas.height = 0;
++    }
++  } finally {
++    await worker?.terminate();
++    await task.destroy();
++  }
++}
+diff --git a/src/studio/construction/projectMaterials.ts b/src/studio/construction/projectMaterials.ts
+new file mode 100644
+index 0000000..8a6362a
+--- /dev/null
++++ b/src/studio/construction/projectMaterials.ts
+@@ -0,0 +1,682 @@
++import { z } from "zod";
++import { materialLineSchema, materialLineTotals, newMaterialLine } from "./materialRegister.ts";
++
++export const DISCIPLINES = [
++  "Structural",
++  "Architectural",
++  "Mechanical",
++  "Electrical",
++  "Plumbing",
++  "Fire protection",
++  "Civil",
++  "Landscape",
++  "General",
++] as const;
++const id = z.string().trim().min(1).max(240),
++  hash = z.string().regex(/^[a-f0-9]{64}$/),
++  note = z.string().max(3000);
++const positive = z.number().finite().positive().max(1e9).nullable();
++export const materialSourceSchema = z
++  .object({
++    sha256: hash,
++    name: id,
++    pageCount: z.number().int().positive().max(5000),
++    discipline: z.enum(DISCIPLINES),
++  })
++  .strict();
++export type MaterialSource = z.infer<typeof materialSourceSchema>;
++export const materialEvidenceSchema = z
++  .object({
++    sha256: hash,
++    page: z.number().int().positive(),
++    reference: id,
++    x: z.number().min(0).max(1).nullable(),
++    y: z.number().min(0).max(1).nullable(),
++  })
++  .strict();
++export const projectMaterialSchema = z
++  .object({
++    stock: materialLineSchema,
++    physicalKey: id,
++    discipline: z.enum(DISCIPLINES),
++    category: id,
++    building: id,
++    floor: id,
++    location: id,
++    specification: note,
++    quantityBasis: z.enum(["counted", "scheduled", "measured", "derived", "unresolved"]),
++    calculation: note,
++    dimensionsM: z
++      .object({ length: positive, width: positive, height: positive, depth: positive })
++      .strict()
++      .default({ length: null, width: null, height: null, depth: null }),
++    dimensionReference: note.default(""),
++    unresolved: note.default(""),
++    materialVolumePerUnitM3: positive,
++    volumeReference: note,
++    evidence: z.array(materialEvidenceSchema).min(1).max(500),
++    review: z.enum(["pending", "reviewed"]),
++    reviewNote: note,
++  })
++  .strict()
++  .superRefine((v, c) => {
++    if (v.stock.quantity !== null && (v.quantityBasis === "unresolved" || !v.calculation.trim()))
++      c.addIssue({
++        code: "custom",
++        message: "A known quantity needs a counting method and calculation/source explanation.",
++      });
++    if (v.review === "reviewed" && (v.stock.quantity === null || !v.reviewNote.trim()))
++      c.addIssue({ code: "custom", message: "Review needs a known quantity and a review note." });
++    if (v.materialVolumePerUnitM3 !== null && !v.volumeReference.trim())
++      c.addIssue({
++        code: "custom",
++        message: "Material volume needs a dimensional calculation or specification reference.",
++      });
++    if (Object.values(v.dimensionsM).some((n) => n !== null) && !v.dimensionReference.trim())
++      c.addIssue({
++        code: "custom",
++        message: "Physical dimensions need a drawing or specification reference.",
++      });
++  });
++export type ProjectMaterial = z.infer<typeof projectMaterialSchema>;
++export const discoverySchema = z
++  .object({
++    id,
++    sha256: hash,
++    page: z.number().int().positive(),
++    label: id,
++    category: id,
++    excerpt: z.string().max(800),
++    mentions: z.number().int().positive(),
++    status: z.enum(["pending", "linked", "excluded"]),
++    materialId: id.nullable(),
++    reason: note,
++  })
++  .strict();
++export type MaterialDiscovery = z.infer<typeof discoverySchema>;
++const sheetSchema = z
++  .object({
++    sha256: hash,
++    page: z.number().int().positive(),
++    title: z.string().max(240),
++    scan: z.enum(["not-scanned", "text", "ocr", "no-text", "failed"]),
++    textCharacters: z.number().int().nonnegative(),
++    ocrConfidence: z.number().min(0).max(100).nullable().default(null),
++    reviewed: z.boolean(),
++    reviewNote: note,
++  })
++  .strict();
++export const projectMaterialsSchema = z
++  .object({
++    schema: z.literal("xray.project-materials/v1"),
++    projectId: id,
++    revision: z.number().int().positive(),
++    sources: z.array(materialSourceSchema).max(100),
++    sheets: z.array(sheetSchema).max(20000),
++    materials: z.array(projectMaterialSchema).max(5000),
++    discoveries: z.array(discoverySchema).max(20000),
++    scope: z
++      .array(
++        z.object({ discipline: z.enum(DISCIPLINES), excluded: z.boolean(), reason: note }).strict(),
++      )
++      .length(DISCIPLINES.length),
++  })
++  .strict()
++  .superRefine((v, c) => {
++    const issue = (message: string) => c.addIssue({ code: "custom", message });
++    const unique = (values: string[], label: string) => {
++      if (new Set(values).size !== values.length) issue(`Duplicate ${label}.`);
++    };
++    unique(
++      v.sources.map((s) => s.sha256),
++      "source revision",
++    );
++    unique(
++      v.sheets.map((s) => `${s.sha256}:${s.page}`),
++      "sheet",
++    );
++    unique(
++      v.materials.map((m) => m.stock.id),
++      "material record",
++    );
++    unique(
++      v.materials.map((m) => m.physicalKey.trim().toLowerCase()),
++      "physical material scope",
++    );
++    unique(
++      v.materials.map((m) => m.stock.stockCode.toLowerCase()),
++      "stock/order line code",
++    );
++    unique(
++      v.discoveries.map((d) => d.id),
++      "discovery",
++    );
++    unique(
++      v.scope.map((s) => s.discipline),
++      "discipline scope",
++    );
++    const validPage = (sha: string, page: number) =>
++      v.sources.some((s) => s.sha256 === sha && page <= s.pageCount);
++    for (const s of v.sources)
++      if (v.sheets.filter((p) => p.sha256 === s.sha256).length !== s.pageCount)
++        issue("Every supplied source page must have a coverage record.");
++    for (const sheet of v.sheets) {
++      if (!validPage(sheet.sha256, sheet.page)) issue("Sheet source/page is unavailable.");
++      if (
++        sheet.reviewed &&
++        (!sheet.reviewNote.trim() || sheet.scan === "not-scanned" || sheet.scan === "failed")
++      )
++        issue("Sheet review needs a scan and a visual review note.");
++      if (
++        sheet.reviewed &&
++        v.discoveries.some(
++          (d) => d.sha256 === sheet.sha256 && d.page === sheet.page && d.status === "pending",
++        )
++      )
++        issue("Resolve candidate materials before reviewing the sheet.");
++    }
++    for (const m of v.materials)
++      for (const e of m.evidence)
++        if (!validPage(e.sha256, e.page)) issue("Material evidence source/page is unavailable.");
++    for (const d of v.discoveries) {
++      if (!validPage(d.sha256, d.page)) issue("Discovery source/page is unavailable.");
++      if (
++        d.status === "linked" &&
++        !v.materials.some(
++          (m) =>
++            m.stock.id === d.materialId &&
++            m.evidence.some((e) => e.sha256 === d.sha256 && e.page === d.page),
++        )
++      )
++        issue("Linked discovery needs an existing material with evidence on this sheet.");
++      if (d.status === "excluded" && !d.reason.trim()) issue("Excluded discovery needs a reason.");
++    }
++    for (const s of v.scope)
++      if (s.excluded && !s.reason.trim()) issue("Excluded discipline needs a scope reason.");
++  });
++export type ProjectMaterials = z.infer<typeof projectMaterialsSchema>;
++export const createProjectMaterials = (projectId: string): ProjectMaterials => ({
++  schema: "xray.project-materials/v1",
++  projectId,
++  revision: 1,
++  sources: [],
++  sheets: [],
++  materials: [],
++  discoveries: [],
++  scope: DISCIPLINES.map((discipline) => ({ discipline, excluded: false, reason: "" })),
++});
++export function attachMaterialSource(
++  value: ProjectMaterials,
++  source: MaterialSource,
++): ProjectMaterials {
++  const parsed = materialSourceSchema.parse(source),
++    existing = value.sources.find((s) => s.sha256 === parsed.sha256);
++  if (existing) {
++    if (existing.pageCount !== parsed.pageCount) throw Error("Existing source page count differs.");
++    return value;
++  }
++  return projectMaterialsSchema.parse({
++    ...value,
++    revision: value.revision + 1,
++    sources: [...value.sources, parsed],
++    sheets: [
++      ...value.sheets,
++      ...Array.from({ length: source.pageCount }, (_, i) => ({
++        sha256: source.sha256,
++        page: i + 1,
++        title: `Page ${i + 1}`,
++        scan: "not-scanned",
++        textCharacters: 0,
++        reviewed: false,
++        reviewNote: "",
++      })),
++    ],
++  });
++}
++export function newProjectMaterial(
++  source: MaterialSource,
++  page: number,
++  recordId: string,
++): ProjectMaterial {
++  return {
++    stock: { ...newMaterialLine(recordId), reference: `${source.name}, page ${page}` },
++    physicalKey: "",
++    discipline: source.discipline,
++    category: "Material",
++    building: "Main building",
++    floor: "Unspecified",
++    location: "Unspecified",
++    specification: "",
++    quantityBasis: "unresolved",
++    calculation: "",
++    dimensionsM: { length: null, width: null, height: null, depth: null },
++    dimensionReference: "",
++    unresolved: "",
++    materialVolumePerUnitM3: null,
++    volumeReference: "",
++    evidence: [{ sha256: source.sha256, page, reference: `Page ${page}`, x: null, y: null }],
++    review: "pending",
++    reviewNote: "",
++  };
++}
++export function putProjectMaterial(
++  value: ProjectMaterials,
++  draft: ProjectMaterial,
++): ProjectMaterials {
++  const previous = value.materials.find((m) => m.stock.id === draft.stock.id);
++  if (previous && previous.stock.revision !== draft.stock.revision)
++    throw Error("Material changed since it was opened. Reopen the latest revision.");
++  const { review: _r, reviewNote: _n, ...content } = draft;
++  const old = previous ? (({ review: _r, reviewNote: _n, ...m }) => m)(previous) : null;
++  const changed = previous && JSON.stringify(content) !== JSON.stringify(old);
++  const next = projectMaterialSchema.parse({
++    ...draft,
++    stock: { ...draft.stock, revision: previous ? previous.stock.revision + 1 : 1 },
++    review: changed ? "pending" : draft.review,
++    reviewNote: changed ? "" : draft.reviewNote,
++  });
++  const affected = new Set(
++    [...(previous?.evidence ?? []), ...next.evidence].map((e) => `${e.sha256}:${e.page}`),
++  );
++  return projectMaterialsSchema.parse({
++    ...value,
++    revision: value.revision + 1,
++    materials: previous
++      ? value.materials.map((m) => (m.stock.id === next.stock.id ? next : m))
++      : [...value.materials, next],
++    sheets: value.sheets.map((s) =>
++      affected.has(`${s.sha256}:${s.page}`) ? { ...s, reviewed: false, reviewNote: "" } : s,
++    ),
++  });
++}
++export function applySheetDiscovery(
++  value: ProjectMaterials,
++  sha256: string,
++  page: number,
++  title: string,
++  text: string,
++  ocrConfidence: number | null = null,
++): ProjectMaterials {
++  // Rescans are deterministic and retain explicit dispositions. Never interpret text matches as physical counts.
++  if (
++    ocrConfidence === null &&
++    !text.trim() &&
++    value.sheets.some((s) => s.sha256 === sha256 && s.page === page && s.scan === "ocr")
++  )
++    return value;
++  const discovered = discoverMaterialMentions(sha256, page, text),
++    old = value.discoveries.filter((d) => d.sha256 === sha256 && d.page === page);
++  const next = discovered.map((d) => {
++    const prior = old.find((p) => p.id === d.id);
++    return prior
++      ? { ...d, status: prior.status, materialId: prior.materialId, reason: prior.reason }
++      : d;
++  });
++  return projectMaterialsSchema.parse({
++    ...value,
++    revision: value.revision + 1,
++    discoveries: [
++      ...value.discoveries.filter((d) => d.sha256 !== sha256 || d.page !== page),
++      ...next,
++    ],
++    sheets: value.sheets.map((s) =>
++      s.sha256 === sha256 && s.page === page
++        ? {
++            ...s,
++            title: title.slice(0, 240),
++            scan: text.trim() ? (ocrConfidence === null ? "text" : "ocr") : "no-text",
++            ocrConfidence,
++            textCharacters: text.length,
++            reviewed: false,
++            reviewNote: "",
++          }
++        : s,
++    ),
++  });
++}
++const patterns: [string, RegExp][] = [
++  [
++    "Structural steel",
++    /\b(?:W\s*\d+\s*[x×]\s*\d+(?:\.\d+)?|HSS\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?(?:\s*[x×]\s*[\d/.]+)?|L\d+\s*[x×]\s*[\d/]+\s*[x×]\s*[\d/]+)\b/gi,
++  ],
++  [
++    "Concrete & reinforcement",
++    /\b(?:CONCRETE|REBAR|REINFORC(?:EMENT|ING)|WIRE MESH|GROUT|FOOTING|GRADE BEAM)S?\b/gi,
++  ],
++  ["Masonry", /\b(?:CMU|MASONRY|BRICK|MORTAR|BLOCKWORK)\b/gi],
++  [
++    "Fixings & plates",
++    /\b(?:ANCHOR (?:ROD|BOLT)S?|BOLTS?|NUTS?|WASHERS?|SCREWS?|SHEAR PLATES?|BASE ?PLATES?|WELDS?|STUDS?)\b/gi,
++  ],
++  [
++    "Envelope & finishes",
++    /\b(?:INSULATION|GYPSUM|DRYWALL|PLASTERBOARD|PLYWOOD|SHEATHING|MEMBRANE|VAPO[UR]+ BARRIER|FLASHING|SEALANT|PAINT|TILES?|CARPET|CLADDING|ROOF DECK|METAL DECK|CEILING|TIMBER|WOOD)\b/gi,
++  ],
++  [
++    "Openings & fittings",
++    /\b(?:DOORS?|WINDOWS?|GLAZING|LOUVERS?|LOUVRES?|HARDWARE|HINGES?|HANDRAILS?|RAILINGS?|CABINETS?|COUNTERTOPS?)\b/gi,
++  ],
++  [
++    "Services & equipment",
++    /\b(?:DUCTS?|DIFFUSERS?|DAMPERS?|PIPES?|VALVES?|PUMPS?|SPRINKLERS?|CONDUITS?|CABLES?|LUMINAIRES?|LIGHT FIXTURES?|RECEPTACLES?|SWITCHES|TRANSFORMERS?|SINKS?|TOILETS?|FANS?|BOILERS?|WATER HEATER)\b/gi,
++  ],
++  [
++    "Site & landscape",
++    /\b(?:ASPHALT|PAVING|PAVERS?|KERBS?|CURBS?|FENCES?|GATES?|DRAINAGE|TOPSOIL|TURF|IRRIGATION|TREES?)\b/gi,
++  ],
++];
++export function discoverMaterialMentions(
++  sha256: string,
++  page: number,
++  text: string,
++): MaterialDiscovery[] {
++  const found = new Map<string, MaterialDiscovery>();
++  for (const [category, regex] of patterns)
++    for (const match of text.matchAll(regex)) {
++      const label = match[0]
++          .toUpperCase()
++          .replace(/\s*[X×]\s*/g, "×")
++          .replace(/\s+/g, " "),
++        key = `${sha256}:${page}:${label}`;
++      const current = found.get(key);
++      if (current) {
++        current.mentions++;
++        continue;
++      }
++      found.set(key, {
++        id: key,
++        sha256,
++        page,
++        label,
++        category,
++        excerpt: text
++          .slice(Math.max(0, match.index - 110), match.index + match[0].length + 150)
++          .replace(/\s+/g, " ")
++          .slice(0, 800),
++        mentions: 1,
++        status: "pending",
++        materialId: null,
++        reason: "",
++      });
++    }
++  return [...found.values()];
++}
++export function disposeDiscovery(
++  value: ProjectMaterials,
++  discoveryId: string,
++  materialId: string | null,
++  reason: string,
++): ProjectMaterials {
++  const d = value.discoveries.find((d) => d.id === discoveryId);
++  if (!d) throw Error("Discovery no longer exists.");
++  let materials = value.materials;
++  if (materialId) {
++    const material = materials.find((m) => m.stock.id === materialId);
++    if (!material) throw Error("Choose an existing physical material.");
++    if (!material.evidence.some((e) => e.sha256 === d.sha256 && e.page === d.page))
++      materials = materials.map((m) =>
++        m.stock.id === materialId
++          ? {
++              ...m,
++              stock: { ...m.stock, revision: m.stock.revision + 1 },
++              review: "pending" as const,
++              reviewNote: "",
++              evidence: [
++                ...m.evidence,
++                { sha256: d.sha256, page: d.page, reference: d.label, x: null, y: null },
++              ],
++            }
++          : m,
++      );
++  }
++  const affected = new Set([
++    `${d.sha256}:${d.page}`,
++    ...(materials !== value.materials
++      ? materials
++          .find((m) => m.stock.id === materialId)!
++          .evidence.map((e) => `${e.sha256}:${e.page}`)
++      : []),
++  ]);
++  return projectMaterialsSchema.parse({
++    ...value,
++    revision: value.revision + 1,
++    materials,
++    discoveries: value.discoveries.map((x) =>
++      x.id === d.id ? { ...x, status: materialId ? "linked" : "excluded", materialId, reason } : x,
++    ),
++    sheets: value.sheets.map((s) =>
++      affected.has(`${s.sha256}:${s.page}`) ? { ...s, reviewed: false, reviewNote: "" } : s,
++    ),
++  });
++}
++export function projectMaterialTotals(value: ProjectMaterials) {
++  const rows = value.materials.map((m) => ({
++    id: m.stock.id,
++    quantity: m.stock.quantity,
++    unit: m.stock.unit,
++    materialVolumeM3:
++      m.stock.quantity === 0
++        ? 0
++        : m.stock.unit === "m3"
++          ? m.stock.quantity
++          : m.stock.quantity === null || m.materialVolumePerUnitM3 === null
++            ? null
++            : m.stock.quantity * m.materialVolumePerUnitM3,
++    ...materialLineTotals(m.stock),
++  }));
++  const subtotal = (key: "materialVolumeM3" | "volumeM3" | "weightKg") => {
++    const known = rows.filter((r) => r[key] !== null);
++    return {
++      value: known.length ? known.reduce((s, r) => s + r[key]!, 0) : null,
++      known: known.length,
++      total: rows.length,
++    };
++  };
++  const quantities = [...new Set(rows.map((r) => r.unit))].map((unit) => ({
++    unit,
++    known: rows
++      .filter((r) => r.unit === unit && r.quantity !== null)
++      .reduce((s, r) => s + r.quantity!, 0),
++    unknown: rows.filter((r) => r.unit === unit && r.quantity === null).length,
++  }));
++  return {
++    rows,
++    quantities,
++    materialVolume: subtotal("materialVolumeM3"),
++    storageVolume: subtotal("volumeM3"),
++    weight: subtotal("weightKg"),
++    unknownQuantities: rows.filter((r) => r.quantity === null).length,
++  };
++}
++export function materialCoverage(value: ProjectMaterials) {
++  const missing = value.scope
++    .filter(
++      (d) =>
++        !d.excluded &&
++        d.discipline !== "General" &&
++        !value.sources.some((s) => s.discipline === d.discipline),
++    )
++    .map((d) => d.discipline);
++  return {
++    missingDisciplines: missing,
++    sheets: value.sheets.length,
++    reviewedSheets: value.sheets.filter((s) => s.reviewed).length,
++    pendingDiscoveries: value.discoveries.filter((d) => d.status === "pending").length,
++    unreviewedMaterials: value.materials.filter((m) => m.review !== "reviewed").length,
++    unknownQuantities: value.materials.filter((m) => m.stock.quantity === null).length,
++    status:
++      "Coverage requires visual reconciliation; automated discovery does not establish completeness",
++  };
++}
++export const projectMaterialsKey = (projectId: string) =>
++  `xray:project-materials:v1:${encodeURIComponent(projectId)}`;
++type StoragePort = Pick<Storage, "getItem" | "setItem">;
++export type ProjectMaterialsSession = {
++  value: ProjectMaterials;
++  raw: string | null;
++  blocked: boolean;
++  error: string | null;
++};
++export function restoreProjectMaterials(
++  storage: StoragePort,
++  projectId: string,
++): ProjectMaterialsSession {
++  let raw: string | null = null;
++  try {
++    raw = storage.getItem(projectMaterialsKey(projectId));
++    const value =
++      raw === null
++        ? createProjectMaterials(projectId)
++        : projectMaterialsSchema.parse(JSON.parse(raw));
++    if (value.projectId !== projectId) throw Error("Wrong project");
++    return { value, raw, blocked: false, error: null };
++  } catch {
++    return {
++      value: createProjectMaterials(projectId),
++      raw,
++      blocked: true,
++      error:
++        "Saved material inventory could not be restored. Original data is preserved; writes and exports are blocked until recovery.",
++    };
++  }
++}
++export function saveProjectMaterials(
++  storage: StoragePort,
++  session: ProjectMaterialsSession,
++  value: ProjectMaterials,
++): ProjectMaterialsSession {
++  if (session.blocked) return session;
++  try {
++    const parsed = projectMaterialsSchema.parse(value);
++    if (parsed.projectId !== session.value.projectId) throw Error("Project identity changed.");
++    const key = projectMaterialsKey(parsed.projectId);
++    if (storage.getItem(key) !== session.raw)
++      return {
++        ...session,
++        blocked: true,
++        error: "Inventory changed in another session. Retry restore before writing.",
++      };
++    const raw = JSON.stringify(parsed);
++    storage.setItem(key, raw);
++    return { value: parsed, raw, blocked: false, error: null };
++  } catch (e) {
++    return {
++      ...session,
++      error: `Inventory was not saved: ${e instanceof Error ? e.message : String(e)}`,
++    };
++  }
++}
++export function projectMaterialsExport(value: ProjectMaterials) {
++  const parsed = projectMaterialsSchema.parse(value);
++  return {
++    inventory: parsed,
++    coverage: materialCoverage(parsed),
++    totals: projectMaterialTotals(parsed),
++    status:
++      "Preliminary source-linked material takeoff; incomplete quantities and disciplines remain explicit",
++  };
++}
++export function previewMaterialsBackup(text: string, projectId: string): ProjectMaterials {
++  if (text.length > 20 * 1024 * 1024) throw Error("Backup exceeds the 20 MB limit.");
++  const parsed = projectMaterialsSchema.parse(JSON.parse(text).inventory);
++  if (parsed.projectId !== projectId) throw Error("Backup belongs to a different project.");
++  return parsed;
++}
++
++// A flat handoff keeps source identity and all dimensional assumptions alongside quantities.
++export function projectMaterialsCsv(value: ProjectMaterials): string {
++  const parsed = projectMaterialsSchema.parse(value),
++    totals = projectMaterialTotals(parsed);
++  const cell = (v: unknown) => {
++    let s = v == null ? "" : String(v);
++    if (/^[\s]*[=+@'-]/.test(s)) s = "'" + s;
++    return '"' + s.replaceAll('"', '""') + '"';
++  };
++  const headers = [
++    "Stock code",
++    "Description",
++    "Physical scope",
++    "Discipline",
++    "Category",
++    "Building",
++    "Floor",
++    "Location",
++    "Quantity",
++    "Unit",
++    "Quantity basis",
++    "Calculation",
++    "Physical length m",
++    "Physical width m",
++    "Physical height m",
++    "Physical depth m",
++    "Dimension reference",
++    "Specification",
++    "Material volume m3",
++    "Volume reference",
++    "Specified kg",
++    "Weight basis",
++    "Calculated weight kg",
++    "Units per package",
++    "Package length m",
++    "Package width m",
++    "Package height m",
++    "Package count",
++    "Storage m3",
++    "Unresolved components / properties",
++    "Source reference",
++    "Drawing SHA-256",
++    "Evidence pages and references",
++    "Review",
++    "Review note",
++    "Revision",
++    "Project",
++    "Status",
++    "Text encoding",
++  ];
++  const rows = parsed.materials.map((m) => {
++    const s = m.stock,
++      t = totals.rows.find((t) => t.id === s.id)!;
++    return [
++      s.stockCode,
++      s.description,
++      m.physicalKey,
++      m.discipline,
++      m.category,
++      m.building,
++      m.floor,
++      m.location,
++      s.quantity,
++      s.unit,
++      m.quantityBasis,
++      m.calculation,
++      m.dimensionsM.length,
++      m.dimensionsM.width,
++      m.dimensionsM.height,
++      m.dimensionsM.depth,
++      m.dimensionReference,
++      m.specification,
++      t.materialVolumeM3,
++      m.volumeReference,
++      s.specifiedWeightKg,
++      s.weightBasis,
++      t.weightKg,
++      s.unitsPerPackage,
++      s.lengthM,
++      s.widthM,
++      s.heightM,
++      t.packageCount,
++      t.volumeM3,
++      m.unresolved,
++      s.reference,
++      [...new Set(m.evidence.map((e) => e.sha256))].join("; "),
++      m.evidence.map((e) => e.sha256 + ": page " + e.page + " (" + e.reference + ")").join("; "),
++      m.review,
++      m.reviewNote,
++      s.revision,
++      parsed.projectId,
++      "Preliminary; whole-project coverage requires reconciliation",
++      "xray-apostrophe/v1",
++    ];
++  });
++  return "\uFEFF" + [headers, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
++}
+diff --git a/src/studio/construction/projectMaterials.test.ts b/src/studio/construction/projectMaterials.test.ts
+new file mode 100644
+index 0000000..2e053c8
+--- /dev/null
++++ b/src/studio/construction/projectMaterials.test.ts
+@@ -0,0 +1,303 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import {
++  attachMaterialSource,
++  createProjectMaterials,
++  newProjectMaterial,
++  putProjectMaterial,
++  projectMaterialsSchema,
++  discoverMaterialMentions,
++  applySheetDiscovery,
++  disposeDiscovery,
++  projectMaterialTotals,
++  materialCoverage,
++  restoreProjectMaterials,
++  saveProjectMaterials,
++  projectMaterialsKey,
++  projectMaterialsExport,
++  previewMaterialsBackup,
++  type ProjectMaterial,
++} from "./projectMaterials.ts";
++const source = {
++  sha256: "a".repeat(64),
++  name: "Construction plans.pdf",
++  pageCount: 3,
++  discipline: "Structural" as const,
++};
++const start = () => attachMaterialSource(createProjectMaterials("project"), source);
++function material(id = "slab"): ProjectMaterial {
++  const m = newProjectMaterial(source, 1, id);
++  return {
++    ...m,
++    physicalKey: `Main/Ground/${id}`,
++    category: "Concrete",
++    stock: { ...m.stock, stockCode: id, description: "Concrete slab", quantity: 20, unit: "m2" },
++    quantityBasis: "measured",
++    calculation: "4 m × 5 m net area; dimensioned slab plan",
++    materialVolumePerUnitM3: 0.2,
++    volumeReference: "200 mm slab thickness, S1.1",
++  };
++}
++const memory = () => {
++  const data = new Map<string, string>();
++  return {
++    getItem: (k: string) => data.get(k) ?? null,
++    setItem: (k: string, v: string) => {
++      data.set(k, v);
++    },
++  };
++};
++test("all supplied pages tracked; identical source bytes do not double source coverage", () => {
++  const value = start();
++  assert.equal(value.sheets.length, 3);
++  assert.equal(attachMaterialSource(value, { ...source, name: "Renamed plans.pdf" }), value);
++  assert.equal(materialCoverage(value).reviewedSheets, 0);
++  assert.ok(materialCoverage(value).missingDisciplines.includes("Architectural"));
++});
++test("another source revision has independent sheet coverage", () => {
++  const value = attachMaterialSource(start(), { ...source, sha256: "b".repeat(64) });
++  assert.equal(value.sources.length, 2);
++  assert.equal(value.sheets.length, 6);
++});
++test("material quantities, solid volume, packaged storage and mass are separate", () => {
++  const m = material();
++  m.stock.unitsPerPackage = 6;
++  m.stock.lengthM = 2;
++  m.stock.widthM = 1;
++  m.stock.heightM = 0.5;
++  m.stock.specifiedWeightKg = 4;
++  m.stock.weightBasis = "unit";
++  const result = projectMaterialTotals(putProjectMaterial(start(), m));
++  assert.equal(result.materialVolume.value, 4);
++  assert.equal(result.storageVolume.value, 4);
++  assert.equal(result.weight.value, 80);
++  assert.equal(result.quantities[0].unit, "m2");
++});
++test("unknown mass/packaging remains null; m3 quantity already represents material volume", () => {
++  const m = material();
++  m.stock.unit = "m3";
++  m.materialVolumePerUnitM3 = null;
++  const t = projectMaterialTotals(putProjectMaterial(start(), m));
++  assert.equal(t.materialVolume.value, 20);
++  assert.equal(t.storageVolume.value, null);
++  assert.equal(t.weight.value, null);
++});
++test("physical scope deduplication ignores record IDs and letter case", () => {
++  const v = putProjectMaterial(start(), material()),
++    d = material("different-record");
++  d.physicalKey = "MAIN/GROUND/SLAB";
++  assert.throws(() => putProjectMaterial(v, d), /Duplicate physical/);
++});
++test("material changes invalidate review and increment revision without dropping evidence", () => {
++  let m = material();
++  m.review = "reviewed";
++  m.reviewNote = "Dimensions and thickness checked";
++  let v = putProjectMaterial(start(), m);
++  m = { ...v.materials[0], specification: "Changed strength" };
++  v = putProjectMaterial(v, m);
++  assert.equal(v.materials[0].review, "pending");
++  assert.equal(v.materials[0].stock.revision, 2);
++  assert.equal(v.materials[0].evidence.length, 1);
++  assert.throws(() => putProjectMaterial(v, m), /changed since/);
++});
++test("negative quantities, unsupported evidence and unproven approvals fail", () => {
++  for (const apply of [
++    (m: ProjectMaterial) => (m.stock.quantity = -1),
++    (m: ProjectMaterial) => (m.evidence[0].page = 4),
++    (m: ProjectMaterial) => (m.evidence[0].sha256 = "b".repeat(64)),
++    (m: ProjectMaterial) => {
++      m.review = "reviewed";
++      m.reviewNote = "";
++    },
++    (m: ProjectMaterial) => (m.calculation = ""),
++  ]) {
++    const m = material();
++    apply(m);
++    assert.throws(() => putProjectMaterial(start(), m));
++  }
++});
++test("repeated text matches only increment mentions, never physical quantities", () => {
++  const text = "W10X22 beam. W10 x 22 beam. Concrete. Nuts, washers, insulation, doors and pipes.";
++  const ds = discoverMaterialMentions(source.sha256, 1, text);
++  assert.equal(ds.find((d) => d.label === "W10×22")?.mentions, 2);
++  assert.ok(ds.some((d) => d.category === "Envelope & finishes"));
++  const v = applySheetDiscovery(start(), source.sha256, 1, "S1.1", text);
++  assert.equal(v.materials.length, 0);
++  assert.equal(v.sheets[0].scan, "text");
++});
++test("zero-text page explicitly needs visual review; pending mentions block sheet signoff", () => {
++  let v = applySheetDiscovery(start(), source.sha256, 1, "Scanned sheet", "");
++  assert.equal(v.sheets[0].scan, "no-text");
++  v = applySheetDiscovery(v, source.sha256, 2, "S2.1", "Concrete slab");
++  v.sheets[1].reviewed = true;
++  v.sheets[1].reviewNote = "Checked";
++  assert.equal(projectMaterialsSchema.safeParse(v).success, false);
++});
++test("linking repeated evidence does not inflate stock; exclusion needs reason; rescans preserve dispositions", () => {
++  let v = putProjectMaterial(start(), material());
++  v = applySheetDiscovery(v, source.sha256, 2, "S2.1", "CONCRETE");
++  const d = v.discoveries[0];
++  assert.throws(() => disposeDiscovery(v, d.id, null, ""));
++  v = disposeDiscovery(v, d.id, v.materials[0].stock.id, "");
++  assert.equal(v.materials.length, 1);
++  assert.equal(v.materials[0].stock.quantity, 20);
++  assert.equal(v.materials[0].evidence.length, 2);
++  v = applySheetDiscovery(v, source.sha256, 2, "S2.1", "CONCRETE CONCRETE");
++  assert.equal(v.discoveries[0].status, "linked");
++  assert.equal(v.discoveries[0].mentions, 2);
++});
++test("unreadable future or wrong-project snapshots cannot be overwritten by ordinary saves", () => {
++  for (const raw of [
++    "broken",
++    JSON.stringify({ ...start(), schema: "future" }),
++    JSON.stringify({ ...start(), projectId: "other" }),
++  ]) {
++    const store = memory();
++    store.setItem(projectMaterialsKey("project"), raw);
++    const session = restoreProjectMaterials(store, "project");
++    assert.equal(session.blocked, true);
++    saveProjectMaterials(store, session, start());
++    assert.equal(store.getItem(projectMaterialsKey("project")), raw);
++  }
++});
++test("persistent restore, rejected writes, and concurrent changes preserve previous bytes", () => {
++  const store = memory();
++  let session = restoreProjectMaterials(store, "project");
++  session = saveProjectMaterials(store, session, putProjectMaterial(start(), material()));
++  assert.equal(session.error, null);
++  assert.deepEqual(restoreProjectMaterials(store, "project").value, session.value);
++  const raw = session.raw;
++  const denied = {
++    getItem: store.getItem,
++    setItem: () => {
++      throw Error("quota");
++    },
++  };
++  assert.ok(saveProjectMaterials(denied, session, start()).error);
++  assert.equal(store.getItem(projectMaterialsKey("project")), raw);
++  store.setItem(projectMaterialsKey("project"), "another session");
++  assert.equal(saveProjectMaterials(store, session, start()).blocked, true);
++  assert.equal(store.getItem(projectMaterialsKey("project")), "another session");
++});
++test("backup roundtrip validates project, schema, all evidence and physical identity", () => {
++  const v = putProjectMaterial(start(), material()),
++    backup = JSON.stringify(projectMaterialsExport(v));
++  assert.deepEqual(previewMaterialsBackup(backup, "project"), v);
++  assert.throws(() => previewMaterialsBackup(backup, "other"));
++  const malformed = JSON.parse(backup);
++  malformed.inventory.materials.push({
++    ...malformed.inventory.materials[0],
++    stock: { ...malformed.inventory.materials[0].stock, id: "other", stockCode: "other" },
++  });
++  assert.throws(() => previewMaterialsBackup(JSON.stringify(malformed), "project"));
++});
++test("real structural PDF text discovers multiple material families across all 23 sheets", async () => {
++  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
++  const task = getDocument({
++    data: Uint8Array.from(readFileSync("public/sources/thornton-connection-trial/structural.pdf")),
++  });
++  const doc = await task.promise,
++    pages: { page: number; text: string }[] = [];
++  try {
++    for (let i = 1; i <= doc.numPages; i++) {
++      const page = await doc.getPage(i),
++        content = await page.getTextContent();
++      pages.push({
++        page: i,
++        text: content.items.map((item) => ("str" in item ? item.str : "")).join(" "),
++      });
++    }
++  } finally {
++    await task.destroy();
++  }
++  const ds = pages.flatMap((p) => discoverMaterialMentions(source.sha256, p.page, p.text));
++  const categories = new Set(ds.map((d) => d.category));
++  assert.equal(pages.length, 23);
++  assert.ok(categories.has("Structural steel"));
++  assert.ok(categories.has("Masonry"));
++  assert.ok(categories.has("Fixings & plates"));
++  assert.ok(categories.has("Concrete & reinforcement"));
++  assert.ok(ds.some((d) => d.label === "W10×22"));
++  assert.ok(ds.length > 100);
++});
++
++test("physical dimensions require evidence and never imply solid or shipping volume", () => {
++  const m = material();
++  m.materialVolumePerUnitM3 = null;
++  m.dimensionsM = { length: 2, width: 1, height: 0.1, depth: null };
++  assert.throws(() => putProjectMaterial(start(), m), /Physical dimensions/);
++  m.dimensionReference = "Dimensioned opening, A8.0";
++  const totals = projectMaterialTotals(putProjectMaterial(start(), m));
++  assert.equal(totals.materialVolume.value, null);
++  assert.equal(totals.storageVolume.value, null);
++});
++test("text rescans cannot erase locally recognized image evidence", () => {
++  let v = applySheetDiscovery(start(), source.sha256, 1, "Image sheet", "DOOR HARDWARE", 51);
++  assert.equal(v.sheets[0].scan, "ocr");
++  assert.equal(v.sheets[0].ocrConfidence, 51);
++  assert.equal(applySheetDiscovery(v, source.sha256, 1, "Image sheet", ""), v);
++});
++test("linking another view invalidates review of every affected evidence sheet without changing quantity", () => {
++  let v = putProjectMaterial(start(), material());
++  v = applySheetDiscovery(v, source.sha256, 1, "S1.1", "Footing");
++  v = disposeDiscovery(v, v.discoveries[0].id, null, "Not this slab");
++  v.sheets[0].reviewed = true;
++  v.sheets[0].reviewNote = "Previously reconciled";
++  v = applySheetDiscovery(v, source.sha256, 2, "S2.1", "Concrete");
++  v = disposeDiscovery(v, v.discoveries.find((d) => d.page === 2)!.id, v.materials[0].stock.id, "");
++  assert.equal(v.sheets[0].reviewed, false);
++  assert.equal(v.materials[0].stock.quantity, 20);
++});
++
++import { addThorntonPreparedMaterials, thorntonPreparedMaterials } from "./thorntonMaterials.ts";
++import { projectMaterialsCsv } from "./projectMaterials.ts";
++test("real prepared schedule: 40 door marks, 37 swinging leaves, five overhead assemblies and 35 frames", () => {
++  const v = addThorntonPreparedMaterials(createProjectMaterials("thornton"));
++  assert.equal(v.materials.length, 79);
++  assert.equal(v.sources.length, 3);
++  assert.equal(v.sheets.length, 60);
++  const count = (category: string) =>
++    v.materials.filter((m) => m.category === category).reduce((n, m) => n + m.stock.quantity!, 0);
++  assert.equal(count("Door leaves"), 37);
++  assert.equal(count("Overhead door assemblies"), 5);
++  assert.equal(count("Door frame assemblies"), 35);
++  for (const mark of ["124", "201"]) {
++    const m = v.materials.find((m) => m.stock.stockCode === "FS8-DR-" + mark)!;
++    assert.equal(m.stock.quantity, 2);
++    assert.equal(m.dimensionsM.width, 34 * 0.0254);
++  }
++  assert.ok(v.materials.every((m) => m.review === "pending" && m.unresolved));
++  assert.equal(materialCoverage(v).reviewedSheets, 0);
++});
++test("unique RTU tag appears in three views but counts once; scheduled mass stays separate from shipping", () => {
++  const v = addThorntonPreparedMaterials(createProjectMaterials("thornton")),
++    m = v.materials.find((m) => m.stock.stockCode === "FS8-RTU-1")!;
++  assert.equal(m.stock.quantity, 1);
++  assert.equal(m.evidence.length, 3);
++  assert.equal(m.stock.specifiedWeightKg, 997.903214);
++  const t = projectMaterialTotals(v);
++  assert.equal(t.weight.value, 997.903214);
++  assert.equal(t.weight.known, 1);
++  assert.equal(t.materialVolume.value, null);
++  assert.equal(t.storageVolume.value, null);
++});
++test("prepared import is idempotent and preserves edits to an existing physical item", () => {
++  let v = addThorntonPreparedMaterials(createProjectMaterials("thornton"));
++  const m = { ...v.materials[0], specification: "User revision" };
++  v = putProjectMaterial(v, m);
++  const next = addThorntonPreparedMaterials(v);
++  assert.deepEqual(next, v);
++  assert.equal(thorntonPreparedMaterials().length, 79);
++});
++test("flat materials export retains dimensions, actual drawing hashes, unresolved detail and formula protection", () => {
++  let v = addThorntonPreparedMaterials(createProjectMaterials("thornton"));
++  v = putProjectMaterial(v, { ...v.materials[0], specification: "=UNSAFE()" });
++  const csv = projectMaterialsCsv(v);
++  assert.match(csv, /Physical width m/);
++  assert.match(csv, /Unresolved components/);
++  assert.ok(csv.includes(v.sources[0].sha256));
++  assert.match(csv, /'=UNSAFE/);
++  assert.match(csv, /997.903214/);
++  assert.match(csv, /Preliminary/);
++});
+diff --git a/src/studio/construction/thorntonLibrary.ts b/src/studio/construction/thorntonLibrary.ts
+new file mode 100644
+index 0000000..801b01b
+--- /dev/null
++++ b/src/studio/construction/thorntonLibrary.ts
+@@ -0,0 +1,123 @@
++// Public source identity verified against PDF bytes and rendered title sheets.
++export const THORNTON_LIBRARY = [
++  {
++    name: "Thornton Fire Station 8 — architecture",
++    discipline: "Architectural",
++    issue: "2024-09-27",
++    sha256: "95ce618c4a3fd225613a298db63146efb93a99a7f39e1fa1bcf9b3c29498600b",
++    pageCount: 28,
++    sizeBytes: 15695786,
++    url: "/sources/thornton-materials/thornton-architecture.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21721/thornton-architecture.pdf",
++    note: "Image-based drawing text; visual review or OCR required.",
++  },
++  {
++    name: "Thornton Fire Station 8 — civil",
++    discipline: "Civil",
++    issue: "2024-09-27",
++    sha256: "60be199e847298fbd6c3144decc40e17441cbc0cff1bb6bf7336b25b5cd7fb60",
++    pageCount: 35,
++    sizeBytes: 74303706,
++    url: "/sources/thornton-materials/thornton-civil.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21722/thornton-civil.pdf",
++    note: "",
++  },
++  {
++    name: "Thornton Fire Station 8 — landscape",
++    discipline: "Landscape",
++    issue: "2024-09-27",
++    sha256: "e1663f0789ec064f5baaa60d50cbacc46a48a4251dde677195c53535c5cc44d4",
++    pageCount: 3,
++    sizeBytes: 1791552,
++    url: "/sources/thornton-materials/thornton-landscape.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21723/thornton-landscape.pdf",
++    note: "Image-based drawing text; visual review or OCR required.",
++  },
++  {
++    name: "Thornton Fire Station 8 — irrigation",
++    discipline: "Landscape",
++    issue: "2024-09-27",
++    sha256: "fbe4bd01b3b0fa021f934ead55e231e864992dcb4f8c84c959d05eb41994bd03",
++    pageCount: 6,
++    sizeBytes: 3974637,
++    url: "/sources/thornton-materials/thornton-irrigation.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21724/thornton-irrigation.pdf",
++    note: "",
++  },
++  {
++    name: "Thornton Fire Station 8 — structural",
++    discipline: "Structural",
++    issue: "2024-09-27",
++    sha256: "28fe1e51d38cbb1347e5875870b60bcd4ed9a9a0b9dc66e1bf5a611ce3f693f6",
++    pageCount: 23,
++    sizeBytes: 1629760,
++    url: "/sources/thornton-connection-trial/structural.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21725/05-cot-fire-station--8-structure-bid-set.pdf",
++    note: "",
++  },
++  {
++    name: "Thornton Fire Station 8 — mechanical",
++    discipline: "Mechanical",
++    issue: "2024-09-27",
++    sha256: "ec5f34681116822a7d14b58fb3a2efcb7f5105ed9bd76a51f43d3a0a8cc8fa9c",
++    pageCount: 9,
++    sizeBytes: 16555132,
++    url: "/sources/thornton-materials/thornton-mechanical.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21726/thornton-mechanical.pdf",
++    note: "",
++  },
++  {
++    name: "Thornton Fire Station 8 — plumbing",
++    discipline: "Plumbing",
++    issue: "2024-09-27",
++    sha256: "b779cb837a20ca8709e80cdd5db9a5bcbc2f1c78dcf1e546a76a9d4fadaf38de",
++    pageCount: 10,
++    sizeBytes: 34548812,
++    url: "/sources/thornton-materials/thornton-plumbing.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21727/thornton-plumbing.pdf",
++    note: "",
++  },
++  {
++    name: "Thornton Fire Station 8 — electrical",
++    discipline: "Electrical",
++    issue: "2024-09-27",
++    sha256: "27a8b7a2419e88ba24eb5f350ebf01f62ccd8e40c77cc85de99f545e7fd84b17",
++    pageCount: 18,
++    sizeBytes: 14281123,
++    url: "/sources/thornton-materials/thornton-electrical.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21728/thornton-electrical.pdf",
++    note: "",
++  },
++  {
++    name: "Thornton Fire Station 8 — alerting",
++    discipline: "Electrical",
++    issue: "2024-06-21",
++    sha256: "6b0fcc1f23d00385c9eb90e5eb89a492432075dc647f7707b0daf70a62fefa90",
++    pageCount: 4,
++    sizeBytes: 1769883,
++    url: "/sources/thornton-materials/thornton-alerting.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21729/thornton-alerting.pdf",
++    note: "Earlier permit issue; reconcile with later electrical/bid drawings.",
++  },
++  {
++    name: "Thornton Fire Station 8 — specifications",
++    discipline: "General",
++    issue: "2024-09-27",
++    sha256: "eeb2ee1075c53f0858545476bb568293b51061fe7c42454d35f70d7c3464b4f2",
++    pageCount: 1124,
++    sizeBytes: 26946133,
++    url: "/sources/thornton-materials/thornton-specifications.pdf",
++    officialUrl:
++      "https://solicitations.thorntonco.gov/files/filerecords/view/vendorattachment/21730/thornton-specifications.pdf",
++    note: "",
++  },
++] as const;
+diff --git a/src/studio/construction/thorntonMaterials.ts b/src/studio/construction/thorntonMaterials.ts
+new file mode 100644
+index 0000000..3bca9e6
+--- /dev/null
++++ b/src/studio/construction/thorntonMaterials.ts
+@@ -0,0 +1,203 @@
++import { THORNTON_LIBRARY } from "./thorntonLibrary.ts";
++import {
++  attachMaterialSource,
++  newProjectMaterial,
++  putProjectMaterial,
++  type ProjectMaterials,
++  type ProjectMaterial,
++} from "./projectMaterials.ts";
++// Manual transcription from the rendered A8.0 door schedule (PDF page 23).
++// Entries are physical door marks, not occurrences of their text in other views.
++const DOORS = [
++  ["100", "Aluminium", 1, "A", 1, 36, 106, 1.75],
++  ["102", "Stained wood", 2, "1A", 12, 36, 94, 1.75],
++  ["103", "Stained wood", 2, "1A", 8, 36, 94, 1.75],
++  ["104", "Stained wood", 2, "1A", 14, 36, 94, 1.75],
++  ["107A", "Stained wood", 5, "X1", 19, 36, 94, 1.75],
++  ["107B", "Painted hollow metal", 5, "1A", 4, 36, 94, 1.75],
++  ["108", "Aluminium", 1, "E", 2, 42, 106, 1.75],
++  ["109", "Stained wood", 3, "1A", 15, 36, 94, 1.75],
++  ["110", "Stained wood", 2, "1A", 5, 36, 94, 1.75],
++  ["111", "Stained wood", 2, "1A", 10, 36, 94, 1.75],
++  ["112", "Stained wood", 2, "1A", 10, 36, 94, 1.75],
++  ...["113", "114", "115", "116", "117", "118"].map(
++    (mark) => [mark, "Stained wood", 2, "1A", 11, 36, 94, 1.75] as const,
++  ),
++  ["119A", "Stained wood", 4, "1A", 17, 36, 94, 1.75],
++  ["119B", "Aluminium", 6, "", 21, 120, 120, 2],
++  ["119C", "Aluminium", 1, "L", 3, 36, 106, 1.75],
++  ["120", "Aluminium", 1, "G", 3, 36, 106, 1.75],
++  ["121A", "Stained wood", 5, "1A", 19, 36, 94, 1.75],
++  ["121B", "Painted hollow metal", 5, "1A", 4, 36, 94, 1.75],
++  ["123", "Stained wood", 2, "1A", 15, 36, 94, 1.75],
++  ["124", "Painted hollow metal", 2, "1A", 7, 34, 94, 1.75],
++  ["125A", "Stained wood", 2, "1A", 10, 36, 94, 1.75],
++  ["125B", "Painted hollow metal", 2, "1A", 13, 36, 94, 1.75],
++  ["126", "Painted hollow metal", 3, "1A", 18, 36, 94, 1.75],
++  ["127", "Painted hollow metal", 2, "1A", 9, 36, 94, 1.75],
++  ...["128A", "128B", "128C", "128D"].map(
++    (mark) => [mark, "Aluminium", 7, "", 21, 168, 168, 2] as const,
++  ),
++  ["128E", "Aluminium", 1, "N", 3, 36, 106, 1.75],
++  ["128F", "Aluminium", 1, "N opposite hand", 3, 36, 106, 1.75],
++  ["129", "Painted hollow metal", 3, "1A", 20, 44, 94, 1.75],
++  ["130", "Painted hollow metal", 3, "1A", 18, 44, 94, 1.75],
++  ["132", "Painted hollow metal", 2, "1A", 16, 44, 94, 1.75],
++  ["201", "Painted hollow metal", 2, "1A", 6, 34, 94, 1.75],
++  ["202", "Painted hollow metal", 2, "1A", 16, 44, 94, 1.75],
++] as const;
++export function thorntonPreparedMaterials(): ProjectMaterial[] {
++  const architecture = THORNTON_LIBRARY.find((d) => d.discipline === "Architectural")!,
++    structure = THORNTON_LIBRARY.find((d) => d.discipline === "Structural")!,
++    mechanical = THORNTON_LIBRARY.find((d) => d.discipline === "Mechanical")!;
++  const rows: ProjectMaterial[] = [];
++  for (const [mark, material, type, frame, hardware, width, height, depth] of DOORS) {
++    const overhead = type === 6 || type === 7,
++      pair = mark === "124" || mark === "201",
++      m = newProjectMaterial(architecture, 23, `fs8-door-${mark}`);
++    Object.assign(m, {
++      physicalKey: `FS8/${mark}/door`,
++      floor: mark.startsWith("2") ? "Mezzanine" : "Main level",
++      location: `Door mark ${mark}`,
++      category: overhead ? "Overhead door assemblies" : "Door leaves",
++      quantityBasis: "scheduled",
++      calculation: pair
++        ? "A8.0 lists one pair at this unique door mark: two leaves."
++        : "A8.0 lists this unique door mark once; one scheduled door unit.",
++      specification: `${material}; door type ${type}; hardware group ${hardware}; ${width} × ${height} × ${depth} inches${pair ? " per leaf; paired opening" : ""}.`,
++      dimensionsM: {
++        length: null,
++        width: width * 0.0254,
++        height: height * 0.0254,
++        depth: depth * 0.0254,
++      },
++      dimensionReference: "A8.0 door schedule; inch dimensions converted using 0.0254 m/in.",
++      unresolved:
++        "Hardware group contents, glazing/cores, fixings, procurement weight and packaging remain uncounted. Overall door dimensions do not establish solid material volume.",
++    });
++    Object.assign(m.stock, {
++      stockCode: `FS8-DR-${mark}`,
++      description: `${material} ${overhead ? "overhead door assembly" : "door leaf"} · ${mark}`,
++      quantity: pair ? 2 : 1,
++      reference:
++        "Architectural A8.0 / PDF page 23, door schedule; reconcile with floor plans and hardware specifications.",
++    });
++    rows.push(m);
++    if (frame) {
++      const f = newProjectMaterial(architecture, 23, `fs8-frame-${mark}`);
++      Object.assign(f, {
++        physicalKey: `FS8/${mark}/frame`,
++        floor: m.floor,
++        location: m.location,
++        category: "Door frame assemblies",
++        quantityBasis: "scheduled",
++        calculation:
++          "One scheduled frame assembly at this unique door mark; frame sections are not separately quantified.",
++        specification: `Frame ${frame}; ${material === "Aluminium" ? "aluminium" : "painted hollow metal"}.`,
++        unresolved: "Frame section lengths, anchors, grout, seals and hardware remain unresolved.",
++      });
++      Object.assign(f.stock, {
++        stockCode: `FS8-FR-${mark}`,
++        description: `${material === "Aluminium" ? "Aluminium" : "Painted hollow-metal"} frame assembly · ${mark}`,
++        quantity: 1,
++        reference: "Architectural A8.0 / PDF page 23, corresponding frame schedule column.",
++      });
++      rows.push(f);
++    }
++  }
++  for (const [code, description, quantity, category, calculation] of [
++    [
++      "BEAMS",
++      "W10×22 interior roof beams",
++      8,
++      "Structural steel",
++      "Eight interior beam lines in the second apparatus-bay span from north; outermost lines excluded.",
++    ],
++    [
++      "PLATES",
++      "Single shear plates for selected beam ends",
++      16,
++      "Connection plates",
++      "Eight beams × two ends; detail 1/S5.1 specifies one shear plate per connection.",
++    ],
++    [
++      "BOLTS",
++      "7/8-inch ASTM A325N bolts for selected beam ends",
++      32,
++      "Fasteners",
++      "Eight beams × two ends × two bolts using lesser nominal depth D=10 in, S0.6.",
++    ],
++  ] as const) {
++    const m = newProjectMaterial(structure, 10, `fs8-roof-${code}`);
++    Object.assign(m, {
++      physicalKey: `FS8/roof/selected-interior-span/${code}`,
++      floor: "High roof",
++      location: "S2.2 second apparatus-bay span, eight interior beam lines",
++      category,
++      quantityBasis: "derived",
++      calculation,
++      specification: description,
++      unresolved:
++        "Remaining roof spans and connections excluded. Length, complete section dimensions, mass and packaging are unresolved.",
++    });
++    Object.assign(m.stock, {
++      stockCode: `FS8-ROOF-${code}`,
++      description,
++      quantity,
++      reference: "S2.2 page 10; S0.6 page 6; S5.1 detail 1 page 18. Bounded source trial.",
++    });
++    m.evidence.push(
++      { sha256: structure.sha256, page: 6, reference: "S0.6", x: null, y: null },
++      { sha256: structure.sha256, page: 18, reference: "1/S5.1", x: null, y: null },
++    );
++    rows.push(m);
++  }
++  const rtu = newProjectMaterial(mechanical, 2, "fs8-RTU-1");
++  Object.assign(rtu, {
++    physicalKey: "FS8/roof/RTU-1",
++    floor: "Roof",
++    location: "RTU-1, M2.1 / M2.2",
++    category: "HVAC equipment",
++    quantityBasis: "scheduled",
++    calculation:
++      "One unique equipment tag RTU-1 in M1.1 schedule, referenced from M2.1 and M2.2. Repeated callouts are not additional units.",
++    specification:
++      "Rooftop heating/cooling unit. M1.1 scheduled unit weight 2200 lb, including 24-inch roof curb, economizer and hail guard per schedule note 4.",
++    unresolved:
++      "Ducts, pipework, cables, supports and installation fixings are additional materials. Shipping packaging and material volume unknown.",
++  });
++  Object.assign(rtu.stock, {
++    stockCode: "FS8-RTU-1",
++    description: "Rooftop heating and cooling unit RTU-1",
++    quantity: 1,
++    specifiedWeightKg: 2200 * 0.45359237,
++    reference:
++      "M1.1 mechanical schedules, PDF page 2; 2200 lb × 0.45359237 kg/lb. This is scheduled operating/unit weight, not shipping package weight.",
++  });
++  rtu.evidence.push(
++    { sha256: mechanical.sha256, page: 5, reference: "M2.1 RTU-1 on roof", x: null, y: null },
++    { sha256: mechanical.sha256, page: 6, reference: "M2.2 RTU-1 on roof", x: null, y: null },
++  );
++  rows.push(rtu);
++  return rows;
++}
++export function addThorntonPreparedMaterials(value: ProjectMaterials): ProjectMaterials {
++  let next = value;
++  for (const d of THORNTON_LIBRARY.filter((s) =>
++    ["Architectural", "Structural", "Mechanical"].includes(s.discipline),
++  ))
++    next = attachMaterialSource(next, {
++      name: d.name,
++      sha256: d.sha256,
++      pageCount: d.pageCount,
++      discipline: d.discipline,
++    });
++  for (const material of thorntonPreparedMaterials())
++    if (
++      !next.materials.some(
++        (m) => m.physicalKey.toLowerCase() === material.physicalKey.toLowerCase(),
++      )
++    )
++      next = putProjectMaterial(next, material);
++  return next;
++}

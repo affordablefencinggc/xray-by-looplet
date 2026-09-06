@@ -1,0 +1,6 @@
+import fs from 'node:fs';import crypto from 'node:crypto';import path from 'node:path';import assert from 'node:assert/strict';
+const dir='proof/audit/IW-DESKTOP-REBUILD-20260906',hash=b=>crypto.createHash('sha256').update(b).digest('hex'),build=fs.readFileSync('src-tauri/target/release/xray-by-looplet.exe'),installed=fs.readFileSync(path.join(process.env.LOCALAPPDATA,'X-Ray by Looplet','xray-by-looplet.exe'));
+let expected=build,normalization='None: installed executable is byte-for-byte identical to tested build.';
+if(!build.equals(installed)){const marker=Buffer.from('__TAURI_BUNDLE_TYPE_VAR_UNK'),index=build.indexOf(marker);assert.ok(index>=0);assert.equal(build.indexOf(marker,index+1),-1);expected=Buffer.from(build);Buffer.from('__TAURI_BUNDLE_TYPE_VAR_NSS').copy(expected,index);normalization='Only the single Tauri UNK-to-NSS bundle marker is normalized.';}
+const report={buildSha256:hash(build),expectedInstalledSha256:hash(expected),actualInstalledSha256:hash(installed),equal:expected.equals(installed),normalization};fs.writeFileSync(path.join(dir,'bundle-identity.json'),JSON.stringify(report,null,2));assert.ok(report.equal);console.log(JSON.stringify(report));
+
