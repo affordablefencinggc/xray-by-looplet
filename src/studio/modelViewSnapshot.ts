@@ -5,7 +5,7 @@ export type ModelViewSnapshot = Readonly<{
   sourceSha256: string;
   sceneId: string;
   sceneSha256: string;
-  view: Readonly<{ wireframe: boolean; roof: boolean; cutaway: boolean; explode: boolean; plan: boolean; level: "all" | "ground" | "upper" }>;
+  view: Readonly<{ wireframe: boolean; roof: boolean; cutaway: boolean; explode: boolean; plan: boolean; level: string }>;
   capturedAt: string;
   camera: Readonly<{
     projection: "perspective" | "orthographic";
@@ -30,7 +30,7 @@ const notify = () => listeners.forEach(listener => listener());
 export function publishModelView(input: ModelViewInput): ModelViewSnapshot {
   const camera = input.camera;
   if (!input.documentId || input.documentId.length > 300 || !/^[a-f0-9]{64}$/.test(input.sourceSha256) || !/^[a-f0-9]{64}$/.test(input.sceneSha256) || !/^[a-z0-9-]{1,100}$/.test(input.sceneId)) throw Error("Invalid model view source identity");
-  if (![input.view.wireframe, input.view.roof, input.view.cutaway, input.view.explode, input.view.plan].every(value => typeof value === "boolean") || !["all", "ground", "upper"].includes(input.view.level) || input.view.plan !== (camera.projection === "orthographic")) throw Error("Invalid model view options");
+  if (![input.view.wireframe, input.view.roof, input.view.cutaway, input.view.explode, input.view.plan].every(value => typeof value === "boolean") || !(typeof input.view.level === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(input.view.level)) || input.view.plan !== (camera.projection === "orthographic")) throw Error("Invalid model view options");
   if (!["perspective", "orthographic"].includes(camera.projection) || ![camera.position, camera.target, camera.up].every(vector => vector.length === 3 && vector.every(finite)) || camera.up.every(value => value === 0) || !(camera.zoom > 0) || !finite(camera.zoom) || !(camera.near > 0) || !(camera.far > camera.near) || !finite(camera.far) || camera.projectionMatrix.length !== 16 || !camera.projectionMatrix.every(finite)) throw Error("Invalid model view camera");
   const key = JSON.stringify(input);
   if (latest && key === latestInputKey) return latest;

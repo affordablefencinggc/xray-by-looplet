@@ -17,6 +17,14 @@ const compiledPath = join(compiledDir, "PhotoEvidencePanel.cjs");
 const source = readFileSync(join(here, "PhotoEvidencePanel.tsx"), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true }, fileName: "PhotoEvidencePanel.tsx" }).outputText;
 writeFileSync(compiledPath, compiled);
+// Compile the panel's real local UI dependencies for this standalone SSR harness.
+for (const name of ["EvidenceGallery", "WorkspaceDialog"]) {
+  const dependency = ts.transpileModule(readFileSync(join(here, `${name}.tsx`), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
+    fileName: `${name}.tsx`,
+  }).outputText;
+  writeFileSync(join(compiledDir, `${name}.js`), dependency);
+}
 const require = createRequire(import.meta.url);
 const { PhotoEvidencePanel } = require(compiledPath) as typeof import("./PhotoEvidencePanel");
 

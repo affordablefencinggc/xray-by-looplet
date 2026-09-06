@@ -234,7 +234,7 @@ export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, class
         ]);
         if(cancelled)return;
         GlobalWorkerOptions.workerSrc=workerUrl;
-        const task=getDocument({data:Uint8Array.from(binary!.bytes)});destroy=()=>task.destroy();
+        const task=getDocument({data:Uint8Array.from(binary!.bytes),wasmUrl:new URL("/pdfjs/wasm/",location.href).href,standardFontDataUrl:new URL("/pdfjs/standard_fonts/",location.href).href});destroy=()=>task.destroy();
         const document=await task.promise;
         if(cancelled)return;
         if(page>document.numPages)throw Error("The requested PDF page is unavailable.");

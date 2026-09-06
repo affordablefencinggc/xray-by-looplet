@@ -1,20 +1,26 @@
 import type { RunCorner, RunSpecification } from "./domain";
 import type { EditableFenceRun } from "./tracing";
+import type { ConstructionRunQuantity } from "./construction/runQuantity";
 
 export type SpecificationPanelProps = {
   run: EditableFenceRun;
   onUpdate: (runId: string, expectedRevision: number, patch: Partial<RunSpecification>) => void;
   error?: string | null;
+  quantity?: ConstructionRunQuantity;
 };
 
 const SYSTEMS: readonly [RunSpecification["system"], string][] = [
-  ["unselected", "Select system"], ["colorbond", "Colorbond"], ["timber-paling", "Timber paling"],
-  ["pool", "Pool fencing"], ["chain-wire", "Chain wire"], ["custom", "Custom"],
+  ["unselected", "Select system"], ["colorbond", "Colorbond / Metal"], ["timber-paling", "Timber paling / Siding"],
+  ["pool", "Pool barrier"], ["chain-wire", "Chain wire / Mesh"], ["custom", "Custom"],
 ];
 
-export function SpecificationPanel({ run, onUpdate, error = null }: SpecificationPanelProps) {
+export function SpecificationPanel({ run, onUpdate, error = null, quantity }: SpecificationPanelProps) {
   const spec = run.specification;
+  const general = spec.constructionEnabled !== false ? spec.construction : undefined;
   const patch = (value: Partial<RunSpecification>) => onUpdate(run.id, run.revision, value);
+  const patchGeneral = (value: Partial<NonNullable<RunSpecification["construction"]>>) => {
+    if (general) patch({ construction: { ...general, ...value } });
+  };
   const updateCorner = (vertexIndex: number, treatment: RunCorner["treatment"] | "none") => {
     const existing = spec.corners.find((corner) => corner.vertexIndex === vertexIndex);
     if (treatment === "none") {
@@ -45,10 +51,29 @@ export function SpecificationPanel({ run, onUpdate, error = null }: Specificatio
 
       {error ? <div className="specification-error" role="alert"><strong>Run specification needs attention</strong><span>{error}</span></div> : null}
 
+      <SelectField label="Takeoff type" value={general ? "construction" : "fencing"} onChange={(value) => patch({ constructionEnabled: value === "construction", construction: spec.construction ?? (value === "construction" ? {
+        assembly: "generic", trade: "", quantity: "length", widthM: null, depthM: null, reference: "",
+      } : undefined) })} options={[["fencing", "Fencing"], ["construction", "General construction"]]} />
+      {general ? <>
+        <div className="specification-grid">
+          <SelectField label="Construction assembly" value={general.assembly} onChange={(assembly) => patchGeneral({ assembly: assembly as typeof general.assembly })} options={[["generic", "General assembly"], ["wall", "Wall"], ["partition", "Partition"], ["slab", "Slab / strip"], ["conduit", "Conduit / route"]]} />
+          <TextField label="Trade / work package" value={general.trade} onChange={(trade) => patchGeneral({ trade })} placeholder="Concrete, electrical, interiors…" />
+          <SelectField label="Quantity basis" value={general.quantity} onChange={(value) => patchGeneral({ quantity: value as typeof general.quantity })} options={[["length", "Run length (m)"], ["area", "Strip / face area (m²)"], ["volume", "Rectangular volume (m³)"]]} />
+          {general.quantity !== "length" ? <NumberField label="Section width / height (m)" value={general.widthM} min={0.000001} step="any" max={10000} onChange={(widthM) => patchGeneral({ widthM })} /> : null}
+          {general.quantity === "volume" ? <NumberField label="Section depth / thickness (m)" value={general.depthM} min={0.000001} step="any" max={1000} onChange={(depthM) => patchGeneral({ depthM })} /> : null}
+          <TextField wide label="Quantity source reference" value={general.reference} onChange={(reference) => patchGeneral({ reference })} placeholder="Drawing detail or schedule supporting these dimensions" />
+        </div>
+        <div className="specification-group" role="status" aria-label="General run quantity">
+          <strong>{quantity?.value != null ? `${Number(quantity.value.toPrecision(10))} ${quantity.unit}` : "Quantity unavailable"}</strong>
+          <p>{quantity?.reason ?? quantity?.formula ?? "Verify the source and scale to calculate."}</p>
+          <p>Gross traced length × section dimensions. Openings and overlaps are not deducted. This is measured geometry; packaged storage volume and weight belong in the material register.</p>
+          <small>Review: {run.review.status}. General takeoffs do not generate fencing materials.</small>
+        </div>
+      </> : <>
       <div className="specification-grid">
-        <SelectField label="Fence system" value={spec.system} onChange={(value) => patch({ system: value as RunSpecification["system"] })} options={SYSTEMS} />
+        <SelectField label="Assembly / system" value={spec.system} onChange={(value) => patch({ system: value as RunSpecification["system"] })} options={SYSTEMS} />
         <TextField label="Profile / product" value={spec.profile} onChange={(profile) => patch({ profile })} placeholder="Panel or product profile" />
-        {spec.system === "custom" ? <TextField wide label="Custom system" value={spec.customSystem} onChange={(customSystem) => patch({ customSystem })} placeholder="Describe the fence system" /> : null}
+        {spec.system === "custom" ? <TextField wide label="Custom system" value={spec.customSystem} onChange={(customSystem) => patch({ customSystem })} placeholder="Describe the assembly / system" /> : null}
         <NumberField label="Height (m)" value={spec.heightM} max={10} onChange={(heightM) => patch({ heightM })} placeholder="1.8" />
         <NumberField label="Bay width (m)" value={spec.bayWidthM} max={20} onChange={(bayWidthM) => patch({ bayWidthM })} placeholder="2.4" />
         <SelectField label="Ground" value={spec.ground} onChange={(value) => patch({ ground: value as RunSpecification["ground"] })} options={[["unselected", "Select ground"], ["soil", "Soil"], ["concrete", "Concrete"], ["rock", "Rock"], ["retaining-wall", "Retaining wall"], ["mixed", "Mixed"]]} />
@@ -58,9 +83,9 @@ export function SpecificationPanel({ run, onUpdate, error = null }: Specificatio
       </div>
 
       <details className="specification-group" open={spec.removalRequired}>
-        <summary><span>Existing fence removal</span><small>{spec.removalRequired ? "Included" : "Not included"}</small></summary>
+        <summary><span>Existing structure / element removal</span><small>{spec.removalRequired ? "Included" : "Not included"}</small></summary>
         <div className="specification-grid">
-          <ToggleField wide label="Removal required" detail="Include demolition of the existing fence" checked={spec.removalRequired} onChange={(removalRequired) => patch({ removalRequired })} />
+          <ToggleField wide label="Removal required" detail="Include demolition or removal of existing elements" checked={spec.removalRequired} onChange={(removalRequired) => patch({ removalRequired })} />
           {spec.removalRequired ? <>
             <TextField label="Removal material" value={spec.removalMaterial} onChange={(removalMaterial) => patch({ removalMaterial })} placeholder="Timber, steel…" />
             <NumberField label="Removal length (m)" value={spec.removalLengthM} max={10000} onChange={(removalLengthM) => patch({ removalLengthM })} />
@@ -116,6 +141,7 @@ export function SpecificationPanel({ run, onUpdate, error = null }: Specificatio
         </div>
       </details>
 
+      </>}
       <label className="field"><span>Run notes</span><textarea rows={3} value={spec.notes} onChange={(event) => patch({ notes: event.currentTarget.value })} placeholder="Special construction, access or estimating notes" /></label>
     </section>
   );
@@ -125,12 +151,12 @@ function TextField({ label, value, onChange, placeholder, wide = false }: { labe
   return <label className={`field${wide ? " field-wide" : ""}`}><span>{label}</span><input value={value} onChange={(event) => onChange(event.currentTarget.value)} placeholder={placeholder} /></label>;
 }
 
-function NumberField({ label, value, onChange, min = 0.01, max, placeholder }: { label: string; value: number | null; onChange: (value: number | null) => void; min?: number; max: number; placeholder?: string }) {
-  return <label className="field"><span>{label}</span><input type="number" inputMode="decimal" min={min} max={max} step="0.01" value={value ?? ""} onChange={(event) => onChange(numberOrNull(event.currentTarget.value))} placeholder={placeholder} /></label>;
+function NumberField({ label, value, onChange, min = 0.01, max, placeholder, step = 0.01 }: { label: string; value: number | null; onChange: (value: number | null) => void; min?: number; max: number; placeholder?: string; step?: number | "any" }) {
+  return <label className="field"><span>{label}</span><input type="number" inputMode="decimal" min={min} max={max} step={step} value={value ?? ""} onChange={(event) => onChange(numberOrNull(event.currentTarget.value))} placeholder={placeholder} /></label>;
 }
 
 function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: readonly (readonly [string, string])[] }) {
-  return <label className="field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.currentTarget.value)}>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></label>;
+  return <label className="field"><span>{label}</span><select aria-label={label} value={value} onChange={(event) => onChange(event.currentTarget.value)}>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></label>;
 }
 
 function ToggleField({ label, detail, checked, onChange, wide = false }: { label: string; detail: string; checked: boolean; onChange: (checked: boolean) => void; wide?: boolean }) {

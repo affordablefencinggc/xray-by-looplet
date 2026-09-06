@@ -40,11 +40,18 @@ function run(): EditableFenceRun {
 }
 
 describe("run specification panel", () => {
+  it("renders construction inputs and quantity evidence without fence controls", () => {
+    const value = run();
+    value.specification.construction = { assembly: "slab", trade: "Concrete", quantity: "volume", widthM: 2, depthM: 0.2, reference: "QA section" };
+    const markup = renderToStaticMarkup(React.createElement(SpecificationPanel, { run: value, onUpdate: () => {}, quantity: { value: 4, unit: "m³", formula: "10 m × 2 m × 0.2 m", reason: null } }));
+    assert.match(markup, /4 m³/); assert.match(markup, /Quantity source reference/);
+    assert.doesNotMatch(markup, /Bay width|Post overrides|Sleepers|Corner treatments/);
+  });
   it("renders every frozen estimator group and revision", () => {
     const markup = renderToStaticMarkup(React.createElement(SpecificationPanel, { run: run(), onUpdate: () => {} }));
     for (const label of [
-      "Fence system", "Profile / product", "Custom system", "Height (m)", "Bay width (m)", "Ground", "Slope", "Access", "Sleepers",
-      "Existing fence removal", "Removal material", "Removal length (m)", "Disposal required",
+      "Assembly / system", "Profile / product", "Custom system", "Height (m)", "Bay width (m)", "Ground", "Slope", "Access", "Sleepers",
+      "Existing structure / element removal", "Removal material", "Removal length (m)", "Disposal required",
       "Retaining", "Retaining type", "Retaining height (m)", "Retaining condition",
       "Corner treatments", "Post overrides", "Run notes",
     ]) assert.match(markup, new RegExp(label.replace(/[()]/g, "\\$&")));

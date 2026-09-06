@@ -158,7 +158,7 @@ describe("studio calibration store", () => {
     useStudio.getState().setTool("count");
     useStudio.getState().addPoint({ x: 4, y: 5 });
     assert.equal(useStudio.getState().job.gates.length, 0, "gate openings require an associated measured run");
-    assert.match(useStudio.getState().traceError ?? "", /select a fence run/i);
+    assert.match(useStudio.getState().traceError ?? "", /select a (?:fence )?run/i);
   });
 
   it("uses the locked calibration itself for length and area measurements", () => {

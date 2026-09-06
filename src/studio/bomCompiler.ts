@@ -54,6 +54,15 @@ export async function compileBomRequest(
 
   const job = parsedJob.data;
   const recipeSet = parsedRecipes.data;
+  // Never reinterpret a general takeoff using retained legacy fence attributes.
+  const generalRuns = job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
+  if (generalRuns.length) {
+    return { ok: false, issues: generalRuns.map((run) => problem(
+      "unsupported-configuration",
+      `${run.label} is a general construction takeoff. Its measured quantities are available separately; the fencing BOM cannot build this job.`,
+      run.id, "runs.specification.construction",
+    )) };
+  }
   const readiness = getQuoteReadiness(job, input.runtimeAssets, input.hydrationSettled);
   readiness.blockers.forEach((blocker) => {
     const code =

@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
+import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiArchitectAiRoute = ApiArchitectAiRouteImport.update({
+  id: '/api/architect-ai',
+  path: '/api/architect-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMaterialAiRoute = ApiMaterialAiRouteImport.update({
+  id: '/api/material-ai',
+  path: '/api/material-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/architect-ai': typeof ApiArchitectAiRoute
+  '/api/material-ai': typeof ApiMaterialAiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/architect-ai': typeof ApiArchitectAiRoute
+  '/api/material-ai': typeof ApiMaterialAiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/architect-ai': typeof ApiArchitectAiRoute
+  '/api/material-ai': typeof ApiMaterialAiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/architect-ai' | '/api/material-ai'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/architect-ai' | '/api/material-ai'
+  id: '__root__' | '/' | '/api/architect-ai' | '/api/material-ai'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiArchitectAiRoute: typeof ApiArchitectAiRoute
+  ApiMaterialAiRoute: typeof ApiMaterialAiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/architect-ai': {
+      id: '/api/architect-ai'
+      path: '/api/architect-ai'
+      fullPath: '/api/architect-ai'
+      preLoaderRoute: typeof ApiArchitectAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/material-ai': {
+      id: '/api/material-ai'
+      path: '/api/material-ai'
+      fullPath: '/api/material-ai'
+      preLoaderRoute: typeof ApiMaterialAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiArchitectAiRoute: ApiArchitectAiRoute,
+  ApiMaterialAiRoute: ApiMaterialAiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

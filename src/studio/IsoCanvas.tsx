@@ -1233,6 +1233,7 @@ export function PlanCanvas({
         {/* Vector Snapping toggle */}
         <button
           onClick={() => s.toggleSnapping()}
+          aria-pressed={s.snappingEnabled}
           type="button"
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all cursor-pointer ${
             s.snappingEnabled ? "bg-amber-400 text-navy font-bold shadow-sm" : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -1248,6 +1249,7 @@ export function PlanCanvas({
         {/* Layer visibility toggles */}
         <button
           onClick={() => s.toggle("showSrc")}
+          aria-pressed={s.showSrc}
           type="button"
           className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all cursor-pointer ${
             s.showSrc ? "bg-cyan text-navy" : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -1258,6 +1260,7 @@ export function PlanCanvas({
         </button>
         <button
           onClick={() => s.toggle("showMan")}
+          aria-pressed={s.showMan}
           type="button"
           className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all cursor-pointer ${
             s.showMan ? "bg-manual text-navy" : "text-white/70 hover:bg-white/10 hover:text-white"

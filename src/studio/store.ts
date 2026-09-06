@@ -5,7 +5,7 @@ import {
   createGateSpecification,
   createId,
   createReviewDecision,
-  createRunSpecification,
+  createNewRunSpecification,
   type FencingJob,
   type GateRecord,
   type GateSpecification,
@@ -73,6 +73,19 @@ import {
   type BomStateTransition,
 } from "./bomState.ts";
 import { loadBomState, saveBomState } from "./bomPersistence.ts";
+import {
+  createSampleStructuralInventory,
+  componentInventorySchema,
+  type ComponentInventory,
+  type ComponentDiscipline,
+} from "./construction/inventory.ts";
+import {
+  loadComponentInventory,
+  saveComponentInventory,
+  type InventoryPersistenceLoadResult,
+  type InventoryPersistenceWriteResult,
+} from "./construction/inventoryPersistence.ts";
+
 
 export type Pane =
   | "overview"
@@ -196,6 +209,13 @@ type StudioState = {
   pending: { x: number; y: number }[];
   markups: Markup[];
   trades: Trade[];
+  componentInventory: ComponentInventory;
+  inventoryPersistenceError: string | null;
+  inventoryRecoveryBlocked: boolean;
+  selectedComponentId: string | null;
+  componentFilterDiscipline: "all" | ComponentDiscipline;
+  componentFilterCategory: "all" | string;
+  componentSearchQuery: string;
   capsOpen: boolean;
   rightCollapsed: boolean;
   zoom2d: number;
@@ -285,6 +305,14 @@ type StudioState = {
   redoTrace: () => void;
   addTrade: (name: string) => void;
   removeTrade: (id: string) => void;
+  selectComponent: (id: string | null) => void;
+  setComponentFilterDiscipline: (discipline: "all" | ComponentDiscipline) => void;
+  setComponentFilterCategory: (category: "all" | string) => void;
+  setComponentSearchQuery: (query: string) => void;
+  resetSampleInventory: () => void;
+  setComponentInventory: (inventory: ComponentInventory) => void;
+  saveCurrentInventory: () => InventoryPersistenceWriteResult;
+  loadCurrentInventory: () => InventoryPersistenceLoadResult;
   updateSite: (site: Partial<SiteDetails>) => void;
   updateJobName: (name: string) => void;
   updateRunSpecification: (
@@ -799,6 +827,13 @@ export const useStudio = create<StudioState>((set, get) => ({
   pending: [],
   markups: [],
   trades: [],
+  componentInventory: createSampleStructuralInventory(),
+  inventoryPersistenceError: null,
+  inventoryRecoveryBlocked: false,
+  selectedComponentId: "conn-c1-01",
+  componentFilterDiscipline: "all",
+  componentFilterCategory: "all",
+  componentSearchQuery: "",
   capsOpen: false,
   rightCollapsed: false,
   zoom2d: 1,
@@ -1331,7 +1366,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     if (tool === "count") {
       const runId = get().selectedRunId;
       if (!runId) {
-        set({ traceError: "Select a fence run before placing a gate." });
+        set({ traceError: "Select a run before placing a gate." });
         return;
       }
       get().upsertGate({ runId, point: p, widthM: 1 });
@@ -1379,7 +1414,7 @@ export const useStudio = create<StudioState>((set, get) => ({
             label: `Run ${String(runNumber).padStart(2, "0")}`,
             points: pending,
             lengthM: 0,
-            specification: createRunSpecification(),
+            specification: createNewRunSpecification(job),
             photoIds: [],
             review: createReviewDecision(),
           },
@@ -1491,7 +1526,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   moveRunVertex: (runId, vertexIndex, point) => {
     const run = get().job.runs.find((entry) => entry.id === runId);
     if (!run?.revision) {
-      set({ traceError: `Unknown editable fence run: ${runId}` });
+      set({ traceError: `Unknown editable run: ${runId}` });
       return;
     }
     const before = get().traceUndoStack.at(-1);
@@ -1508,7 +1543,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   insertRunVertex: (runId, segmentIndex, point) => {
     const run = get().job.runs.find((entry) => entry.id === runId);
     if (!run?.revision) {
-      set({ traceError: `Unknown editable fence run: ${runId}` });
+      set({ traceError: `Unknown editable run: ${runId}` });
       return;
     }
     const before = get().traceUndoStack.at(-1);
@@ -1525,7 +1560,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   removeRunVertex: (runId, vertexIndex) => {
     const run = get().job.runs.find((entry) => entry.id === runId);
     if (!run?.revision) {
-      set({ traceError: `Unknown editable fence run: ${runId}` });
+      set({ traceError: `Unknown editable run: ${runId}` });
       return;
     }
     const before = get().traceUndoStack.at(-1);
@@ -1543,7 +1578,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   splitRun: (runId, vertexIndex) => {
     const run = get().job.runs.find((entry) => entry.id === runId);
     if (!run?.revision) {
-      set({ traceError: `Unknown editable fence run: ${runId}` });
+      set({ traceError: `Unknown editable run: ${runId}` });
       return;
     }
     const newRunIds: [string, string] = [createId("run"), createId("run")];
@@ -1562,7 +1597,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     const first = get().job.runs.find((entry) => entry.id === input.firstRunId);
     const second = get().job.runs.find((entry) => entry.id === input.secondRunId);
     if (!first?.revision || !second?.revision) {
-      set({ traceError: "Both editable fence runs are required before merging." });
+      set({ traceError: "Both editable runs are required before merging." });
       return;
     }
     const mergedRunId = input.mergedRunId ?? createId("run");
@@ -1592,7 +1627,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     })();
     const run = previous?.runs.find((entry) => entry.id === input.runId);
     if (!run) {
-      set({ traceError: `Unknown editable fence run: ${input.runId}` });
+      set({ traceError: `Unknown editable run: ${input.runId}` });
       return;
     }
     if (!Number.isFinite(input.widthM) || input.widthM <= 0 || input.widthM > 30) {
@@ -1793,6 +1828,56 @@ export const useStudio = create<StudioState>((set, get) => ({
         },
       ),
     });
+  },
+  selectComponent: (id) => set({ selectedComponentId: id }),
+  setComponentFilterDiscipline: (discipline) => set({ componentFilterDiscipline: discipline }),
+  setComponentFilterCategory: (category) => set({ componentFilterCategory: category }),
+  setComponentSearchQuery: (query) => set({ componentSearchQuery: query }),
+  resetSampleInventory: () => {
+    const sample = createSampleStructuralInventory();
+    // Explicit replacement is a recovery action. Only a successful write can
+    // release an unreadable-data lock; a failed reset must retain protection.
+    const result = saveComponentInventory(get().job.id, sample);
+    set({
+      componentInventory: sample,
+      selectedComponentId: "conn-c1-01",
+      inventoryRecoveryBlocked: result.ok ? false : get().inventoryRecoveryBlocked,
+      inventoryPersistenceError: result.ok ? null
+        : `Component inventory could not be saved (${result.reason}${result.preservedPrevious ? "; previous snapshot preserved" : ""}).`,
+    });
+  },
+  setComponentInventory: (inventory) => {
+    const validated = componentInventorySchema.parse(inventory);
+    // Editing in memory does not acknowledge a failed restore. The hydrated
+    // autosave subscription uses the same guarded action as explicit Save.
+    set({ componentInventory: validated });
+  },
+  saveCurrentInventory: () => {
+    const state = get();
+    if (state.inventoryRecoveryBlocked) {
+      return { ok: false, reason: "recovery-required", preservedPrevious: true };
+    }
+    const result = saveComponentInventory(state.job.id, state.componentInventory);
+    if (result.ok) {
+      if (state.inventoryPersistenceError) set({ inventoryPersistenceError: null });
+    } else {
+      const error = `Component inventory could not be saved (${result.reason}${result.preservedPrevious ? "; previous snapshot preserved" : ""}).`;
+      if (state.inventoryPersistenceError !== error) set({ inventoryPersistenceError: error });
+    }
+    return result;
+  },
+  loadCurrentInventory: () => {
+    const state = get();
+    const result = loadComponentInventory(state.job.id);
+    if (result.ok) {
+      set({ componentInventory: result.inventory, inventoryPersistenceError: null, inventoryRecoveryBlocked: false });
+    } else if (result.reason !== "not-found") {
+      set({
+        inventoryRecoveryBlocked: true,
+        inventoryPersistenceError: `Saved component inventory could not be restored (${result.reason}). Unreadable data preserved in storage; autosave blocked until recovery.`,
+      });
+    }
+    return result;
   },
   updateSite: (site) =>
     set((state) => ({
@@ -2110,7 +2195,17 @@ export const useStudio = create<StudioState>((set, get) => ({
       if (Object.keys(staleUrls).length > 0) set({ photoPreviewUrls: {} });
       const loaded = loadFencingJob();
       if (!loaded.job) {
+        const fallbackJobId = get().job.id;
+        const persistedInventory = loadComponentInventory(fallbackJobId);
+        let inventoryPersistenceError: string | null = null;
+        if (persistedInventory.ok) {
+          set({ componentInventory: persistedInventory.inventory });
+        } else if (persistedInventory.reason !== "not-found") {
+          inventoryPersistenceError = `Saved component inventory could not be restored (${persistedInventory.reason}). Unreadable data preserved in storage; autosave blocked until recovery.`;
+        }
         set({
+          inventoryPersistenceError,
+          inventoryRecoveryBlocked: inventoryPersistenceError !== null,
           persistenceError: loaded.error,
           persistenceHydrated: true,
           hydrationStatus: loaded.error ? "error" : "ready",
@@ -2157,10 +2252,25 @@ export const useStudio = create<StudioState>((set, get) => ({
           job.photos.map((photo) => [photo.id, { state: "loading" as const, message: null }]),
         ),
       };
+      const persistedInventory = loadComponentInventory(job.id);
+      let componentInventory: ComponentInventory;
+      let inventoryPersistenceError: string | null = null;
+      if (persistedInventory.ok) {
+        componentInventory = persistedInventory.inventory;
+      } else {
+        componentInventory = createSampleStructuralInventory();
+        if (persistedInventory.reason !== "not-found") {
+          inventoryPersistenceError = `Saved component inventory could not be restored (${persistedInventory.reason}). Unreadable data preserved in storage; autosave blocked until recovery.`;
+        }
+      }
+
       set({
         job,
         bomState,
         bomPersistenceError,
+        componentInventory,
+        inventoryPersistenceError,
+        inventoryRecoveryBlocked: inventoryPersistenceError !== null,
         markups: markupsFromJob(job),
         trades: job.componentRegistry ?? [],
         currentCalibration: loadedCalibration,
@@ -2298,6 +2408,12 @@ if (typeof window !== "undefined") {
       ? null
       : `BOM state could not be saved (${result.reason}${result.preservedPrevious ? "; previous snapshot preserved" : ""}).`;
     if (state.bomPersistenceError !== error) useStudio.setState({ bomPersistenceError: error });
+  });
+  useStudio.subscribe((state, previous) => {
+    if (!state.persistenceHydrated) return;
+    if (state.inventoryRecoveryBlocked) return;
+    if (state.componentInventory === previous.componentInventory && previous.persistenceHydrated) return;
+    state.saveCurrentInventory();
   });
 }
 

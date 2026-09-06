@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
-import { Camera, Download, Image as ImageIcon, Shield, Sliders } from "lucide-react";
+import { Bot, Camera, Download, Image as ImageIcon, Shield, Sliders } from "lucide-react";
 import { useStudio } from "./store";
 import { latestModelView, recordedModelView, matchingModelView, recordModelView, subscribeModelViews, type ModelViewSnapshot } from "./modelViewSnapshot";
+import { McpChatDialog } from "./McpChatDialog";
 
 const emptyView = () => null;
 const cameraSummary = (snapshot: ModelViewSnapshot) => `${snapshot.camera.projection} · position ${snapshot.camera.position.map(value => value.toFixed(2)).join(", ")} · zoom ${snapshot.camera.zoom.toFixed(2)}`;
@@ -9,6 +10,7 @@ const cameraSummary = (snapshot: ModelViewSnapshot) => `${snapshot.camera.projec
 export function RenderStudio() {
   const s = useStudio();
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [mcpOpen, setMcpOpen] = useState(false);
   const materials = s.renderMaterials;
   const latest = useSyncExternalStore(subscribeModelViews, latestModelView, emptyView);
   const saved = useSyncExternalStore(subscribeModelViews, recordedModelView, emptyView);
@@ -47,7 +49,7 @@ export function RenderStudio() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+    <div className="render-workspace flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
       <div>
         <div className="kicker">Camera / reference brief</div>
         <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">Render</h1>
@@ -66,26 +68,26 @@ export function RenderStudio() {
 
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="pill inline-flex items-center gap-1.5" onClick={() => s.setPane("model")}>
-          <Sliders className="size-3.5 text-cyan" /> Adjust Model camera
+          <Sliders className="size-3.5 text-blue" /> Adjust Model camera
         </button>
         <button type="button" className="pill inline-flex items-center gap-1.5" onClick={handleCaptureCamera} disabled={!available} title={available ? "Record the last source-matched Model camera" : "Open this source in Model first"}>
-          <Camera className="size-3.5 text-cyan" /> Record camera
+          <Camera className="size-3.5 text-blue" /> Record camera
         </button>
         <button type="button" className="pill inline-flex items-center gap-1.5" onClick={handleExportBrief} disabled={!captured}>
-          <Download className="size-3.5 text-cyan" /> Download local brief
+          <Download className="size-3.5 text-blue" /> Download local brief
         </button>
-        {statusMsg && captured && <span className="ml-2 font-mono text-xs text-cyan" role="status">{statusMsg}</span>}
+        {statusMsg && captured && <span className="ml-2 font-mono text-xs text-blue" role="status">{statusMsg}</span>}
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <section className="flex min-h-[260px] flex-col rounded-2xl border border-line bg-card p-3.5">
           <div className="flex items-center justify-between border-b border-line pb-2 font-mono text-[11px]">
             <span className="uppercase tracking-wider text-muted">Model camera snapshot</span>
-            <span className="text-cyan">{captured ? "RECORDED" : available ? "AVAILABLE" : "UNAVAILABLE"}</span>
+            <span className="text-blue">{captured ? "RECORDED" : available ? "AVAILABLE" : "UNAVAILABLE"}</span>
           </div>
-          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-line bg-navy p-6 text-center">
-            <Camera className="mb-2 size-10 text-cyan" />
-            <div className="text-sm font-medium text-paper">{captured ? "Model camera recorded" : "No camera recorded"}</div>
+          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-line bg-paper p-6 text-center">
+            <Camera className="mb-2 size-10 text-blue" />
+            <div className="text-sm font-medium text-ink">{captured ? "Model camera recorded" : "No camera recorded"}</div>
             <p className="mt-1 max-w-xs text-xs text-muted">{captured ? cameraSummary(captured) : available ? "The last Model view matches this source. Record it to include its exact camera in the brief." : "Open this source in Model, adjust the view, then return here to record it."}</p>
             {captured && <p className="mt-2 text-xs text-muted">Scene {captured.sceneId} · {new Date(captured.capturedAt).toLocaleTimeString()} · session snapshot</p>}
           </div>
@@ -96,9 +98,9 @@ export function RenderStudio() {
             <span className="uppercase tracking-wider text-muted">Generated output</span>
             <span className="text-muted">UNAVAILABLE</span>
           </div>
-          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-line bg-navy p-6 text-center">
+          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-line bg-paper p-6 text-center">
             <Shield className="mb-2 size-9 text-muted" />
-            <div className="text-sm font-medium text-paper">Image renderer unavailable</div>
+            <div className="text-sm font-medium text-ink">Image renderer unavailable</div>
             <p className="mt-1 max-w-sm text-xs text-muted">This page exports a camera and appearance brief. It does not create an image.</p>
           </div>
         </section>
@@ -120,13 +122,23 @@ export function RenderStudio() {
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-2" aria-label="Unavailable render actions">
+      <div className="flex flex-wrap gap-2" aria-label="Render actions and assistant tools">
         <button type="button" className="pill inline-flex items-center gap-1.5" disabled title="No reference-photo importer is connected">
           <ImageIcon className="size-3.5" /> Reference import unavailable
         </button>
         <button type="button" className="pill" disabled title="No image renderer is implemented">Generate unavailable</button>
-        <button type="button" className="pill" disabled title="No MCP transport is connected">MCP unavailable</button>
+        <button
+          type="button"
+          className="pill inline-flex items-center gap-1.5 border-blue/50 text-blue hover:border-blue hover:bg-cyan/10 transition"
+          onClick={() => setMcpOpen(true)}
+          title="Open AI drawing tools and provider status"
+        >
+          <Bot className="size-3.5 text-blue" />
+          <span>AI drawing tools</span>
+        </button>
       </div>
+
+      <McpChatDialog isOpen={mcpOpen} onClose={() => setMcpOpen(false)} />
     </div>
   );
 }
@@ -145,7 +157,7 @@ function BriefField({ label, value, onChange }: { label: string; value: string; 
   return (
     <label className="block text-[10px] font-mono uppercase text-muted">
       {label}
-      <input className="mt-0.5 w-full rounded border border-line bg-navy px-2.5 py-2 text-xs text-paper outline-none focus:border-cyan" type="text" value={value} onChange={(event) => onChange(event.target.value)} />
+      <input className="mt-0.5 w-full rounded border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-blue" type="text" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

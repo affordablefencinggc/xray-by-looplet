@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import { publishModelView, latestModelView, recordedModelView, matchingModelView, recordModelView, invalidateModelViews } from "./modelViewSnapshot.ts";
 const source = "a".repeat(64);
 const input = () => ({ documentId: "plan-a", sourceSha256: source, sceneId: "caroline", sceneSha256: "c".repeat(64), view: { wireframe: false, roof: true, cutaway: false, explode: false, plan: false, level: "all" as const }, camera: { projection: "perspective" as const, position: [10, 20, 30] as [number, number, number], target: [0, 1, 2] as [number, number, number], up: [0, 1, 0] as [number, number, number], zoom: 1, near: .05, far: 400, projectionMatrix: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1] } });
+test("high-rise floor identity survives camera recording and malformed IDs are rejected", () => {
+  const data = input();
+  const snapshot = publishModelView({ ...data, sceneId: "crown-wharf", view: { ...data.view, level: "L18" } });
+  assert.equal(snapshot.view.level, "L18");
+  assert.equal(recordModelView("plan-a", source).view.level, "L18");
+  for (const level of ["", "x".repeat(81), "floor with spaces"])
+    assert.throws(() => publishModelView({ ...data, view: { ...data.view, level } }));
+});
 test("records actual structured camera only for the matching document and SHA", () => {
   invalidateModelViews(null, null); const snapshot = publishModelView(input());
   assert.equal(recordModelView("plan-a", source), snapshot); assert.deepEqual(recordedModelView()?.camera.position, [10,20,30]);

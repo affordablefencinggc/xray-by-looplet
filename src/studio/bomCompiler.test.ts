@@ -130,6 +130,15 @@ const READY = {
 };
 
 describe("job-to-BOM compiler", () => {
+  it("rejects general runs even when retained fence attributes match a valid recipe", async () => {
+    const job = approvedJob();
+    job.runs[0].specification.construction = { assembly: "wall", trade: "Masonry", quantity: "area", widthM: 3, depthM: null, reference: "QA wall section" };
+    const result = await compileBomRequest({ job, recipeSet: recipeSet(), runtimeAssets: READY, hydrationSettled: true, requestId: "general" });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.deepEqual(result.issues.map((issue) => issue.code), ["unsupported-configuration"]);
+    job.runs[0].specification.constructionEnabled = false;
+    assert.equal((await compileBomRequest({ job, recipeSet: recipeSet(), runtimeAssets: READY, hydrationSettled: true, requestId: "fence-again" })).ok, true);
+  });
   it("rejects preserved imported legacy calibration even when locked and approved",async()=>{
     const job=approvedJob();delete job.calibrations[0].coordinateSpace;const before=JSON.stringify(job);
     const result=await compileBomRequest({job,recipeSet:recipeSet(),runtimeAssets:READY,hydrationSettled:true,requestId:"legacy-rejected"});

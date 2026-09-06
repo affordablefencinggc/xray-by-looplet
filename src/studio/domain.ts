@@ -77,7 +77,19 @@ export const documentRevisionSchema = z.object({
   source: z.enum(["sample", "web", "desktop"]),
 });
 
+/** Present only for general takeoffs. Absent means the established fencing specification. */
+export const constructionRunSpecificationSchema = z.object({
+  assembly: z.enum(["generic", "wall", "partition", "slab", "conduit"]),
+  trade: z.string().max(120),
+  quantity: z.enum(["length", "area", "volume"]),
+  widthM: z.number().finite().positive().max(10000).nullable(),
+  depthM: z.number().finite().positive().max(1000).nullable(),
+  reference: z.string().max(2000),
+}).strict();
+
 export const runSpecificationSchema = z.object({
+  construction: constructionRunSpecificationSchema.optional(),
+  constructionEnabled: z.boolean().optional(),
   system: fenceSystemSchema,
   customSystem: z.string().max(120),
   profile: z.string().max(120),
@@ -106,6 +118,9 @@ export const runSpecificationSchema = z.object({
   corners: z.array(runCornerSchema),
   postOverrides: z.array(postOverrideSchema),
   notes: z.string().max(2000),
+}).refine((spec) => spec.constructionEnabled !== true || spec.construction !== undefined, {
+  message: "General construction requires a construction specification.",
+  path: ["construction"],
 });
 
 export const gateSpecificationSchema = z.object({
@@ -809,6 +824,21 @@ export function createGateSpecification(): GateSpecification {
   };
 }
 
+/** New source projects start trade-neutral; existing runs retain their established workflow. */
+export function createNewRunSpecification(job: Pick<FencingJob, "runs" | "documents" | "activeDocumentId">): RunSpecification {
+  const previous = job.runs.at(-1)?.specification;
+  const general = previous
+    ? Boolean(previous.construction && previous.constructionEnabled !== false)
+    : job.documents.some((doc) => doc.id === job.activeDocumentId && doc.source !== "sample");
+  return {
+    ...createRunSpecification(),
+    ...(general ? { constructionEnabled: true, construction: {
+      assembly: "generic" as const, trade: "", quantity: "length" as const,
+      widthM: null, depthM: null, reference: "",
+    } } : {}),
+  };
+}
+
 export function createDefaultJob(now = new Date().toISOString()): FencingJob {
   return {
     schemaVersion: JOB_SCHEMA_VERSION,
@@ -1064,6 +1094,14 @@ export type JobBlocker = {
 
 export function missingRunSpecificationFields(specification: RunSpecification): string[] {
   const missing: string[] = [];
+  if (specification.construction && specification.constructionEnabled !== false) {
+    const general = specification.construction;
+    if (!general.trade.trim()) missing.push("trade / work package");
+    if (!general.reference.trim()) missing.push("quantity source reference");
+    if (general.quantity !== "length" && general.widthM === null) missing.push("section width / height");
+    if (general.quantity === "volume" && general.depthM === null) missing.push("section depth / thickness");
+    return missing;
+  }
   if (specification.system === "unselected") missing.push("system");
   if (specification.system === "custom" && !specification.customSystem.trim())
     missing.push("custom system");
@@ -1127,9 +1165,16 @@ export function getJobBlockers(job: FencingJob): JobBlocker[] {
     }
   }
   if (job.runs.length === 0)
-    blockers.push({ code: "runs", message: "Trace at least one fence run." });
+    blockers.push({ code: "runs", message: "Trace at least one takeoff run." });
   for (const run of job.runs) {
     const missing = missingRunSpecificationFields(run.specification);
+    if (run.specification.construction && run.specification.constructionEnabled !== false) {
+      const calibration = job.calibrations.find((entry) => entry.sheet === run.sheet);
+      const candidate = calibration?.candidates.find((entry) => entry.id === calibration.selectedCandidateId);
+      if (!candidate || candidate.provenance.documentId !== activeDocument?.id) {
+        blockers.push({ code: "calibration", message: `${run.label} needs calibration evidence tied to the active drawing.`, entityId: run.id });
+      }
+    }
     if (missing.length > 0) {
       blockers.push({
         code: "run-specification",
