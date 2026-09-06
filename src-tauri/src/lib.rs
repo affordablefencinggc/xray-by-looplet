@@ -1,6 +1,11 @@
 //! Looplet Tauri shell for X-Ray.
 //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
 
+mod material_ai;
+#[cfg(target_os = "windows")]
+mod window_chrome;
+use material_ai::*;
+
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use serde::Serialize;
 use serde_json::Value;
@@ -668,13 +673,30 @@ fn xray_import_plan(app: AppHandle) -> Result<Option<DesktopPlanPayload>, String
 pub fn run() {
     tauri::Builder::default()
         .manage(BomInvocationState::production())
+        .manage(MaterialAiState::default())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            #[cfg(target_os = "windows")]
+            if let Some(window) = app.get_webview_window("main") {
+                window_chrome::apply(&window.as_ref().window());
+            }
+            Ok(())
+        })
         .on_window_event(|window, event| {
+            #[cfg(target_os = "windows")]
+            if matches!(event, WindowEvent::ThemeChanged(_) | WindowEvent::Focused(_)) {
+                window_chrome::apply(window);
+            }
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 window.state::<BomInvocationState>().cancel_all();
             }
         })
         .invoke_handler(tauri::generate_handler![
+            xray_material_ai_status,
+            xray_configure_material_ai,
+            xray_interpret_material_ai,
+            xray_propose_architect_ai,
+            xray_cancel_material_ai,
             xray_bom_status,
             xray_run_bom,
             xray_cancel_bom,

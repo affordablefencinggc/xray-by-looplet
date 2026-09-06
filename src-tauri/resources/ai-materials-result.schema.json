@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sheetTitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3000
+    },
+    "scopeNote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3000
+    },
+    "proposals": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "discipline": {
+            "type": "string",
+            "enum": [
+              "Structural",
+              "Architectural",
+              "Mechanical",
+              "Electrical",
+              "Plumbing",
+              "Fire protection",
+              "Civil",
+              "Landscape",
+              "General"
+            ]
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "each",
+              "m",
+              "m2",
+              "m3",
+              "kg"
+            ]
+          },
+          "quantityBasis": {
+            "type": "string",
+            "enum": [
+              "counted",
+              "scheduled",
+              "measured",
+              "derived",
+              "unresolved"
+            ]
+          },
+          "calculation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "floor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "specification": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "dimensionsM": {
+            "type": "object",
+            "properties": {
+              "length": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "width": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "height": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "depth": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "length",
+              "width",
+              "height",
+              "depth"
+            ],
+            "additionalProperties": false
+          },
+          "dimensionReference": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "specifiedWeightKg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weightReference": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "materialVolumePerUnitM3": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volumeReference": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "box": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "width": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "height": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              "quote": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 3000
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 3000
+              }
+            },
+            "required": [
+              "box",
+              "quote",
+              "reference"
+            ],
+            "additionalProperties": false
+          },
+          "unresolved": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 3000
+            }
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "tag",
+          "category",
+          "discipline",
+          "quantity",
+          "unit",
+          "quantityBasis",
+          "calculation",
+          "floor",
+          "location",
+          "specification",
+          "dimensionsM",
+          "dimensionReference",
+          "specifiedWeightKg",
+          "weightReference",
+          "materialVolumePerUnitM3",
+          "volumeReference",
+          "evidence",
+          "unresolved",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "warnings": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 3000
+      }
+    }
+  },
+  "required": [
+    "sheetTitle",
+    "scopeNote",
+    "proposals",
+    "warnings"
+  ],
+  "additionalProperties": false
+}
