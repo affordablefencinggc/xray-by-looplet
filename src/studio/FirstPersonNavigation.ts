@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { movementVector, type NavigationMode } from "./navigationMovement.ts";
 import type { WalkStart } from "./WalkStartDialog";
+import type { WalkCollisionWorld } from "./walkCollision.ts";
 export function createFirstPersonNavigation({
   canvas,
   camera,
@@ -8,6 +9,9 @@ export function createFirstPersonNavigation({
   floor,
   onChange,
   onCaptureChange,
+  walkWorld,
+  onInteract,
+  interactionBusy,
   invalidate,
 }: {
   canvas: HTMLCanvasElement;
@@ -16,6 +20,9 @@ export function createFirstPersonNavigation({
   floor: () => number;
   onChange: (mode: NavigationMode) => void;
   onCaptureChange?: (capture: "locked" | "drag" | null) => void;
+  walkWorld?: () => WalkCollisionWorld | null;
+  onInteract?: () => void;
+  interactionBusy?: () => boolean;
   invalidate: () => void;
 }) {
   let mode: NavigationMode = "orbit",
@@ -35,7 +42,9 @@ export function createFirstPersonNavigation({
   canvas.dataset.navigationCapture = "none";
   const keys = new Set<string>(),
     velocity = new THREE.Vector3(),
-    direction = new THREE.Vector3();
+    direction = new THREE.Vector3(),
+    walkFeet = new THREE.Vector3();
+  canvas.dataset.navigationBlocked = "false";
   let arrival: {
     position: THREE.Vector3;
     rotation: THREE.Quaternion;
@@ -97,6 +106,8 @@ export function createFirstPersonNavigation({
     setCapture(null);
     releaseLock();
     canvas.dataset.navigation = "orbit";
+    canvas.dataset.navigationBlocked = "false";
+    delete canvas.dataset.walkFeet;
     if (changed) onChange(mode);
     invalidate();
   }
@@ -110,6 +121,16 @@ export function createFirstPersonNavigation({
     if (e.code === "Escape") {
       e.preventDefault();
       stop();
+      return;
+    }
+    if (e.code === "KeyE" && mode === "walk" && onInteract) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!arrival && !e.repeat && !keys.has(e.code) && !interactionBusy?.()) {
+        keys.add(e.code);
+        onInteract();
+        invalidate();
+      }
       return;
     }
     if (supported.has(e.code)) {
@@ -255,9 +276,24 @@ export function createFirstPersonNavigation({
         arrival = null;
         const center = bounds.getCenter(new THREE.Vector3()),
           size = bounds.getSize(new THREE.Vector3());
-        walkY = (start?.elevation ?? floor()) + 1.65;
+        const floorY = start?.elevation ?? floor();
+        walkY = floorY + 1.65;
         if (next === "walk") {
-          camera.position.set(start?.x ?? center.x, walkY, start?.z ?? bounds.max.z - 3);
+          const feet = new THREE.Vector3(
+            start?.x ?? center.x,
+            floorY,
+            start?.z ?? bounds.max.z - 3,
+          );
+          const world = walkWorld?.();
+          if (
+            !feet.toArray().every(Number.isFinite) ||
+            (walkWorld && (!world || !world.validStart(feet.clone())))
+          )
+            throw Error(
+              "This walking start has no clear, supported landing. Choose another start.",
+            );
+          walkFeet.copy(feet);
+          camera.position.set(feet.x, walkY, feet.z);
           camera.rotation.set(0, start?.yaw ?? 0, 0, "YXZ");
         } else {
           camera.position.set(
@@ -292,6 +328,9 @@ export function createFirstPersonNavigation({
           };
         canvas.dataset.navigationTransition = arrival ? "arriving" : "idle";
         canvas.dataset.navigation = mode;
+        canvas.dataset.navigationBlocked = "false";
+        if (mode === "walk") canvas.dataset.walkFeet = walkFeet.toArray().join(",");
+        else delete canvas.dataset.walkFeet;
         setCapture(document.pointerLockElement === canvas ? "locked" : "drag");
         canvas.focus({ preventScroll: true });
         onChange(mode);
@@ -337,8 +376,49 @@ export function createFirstPersonNavigation({
         speed,
       );
       velocity.lerp(target, 1 - Math.exp(-(mode === "walk" ? 5 : 10) * dt));
-      camera.position.addScaledVector(velocity, dt);
-      if (mode === "walk") camera.position.y = walkY;
+      if (mode === "walk") {
+        const before = walkFeet.clone(),
+          displacement = velocity.clone().multiplyScalar(dt);
+        let blocked = false;
+        if (interactionBusy?.()) {
+          velocity.set(0, 0, 0);
+        } else {
+          try {
+            const world = walkWorld?.();
+            if (walkWorld && !world) {
+              blocked = true;
+              velocity.set(0, 0, 0);
+            } else if (world) {
+              const resolved = world.move(before.clone(), displacement);
+              if (!resolved.position.toArray().every(Number.isFinite))
+                throw Error("Invalid walking position");
+              walkFeet.copy(resolved.position);
+              blocked = resolved.blocked;
+              // Keep the collision solver's slide direction while removing motion into the obstacle.
+              if (blocked && dt > 0)
+                velocity.set((walkFeet.x - before.x) / dt, 0, (walkFeet.z - before.z) / dt);
+            } else walkFeet.add(displacement);
+          } catch {
+            // A missing/invalid collision result must never turn into unrestricted movement.
+            walkFeet.copy(before);
+            velocity.set(0, 0, 0);
+            blocked = true;
+          }
+        }
+        walkY = walkFeet.y + 1.65;
+        camera.position.x = walkFeet.x;
+        camera.position.z = walkFeet.z;
+        const heightDelta = walkY - camera.position.y;
+        camera.position.y =
+          Math.abs(heightDelta) < 0.001
+            ? walkY
+            : camera.position.y + heightDelta * (1 - Math.exp(-12 * dt));
+        canvas.dataset.walkFeet = walkFeet.toArray().join(",");
+        canvas.dataset.navigationBlocked = String(blocked);
+      } else {
+        camera.position.addScaledVector(velocity, dt);
+        canvas.dataset.navigationBlocked = "false";
+      }
       camera.getWorldDirection(direction);
       canvas.dataset.navigationYaw = String(yaw);
       canvas.dataset.navigationPitch = String(pitch);

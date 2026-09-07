@@ -5,6 +5,10 @@ import { createFirstPersonNavigation } from "../FirstPersonNavigation";
 import type { NavigationMode } from "../navigationMovement";
 import type { WalkStart } from "../WalkStartDialog";
 import { ArchitectWalkStart } from "./ArchitectWalkStart";
+import { createWalkCollisionWorld, type WalkCollisionWorld } from "../walkCollision";
+import { createWalkDoors, type WalkDoorState } from "../WalkDoors";
+import { WalkDoorPrompt } from "../WalkDoorPrompt";
+import { createFirstPersonArm } from "../FirstPersonArm";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { wallSolids, roofFaces, roofTrims, type Polygon } from "./geometry";
 import { unit, add, mul, wallThickness, type ArchitectProject, type Point } from "./model";
@@ -36,6 +40,7 @@ export function Architect3D({
   const [capture, setCapture] = useState<"locked" | "drag" | null>(null);
   const [walkPicker, setWalkPicker] = useState(false);
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  const [doorState, setDoorState] = useState<WalkDoorState | null>(null);
   const host = useRef<HTMLDivElement>(null),
     api = useRef<{
       update: (p: ArchitectProject, l: string, s: string | null, r: boolean) => void;
@@ -43,6 +48,7 @@ export function Architect3D({
       navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
       capture: () => Promise<boolean>;
       stop: () => void;
+      interactDoor: () => void;
     } | null>(null),
     pick = useRef(onSelect);
   pick.current = onSelect;
@@ -86,27 +92,37 @@ export function Architect3D({
       disposed = false,
       initial = true;
     let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+    let walkWorld: WalkCollisionWorld | null = null;
+    let doors: ReturnType<typeof createWalkDoors> | null = null;
+    let arm: ReturnType<typeof createFirstPersonArm> | null = null;
+    let currentDoorState: WalkDoorState | null = null;
     const navigationBounds = new T.Box3();
     let floorElevation = 0;
     const render = () => {
         frame = 0;
         if (disposed) return;
         const moving = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+        const doorMoving = doors?.tick(navigation?.mode === "walk" && renderer.domElement.dataset.navigationTransition === "idle");
+        arm?.tick(navigation?.mode === "walk" ? currentDoorState : null);
         renderer.render(scene, camera);
         renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
         renderer.domElement.dataset.frameCount = String(
           Number(renderer.domElement.dataset.frameCount ?? 0) + 1,
         );
-        if (moving) invalidate();
+        if (moving || doorMoving) invalidate();
       },
       invalidate = () => {
         if (!frame && !disposed) frame = requestAnimationFrame(render);
       };
     controls.addEventListener("change", invalidate);
+    arm = createFirstPersonArm({ scene, camera, canvas: renderer.domElement, invalidate });
     navigation = createFirstPersonNavigation({
       canvas: renderer.domElement, camera, bounds: navigationBounds,
       floor: () => floorElevation, invalidate,
       onCaptureChange: setCapture,
+      walkWorld: () => walkWorld,
+      onInteract: () => doors?.interact(),
+      interactionBusy: () => doors?.busy ?? false,
       onChange(next) {
         controls.enabled = next === "orbit";
         if (next === "orbit") {
@@ -146,7 +162,11 @@ export function Architect3D({
       group.clear();
     };
     function update(p: ArchitectProject, l: string, s: string | null, roofs: boolean) {
+      navigation?.stop();
+      doors?.dispose(); doors = null; walkWorld = null;
       clear();
+      const solids: T.Mesh[] = [], supports: T.Mesh[] = [];
+      const doorLeaves: Parameters<typeof createWalkDoors>[0]["doors"][number][] = [];
       const mesh = (g: T.BufferGeometry, id: string, color: string, opacity = 1) => {
         const material = new T.MeshStandardMaterial({
             color: id === s ? "#bd7053" : color,
@@ -162,6 +182,8 @@ export function Architect3D({
         m.castShadow = opacity === 1;
         m.receiveShadow = true;
         group.add(m);
+        solids.push(m);
+        return m;
       };
       for (const solid of wallSolids(p).filter(
         (w) => w.kind !== "void" && (l === "all" || w.levelId === l),
@@ -174,7 +196,7 @@ export function Architect3D({
           );
       for (const slab of p.slabs.filter((s) => l === "all" || s.levelId === l)) {
         const elevation = p.levels.find((l) => l.id === slab.levelId)!.elevation + slab.offset;
-        mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, "#b5b7b3");
+        supports.push(mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, "#b5b7b3"));
       }
       const beam = (
         a: Point,
@@ -193,7 +215,7 @@ export function Architect3D({
         );
         g.rotateY(-Math.atan2(b[1] - a[1], b[0] - a[0]));
         g.translate((a[0] + b[0]) / 2000, (bottom + height / 2) / 1000, (a[1] + b[1]) / 2000);
-        mesh(g, id, color, opacity);
+        return mesh(g, id, color, opacity);
       };
       for (const o of p.openings) {
         const w = p.walls.find((w) => w.id === o.wallId)!;
@@ -201,8 +223,7 @@ export function Architect3D({
         const y = p.levels.find((l) => l.id === w.levelId)!.elevation + o.sill,
           d = unit(w.a, w.b),
           a = add(w.a, mul(d, o.offset - o.width / 2)),
-          b = add(a, mul(d, o.width)),
-          n: Point = [-d[1], d[0]];
+          b = add(a, mul(d, o.width));
         beam(a, add(a, mul(d, 40)), y, o.height, wallThickness(w), o.id, "#717e81");
         beam(add(b, mul(d, -40)), b, y, o.height, wallThickness(w), o.id, "#717e81");
         beam(a, b, y + o.height - 40, 40, wallThickness(w), o.id, "#717e81");
@@ -210,9 +231,11 @@ export function Architect3D({
           beam(a, b, y, 40, wallThickness(w), o.id, "#717e81");
           beam(a, b, y + 40, o.height - 80, 12, o.id, "#aac6c9", 0.5);
         } else {
-          const hinge = o.hinge === "left" ? a : b,
-            end = add(hinge, mul(n, o.width * (o.swing === "in" ? 1 : -1)));
-          beam(hinge, end, y, o.height, 40, o.id, "#c6c1b6");
+          const hinge = o.hinge === "left" ? a : b;
+          const leaf = beam(add(a, mul(d, 40)), add(b, mul(d, -40)), y + 5, o.height - 45, 40, o.id, "#c6c1b6");
+          doorLeaves.push({ id: o.id, label: "Door", meshes: [leaf], motion: "swing",
+            hinge: new T.Vector3(hinge[0] / 1000, y / 1000, hinge[1] / 1000),
+            swingAngle: (o.hinge === "left" ? -1 : 1) * (o.swing === "in" ? 1 : -1) * Math.PI / 2 });
         }
       }
       if (roofs)
@@ -255,6 +278,9 @@ export function Architect3D({
           }
         }
       const b = new T.Box3().setFromObject(group);
+      walkWorld = createWalkCollisionWorld({ solids: () => solids, supports: () => supports });
+      doors = createWalkDoors({ doors: doorLeaves, camera, canvas: renderer.domElement,
+        solids: () => solids, onChange: (state) => { currentDoorState = state; setDoorState(state); }, invalidate });
       ground.position.y = b.isEmpty() ? -0.3 : b.min.y - 0.01;
       navigationBounds.copy(b);
       if (b.isEmpty()) navigationBounds.set(new T.Vector3(0, 0, 0), new T.Vector3(9, 2.7, 6));
@@ -300,11 +326,13 @@ export function Architect3D({
       };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
-    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), capture: () => navigation!.capture(), stop: () => navigation?.stop() };
+    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), capture: () => navigation!.capture(), stop: () => navigation?.stop(), interactDoor: () => doors?.interact() };
     resize();
     return () => {
       disposed = true;
       navigation?.dispose();
+      doors?.dispose();
+      arm?.dispose();
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
@@ -335,7 +363,10 @@ export function Architect3D({
       <button aria-pressed={mode === "walk"} onClick={() => { api.current?.stop(); setWalkPicker(true); }}>Walk-through</button>
       {mode !== "orbit" && capture === "drag" && <button onClick={() => { void api.current?.capture(); }}>Capture mouse</button>}
     </div>
-    {mode !== "orbit" && <p className="architect-3d-caption">WASD move · {capture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit{mode === "fly" ? " · Space/Ctrl altitude" : " · eye height 1.65 m; walls do not block movement"}</p>}
+    {mode !== "orbit" && <div className="architect-walk-overlay">
+      {mode === "walk" && <WalkDoorPrompt state={doorState} onInteract={() => api.current?.interactDoor()} />}
+      <p className="architect-3d-caption">WASD move · {capture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit{mode === "fly" ? " · Space/Ctrl altitude" : " · solid boundaries · E opens doors"}</p>
+    </div>}
     {navigationError && <p role="alert" className="architect-3d-caption">{navigationError}</p>}
     {walkPicker && <ArchitectWalkStart project={project} initialLevel={levelId} onClose={() => setWalkPicker(false)} onStart={(point) => navigate("walk", point)} />}
   </div>;

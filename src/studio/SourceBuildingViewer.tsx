@@ -19,6 +19,11 @@ import { BuildingVisualSettings } from "./BuildingVisualSettings";
 import { createFirstPersonNavigation } from "./FirstPersonNavigation";
 import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
 import type { NavigationMode } from "./navigationMovement";
+import { createWalkCollisionWorld } from "./walkCollision";
+import { createWalkDoors, type WalkDoorState } from "./WalkDoors";
+import { WalkDoorPrompt } from "./WalkDoorPrompt";
+import { prepareSourceWalkDoors } from "./sourceWalkDoors";
+import { createFirstPersonArm } from "./FirstPersonArm";
 import { publishModelView } from "./modelViewSnapshot";
 import {
   DEFAULT_APPEARANCE,
@@ -39,6 +44,7 @@ type SceneApi = {
   navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
   captureNavigation: () => Promise<boolean>;
   stopNavigation: () => void;
+  interactDoor: () => void;
   options: (value: ViewOptions) => void;
   select: (id: string | null) => void;
   fit: () => void;
@@ -60,6 +66,7 @@ function createBuildingScene(
   binding: { documentId: string; sceneId: string; sceneSha256: string },
   onNavigation: (mode: NavigationMode) => void,
   onCapture: (capture: "locked" | "drag" | null) => void,
+  onDoor: (state: WalkDoorState | null) => void,
 ): SceneApi {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -102,12 +109,17 @@ function createBuildingScene(
   };
   let scope: ReturnType<typeof createModelScope> | null = null;
   let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+  let doors: ReturnType<typeof createWalkDoors> | null = null;
+  let arm: ReturnType<typeof createFirstPersonArm> | null = null;
+  let currentDoorState: WalkDoorState | null = null;
   let disposed = false,
     frame = 0;
   const render = () => {
     frame = 0;
     if (disposed) return;
     const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+    const doorChanging = doors?.tick(navigation?.mode === "walk" && renderer.domElement.dataset.navigationTransition === "idle");
+    arm?.tick(navigation?.mode === "walk" ? currentDoorState : null);
     renderer.render(scene, camera);
     scope?.render();
     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
@@ -132,7 +144,7 @@ function createBuildingScene(
         projectionMatrix: camera.projectionMatrix.toArray(),
       },
     });
-    if (changing) invalidate();
+    if (changing || doorChanging) invalidate();
   };
   const invalidate = () => {
     if (!disposed && !frame) frame = requestAnimationFrame(render);
@@ -241,6 +253,14 @@ function createBuildingScene(
     }
   }
   let selected: string | null = null;
+  const doorGeometry = prepareSourceWalkDoors(model, meshMap);
+  const collisionMeshes = [...meshMap.values(), ...doorGeometry.extraMeshes];
+  const supportMeshes = model.objects.filter((part) => ["room", "slab", "stair"].includes(part.category))
+    .map((part) => meshMap.get(part.id)!);
+  const walkWorld = createWalkCollisionWorld({ solids: () => collisionMeshes, supports: () => supportMeshes });
+  doors = createWalkDoors({ doors: doorGeometry.doors, camera: perspective, canvas: renderer.domElement,
+    solids: () => collisionMeshes, onChange: (state) => { currentDoorState = state; onDoor(state); }, invalidate });
+  arm = createFirstPersonArm({ scene, camera: perspective, canvas: renderer.domElement, invalidate });
   const visiblePart = (part: SourceBuilding["objects"][number]) =>
     !(
       options.wireframe &&
@@ -318,10 +338,10 @@ function createBuildingScene(
     highlight.visible = !options.wireframe;
     clippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
     selectedClippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
-    for (const [id, mesh] of meshMap) {
+    for (const [id, mesh] of [...meshMap, ...doorGeometry.extraMeshes.map((mesh) => [mesh.userData.partId as string, mesh] as const)]) {
       const part = parts.get(id)!;
       mesh.visible = visiblePart(part);
-      mesh.position.y = options.explode
+      if (mesh.matrixAutoUpdate) mesh.position.y = options.explode
         ? ROOF_CATEGORIES.has(part.category)
           ? 4
           : WALL_CATEGORIES.has(part.category) || part.category === "column"
@@ -419,6 +439,9 @@ function createBuildingScene(
       ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
     invalidate,
     onCaptureChange: onCapture,
+    walkWorld: () => walkWorld,
+    onInteract: () => doors?.interact(),
+    interactionBusy: () => doors?.busy ?? false,
     onChange(mode) {
       controls.enabled = mode === "orbit";
       if (mode === "orbit") {
@@ -429,6 +452,7 @@ function createBuildingScene(
     },
   });
   return {
+    interactDoor: () => doors?.interact(),
     navigate: (mode, start) => navigation!.start(mode, start),
     captureNavigation: () => navigation!.capture(),
     stopNavigation: () => navigation?.stop(),
@@ -452,7 +476,7 @@ function createBuildingScene(
     options(next) {
       const changed = next.plan !== options.plan,
         exploded = next.explode !== options.explode || next.level !== options.level;
-      if (changed || exploded) navigation?.stop();
+      if (changed || exploded) { navigation?.stop(); doors?.reset(); }
       options = next;
       if (changed) {
         controls.dispose();
@@ -536,6 +560,8 @@ function createBuildingScene(
     dispose() {
       disposed = true;
       navigation?.dispose();
+      doors?.dispose();
+      arm?.dispose();
       cancelAnimationFrame(frame);
       scope?.dispose();
       observer.disconnect();
@@ -544,6 +570,10 @@ function createBuildingScene(
       renderer.domElement.removeEventListener("pointerup", onUp);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
       for (const mesh of meshMap.values()) mesh.geometry.dispose();
+      for (const mesh of doorGeometry.extraMeshes) {
+        mesh.geometry.dispose();
+        for (const child of mesh.children) if (child instanceof THREE.LineSegments) child.geometry.dispose();
+      }
       for (const edge of edges) edge.geometry.dispose();
       for (const material of materials.values()) material.dispose();
       edgeMaterial.dispose();
@@ -567,6 +597,7 @@ export function SourceBuildingViewer() {
   const [navigationCapture, setNavigationCapture] = useState<"locked" | "drag" | null>(null);
   const [walkPicker, setWalkPicker] = useState(false);
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  const [doorState, setDoorState] = useState<WalkDoorState | null>(null);
   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
     enabled: false,
     zoom: 4,
@@ -722,6 +753,7 @@ export function SourceBuildingViewer() {
         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
         setNavigationMode,
         setNavigationCapture,
+        setDoorState,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -1075,7 +1107,10 @@ export function SourceBuildingViewer() {
                 </button>
               </div>
               {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
-              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · {navigationCapture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit</p>}
+              {navigationMode !== "orbit" && <div className="building-walk-overlay">
+                {navigationMode === "walk" && <WalkDoorPrompt state={doorState} onInteract={() => api.current?.interactDoor()} />}
+                <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk · solid boundaries · stairs follow floor · E opens doors"} · WASD move · {navigationCapture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit</p>
+              </div>}
               {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
               {config.id === "caroline" && (
                 <div className="building-svg-export">

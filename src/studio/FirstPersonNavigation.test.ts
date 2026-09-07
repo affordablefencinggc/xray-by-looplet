@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { createFirstPersonNavigation } from "./FirstPersonNavigation.ts";
 
-function fixture(t: TestContext, reducedMotion = true) {
+function fixture(
+  t: TestContext,
+  reducedMotion = true,
+  options: Pick<
+    Parameters<typeof createFirstPersonNavigation>[0],
+    "walkWorld" | "onInteract" | "interactionBusy"
+  > = {},
+) {
   const originals = new Map<string, PropertyDescriptor | undefined>();
   const doc = Object.assign(new EventTarget(), {
     pointerLockElement: null as unknown,
@@ -51,6 +58,7 @@ function fixture(t: TestContext, reducedMotion = true) {
     onChange: (mode) => changes.push(mode),
     onCaptureChange: (mode) => captures.push(mode),
     invalidate() {},
+    ...options,
   });
   const event = (target: EventTarget, type: string, props: Record<string, unknown> = {}) => {
     const e = Object.assign(new Event(type, { cancelable: true }), props);
@@ -300,4 +308,221 @@ test("old rejection cannot drop cleanup for a newer event-only request", async (
   f.lock();
   assert.equal(f.doc.pointerLockElement, null);
   assert.equal(f.api.mode, "orbit");
+});
+
+test("collision stops attempted walk motion and reports actual feet without residual velocity", async (t) => {
+  let calls = 0;
+  const f = fixture(t, true, {
+    walkWorld: () => ({
+      validStart: () => true,
+      move(feet, displacement) {
+        calls++;
+        assert.ok(displacement.z < 0);
+        return { position: feet.clone(), blocked: true };
+      },
+    }),
+  });
+  await f.api.start("walk", start);
+  const position = f.camera.position.clone();
+  f.event(f.doc, "keydown", { code: "KeyW" });
+  for (let i = 0; i < 4; i++) f.tick();
+  assert.equal(calls, 4);
+  assert.ok(position.equals(f.camera.position));
+  assert.deepEqual(f.canvas.dataset.walkFeet.split(",").map(Number), [2, 3, 4]);
+  assert.equal(f.canvas.dataset.navigationBlocked, "true");
+  assert.equal(Number(f.canvas.dataset.navigationSpeed), 0);
+});
+
+test("collision keeps permitted wall-slide movement instead of discarding the whole velocity", async (t) => {
+  const f = fixture(t, true, {
+    walkWorld: () => ({
+      validStart: () => true,
+      move(feet, displacement) {
+        return {
+          position: feet.clone().add(new THREE.Vector3(0, 0, displacement.z)),
+          blocked: true,
+        };
+      },
+    }),
+  });
+  await f.api.start("walk", start);
+  f.event(f.doc, "keydown", { code: "KeyW" });
+  f.event(f.doc, "keydown", { code: "KeyD" });
+  for (let i = 0; i < 5; i++) f.tick();
+  assert.equal(f.camera.position.x, start.x);
+  assert.ok(f.camera.position.z < start.z);
+  assert.equal(f.canvas.dataset.navigationBlocked, "true");
+  assert.ok(Number(f.canvas.dataset.navigationSpeed) > 0);
+});
+
+test("stair feet change immediately while camera height eases up and down then settles at eye height", async (t) => {
+  let support = 0.2;
+  const seenFeet: number[] = [];
+  const f = fixture(t, true, {
+    walkWorld: () => ({
+      validStart: () => true,
+      move(feet, displacement) {
+        seenFeet.push(feet.y);
+        const position = feet.clone().add(displacement);
+        position.y = support;
+        return { position, blocked: false };
+      },
+    }),
+  });
+  await f.api.start("walk", { ...start, elevation: 0 });
+  f.tick();
+  assert.equal(Number(f.canvas.dataset.walkFeet.split(",")[1]), 0.2);
+  assert.ok(f.camera.position.y > 1.65 && f.camera.position.y < 1.85);
+  f.tick();
+  assert.equal(seenFeet[1], 0.2); // Physics sees actual feet, not lagging camera minus eye height.
+  for (let i = 0; i < 20; i++) f.tick();
+  assert.equal(f.camera.position.y, 0.2 + 1.65);
+  support = 0;
+  f.tick();
+  assert.equal(Number(f.canvas.dataset.walkFeet.split(",")[1]), 0);
+  assert.ok(f.camera.position.y > 1.65 && f.camera.position.y < 1.85);
+  for (let i = 0; i < 20; i++) f.tick();
+  assert.equal(f.camera.position.y, 1.65);
+});
+
+test("free Fly never consults walking collision or waits for walking interactions", async (t) => {
+  const f = fixture(t, true, {
+    walkWorld: () => {
+      throw Error("Walk world must not run in Fly");
+    },
+    interactionBusy: () => true,
+  });
+  await f.api.start("fly");
+  const position = f.camera.position.clone();
+  f.event(f.doc, "keydown", { code: "KeyW" });
+  f.tick();
+  assert.ok(position.distanceTo(f.camera.position) > 0);
+  assert.equal(f.canvas.dataset.walkFeet, undefined);
+  assert.equal(f.canvas.dataset.navigationBlocked, "false");
+});
+
+test("invalid or unavailable physical landing restores prior camera and rejects before capture", async (t) => {
+  let available = false;
+  const f = fixture(t, true, {
+    walkWorld: () =>
+      available
+        ? { validStart: () => false, move: (feet) => ({ position: feet, blocked: true }) }
+        : null,
+  });
+  let captures = 0;
+  f.canvas.requestPointerLock = async () => {
+    captures++;
+  };
+  const position = f.camera.position.clone(),
+    rotation = f.camera.quaternion.clone();
+  await assert.rejects(f.api.start("walk", start), /supported landing/);
+  available = true;
+  await assert.rejects(f.api.start("walk", start), /supported landing/);
+  assert.ok(position.equals(f.camera.position));
+  assert.ok(rotation.equals(f.camera.quaternion));
+  assert.equal(f.camera.fov, 48);
+  assert.equal(f.api.mode, "orbit");
+  assert.equal(captures, 0);
+});
+
+test("E fires once per press; busy interaction pauses walking but permits look and Escape", async (t) => {
+  let busy = false,
+    interactions = 0,
+    moves = 0;
+  const f = fixture(t, true, {
+    onInteract() {
+      interactions++;
+      busy = true;
+    },
+    interactionBusy: () => busy,
+    walkWorld: () => ({
+      validStart: () => true,
+      move(feet, displacement) {
+        moves++;
+        return { position: feet.clone().add(displacement), blocked: false };
+      },
+    }),
+  });
+  await f.api.start("walk", start);
+  f.event(f.doc, "keydown", { code: "KeyW" });
+  f.tick();
+  const position = f.camera.position.clone(),
+    moveCount = moves;
+  f.event(f.doc, "keydown", { code: "KeyE" });
+  f.event(f.doc, "keydown", { code: "KeyE", repeat: true });
+  f.tick();
+  assert.ok(position.equals(f.camera.position));
+  assert.equal(moves, moveCount);
+  assert.equal(interactions, 1);
+  f.event(f.canvas, "pointerdown", { pointerId: 1, button: 0, clientX: 10, clientY: 10 });
+  f.event(f.doc, "pointermove", { pointerId: 1, clientX: 40, clientY: 10 });
+  assert.ok(f.camera.getWorldDirection(new THREE.Vector3()).x > 0);
+  busy = false;
+  f.event(f.doc, "keyup", { code: "KeyE" });
+  f.tick();
+  assert.ok(position.distanceTo(f.camera.position) > 0);
+  f.event(f.doc, "keydown", { code: "KeyE" });
+  assert.equal(interactions, 2);
+  f.event(f.doc, "keydown", { code: "Escape" });
+  assert.equal(f.api.mode, "orbit");
+});
+
+test("cinematic 1600 ms arrival remains an arc and never collides until walking begins", async (t) => {
+  let moves = 0;
+  const f = fixture(t, false, {
+    walkWorld: () => ({
+      validStart: (feet) => feet.equals(new THREE.Vector3(2, 3, 4)),
+      move(feet, displacement) {
+        moves++;
+        return { position: feet.clone().add(displacement), blocked: false };
+      },
+    }),
+  });
+  const origin = f.camera.position.clone();
+  await f.api.start("walk", start);
+  f.tick(800);
+  assert.equal(moves, 0);
+  assert.equal(f.canvas.dataset.navigationTransition, "arriving");
+  assert.ok(f.camera.position.y > (origin.y + 4.65) / 2);
+  f.tick(800);
+  assert.equal(moves, 0);
+  assert.equal(f.canvas.dataset.navigationTransition, "idle");
+  assert.deepEqual(f.camera.position.toArray(), [2, 4.65, 4]);
+  f.tick();
+  assert.equal(moves, 1);
+});
+
+test("a missing or invalid world result freezes an active walk instead of bypassing collision", async (t) => {
+  let state: "ready" | "missing" | "invalid" = "ready";
+  const f = fixture(t, true, {
+    walkWorld: () =>
+      state === "missing"
+        ? null
+        : {
+            validStart: () => true,
+            move(feet, displacement) {
+              return {
+                position:
+                  state === "invalid"
+                    ? new THREE.Vector3(NaN, 0, 0)
+                    : feet.clone().add(displacement),
+                blocked: false,
+              };
+            },
+          },
+  });
+  await f.api.start("walk", start);
+  const origin = f.camera.position.clone();
+  f.event(f.doc, "keydown", { code: "KeyW" });
+  for (const unavailable of ["missing", "invalid"] as const) {
+    state = unavailable;
+    f.tick();
+    assert.ok(origin.equals(f.camera.position));
+    assert.equal(f.canvas.dataset.navigationBlocked, "true");
+    assert.equal(Number(f.canvas.dataset.navigationSpeed), 0);
+  }
+  state = "ready";
+  f.tick();
+  assert.ok(f.camera.position.z < origin.z);
+  assert.equal(f.canvas.dataset.navigationBlocked, "false");
 });
