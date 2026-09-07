@@ -108,3 +108,11 @@ Authorization: "pause at next safe point and push changes in stages". Existing b
 Final verified candidatec32e640187e9:95tests, typecheck, web/native builds,99-command tablet browser flow and24-command retained-profile Windows flow passed. Five HTML/PNG stage reports preserve the progression. Installed app and working user data unchanged. Agents paused; no new requirements started. Native macOS/Linux remain blocked by the Windows-only translator build, with other open requirements retained in the professional checklist.
 
 Final publication status: the evidence stage is held locally. Automatic approval review rejected its roughly50MB upload; exact payload/destination approval has been requested. Remote branch verified atf72a839. The three source/tooling commits are pushed; the evidence commit is local pending approval. Work is paused.
+
+### 2026-09-08 — evidence approval completed; navigation reminder checked
+
+User explicitly approved the evidence upload ("approved,, dont forget walk through and dly buttons please"). Evidence commit7fb5f6c was successfully pushed to origin/feat/architect-cad-engine. The previous upload hold is resolved.
+
+Fly and Walk-through are present, enabled and reachable in the verified Windows package; five lower model controls remain present. Fly entry/mouse capture/Escape exit passed. Walk-through picker and retry entry/Escape exit passed, but immediate re-entry after Fly was refused by mouse capture, and the chosen walking start had an unhelpful close surface view. **Walk start visual quality and rapid re-entry remain open for the next work session.** No application source changes or rebuild were made.
+
+Exact scenarios, screenshots and an HTML/PNG addendum are retained locally at proof/growth/2026-09-08-06-navigation-check/. The follow-up check is not a claim of full navigation/movement acceptance. Work remains paused after this status record; installed app and user workspace are untouched.

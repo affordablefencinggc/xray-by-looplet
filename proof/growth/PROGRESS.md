@@ -90,3 +90,11 @@ A targeted tablet audit at 1024×768 and 768×1024 passed layout/identity/reachabi
 The application/tablet/tooling stages are pushed and the remote branch was independently read back at `f72a839c09deec163382a073ac673889ed1d9b52`. Automatic approval review rejected uploading the remaining 803-file, approximately50MB evidence payload because its destination and exact payload authorization were not verified. Public metadata lookup returned404; repository visibility could not be established. No evidence upload was retried.
 
 The full reviewed evidence remains on this PC and is archived in a local commit for review. A specific approval question for this payload and destination is pending. This note supersedes any earlier wording implying the evidence stage has already been published. Work is paused; no new modules or builds are running.
+
+### 2026-09-08 — evidence approval completed; navigation reminder checked
+
+User explicitly approved the evidence upload ("approved,, dont forget walk through and dly buttons please"). Evidence commit7fb5f6c was successfully pushed to origin/feat/architect-cad-engine. The previous upload hold is resolved.
+
+Fly and Walk-through are present, enabled and reachable in the verified Windows package; five lower model controls remain present. Fly entry/mouse capture/Escape exit passed. Walk-through picker and retry entry/Escape exit passed, but immediate re-entry after Fly was refused by mouse capture, and the chosen walking start had an unhelpful close surface view. **Walk start visual quality and rapid re-entry remain open for the next work session.** No application source changes or rebuild were made.
+
+Exact scenarios, screenshots and an HTML/PNG addendum are retained locally at proof/growth/2026-09-08-06-navigation-check/. The follow-up check is not a claim of full navigation/movement acceptance. Work remains paused after this status record; installed app and user workspace are untouched.

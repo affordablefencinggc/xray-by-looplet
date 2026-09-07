@@ -20,3 +20,5 @@ Latest user platform scope, 2026-09-07: tablet, laptop and desktop PC on Windows
 
 
 Publication checkpoint: source/tooling stages pushed; approximately50MB evidence stage archived locally and awaiting the specific approval requested after automatic approval review blocked its upload. Pause remains in effect.
+
+- [ ] Next-session navigation follow-up: preserve the existing Fly/Walk-through buttons and five lower controls; improve/verify useful walking starts and mouse-capture re-entry. 2026-09-08 button/mode checks and the unresolved start view are recorded in the local Stage06 report. Evidence7fb5f6c is now pushed after explicit approval. Pause remains in effect.
