@@ -1,0 +1,13 @@
+import * as XLSX from 'xlsx';
+import { writeFileSync } from 'node:fs';
+const base = 'proof/growth/2026-09-07-pricing/';
+const book = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Workbook instructions — QA fixtures only'], ['Select Civil and electrical, header row 3.']]), 'Read me');
+const data = XLSX.utils.aoa_to_sheet([['Supplier rates — QA only'], [], ['Supplier SKU', 'Item description', 'Measure', 'Unit cost'], ['CV-100', 'Concrete supply QA fixture', 'm3', 150.25], ['EL-200', 'Electrical service QA fixture', 'hour', 75.5]]);
+XLSX.utils.book_append_sheet(book, data, 'Civil and electrical');
+const formula = XLSX.utils.aoa_to_sheet([['SKU', 'Description', 'Unit', 'Rate'], ['F-1', 'Unverified formula QA fixture', 'hour', {t:'n',v:100,f:'50*2'}]]);
+XLSX.utils.book_append_sheet(book, formula, 'Formula rates');
+const bytes = new Uint8Array(XLSX.write(book,{type:'array',bookType:'xlsx',compression:true}));
+writeFileSync(base+'supplier-workbook.xlsx',bytes);
+writeFileSync(base+'truncated-workbook.xlsx',bytes.subarray(0,bytes.length-25));
+writeFileSync(base+'supplier-offset.csv','Supplier CSV QA fixture\r\n\r\nSKU,Description,Unit,Rate\r\nSV-300,Engineering review QA fixture,hour,125.50\r\n');

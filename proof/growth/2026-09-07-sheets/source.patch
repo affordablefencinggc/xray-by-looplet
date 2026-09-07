@@ -1,0 +1,640 @@
+diff --git a/src/studio/sheetLifecycle.ts b/src/studio/sheetLifecycle.ts
+new file mode 100644
+index 0000000..d3d179e
+--- /dev/null
++++ b/src/studio/sheetLifecycle.ts
+@@ -0,0 +1,143 @@
++import { z } from "zod";
++import type { DocumentRevision, FencingJob } from "./domain.ts";
++import { sheetBookmarkSchema, type SheetBookmark } from "./sheetBookmarks.ts";
++
++const identitySchema = z.object({
++  jobId: z.string().min(1), documentId: z.string().min(1),
++  sha256: z.string().regex(/^[a-f0-9]{64}$/), importedAt: z.string().datetime({ offset: true }),
++  pageCount: z.number().int().positive().max(10000),
++}).strict();
++export type SheetSourceIdentity = z.infer<typeof identitySchema>;
++const lifecycleSchema = z.object({
++  format: z.literal("xray.sheet-lifecycle/v1"), identity: identitySchema,
++  revision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1),
++  pages: z.array(z.object({ pageIndex: z.number().int().nonnegative(), name: z.string().min(1).max(120), archived: z.boolean(),
++    discipline: z.string().trim().min(1).max(80).optional(), bookmarks: z.array(sheetBookmarkSchema).max(20).optional(),
++  }).strict()).max(10000),
++}).strict();
++export type SheetLifecycle = z.infer<typeof lifecycleSchema>;
++export type SheetAction = { type: "rename"; pageIndex: number; name: string; discipline?: string } | { type: "archive" | "recover"; pageIndex: number } | { type: "move"; pageIndex: number; direction: -1 | 1 }
++  | {type:"discipline";pageIndex:number;discipline:string} | {type:"group"}
++  | {type:"bookmark";pageIndex:number;bookmark:SheetBookmark} | {type:"remove-bookmark";pageIndex:number;bookmarkId:string};
++export type SheetStorage = Pick<Storage, "getItem" | "setItem">;
++
++export function sheetSourceIdentity(jobId: string, document: DocumentRevision): SheetSourceIdentity | null {
++  if (document.source === "sample" || !document.sha256 || !document.pageCount) return null;
++  const parsed = identitySchema.safeParse({ jobId, documentId: document.id, sha256: document.sha256, importedAt: document.importedAt, pageCount: document.pageCount });
++  return parsed.success ? parsed.data : null;
++}
++export function sheetLifecycleStorageKey(identity: SheetSourceIdentity): string {
++  return `xray.sheet-lifecycle.v1:${JSON.stringify([identity.jobId, identity.documentId, identity.sha256, identity.importedAt, identity.pageCount])}`;
++}
++export function createSheetLifecycle(identity: SheetSourceIdentity): SheetLifecycle {
++  identitySchema.parse(identity);
++  return { format: "xray.sheet-lifecycle/v1", identity: { ...identity }, revision: 0,
++    pages: Array.from({ length: identity.pageCount }, (_, pageIndex) => ({ pageIndex, name: `Sheet ${pageIndex + 1}`, archived: false })) };
++}
++export function parseSheetLifecycle(raw: string, identity: SheetSourceIdentity): SheetLifecycle {
++  const value = lifecycleSchema.parse(JSON.parse(raw));
++  if (sheetLifecycleStorageKey(value.identity) !== sheetLifecycleStorageKey(identity)) throw Error("Sheet organisation belongs to a different source revision.");
++  const indices = new Set(value.pages.map(p => p.pageIndex));
++  if (value.pages.length !== identity.pageCount || indices.size !== identity.pageCount || value.pages.some(p => p.pageIndex >= identity.pageCount || !p.name.trim() || p.name !== p.name.trim())) throw Error("Saved sheet organisation does not match the source pages.");
++  const bookmarks=value.pages.flatMap(p=>p.bookmarks??[]);
++  if(new Set(bookmarks.map(b=>b.id)).size!==bookmarks.length)throw Error("Saved views contain duplicate identities.");
++  return value;
++}
++export function readSheetLifecycle(identity: SheetSourceIdentity, storage: Pick<Storage, "getItem">): SheetLifecycle {
++  const raw = storage.getItem(sheetLifecycleStorageKey(identity));
++  return raw === null ? createSheetLifecycle(identity) : parseSheetLifecycle(raw, identity);
++}
++export function changeSheetLifecycle(value: SheetLifecycle, action: SheetAction): SheetLifecycle {
++  parseSheetLifecycle(JSON.stringify(value), value.identity);
++  if(action.type==="group") {
++    const pages=[...value.pages].sort((a,b)=>(a.discipline??"\uffff").localeCompare(b.discipline??"\uffff", "en", {sensitivity:"base"}));
++    return {...value,revision:value.revision+1,pages};
++  }
++  const index = value.pages.findIndex(p => p.pageIndex === action.pageIndex);
++  if (index < 0) throw Error("That page is no longer part of this source.");
++  const next = structuredClone(value), page = next.pages[index];
++  if(action.type==="discipline") {
++    const discipline=action.discipline.trim();
++    if(discipline.length>80)throw Error("Use a discipline name up to 80 characters.");
++    if(discipline)page.discipline=discipline;else delete page.discipline;
++  } else if(action.type==="bookmark") {
++    const bookmark=sheetBookmarkSchema.parse(action.bookmark);
++    if(next.pages.some(p=>p.bookmarks?.some(b=>b.id===bookmark.id)))throw Error("That saved view already exists.");
++    if((page.bookmarks?.length??0)>=20)throw Error("Keep up to 20 saved views per page. Remove an old view before adding another.");
++    page.bookmarks=[...(page.bookmarks??[]),bookmark];
++  } else if(action.type==="remove-bookmark") {
++    if(!page.bookmarks?.some(b=>b.id===action.bookmarkId))throw Error("That saved view no longer exists. Reload before editing.");
++    page.bookmarks=page.bookmarks.filter(b=>b.id!==action.bookmarkId);
++    if(!page.bookmarks.length)delete page.bookmarks;
++  } else if (action.type === "rename") {
++    const name = action.name.trim();
++    if (!name || name.length > 120) throw Error("Enter a sheet name between 1 and 120 characters.");
++    page.name = name;
++    if(action.discipline!==undefined){const discipline=action.discipline.trim();if(discipline.length>80)throw Error("Use a discipline name up to 80 characters.");if(discipline)page.discipline=discipline;else delete page.discipline;}
++  } else if (action.type === "move") {
++    if (page.archived) throw Error("Recover this sheet before changing its order.");
++    // Swap with the neighbouring active sheet, preserving archived slots and source indices.
++    let other = index + action.direction;
++    while (other >= 0 && other < next.pages.length && next.pages[other].archived) other += action.direction;
++    if (other < 0 || other >= next.pages.length) return value;
++    [next.pages[index], next.pages[other]] = [next.pages[other], next.pages[index]];
++  } else page.archived = action.type === "archive";
++  next.revision += 1;
++  return next;
++}
++/** Export every original page in managed order, including archive status and saved view metadata. */
++export function exportSheetRegister(value:SheetLifecycle, sourceName:string):string {
++  const checked=parseSheetLifecycle(JSON.stringify(value),value.identity);
++  return JSON.stringify({format:"xray.sheet-register/v1",sourceName,source:checked.identity,
++    sheets:checked.pages.map((page,index)=>({order:index+1,originalPage:page.pageIndex+1,name:page.name,discipline:page.discipline??null,archived:page.archived,bookmarks:page.bookmarks??[]}))},null,2);
++}
++/** Call within the key's exclusive Web Lock. A stale UI cannot replace another window's edits. */
++export function saveSheetLifecycle(previous: SheetLifecycle, action: SheetAction, storage: SheetStorage): SheetLifecycle {
++  const current = readSheetLifecycle(previous.identity, storage);
++  if (JSON.stringify(current) !== JSON.stringify(previous)) throw Error("Sheet organisation changed in another window. Reload the list before trying again.");
++  const next = changeSheetLifecycle(previous, action);
++  if (next !== previous) storage.setItem(sheetLifecycleStorageKey(next.identity), JSON.stringify(next));
++  return next;
++}
++type JobSources = Pick<FencingJob, "id" | "documents">;
++/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. */
++export function sheetArchiveImpact(job: Pick<FencingJob, "id" | "documents" | "activeDocumentId"> & {
++  calibrations: Pick<FencingJob["calibrations"][number], "sheet">[];
++  runs: Pick<FencingJob["runs"][number], "id" | "sheet" | "photoIds">[];
++  gates: Pick<FencingJob["gates"][number], "id" | "sheet" | "photoIds">[];
++  photos: Pick<FencingJob["photos"][number], "id" | "runIds" | "gateIds">[];
++  annotations?: { sheet: number; documentId: string }[];
++}, identity: SheetSourceIdentity, pageIndex: number) {
++  const document = job.documents.find(d => d.id === job.activeDocumentId);
++  const actual = document && sheetSourceIdentity(job.id, document);
++  if (!actual || sheetLifecycleStorageKey(actual) !== sheetLifecycleStorageKey(identity) || pageIndex < 0 || pageIndex >= identity.pageCount) throw Error("The source drawing changed. Review the sheet again before archiving.");
++  const runs = job.runs.filter(r => r.sheet === pageIndex), items = job.gates.filter(g => g.sheet === pageIndex);
++  const runIds = new Set(runs.map(r => r.id)), itemIds = new Set(items.map(g => g.id));
++  const photoIds = new Set([...runs, ...items].flatMap(row => row.photoIds));
++  const photos = job.photos.filter(photo => photoIds.has(photo.id) || photo.runIds.some(id => runIds.has(id)) || photo.gateIds.some(id => itemIds.has(id)));
++  return { calibrations: job.calibrations.filter(c => c.sheet === pageIndex).length, traces: runs.length, items: items.length,
++    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length };
++}
++/** Capture every saved source sidecar, including inactive documents, for a portable backup. */
++export function readJobSheetMetadata(job: JobSources, storage: Pick<Storage, "getItem">): string | null {
++  const values: SheetLifecycle[] = [];
++  for (const document of job.documents) {
++    const identity = sheetSourceIdentity(job.id, document);
++    if (!identity) continue;
++    const raw = storage.getItem(sheetLifecycleStorageKey(identity));
++    if (raw !== null) values.push(parseSheetLifecycle(raw, identity));
++  }
++  return values.length ? JSON.stringify(values) : null;
++}
++export function validateJobSheetMetadata(raw: string | null, job: JobSources): SheetLifecycle[] {
++  if (raw === null) return [];
++  const values = z.array(lifecycleSchema).max(10000).parse(JSON.parse(raw));
++  const seen = new Set<string>();
++  return values.map(value => {
++    const source = job.documents.find(d => d.id === value.identity.documentId);
++    const identity = source && sheetSourceIdentity(job.id, source);
++    if (!identity || seen.has(source.id)) throw Error("Sheet organisation contains an unknown or duplicate source.");
++    seen.add(source.id);
++    return parseSheetLifecycle(JSON.stringify(value), identity);
++  });
++}
+diff --git a/src/studio/sheetLifecycle.test.ts b/src/studio/sheetLifecycle.test.ts
+new file mode 100644
+index 0000000..e712f3c
+--- /dev/null
++++ b/src/studio/sheetLifecycle.test.ts
+@@ -0,0 +1,137 @@
++import { describe, it } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob } from "./domain.ts";
++import { changeSheetLifecycle, createSheetLifecycle, exportSheetRegister, parseSheetLifecycle, readJobSheetMetadata, readSheetLifecycle, saveSheetLifecycle, sheetArchiveImpact, sheetLifecycleStorageKey, sheetSourceIdentity, validateJobSheetMetadata, type SheetStorage } from "./sheetLifecycle.ts";
++import {captureSheetBookmark} from "./sheetBookmarks.ts";
++
++function fixture() {
++  const job = createDefaultJob();
++  job.documents = [{ id: "plan-1", name: "Architectural.pdf", kind: "pdf", source: "web", importedAt: "2026-09-07T00:00:00.000Z", sha256: "a".repeat(64), pageCount: 4 }];
++  const identity = sheetSourceIdentity(job.id, job.documents[0])!;
++  const map = new Map<string, string>();
++  const storage: SheetStorage = { getItem: key => map.get(key) ?? null, setItem: (key, value) => { map.set(key, value); } };
++  return { job, identity, storage, map };
++}
++describe("source sheet organisation", () => {
++  it("persists custom disciplines and stable grouped order in backup and ordered export without source renumbering",()=>{
++    const {job,identity,storage}=fixture();let value=createSheetLifecycle(identity);
++    value=saveSheetLifecycle(value,{type:"discipline",pageIndex:0,discipline:"Structural"},storage);
++    value=saveSheetLifecycle(value,{type:"discipline",pageIndex:1,discipline:"Architecture"},storage);
++    value=saveSheetLifecycle(value,{type:"rename",pageIndex:2,name:"Roof framing",discipline:"Structural"},storage);
++    value=saveSheetLifecycle(value,{type:"group"},storage);
++    assert.deepEqual(value.pages.map(p=>p.pageIndex),[1,0,2,3]);
++    assert.deepEqual(readSheetLifecycle(identity,storage),value);
++    assert.deepEqual(validateJobSheetMetadata(readJobSheetMetadata(job,storage),job),[value]);
++    const exported=JSON.parse(exportSheetRegister(value,"Plans.pdf"));
++    assert.deepEqual(exported.sheets.map((p:{originalPage:number})=>p.originalPage),[2,1,3,4]);
++    assert.deepEqual(exported.sheets.map((p:{discipline:string|null})=>p.discipline),["Architecture","Structural","Structural",null]);
++    assert.throws(()=>changeSheetLifecycle(value,{type:"discipline",pageIndex:0,discipline:"x".repeat(81)}));
++  });
++  it("keeps old metadata byte-shape compatible and persists/removes source-page bookmarks without discarding grouping",()=>{
++    const {identity,storage}=fixture();const initial=createSheetLifecycle(identity);
++    assert.deepEqual(parseSheetLifecycle(JSON.stringify(initial),identity),initial);
++    let value=saveSheetLifecycle(initial,{type:"discipline",pageIndex:0,discipline:"Civil"},storage);
++    const bookmark=captureSheetBookmark("Junction",2,{x:15,y:22},{width:500,height:400});
++    value=saveSheetLifecycle(value,{type:"bookmark",pageIndex:0,bookmark},storage);
++    assert.deepEqual(readSheetLifecycle(identity,storage).pages[0].bookmarks,[bookmark]);
++    assert.equal(JSON.parse(exportSheetRegister(value,"Plan.pdf")).sheets[0].bookmarks[0].name,"Junction");
++    assert.throws(()=>changeSheetLifecycle(value,{type:"bookmark",pageIndex:1,bookmark}),/already exists/);
++    value=saveSheetLifecycle(value,{type:"remove-bookmark",pageIndex:0,bookmarkId:bookmark.id},storage);
++    assert.equal(value.pages[0].bookmarks,undefined);assert.equal(value.pages[0].discipline,"Civil");
++  });
++  it("archive review counts only the selected page's evidence, deduplicates linked photos and refuses changed sources", () => {
++    const { job, identity } = fixture();
++    const input = { ...job, activeDocumentId: identity.documentId,
++      calibrations: [{sheet:0},{sheet:1}], runs: [{id:"r1",sheet:0,photoIds:["p1"]},{id:"r2",sheet:1,photoIds:["p2"]}],
++      gates: [{id:"i1",sheet:0,photoIds:["p1"]}],
++      photos: [{id:"p1",runIds:["r1"],gateIds:["i1"]},{id:"p2",runIds:["r2"],gateIds:[]},{id:"p3",runIds:[],gateIds:[]}],
++      annotations: [{sheet:0,documentId:identity.documentId},{sheet:1,documentId:identity.documentId},{sheet:0,documentId:"other"}] };
++    const before = structuredClone(input);
++    assert.deepEqual(sheetArchiveImpact(input, identity, 0), {calibrations:1,traces:1,items:1,annotations:1,linkedPhotos:1});
++    assert.deepEqual(input, before);
++    assert.throws(() => sheetArchiveImpact({...input,activeDocumentId:"other"}, identity, 0), /source drawing changed/);
++  });
++  it("accepts valid source timestamps with a timezone offset", () => {
++    const { job } = fixture();
++    job.documents[0].importedAt = "2026-09-07T10:00:00+10:00";
++    const identity = sheetSourceIdentity(job.id, job.documents[0]);
++    assert.ok(identity);
++    const value = createSheetLifecycle(identity);
++    assert.deepEqual(parseSheetLifecycle(JSON.stringify(value), identity), value);
++  });
++  it("renames and reorders without renumbering source pages or changing their source", () => {
++    const { identity, storage } = fixture();
++    const initial = readSheetLifecycle(identity, storage);
++    const renamed = saveSheetLifecycle(initial, { type: "rename", pageIndex: 2, name: "  Structural bracing  " }, storage);
++    const moved = saveSheetLifecycle(renamed, { type: "move", pageIndex: 2, direction: -1 }, storage);
++    assert.deepEqual(moved.pages.map(p => p.pageIndex), [0, 2, 1, 3]);
++    assert.equal(moved.pages[1].name, "Structural bracing");
++    assert.deepEqual(moved.identity, identity);
++    assert.deepEqual(readSheetLifecycle(identity, storage), moved);
++    assert.deepEqual(initial.pages.map(p => p.pageIndex), [0, 1, 2, 3]);
++  });
++  it("archives and recovers every page without deleting a page; ordering skips archived slots", () => {
++    const { identity } = fixture();
++    let value = changeSheetLifecycle(createSheetLifecycle(identity), { type: "archive", pageIndex: 1 });
++    value = changeSheetLifecycle(value, { type: "move", pageIndex: 2, direction: -1 });
++    assert.deepEqual(value.pages.map(p => p.pageIndex), [2, 1, 0, 3]);
++    assert.throws(() => changeSheetLifecycle(value, { type: "move", pageIndex: 1, direction: 1 }), /Recover/);
++    for (let pageIndex = 0; pageIndex < 4; pageIndex++) value = changeSheetLifecycle(value, { type: "archive", pageIndex });
++    assert.equal(value.pages.filter(p => p.archived).length, 4);
++    value = changeSheetLifecycle(value, { type: "recover", pageIndex: 1 });
++    assert.equal(value.pages.filter(p => !p.archived)[0].pageIndex, 1);
++    assert.equal(value.pages.length, 4);
++  });
++  it("refuses stale edits and preserves the latest saved names", () => {
++    const { identity, storage } = fixture();
++    const windowA = readSheetLifecycle(identity, storage), windowB = readSheetLifecycle(identity, storage);
++    saveSheetLifecycle(windowA, { type: "rename", pageIndex: 0, name: "Site plan" }, storage);
++    assert.throws(() => saveSheetLifecycle(windowB, { type: "archive", pageIndex: 1 }, storage), /another window/);
++    assert.equal(readSheetLifecycle(identity, storage).pages[0].name, "Site plan");
++    assert.equal(readSheetLifecycle(identity, storage).pages[1].archived, false);
++  });
++  it("keeps organisation separate when source bytes, revision, page count or project change", () => {
++    const { identity, storage } = fixture();
++    const value = saveSheetLifecycle(createSheetLifecycle(identity), { type: "rename", pageIndex: 0, name: "Old revision" }, storage);
++    for (const patch of [{ sha256: "b".repeat(64) }, { importedAt: "2026-09-08T00:00:00.000Z" }, { pageCount: 3 }, { jobId: "other-job" }, { documentId: "other-plan" }]) {
++      const other = { ...identity, ...patch };
++      assert.notEqual(sheetLifecycleStorageKey(other), sheetLifecycleStorageKey(identity));
++      assert.equal(readSheetLifecycle(other, storage).pages[0].name, "Sheet 1");
++      assert.throws(() => parseSheetLifecycle(JSON.stringify(value), other), /different source/);
++    }
++  });
++  it("refuses malformed stored metadata and does not overwrite it", () => {
++    const { identity, storage, map } = fixture();
++    const initial = createSheetLifecycle(identity), key = sheetLifecycleStorageKey(identity);
++    const duplicate = structuredClone(initial); duplicate.pages[1].pageIndex = 0;
++    for (const raw of ["{broken", JSON.stringify({ ...initial, format: "future" }), JSON.stringify(duplicate), JSON.stringify({ ...initial, pages: initial.pages.slice(1) })]) {
++      map.set(key, raw);
++      assert.throws(() => saveSheetLifecycle(initial, { type: "archive", pageIndex: 0 }, storage));
++      assert.equal(map.get(key), raw);
++    }
++  });
++  it("surfaces storage failures without presenting an unsaved edit as successful", () => {
++    const { identity } = fixture();
++    const previous = createSheetLifecycle(identity);
++    assert.throws(() => saveSheetLifecycle(previous, { type: "rename", pageIndex: 0, name: "Site" }, { getItem: () => null, setItem: () => { throw Error("Quota exceeded"); } }), /Quota exceeded/);
++    assert.equal(previous.pages[0].name, "Sheet 1");
++    assert.throws(() => readSheetLifecycle(identity, { getItem: () => { throw Error("Storage denied"); } }), /Storage denied/);
++    assert.throws(() => changeSheetLifecycle(previous, { type: "rename", pageIndex: 0, name: " " }), /sheet name/);
++    assert.throws(() => changeSheetLifecycle(previous, { type: "archive", pageIndex: 4 }), /no longer/);
++  });
++  it("captures inactive documents and validates portable metadata against every exact source identity", () => {
++    const { job, identity, storage } = fixture();
++    job.documents.push({ ...job.documents[0], id: "plan-2", sha256: "b".repeat(64), pageCount: 2 });
++    const second = sheetSourceIdentity(job.id, job.documents[1])!;
++    assert.equal(readJobSheetMetadata(job, storage), null);
++    saveSheetLifecycle(createSheetLifecycle(identity), { type: "rename", pageIndex: 0, name: "First" }, storage);
++    saveSheetLifecycle(createSheetLifecycle(second), { type: "archive", pageIndex: 1 }, storage);
++    const raw = readJobSheetMetadata(job, storage)!;
++    assert.equal(validateJobSheetMetadata(raw, job).length, 2);
++    assert.deepEqual(validateJobSheetMetadata(null, job), []);
++    assert.throws(() => validateJobSheetMetadata(raw, { ...job, id: "other" }), /different source/);
++    assert.throws(() => validateJobSheetMetadata(raw, { ...job, documents: [job.documents[0]] }), /unknown/);
++    const values = JSON.parse(raw);
++    assert.throws(() => validateJobSheetMetadata(JSON.stringify([values[0], values[0]]), job), /duplicate/);
++  });
++});
+diff --git a/src/studio/SheetManager.tsx b/src/studio/SheetManager.tsx
+new file mode 100644
+index 0000000..0bea3d6
+--- /dev/null
++++ b/src/studio/SheetManager.tsx
+@@ -0,0 +1,108 @@
++import { useEffect, useState } from "react";
++import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Pencil, Download } from "lucide-react";
++import { useStudio } from "./store";
++import { exportSheetRegister, readSheetLifecycle, saveSheetLifecycle, sheetArchiveImpact, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetAction, type SheetLifecycle } from "./sheetLifecycle.ts";
++import { notifySheetLifecycleChanged, SHEET_LIFECYCLE_CHANGED } from "./useSheetLifecycle";
++import "./sheetManager.css";
++
++const errorText = (error: unknown) => error instanceof Error && error.name !== "ZodError" ? error.message : "Saved sheet organisation could not be read. The original drawings are preserved.";
++
++export function SheetManager() {
++  const job = useStudio(s => s.job), sheet = useStudio(s => s.sheet), hydrated = useStudio(s => s.persistenceHydrated);
++  const source = job.documents.find(d => d.id === job.activeDocumentId);
++  const identity = source ? sheetSourceIdentity(job.id, source) : null;
++  const sourceKey = identity ? sheetLifecycleStorageKey(identity) : "";
++  const [saved, setSaved] = useState<SheetLifecycle | null>(null), [error, setError] = useState("");
++  const [message, setMessage] = useState(""), [busy, setBusy] = useState(false), [archived, setArchived] = useState(false), [query, setQuery] = useState("");
++  const [renaming, setRenaming] = useState<number | null>(null), [name, setName] = useState("");
++  const [discipline,setDiscipline]=useState(""),[disciplineFilter,setDisciplineFilter]=useState("");
++  const [archiveReview, setArchiveReview] = useState<{ key: string; pageIndex: number; job: typeof job; impact: ReturnType<typeof sheetArchiveImpact> } | null>(null);
++  const current = saved && sourceKey === sheetLifecycleStorageKey(saved.identity) ? saved : null;
++  function refresh() {
++    setError(""); setRenaming(null); setArchiveReview(null);
++    try { setSaved(identity ? readSheetLifecycle(identity, window.localStorage) : null); }
++    catch (failure) { setSaved(null); setError(errorText(failure)); }
++  }
++  useEffect(() => {
++    refresh(); setQuery(""); setDisciplineFilter(""); setArchived(false); setMessage("");
++    const update = (event: StorageEvent) => { if (event.key === sourceKey || event.key === null) refresh(); };
++    const local = (event: Event) => { if ((event as CustomEvent<{key:string}>).detail?.key === sourceKey) refresh(); };
++    window.addEventListener("storage", update);
++    window.addEventListener(SHEET_LIFECYCLE_CHANGED, local);
++    return () => { window.removeEventListener("storage", update); window.removeEventListener(SHEET_LIFECYCLE_CHANGED, local); };
++  }, [sourceKey]);
++  async function mutate(action: SheetAction) {
++    if (!current || busy) return;
++    setBusy(true); setError(""); setMessage("");
++    try {
++      if (!navigator.locks) throw Error("Saving sheet organisation is unavailable in this browser. Open X-Ray in its desktop app or a secure browser window.");
++      await navigator.locks.request(sourceKey, () => {
++        const live = useStudio.getState().job;
++        const doc = live.documents.find(d => d.id === live.activeDocumentId);
++        const liveIdentity = doc && sheetSourceIdentity(live.id, doc);
++        if (!liveIdentity || sheetLifecycleStorageKey(liveIdentity) !== sourceKey) throw Error("The source drawing changed. Reload its sheet list before editing.");
++        if (action.type === "archive" && (!archiveReview || archiveReview.key !== sourceKey || archiveReview.pageIndex !== action.pageIndex || archiveReview.job !== live)) throw Error("The project changed after this review. Cancel and review the sheet again before archiving.");
++        const next = saveSheetLifecycle(current, action, window.localStorage);
++        setSaved(next); setRenaming(null); setArchiveReview(null); notifySheetLifecycleChanged(sourceKey);
++        setMessage(action.type === "archive" ? "Sheet archived. Its source and measurements are preserved." : action.type === "recover" ? "Sheet recovered to the active list." : "Sheet organisation saved.");
++      });
++    } catch (failure) { setError(errorText(failure)); }
++    finally { setBusy(false); }
++  }
++  function reviewArchive(pageIndex: number) {
++    if (!identity) return;
++    try {
++      const live = useStudio.getState().job;
++      setArchiveReview({ key: sourceKey, pageIndex, job: live, impact: sheetArchiveImpact(live, identity, pageIndex) }); setRenaming(null); setError("");
++    } catch (failure) { setError(errorText(failure)); }
++  }
++  async function selectSource(documentId: string) {
++    setBusy(true); setError("");
++    try { await useStudio.getState().selectDocument(documentId); }
++    catch (failure) { setError(errorText(failure)); }
++    finally { setBusy(false); }
++  }
++  function exportRegister(){
++    if(!current||!source)return;
++    try{
++      const value=readSheetLifecycle(current.identity,localStorage);
++      const url=URL.createObjectURL(new Blob([exportSheetRegister(value,source.name)],{type:"application/json"}));
++      const link=document.createElement("a");link.href=url;link.download=`${source.name.replace(/[^a-z0-9_-]/gi,"_")}.sheet-register.json`;document.body.append(link);link.click();link.remove();
++      setTimeout(()=>URL.revokeObjectURL(url),30000);setMessage("Ordered sheet register exported, including discipline groups, archived pages and saved views.");
++    }catch(failure){setError(errorText(failure));}
++  }
++  const active = current?.pages.filter(p => !p.archived) ?? [];
++  const archiveCount = current?.pages.filter(p => p.archived).length ?? 0;
++  const pages = current?.pages.filter(p => p.archived === archived && (!disciplineFilter||(p.discipline??"Ungrouped")===disciplineFilter) && `${p.name} ${p.discipline??""} ${p.pageIndex + 1}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())) ?? [];
++  const disciplines=[...new Set(current?.pages.map(p=>p.discipline??"Ungrouped")??[])].sort();
++  const documents = job.documents.filter(d => d.source !== "sample");
++  return <section className="sheet-manager" aria-label="Manage source sheets">
++    <div className="sheet-manager-heading"><div><h2>Sheet register</h2><p>Name, arrange and archive pages for this project. Original page numbers stay fixed for evidence links.</p></div>
++      <button className="pill" onClick={refresh} disabled={busy}>Reload list</button></div>
++    {documents.length > 0 && <label>Source drawing<select aria-label="Source drawing" value={job.activeDocumentId ?? ""} onChange={e => void selectSource(e.target.value)} disabled={busy || !hydrated}>{documents.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
++    {error && <p role="alert" className="sheet-manager-notice">{error}</p>}
++    {message && <p role="status" className="sheet-manager-notice">{message}</p>}
++    {!identity && <p>Import a drawing with verified source pages to organise its sheets.</p>}
++    {current && <>
++      <div className="sheet-manager-toolbar"><div role="group" aria-label="Sheet list filter"><button className="pill" aria-pressed={!archived} onClick={() => { setArchived(false); setRenaming(null); }}>Active ({active.length})</button><button className="pill" aria-pressed={archived} onClick={() => { setArchived(true); setRenaming(null); }}>Archived ({archiveCount})</button></div><label>Find a sheet<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name or original page" /></label></div>
++      <div className="sheet-manager-toolbar"><label>Discipline group<select aria-label="Filter discipline group" value={disciplineFilter} onChange={e=>setDisciplineFilter(e.target.value)}><option value="">All disciplines</option>{disciplines.map(d=><option key={d}>{d}</option>)}</select></label><button className="pill" disabled={busy||!!query||!!disciplineFilter} onClick={()=>void mutate({type:"group"})}>Group by discipline</button><button className="pill" disabled={busy} aria-label="Export sheet register" onClick={exportRegister}><Download size={14} aria-hidden="true"/>Export sheet register</button></div>
++      {archived && <p className="sheet-manager-help">Archived sheets are hidden from active sheet navigation. They remain in the original drawing and evidence. View or recover them here.</p>}
++      <ol className="sheet-manager-list">{pages.map((page,index) => <li key={page.pageIndex} data-original-page={page.pageIndex+1} data-discipline={page.discipline??"Ungrouped"}>
++        {(index===0||pages[index-1].discipline!==page.discipline)&&<h3 className="sheet-discipline-heading">{page.discipline??"Ungrouped"}</h3>}
++        <div className="sheet-manager-title"><strong>{page.name}</strong><span>Original page {page.pageIndex + 1}{sheet === page.pageIndex ? " · Viewing" : ""}{page.bookmarks?.length?` · ${page.bookmarks.length} saved views`:""}</span></div>
++        {archiveReview?.key === sourceKey && archiveReview.pageIndex === page.pageIndex ? <div className="sheet-archive-review" role="region" aria-label={`Review archive ${page.name}`}>
++          <strong>Archive {page.name}?</strong><p>This removes original page {page.pageIndex + 1} from active sheet navigation. The original drawing and all saved work stay intact. Recover it at any time from Archived.</p>
++          <dl><div><dt>Calibrations retained</dt><dd>{archiveReview.impact.calibrations}</dd></div><div><dt>Measured traces retained</dt><dd>{archiveReview.impact.traces}</dd></div><div><dt>Located items retained</dt><dd>{archiveReview.impact.items}</dd></div><div><dt>Annotations retained</dt><dd>{archiveReview.impact.annotations}</dd></div><div><dt>Linked photos retained</dt><dd>{archiveReview.impact.linkedPhotos}</dd></div></dl>
++          <p>Estimates and evidence totals are unchanged. Unlinked document photos are also preserved.</p><div className="sheet-manager-actions"><button className="pill" disabled={busy} onClick={() => void mutate({type:"archive",pageIndex:page.pageIndex})}>Confirm archive</button><button className="pill" disabled={busy} onClick={() => setArchiveReview(null)}>Cancel</button></div>
++        </div> : renaming === page.pageIndex ? <form className="sheet-manager-rename" onSubmit={e => { e.preventDefault(); void mutate({ type: "rename", pageIndex: page.pageIndex, name, discipline }); }}><label>Sheet name<input autoFocus value={name} onChange={e => setName(e.target.value)} maxLength={120} disabled={busy} /></label><label>Discipline<input list="sheet-discipline-suggestions" value={discipline} onChange={e=>setDiscipline(e.target.value)} maxLength={80} placeholder="Architecture, civil, electrical…" disabled={busy}/></label><datalist id="sheet-discipline-suggestions">{[...new Set(["Architecture","Civil","Electrical","Fire services","Hydraulics","Landscape","Mechanical","Structural",...disciplines.filter(d=>d!=="Ungrouped")])].map(d=><option key={d} value={d}/>)}</datalist><button className="pill" type="submit" disabled={busy || !name.trim()}>Save name</button><button className="pill" type="button" disabled={busy} onClick={() => setRenaming(null)}>Cancel</button></form> : <div className="sheet-manager-actions">
++          <button className="pill" disabled={busy || !hydrated} onClick={() => useStudio.getState().setSheet(page.pageIndex)}>View page {page.pageIndex + 1}</button>
++          <button className="pill" disabled={busy} aria-label={`Rename ${page.name}`} onClick={() => { setRenaming(page.pageIndex); setName(page.name); setDiscipline(page.discipline??""); }}><Pencil size={14} aria-hidden="true" />Edit sheet</button>
++          {!archived && <><button className="pill" disabled={busy || !!query || !!disciplineFilter || active[0]?.pageIndex === page.pageIndex} aria-label={`Move ${page.name} up`} onClick={() => void mutate({ type: "move", pageIndex: page.pageIndex, direction: -1 })}><ArrowUp size={14} aria-hidden="true" /></button><button className="pill" disabled={busy || !!query || !!disciplineFilter || active.at(-1)?.pageIndex === page.pageIndex} aria-label={`Move ${page.name} down`} onClick={() => void mutate({ type: "move", pageIndex: page.pageIndex, direction: 1 })}><ArrowDown size={14} aria-hidden="true" /></button></>}
++          <button className="pill" disabled={busy} aria-label={`${archived ? "Recover" : "Archive"} ${page.name}`} onClick={() => archived ? void mutate({ type: "recover", pageIndex: page.pageIndex }) : reviewArchive(page.pageIndex)}>{archived ? <ArchiveRestore size={14} aria-hidden="true" /> : <Archive size={14} aria-hidden="true" />}{archived ? "Recover" : "Archive"}</button>
++        </div>}
++      </li>)}</ol>
++      {!pages.length && <p>{query ? "No sheets match your search." : archived ? "No archived sheets." : "All sheets are archived. Recover a sheet from the Archived list."}</p>}
++      <p className="sheet-manager-help">Names, disciplines and order are saved with this source. Group by discipline sorts groups alphabetically, keeping each group's current order. Export includes every original page. Drawing files and original page numbers stay intact.</p>
++    </>}
++  </section>;
++}
+diff --git a/src/studio/sheetManager.css b/src/studio/sheetManager.css
+new file mode 100644
+index 0000000..51742bb
+--- /dev/null
++++ b/src/studio/sheetManager.css
+@@ -0,0 +1,25 @@
++.sheet-manager { display: grid; gap: 16px; padding-block: 16px; border-block: 1px solid var(--color-line); color: var(--color-ink); min-width: 0; }
++.sheet-manager h2 { font-size: 18px; font-weight: 600; }
++.sheet-manager p { line-height: 1.5; overflow-wrap: anywhere; }
++.sheet-manager-heading, .sheet-manager-toolbar, .sheet-manager-actions, .sheet-manager-rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
++.sheet-manager-heading > div { flex: 1 1 260px; }
++.sheet-manager-heading p, .sheet-manager-help { font-size: 12px; color: var(--color-muted); }
++.sheet-manager label { display: grid; gap: 8px; font-size: 12px; min-width: 0; }
++.sheet-manager-toolbar > label, .sheet-manager-rename > label { flex: 1 1 200px; }
++.sheet-manager-toolbar [role=group] { display: flex; flex-wrap: wrap; gap: 8px; }
++.sheet-manager input, .sheet-manager select { min-width: 0; max-width: 100%; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-bg); color: var(--color-ink); }
++.sheet-manager .pill { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: normal; }
++.sheet-manager button:disabled { opacity: .45; cursor: default; }
++.sheet-manager [aria-pressed=true] { background: var(--color-navy); color: var(--color-on-navy); }
++.sheet-manager-list { display: grid; max-height: 480px; overflow: auto; overscroll-behavior: contain; }
++.sheet-manager-list > li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-block: 12px; border-top: 1px solid var(--color-line); }
++.sheet-manager-title { display: grid; gap: 4px; min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
++.sheet-manager-title span { font-size: 12px; color: var(--color-muted); }
++.sheet-discipline-heading { flex-basis: 100%; font-size: 12px; font-weight: 600; padding: 8px; background: var(--color-header); color: var(--color-ink); border-left: 3px solid var(--color-line); }
++.sheet-manager-rename { width: 100%; align-items: end; }
++.sheet-manager-notice { padding: 12px; background: var(--color-header); color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px; }
++.sheet-archive-review { display: grid; gap: 12px; flex-basis: 100%; padding: 16px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-header); color: var(--color-ink); }
++.sheet-archive-review p { font-size: 12px; }
++.sheet-archive-review dl { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); font-size: 12px; }
++.sheet-archive-review dd { font-weight: 600; margin-top: 4px; }
++@media (max-width: 600px) { .sheet-manager-title, .sheet-manager-actions { flex-basis: 100%; } .sheet-manager-list { max-height: 560px; } }
+diff --git a/src/studio/useSheetLifecycle.ts b/src/studio/useSheetLifecycle.ts
+new file mode 100644
+index 0000000..2e08d19
+--- /dev/null
++++ b/src/studio/useSheetLifecycle.ts
+@@ -0,0 +1,28 @@
++import { useCallback, useEffect, useState } from "react";
++import type { DocumentRevision } from "./domain.ts";
++import { readSheetLifecycle, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetLifecycle } from "./sheetLifecycle.ts";
++
++export const SHEET_LIFECYCLE_CHANGED = "xray:sheet-lifecycle-changed";
++export function notifySheetLifecycleChanged(key: string) {
++  window.dispatchEvent(new CustomEvent(SHEET_LIFECYCLE_CHANGED, { detail: { key } }));
++}
++
++/** Source-aware display data. A missing/corrupt sidecar yields null, never missing source pages. */
++export function useSheetLifecycle(jobId: string, document?: DocumentRevision | null) {
++  const identity = document ? sheetSourceIdentity(jobId, document) : null;
++  const key = identity ? sheetLifecycleStorageKey(identity) : "";
++  const [loaded, setLoaded] = useState<{ key: string; value: SheetLifecycle | null; error: string }>({ key: "", value: null, error: "" });
++  const reload = useCallback(() => {
++    try { setLoaded({ key, value: identity ? readSheetLifecycle(identity, window.localStorage) : null, error: "" }); }
++    catch { setLoaded({ key, value: null, error: "Saved sheet organisation could not be read. Original pages remain available." }); }
++  }, [key]);
++  useEffect(() => {
++    reload();
++    const storage = (event: StorageEvent) => { if (event.key === key || event.key === null) reload(); };
++    const local = (event: Event) => { if ((event as CustomEvent<{ key: string }>).detail?.key === key) reload(); };
++    window.addEventListener("storage", storage);
++    window.addEventListener(SHEET_LIFECYCLE_CHANGED, local);
++    return () => { window.removeEventListener("storage", storage); window.removeEventListener(SHEET_LIFECYCLE_CHANGED, local); };
++  }, [key, reload]);
++  return { value: loaded.key === key ? loaded.value : null, error: loaded.key === key ? loaded.error : "", reload };
++}
+diff --git a/src/studio/sheetBookmarks.ts b/src/studio/sheetBookmarks.ts
+new file mode 100644
+index 0000000..152a585
+--- /dev/null
++++ b/src/studio/sheetBookmarks.ts
+@@ -0,0 +1,21 @@
++import { z } from "zod";
++import { sourceViewport } from "./documentViewport.ts";
++
++export const sheetBookmarkSchema = z.object({
++  id: z.string().uuid(), name: z.string().trim().min(1).max(120),
++  createdAt: z.string().datetime({ offset: true }),
++  zoom: z.number().finite().min(0.1).max(20),
++  aspect: z.number().finite().positive().max(10000),
++  center: z.object({ x: z.number().finite().min(-10000).max(10000), y: z.number().finite().min(-10000).max(10000) }).strict(),
++}).strict();
++export type SheetBookmark = z.infer<typeof sheetBookmarkSchema>;
++export function captureSheetBookmark(name: string, zoom: number, pan: {x:number;y:number}, rendered: {width:number;height:number}): SheetBookmark {
++  if (![rendered.width,rendered.height].every(v=>Number.isFinite(v)&&v>0)) throw Error("Wait for the original source page to finish rendering before saving its view.");
++  return sheetBookmarkSchema.parse({id:crypto.randomUUID(),name,createdAt:new Date().toISOString(),zoom,aspect:rendered.width/rendered.height,
++    center:{x:.5-pan.x/rendered.width,y:.5-pan.y/rendered.height}});
++}
++export function restoreSheetBookmark(bookmark: SheetBookmark, viewport: {width:number;height:number}) {
++  const saved=sheetBookmarkSchema.parse(bookmark), frame=sourceViewport({x:0,y:0,width:saved.aspect,height:1},viewport.width,viewport.height,saved.zoom);
++  if(!frame)throw Error("The drawing viewport is not ready. Open the saved view again after the page is visible.");
++  return {zoom:saved.zoom,pan:{x:(.5-saved.center.x)*saved.aspect*frame.scale,y:(.5-saved.center.y)*frame.scale}};
++}
+diff --git a/src/studio/sheetBookmarks.test.ts b/src/studio/sheetBookmarks.test.ts
+new file mode 100644
+index 0000000..8b6d6b3
+--- /dev/null
++++ b/src/studio/sheetBookmarks.test.ts
+@@ -0,0 +1,25 @@
++import { describe,it } from "node:test";
++import assert from "node:assert/strict";
++import {captureSheetBookmark,restoreSheetBookmark,sheetBookmarkSchema} from "./sheetBookmarks.ts";
++import {sourceViewport} from "./documentViewport.ts";
++describe("source page saved views",()=>{
++  it("round trips source centre and zoom when viewport changes aspect and size",()=>{
++    const aspect=1.414,zoom=2.5,pan={x:130,y:-84};
++    const old=sourceViewport({x:0,y:0,width:aspect,height:1},1000,700,zoom)!;
++    const saved=captureSheetBookmark("Drainage junction",zoom,pan,{width:aspect*old.scale,height:old.scale});
++    const same=restoreSheetBookmark(saved,{width:1000,height:700});
++    assert.ok(Math.abs(same.pan.x-pan.x)<1e-8);assert.ok(Math.abs(same.pan.y-pan.y)<1e-8);
++    const mobile=restoreSheetBookmark(saved,{width:366,height:480}),frame=sourceViewport({x:0,y:0,width:aspect,height:1},366,480,mobile.zoom,mobile.pan)!;
++    assert.ok(Math.abs((366/2-frame.x)/(aspect*frame.scale)-saved.center.x)<1e-8);
++    assert.ok(Math.abs((480/2-frame.y)/frame.scale-saved.center.y)<1e-8);
++    assert.equal(mobile.zoom,zoom);
++  });
++  it("refuses unloaded/nonfinite source geometry, unsupported zoom and invalid saved data",()=>{
++    assert.throws(()=>captureSheetBookmark("Detail",1,{x:0,y:0},{width:0,height:100}),/finish rendering/);
++    assert.throws(()=>captureSheetBookmark(" ",1,{x:0,y:0},{width:100,height:100}));
++    assert.throws(()=>captureSheetBookmark("Detail",21,{x:0,y:0},{width:100,height:100}));
++    const saved=captureSheetBookmark("Detail",1,{x:0,y:0},{width:100,height:100});
++    assert.throws(()=>restoreSheetBookmark(saved,{width:0,height:0}),/not ready/);
++    assert.throws(()=>sheetBookmarkSchema.parse({...saved,center:{x:Infinity,y:0}}));
++  });
++});
+diff --git a/src/studio/SourceSheetBookmarks.tsx b/src/studio/SourceSheetBookmarks.tsx
+new file mode 100644
+index 0000000..bb632bf
+--- /dev/null
++++ b/src/studio/SourceSheetBookmarks.tsx
+@@ -0,0 +1,87 @@
++import { useEffect, useLayoutEffect, useRef, useState } from "react";
++import { BookmarkPlus, Navigation, Trash2 } from "lucide-react";
++import { useStudio } from "./store";
++import { captureSheetBookmark, restoreSheetBookmark, type SheetBookmark } from "./sheetBookmarks.ts";
++import { readSheetLifecycle, saveSheetLifecycle, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetAction } from "./sheetLifecycle.ts";
++import { notifySheetLifecycleChanged, useSheetLifecycle } from "./useSheetLifecycle.ts";
++import "./sheetBookmarks.css";
++
++/** Mount once beside a Measure/Sketch DocumentPreview. Page identity remains the original source index. */
++export function SheetBookmarks(){
++  const job=useStudio(s=>s.job),sheet=useStudio(s=>s.sheet),hydrated=useStudio(s=>s.persistenceHydrated);
++  const source=job.documents.find(d=>d.id===job.activeDocumentId);
++  const {value,error:readError,reload}=useSheetLifecycle(job.id,source);
++  const identity=source?sheetSourceIdentity(job.id,source):null,key=identity?sheetLifecycleStorageKey(identity):"";
++  const [name,setName]=useState(""),[message,setMessage]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
++  const [restoring,setRestoring]=useState<{key:string;pageIndex:number;bookmark:SheetBookmark}|null>(null);
++  const flight=useRef(false);
++  useEffect(()=>{setName("");setMessage("");setError("");},[key]);
++  useLayoutEffect(()=>{
++    if(!restoring||restoring.key!==key)return;
++    const viewport=document.querySelector('.measure-document-preview .document-preview-viewport');if(!viewport)return;
++    let applying=false;
++    const apply=()=>{
++      const live=useStudio.getState();if(live.sheet!==restoring.pageIndex)return;
++      const size=viewport.getBoundingClientRect();if(size.width<=0||size.height<=0)return;
++      const view=restoreSheetBookmark(restoring.bookmark,size);
++      applying=true;try{live.setZoom2d(view.zoom);live.setPan2d(view.pan);}finally{applying=false;}
++    };
++    apply();const observer=new ResizeObserver(apply);observer.observe(viewport);
++    const unsubscribe=useStudio.subscribe((next,previous)=>{
++      if(!applying&&(next.zoom2d!==previous.zoom2d||next.pan2d!==previous.pan2d||next.sheet!==restoring.pageIndex||next.job.activeDocumentId!==source?.id))setRestoring(null);
++    });
++    return()=>{observer.disconnect();unsubscribe();};
++  },[restoring,key]);
++  function problem(failure:unknown){setError(failure instanceof Error&&failure.name!=="ZodError"?failure.message:"The saved view did not pass validation. Existing saved views are unchanged.");}
++  async function change(action:SheetAction){
++    if(!value||flight.current)return;
++    flight.current=true;setBusy(true);setError("");setMessage("");
++    try{
++      if(!navigator.locks)throw Error("Safe saved-view storage is unavailable in this browser. Use the desktop app or a secure browser connection.");
++      await navigator.locks.request(key,()=>{
++        const live=useStudio.getState(),doc=live.job.documents.find(d=>d.id===live.job.activeDocumentId),actual=doc&&sheetSourceIdentity(live.job.id,doc);
++        if(!actual||sheetLifecycleStorageKey(actual)!==key||(action.type==="bookmark"&&live.sheet!==action.pageIndex))throw Error("The source page changed. Save its view again after it finishes loading.");
++        saveSheetLifecycle(value,action,localStorage);notifySheetLifecycleChanged(key);
++        setMessage(action.type==="bookmark"?"Saved view stored with this original page. It will remain available after reopening X-Ray.":"Saved view removed. The source page and drawing work are unchanged.");
++        if(action.type==="bookmark")setName("");
++      });
++    }catch(failure){problem(failure);}finally{flight.current=false;setBusy(false);}
++  }
++  function save(){
++    try{
++      const live=useStudio.getState(),preview=document.querySelector<HTMLElement>('.measure-document-preview[data-source-ready="true"]');
++      const image=preview?.querySelector<HTMLElement>('.document-source-page'),rendered=image?.getBoundingClientRect();
++      if(!rendered||!live.showSrc)throw Error("Wait for the visible original source page before saving a view.");
++      const bookmark=captureSheetBookmark(name,live.zoom2d,live.pan2d,rendered);
++      void change({type:"bookmark",pageIndex:live.sheet,bookmark});
++    }catch(failure){problem(failure);}
++  }
++  function open(pageIndex:number,bookmark:SheetBookmark){
++    setError("");setMessage("");
++    try{
++      if(!identity)throw Error("Open the original source drawing before using this saved view.");
++      const live=useStudio.getState();
++      if(live.pending.length||live.calibrationCapture)throw Error("Finish or cancel the current drawing/calibration before opening a saved view.");
++      const actualDoc=live.job.documents.find(d=>d.id===live.job.activeDocumentId),actual=actualDoc&&sheetSourceIdentity(live.job.id,actualDoc);
++      if(!actual||sheetLifecycleStorageKey(actual)!==key)throw Error("The source drawing changed. Reload its saved views.");
++      const latest=readSheetLifecycle(identity,localStorage),page=latest.pages.find(p=>p.pageIndex===pageIndex);
++      const saved=page?.bookmarks?.find(b=>b.id===bookmark.id);
++      if(!saved)throw Error("This saved view was removed in another window. Reload the list.");
++      const viewport=document.querySelector('.measure-document-preview .document-preview-viewport')?.getBoundingClientRect();
++      if(!viewport)throw Error("The drawing viewport is not ready.");
++      restoreSheetBookmark(saved,viewport);
++      live.setTool("none");live.setSheet(pageIndex);setRestoring({key,pageIndex,bookmark:saved});
++      if(!live.showSrc)live.toggle("showSrc");
++      setMessage(`Opened ${saved.name} on original page ${pageIndex+1}${page?.archived?" (archived sheet)":""}.`);
++    }catch(failure){problem(failure);}
++  }
++  const bookmarks=value?.pages.flatMap(page=>(page.bookmarks??[]).map(bookmark=>({page,bookmark})))??[];
++  return <section className="sheet-bookmarks" aria-label="Saved source views" data-saved-view-count={bookmarks.length} data-restored-view={restoring?.bookmark.id??""}>
++    <form onSubmit={e=>{e.preventDefault();save();}}><label>Save this page view<input aria-label="Saved view name" value={name} onChange={e=>setName(e.target.value)} maxLength={120} placeholder={`Page ${sheet+1} detail`} disabled={busy}/></label><button className="pill" type="submit" disabled={!value||!hydrated||busy||!name.trim()}><BookmarkPlus size={15} aria-hidden="true"/>Save view</button></form>
++    {(error||readError)&&<p role="alert">{error||readError}<button className="pill" onClick={()=>{reload();setError("");}} disabled={busy}>Reload saved views</button></p>}
++    {message&&<p role="status">{message}</p>}
++    <details><summary>Saved views ({bookmarks.length})</summary><p className="sheet-bookmarks-help">Saved locally with this source and included in project backups. A view keeps its original page, zoom and centre when the window size changes.</p>
++      {!bookmarks.length?<p>No saved views yet. Zoom or pan to a detail, give it a name and save.</p>:<ul>{bookmarks.map(({page,bookmark})=><li key={bookmark.id}><div><strong>{bookmark.name}</strong><span>{page.name} · Original page {page.pageIndex+1} · {Math.round(bookmark.zoom*100)}%{page.archived?" · Archived":""}</span></div><button className="pill" aria-label={`Open saved view ${bookmark.name}`} disabled={busy} onClick={()=>open(page.pageIndex,bookmark)}><Navigation size={14} aria-hidden="true"/>Open</button><button className="pill" aria-label={`Remove saved view ${bookmark.name}`} disabled={busy} onClick={()=>void change({type:"remove-bookmark",pageIndex:page.pageIndex,bookmarkId:bookmark.id})}><Trash2 size={14} aria-hidden="true"/>Remove</button></li>)}</ul>}
++    </details>
++  </section>;
++}
+diff --git a/src/studio/sheetBookmarks.css b/src/studio/sheetBookmarks.css
+new file mode 100644
+index 0000000..4583c2d
+--- /dev/null
++++ b/src/studio/sheetBookmarks.css
+@@ -0,0 +1,12 @@
++.sheet-bookmarks { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--color-line); border-radius: 8px; color: var(--color-ink); background: var(--color-header); }
++.sheet-bookmarks form, .sheet-bookmarks li { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
++.sheet-bookmarks label { display: grid; gap: 4px; flex: 1 1 180px; font-size: 12px; min-width: 0; }
++.sheet-bookmarks input { width: 100%; min-height: 44px; padding: 8px; border: 1px solid var(--color-line); border-radius: 4px; background: var(--color-bg); color: var(--color-ink); }
++.sheet-bookmarks .pill { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
++.sheet-bookmarks button:disabled { opacity: .45; cursor: default; }
++.sheet-bookmarks p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
++.sheet-bookmarks summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 12px; font-weight: 600; }
++.sheet-bookmarks li { padding-block: 8px; border-top: 1px solid var(--color-line); align-items: center; }
++.sheet-bookmarks li>div { flex: 1 1 180px; min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; }
++.sheet-bookmarks li span, .sheet-bookmarks-help { color: var(--color-muted); font-size: 12px; }
++.sheet-bookmarks ul { max-height: 280px; overflow: auto; }

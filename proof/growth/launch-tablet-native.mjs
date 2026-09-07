@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+const runId = process.argv[2];
+if (!/^[a-f0-9]{12}$/.test(runId ?? '')) throw Error('Verified run ID required');
+const base = path.resolve(`proof/growth/2026-09-07-tablet-release/release-${runId}`);
+const record = JSON.parse(fs.readFileSync(path.join(base,'native-completion.json'),'utf8').replace(/^\uFEFF/,''));
+if (!record.results.some(step => step.step === 'native-build' && step.exitCode === 0)) throw Error('Native build did not pass');
+const exe = path.join(base,'artifacts/src-tauri/target/release/xray-by-looplet.exe');
+const sha256 = createHash('sha256').update(fs.readFileSync(exe)).digest('hex');
+if (!record.artifacts.some(a => a.sha256 === sha256 && a.path.endsWith('xray-by-looplet.exe'))) throw Error('Executable does not match remote build');
+const profile = "C:\\Users\\danie\\repo\\xray-by-looplet\\.temp\\growth-native-1788787075705";
+fs.mkdirSync(profile,{recursive:true});
+const app = spawn(exe,[],{windowsHide:true,detached:true,stdio:'ignore',env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9263',WEBVIEW2_USER_DATA_FOLDER:profile}});
+app.unref();
+const result = {runId,pid:app.pid,exe,profile,sha256,cdpPort:9263,launchedAt:new Date().toISOString()};
+fs.writeFileSync('proof/growth/tablet-native-launch.json',JSON.stringify(result,null,2));
+console.log(JSON.stringify(result));
+

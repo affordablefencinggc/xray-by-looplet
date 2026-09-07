@@ -1,0 +1,11 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+const root = 'proof/audit/IW-PROFESSIONAL-NEXT/remote';
+const web = JSON.parse(readFileSync(`${root}/transfer-delta/source-manifest.json`, 'utf8'));
+const native = JSON.parse(readFileSync(`${root}/transfer-delta/native-manifest.json`, 'utf8'));
+const drift = [...web.entries, ...native.entries].filter(entry => createHash('sha256').update(readFileSync(entry.path)).digest('hex') !== entry.sha256).map(entry => entry.path);
+const result = {checkedAt:new Date().toISOString(),status:drift.length?'failed':'pass',runId:'44c9a5bdd386',webFiles:web.entries.length,nativeFiles:native.entries.length,drift};
+writeFileSync(`${root}/release-44c9a5bdd386/source-drift.json`, `${JSON.stringify(result,null,2)}\n`);
+assert.equal(drift.length,0,`Source changed after freeze: ${drift.join(', ')}`);
+console.log(JSON.stringify(result));

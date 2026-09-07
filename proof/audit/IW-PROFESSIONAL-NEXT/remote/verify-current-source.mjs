@@ -1,0 +1,11 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+const root = 'proof/audit/IW-PROFESSIONAL-NEXT/remote';
+const web = JSON.parse(readFileSync(`${root}/transfer-release/source-manifest.json`, 'utf8'));
+const native = JSON.parse(readFileSync(`${root}/transfer-release/native-manifest.json`, 'utf8'));
+const drift = [...web.entries, ...native.entries].filter(entry => createHash('sha256').update(readFileSync(entry.path)).digest('hex') !== entry.sha256).map(entry => entry.path);
+const result = {checkedAt:new Date().toISOString(),status:drift.length?'failed':'pass',runId:'a790fd92663d',webFiles:web.entries.length,nativeFiles:native.entries.length,drift};
+writeFileSync(`${root}/release-a790fd92663d/source-drift.json`, `${JSON.stringify(result,null,2)}\n`);
+assert.equal(drift.length,0,`Source changed after freeze: ${drift.join(', ')}`);
+console.log(JSON.stringify(result));

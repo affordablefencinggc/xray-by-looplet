@@ -1,0 +1,1424 @@
+diff --git a/package-lock.json b/package-lock.json
+index bf35b78..3f7d41f 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -43,6 +43,7 @@
+         "cmdk": "^1.1.1",
+         "date-fns": "^4.0.0",
+         "dxf-parser": "^1.1.2",
++        "fflate": "0.8.3",
+         "jose": "6.2.9",
+         "kysely": "^0.28.5",
+         "lucide-react": "^0.510.0",
+@@ -63,6 +64,7 @@
+         "three": "^0.185.1",
+         "tw-animate-css": "^1.3.4",
+         "vaul": "^1.1.2",
++        "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+         "zod": "^4.4.0",
+         "zustand": "^5.0.0"
+       },
+@@ -5645,7 +5647,6 @@
+       "version": "0.8.3",
+       "resolved": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz",
+       "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==",
+-      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/file-entry-cache": {
+@@ -8123,6 +8124,18 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/xlsx": {
++      "version": "0.20.3",
++      "resolved": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
++      "integrity": "sha512-oLDq3jw7AcLqKWH2AhCpVTZl8mf6X2YReP+Neh0SJUzV/BdZYjth94tG5toiMB1PPrYtxOCfaoUCkvtuH+3AJA==",
++      "license": "Apache-2.0",
++      "bin": {
++        "xlsx": "bin/xlsx.njs"
++      },
++      "engines": {
++        "node": ">=0.8"
++      }
++    },
+     "node_modules/xmlbuilder2": {
+       "version": "4.0.3",
+       "resolved": "https://registry.npmjs.org/xmlbuilder2/-/xmlbuilder2-4.0.3.tgz",
+diff --git a/package.json b/package.json
+index 856f01d..3f201d5 100644
+--- a/package.json
++++ b/package.json
+@@ -12,6 +12,7 @@
+     "db:migrate": "node scripts/migrate.mjs",
+     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
+     "build:desktop": "node scripts/with-app-env.mjs vite build --config vite.config.spa.ts",
++    "build:cad": "node scripts/build-cad.mjs",
+     "preview": "node scripts/with-app-env.mjs node scripts/preview-built.mjs",
+     "preview:restart": "node scripts/preview.mjs restart",
+     "preview:stop": "node scripts/preview.mjs stop",
+@@ -26,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/lib/architectAi.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectBackup.test.ts src/studio/sheetLifecycle.test.ts src/studio/pricing/priceBooks.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+@@ -78,6 +79,7 @@
+     "cmdk": "^1.1.1",
+     "date-fns": "^4.0.0",
+     "dxf-parser": "^1.1.2",
++    "fflate": "0.8.3",
+     "jose": "6.2.9",
+     "kysely": "^0.28.5",
+     "lucide-react": "^0.510.0",
+@@ -98,6 +100,7 @@
+     "three": "^0.185.1",
+     "tw-animate-css": "^1.3.4",
+     "vaul": "^1.1.2",
++    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+     "zod": "^4.4.0",
+     "zustand": "^5.0.0"
+   },
+
+diff --git a/src/studio/BackupRestoreReview.tsx b/src/studio/BackupRestoreReview.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/studio/BackupRestoreReview.tsx
+@@ -0,0 +1,62 @@
++import { useEffect, useRef, useState } from "react";
++import { assessBackupRestore } from "./backupRestorePreflight";
++import type { ProjectBackup } from "./projectBackup";
++import { createBrowserPlanStore } from "./documents";
++import { createBrowserPhotoStore } from "./evidence";
++import { restoreMaterialDatabase } from "./projectMaterialsPersistence";
++import { useStudio } from "./store";
++import "./backupRestoreReview.css";
++
++type Assessment = Awaited<ReturnType<typeof assessBackupRestore>>;
++export function BackupRestoreReview({ backup }: { backup: ProjectBackup }) {
++  const [review, setReview] = useState<Assessment | null>(null);
++  const [busy, setBusy] = useState(false), [error, setError] = useState("");
++  const [includeRates, setIncludeRates] = useState(false);
++  const generation = useRef(0);
++  useEffect(() => { generation.current++; setReview(null); setError(""); setBusy(false); }, [backup]);
++  useEffect(() => () => { generation.current++; }, []);
++  async function inspect(fresh = false) {
++    const ticket = ++generation.current;
++    setBusy(true); setError("");
++    try {
++      const state = useStudio.getState();
++      if (!state.persistenceHydrated || state.hydrationStatus !== "ready" || state.persistenceError)
++        throw Error("Resolve the current workspace's save or loading error before reviewing a replacement.");
++      const plans = createBrowserPlanStore(), photos = createBrowserPhotoStore();
++      const next = await assessBackupRestore(backup, {
++        currentJob: () => useStudio.getState().job,
++        readLocal: key => localStorage.getItem(key),
++        readMaterials: async jobId => {
++          const result = await restoreMaterialDatabase(jobId);
++          if (result.blocked || result.error) throw Error(result.error ?? "Material inventory is unreadable.");
++          return result.raw;
++        },
++        plan: id => plans.get(id), photo: id => photos.get(id),
++      }, { restoreReferenceRates: includeRates, expectedFingerprint: fresh ? undefined : review?.fingerprint });
++      if (ticket === generation.current) setReview(next);
++    } catch (failure) {
++      if (ticket === generation.current) setError(failure instanceof Error ? failure.message : "Restore review failed. No project data was changed.");
++    } finally { if (ticket === generation.current) setBusy(false); }
++  }
++  return <section className="backup-restore-review" aria-label="Restore impact review" aria-busy={busy}>
++    <h3>Review a future restore</h3>
++    <p>Check what this snapshot would replace and whether original files conflict with this device. This review does not change the editing workspace.</p>
++    <label className="restore-rate-option"><input type="checkbox" checked={includeRates} disabled={busy} onChange={e => { setIncludeRates(e.target.checked); setReview(null); }} />Include this device's shared reference rates in the impact review</label>
++    <div className="backup-actions">
++      <button className="pill" disabled={busy} onClick={() => void inspect()}>{review ? "Recheck current workspace" : "Review restore impact"}</button>
++      {review && <button className="pill" disabled={busy} onClick={() => void inspect(true)}>Start a fresh review</button>}
++    </div>
++    {busy && <p role="status">Verifying saved records and original file identities…</p>}
++    {error && <p role="alert">{error}</p>}
++    {review && <>
++      <p className="restore-review-result" role="status">{review.blockingIssues.length ? "Conflicts need attention before a restore can be considered." : "Integrity review complete. Workspace unchanged."}</p>
++      <p>Current: <b>{review.project.current.name}</b> · revision {review.project.current.revision}<br />Snapshot: <b>{review.project.target.name}</b> · revision {review.project.target.revision}</p>
++      {review.blockingIssues.length > 0 && <ul className="restore-conflicts" aria-label="Restore conflicts">{review.blockingIssues.map((item, index) => <li key={index}>{item}</li>)}</ul>}
++      <div className="restore-impact-list">{review.rows.map(row => <article key={row.id}>
++        <div><strong>{row.label}</strong><span>{row.action}</span></div><p>{row.message}</p>
++      </article>)}</div>
++      {!!review.warnings.length && <details><summary>Scope and compatibility notes ({review.warnings.length})</summary><ul>{review.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
++      <p>Applying this snapshot is not available yet. A complete restore needs a recovery copy, protected writes and recovery after interruption. Keep the verified backup file.</p>
++    </>}
++  </section>;
++}
+
+diff --git a/src/studio/ProjectBackups.tsx b/src/studio/ProjectBackups.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/studio/ProjectBackups.tsx
+@@ -0,0 +1,149 @@
++import { useEffect, useRef, useState } from "react";
++import { createPortal } from "react-dom";
++import { Archive, ArchiveRestore, Download, FolderArchive, Save, Upload } from "lucide-react";
++import { WorkspaceDialog } from "./WorkspaceDialog";
++import { BackupRestoreReview } from "./BackupRestoreReview";
++import { useStudio } from "./store";
++import { createBrowserPlanStore } from "./documents";
++import { createBrowserPhotoStore } from "./evidence";
++import { BACKUP_EXCLUSIONS, MAX_BACKUP_BYTES, backupContents, captureProjectBackup, parseProjectBackup, type ProjectBackup } from "./projectBackup";
++import { listProjectBackups, readBackupRecords, readProjectBackup, storeProjectBackup, updateBackupSummary, type BackupSummary } from "./projectBackupStorage";
++import "./projectBackups.css";
++
++const labels: Record<string, string> = { architecture: "Architectural design and sheet layout", bom: "BOM and review state",
++  components: "Component inventory", recipes: "Fencing recipes", sourceTakeoff: "Source takeoff and material rates",
++  connectionReview: "Connection review", materials: "Project materials and evidence", referenceRates: "Reference price sheet (unapplied)",
++  sheetMetadata: "Source sheet names, order and archive state", priceBooks: "Supplier price books and priced worksheet" };
++const size = (bytes: number) => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
++function problem(error: unknown) {
++  if (error instanceof Error && error.name === "ZodError") return "Saved data did not pass the supported backup format checks. Nothing was overwritten.";
++  return error instanceof Error ? error.message : "The backup operation failed. Previous backups are preserved.";
++}
++function downloadBackup(serialized: string, name: string) {
++  const url = URL.createObjectURL(new Blob([serialized], { type: "application/json" }));
++  const a = document.createElement("a");
++  a.href = url; a.download = `${name.replace(/[^a-zA-Z0-9 _-]/g, "_").slice(0, 100) || "X-Ray backup"}.xray-backup.json`;
++  document.body.append(a); a.click(); a.remove();
++  setTimeout(() => URL.revokeObjectURL(url), 30000);
++}
++export function ProjectBackups() {
++  const [open, setOpen] = useState(false);
++  const trigger = useRef<HTMLButtonElement>(null);
++  // Keep the dialog within the theme root, outside responsive header visibility rules.
++  return <><button ref={trigger} className="pill backup-trigger" onClick={() => setOpen(true)}><FolderArchive size={15} /> Backups</button>
++    {open && createPortal(<BackupLibrary onClose={() => setOpen(false)} />, trigger.current?.closest(".workbench") ?? document.body)}</>;
++}
++function BackupLibrary({ onClose }: { onClose: () => void }) {
++  const job = useStudio(s => s.job);
++  const [items, setItems] = useState<BackupSummary[]>([]), [name, setName] = useState(`${job.name} — ${new Date().toLocaleDateString()}`);
++  const [filter, setFilter] = useState(""), [archived, setArchived] = useState(false);
++  const [busy, setBusy] = useState(false), [ready, setReady] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
++  const [preview, setPreview] = useState<{ value: ProjectBackup; imported: boolean; label: string } | null>(null);
++  const [renaming, setRenaming] = useState<BackupSummary | null>(null), [newName, setNewName] = useState("");
++  const input = useRef<HTMLInputElement>(null), flight = useRef(false);
++  async function refresh() { setItems(await listProjectBackups()); setReady(true); }
++  async function run(action: () => Promise<void>) {
++    if (flight.current) return;
++    flight.current = true; setBusy(true); setError(""); setMessage("");
++    try { await action(); } catch (failure) { setError(problem(failure)); }
++    finally { flight.current = false; setBusy(false); }
++  }
++  useEffect(() => { void run(refresh); }, []);
++  async function save() {
++    await run(async () => {
++      const state = useStudio.getState();
++      if (!state.persistenceHydrated || state.hydrationStatus !== "ready") throw Error("Wait for the workspace to finish restoring before saving a backup.");
++      if (state.persistenceError || state.bomPersistenceError || state.inventoryPersistenceError)
++        throw Error("Resolve the workspace's save errors before creating a backup, so no working data is omitted.");
++      const plans = createBrowserPlanStore(), photos = createBrowserPhotoStore();
++      const value = await captureProjectBackup(state.job, name, {
++        records: readBackupRecords, plan: id => plans.get(id), photo: id => photos.get(id),
++        currentJob: () => useStudio.getState().job,
++      });
++      await storeProjectBackup(value); await refresh(); setArchived(false); setFilter("");
++      setMessage(`“${value.name}” saved and verified on this device. Download a copy to keep it outside this app.`);
++    });
++  }
++  async function importFile(file: File) {
++    await run(async () => {
++      if (file.size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++      const value = await parseProjectBackup(await file.text());
++      setPreview({ value, imported: true, label: value.name });
++    });
++  }
++  const visible = items.filter(i => i.archived === archived && `${i.name} ${i.jobName}`.toLowerCase().includes(filter.toLowerCase()));
++  return <WorkspaceDialog title="Project backups" onClose={() => { if (!flight.current) onClose(); }}>
++    <div className="project-backups" aria-busy={busy}>
++      <p>Keep a named copy of committed work and its original files. Backups stay on this device; download a package for storage elsewhere or a later handoff.</p>
++      <div className="backup-save-row">
++        <label>Backup name<input maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>
++        <button className="pill" disabled={busy || !ready || !name.trim()} onClick={() => void save()}><Save size={16} /> Save project backup</button>
++        <button className="pill" disabled={busy} onClick={() => input.current?.click()}><Upload size={16} /> Import backup</button>
++        <input ref={input} hidden aria-label="Import project backup file" type="file" accept=".json" onChange={e => {
++          const file = e.target.files?.[0]; e.target.value = ""; if (file) void importFile(file);
++        }} />
++      </div>
++      <details className="backup-scope"><summary>What this package includes</summary>
++        <p>Current job, document workspaces, calibration, measurements, annotations and evidence; saved design, sheet layout, quantities, recipes, reviews, materials and reference rates; every referenced original plan and photo. Missing or corrupt originals block the backup.</p>
++        <p>Not included:</p><ul>{BACKUP_EXCLUSIONS.map(item => <li key={item}>{item}</li>)}</ul>
++        <p>New packages also include saved source sheet names, order and archive state, supplier price books and their priced worksheet. Format v2 requires an updated X-Ray reader; older v1 packages can still be inspected and imported.</p>
++        <p>Import adds a verified package to this library. Applying a package to the editing workspace is not available yet. Stored backups are not cloud sync or a staff delivery receipt.</p>
++      </details>
++      {busy && <p role="status">Checking files and saving data…</p>}
++      {message && <p className="backup-notice" role="status">{message}</p>}
++      {error && <p className="backup-notice" role="alert">{error}</p>}
++      {preview && <section className="backup-preview" aria-label="Backup contents review">
++        <h3>{preview.imported ? "Review imported backup" : "Verified backup contents"}</h3>
++        <b>{preview.label}</b>
++        <p>{preview.value.job.name} · revision {preview.value.job.revision} · {new Date(preview.value.createdAt).toLocaleString()}</p>
++        <p>{backupContents(preview.value).plans} original plans · {backupContents(preview.value).photos} original photos · hashes verified</p>
++        <ul><li>Job, document workspaces, measurements and evidence</li>{backupContents(preview.value).records.map(key => <li key={key}>{labels[key]}</li>)}</ul>
++        <p>The open workspace remains unchanged.</p>
++        <BackupRestoreReview key={preview.value.createdAt + preview.value.job.id} backup={preview.value} />
++        <div className="backup-actions">
++          <button className="pill" disabled={busy} onClick={() => setPreview(null)}>{preview.imported ? "Cancel import" : "Close contents"}</button>
++          {preview.imported && <button className="pill" disabled={busy} onClick={() => void run(async () => {
++            await storeProjectBackup(preview.value); await refresh(); setPreview(null); setArchived(false); setFilter("");
++            setMessage("Verified package added to the library. The open workspace was not changed.");
++          })}>Add to backup library</button>}
++        </div>
++      </section>}
++      {renaming && <form className="backup-rename" onSubmit={e => { e.preventDefault(); void run(async () => {
++        await updateBackupSummary(renaming, { name: newName }); setRenaming(null); await refresh(); setMessage("Backup label updated. The original snapshot is unchanged.");
++      }); }}>
++        <label>New backup label<input value={newName} maxLength={120} onChange={e => setNewName(e.target.value)} autoFocus /></label>
++        <button className="pill" disabled={busy || !newName.trim()} type="submit">Save label</button>
++        <button className="pill" disabled={busy} type="button" onClick={() => setRenaming(null)}>Cancel rename</button>
++      </form>}
++      <div className="backup-toolbar">
++        <label>Search backups<input type="search" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Name or project" /></label>
++        <div className="backup-actions">
++          <button className="pill" aria-pressed={!archived} onClick={() => setArchived(false)}>Active ({items.filter(i => !i.archived).length})</button>
++          <button className="pill" aria-pressed={archived} onClick={() => setArchived(true)}>Archived ({items.filter(i => i.archived).length})</button>
++          <button className="pill" disabled={busy} onClick={() => void run(refresh)}>Refresh library</button>
++        </div>
++      </div>
++      <div className="backup-list">
++        {!visible.length && ready && <p>{filter ? "No backups match this search." : archived ? "No archived backups. Archive a saved copy to store it away without deleting it." : "No active backups yet. Save the current project or import a package."}</p>}
++        {visible.map(item => <article className="backup-item" key={item.id}>
++          <div><h3>{item.name}</h3><p>{item.jobName} · revision {item.jobRevision} · {size(item.sizeBytes)}</p>
++            <p>{item.plans} plans · {item.photos} photos · saved {new Date(item.storedAt).toLocaleString()}</p></div>
++          <div className="backup-actions">
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              const { value } = await readProjectBackup(item.id); setPreview({ value, imported: false, label: item.name });
++            })}>Inspect</button>
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              const { serialized } = await readProjectBackup(item.id); downloadBackup(serialized, item.name);
++              setMessage("Package verified; download requested. Keep the file with your project records.");
++            })}><Download size={15} /> Download</button>
++            <button className="pill" disabled={busy} onClick={() => { setRenaming(item); setNewName(item.name); }}>Rename</button>
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              await updateBackupSummary(item, { archived: !item.archived }); await refresh();
++              setMessage(item.archived ? "Backup returned to the active library." : "Backup archived. Its data is retained in Archived.");
++            })}>{item.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}{item.archived ? "Unarchive" : "Archive"}</button>
++          </div>
++        </article>)}
++      </div>
++    </div>
++  </WorkspaceDialog>;
++}
+
+diff --git a/src/studio/backupRestorePreflight.test.ts b/src/studio/backupRestorePreflight.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/backupRestorePreflight.test.ts
+@@ -0,0 +1,146 @@
++import { describe, it } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob } from "./domain.ts";
++import { inspectPlanBytes } from "./documents.ts";
++import { importPhotoFile } from "./evidence.ts";
++import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
++import { architectKey } from "./architect/persistence.ts";
++import { demonstration } from "./architect/model.ts";
++import { createSheetLifecycle, sheetLifecycleStorageKey, sheetSourceIdentity } from "./sheetLifecycle.ts";
++import { emptyPriceBookLibrary, priceBookKey } from "./pricing/priceBooks.ts";
++import { BACKUP_FORMAT, backupDigest, encodeBackupBytes, emptyBackupRecords, type ProjectBackup } from "./projectBackup.ts";
++import { assessBackupRestore, type BackupRestoreReadPorts } from "./backupRestorePreflight.ts";
++
++async function fixture() {
++  const plan = await inspectPlanBytes({ name: "Review.svg", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L10 0"/></svg>'), source: "web" });
++  const photo = await importPhotoFile(new File([new Uint8Array([255,216,255,224,0,0,255,217])], "Review.jpg", { type: "image/jpeg" }), 0);
++  const target = { ...createDefaultJob(), documents: [plan.revision], activeDocumentId: plan.revision.id, photos: [photo.record] };
++  const current = createDefaultJob();
++  const records = emptyBackupRecords(); records.architecture = JSON.stringify(demonstration(target.id));
++  records.priceBooks = JSON.stringify(emptyPriceBookLibrary(target.id));
++  records.sheetMetadata = JSON.stringify([createSheetLifecycle(sheetSourceIdentity(target.id, plan.revision)!)]);
++  const backup: ProjectBackup = { format: BACKUP_FORMAT, name: "Recovery review", createdAt: new Date().toISOString(), job: target, records,
++    assets: [{ id: plan.binary.documentId, kind: "plan", name: plan.binary.name, mimeType: plan.binary.mimeType, sha256: plan.binary.sha256, bytesBase64: encodeBackupBytes(plan.binary.bytes.slice().buffer) },
++      { id: photo.content.id, kind: "photo", name: photo.content.name, mimeType: photo.content.mimeType, sha256: photo.content.sha256, bytesBase64: encodeBackupBytes(photo.content.bytes) }] };
++  const raw = new Map<string, string>([[FENCING_JOB_STORAGE_KEY, JSON.stringify(current)], ["unrelated-secret-key", "must not be read"]]);
++  const plans = new Map([[plan.binary.documentId, { ...plan.binary, bytes: plan.binary.bytes.slice().buffer }]]);
++  const photos = new Map([[photo.content.id, photo.content]]);
++  const reads: string[] = [];
++  const ports: BackupRestoreReadPorts = { currentJob: () => structuredClone(current), readLocal: key => { reads.push(key); return raw.get(key) ?? null; },
++    readMaterials: async () => null, plan: async id => plans.get(id) ?? null, photo: async id => photos.get(id) ?? null };
++  return { backup, current, target, raw, plans, photos, ports, reads, plan, photo };
++}
++describe("read-only backup restore impact", () => {
++  it("validates originals, inventories exact addresses and leaves every byte/record untouched", async () => {
++    const f = await fixture(), before = JSON.stringify([...f.raw]), planHash = await backupDigest(f.plans.get(f.plan.revision.id)!.bytes);
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.canApply, false); assert.equal(result.project.sameProject, false); assert.deepEqual(result.blockingIssues, []);
++    assert.equal(result.rows.find(r => r.key === architectKey(f.target.id))?.action, "add");
++    assert.equal(result.rows.find(r => r.key === f.plan.revision.id)?.action, "unchanged");
++    assert.equal(result.rows.find(r => r.key === FENCING_JOB_STORAGE_KEY)?.action, "replace");
++    assert.equal(JSON.stringify([...f.raw]), before); assert.equal(await backupDigest(f.plans.get(f.plan.revision.id)!.bytes), planHash);
++    assert(!f.reads.includes("unrelated-secret-key")); assert.match(result.fingerprint, /^[a-f0-9]{64}$/);
++  });
++  it("preserves global reference rates by default and identifies explicitly requested global removal", async () => {
++    const f = await fixture(); f.raw.set("xray.price-sheet.v1", JSON.stringify({ currency: "AUD", rows: [] }));
++    const keep = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(keep.rows.find(r => r.scope === "global")?.action, "preserve");
++    const remove = await assessBackupRestore(f.backup, f.ports, { restoreReferenceRates: true });
++    assert.equal(remove.rows.find(r => r.scope === "global")?.action, "remove");
++    assert.notEqual(keep.fingerprint, remove.fingerprint); assert(f.raw.has("xray.price-sheet.v1"));
++  });
++  it("shows target collisions and null-record removal without changing unrelated current-project modules", async () => {
++    const f = await fixture();
++    f.raw.set(architectKey(f.target.id), JSON.stringify({ ...demonstration(f.target.id), name: "Current design" }));
++    f.raw.set(architectKey(f.current.id), JSON.stringify(demonstration(f.current.id)));
++    f.backup.records.priceBooks = null; f.raw.set(priceBookKey(f.target.id), JSON.stringify(emptyPriceBookLibrary(f.target.id)));
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.rows.find(r => r.key === architectKey(f.target.id))?.action, "replace");
++    assert.equal(result.rows.find(r => r.key === architectKey(f.current.id))?.action, "preserve");
++    assert.equal(result.rows.find(r => r.key === priceBookKey(f.target.id))?.action, "remove");
++  });
++  it("marks legacy omitted sheet/pricing records unsupported instead of assuming deletion", async () => {
++    const f = await fixture(); f.backup.format = "xray.workspace-backup/v1";
++    delete f.backup.records.sheetMetadata; delete f.backup.records.priceBooks;
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.rows.find(r => r.key === priceBookKey(f.target.id))?.action, "unsupported");
++    assert.equal(result.rows.find(r => r.key === sheetLifecycleStorageKey(sheetSourceIdentity(f.target.id, f.plan.revision)!))?.action, "unsupported");
++    assert(result.warnings.some(w => w.includes("did not capture sheet"))); assert(result.warnings.some(w => w.includes("did not capture supplier")));
++  });
++  it("rejects corrupt backup originals and modules before reading any destination", async () => {
++    const f = await fixture(); f.backup.assets[0].sha256 = "0".repeat(64);
++    await assert.rejects(assessBackupRestore(f.backup, f.ports), /verification/); assert.equal(f.reads.length, 0);
++    f.backup.assets[0].sha256 = f.plan.binary.sha256; f.backup.records.architecture = "{broken";
++    await assert.rejects(assessBackupRestore(f.backup, f.ports)); assert.equal(f.reads.length, 0);
++  });
++  it("blocks a plan ID reused for different valid bytes, even with a truthful new stored hash", async () => {
++    const f = await fixture(), existing = f.plans.get(f.plan.revision.id)!;
++    const bytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>').buffer;
++    f.plans.set(existing.documentId, { ...existing, bytes, sizeBytes: bytes.byteLength, sha256: await backupDigest(bytes) });
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.rows.find(r => r.key === existing.documentId)?.action, "conflict");
++    assert(result.blockingIssues.some(e => e.includes("reused identity"))); assert.equal(f.plans.get(existing.documentId)!.bytes, bytes);
++  });
++  it("checks photo metadata as well as actual bytes; a claimed hash does not conceal corruption", async () => {
++    const f = await fixture(); f.photos.set(f.photo.content.id, { ...f.photo.content, name: "Another photo.jpg" });
++    const metadata = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(metadata.rows.find(r => r.key === f.photo.content.id)?.action, "conflict");
++    f.photos.set(f.photo.content.id, { ...f.photo.content, bytes: new Uint8Array([0,1,2]).buffer });
++    const bytes = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(bytes.rows.find(r => r.key === f.photo.content.id)?.action, "conflict");
++  });
++  it("reports absent destination originals as additions without inserting them", async () => {
++    const f = await fixture(); f.plans.clear(); f.photos.clear();
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.rows.filter(r => r.id.startsWith("plan:") || r.id.startsWith("photo:")).every(r => r.action === "add"), true);
++    assert.equal(f.plans.size, 0); assert.equal(f.photos.size, 0);
++  });
++  it("blocks missing originals referenced by the current job even when the incoming backup contains them", async () => {
++    const f = await fixture(); Object.assign(f.current, f.target);
++    f.raw.set(FENCING_JOB_STORAGE_KEY, JSON.stringify(f.current)); f.plans.clear(); f.photos.clear();
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.project.sameProject, true);
++    assert.equal(result.rows.find(r => r.id === `plan:${f.plan.revision.id}`)?.action, "conflict");
++    assert.equal(result.rows.find(r => r.id === `photo:${f.photo.content.id}`)?.action, "conflict");
++    assert.equal(result.blockingIssues.filter(e => e.includes("is missing; a complete before-restore backup")).length, 2);
++  });
++  it("checks current-job original expectations separately from incoming expectations", async () => {
++    const f = await fixture(); f.current.documents = [{ ...f.plan.revision, name: "Current conflicting.svg" }];
++    f.current.activeDocumentId = f.plan.revision.id;
++    f.current.photos = [{ ...f.photo.record, sizeBytes: f.photo.record.sizeBytes + 1 }];
++    f.raw.set(FENCING_JOB_STORAGE_KEY, JSON.stringify(f.current));
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.rows.find(r => r.id === `plan:${f.plan.revision.id}`)?.action, "conflict");
++    assert.equal(result.rows.find(r => r.id === `photo:${f.photo.content.id}`)?.action, "conflict");
++    assert.equal(result.blockingIssues.filter(e => e.includes("open project's metadata")).length, 2);
++  });
++  it("blocks corrupt and wrong-owner destination modules while preserving their exact contents", async () => {
++    const f = await fixture(); f.raw.set(architectKey(f.target.id), "{broken");
++    f.raw.set(priceBookKey(f.target.id), JSON.stringify(emptyPriceBookLibrary(f.current.id)));
++    const before = JSON.stringify([...f.raw]);
++    const result = await assessBackupRestore(f.backup, f.ports);
++    assert.equal(result.rows.find(r => r.key === architectKey(f.target.id))?.action, "conflict");
++    assert.equal(result.rows.find(r => r.key === priceBookKey(f.target.id))?.action, "conflict");
++    assert.equal(JSON.stringify([...f.raw]), before);
++  });
++  it("detects destination changes during asynchronous review", async () => {
++    const f = await fixture(); let calls = 0;
++    const result = await assessBackupRestore(f.backup, { ...f.ports, readMaterials: async id => id === f.target.id && ++calls > 1 ? '{"changed":true}' : null });
++    assert(result.blockingIssues.some(e => e.includes("while this review")));
++  });
++  it("rejects an earlier fingerprint after a target value changes, and accepts an unchanged repeated review", async () => {
++    const f = await fixture(); const first = await assessBackupRestore(f.backup, f.ports);
++    const same = await assessBackupRestore(f.backup, f.ports, { expectedFingerprint: first.fingerprint });
++    assert.equal(first.fingerprint, same.fingerprint); assert.deepEqual(same.blockingIssues, []);
++    f.raw.set(priceBookKey(f.target.id), JSON.stringify({ ...emptyPriceBookLibrary(f.target.id), revision: 1 }));
++    const stale = await assessBackupRestore(f.backup, f.ports, { expectedFingerprint: first.fingerprint });
++    assert(stale.blockingIssues.some(e => e.includes("earlier review is stale")));
++  });
++  it("blocks a saved main job newer than the open workspace and storage-read failures", async () => {
++    const f = await fixture(); f.raw.set(FENCING_JOB_STORAGE_KEY, JSON.stringify({ ...f.current, revision: f.current.revision + 1 }));
++    const mismatch = await assessBackupRestore(f.backup, f.ports);
++    assert(mismatch.blockingIssues.some(e => e.includes("differs from the saved")));
++    const unreadable = await assessBackupRestore(f.backup, { ...f.ports, readMaterials: async () => { throw Error("database unavailable"); } });
++    assert(unreadable.blockingIssues.some(e => e.includes("storage is unreadable")));
++  });
++});
+
+diff --git a/src/studio/backupRestorePreflight.ts b/src/studio/backupRestorePreflight.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/backupRestorePreflight.ts
+@@ -0,0 +1,197 @@
++import { fencingJobSchema, parseFencingJob, type FencingJob } from "./domain.ts";
++import { FENCING_JOB_STORAGE_KEY, LEGACY_FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
++import { architectKey } from "./architect/persistence.ts";
++import { bomStorageKey } from "./bomPersistence.ts";
++import { inventoryStorageKey } from "./construction/inventoryPersistence.ts";
++import { fencingRecipeStorageKey } from "./fencingRecipePersistence.ts";
++import { takeoffKey } from "./construction/altitudeTakeoff.ts";
++import { trialKey } from "./construction/connectionTrial.ts";
++import { MATERIALS_DB } from "./projectMaterialsPersistence.ts";
++import { priceBookKey, parsePriceBookLibrary } from "./pricing/priceBooks.ts";
++import { sheetLifecycleStorageKey, sheetSourceIdentity, validateJobSheetMetadata } from "./sheetLifecycle.ts";
++import { PLAN_CONTENT_DB, PLAN_CONTENT_STORE, MAX_PLAN_BYTES, type StoredPlanContent } from "./documentContract.ts";
++import { PHOTO_CONTENT_DB, PHOTO_CONTENT_STORE, MAX_PHOTO_BYTES, type StoredPhotoContent } from "./evidence.ts";
++import { backupDigest, backupPhotos, emptyBackupRecords, parseProjectBackup, validateBackupRecords, type BackupRecords, type ProjectBackup } from "./projectBackup.ts";
++
++export type BackupRestoreReadPorts = {
++  currentJob(): FencingJob;
++  readLocal(key: string): string | null | Promise<string | null>;
++  readMaterials(jobId: string): Promise<string | null>;
++  plan(id: string): Promise<StoredPlanContent | null>;
++  photo(id: string): Promise<StoredPhotoContent | null>;
++};
++export type RestoreImpactAction = "add" | "replace" | "remove" | "unchanged" | "preserve" | "unsupported" | "conflict";
++export type RestoreImpactRow = {
++  id: string; label: string; storage: "localStorage" | "IndexedDB";
++  key: string; database?: string; store?: string;
++  scope: "workspace" | "target-project" | "current-project" | "global";
++  action: RestoreImpactAction; existing: boolean; incoming: boolean; message: string;
++};
++export type BackupRestorePreflight = {
++  project: { current: { id: string; name: string; revision: number }; target: { id: string; name: string; revision: number }; sameProject: boolean };
++  rows: RestoreImpactRow[]; warnings: string[]; blockingIssues: string[];
++  fingerprint: string; backupSha256: string; canApply: false;
++};
++export type BackupRestoreOptions = { expectedFingerprint?: string; restoreReferenceRates?: boolean };
++type Target = Omit<RestoreImpactRow, "action" | "existing" | "incoming" | "message"> & {
++  record?: keyof BackupRecords; owner?: FencingJob; next?: string | null; policy: "compare" | "preserve" | "unsupported";
++};
++type RawRead = { raw: string | null; digest: string | null; error: boolean };
++type AssetRead = { present: boolean; digest: string | null; metadata: string | null; error: boolean; currentMismatch: boolean };
++type Snapshot = { liveJob: string; raw: Map<string, RawRead>; assets: Map<string, AssetRead> };
++const REFERENCE_KEY = "xray.price-sheet.v1";
++const MAX_RECORD_BYTES = 30 * 1024 * 1024;
++const local = (key: string) => `localStorage:${key}`;
++const assetKey = (kind: "plan" | "photo", id: string) => `${kind}:${id}`;
++const describeJob = (job: FencingJob) => ({ id: job.id, name: job.name, revision: job.revision });
++
++/** Explicit record addresses only. No storage enumeration, mutation or restore capability. */
++export async function assessBackupRestore(
++  backup: ProjectBackup | string, ports: BackupRestoreReadPorts, options: BackupRestoreOptions = {},
++): Promise<BackupRestorePreflight> {
++  // Always parse the serialized value, including when the caller supplies an already-typed object.
++  const serialized = typeof backup === "string" ? backup : JSON.stringify(backup);
++  const target = await parseProjectBackup(serialized);
++  const current = fencingJobSchema.parse(structuredClone(ports.currentJob()));
++  const currentText = JSON.stringify(current), backupSha256 = await backupDigest(serialized);
++  const warnings = ["Read-only impact review. No project, original file or saved setting has been changed. Applying a backup is not available.",
++    "This review does not acquire a write lease or create a recovery journal. Repeat it after changes; a stable fingerprint is not permission to apply."];
++  const blockingIssues: string[] = [], rows: RestoreImpactRow[] = [], targets = new Map<string, Target>();
++  const put = (value: Target) => targets.set(value.id, value);
++  put({ id: local(FENCING_JOB_STORAGE_KEY), label: "Active editing project", storage: "localStorage", key: FENCING_JOB_STORAGE_KEY, scope: "workspace", policy: "compare", next: JSON.stringify(target.job) });
++  put({ id: local(LEGACY_FENCING_JOB_STORAGE_KEY), label: "Legacy saved project", storage: "localStorage", key: LEGACY_FENCING_JOB_STORAGE_KEY, scope: "workspace", policy: "preserve" });
++  function addModules(job: FencingJob, incoming: boolean) {
++    const scope = incoming ? "target-project" as const : "current-project" as const;
++    const keys: [keyof BackupRecords, string, string][] = [
++      ["architecture", "Architectural design", architectKey(job.id)], ["bom", "BOM and review", bomStorageKey(job.id)],
++      ["components", "Component inventory", inventoryStorageKey(job.id)], ["recipes", "Saved recipes", fencingRecipeStorageKey(job.id)],
++      ["sourceTakeoff", "Source-bound takeoff", takeoffKey(job.id)], ["connectionReview", "Source-bound connection review", trialKey(job.id)],
++      ["priceBooks", "Supplier price books and worksheet", priceBookKey(job.id)],
++    ];
++    for (const [record, label, key] of keys) put({ id: local(key), label, storage: "localStorage", key, scope, record, owner: job,
++      policy: !incoming ? "preserve" : target.records[record] === undefined ? "unsupported" : "compare", next: incoming ? target.records[record] : undefined });
++    put({ id: `materials:${job.id}`, label: "Project materials", storage: "IndexedDB", database: MATERIALS_DB, store: "inventories", key: job.id,
++      scope, record: "materials", owner: job, policy: incoming ? "compare" : "preserve", next: incoming ? target.records.materials : undefined });
++    for (const doc of job.documents) {
++      const identity = sheetSourceIdentity(job.id, doc);
++      if (!identity) continue;
++      const key = sheetLifecycleStorageKey(identity);
++      put({ id: local(key), label: `Sheet organisation: ${doc.name}`, storage: "localStorage", key, scope, record: "sheetMetadata", owner: job, policy: "preserve" });
++    }
++  }
++  addModules(current, false);
++  addModules(target.job, true);
++  const capturedSheets = target.records.sheetMetadata;
++  const sheetValues = new Map(validateJobSheetMetadata(capturedSheets ?? null, target.job).map(value => [sheetLifecycleStorageKey(value.identity), JSON.stringify(value)]));
++  // Include known current-only source identities when restoring the same project. A null v2 snapshot means absence.
++  for (const entry of targets.values()) if (entry.record === "sheetMetadata" && (current.id === target.job.id || entry.scope === "target-project")) {
++    entry.scope = "target-project";
++    entry.policy = capturedSheets === undefined ? "unsupported" : "compare";
++    entry.next = capturedSheets === undefined ? undefined : sheetValues.get(entry.key) ?? null;
++  }
++  if (capturedSheets === undefined) warnings.push("This package did not capture sheet organisation. Existing names, order and archive state cannot be reconstructed from it and would need to be explicitly preserved.");
++  if (target.records.priceBooks === undefined) warnings.push("This package did not capture supplier price books or its priced worksheet. Those records are unsupported by this package and must not be silently cleared.");
++  put({ id: local(REFERENCE_KEY), label: "Device-wide reference rates", storage: "localStorage", key: REFERENCE_KEY, scope: "global", record: "referenceRates",
++    policy: options.restoreReferenceRates ? "compare" : "preserve", next: target.records.referenceRates });
++  warnings.push(options.restoreReferenceRates ? "Reference-rate replacement is selected for this impact review. These settings are shared by other projects on this device." : "Device-wide reference rates are preserved by default, even when the backup contains different rates.");
++  warnings.push("Only supported per-project stores and source identities listed here are inspected. Separate construction-runtime jobs, model preferences and unknown/orphaned source records are outside this package.");
++
++  const originals = new Map<string, { kind: "plan" | "photo"; id: string; name: string; incoming: boolean; expected: string | null;
++    currentPlan?: FencingJob["documents"][number]; currentPhoto?: FencingJob["photos"][number] }>();
++  for (const doc of current.documents.filter(d => d.source !== "sample")) originals.set(assetKey("plan", doc.id), { kind: "plan", id: doc.id, name: doc.name, incoming: false, expected: null, currentPlan: doc });
++  for (const photo of backupPhotos(current)) originals.set(assetKey("photo", photo.id), { kind: "photo", id: photo.id, name: photo.name, incoming: false, expected: null, currentPhoto: photo });
++  for (const asset of target.assets) {
++    const doc = target.job.documents.find(d => d.id === asset.id);
++    const expected = asset.kind === "plan" ? JSON.stringify({ id: asset.id, name: asset.name, kind: doc!.kind, mimeType: asset.mimeType, sha256: asset.sha256 })
++      : JSON.stringify({ id: asset.id, name: asset.name, mimeType: asset.mimeType, sha256: asset.sha256 });
++    const key = assetKey(asset.kind, asset.id);
++    originals.set(key, { ...originals.get(key), kind: asset.kind, id: asset.id, name: asset.name, incoming: true, expected });
++  }
++  async function capture(): Promise<Snapshot> {
++    const liveJob = JSON.stringify(fencingJobSchema.parse(structuredClone(ports.currentJob())));
++    const raw = new Map<string, RawRead>(), assets = new Map<string, AssetRead>();
++    for (const entry of targets.values()) {
++      try {
++        const value = entry.storage === "localStorage" ? await ports.readLocal(entry.key) : await ports.readMaterials(entry.key);
++        if (value !== null && (typeof value !== "string" || new Blob([value]).size > MAX_RECORD_BYTES)) throw Error("Unreadable record");
++        raw.set(entry.id, { raw: value, digest: value === null ? null : await backupDigest(value), error: false });
++      } catch { raw.set(entry.id, { raw: null, digest: null, error: true }); }
++    }
++    for (const [id, original] of originals) {
++      try {
++        const content = original.kind === "plan" ? await ports.plan(original.id) : await ports.photo(original.id);
++        if (!content) { assets.set(id, { present: false, metadata: null, digest: null, error: false, currentMismatch: false }); continue; }
++        if (!(content.bytes instanceof ArrayBuffer) || content.bytes.byteLength > (original.kind === "plan" ? MAX_PLAN_BYTES : MAX_PHOTO_BYTES)) throw Error("Unreadable original");
++        const digest = await backupDigest(content.bytes);
++        let metadata: string;
++        if (original.kind === "plan") {
++          const plan = content as StoredPlanContent;
++          if (plan.sizeBytes !== plan.bytes.byteLength || plan.documentId !== original.id) throw Error("Original metadata mismatch");
++          metadata = JSON.stringify({ id: plan.documentId, name: plan.name, kind: plan.kind, mimeType: plan.mimeType, sha256: plan.sha256 });
++        } else {
++          const photo = content as StoredPhotoContent;
++          if (photo.id !== original.id) throw Error("Original identity mismatch");
++          metadata = JSON.stringify({ id: photo.id, name: photo.name, mimeType: photo.mimeType, sha256: photo.sha256 });
++        }
++        const expectedCurrent = original.currentPlan ?? original.currentPhoto;
++        const currentMismatch = !!expectedCurrent && (expectedCurrent.name !== content.name || expectedCurrent.sha256 !== digest ||
++          (original.currentPlan ? original.currentPlan.kind !== (content as StoredPlanContent).kind :
++            original.currentPhoto!.mimeType !== content.mimeType || original.currentPhoto!.sizeBytes !== content.bytes.byteLength));
++        assets.set(id, { present: true, metadata, digest, error: digest !== content.sha256, currentMismatch });
++      } catch { assets.set(id, { present: true, metadata: null, digest: null, error: true, currentMismatch: false }); }
++    }
++    return { liveJob, raw, assets };
++  }
++  const snapshotValue = (snapshot: Snapshot) => JSON.stringify({ backupSha256, restoreReferenceRates: options.restoreReferenceRates === true, liveJob: snapshot.liveJob,
++    records: [...snapshot.raw].map(([id, value]) => [id, value.digest, value.error]), assets: [...snapshot.assets] });
++  const first = await capture(), second = await capture();
++  const fingerprint = await backupDigest(snapshotValue(second));
++  if (first.liveJob !== currentText || second.liveJob !== currentText || snapshotValue(first) !== snapshotValue(second)) blockingIssues.push("The editing project or a saved target changed while this review was being prepared. Run the impact review again.");
++  if (options.expectedFingerprint !== undefined && options.expectedFingerprint !== fingerprint) blockingIssues.push("The backup, editing project or target storage changed since the previous review. The earlier review is stale.");
++  const activeRaw = second.raw.get(local(FENCING_JOB_STORAGE_KEY))!, legacyRaw = second.raw.get(local(LEGACY_FENCING_JOB_STORAGE_KEY))!;
++  try {
++    const stored = activeRaw.raw ?? legacyRaw.raw;
++    if (stored === null) warnings.push("The current editing project has no saved main-job record. A recoverable before-restore snapshot has not been established.");
++    else if (JSON.stringify(parseFencingJob(JSON.parse(stored))) !== currentText) blockingIssues.push("The open project differs from the saved main-job record. Preserve or reload the latest work before considering recovery.");
++  } catch { blockingIssues.push("The existing main-job record is corrupt or unsupported. It has been preserved; resolve that recovery issue first."); }
++  for (const entry of targets.values()) {
++    const before = second.raw.get(entry.id)!;
++    let action: RestoreImpactAction = entry.policy === "preserve" ? "preserve" : entry.policy === "unsupported" ? "unsupported"
++      : before.raw === (entry.next ?? null) ? "unchanged" : entry.next == null ? "remove" : before.raw === null ? "add" : "replace";
++    let message = action === "preserve" ? "Existing value remains untouched." : action === "unsupported" ? "Not captured by this package; absence cannot be inferred."
++      : action === "remove" ? "The package records absence; a future restore would remove this saved target value after preserving a recovery copy."
++      : action === "replace" ? "Different saved target data exists; a recovery before-image and explicit replacement review would be required."
++      : action === "add" ? "No saved value exists at this exact target address." : "Saved value matches the package exactly.";
++    if (before.error) { action = "conflict"; message = "Existing storage could not be read safely; no absence or replacement assumption is valid."; blockingIssues.push(`${entry.label}: existing storage is unreadable.`); }
++    else if (before.raw !== null && entry.record && entry.scope !== "global") {
++      try {
++        if (entry.record === "priceBooks") parsePriceBookLibrary(before.raw, entry.owner!.id);
++        else if (entry.record === "sheetMetadata") {
++          const sheets = validateJobSheetMetadata(`[${before.raw}]`, entry.owner!);
++          if (sheets.length !== 1 || sheetLifecycleStorageKey(sheets[0].identity) !== entry.key) throw Error("Wrong source key");
++        } else await validateBackupRecords({ ...emptyBackupRecords(), [entry.record]: before.raw }, entry.owner!.id);
++      } catch {
++        action = "conflict"; message = "Existing project data is corrupt, unsupported or belongs to another identity. It has been preserved.";
++        blockingIssues.push(`${entry.label}: existing project data failed validation.`);
++      }
++    }
++    rows.push({ id: entry.id, label: entry.label, storage: entry.storage, key: entry.key, database: entry.database, store: entry.store, scope: entry.scope,
++      action, existing: before.raw !== null || before.error, incoming: entry.next != null, message });
++  }
++  for (const [id, original] of originals) {
++    const before = second.assets.get(id)!;
++    const currentReferenced = !!(original.currentPlan || original.currentPhoto);
++    const conflict = before.error || before.currentMismatch || (currentReferenced && !before.present) || (original.incoming && before.present && before.metadata !== original.expected);
++    const action: RestoreImpactAction = conflict ? "conflict" : original.incoming ? before.present ? "unchanged" : "add" : "preserve";
++    if (before.error || (original.incoming && before.present && before.metadata !== original.expected)) blockingIssues.push(`Original ${original.kind} “${original.name}” has a reused identity, different metadata or corrupt bytes. Existing originals must not be overwritten.`);
++    if (currentReferenced && !before.present) blockingIssues.push(`Current original ${original.kind} “${original.name}” is missing; a complete before-restore backup cannot yet be made.`);
++    if (before.currentMismatch) blockingIssues.push(`Current original ${original.kind} “${original.name}” does not match the open project's metadata; a complete before-restore backup cannot yet be made.`);
++    rows.push({ id, label: `Original ${original.kind}: ${original.name}`, storage: "IndexedDB", key: original.id,
++      database: original.kind === "plan" ? PLAN_CONTENT_DB : PHOTO_CONTENT_DB, store: original.kind === "plan" ? PLAN_CONTENT_STORE : PHOTO_CONTENT_STORE,
++      scope: original.incoming ? "target-project" : "current-project", action, existing: before.present, incoming: original.incoming,
++      message: conflict ? currentReferenced && !before.present ? "A current-project original is missing; incoming bytes do not establish a complete before-restore backup."
++        : "Identity collision or corruption blocks reuse; no original was changed." : original.incoming ? before.present ? "Stored original metadata and actual byte digest match the verified package." : "Verified package original is absent locally; a future restore would add it without replacing other originals." : "Current-project original is retained." });
++  }
++  return { project: { current: describeJob(current), target: describeJob(target.job), sameProject: current.id === target.job.id }, rows, warnings,
++    blockingIssues: [...new Set(blockingIssues)], fingerprint, backupSha256, canApply: false };
++}
+
+diff --git a/src/studio/backupRestoreReview.css b/src/studio/backupRestoreReview.css
+new file mode 100644
+--- /dev/null
++++ b/src/studio/backupRestoreReview.css
+@@ -0,0 +1,11 @@
++.backup-restore-review { display: grid; gap: 12px; border-top: 1px solid var(--color-line); padding-top: 16px; margin-top: 8px; }
++.project-backups .restore-rate-option { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
++.project-backups .restore-rate-option input { width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; }
++.restore-impact-list { display: grid; gap: 8px; }
++.restore-impact-list article { border: 1px solid var(--color-line); border-radius: 6px; padding: 12px; background: var(--color-bg); }
++.restore-impact-list article > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
++.restore-impact-list span { font-size: 12px; color: var(--color-muted); }
++.restore-impact-list p { font-size: 12px; margin-top: 6px; }
++.restore-review-result { font-weight: 600; }
++.restore-conflicts { padding: 12px 12px 12px 28px; border: 1px solid var(--color-line); }
++.backup-restore-review summary { cursor: pointer; min-height: 44px; padding-block: 12px; }
+
+diff --git a/src/studio/pricing/priceBooks.ts b/src/studio/pricing/priceBooks.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.ts
+@@ -0,0 +1,244 @@
++import { z } from "zod";
++
++export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
++export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
++const shortText = z.string().trim().min(1).max(200);
++const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => {
++  const parsed = new Date(`${v}T00:00:00Z`);
++  return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === v;
++}, "Use a valid effective date.");
++export const priceMetadataSchema = z.object({
++  supplier: shortText,
++  currency: z.string().regex(/^[A-Z]{3}$/, "Enter a three-letter currency code."),
++  amountDecimals: z.number().int().min(0).max(4),
++  taxBasis: z.enum(["exclusive", "inclusive", "unspecified"]),
++  taxPercent: z.number().finite().min(0).max(100).nullable(),
++  effectiveDate: date,
++  sourceReference: z.string().trim().min(1).max(2000),
++}).strict().refine(v => v.taxBasis !== "unspecified" || v.taxPercent === null, "Unknown tax basis cannot have an assumed tax percentage.");
++export type PriceMetadata = z.infer<typeof priceMetadataSchema>;
++export const priceRowSchema = z.object({
++  sourceLine: z.number().int().positive(),
++  stockCode: z.string().trim().max(100), description: z.string().trim().min(1).max(300),
++  unit: z.string().trim().min(1).max(40), rate: z.number().finite().nonnegative().max(1e9).refine(v => Number(v.toFixed(6)) === v, "Rate supports up to six decimal places."),
++}).strict();
++export type PriceRow = z.infer<typeof priceRowSchema>;
++const column = z.number().int().min(0).max(39);
++export const priceMappingSchema = z.object({ stockCode: column.nullable(), description: column, unit: column, rate: column }).strict()
++  .refine(v => { const columns = Object.values(v).filter(n => n !== null); return new Set(columns).size === columns.length; }, "Map each field to a different column.");
++export type PriceMapping = z.infer<typeof priceMappingSchema>;
++export const priceImportSchema = z.object({
++  metadata: priceMetadataSchema,
++  source: z.object({ fileName: z.string().min(1).max(255), sha256: z.string().regex(/^[a-f0-9]{64}$/),
++    sizeBytes: z.number().int().positive().max(PRICE_CSV_LIMIT), delimiter: z.enum([",", ";", "\t"]).optional(),
++    kind: z.enum(["csv", "xlsx"]).optional(), worksheet: z.string().min(1).max(200).optional(), headerRow: z.number().int().min(1).max(100).optional(),
++    headers: z.array(z.string().max(300)).min(1).max(40), mapping: priceMappingSchema }).strict().superRefine((source, ctx) => {
++      if (source.kind === "xlsx") {
++        if (!source.worksheet || source.headerRow === undefined || source.delimiter !== undefined) ctx.addIssue({ code: "custom", message: "Workbook provenance needs a worksheet and header row, with no CSV separator." });
++      } else if (!source.delimiter || source.worksheet !== undefined) ctx.addIssue({ code: "custom", message: "CSV provenance needs a separator and no workbook sheet." });
++    }),
++  rows: z.array(priceRowSchema).min(1).max(5000),
++}).strict().superRefine((v, ctx) => {
++  for (const index of Object.values(v.source.mapping)) if (index !== null && index >= v.source.headers.length)
++    ctx.addIssue({ code: "custom", message: "Mapped column is outside the source header." });
++  const lines = new Set<number>(), codes = new Set<string>();
++  for (const row of v.rows) {
++    if (lines.has(row.sourceLine)) ctx.addIssue({ code: "custom", message: "Duplicate source line." });
++    lines.add(row.sourceLine);
++    const code = row.stockCode.toLocaleLowerCase();
++    if (code && codes.has(code)) ctx.addIssue({ code: "custom", message: `Duplicate stock code: ${row.stockCode}. Distinguish supplier variants before importing.` });
++    if (code) codes.add(code);
++  }
++});
++export type PriceImport = z.infer<typeof priceImportSchema>;
++const revisionSchema = z.object({ ...priceImportSchema.shape, revision: z.number().int().positive(), importedAt: z.string().datetime() }).strict()
++  .superRefine((v, ctx) => { const parsed = priceImportSchema.safeParse({ metadata: v.metadata, source: v.source, rows: v.rows });
++    if (!parsed.success) for (const issue of parsed.error.issues) ctx.addIssue({ code: "custom", message: issue.message }); });
++export const priceBookLibrarySchema = z.object({
++  schema: z.literal("xray.price-books/v1"), jobId: z.string().min(1).max(200), revision: z.number().int().nonnegative(),
++  books: z.array(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), archived: z.boolean(),
++    revisions: z.array(revisionSchema).min(1).max(50) }).strict()).max(100),
++  worksheet: z.array(z.object({ id: z.string().uuid(), bookId: z.string().uuid(), bookRevision: z.number().int().positive(),
++    sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
++    addedAt: z.string().datetime() }).strict()).max(5000),
++}).strict().superRefine((v, ctx) => {
++  if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
++  for (const book of v.books) if (book.revisions.some((r, i) => r.revision !== i + 1))
++    ctx.addIssue({ code: "custom", message: "Price book revisions must be consecutive and preserved." });
++  if (v.books.reduce((n, b) => n + b.revisions.reduce((s, r) => s + r.rows.length, 0), 0) > 25000)
++    ctx.addIssue({ code: "custom", message: "This project library supports up to 25,000 rate records across all revisions." });
++  if (new Set(v.worksheet.map(line => line.id)).size !== v.worksheet.length) ctx.addIssue({ code: "custom", message: "Duplicate priced line identity." });
++  for (const line of v.worksheet) if (!v.books.find(b => b.id === line.bookId)?.revisions.find(r => r.revision === line.bookRevision)?.rows.some(row => row.sourceLine === line.sourceLine))
++    ctx.addIssue({ code: "custom", message: "A priced line references a missing source rate." });
++});
++export type PriceBookLibrary = z.infer<typeof priceBookLibrarySchema>;
++export type PriceBook = PriceBookLibrary["books"][number];
++export function priceBookKey(jobId: string) { return `xray:price-books:v1:${encodeURIComponent(jobId)}`; }
++export function emptyPriceBookLibrary(jobId: string): PriceBookLibrary { return priceBookLibrarySchema.parse({ schema: "xray.price-books/v1", jobId, revision: 0, books: [], worksheet: [] }); }
++export function parsePriceBookLibrary(raw: string, jobId: string): PriceBookLibrary {
++  if (new TextEncoder().encode(raw).length > PRICE_LIBRARY_LIMIT) throw Error("Price book library exceeds 4 MB.");
++  const value = priceBookLibrarySchema.parse(JSON.parse(raw));
++  if (value.jobId !== jobId) throw Error("Price books belong to another project.");
++  return value;
++}
++export function appendPriceBookRevision(library: PriceBookLibrary, incoming: PriceImport, name: string, bookId: string | null, makeId = () => crypto.randomUUID(), now = new Date().toISOString()): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library), value = priceImportSchema.parse(incoming);
++  const existing = current.books.find(b => b.id === bookId);
++  if (bookId && !existing) throw Error("Price book no longer exists. Reload the library.");
++  if (existing?.archived) throw Error("Restore the archived price book before adding a revision.");
++  const revision = { ...value, revision: (existing?.revisions.length ?? 0) + 1, importedAt: now };
++  const book = existing ? { ...existing, revisions: [...existing.revisions, revision] } : { id: makeId(), name, archived: false, revisions: [revision] };
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    books: existing ? current.books.map(b => b.id === existing.id ? book : b) : [...current.books, book] });
++}
++export function editPriceBook(library: PriceBookLibrary, id: string, changes: { name?: string; archived?: boolean }): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library);
++  if (!current.books.some(b => b.id === id)) throw Error("Price book no longer exists.");
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, books: current.books.map(b => b.id === id ? { ...b, ...changes } : b) });
++}
++export type PriceBookSession = { value: PriceBookLibrary; raw: string | null; blocked: boolean; error: string | null };
++type StoragePort = Pick<Storage, "getItem" | "setItem">;
++export function readPriceBooks(storage: StoragePort, jobId: string): PriceBookSession {
++  let raw: string | null = null;
++  try { raw = storage.getItem(priceBookKey(jobId)); return { value: raw === null ? emptyPriceBookLibrary(jobId) : parsePriceBookLibrary(raw, jobId), raw, blocked: false, error: null }; }
++  catch { return { value: emptyPriceBookLibrary(jobId), raw, blocked: true, error: "Saved price books could not be read. They are preserved; saving is blocked. Reload after recovery." }; }
++}
++export function readBrowserPriceBooks(jobId: string): PriceBookSession {
++  try { return readPriceBooks(localStorage, jobId); }
++  catch { return { value: emptyPriceBookLibrary(jobId), raw: null, blocked: true, error: "Price book storage is unavailable. Saving is blocked; existing data has not been changed." }; }
++}
++// Called inside the browser's cross-window Web Lock by savePriceBooks.
++export function persistPriceBooks(storage: StoragePort, session: PriceBookSession, value: PriceBookLibrary): PriceBookSession {
++  if (session.blocked) throw Error(session.error ?? "Price book saving is blocked.");
++  const raw = JSON.stringify(value), parsed = parsePriceBookLibrary(raw, session.value.jobId);
++  if (parsed.revision !== session.value.revision + 1) throw Error("Price book revision changed. Reload before saving.");
++  for (const original of session.value.books) {
++    const next = parsed.books.find(b => b.id === original.id);
++    if (!next || JSON.stringify(next.revisions.slice(0, original.revisions.length)) !== JSON.stringify(original.revisions))
++      throw Error("Saved source revisions cannot be removed or overwritten. Add a new revision instead.");
++  }
++  if (storage.getItem(priceBookKey(parsed.jobId)) !== session.raw) throw Error("Price books changed in another window. Reload before saving; this import has not been applied.");
++  storage.setItem(priceBookKey(parsed.jobId), raw);
++  return { value: parsed, raw, blocked: false, error: null };
++}
++export async function savePriceBooks(session: PriceBookSession, value: PriceBookLibrary): Promise<PriceBookSession> {
++  if (!navigator.locks) throw Error("Safe price book saving is unavailable in this browser. Use the desktop app or a secure browser connection.");
++  return navigator.locks.request(priceBookKey(value.jobId), () => persistPriceBooks(localStorage, session, value));
++}
++export function priceBookError(error: unknown) { return error instanceof z.ZodError ? error.issues.map(i => i.message).join(" ") : error instanceof Error ? error.message : String(error); }
++
++export type CsvTable = { headers: string[]; headerLine?: number; records: { cells: string[]; line: number; cellErrors?: Record<number, string>; numericValues?: Record<number, string> }[] };
++export function parsePriceCsv(input: string, delimiter: "," | ";" | "\t" = ",", headerRow?: number): CsvTable {
++  if (new TextEncoder().encode(input).length > PRICE_CSV_LIMIT) throw Error("Import a CSV up to 2 MB.");
++  const text = input.replace(/^\uFEFF/, "");
++  let cells: string[] = [], cell = "", quoted = false, closed = false, line = 1, startLine = 1;
++  const records: CsvTable["records"] = [];
++  const endCell = () => { if (cell.length > 4000) throw Error(`Line ${startLine}: a field exceeds 4,000 characters.`); cells.push(cell); cell = ""; closed = false; if (cells.length > 40) throw Error("CSV supports up to 40 columns."); };
++  const endRow = () => { endCell(); if (cells.some(c => c.trim())) records.push({ cells, line: startLine }); cells = []; if (records.length > 5001) throw Error("Import up to 5,000 rates."); };
++  for (let i = 0; i < text.length; i++) {
++    const c = text[i];
++    if (quoted) {
++      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else { quoted = false; closed = true; } }
++      else { cell += c; if (c === "\n" || (c === "\r" && text[i + 1] !== "\n")) line++; }
++    } else if (c === delimiter) endCell();
++    else if (c === "\r" || c === "\n") { if (c === "\r" && text[i + 1] === "\n") i++; endRow(); line++; startLine = line; }
++    else if (closed) throw Error(`Line ${line}: unexpected text after a closing quote.`);
++    else if (c === '"') { if (cell) throw Error(`Line ${line}: quote the entire field.`); quoted = true; }
++    else cell += c;
++  }
++  if (quoted) throw Error(`Line ${startLine}: unclosed quoted field.`);
++  if (cell || cells.length || closed) endRow();
++  if (headerRow !== undefined && (!Number.isInteger(headerRow) || headerRow < 1 || headerRow > 100)) throw Error("Choose a header row from 1 to 100.");
++  const headerIndex = headerRow === undefined ? 0 : records.findIndex(record => record.line === headerRow);
++  if (headerIndex < 0) throw Error("Selected CSV header row is empty or inside a multiline field. Choose the line where the headings begin.");
++  records.splice(0, headerIndex);
++  const header = records.shift();
++  if (!header || !records.length) throw Error("CSV needs a header and at least one rate.");
++  if (header.cells.some(c => c.length > 300)) throw Error("Column headings must be at most 300 characters.");
++  return { headers: header.cells, records, headerLine: header.line };
++}
++export function suggestPriceMapping(headers: string[]): PriceMapping {
++  const normalized = headers.map(h => h.trim().toLowerCase());
++  const find = (aliases: string[], fallback: number) => { const index = normalized.findIndex(h => aliases.includes(h)); return index < 0 ? fallback : index; };
++  const code = find(["sku", "stock code", "code", "product code"], -1);
++  return { stockCode: code < 0 ? null : code, description: find(["description", "item", "product", "name"], 0),
++    unit: find(["unit", "uom", "units"], Math.min(1, headers.length - 1)), rate: find(["rate", "price", "unit price", "unit rate"], Math.min(2, headers.length - 1)) };
++}
++export function previewPriceRows(table: CsvTable, mapping: PriceMapping): { rows: PriceRow[]; errors: string[] } {
++  const checked = priceMappingSchema.safeParse(mapping);
++  if (!checked.success) return { rows: [], errors: checked.error.issues.map(i => i.message) };
++  if (Object.values(mapping).some(i => i !== null && i >= table.headers.length)) return { rows: [], errors: ["Choose an existing source column for every required field."] };
++  const rows: PriceRow[] = [], errors: string[] = [], codes = new Set<string>();
++  for (const record of table.records) {
++    try {
++      if (record.cells.length !== table.headers.length) throw Error("Column count does not match the header.");
++      const mappedError = Object.values(mapping).filter((n): n is number => n !== null).map(n => record.cellErrors?.[n]).find(Boolean);
++      if (mappedError) throw Error(mappedError);
++      const rate = (record.numericValues?.[mapping.rate] ?? record.cells[mapping.rate]).trim();
++      if (!/^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/.test(rate)) throw Error("Rate needs a non-negative decimal (up to 6 decimal places), with no currency symbol or thousands separators.");
++      const row = priceRowSchema.parse({ sourceLine: record.line, stockCode: mapping.stockCode === null ? "" : record.cells[mapping.stockCode],
++        description: record.cells[mapping.description], unit: record.cells[mapping.unit], rate: Number(rate) });
++      const code = row.stockCode.toLocaleLowerCase();
++      if (code && codes.has(code)) throw Error(`Duplicate stock code ${row.stockCode}; distinguish variants before importing.`);
++      if (code) codes.add(code);
++      rows.push(row);
++    } catch (error) { if (errors.length < 30) errors.push(`Line ${record.line}: ${priceBookError(error)}`); }
++  }
++  return { rows, errors };
++}
++export const priceCsvTemplate = () => "Stock code,Description,Unit,Rate\r\n";
++// Decimal arithmetic, including half-up rounding, never uses binary floating point multiplication.
++export function priceLineAmount(rate: number, quantity: string, decimals: number): string {
++  priceRowSchema.shape.rate.parse(rate);
++  if (!/^\d{1,10}(?:\.\d{1,6})?$/.test(quantity) || Number(quantity) > 1e9) throw Error("Enter a quantity from 0 to 1,000,000,000 with up to 6 decimal places.");
++  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 4) throw Error("Choose an amount precision from 0 to 4 decimal places.");
++  const scaled = (value: string) => { const [whole, fraction = ""] = value.split("."); return BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, "0")); };
++  const product = scaled(rate.toFixed(6)) * scaled(quantity);
++  const divisor = 10n ** BigInt(12 - decimals), rounded = (product + divisor / 2n) / divisor;
++  if (!decimals) return rounded.toString();
++  const digits = rounded.toString().padStart(decimals + 1, "0"); return `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`;
++}
++export function addPricedLine(library: PriceBookLibrary, bookId: string, bookRevision: number, sourceLine: number, quantity: string, makeId = () => crypto.randomUUID(), now = new Date().toISOString()): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library), book = current.books.find(b => b.id === bookId), revision = book?.revisions.find(r => r.revision === bookRevision), row = revision?.rows.find(r => r.sourceLine === sourceLine);
++  if (!book || book.archived || !revision || !row) throw Error("Choose an active saved source rate.");
++  priceLineAmount(row.rate, quantity, revision.metadata.amountDecimals);
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    worksheet: [...current.worksheet, { id: makeId(), bookId, bookRevision, sourceLine, quantity, addedAt: now }] });
++}
++export function removePricedLine(library: PriceBookLibrary, id: string): PriceBookLibrary {
++  if (!library.worksheet.some(line => line.id === id)) throw Error("Priced line no longer exists.");
++  return priceBookLibrarySchema.parse({ ...library, revision: library.revision + 1, worksheet: library.worksheet.filter(line => line.id !== id) });
++}
++export function resolvePricedLine(library: PriceBookLibrary, line: PriceBookLibrary["worksheet"][number]) {
++  const book = library.books.find(b => b.id === line.bookId), revision = book?.revisions.find(r => r.revision === line.bookRevision), row = revision?.rows.find(r => r.sourceLine === line.sourceLine);
++  if (!book || !revision || !row) throw Error("The priced line's source rate could not be found.");
++  return { book, revision, row, outdated: book.revisions.length > line.bookRevision, amount: priceLineAmount(row.rate, line.quantity, revision.metadata.amountDecimals) };
++}
++export function pricedWorksheetTotals(library: PriceBookLibrary) {
++  const groups = new Map<string, { currency: string; taxBasis: PriceMetadata["taxBasis"]; taxPercent: number | null; decimals: number; count: number; minor: bigint }>();
++  for (const line of library.worksheet) {
++    const resolved = resolvePricedLine(library, line), m = resolved.revision.metadata;
++    const key = JSON.stringify([m.currency, m.taxBasis, m.taxPercent, m.amountDecimals]);
++    const group = groups.get(key) ?? { currency: m.currency, taxBasis: m.taxBasis, taxPercent: m.taxPercent, decimals: m.amountDecimals, count: 0, minor: 0n };
++    group.minor += BigInt(resolved.amount.replace(".", "")); group.count++; groups.set(key, group);
++  }
++  return [...groups.values()].map(({ minor, ...group }) => {
++    const digits = minor.toString().padStart(group.decimals + 1, "0");
++    return { ...group, amount: group.decimals ? `${digits.slice(0, -group.decimals)}.${digits.slice(-group.decimals)}` : digits };
++  });
++}
++export function pricedWorksheetCsv(library: PriceBookLibrary) {
++  const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at", "Source worksheet", "Header row"],
++    ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
++      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
++        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt, r.revision.source.worksheet ?? "", r.revision.source.headerRow ?? ""]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
++export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
++  const r = book.revisions.find(v => v.revision === revisionNumber);
++  if (!r) throw Error("Price book revision not found.");
++  const cell = (v: unknown) => { let text = v === null ? "" : String(v); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at", "Source worksheet", "Header row"],
++    ...r.rows.map(row => [row.stockCode, row.description, row.unit, row.rate, r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
++      r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt, r.source.worksheet ?? "", r.source.headerRow ?? ""])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
+
+diff --git a/src/studio/projectBackup.ts b/src/studio/projectBackup.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/projectBackup.ts
+@@ -0,0 +1,185 @@
++import { z } from "zod";
++import { fencingJobSchema, type FencingJob } from "./domain.ts";
++import { validateProject } from "./architect/model.ts";
++import { bomStateEnvelopeSchema } from "./bomState.ts";
++import { componentInventorySchema } from "./construction/inventory.ts";
++import { projectMaterialsSchema } from "./construction/projectMaterials.ts";
++import { takeoffSchema } from "./construction/altitudeTakeoff.ts";
++import { trialSchema } from "./construction/connectionTrial.ts";
++import { loadFencingRecipeSet } from "./fencingRecipePersistence.ts";
++import { inspectPlanBytes } from "./documents.ts";
++import { verifyPhotoContent, type StoredPhotoContent } from "./evidence.ts";
++import type { StoredPlanContent } from "./documentContract.ts";
++import { validateJobSheetMetadata } from "./sheetLifecycle.ts";
++import { parsePriceBookLibrary } from "./pricing/priceBooks.ts";
++
++export const BACKUP_FORMAT = "xray.workspace-backup/v2";
++export const BACKUP_LEGACY_FORMAT = "xray.workspace-backup/v1";
++export const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
++export const BACKUP_EXCLUSIONS = [
++  "Separate construction-runtime jobs and their history",
++  "Source-model location notes, camera views and appearance settings",
++  "Unsaved form edits, undo history, accounts and credentials",
++] as const;
++const text = z.string().min(1).max(300);
++const raw = z.string().max(30 * 1024 * 1024).nullable();
++export const backupRecordsSchema = z.object({
++  architecture: raw, bom: raw, components: raw, recipes: raw,
++  sourceTakeoff: raw, connectionReview: raw, materials: raw, referenceRates: raw,
++  sheetMetadata: raw.optional(), priceBooks: raw.optional(),
++}).strict();
++export type BackupRecords = z.infer<typeof backupRecordsSchema>;
++const assetSchema = z.object({
++  id: text, kind: z.enum(["plan", "photo"]), name: text, mimeType: text,
++  sha256: z.string().regex(/^[a-f0-9]{64}$/),
++  bytesBase64: z.string().min(4).max(Math.ceil(100 * 1024 * 1024 / 3) * 4),
++}).strict();
++const payloadSchema = z.object({
++  format: z.enum([BACKUP_FORMAT, BACKUP_LEGACY_FORMAT]), createdAt: z.string().datetime({ offset: true }),
++  name: z.string().trim().min(1).max(120), job: fencingJobSchema,
++  records: backupRecordsSchema, assets: z.array(assetSchema).max(2000),
++}).strict();
++export type ProjectBackup = z.infer<typeof payloadSchema>;
++export type BackupAsset = z.infer<typeof assetSchema>;
++export const emptyBackupRecords = (): BackupRecords => ({
++  architecture: null, bom: null, components: null, recipes: null,
++  sourceTakeoff: null, connectionReview: null, materials: null, referenceRates: null,
++  sheetMetadata: null, priceBooks: null,
++});
++export function backupPhotos(job: FencingJob): FencingJob["photos"] {
++  const photos = new Map<string, FencingJob["photos"][number]>();
++  for (const photo of [...job.photos, ...Object.values(job.documentWorkspaces ?? {}).flatMap(w => w.photos)]) {
++    const previous = photos.get(photo.id);
++    if (previous && (previous.sha256 !== photo.sha256 || previous.name !== photo.name ||
++      previous.sizeBytes !== photo.sizeBytes || previous.mimeType !== photo.mimeType))
++      throw Error("A photo identity refers to conflicting originals across document workspaces.");
++    photos.set(photo.id, photo);
++  }
++  return [...photos.values()];
++}
++export async function backupDigest(value: string | ArrayBuffer): Promise<string> {
++  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
++  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
++    .map(n => n.toString(16).padStart(2, "0")).join("");
++}
++export function encodeBackupBytes(bytes: ArrayBuffer): string {
++  const array = new Uint8Array(bytes);
++  let binary = "";
++  for (let offset = 0; offset < array.length; offset += 16384)
++    binary += String.fromCharCode(...array.subarray(offset, offset + 16384));
++  return btoa(binary);
++}
++export function decodeBackupBytes(value: string): ArrayBuffer {
++  if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value))
++    throw Error("Original file contains invalid base64.");
++  const binary = atob(value);
++  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
++  if (encodeBackupBytes(bytes.buffer) !== value) throw Error("Original file encoding is not canonical.");
++  return bytes.buffer;
++}
++function sameId(actual: string, expected: string, label: string) {
++  if (actual !== expected) throw Error(`${label} belongs to a different project.`);
++}
++export async function validateBackupRecords(records: BackupRecords, jobId: string) {
++  const parse = (s: string) => JSON.parse(s);
++  if (records.architecture !== null) sameId(validateProject(parse(records.architecture)).id, jobId, "Design");
++  if (records.bom !== null) sameId(bomStateEnvelopeSchema.parse(parse(records.bom)).jobId, jobId, "BOM");
++  if (records.components !== null) componentInventorySchema.parse(parse(records.components));
++  if (records.materials !== null) sameId(projectMaterialsSchema.parse(parse(records.materials)).projectId, jobId, "Materials");
++  if (records.sourceTakeoff !== null) sameId(takeoffSchema.parse(parse(records.sourceTakeoff)).projectId, jobId, "Takeoff");
++  if (records.connectionReview !== null) sameId(trialSchema.parse(parse(records.connectionReview)).projectId, jobId, "Connection review");
++  if (records.recipes !== null) {
++    const result = await loadFencingRecipeSet(jobId, { getItem: () => records.recipes, setItem: () => { throw Error("Read only"); } });
++    if (!result.ok) throw Error(`Saved recipes failed verification (${result.reason}).`);
++  }
++  if (records.referenceRates !== null) z.object({
++    currency: z.enum(["AUD", "NZD", "USD", "GBP", "EUR"]),
++    rows: z.array(z.object({ id: text, description: text, unit: text,
++      rate: z.string().trim().min(1).max(100).refine(s => Number.isFinite(Number(s)) && Number(s) >= 0),
++    }).strict()).max(1000),
++  }).strict().parse(parse(records.referenceRates));
++}
++export async function validateProjectBackup(input: unknown): Promise<ProjectBackup> {
++  const value = payloadSchema.parse(input);
++  if (value.format === BACKUP_LEGACY_FORMAT && (value.records.sheetMetadata !== undefined || value.records.priceBooks !== undefined))
++    throw Error("Sheet and price book records require backup format v2.");
++  await validateBackupRecords(value.records, value.job.id);
++  validateJobSheetMetadata(value.records.sheetMetadata ?? null, value.job);
++  if (value.records.priceBooks != null) parsePriceBookLibrary(value.records.priceBooks, value.job.id);
++  const originals = value.job.documents.filter(d => d.source !== "sample");
++  const photos = backupPhotos(value.job);
++  if (new Set(value.assets.map(a => `${a.kind}:${a.id}`)).size !== value.assets.length)
++    throw Error("Duplicate original file identities.");
++  if (value.assets.length !== originals.length + photos.length)
++    throw Error("Backup must include exactly every referenced original plan and photo.");
++  for (const asset of value.assets) {
++    const bytes = decodeBackupBytes(asset.bytesBase64);
++    if (asset.kind === "plan") {
++      const document = originals.find(d => d.id === asset.id);
++      if (!document || !["pdf", "dxf", "svg"].includes(document.kind)) throw Error("Unreferenced or unsupported original plan.");
++      if (asset.name !== document.name) throw Error("Original plan name does not match its document.");
++      const inspected = await inspectPlanBytes({ name: asset.name, bytes: new Uint8Array(bytes), source: "web" });
++      if (inspected.binary.sha256 !== asset.sha256 || asset.sha256 !== document.sha256 ||
++        inspected.binary.mimeType !== asset.mimeType || inspected.revision.pageCount !== document.pageCount)
++        throw Error(`Original plan “${asset.name}” failed metadata or SHA-256 verification.`);
++    } else {
++      const photo = photos.find(p => p.id === asset.id);
++      if (!photo) throw Error("Unreferenced original photo.");
++      const result = await verifyPhotoContent({ id: asset.id, name: asset.name,
++        mimeType: asset.mimeType as StoredPhotoContent["mimeType"], sha256: asset.sha256, bytes }, photo);
++      if (result.status !== "ready") throw Error(result.message);
++    }
++  }
++  // Material evidence may reference an original removed from the main document set.
++  // Reject incomplete packages instead of silently calling them recoverable.
++  if (value.records.materials !== null) {
++    const materials = projectMaterialsSchema.parse(JSON.parse(value.records.materials));
++    for (const source of materials.sources)
++      if (!originals.some(d => d.sha256 === source.sha256))
++        throw Error(`Material source “${source.name}” is missing from the project plans. Import that original before backing up.`);
++  }
++  return value;
++}
++export async function parseProjectBackup(serialized: string): Promise<ProjectBackup> {
++  if (serialized.length > MAX_BACKUP_BYTES || new Blob([serialized]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++  return validateProjectBackup(JSON.parse(serialized));
++}
++export function backupContents(value: ProjectBackup) {
++  return { plans: value.assets.filter(a => a.kind === "plan").length,
++    photos: value.assets.filter(a => a.kind === "photo").length,
++    records: Object.entries(value.records).filter(([, v]) => v != null).map(([key]) => key),
++    jobRevision: value.job.revision, jobName: value.job.name };
++}
++export type BackupCapturePort = {
++  records(jobId: string, job: FencingJob): Promise<BackupRecords>;
++  plan(id: string): Promise<StoredPlanContent | null>;
++  photo(id: string): Promise<StoredPhotoContent | null>;
++  currentJob(): FencingJob;
++};
++export async function captureProjectBackup(job: FencingJob, name: string, port: BackupCapturePort): Promise<ProjectBackup> {
++  const jobText = JSON.stringify(job), records = await port.records(job.id, job);
++  const assets: BackupAsset[] = [];
++  let total = jobText.length + JSON.stringify(records).length;
++  for (const doc of job.documents.filter(d => d.source !== "sample")) {
++    const content = await port.plan(doc.id);
++    if (!content) throw Error(`Original plan “${doc.name}” is missing. No backup was saved.`);
++    total += Math.ceil(content.bytes.byteLength / 3) * 4;
++    if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++    assets.push({ id: doc.id, kind: "plan", name: content.name, mimeType: content.mimeType,
++      sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
++  }
++  for (const photo of backupPhotos(job)) {
++    const content = await port.photo(photo.id);
++    if (!content) throw Error(`Original photo “${photo.name}” is missing. No backup was saved.`);
++    total += Math.ceil(content.bytes.byteLength / 3) * 4;
++    if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++    assets.push({ id: photo.id, kind: "photo", name: content.name, mimeType: content.mimeType,
++      sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
++  }
++  const result = await validateProjectBackup({ format: BACKUP_FORMAT, name, job: JSON.parse(jobText),
++    createdAt: new Date().toISOString(), records, assets });
++  if (JSON.stringify(port.currentJob()) !== jobText || JSON.stringify(await port.records(job.id, job)) !== JSON.stringify(records))
++    throw Error("Project changed while the backup was being prepared. Save again to capture a consistent version.");
++  if (new Blob([JSON.stringify(result)]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++  return result;
++}
+
+diff --git a/src/studio/projectBackupStorage.ts b/src/studio/projectBackupStorage.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/projectBackupStorage.ts
+@@ -0,0 +1,122 @@
++import { z } from "zod";
++import type { FencingJob } from "./domain.ts";
++import { readJobSheetMetadata } from "./sheetLifecycle.ts";
++import { priceBookKey } from "./pricing/priceBooks.ts";
++import { architectKey } from "./architect/persistence.ts";
++import { bomStorageKey } from "./bomPersistence.ts";
++import { inventoryStorageKey } from "./construction/inventoryPersistence.ts";
++import { fencingRecipeStorageKey } from "./fencingRecipePersistence.ts";
++import { takeoffKey } from "./construction/altitudeTakeoff.ts";
++import { trialKey } from "./construction/connectionTrial.ts";
++import { restoreMaterialDatabase } from "./projectMaterialsPersistence.ts";
++import { backupContents, backupDigest, parseProjectBackup, type BackupRecords, type ProjectBackup } from "./projectBackup.ts";
++
++export const BACKUP_DATABASE = "xray-workspace-backups-v1";
++const summarySchema = z.object({
++  id: z.string().uuid(), name: z.string().trim().min(1).max(120),
++  createdAt: z.string().datetime({ offset: true }), storedAt: z.string().datetime({ offset: true }),
++  archived: z.boolean(), revision: z.number().int().positive(),
++  sha256: z.string().regex(/^[a-f0-9]{64}$/), sizeBytes: z.number().int().positive(),
++  jobName: z.string(), jobId: z.string(), jobRevision: z.number().int().positive(),
++  plans: z.number().int().nonnegative(), photos: z.number().int().nonnegative(),
++  records: z.array(z.string()),
++}).strict();
++export type BackupSummary = z.infer<typeof summarySchema>;
++export async function readBackupRecords(jobId: string, job: FencingJob): Promise<BackupRecords> {
++  // Explicit allowlist. Never enumerate storage or include credentials, queues or other projects.
++  const materials = await restoreMaterialDatabase(jobId);
++  if (materials.blocked || materials.error) throw Error(materials.error ?? "Material inventory is not readable.");
++  return {
++    architecture: localStorage.getItem(architectKey(jobId)),
++    bom: localStorage.getItem(bomStorageKey(jobId)),
++    components: localStorage.getItem(inventoryStorageKey(jobId)),
++    recipes: localStorage.getItem(fencingRecipeStorageKey(jobId)),
++    sourceTakeoff: localStorage.getItem(takeoffKey(jobId)),
++    connectionReview: localStorage.getItem(trialKey(jobId)),
++    materials: materials.raw, referenceRates: localStorage.getItem("xray.price-sheet.v1"),
++    sheetMetadata: readJobSheetMetadata(job, localStorage),
++    priceBooks: localStorage.getItem(priceBookKey(jobId)),
++  };
++}
++function openDatabase(): Promise<IDBDatabase> {
++  return new Promise((resolve, reject) => {
++    const request = indexedDB.open(BACKUP_DATABASE, 1);
++    request.onupgradeneeded = () => {
++      request.result.createObjectStore("summaries", { keyPath: "id" });
++      request.result.createObjectStore("packages");
++    };
++    request.onsuccess = () => resolve(request.result);
++    request.onerror = () => reject(request.error ?? Error("Backup storage is unavailable."));
++    request.onblocked = () => reject(Error("Backup storage is blocked by another app window."));
++  });
++}
++async function transact<T>(mode: IDBTransactionMode, issue: (tx: IDBTransaction, result: (value: T) => void, fail: (error: Error) => void) => void): Promise<T> {
++  const db = await openDatabase();
++  try {
++    return await new Promise<T>((resolve, reject) => {
++      const tx = db.transaction(["summaries", "packages"], mode);
++      let result: T, reason: Error | undefined;
++      const fail = (error: Error) => { reason = error; tx.abort(); };
++      tx.oncomplete = () => resolve(result);
++      tx.onabort = () => reject(reason ?? tx.error ?? Error("Backup transaction did not complete. Previous backups are unchanged."));
++      tx.onerror = () => { /* Transaction abort reports the failure. */ };
++      try { issue(tx, value => { result = value; }, fail); }
++      catch (error) { fail(error instanceof Error ? error : Error("Backup operation failed.")); }
++    });
++  } finally { db.close(); }
++}
++export async function listProjectBackups(): Promise<BackupSummary[]> {
++  return transact("readonly", (tx, result, fail) => {
++    const req = tx.objectStore("summaries").getAll();
++    req.onsuccess = () => {
++      try { result(z.array(summarySchema).parse(req.result).sort((a, b) => b.storedAt.localeCompare(a.storedAt))); }
++      catch { fail(Error("The backup catalogue contains an unreadable entry. Stored data has been preserved.")); }
++    };
++  });
++}
++export async function storeProjectBackup(candidate: ProjectBackup): Promise<BackupSummary> {
++  // Revalidate even callers that bypass the import preview.
++  const serialized = JSON.stringify(candidate), value = await parseProjectBackup(serialized);
++  const summary = summarySchema.parse({ id: crypto.randomUUID(), name: value.name,
++    createdAt: value.createdAt, storedAt: new Date().toISOString(), archived: false, revision: 1,
++    sha256: await backupDigest(serialized), sizeBytes: new Blob([serialized]).size,
++    jobId: value.job.id, ...backupContents(value) });
++  return transact("readwrite", (tx, result) => {
++    tx.objectStore("packages").add(serialized, summary.id);
++    tx.objectStore("summaries").add(summary);
++    result(summary);
++  });
++}
++export async function readProjectBackup(id: string): Promise<{ summary: BackupSummary; value: ProjectBackup; serialized: string }> {
++  const { summary, serialized } = await transact<{ summary: BackupSummary; serialized: string }>("readonly", (tx, result, fail) => {
++    const metadata = tx.objectStore("summaries").get(id), content = tx.objectStore("packages").get(id);
++    let meta: BackupSummary | undefined, data: string | undefined;
++    const finish = () => { if (meta && data !== undefined) result({ summary: meta, serialized: data }); };
++    metadata.onsuccess = () => {
++      try { meta = summarySchema.parse(metadata.result); finish(); }
++      catch { fail(Error("Backup metadata is missing or invalid. Original stored data is preserved.")); }
++    };
++    content.onsuccess = () => {
++      if (typeof content.result !== "string") { fail(Error("Backup package is missing. Nothing was restored.")); return; }
++      data = content.result; finish();
++    };
++  });
++  if (new Blob([serialized]).size !== summary.sizeBytes || await backupDigest(serialized) !== summary.sha256)
++    throw Error("Backup failed SHA-256 verification. Stored bytes are preserved; download and import are blocked.");
++  const value = await parseProjectBackup(serialized);
++  if (value.job.id !== summary.jobId || value.createdAt !== summary.createdAt)
++    throw Error("Backup identity does not match its catalogue entry.");
++  return { summary, value, serialized };
++}
++export function updateBackupSummary(previous: BackupSummary, change: { name?: string; archived?: boolean }): Promise<BackupSummary> {
++  const next = summarySchema.parse({ ...previous, ...change, revision: previous.revision + 1 });
++  return transact("readwrite", (tx, result, fail) => {
++    const store = tx.objectStore("summaries"), request = store.get(previous.id);
++    request.onsuccess = () => {
++      if (JSON.stringify(request.result) !== JSON.stringify(previous)) {
++        fail(Error("This backup changed in another window. Refresh the library before trying again.")); return;
++      }
++      store.put(next); result(next);
++    };
++  });
++}
+
+diff --git a/src/studio/sheetBookmarks.ts b/src/studio/sheetBookmarks.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/sheetBookmarks.ts
+@@ -0,0 +1,21 @@
++import { z } from "zod";
++import { sourceViewport } from "./documentViewport.ts";
++
++export const sheetBookmarkSchema = z.object({
++  id: z.string().uuid(), name: z.string().trim().min(1).max(120),
++  createdAt: z.string().datetime({ offset: true }),
++  zoom: z.number().finite().min(0.1).max(20),
++  aspect: z.number().finite().positive().max(10000),
++  center: z.object({ x: z.number().finite().min(-10000).max(10000), y: z.number().finite().min(-10000).max(10000) }).strict(),
++}).strict();
++export type SheetBookmark = z.infer<typeof sheetBookmarkSchema>;
++export function captureSheetBookmark(name: string, zoom: number, pan: {x:number;y:number}, rendered: {width:number;height:number}): SheetBookmark {
++  if (![rendered.width,rendered.height].every(v=>Number.isFinite(v)&&v>0)) throw Error("Wait for the original source page to finish rendering before saving its view.");
++  return sheetBookmarkSchema.parse({id:crypto.randomUUID(),name,createdAt:new Date().toISOString(),zoom,aspect:rendered.width/rendered.height,
++    center:{x:.5-pan.x/rendered.width,y:.5-pan.y/rendered.height}});
++}
++export function restoreSheetBookmark(bookmark: SheetBookmark, viewport: {width:number;height:number}) {
++  const saved=sheetBookmarkSchema.parse(bookmark), frame=sourceViewport({x:0,y:0,width:saved.aspect,height:1},viewport.width,viewport.height,saved.zoom);
++  if(!frame)throw Error("The drawing viewport is not ready. Open the saved view again after the page is visible.");
++  return {zoom:saved.zoom,pan:{x:(.5-saved.center.x)*saved.aspect*frame.scale,y:(.5-saved.center.y)*frame.scale}};
++}
+
+diff --git a/src/studio/sheetLifecycle.ts b/src/studio/sheetLifecycle.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/sheetLifecycle.ts
+@@ -0,0 +1,143 @@
++import { z } from "zod";
++import type { DocumentRevision, FencingJob } from "./domain.ts";
++import { sheetBookmarkSchema, type SheetBookmark } from "./sheetBookmarks.ts";
++
++const identitySchema = z.object({
++  jobId: z.string().min(1), documentId: z.string().min(1),
++  sha256: z.string().regex(/^[a-f0-9]{64}$/), importedAt: z.string().datetime({ offset: true }),
++  pageCount: z.number().int().positive().max(10000),
++}).strict();
++export type SheetSourceIdentity = z.infer<typeof identitySchema>;
++const lifecycleSchema = z.object({
++  format: z.literal("xray.sheet-lifecycle/v1"), identity: identitySchema,
++  revision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1),
++  pages: z.array(z.object({ pageIndex: z.number().int().nonnegative(), name: z.string().min(1).max(120), archived: z.boolean(),
++    discipline: z.string().trim().min(1).max(80).optional(), bookmarks: z.array(sheetBookmarkSchema).max(20).optional(),
++  }).strict()).max(10000),
++}).strict();
++export type SheetLifecycle = z.infer<typeof lifecycleSchema>;
++export type SheetAction = { type: "rename"; pageIndex: number; name: string; discipline?: string } | { type: "archive" | "recover"; pageIndex: number } | { type: "move"; pageIndex: number; direction: -1 | 1 }
++  | {type:"discipline";pageIndex:number;discipline:string} | {type:"group"}
++  | {type:"bookmark";pageIndex:number;bookmark:SheetBookmark} | {type:"remove-bookmark";pageIndex:number;bookmarkId:string};
++export type SheetStorage = Pick<Storage, "getItem" | "setItem">;
++
++export function sheetSourceIdentity(jobId: string, document: DocumentRevision): SheetSourceIdentity | null {
++  if (document.source === "sample" || !document.sha256 || !document.pageCount) return null;
++  const parsed = identitySchema.safeParse({ jobId, documentId: document.id, sha256: document.sha256, importedAt: document.importedAt, pageCount: document.pageCount });
++  return parsed.success ? parsed.data : null;
++}
++export function sheetLifecycleStorageKey(identity: SheetSourceIdentity): string {
++  return `xray.sheet-lifecycle.v1:${JSON.stringify([identity.jobId, identity.documentId, identity.sha256, identity.importedAt, identity.pageCount])}`;
++}
++export function createSheetLifecycle(identity: SheetSourceIdentity): SheetLifecycle {
++  identitySchema.parse(identity);
++  return { format: "xray.sheet-lifecycle/v1", identity: { ...identity }, revision: 0,
++    pages: Array.from({ length: identity.pageCount }, (_, pageIndex) => ({ pageIndex, name: `Sheet ${pageIndex + 1}`, archived: false })) };
++}
++export function parseSheetLifecycle(raw: string, identity: SheetSourceIdentity): SheetLifecycle {
++  const value = lifecycleSchema.parse(JSON.parse(raw));
++  if (sheetLifecycleStorageKey(value.identity) !== sheetLifecycleStorageKey(identity)) throw Error("Sheet organisation belongs to a different source revision.");
++  const indices = new Set(value.pages.map(p => p.pageIndex));
++  if (value.pages.length !== identity.pageCount || indices.size !== identity.pageCount || value.pages.some(p => p.pageIndex >= identity.pageCount || !p.name.trim() || p.name !== p.name.trim())) throw Error("Saved sheet organisation does not match the source pages.");
++  const bookmarks=value.pages.flatMap(p=>p.bookmarks??[]);
++  if(new Set(bookmarks.map(b=>b.id)).size!==bookmarks.length)throw Error("Saved views contain duplicate identities.");
++  return value;
++}
++export function readSheetLifecycle(identity: SheetSourceIdentity, storage: Pick<Storage, "getItem">): SheetLifecycle {
++  const raw = storage.getItem(sheetLifecycleStorageKey(identity));
++  return raw === null ? createSheetLifecycle(identity) : parseSheetLifecycle(raw, identity);
++}
++export function changeSheetLifecycle(value: SheetLifecycle, action: SheetAction): SheetLifecycle {
++  parseSheetLifecycle(JSON.stringify(value), value.identity);
++  if(action.type==="group") {
++    const pages=[...value.pages].sort((a,b)=>(a.discipline??"\uffff").localeCompare(b.discipline??"\uffff", "en", {sensitivity:"base"}));
++    return {...value,revision:value.revision+1,pages};
++  }
++  const index = value.pages.findIndex(p => p.pageIndex === action.pageIndex);
++  if (index < 0) throw Error("That page is no longer part of this source.");
++  const next = structuredClone(value), page = next.pages[index];
++  if(action.type==="discipline") {
++    const discipline=action.discipline.trim();
++    if(discipline.length>80)throw Error("Use a discipline name up to80 characters.");
++    if(discipline)page.discipline=discipline;else delete page.discipline;
++  } else if(action.type==="bookmark") {
++    const bookmark=sheetBookmarkSchema.parse(action.bookmark);
++    if(next.pages.some(p=>p.bookmarks?.some(b=>b.id===bookmark.id)))throw Error("That saved view already exists.");
++    if((page.bookmarks?.length??0)>=20)throw Error("Keep up to20 saved views per page. Remove an old view before adding another.");
++    page.bookmarks=[...(page.bookmarks??[]),bookmark];
++  } else if(action.type==="remove-bookmark") {
++    if(!page.bookmarks?.some(b=>b.id===action.bookmarkId))throw Error("That saved view no longer exists. Reload before editing.");
++    page.bookmarks=page.bookmarks.filter(b=>b.id!==action.bookmarkId);
++    if(!page.bookmarks.length)delete page.bookmarks;
++  } else if (action.type === "rename") {
++    const name = action.name.trim();
++    if (!name || name.length > 120) throw Error("Enter a sheet name between 1 and 120 characters.");
++    page.name = name;
++    if(action.discipline!==undefined){const discipline=action.discipline.trim();if(discipline.length>80)throw Error("Use a discipline name up to80 characters.");if(discipline)page.discipline=discipline;else delete page.discipline;}
++  } else if (action.type === "move") {
++    if (page.archived) throw Error("Recover this sheet before changing its order.");
++    // Swap with the neighbouring active sheet, preserving archived slots and source indices.
++    let other = index + action.direction;
++    while (other >= 0 && other < next.pages.length && next.pages[other].archived) other += action.direction;
++    if (other < 0 || other >= next.pages.length) return value;
++    [next.pages[index], next.pages[other]] = [next.pages[other], next.pages[index]];
++  } else page.archived = action.type === "archive";
++  next.revision += 1;
++  return next;
++}
++/** Export every original page in managed order, including archive status and saved view metadata. */
++export function exportSheetRegister(value:SheetLifecycle, sourceName:string):string {
++  const checked=parseSheetLifecycle(JSON.stringify(value),value.identity);
++  return JSON.stringify({format:"xray.sheet-register/v1",sourceName,source:checked.identity,
++    sheets:checked.pages.map((page,index)=>({order:index+1,originalPage:page.pageIndex+1,name:page.name,discipline:page.discipline??null,archived:page.archived,bookmarks:page.bookmarks??[]}))},null,2);
++}
++/** Call within the key's exclusive Web Lock. A stale UI cannot replace another window's edits. */
++export function saveSheetLifecycle(previous: SheetLifecycle, action: SheetAction, storage: SheetStorage): SheetLifecycle {
++  const current = readSheetLifecycle(previous.identity, storage);
++  if (JSON.stringify(current) !== JSON.stringify(previous)) throw Error("Sheet organisation changed in another window. Reload the list before trying again.");
++  const next = changeSheetLifecycle(previous, action);
++  if (next !== previous) storage.setItem(sheetLifecycleStorageKey(next.identity), JSON.stringify(next));
++  return next;
++}
++type JobSources = Pick<FencingJob, "id" | "documents">;
++/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. */
++export function sheetArchiveImpact(job: Pick<FencingJob, "id" | "documents" | "activeDocumentId"> & {
++  calibrations: Pick<FencingJob["calibrations"][number], "sheet">[];
++  runs: Pick<FencingJob["runs"][number], "id" | "sheet" | "photoIds">[];
++  gates: Pick<FencingJob["gates"][number], "id" | "sheet" | "photoIds">[];
++  photos: Pick<FencingJob["photos"][number], "id" | "runIds" | "gateIds">[];
++  annotations?: { sheet: number; documentId: string }[];
++}, identity: SheetSourceIdentity, pageIndex: number) {
++  const document = job.documents.find(d => d.id === job.activeDocumentId);
++  const actual = document && sheetSourceIdentity(job.id, document);
++  if (!actual || sheetLifecycleStorageKey(actual) !== sheetLifecycleStorageKey(identity) || pageIndex < 0 || pageIndex >= identity.pageCount) throw Error("The source drawing changed. Review the sheet again before archiving.");
++  const runs = job.runs.filter(r => r.sheet === pageIndex), items = job.gates.filter(g => g.sheet === pageIndex);
++  const runIds = new Set(runs.map(r => r.id)), itemIds = new Set(items.map(g => g.id));
++  const photoIds = new Set([...runs, ...items].flatMap(row => row.photoIds));
++  const photos = job.photos.filter(photo => photoIds.has(photo.id) || photo.runIds.some(id => runIds.has(id)) || photo.gateIds.some(id => itemIds.has(id)));
++  return { calibrations: job.calibrations.filter(c => c.sheet === pageIndex).length, traces: runs.length, items: items.length,
++    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length };
++}
++/** Capture every saved source sidecar, including inactive documents, for a portable backup. */
++export function readJobSheetMetadata(job: JobSources, storage: Pick<Storage, "getItem">): string | null {
++  const values: SheetLifecycle[] = [];
++  for (const document of job.documents) {
++    const identity = sheetSourceIdentity(job.id, document);
++    if (!identity) continue;
++    const raw = storage.getItem(sheetLifecycleStorageKey(identity));
++    if (raw !== null) values.push(parseSheetLifecycle(raw, identity));
++  }
++  return values.length ? JSON.stringify(values) : null;
++}
++export function validateJobSheetMetadata(raw: string | null, job: JobSources): SheetLifecycle[] {
++  if (raw === null) return [];
++  const values = z.array(lifecycleSchema).max(10000).parse(JSON.parse(raw));
++  const seen = new Set<string>();
++  return values.map(value => {
++    const source = job.documents.find(d => d.id === value.identity.documentId);
++    const identity = source && sheetSourceIdentity(job.id, source);
++    if (!identity || seen.has(source.id)) throw Error("Sheet organisation contains an unknown or duplicate source.");
++    seen.add(source.id);
++    return parseSheetLifecycle(JSON.stringify(value), identity);
++  });
++}

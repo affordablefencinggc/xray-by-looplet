@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+const dir='proof/audit/IW-REDBURN-ENCLOSURE';
+const decode=p=>{const b=fs.readFileSync(p);return b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8').replace(/^\uFEFF/,'');};
+const launch=JSON.parse(decode(dir+'/native-launch.json'));
+const controls=decode(dir+'/native-controls-final.log'),archive=decode(dir+'/native-archive-final.log');
+if(!controls.includes('Native bottom controls visible and uncovered')||!controls.includes('native-rear.png')||!archive.includes('native-archived.png'))throw Error('Required native proof missing');
+for(const log of [controls,archive])if(log.includes('✗'))throw Error('Native proof contains a failure');
+const sha256=createHash('sha256').update(fs.readFileSync(launch.exe)).digest('hex');
+if(sha256!==launch.sha256)throw Error('Native executable changed since QA');
+const evidence=['native-front-detail.png','native-rear.png','native-backup.png','native-archived.png'];
+for(const file of evidence)if(!fs.existsSync('screenshots/redburn-enclosure/'+file))throw Error('Screenshot missing');
+fs.writeFileSync(dir+'/native-verified.json',JSON.stringify({ok:true,sha256,profile:launch.profile,checks:['198-part source-bound model','Visible bottom controls with no assistant overlap','Real pointer-locked Fly entry and Escape','Orthographic zoom and front/rear views','Roof visibility','Backup save and reload; archive/unarchive'],screenshots:evidence,logs:['native-controls-final.log','native-archive-final.log'],inspected:true},null,2));
+console.log('Verified native executable and completed proof records.');

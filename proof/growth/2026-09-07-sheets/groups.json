@@ -1,0 +1,171 @@
+[
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sheets",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"Filter discipline group\"]')"
+  ],
+  [
+    "fill",
+    ".sheet-manager input[type=search]",
+    ""
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Rename Sheet 1",
+    "--exact"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input[list]",
+    "Structural"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save name",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-original-page=\"1\"]')?.dataset.discipline==='Structural'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Rename Site and drainage plan",
+    "--exact"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input[list]",
+    "Civil"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save name",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-original-page=\"2\"]')?.dataset.discipline==='Civil'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Rename Sheet 3",
+    "--exact"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input[list]",
+    "Architecture"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save name",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-original-page=\"3\"]')?.dataset.discipline==='Architecture'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Group by discipline",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-manager-list>li')?.dataset.originalPage==='3'"
+  ],
+  [
+    "eval",
+    "if([...document.querySelectorAll('.sheet-manager-list>li')].slice(0,3).map(e=>e.dataset.discipline).join()!=='Architecture,Civil,Structural')throw Error('Discipline group order incorrect');'Three discipline groups sorted; original page identities retained'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.sheet-manager').scrollIntoView({block:'start'});if(document.documentElement.scrollWidth>innerWidth)throw Error('Desktop overflow');"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-sheets/groups-desktop.png"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sheets",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-manager-list>li')?.dataset.originalPage==='3'"
+  ],
+  [
+    "eval",
+    "if([...document.querySelectorAll('.sheet-manager-list>li')].slice(0,3).map(e=>e.dataset.discipline).join()!=='Architecture,Civil,Structural')throw Error('Grouping not persistent');'Groups and order persisted after restart'"
+  ],
+  [
+    "set",
+    "viewport",
+    "390",
+    "844"
+  ],
+  [
+    "eval",
+    "document.querySelector('.sheet-manager').scrollIntoView({block:'start'});if(document.documentElement.scrollWidth>innerWidth)throw Error('Mobile overflow');"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-sheets/groups-mobile.png"
+  ]
+]

@@ -1,0 +1,1148 @@
+diff --git a/package.json b/package.json
+index 856f01d..bbe5866 100644
+--- a/package.json
++++ b/package.json
+@@ -26,7 +26,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/lib/architectAi.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/scripts/start-local-desktop.ps1 b/scripts/start-local-desktop.ps1
+index 7558108..3ef3d7f 100644
+--- a/scripts/start-local-desktop.ps1
++++ b/scripts/start-local-desktop.ps1
+@@ -5,7 +5,7 @@ $workspace = Split-Path -Parent $PSScriptRoot
+ $settingsPath = Join-Path $workspace '.env.local'
+ $installDirectory = Join-Path $env:LOCALAPPDATA 'X-Ray by Looplet'
+ $applicationPath = Join-Path $installDirectory 'xray-by-looplet.exe'
+-$allowedNames = @('GEMINI_API_KEY', 'XRAY_AI_MODEL')
++$allowedNames = @('GEMINI_API_KEY', 'XRAY_AI_MODEL', 'DEEPGRAM_API_KEY', 'XRAY_VOICE_EDGE_URL', 'XRAY_VOICE_EDGE_TOKEN')
+ $previous = @{}
+ 
+ try {
+@@ -14,7 +14,7 @@ try {
+     }
+     if (Test-Path -LiteralPath $settingsPath) {
+         foreach ($line in [System.IO.File]::ReadAllLines($settingsPath)) {
+-            if ($line -match '^\s*(?:export\s+)?(GEMINI_API_KEY|XRAY_AI_MODEL)\s*=\s*(.*?)\s*$') {
++            if ($line -match '^\s*(?:export\s+)?(GEMINI_API_KEY|XRAY_AI_MODEL|DEEPGRAM_API_KEY|XRAY_VOICE_EDGE_URL|XRAY_VOICE_EDGE_TOKEN)\s*=\s*(.*?)\s*$') {
+                 $name = $Matches[1]
+                 $value = $Matches[2].Trim().Trim('"').Trim("'")
+                 if ($name -eq 'GEMINI_API_KEY' -and $value -notmatch '^AIza[0-9A-Za-z_-]{20,100}$') {
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index bbe7b25..c39429c 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -2,6 +2,7 @@
+ //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
+ 
+ mod material_ai;
++mod voice;
+ #[cfg(target_os = "windows")]
+ mod window_chrome;
+ use material_ai::*;
+@@ -692,6 +693,8 @@ pub fn run() {
+             }
+         })
+         .invoke_handler(tauri::generate_handler![
++            voice::xray_voice_status,
++            voice::xray_voice_request,
+             xray_material_ai_status,
+             xray_configure_material_ai,
+             xray_interpret_material_ai,
+diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
+index eea6b10..b16df2a 100644
+--- a/src/routeTree.gen.ts
++++ b/src/routeTree.gen.ts
+@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
+ import { Route as IndexRouteImport } from './routes/index'
+ import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
+ import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
++import { Route as ApiVoiceRouteImport } from './routes/api.voice'
+ 
+ const IndexRoute = IndexRouteImport.update({
+   id: '/',
+@@ -28,35 +29,44 @@ const ApiMaterialAiRoute = ApiMaterialAiRouteImport.update({
+   path: '/api/material-ai',
+   getParentRoute: () => rootRouteImport,
+ } as any)
++const ApiVoiceRoute = ApiVoiceRouteImport.update({
++  id: '/api/voice',
++  path: '/api/voice',
++  getParentRoute: () => rootRouteImport,
++} as any)
+ 
+ export interface FileRoutesByFullPath {
+   '/': typeof IndexRoute
+   '/api/architect-ai': typeof ApiArchitectAiRoute
+   '/api/material-ai': typeof ApiMaterialAiRoute
++  '/api/voice': typeof ApiVoiceRoute
+ }
+ export interface FileRoutesByTo {
+   '/': typeof IndexRoute
+   '/api/architect-ai': typeof ApiArchitectAiRoute
+   '/api/material-ai': typeof ApiMaterialAiRoute
++  '/api/voice': typeof ApiVoiceRoute
+ }
+ export interface FileRoutesById {
+   __root__: typeof rootRouteImport
+   '/': typeof IndexRoute
+   '/api/architect-ai': typeof ApiArchitectAiRoute
+   '/api/material-ai': typeof ApiMaterialAiRoute
++  '/api/voice': typeof ApiVoiceRoute
+ }
+ export interface FileRouteTypes {
+   fileRoutesByFullPath: FileRoutesByFullPath
+-  fullPaths: '/' | '/api/architect-ai' | '/api/material-ai'
++  fullPaths: '/' | '/api/architect-ai' | '/api/material-ai' | '/api/voice'
+   fileRoutesByTo: FileRoutesByTo
+-  to: '/' | '/api/architect-ai' | '/api/material-ai'
+-  id: '__root__' | '/' | '/api/architect-ai' | '/api/material-ai'
++  to: '/' | '/api/architect-ai' | '/api/material-ai' | '/api/voice'
++  id: '__root__' | '/' | '/api/architect-ai' | '/api/material-ai' | '/api/voice'
+   fileRoutesById: FileRoutesById
+ }
+ export interface RootRouteChildren {
+   IndexRoute: typeof IndexRoute
+   ApiArchitectAiRoute: typeof ApiArchitectAiRoute
+   ApiMaterialAiRoute: typeof ApiMaterialAiRoute
++  ApiVoiceRoute: typeof ApiVoiceRoute
+ }
+ 
+ declare module '@tanstack/react-router' {
+@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof ApiMaterialAiRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/api/voice': {
++      id: '/api/voice'
++      path: '/api/voice'
++      fullPath: '/api/voice'
++      preLoaderRoute: typeof ApiVoiceRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+   }
+ }
+ 
+@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
+   IndexRoute: IndexRoute,
+   ApiArchitectAiRoute: ApiArchitectAiRoute,
+   ApiMaterialAiRoute: ApiMaterialAiRoute,
++  ApiVoiceRoute: ApiVoiceRoute,
+ }
+ export const routeTree = rootRouteImport
+   ._addFileChildren(rootRouteChildren)
+diff --git a/src/studio/FirstPersonNavigation.ts b/src/studio/FirstPersonNavigation.ts
+index 8f10c82..7eb20fe 100644
+--- a/src/studio/FirstPersonNavigation.ts
++++ b/src/studio/FirstPersonNavigation.ts
+@@ -20,7 +20,8 @@ export function createFirstPersonNavigation({
+     yaw = 0,
+     pitch = 0,
+     last = 0,
+-    walkY = 0;
++    walkY = 0,
++    orbitFov = camera.fov;
+   const keys = new Set<string>(),
+     velocity = new THREE.Vector3(),
+     direction = new THREE.Vector3();
+@@ -46,6 +47,8 @@ export function createFirstPersonNavigation({
+   function stop() {
+     if (mode === "orbit") return;
+     mode = "orbit";
++    camera.fov = orbitFov;
++    camera.updateProjectionMatrix();
+     arrival = null;
+     canvas.dataset.navigationTransition = "idle";
+     keys.clear();
+@@ -96,6 +99,9 @@ export function createFirstPersonNavigation({
+       return mode;
+     },
+     async start(next: "fly" | "walk", start?: WalkStart) {
++      orbitFov = camera.fov;
++      camera.fov = 65;
++      camera.updateProjectionMatrix();
+       const origin = camera.position.clone(),
+         originRotation = camera.quaternion.clone();
+       arrival = null;
+@@ -129,10 +135,21 @@ export function createFirstPersonNavigation({
+       try {
+         await canvas.requestPointerLock();
+       } catch {
++        camera.fov = orbitFov;
++        camera.updateProjectionMatrix();
++        camera.position.copy(origin);
++        camera.quaternion.copy(originRotation);
++        invalidate();
+         throw Error("Mouse capture was unavailable. Click Fly or Walk again to enter navigation.");
+       }
+-      if (document.pointerLockElement !== canvas)
++      if (document.pointerLockElement !== canvas) {
++        camera.fov = orbitFov;
++        camera.updateProjectionMatrix();
++        camera.position.copy(origin);
++        camera.quaternion.copy(originRotation);
++        invalidate();
+         throw Error("Click the model again to allow mouse capture.");
++      }
+       mode = next;
+       if (animate)
+         arrival = {
+diff --git a/src/studio/LiveAssistant.tsx b/src/studio/LiveAssistant.tsx
+index 6c96faa..5473a0d 100644
+--- a/src/studio/LiveAssistant.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -5,6 +5,7 @@ import { useLiveAssistant } from "./liveAssistantState";
+ import { getMaterialAiStatus, type MaterialAiStatus } from "./materialAiTransport";
+ import { inspectPlanBytes } from "./documents";
+ import "./liveAssistant.css";
++import { LiveAssistantVoice } from "./LiveAssistantVoice";
+ 
+ export function LiveAssistant() {
+   const { open, draft, guide } = useLiveAssistant();
+@@ -65,6 +66,7 @@ export function LiveAssistant() {
+               onChange={event => useLiveAssistant.setState({ draft: event.target.value })} />
+             <div className="live-assistant-compose-footer"><span>Source-linked materials. Your review.</span><button type="submit" aria-label="Prepare drawing review" disabled={!hydrated || binary?.kind !== "pdf"}><ArrowUpRight size={18} /><span>Prepare review</span></button></div>
+           </form>
++          <LiveAssistantVoice onMessage={setMessage} reply={message || "Tell me what to look for in the drawing. Speak your instructions, review the transcript, then prepare a drawing review. Your drawing is only sent when you choose Send selected sheet to Gemini in AI review."} />
+           <div className="live-assistant-suggestions" aria-label="Drawing review suggestions">
+             <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "List every visible material on this sheet, with its source evidence. Flag unknown quantities and avoid counting repeated views twice." }); input.current?.focus(); }}>All materials</button>
+             <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "Find missing dimensions, quantities and material specifications on this sheet. Keep unsupported values unresolved." }); input.current?.focus(); }}>Missing details</button>
+diff --git a/src/studio/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index ed02de2..b5cabd7 100644
+--- a/src/studio/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -16,6 +16,9 @@ import {
+ import "./sourceBuilding.css";
+ import { createModelScope, type ModelScopeOptions } from "./ModelScope";
+ import { BuildingVisualSettings } from "./BuildingVisualSettings";
++import { createFirstPersonNavigation } from "./FirstPersonNavigation";
++import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
++import type { NavigationMode } from "./navigationMovement";
+ import { publishModelView } from "./modelViewSnapshot";
+ import {
+   DEFAULT_APPEARANCE,
+@@ -33,6 +36,8 @@ type ViewOptions = {
+   level: "all" | "ground" | "upper";
+ };
+ type SceneApi = {
++  navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
++  stopNavigation: () => void;
+   options: (value: ViewOptions) => void;
+   select: (id: string | null) => void;
+   fit: () => void;
+@@ -50,6 +55,7 @@ function createBuildingScene(
+   onError: (message: string) => void,
+   onScopeZoom: (zoom: number) => void,
+   binding: { documentId: string; sceneId: string; sceneSha256: string },
++  onNavigation: (mode: NavigationMode) => void,
+ ): SceneApi {
+   const renderer = new THREE.WebGLRenderer({
+     antialias: true,
+@@ -91,12 +97,13 @@ function createBuildingScene(
+     level: "all",
+   };
+   let scope: ReturnType<typeof createModelScope> | null = null;
++  let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+   let disposed = false,
+     frame = 0;
+   const render = () => {
+     frame = 0;
+     if (disposed) return;
+-    const changing = controls.update();
++    const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+     renderer.render(scene, camera);
+     scope?.render();
+     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
+@@ -291,7 +298,11 @@ function createBuildingScene(
+   };
+   const resize = () => {
+     renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
+-    fit();
++    if (navigation && navigation.mode !== "orbit") {
++      perspective.aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
++      perspective.updateProjectionMatrix();
++      invalidate();
++    } else fit();
+   };
+   const observer = new ResizeObserver(resize);
+   observer.observe(host);
+@@ -357,6 +368,7 @@ function createBuildingScene(
+     down = { x: event.clientX, y: event.clientY };
+   };
+   const onUp = (event: PointerEvent) => {
++    if (navigation && navigation.mode !== "orbit") return;
+     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
+       down = null;
+       return;
+@@ -397,7 +409,23 @@ function createBuildingScene(
+     onZoomChange: onScopeZoom,
+   });
+   apply();
++  navigation = createFirstPersonNavigation({
++    canvas: renderer.domElement, camera: perspective, bounds,
++    floor: () => model.storeys?.find((s) => s.id === options.level)?.elevation
++      ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
++    invalidate,
++    onChange(mode) {
++      controls.enabled = mode === "orbit";
++      if (mode === "orbit") {
++        controls.target.copy(perspective.position).addScaledVector(perspective.getWorldDirection(new THREE.Vector3()), 5);
++        controls.update();
++      }
++      onNavigation(mode);
++    },
++  });
+   return {
++    navigate: (mode, start) => navigation!.start(mode, start),
++    stopNavigation: () => navigation?.stop(),
+     scope(value) {
+       scope?.setOptions(value);
+       invalidate();
+@@ -418,6 +446,7 @@ function createBuildingScene(
+     options(next) {
+       const changed = next.plan !== options.plan,
+         exploded = next.explode !== options.explode || next.level !== options.level;
++      if (changed || exploded) navigation?.stop();
+       options = next;
+       if (changed) {
+         controls.dispose();
+@@ -435,7 +464,7 @@ function createBuildingScene(
+       renderer.domElement.dataset.selectedPart = id ?? "";
+       apply();
+     },
+-    fit,
++    fit() { navigation?.stop(); fit(); },
+     png() {
+       renderer.render(scene, camera);
+       const anchor = document.createElement("a");
+@@ -486,6 +515,7 @@ function createBuildingScene(
+     },
+     dispose() {
+       disposed = true;
++      navigation?.dispose();
+       cancelAnimationFrame(frame);
+       scope?.dispose();
+       observer.disconnect();
+@@ -512,6 +542,9 @@ function createBuildingScene(
+ }
+ 
+ export function SourceBuildingViewer() {
++  const [navigationMode, setNavigationMode] = useState<NavigationMode>("orbit");
++  const [walkPicker, setWalkPicker] = useState(false);
++  const [navigationError, setNavigationError] = useState<string | null>(null);
+   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
+     enabled: false,
+     zoom: 4,
+@@ -665,6 +698,7 @@ export function SourceBuildingViewer() {
+         setError,
+         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
+         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
++        setNavigationMode,
+       );
+     } catch (e) {
+       setError(e instanceof Error ? e.message : String(e));
+@@ -677,6 +711,14 @@ export function SourceBuildingViewer() {
+   useEffect(() => api.current?.options(options), [options, matched]);
+   useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
+   useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
++  function navigate(mode: "fly" | "walk", start?: WalkStart) {
++    const next: ViewOptions = { ...options, plan: false, explode: false, level: mode === "walk" ? "all" : options.level };
++    api.current?.options(next);
++    setOptions(next);
++    setWalkPicker(false);
++    setNavigationError(null);
++    void api.current?.navigate(mode, start).catch((e) => setNavigationError(String(e.message)));
++  }
+   useEffect(() => {
+     api.current?.select(selected);
+     setSourceIndex(0);
+@@ -886,6 +928,9 @@ export function SourceBuildingViewer() {
+           {ready ? (
+             <>
+               <div className="building-canvas" ref={host} />
++              {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
++              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · mouse look · Shift faster · Esc exit</p>}
++              {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
+               <div className="building-toolbar" aria-label="3D view controls">
+                 <div className="building-tool-group">
+                   <button
+@@ -906,12 +951,14 @@ export function SourceBuildingViewer() {
+                 <div className="building-tool-group">
+                   <button
+                     type="button"
+-                    aria-pressed={!options.plan}
+-                    onClick={() => setOptions((o) => ({ ...o, plan: false }))}
++                    aria-pressed={!options.plan && navigationMode === "orbit"}
++                    onClick={() => { api.current?.stopNavigation(); setOptions((o) => ({ ...o, plan: false })); }}
+                   >
+                     <Box size={15} />
+                     Orbit
+                   </button>
++                  <button type="button" aria-pressed={navigationMode === "fly"} onClick={() => navigate("fly")}>Fly</button>
++                  <button type="button" aria-pressed={navigationMode === "walk"} onClick={() => { api.current?.stopNavigation(); setWalkPicker(true); }}>Walk-through</button>
+                   <button
+                     type="button"
+                     aria-pressed={options.plan}
+diff --git a/src/studio/architect/Architect3D.tsx b/src/studio/architect/Architect3D.tsx
+index 6147e19..828aa5d 100644
+--- a/src/studio/architect/Architect3D.tsx
++++ b/src/studio/architect/Architect3D.tsx
+@@ -1,5 +1,10 @@
+ ﻿import { useEffect, useRef } from "react";
+ import * as T from "three";
++import { useState } from "react";
++import { createFirstPersonNavigation } from "../FirstPersonNavigation";
++import type { NavigationMode } from "../navigationMovement";
++import type { WalkStart } from "../WalkStartDialog";
++import { ArchitectWalkStart } from "./ArchitectWalkStart";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+ import { wallSolids, roofFaces, roofTrims, type Polygon } from "./geometry";
+ import { unit, add, mul, wallThickness, type ArchitectProject, type Point } from "./model";
+@@ -27,10 +32,15 @@ export function Architect3D({
+   roofVisible: boolean;
+   fitToken: number;
+ }) {
++  const [mode, setMode] = useState<NavigationMode>("orbit");
++  const [walkPicker, setWalkPicker] = useState(false);
++  const [navigationError, setNavigationError] = useState<string | null>(null);
+   const host = useRef<HTMLDivElement>(null),
+     api = useRef<{
+       update: (p: ArchitectProject, l: string, s: string | null, r: boolean) => void;
+       fit: () => void;
++      navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
++      stop: () => void;
+     } | null>(null),
+     pick = useRef(onSelect);
+   pick.current = onSelect;
+@@ -73,10 +83,13 @@ export function Architect3D({
+     let frame = 0,
+       disposed = false,
+       initial = true;
++    let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
++    const navigationBounds = new T.Box3();
++    let floorElevation = 0;
+     const render = () => {
+         frame = 0;
+         if (disposed) return;
+-        const moving = controls.update();
++        const moving = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+         renderer.render(scene, camera);
+         renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
+         renderer.domElement.dataset.frameCount = String(
+@@ -88,7 +101,20 @@ export function Architect3D({
+         if (!frame && !disposed) frame = requestAnimationFrame(render);
+       };
+     controls.addEventListener("change", invalidate);
++    navigation = createFirstPersonNavigation({
++      canvas: renderer.domElement, camera, bounds: navigationBounds,
++      floor: () => floorElevation, invalidate,
++      onChange(next) {
++        controls.enabled = next === "orbit";
++        if (next === "orbit") {
++          controls.target.copy(camera.position).addScaledVector(camera.getWorldDirection(new T.Vector3()), 3);
++          controls.update();
++        }
++        setMode(next);
++      },
++    });
+     const fit = () => {
++      navigation?.stop();
+       const b = new T.Box3().setFromObject(group);
+       if (b.isEmpty()) {
+         b.min.set(0, 0, 0);
+@@ -227,6 +253,11 @@ export function Architect3D({
+         }
+       const b = new T.Box3().setFromObject(group);
+       ground.position.y = b.isEmpty() ? -0.3 : b.min.y - 0.01;
++      navigationBounds.copy(b);
++      if (b.isEmpty()) navigationBounds.set(new T.Vector3(0, 0, 0), new T.Vector3(9, 2.7, 6));
++      const nextFloor = (p.levels.find((level) => level.id === l) ?? p.levels[0]).elevation / 1000;
++      if (nextFloor !== floorElevation) navigation?.stop();
++      floorElevation = nextFloor;
+       renderer.domElement.dataset.projectRevision = String(p.revision);
+       renderer.domElement.dataset.meshCount = String(group.children.length);
+       renderer.domElement.dataset.selected = s ?? "";
+@@ -250,6 +281,7 @@ export function Architect3D({
+         down = [e.clientX, e.clientY];
+       },
+       pointerUp = (e: PointerEvent) => {
++        if (navigation?.mode !== "orbit") return;
+         if (Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+         const r = renderer.domElement.getBoundingClientRect(),
+           ray = new T.Raycaster();
+@@ -265,10 +297,11 @@ export function Architect3D({
+       };
+     renderer.domElement.addEventListener("pointerdown", pointerDown);
+     renderer.domElement.addEventListener("pointerup", pointerUp);
+-    api.current = { update, fit };
++    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), stop: () => navigation?.stop() };
+     resize();
+     return () => {
+       disposed = true;
++      navigation?.dispose();
+       cancelAnimationFrame(frame);
+       observer.disconnect();
+       controls.dispose();
+@@ -286,5 +319,20 @@ export function Architect3D({
+   useEffect(() => {
+     api.current?.fit();
+   }, [fitToken]);
+-  return <div className="architect-3d" ref={host} />;
++  function navigate(next: "fly" | "walk", start?: WalkStart) {
++    setWalkPicker(false);
++    setNavigationError(null);
++    void api.current?.navigate(next, start).catch((e) => setNavigationError(String(e.message)));
++  }
++  return <div className="architect-3d">
++    <div className="architect-3d-render" ref={host} />
++    <div className="arch-navigation" aria-label="Architectural 3D navigation">
++      <button aria-pressed={mode === "orbit"} onClick={() => api.current?.stop()}>Orbit</button>
++      <button aria-pressed={mode === "fly"} onClick={() => navigate("fly")}>Fly</button>
++      <button aria-pressed={mode === "walk"} onClick={() => { api.current?.stop(); setWalkPicker(true); }}>Walk-through</button>
++    </div>
++    {mode !== "orbit" && <p className="architect-3d-caption">WASD move · mouse look · Shift faster · Esc exit{mode === "fly" ? " · Space/Ctrl altitude" : " · eye height 1.65 m; walls do not block movement"}</p>}
++    {navigationError && <p role="alert" className="architect-3d-caption">{navigationError}</p>}
++    {walkPicker && <ArchitectWalkStart project={project} initialLevel={levelId} onClose={() => setWalkPicker(false)} onStart={(point) => navigate("walk", point)} />}
++  </div>;
+ }
+diff --git a/src/studio/architect/ArchitectWorkspace.tsx b/src/studio/architect/ArchitectWorkspace.tsx
+index 3a43a79..0caa940 100644
+--- a/src/studio/architect/ArchitectWorkspace.tsx
++++ b/src/studio/architect/ArchitectWorkspace.tsx
+@@ -1,3 +1,4 @@
++import { useDesignConfirmation } from "./useDesignConfirmation";
+ import { SyncDesignMaterials } from "./SyncDesignMaterials";
+ import { ArchitectAi } from "./ArchitectAi";
+ import { ArchitectSheets } from "./ArchitectSheets";
+@@ -100,6 +101,7 @@ function download(data: string, name: string, type = "application/json") {
+   setTimeout(() => URL.revokeObjectURL(url), 1000);
+ }
+ export function ArchitectWorkspace() {
++  const { confirmDesign, confirmation } = useDesignConfirmation();
+   const jobId = useStudio((s) => s.job.id),
+     [session, setSession] = useState<ArchitectSession>(() => ({
+       value: emptyProject(jobId),
+@@ -539,12 +541,12 @@ export function ArchitectWorkspace() {
+         </div>
+         <div className="arch-button-row">
+           <button
+-            onClick={() => {
++            onClick={async () => {
+               if (
+                 (p.walls.length || p.lines.length) &&
+-                !confirm(
++                !(await confirmDesign(
+                   "Replace this design with the labelled demonstration? Undo will remain available.",
+-                )
++                ))
+               )
+                 return;
+               const q = demonstration(p.id);
+@@ -581,9 +583,9 @@ export function ArchitectWorkspace() {
+                 if (f.size > 8 * 1024 * 1024) throw Error("Design backup exceeds 8 MB.");
+                 const incoming = validateProject(JSON.parse(await f.text()));
+                 if (
+-                  !confirm(
++                  !(await confirmDesign(
+                     "Replace this design with the validated backup? The current saved snapshot will be preserved for recovery.",
+-                  )
++                  ))
+                 )
+                   return;
+                 const q = { ...incoming, id: p.id };
+@@ -968,7 +970,7 @@ export function ArchitectWorkspace() {
+                   />
+                   <label className="arch-field">
+                     Boundary / mirror axis
+-                    <select value={boundary} onChange={(e) => setBoundary(e.target.value)}>
++                    <select aria-label="Boundary / mirror axis" value={boundary} onChange={(e) => setBoundary(e.target.value)}>
+                       <option value="">Vertical origin axis for mirror</option>
+                       {[...p.walls, ...p.lines]
+                         .filter((e) => e.id !== selected)
+@@ -1271,9 +1273,9 @@ export function ArchitectWorkspace() {
+                 if (f.size > 12e6) throw Error("CAD file exceeds 12 MB.");
+                 const result = await importDxf(await f.text(), p.id);
+                 if (
+-                  !confirm(
++                  !(await confirmDesign(
+                     "Replace the current design with this CAD import? Export a backup first if needed. Undo remains available.",
+-                  )
++                  ))
+                 )
+                   return;
+                 if (commit(result.project)) {
+@@ -1314,6 +1316,7 @@ export function ArchitectWorkspace() {
+           </p>
+         </details>
+       </footer>
++      {confirmation}
+     </section>
+   );
+ }
+diff --git a/src/studio/architect/SyncDesignMaterials.tsx b/src/studio/architect/SyncDesignMaterials.tsx
+index d03a776..7e90316 100644
+--- a/src/studio/architect/SyncDesignMaterials.tsx
++++ b/src/studio/architect/SyncDesignMaterials.tsx
+@@ -1,3 +1,4 @@
++import { useDesignConfirmation } from "./useDesignConfirmation";
+ ﻿import { useRef, useState } from "react";
+ import { restoreMaterialDatabase, saveMaterialDatabase } from "../projectMaterialsPersistence";
+ import { inspectPlanBytes } from "../documents";
+@@ -12,6 +13,7 @@ export function SyncDesignMaterials({
+   project: ArchitectProject;
+   onError: (s: string) => void;
+ }) {
++  const { confirmDesign, confirmation } = useDesignConfirmation();
+   const [busy, setBusy] = useState(false),
+     [message, setMessage] = useState(""),
+     latest = useRef(p);
+@@ -33,9 +35,9 @@ export function SyncDesignMaterials({
+               return;
+             }
+             if (
+-              !confirm(
++              !(await confirmDesign(
+                 `Sync authored design quantities? Add ${counts.add}, update ${counts.update}, retire ${counts.retire} rows to zero. A source PDF snapshot will be saved. Source-plan takeoffs remain separate.`,
+-              )
++              ))
+             )
+               return;
+             const snapshot = await exportMaterialSnapshotPdf(p),
+@@ -69,6 +71,7 @@ export function SyncDesignMaterials({
+           {message}
+         </p>
+       )}
++      {confirmation}
+     </>
+   );
+ }
+diff --git a/src/studio/architect/architect.css b/src/studio/architect/architect.css
+index e675307..91aba74 100644
+--- a/src/studio/architect/architect.css
++++ b/src/studio/architect/architect.css
+@@ -206,6 +206,20 @@
+   height: 100%;
+   touch-action: none;
+ }
++.architect-3d-render { width: 100%; height: 100%; }
++.arch-navigation {
++  position: absolute; top: 8px; left: 8px; right: 8px;
++  display: flex; flex-wrap: wrap; gap: 4px; width: fit-content;
++  padding: 4px; background: var(--color-paper); color: var(--color-ink);
++  border: 1px solid var(--color-line); border-radius: 8px;
++}
++.arch-navigation button { min-height: 44px; }
++.architect-3d-caption { right: 12px; }
++.arch-walk-plan {
++  display: block; width: 100%; height: 280px; cursor: crosshair;
++  background: var(--color-paper); color: var(--color-ink); border: 1px solid var(--color-line);
++}
++.arch-walk-point { fill: var(--color-accent, #ad553d); }
+ .architect-3d-caption {
+   position: absolute;
+   bottom: 12px;
+diff --git a/src/studio/architect/architect.test.ts b/src/studio/architect/architect.test.ts
+index 4b5c7b2..2807624 100644
+--- a/src/studio/architect/architect.test.ts
++++ b/src/studio/architect/architect.test.ts
+@@ -378,3 +378,22 @@ test("design sync preserves user stock names and supplied unit weights when no d
+   assert.equal(r.materials[0].stock.specifiedWeightKg, 12);
+   assert.equal(r.materials[0].review, "pending");
+ });
++
++test('near-aligned layered walls remain closed and subtract hosted openings without clipping crashes', () => {
++  for (const drift of [0.001, -0.001, 0.002, 0.017]) {
++    for (const order of [[0,1,2,3], [1,2,3,0], [2,3,0,1], [3,0,1,2], [1,0,3,2], [3,2,1,0]]) {
++      const p = emptyProject('near-aligned'), level = p.levels[0].id;
++      const points: [number, number][] = [[0, drift], [4500, drift], [4500, 3000], [0, 3000]];
++      p.walls = points.map((a, i) => ({ ...newWall(p, level, a, points[(i + 1) % 4]), id: 'wall-' + order[i] }));
++      p.openings = [{ ...demonstration('fixture').openings[0], wallId: p.walls[0].id, offset: 2250, width: 900, height: 2100 }];
++      const solids = wallSolids(p), net = solids.reduce((sum, solid) => sum + solid.volumeM3, 0);
++      assert.ok(solids.length > 0 && solids.every(s => Number.isFinite(s.volumeM3) && s.volumeM3 > 0));
++      const interior = rooms(p, level);
++      assert.equal(interior.length, 1);
++      assert.ok(Math.abs(interior[0].areaM2 - 4.24 * 2.74) < 0.001);
++      p.openings = [];
++      const healed = wallSolids(p).reduce((sum, solid) => sum + solid.volumeM3, 0);
++      assert.ok(Math.abs(healed - net - .9 * 2.1 * .26) < 1e-6);
++    }
++  }
++});
+diff --git a/src/studio/architect/geometry.ts b/src/studio/architect/geometry.ts
+index 2716c39..d451032 100644
+--- a/src/studio/architect/geometry.ts
++++ b/src/studio/architect/geometry.ts
+@@ -18,14 +18,20 @@ import {
+ } from "./model.ts";
+ export type Polygon = Point[][];
+ export type MultiPolygon = Polygon[];
++// Boolean intersections can produce coordinates a few floating-point bits apart.
++// Canonicalize their inputs far below the model's 0.001 mm editing precision so
++// coincident layer edges remain identical across successive union/difference calls.
++const canonical = (polygons: MultiPolygon): MultiPolygon => polygons.map(polygon =>
++  polygon.map(ring => ring.map(([x, y]) =>
++    [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6] as Point)));
+ const close = (ring: Point[]): Point[] =>
+   distance(ring[0], ring[ring.length - 1]) < 0.001 ? ring : [...ring, ring[0]];
+ export function union(...polygons: MultiPolygon[]): MultiPolygon {
+-  const nonempty = polygons.filter((p) => p.length);
++  const nonempty = polygons.filter((p) => p.length).map(canonical);
+   return nonempty.length ? (clipping.union(nonempty[0], ...nonempty.slice(1)) as MultiPolygon) : [];
+ }
+ export function difference(a: MultiPolygon, b: MultiPolygon): MultiPolygon {
+-  return !a.length ? [] : !b.length ? a : (clipping.difference(a, b) as MultiPolygon);
++  return !a.length ? [] : !b.length ? a : (clipping.difference(canonical(a), canonical(b)) as MultiPolygon);
+ }
+ export const polygonArea = (p: MultiPolygon) =>
+   p.reduce((s, r) => s + area(r[0]) - r.slice(1).reduce((a, h) => a + area(h), 0), 0);
+diff --git a/src/studio/liveAssistant.css b/src/studio/liveAssistant.css
+index ea3f166..970a5aa 100644
+--- a/src/studio/liveAssistant.css
++++ b/src/studio/liveAssistant.css
+@@ -49,3 +49,8 @@
+ @keyframes assistant-reveal { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+ @media (max-width: 940px) { .live-assistant { width: min(320px, calc(100vw - 24px)); } .live-assistant button { min-height: 40px; } }
+ @media (prefers-reduced-motion: reduce) { .live-assistant-panel { animation: none; } .live-assistant-launcher svg:last-child { transition: none; } }
++.live-assistant-voice { display: grid; gap: 6px; padding: 10px 0; color: var(--color-ink); }
++.live-assistant-voice > div { display: flex; flex-wrap: wrap; gap: 6px; }
++.live-assistant-voice button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); color: var(--color-ink); }
++.live-assistant-voice button:disabled { opacity: .5; cursor: default; }
++.live-assistant-voice small { font-size: 11px; line-height: 1.5; }
+diff --git a/src/studio/sourceBuilding.css b/src/studio/sourceBuilding.css
+index 3bd85b5..d8c1365 100644
+--- a/src/studio/sourceBuilding.css
++++ b/src/studio/sourceBuilding.css
+@@ -717,3 +717,9 @@
+     min-height: 44px;
+   }
+ }
++.building-navigation-hint {
++  position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5;
++  margin: 0; padding: 8px 12px; pointer-events: none;
++  background: var(--color-paper); color: var(--color-ink);
++  border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px;
++}
+diff --git a/src-tauri/src/voice.rs b/src-tauri/src/voice.rs
+new file mode 100644
+index 0000000..5bb5db8
+--- /dev/null
++++ b/src-tauri/src/voice.rs
+@@ -0,0 +1,49 @@
++use serde_json::{json, Value};
++use std::sync::Mutex;
++use std::time::{Duration, SystemTime, UNIX_EPOCH};
++
++static REQUESTS: Mutex<(u64, u32, bool)> = Mutex::new((0, 0, false));
++fn settings() -> Option<(String, String)> {
++    let url = std::env::var("XRAY_VOICE_EDGE_URL").ok()?;
++    let token = std::env::var("XRAY_VOICE_EDGE_TOKEN").ok()?;
++    let parsed = reqwest::Url::parse(&url).ok()?;
++    if parsed.scheme() != "https" || !parsed.host_str()?.ends_with(".supabase.co") || token.len() < 32 { return None; }
++    Some((url, token))
++}
++#[tauri::command]
++pub fn xray_voice_status() -> Value {
++    let configured = settings().is_some();
++    json!({"provider":"Deepgram", "configured":configured, "available":configured})
++}
++#[tauri::command]
++pub async fn xray_voice_request(request_json: String) -> Result<Value, String> {
++    if request_json.len() > 3 * 1024 * 1024 { return Err("Voice recording is too large.".into()); }
++    let input: Value = serde_json::from_str(&request_json).map_err(|_| "Invalid voice request.")?;
++    match input["action"].as_str() {
++        Some("speak") if input["text"].as_str().is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= 3000) => {},
++        Some("transcribe") if input["audioBase64"].as_str().is_some_and(|s| !s.is_empty()) => {},
++        _ => return Err("Invalid voice request.".into()),
++    }
++    let (url, token) = settings().ok_or("Voice is not configured. Reopen X-Ray using the local desktop launcher.")?;
++    {
++        let mut guard = REQUESTS.lock().map_err(|_| "Voice state unavailable.")?;
++        let hour = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|_| "Clock unavailable.")?.as_secs() / 3600;
++        if guard.0 != hour { guard.0 = hour; guard.1 = 0; }
++        if guard.2 || guard.1 >= 120 { return Err("Voice is busy or has reached its hourly limit.".into()); }
++        guard.1 += 1; guard.2 = true;
++    }
++    let result = send(url, token, request_json).await;
++    if let Ok(mut guard) = REQUESTS.lock() { guard.2 = false; }
++    result
++}
++async fn send(url: String, token: String, body: String) -> Result<Value, String> {
++    let client = reqwest::Client::builder().timeout(Duration::from_secs(35)).redirect(reqwest::redirect::Policy::none()).build().map_err(|_| "Voice client unavailable.")?;
++    let mut response = client.post(url).header("x-xray-voice-key", token).header("Content-Type", "application/json").body(body).send().await.map_err(|_| "Voice connection failed or timed out.")?;
++    if !response.status().is_success() { return Err(format!("Voice service failed (HTTP {}).", response.status().as_u16())); }
++    let mut bytes = Vec::new();
++    while let Some(chunk) = response.chunk().await.map_err(|_| "Voice response interrupted.")? {
++        if bytes.len() + chunk.len() > 5 * 1024 * 1024 { return Err("Voice response is too large.".into()); }
++        bytes.extend_from_slice(&chunk);
++    }
++    serde_json::from_slice(&bytes).map_err(|_| "Invalid voice service response.".into())
++}
+diff --git a/src/lib/voice.server.test.ts b/src/lib/voice.server.test.ts
+new file mode 100644
+index 0000000..89d351e
+--- /dev/null
++++ b/src/lib/voice.server.test.ts
+@@ -0,0 +1,16 @@
++﻿import test from 'node:test';import assert from 'node:assert/strict';
++import {parseVoiceRequest,executeVoice,readVoiceBody} from './voiceCore.ts';
++import {voiceStatus} from './voice.server.ts';
++test('voice validation bounds audio and text and rejects URLs and unsupported audio',()=>{
++ for(const v of [{action:'speak',text:'x'.repeat(3001)},{action:'transcribe',audioBase64:'https://example.com',mimeType:'audio/webm'},{action:'transcribe',audioBase64:'AAAA',mimeType:'text/html'}])assert.throws(()=>parseVoiceRequest(JSON.stringify(v)));
++ assert.throws(()=>parseVoiceRequest('x'.repeat(3*1024*1024+1)));
++ assert.deepEqual(parseVoiceRequest('{"action":"speak","text":" hello "}'),{action:'speak',text:'hello'});
++});
++test('voice status never includes private credentials and defaults to disabled web use',()=>{
++ const status=voiceStatus({DEEPGRAM_API_KEY:'private-test-secret'});assert.equal(status.configured,true);assert.equal(status.available,false);assert.ok(!JSON.stringify(status).includes('private-test-secret'));
++});
++test('Deepgram responses are sanitized and binary data is bounded',async()=>{
++ await assert.rejects(executeVoice({action:'speak',text:'hello'},'private-test-secret',async()=>new Response('private-test-secret',{status:403})),e=>e instanceof Error&&!e.message.includes('private-test-secret')&&e.message.includes('403'));
++ await assert.rejects(readVoiceBody(new Response('abc'),2),/limit/);
++ const result=await executeVoice({action:'transcribe',audioBase64:'AAAA',mimeType:'audio/webm'},'test',async(url,options)=>{assert.match(String(url),/^https:\/\/api.deepgram.com\/v1\/listen/);assert.ok(options?.body instanceof Uint8Array);return Response.json({results:{channels:[{alternatives:[{transcript:'Walls and windows'}]}]}});});assert.equal(result.transcript,'Walls and windows');
++});
+diff --git a/src/lib/voice.server.ts b/src/lib/voice.server.ts
+new file mode 100644
+index 0000000..ca20f10
+--- /dev/null
++++ b/src/lib/voice.server.ts
+@@ -0,0 +1,28 @@
++import { executeVoice, parseVoiceRequest, readVoiceBody } from "./voiceCore.ts";
++type Environment = Record<string, string | undefined>;
++export function voiceStatus(env: Environment = process.env) {
++  const configured = Boolean(env.DEEPGRAM_API_KEY || (env.XRAY_VOICE_EDGE_URL && env.XRAY_VOICE_EDGE_TOKEN));
++  return { provider: "Deepgram", configured, available: configured && env.XRAY_VOICE_WEB_ENABLED === "true" };
++}
++let active = 0, windowStart = 0, calls = 0;
++export async function runVoice(raw: string, signal?: AbortSignal, env: Environment = process.env, fetcher: typeof fetch = fetch) {
++  const request = parseVoiceRequest(raw);
++  if (!voiceStatus(env).available) throw Error("Voice is not enabled on this server.");
++  const now = Date.now();
++  if (now - windowStart > 3600000) { calls = 0; windowStart = now; }
++  if (active >= 2 || calls >= 120) throw Error("Voice is busy or has reached this server's hourly limit.");
++  active++; calls++;
++  try {
++    if (env.XRAY_VOICE_EDGE_URL && env.XRAY_VOICE_EDGE_TOKEN) {
++      const url = new URL(env.XRAY_VOICE_EDGE_URL);
++      if (url.protocol !== "https:" || !url.hostname.endsWith(".supabase.co")) throw Error("Invalid voice service configuration.");
++      const response = await fetcher(url, { method: "POST", redirect: "error",
++        headers: { "Content-Type": "application/json", "x-xray-voice-key": env.XRAY_VOICE_EDGE_TOKEN },
++        body: JSON.stringify(request), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(35000)]) : AbortSignal.timeout(35000),
++      });
++      if (!response.ok) { await response.body?.cancel(); throw Error(`Voice service failed (HTTP ${response.status}).`); }
++      return JSON.parse(new TextDecoder().decode(await readVoiceBody(response, 5 * 1024 * 1024)));
++    }
++    return await executeVoice(request, env.DEEPGRAM_API_KEY!, fetcher, signal);
++  } finally { active--; }
++}
+diff --git a/src/lib/voiceCore.ts b/src/lib/voiceCore.ts
+new file mode 100644
+index 0000000..7f3767b
+--- /dev/null
++++ b/src/lib/voiceCore.ts
+@@ -0,0 +1,54 @@
++export const MAX_VOICE_REQUEST = 3 * 1024 * 1024;
++export type VoiceRequest = { action: "transcribe"; audioBase64: string; mimeType: string } | { action: "speak"; text: string };
++export function parseVoiceRequest(raw: string): VoiceRequest {
++  if (raw.length > MAX_VOICE_REQUEST) throw Error("Voice recording is too large. Use a shorter recording.");
++  const value = JSON.parse(raw);
++  if (value?.action === "speak" && typeof value.text === "string" && value.text.trim().length > 0 && value.text.length <= 3000)
++    return { action: "speak", text: value.text.trim() };
++  if (value?.action === "transcribe" && typeof value.audioBase64 === "string" && value.audioBase64.length > 0
++    && /^[A-Za-z0-9+/]+={0,2}$/.test(value.audioBase64)
++    && /^(audio\/(webm|ogg|wav|mpeg|mp4))(;codecs=[a-z0-9.,-]+)?$/.test(value.mimeType))
++    return { action: "transcribe", audioBase64: value.audioBase64, mimeType: value.mimeType };
++  throw Error("Invalid voice request.");
++}
++export async function readVoiceBody(request: Request | Response, limit = MAX_VOICE_REQUEST) {
++  const reader = request.body?.getReader();
++  if (!reader) throw Error("Voice request is empty.");
++  const chunks: Uint8Array[] = []; let total = 0;
++  while (true) {
++    const chunk = await reader.read(); if (chunk.done) break;
++    total += chunk.value.length;
++    if (total > limit) { await reader.cancel(); throw Error("Voice payload exceeds the size limit."); }
++    chunks.push(chunk.value);
++  }
++  const bytes = new Uint8Array(total); let offset = 0;
++  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
++  return bytes;
++}
++export function voiceBase64(bytes: Uint8Array) {
++  let text = "";
++  for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
++  return btoa(text);
++}
++export async function executeVoice(request: VoiceRequest, key: string, fetcher: typeof fetch = fetch, signal?: AbortSignal) {
++  if (!key) throw Error("Deepgram voice is not configured.");
++  const speak = request.action === "speak";
++  const response = await fetcher(speak
++    ? "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en"
++    : "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&language=en", {
++    method: "POST", redirect: "error",
++    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
++    headers: { Authorization: `Token ${key}`, "Content-Type": speak ? "application/json" : request.mimeType },
++    body: speak ? JSON.stringify({ text: request.text }) : Uint8Array.from(atob(request.audioBase64), c => c.charCodeAt(0)),
++  });
++  if (!response.ok) { await response.body?.cancel(); throw Error(`Deepgram voice request failed (HTTP ${response.status}).`); }
++  const bytes = await readVoiceBody(response);
++  if (speak) {
++    if (!response.headers.get("content-type")?.startsWith("audio/")) throw Error("Deepgram returned no playable audio.");
++    return { audioBase64: voiceBase64(bytes), mimeType: "audio/mpeg" };
++  }
++  const body = JSON.parse(new TextDecoder().decode(bytes));
++  const transcript = body.results?.channels?.[0]?.alternatives?.[0]?.transcript;
++  if (typeof transcript !== "string") throw Error("Deepgram returned no transcript.");
++  return { transcript: transcript.slice(0, 1500) };
++}
+diff --git a/src/routes/api.voice.ts b/src/routes/api.voice.ts
+new file mode 100644
+index 0000000..cddfec1
+--- /dev/null
++++ b/src/routes/api.voice.ts
+@@ -0,0 +1,14 @@
++import { createFileRoute } from "@tanstack/react-router";
++export const Route = createFileRoute("/api/voice")({ server: { handlers: {
++  GET: async () => { const { voiceStatus } = await import("../lib/voice.server"); return Response.json(voiceStatus(), { headers: { "Cache-Control": "no-store" } }); },
++  POST: async ({ request }) => {
++    const { allowMaterialAiRequest } = await import("../lib/materialAi.server");
++    if (!allowMaterialAiRequest(request)) return Response.json({ error: "Cross-site voice request blocked." }, { status: 403 });
++    if (!request.headers.get("content-type")?.startsWith("application/json")) return Response.json({ error: "Expected JSON." }, { status: 415 });
++    try {
++      const { readVoiceBody } = await import("../lib/voiceCore");
++      const { runVoice } = await import("../lib/voice.server");
++      return Response.json(await runVoice(new TextDecoder().decode(await readVoiceBody(request)), request.signal), { headers: { "Cache-Control": "no-store" } });
++    } catch { return Response.json({ error: "Voice request could not complete. Check the connection, recording length and provider configuration." }, { status: 400, headers: { "Cache-Control": "no-store" } }); }
++  },
++} } });
+diff --git a/src/studio/LiveAssistantVoice.tsx b/src/studio/LiveAssistantVoice.tsx
+new file mode 100644
+index 0000000..6c0bd97
+--- /dev/null
++++ b/src/studio/LiveAssistantVoice.tsx
+@@ -0,0 +1,76 @@
++import { useEffect, useRef, useState } from "react";
++import { Mic, Square, Volume2 } from "lucide-react";
++import { getVoiceStatus, recordingRequest, requestVoice } from "./voiceTransport";
++import { useLiveAssistant } from "./liveAssistantState";
++
++export function LiveAssistantVoice({ reply, onMessage }: { reply: string; onMessage: (text: string) => void }) {
++  const [available, setAvailable] = useState(false), [state, setState] = useState("idle");
++  const cleanup = useRef<() => void>(() => {}), generation = useRef(0);
++  useEffect(() => {
++    let active = true;
++    getVoiceStatus().then(s => { if (active) setAvailable(s.available); }).catch(() => {});
++    return () => { active = false; generation.current++; cleanup.current(); };
++  }, []);
++  const cancel = () => { generation.current++; cleanup.current(); cleanup.current = () => {}; setState("idle"); };
++  async function record() {
++    cancel(); const id = generation.current;
++    setState("permission");
++    try {
++      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") throw Error("Microphone recording is unavailable in this browser.");
++      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
++      if (id !== generation.current) { stream.getTracks().forEach(t => t.stop()); return; }
++      const mimeType = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].find(t => MediaRecorder.isTypeSupported(t));
++      if (!mimeType) { stream.getTracks().forEach(t => t.stop()); throw Error("No supported microphone audio format."); }
++      const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 });
++      const chunks: Blob[] = []; let size = 0;
++      const abort = new AbortController();
++      const timer = window.setTimeout(() => { if (recorder.state === "recording") recorder.stop(); }, 60000);
++      let released = false;
++      const release = () => { if (released) return; released = true; clearTimeout(timer); stream.getTracks().forEach(t => t.stop()); };
++      cleanup.current = () => { recorder.onstop = null; if (recorder.state !== "inactive") recorder.stop(); release(); abort.abort(); };
++      recorder.ondataavailable = e => { if (e.data.size) { chunks.push(e.data); size += e.data.size; if (size > 2 * 1024 * 1024 && recorder.state === "recording") recorder.stop(); } };
++      recorder.onerror = () => { if (id === generation.current) { cancel(); onMessage("Microphone recording failed. Please try again."); } };
++      recorder.onstop = async () => {
++        release();
++        if (id !== generation.current) return;
++        setState("transcribing");
++        try {
++          const result = await requestVoice(await recordingRequest(new Blob(chunks, { type: mimeType })), abort.signal);
++          if (id !== generation.current) return;
++          if (!result.transcript?.trim()) { onMessage("No speech was detected. Try again closer to the microphone."); return; }
++          const oldDraft = useLiveAssistant.getState().draft;
++          const combined = [oldDraft.trim(), result.transcript.trim()].filter(Boolean).join(" ");
++          useLiveAssistant.setState({ draft: combined.slice(0, 1500) });
++          onMessage(combined.length > 1500 ? "Speech added up to the 1,500-character limit. Review the instructions before sending." : "Speech added to your instructions. Review them before preparing the drawing review.");
++        } catch (e) { if (id === generation.current) onMessage(e instanceof Error ? e.message : "Speech transcription failed."); }
++        finally { if (id === generation.current) setState("idle"); }
++      };
++      stopRecording.current = () => { if (recorder.state === "recording") recorder.stop(); };
++      recorder.start(500); setState("recording");
++    } catch (e) { if (id === generation.current) { cancel(); onMessage(e instanceof Error ? e.message : "Microphone access failed."); } }
++  }
++  const stopRecording = useRef<() => void>(() => {});
++  async function speak() {
++    cancel(); const id = generation.current, abort = new AbortController();
++    const player = new Audio(); let url: string | undefined;
++    cleanup.current = () => { abort.abort(); player.pause(); player.removeAttribute("src"); if (url) URL.revokeObjectURL(url); };
++    setState("speaking");
++    try {
++      const result = await requestVoice({ action: "speak", text: reply.slice(0, 3000) }, abort.signal);
++      if (id !== generation.current) return;
++      if (!result.audioBase64) throw Error("No speech audio returned.");
++      url = URL.createObjectURL(new Blob([Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0))], { type: "audio/mpeg" }));
++      player.src = url; player.onended = cancel; player.onerror = () => { cancel(); onMessage("Speech audio could not play."); };
++      await player.play();
++    } catch (e) { if (id === generation.current) { cancel(); onMessage(e instanceof Error ? e.message : "Speech playback failed."); } }
++  }
++  return <div className="live-assistant-voice" aria-label="Deepgram voice">
++    <div>
++      {state === "recording" ? <button type="button" onClick={() => stopRecording.current()}><Square size={15} />Stop recording</button>
++        : <button type="button" disabled={!available || state !== "idle"} onClick={() => void record()}><Mic size={15} />Speak instructions</button>}
++      <button type="button" disabled={!available || state !== "idle" || !reply} onClick={() => void speak()}><Volume2 size={15} />Read aloud</button>
++      {state !== "idle" && <button type="button" onClick={cancel}>Cancel voice</button>}
++    </div>
++    <small role="status">{!available ? "Deepgram voice unavailable" : state === "recording" ? "Recording · stops after 60 seconds" : state === "transcribing" ? "Transcribing speech…" : state === "permission" ? "Waiting for microphone access…" : state === "speaking" ? "Reading assistant message…" : "Deepgram · Recordings go to Deepgram when you stop. Closing cancels."}</small>
++  </div>;
++}
+diff --git a/src/studio/architect/ArchitectWalkStart.tsx b/src/studio/architect/ArchitectWalkStart.tsx
+new file mode 100644
+index 0000000..5178c66
+--- /dev/null
++++ b/src/studio/architect/ArchitectWalkStart.tsx
+@@ -0,0 +1,35 @@
++import { useState } from "react";
++import { WorkspaceDialog } from "../WorkspaceDialog";
++import type { WalkStart } from "../WalkStartDialog";
++import type { ArchitectProject, Point } from "./model";
++
++export function ArchitectWalkStart({ project, initialLevel, onClose, onStart }: {
++  project: ArchitectProject; initialLevel: string; onClose: () => void; onStart: (point: WalkStart) => void;
++}) {
++  const levels = initialLevel === "all" ? project.levels : project.levels.filter(l => l.id === initialLevel);
++  const [levelId, setLevelId] = useState(levels[0].id);
++  const [point, setPoint] = useState<Point | null>(null);
++  const walls = project.walls.filter(w => w.levelId === levelId);
++  const points = walls.flatMap(w => [w.a, w.b]);
++  const minX = Math.min(0, ...points.map(p => p[0])) - 500, minZ = Math.min(0, ...points.map(p => p[1])) - 500;
++  const width = Math.max(9000, ...points.map(p => p[0])) - minX + 500;
++  const height = Math.max(6000, ...points.map(p => p[1])) - minZ + 500;
++  const clamp = (p: Point): Point => [Math.max(minX, Math.min(minX + width, p[0])), Math.max(minZ, Math.min(minZ + height, p[1]))];
++  return <WorkspaceDialog title="Pick your walking start" onClose={onClose}>
++    <div className="walk-start-picker">
++      <p>Choose a floor and click its plan to place your starting point.</p>
++      <label>Starting floor<select aria-label="Starting floor" value={levelId} onChange={e => { setLevelId(e.target.value); setPoint(null); }}>
++        {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
++      </select></label>
++      <svg className="arch-walk-plan" viewBox={`${minX} ${minZ} ${width} ${height}`} role="button" tabIndex={0} aria-label="Choose walking start on floor plan"
++        onClick={e => { const matrix = e.currentTarget.getScreenCTM(); if (matrix) { const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()); setPoint(clamp([p.x, p.y])); } }}
++        onKeyDown={e => { if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", " "].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); const p = point ?? [minX + width / 2, minZ + height / 2]; setPoint(clamp([p[0] + (e.key === "ArrowRight" ? 100 : e.key === "ArrowLeft" ? -100 : 0), p[1] + (e.key === "ArrowDown" ? 100 : e.key === "ArrowUp" ? -100 : 0)])); }}>
++        {walls.map(w => <line key={w.id} x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke="currentColor" strokeWidth={100} />)}
++        {point && <circle cx={point[0]} cy={point[1]} r={140} className="arch-walk-point" />}
++      </svg>
++      <p>{point ? `Start: X ${(point[0] / 1000).toFixed(2)} m · Z ${(point[1] / 1000).toFixed(2)} m` : "Click the plan, or focus it and use the arrow keys."}</p>
++      <button disabled={!point} onClick={() => point && onStart({ x: point[0] / 1000, z: point[1] / 1000, elevation: project.levels.find(l => l.id === levelId)!.elevation / 1000 })}>Start walking here</button>
++      <p>Eye height 1.65 m above the floor. Free walkthrough; walls do not block movement. Esc exits.</p>
++    </div>
++  </WorkspaceDialog>;
++}
+diff --git a/src/studio/architect/useDesignConfirmation.tsx b/src/studio/architect/useDesignConfirmation.tsx
+new file mode 100644
+index 0000000..7c5a4a1
+--- /dev/null
++++ b/src/studio/architect/useDesignConfirmation.tsx
+@@ -0,0 +1,28 @@
++import { useEffect, useRef, useState } from "react";
++import { WorkspaceDialog } from "../WorkspaceDialog";
++
++export function useDesignConfirmation() {
++  const [message, setMessage] = useState<string | null>(null);
++  const pending = useRef<((accepted: boolean) => void) | null>(null);
++  useEffect(() => () => { pending.current?.(false); }, []);
++  const finish = (accepted: boolean) => {
++    pending.current?.(accepted);
++    pending.current = null;
++    setMessage(null);
++  };
++  const confirmDesign = (text: string) => new Promise<boolean>(resolve => {
++    pending.current?.(false);
++    pending.current = resolve;
++    setMessage(text);
++  });
++  const confirmation = message === null ? null : (
++    <WorkspaceDialog title="Review design change" onClose={() => finish(false)}>
++      <p>{message}</p>
++      <div className="arch-button-row">
++        <button autoFocus onClick={() => finish(false)}>Cancel change</button>
++        <button onClick={() => finish(true)}>Confirm design change</button>
++      </div>
++    </WorkspaceDialog>
++  );
++  return { confirmDesign, confirmation };
++}
+diff --git a/src/studio/voiceTransport.ts b/src/studio/voiceTransport.ts
+new file mode 100644
+index 0000000..e6a2b7d
+--- /dev/null
++++ b/src/studio/voiceTransport.ts
+@@ -0,0 +1,24 @@
++import { voiceBase64, type VoiceRequest } from "../lib/voiceCore";
++const desktop = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
++export async function getVoiceStatus(): Promise<{ available: boolean; configured: boolean }> {
++  if (desktop()) { const { invoke } = await import("@tauri-apps/api/core"); return invoke("xray_voice_status"); }
++  const response = await fetch("/api/voice", { cache: "no-store" });
++  if (!response.ok) throw Error("Voice status unavailable.");
++  return response.json();
++}
++export async function requestVoice(input: VoiceRequest, signal: AbortSignal): Promise<{ transcript?: string; audioBase64?: string; mimeType?: string }> {
++  if (signal.aborted) throw Error("Voice cancelled.");
++  if (desktop()) {
++    const { invoke } = await import("@tauri-apps/api/core");
++    const result = await invoke<{ transcript?: string; audioBase64?: string; mimeType?: string }>("xray_voice_request", { requestJson: JSON.stringify(input) });
++    if (signal.aborted) throw Error("Voice cancelled.");
++    return result;
++  }
++  const response = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input), signal });
++  if (!response.ok) throw Error("Voice could not complete. Check your connection and try again.");
++  return response.json();
++}
++export async function recordingRequest(blob: Blob): Promise<VoiceRequest> {
++  if (!blob.size || blob.size > 2 * 1024 * 1024) throw Error("Recording is empty or too large. Try a shorter message.");
++  return { action: "transcribe", audioBase64: voiceBase64(new Uint8Array(await blob.arrayBuffer())), mimeType: blob.type };
++}
+diff --git a/supabase/config.toml b/supabase/config.toml
+new file mode 100644
+index 0000000..14bc804
+--- /dev/null
++++ b/supabase/config.toml
+@@ -0,0 +1,5 @@
++project_id = "aulmqnykpfqnmvjpfyaz"
++
++[functions.live-assistant-voice]
++# This backend-only function verifies x-xray-voice-key itself before reading the body or calling Deepgram.
++verify_jwt = false
+diff --git a/supabase/functions/live-assistant-voice/index.ts b/supabase/functions/live-assistant-voice/index.ts
+new file mode 100644
+index 0000000..723fb53
+--- /dev/null
++++ b/supabase/functions/live-assistant-voice/index.ts
+@@ -0,0 +1,24 @@
++import { executeVoice, parseVoiceRequest, readVoiceBody } from "../../../src/lib/voiceCore.ts";
++
++let active = 0, calls = 0, windowStart = 0;
++// Backend-only endpoint. The secret is held by the web server and native process, never the browser bundle.
++Deno.serve(async (request: Request) => {
++  const secret = Deno.env.get("XRAY_VOICE_EDGE_TOKEN");
++  const supplied = request.headers.get("x-xray-voice-key") ?? "";
++  const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
++  if (!secret || !supplied || supplied.length > 256) return json({ error: "Unauthorized" }, 401);
++  const digest = async (s: string) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
++  const [a, b] = await Promise.all([digest(secret), digest(supplied)]);
++  let mismatch = 0; for (let i = 0; i < a.length; i++) mismatch |= a[i] ^ b[i];
++  if (mismatch) return json({ error: "Unauthorized" }, 401);
++  if (request.method !== "POST") return json({ error: "POST required" }, 405);
++  if (!request.headers.get("content-type")?.startsWith("application/json")) return json({ error: "JSON required" }, 415);
++  const now = Date.now(); if (now - windowStart > 3600000) { calls = 0; windowStart = now; }
++  if (active >= 2 || calls >= 120) return json({ error: "Voice rate limit reached" }, 429);
++  active++; calls++;
++  try {
++    const input = parseVoiceRequest(new TextDecoder().decode(await readVoiceBody(request)));
++    return json(await executeVoice(input, Deno.env.get("DEEPGRAM_API_KEY") ?? "", fetch, request.signal));
++  } catch { return json({ error: "Voice processing failed. Check configuration or shorten the recording." }, 400); }
++  finally { active--; }
++});

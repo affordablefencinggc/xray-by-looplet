@@ -1,0 +1,362 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "eval",
+    "if(!window.__TAURI_INTERNALS__)throw Error('Not native');({native:true,width:innerWidth,height:innerHeight})"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sheets",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.sheet-manager-list>li').length===13"
+  ],
+  [
+    "eval",
+    "window.__portableSourceId=document.querySelector('.sheet-manager select[aria-label=\"Source drawing\"]').value;if(!__portableSourceId)throw Error('No imported source');"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-sheets/native-final2-before.png"
+  ],
+  [
+    "click",
+    ".sheet-manager-list>li[data-original-page=\"1\"] button[aria-label^=\"Rename \"]"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input:not([list])",
+    "Structure overview"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input[list]",
+    "Structural"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save name",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-original-page=\"1\"]')?.dataset.discipline==='Structural'&&!document.querySelector('.sheet-manager-rename')"
+  ],
+  [
+    "click",
+    ".sheet-manager-list>li[data-original-page=\"2\"] button[aria-label^=\"Rename \"]"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input:not([list])",
+    "Site and drainage plan"
+  ],
+  [
+    "fill",
+    ".sheet-manager-rename input[list]",
+    "Civil"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save name",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-original-page=\"2\"]')?.dataset.discipline==='Civil'&&!document.querySelector('.sheet-manager-rename')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Group by discipline",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-manager-list>li')?.dataset.originalPage==='2'"
+  ],
+  [
+    "eval",
+    "var rows=[...document.querySelectorAll('.sheet-manager-list>li')];if(rows.slice(0,2).map(r=>r.dataset.discipline).join()!=='Civil,Structural'||rows.slice(0,2).map(r=>r.dataset.originalPage).join()!=='2,1')throw Error('Group order mismatch');window.__portableSheetKey=Object.keys(localStorage).filter(k=>k.startsWith('xray.sheet-lifecycle.v1:')).find(k=>JSON.parse(localStorage.getItem(k)).identity.documentId===__portableSourceId);var meta=JSON.parse(localStorage.getItem(__portableSheetKey));window.__portableIdentity=JSON.stringify(meta.identity);if(meta.identity.pageCount!==13)throw Error('Original page count changed');document.querySelector('.sheet-manager').scrollIntoView({block:'start'});'Two named discipline groups sorted; original page indices retained'"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-sheets/native-final2-groups.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "View page 2",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Measure",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.measure-document-preview')?.dataset.sourceReady==='true'&&/^Page 2(?: of|$)/.test(document.querySelector('.measure-document-preview .document-preview-page')?.textContent??'')"
+  ],
+  [
+    "click",
+    ".sheet-bookmarks summary"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Remove saved view Release drainage detail",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-bookmarks')?.dataset.savedViewCount==='0'"
+  ],
+  [
+    "click",
+    ".sheet-bookmarks summary"
+  ],
+  [
+    "eval",
+    "if(document.querySelector('.sheet-bookmarks').dataset.savedViewCount!=='0')throw Error('Candidate requires no existing saved views');if(document.querySelector('.measure-document-preview .document-preview-hash').title!==JSON.parse(__portableIdentity).sha256)throw Error('Visible source identity mismatch');"
+  ],
+  [
+    "click",
+    "button[title=\"Reset View\"]"
+  ],
+  [
+    "click",
+    "button[title=\"Zoom In\"]"
+  ],
+  [
+    "click",
+    "button[title=\"Zoom In\"]"
+  ],
+  [
+    "eval",
+    "var viewport=document.querySelector('.measure-document-preview .document-preview-viewport');viewport.scrollIntoView({block:'center'});var r=viewport.getBoundingClientRect();if(r.left>=650||r.right<=710||r.top>=650||r.bottom<=680)throw Error('Pan coordinates outside source viewport: '+JSON.stringify(r));var hit=document.elementFromPoint(650,650);if(!viewport.contains(hit)||hit.tagName!=='CANVAS')throw Error('Pan start does not hit source canvas');"
+  ],
+  [
+    "mouse",
+    "move",
+    "650",
+    "650"
+  ],
+  [
+    "mouse",
+    "down",
+    "right"
+  ],
+  [
+    "mouse",
+    "move",
+    "710",
+    "680"
+  ],
+  [
+    "mouse",
+    "up",
+    "right"
+  ],
+  [
+    "fill",
+    ".sheet-bookmarks input",
+    "Release drainage detail"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save view",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-bookmarks')?.dataset.savedViewCount==='1'"
+  ],
+  [
+    "eval",
+    "var meta=JSON.parse(localStorage.getItem(__portableSheetKey));if(JSON.stringify(meta.identity)!==__portableIdentity)throw Error('Save changed source identity');window.__portableBookmark=meta.pages.find(p=>p.pageIndex===1)?.bookmarks?.[0];if(!__portableBookmark||__portableBookmark.zoom!==1.5625)throw Error('Real zoom not captured');if(Math.abs(__portableBookmark.center.x-.5)<.001&&Math.abs(__portableBookmark.center.y-.5)<.001)throw Error('Real pan not captured');({identity:meta.identity,bookmark:__portableBookmark})"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Open source page 1",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "/^Page 1(?: of|$)/.test(document.querySelector('.measure-document-preview .document-preview-page')?.textContent??'')"
+  ],
+  [
+    "click",
+    "button[title=\"Reset View\"]"
+  ],
+  [
+    "click",
+    ".sheet-bookmarks summary"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Open saved view Release drainage detail",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.measure-document-preview')?.dataset.sourceReady==='true'&&document.querySelector('.sheet-bookmarks')?.dataset.restoredView===window.__portableBookmark.id&&/^Page 2(?: of|$)/.test(document.querySelector('.measure-document-preview .document-preview-page')?.textContent??'')"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const root=document.querySelector('.measure-document-preview'),v=root?.querySelector('.document-preview-viewport')?.getBoundingClientRect(),p=root?.querySelector('.document-source-page')?.getBoundingClientRect(),b=window.__portableBookmark;return !!(v&&p&&b&&Math.abs((v.left+v.width/2-p.left)/p.width-b.center.x)<.002&&Math.abs((v.top+v.height/2-p.top)/p.height-b.center.y)<.002)})()"
+  ],
+  [
+    "eval",
+    "var v=document.querySelector('.measure-document-preview .document-preview-viewport').getBoundingClientRect(),p=document.querySelector('.measure-document-preview .document-source-page').getBoundingClientRect(),b=__portableBookmark;if(Math.abs((v.left+v.width/2-p.left)/p.width-b.center.x)>.002||Math.abs((v.top+v.height/2-p.top)/p.height-b.center.y)>.002)throw Error('Saved centre not restored');document.querySelector('.sheet-bookmarks').scrollIntoView({block:'start'});'Correct original page and source centre restored after switching pages'"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-sheets/native-final2-bookmark-desktop.png"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sheets",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-manager-list>li')?.dataset.originalPage==='2'"
+  ],
+  [
+    "eval",
+    "var rows=[...document.querySelectorAll('.sheet-manager-list>li')];if(rows.length!==13||rows.slice(0,2).map(r=>r.dataset.discipline).join()!=='Civil,Structural'||rows[0].querySelector('strong')?.textContent!=='Site and drainage plan'||rows[1].querySelector('strong')?.textContent!=='Structure overview')throw Error('Reload lost names/groups/order');window.__portableSourceId=document.querySelector('.sheet-manager select[aria-label=\"Source drawing\"]').value;window.__portableSheetKey=Object.keys(localStorage).filter(k=>k.startsWith('xray.sheet-lifecycle.v1:')).find(k=>JSON.parse(localStorage.getItem(k)).identity.documentId===__portableSourceId);var meta=JSON.parse(localStorage.getItem(__portableSheetKey));window.__portableBookmark=meta.pages.find(p=>p.pageIndex===1)?.bookmarks?.find(b=>b.name==='Release drainage detail');if(!__portableBookmark)throw Error('Reload lost saved view');window.__portableIdentity=JSON.stringify(meta.identity);'Full reload retained names, discipline order and page-linked saved view'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Measure",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.measure-document-preview')?.dataset.sourceReady==='true'&&document.querySelector('.sheet-bookmarks')?.dataset.savedViewCount==='1'"
+  ],
+  [
+    "click",
+    ".sheet-bookmarks summary"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Open saved view Release drainage detail",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.measure-document-preview')?.dataset.sourceReady==='true'&&document.querySelector('.sheet-bookmarks')?.dataset.restoredView===window.__portableBookmark.id&&/^Page 2(?: of|$)/.test(document.querySelector('.measure-document-preview .document-preview-page')?.textContent??'')"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const root=document.querySelector('.measure-document-preview'),v=root?.querySelector('.document-preview-viewport')?.getBoundingClientRect(),p=root?.querySelector('.document-source-page')?.getBoundingClientRect(),b=window.__portableBookmark;return !!(v&&p&&b&&Math.abs((v.left+v.width/2-p.left)/p.width-b.center.x)<.002&&Math.abs((v.top+v.height/2-p.top)/p.height-b.center.y)<.002)})()"
+  ],
+  [
+    "eval",
+    "var root=document.querySelector('.measure-document-preview'),v=root.querySelector('.document-preview-viewport').getBoundingClientRect(),p=root.querySelector('.document-source-page').getBoundingClientRect(),b=__portableBookmark;if(Math.abs((v.left+v.width/2-p.left)/p.width-b.center.x)>.002||Math.abs((v.top+v.height/2-p.top)/p.height-b.center.y)>.002)throw Error('Reload desktop centre mismatch');if(root.querySelector('.document-preview-hash').title!==JSON.parse(__portableIdentity).sha256)throw Error('Restored source identity mismatch');root.scrollIntoView({block:'start'});'Reload retained exact source page and viewport centre'"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-sheets/native-final2-bookmark-reloaded.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sheets",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.sheet-manager-list>li')?.dataset.originalPage==='2'"
+  ],
+  [
+    "errors"
+  ]
+]

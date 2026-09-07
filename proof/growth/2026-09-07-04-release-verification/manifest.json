@@ -1,0 +1,92 @@
+{
+  "id": "2026-09-07-04-release-verification",
+  "title": "Stage 04 — verified web and Windows delivery",
+  "date": "7 September 2026",
+  "platform": "Built browser and isolated Windows desktop package. Tablet, laptop and desktop scope; macOS/Linux execution remains open.",
+  "summary": "The same frozen source passed Dans1 builds and actual browser/Windows import, save, reopen and backup journeys. The Windows package is verified in a separate test profile and has not replaced the installed app. Earlier phone checks are historical: phones are excluded by the latest requested scope.",
+  "requirements": [
+    {
+      "id": "D-06 / D-14",
+      "status": "Pass — bounded web/Windows acceptance",
+      "change": "Names, discipline groups, stable original page identity and saved page/zoom/centre survive reload. Actual register download checked on built web.",
+      "remaining": "Native macOS/Linux and actual tablet hardware acceptance remain open."
+    },
+    {
+      "id": "E-01 / E-02",
+      "status": "Pass — bounded web/Windows acceptance",
+      "change": "CSV/XLSX mapping, formula refusal, reviewed save and reload; physical rows and source hash retained.",
+      "remaining": "Live supplier searches, other workbook formats and automatic takeoff pricing are separate open work."
+    },
+    {
+      "id": "B-10",
+      "status": "Partial — review verified",
+      "change": "Backup bytes, original PDF, sheet metadata and two price books verified; impact review preserves workspace bytes.",
+      "remaining": "B-09/B-11/B-12: protected restore, journal and interrupted recovery remain open."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/native-final2-bookmark-reloaded.png",
+      "caption": "Windows after reload: saved detail opens the correct original page and source-relative centre. Geometry assertions passed after layout settled.",
+      "sha256": "a02702828e5145d39c0c6621129d89c04a0646163bf3b452e2f970ed2c76ea22",
+      "archivedFile": "screenshots/growth/2026-09-07-04-release-verification/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/native-final2-groups.png",
+      "caption": "Windows: named Civil and Structural groups preserve original page numbers and their stored bookmark.",
+      "sha256": "8146395623684ea4046199443cceeba127a59a4000caa614c759fb6889c9f83a",
+      "archivedFile": "screenshots/growth/2026-09-07-04-release-verification/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/native-worksheet-column-mapping.png",
+      "caption": "Windows: real workbook mapping shows physical source rows and reviewed numeric fixture rates.",
+      "sha256": "fc7bb7df45fda08aba4b3611a5aaf83bec0bd365e55db7e0844acdce3546171b",
+      "archivedFile": "screenshots/growth/2026-09-07-04-release-verification/03.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/production-formula-blocked.png",
+      "caption": "Built browser: a mapped formula is refused before import; no rate is saved.",
+      "sha256": "e4300d21a6e435d472b480469cd637d8919464d97d51e64198845d60ecb99b7b",
+      "archivedFile": "screenshots/growth/2026-09-07-04-release-verification/04.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/native-backup-preflight-desktop.png",
+      "caption": "Windows: read-only impact review completed without changing current project, sheet or pricing records.",
+      "sha256": "ff69b97a40277492a8e08a91d80e06b915f58ba6e4539a570c5956824757975c",
+      "archivedFile": "screenshots/growth/2026-09-07-04-release-verification/05.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-native-model.png",
+      "caption": "Windows regression check: original PDF matched, 198 model parts rendered, top settings and five lower model navigation buttons present.",
+      "sha256": "dcae670b91b0bc25aa5fc0acc44ec5533726b0445d1c5f8fc3a50d61f02835b8",
+      "archivedFile": "screenshots/growth/2026-09-07-04-release-verification/06.png"
+    }
+  ],
+  "commands": [
+    "Dans1 High priority / 16 workers: dependency install, typecheck, 95 focused tests, web build, native build — all exit 0. Native build 146.95 seconds. No local background build used.",
+    "node scripts/fast-cdp-test.mjs growth-production proof/growth/production-pricing.json — 57 commands, 2.622 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-production proof/growth/2026-09-07-sheets/production-sheets.json — 64 commands, 4.638 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-production proof/growth/2026-09-07-sheets/production-backup.json — 22 commands, 4.530 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-native proof/growth/native-pricing.json --cdp 9262 — 56 commands, 1.618 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-native proof/growth/native-source.json --cdp 9262 — 10 commands, 1.074 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-native proof/growth/native-sheets-final.json --cdp 9262 — 66 commands, 3.735 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-native proof/growth/native-reload-acceptance.json --cdp 9262 — three reloads, 43 commands, 3.462 seconds, exit 0",
+    "node scripts/fast-cdp-test.mjs growth-native proof/growth/native-backup.json --cdp 9262 — 18 commands, 3.542 seconds, exit 0",
+    "Source freeze checked across 510 web/source and 101 native files; no drift. All six included screenshots inspected.",
+    "Failed test attempts remain preserved: native viewport opcode returned EOF despite resizing; premature geometry assertion corrected with actual geometry readiness; repeat-run disclosure state corrected. No product source changed to hide these failures.",
+    "Measured times describe these runs only. Screenshots supplement executed assertions, stored-byte digests and real downloaded files."
+  ],
+  "logs": [
+    "proof/growth/2026-09-07-release/release-a8a8c4946d93/native-completion.json",
+    "proof/growth/2026-09-07-release/release-a8a8c4946d93/artifacts-verified.json",
+    "proof/growth/production-smoke.log",
+    "proof/growth/2026-09-07-sheets/production-completion.md",
+    "proof/growth/2026-09-07-pricing/final-visual-review.md",
+    "proof/growth/runner/2026-09-07T13-22-13-315Z-growth-native.log",
+    "proof/growth/runner/2026-09-07T13-22-44-912Z-growth-native.log",
+    "Every runner invocation retains exact executed scenario, scenario SHA-256, result JSON and complete log in proof/growth/runner."
+  ],
+  "sourceIdentity": "Branch feat/architect-cad-engine; baseline 3e422f0084de607a775c2ede8dfecdf0b032c75e. Frozen web source a8a8c4946d93cafa283a7875b97337719f4c1bce8884b5b4097ab30fc5b29b84; native source 9e85e6501cbe8e92b7f504ba1b9b41b3be8268059955e065a852a1f032b2f6d7. Verified EXE 1a6486a3af6425e61996b1641f5ffdeade546df9fa549e4dcafe43209899aa8b; installer 5ff5dc3c35aba4a3c3e57fbb175c6f9c295aac1286cad9e80f260a301560eb6e. Final scoped source + evidence scripts 768fc91f71fd484fd64b176abf08c2aea70c8b87e9f5670c35857f688a9ef144. No install, staging, commit, merge, push or CRM changes.",
+  "codeDiff": "proof/growth/2026-09-07-04-release-source/code.diff; source-manifest.json and 33 source copies alongside it. Earlier shared-file changes are included and identified.",
+  "summaryImage": "screenshots/growth/2026-09-07-04-release-verification.png"
+}

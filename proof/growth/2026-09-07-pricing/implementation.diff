@@ -1,0 +1,535 @@
+diff --git a/proof/growth/2026-09-07-pricing/before-priceBooks.ts.txt b/src/studio/pricing/priceBooks.ts
+index 6e119e9..28e8ab9 100644
+--- a/proof/growth/2026-09-07-pricing/before-priceBooks.ts.txt
++++ b/src/studio/pricing/priceBooks.ts
+@@ -30,8 +30,13 @@ export type PriceMapping = z.infer<typeof priceMappingSchema>;
+ export const priceImportSchema = z.object({
+   metadata: priceMetadataSchema,
+   source: z.object({ fileName: z.string().min(1).max(255), sha256: z.string().regex(/^[a-f0-9]{64}$/),
+-    sizeBytes: z.number().int().positive().max(PRICE_CSV_LIMIT), delimiter: z.enum([",", ";", "\t"]),
+-    headers: z.array(z.string().max(300)).min(1).max(40), mapping: priceMappingSchema }).strict(),
++    sizeBytes: z.number().int().positive().max(PRICE_CSV_LIMIT), delimiter: z.enum([",", ";", "\t"]).optional(),
++    kind: z.enum(["csv", "xlsx"]).optional(), worksheet: z.string().min(1).max(200).optional(), headerRow: z.number().int().min(1).max(100).optional(),
++    headers: z.array(z.string().max(300)).min(1).max(40), mapping: priceMappingSchema }).strict().superRefine((source, ctx) => {
++      if (source.kind === "xlsx") {
++        if (!source.worksheet || source.headerRow === undefined || source.delimiter !== undefined) ctx.addIssue({ code: "custom", message: "Workbook provenance needs a worksheet and header row, with no CSV separator." });
++      } else if (!source.delimiter || source.worksheet !== undefined) ctx.addIssue({ code: "custom", message: "CSV provenance needs a separator and no workbook sheet." });
++    }),
+   rows: z.array(priceRowSchema).min(1).max(5000),
+ }).strict().superRefine((v, ctx) => {
+   for (const index of Object.values(v.source.mapping)) if (index !== null && index >= v.source.headers.length)
+@@ -122,8 +127,8 @@ export async function savePriceBooks(session: PriceBookSession, value: PriceBook
+ }
+ export function priceBookError(error: unknown) { return error instanceof z.ZodError ? error.issues.map(i => i.message).join(" ") : error instanceof Error ? error.message : String(error); }
+ 
+-export type CsvTable = { headers: string[]; records: { cells: string[]; line: number }[] };
+-export function parsePriceCsv(input: string, delimiter: "," | ";" | "\t" = ","): CsvTable {
++export type CsvTable = { headers: string[]; headerLine?: number; records: { cells: string[]; line: number; cellErrors?: Record<number, string>; numericValues?: Record<number, string> }[] };
++export function parsePriceCsv(input: string, delimiter: "," | ";" | "\t" = ",", headerRow?: number): CsvTable {
+   if (new TextEncoder().encode(input).length > PRICE_CSV_LIMIT) throw Error("Import a CSV up to 2 MB.");
+   const text = input.replace(/^\uFEFF/, "");
+   let cells: string[] = [], cell = "", quoted = false, closed = false, line = 1, startLine = 1;
+@@ -143,10 +148,14 @@ export function parsePriceCsv(input: string, delimiter: "," | ";" | "\t" = ","):
+   }
+   if (quoted) throw Error(`Line ${startLine}: unclosed quoted field.`);
+   if (cell || cells.length || closed) endRow();
++  if (headerRow !== undefined && (!Number.isInteger(headerRow) || headerRow < 1 || headerRow > 100)) throw Error("Choose a header row from 1 to 100.");
++  const headerIndex = headerRow === undefined ? 0 : records.findIndex(record => record.line === headerRow);
++  if (headerIndex < 0) throw Error("Selected CSV header row is empty or inside a multiline field. Choose the line where the headings begin.");
++  records.splice(0, headerIndex);
+   const header = records.shift();
+   if (!header || !records.length) throw Error("CSV needs a header and at least one rate.");
+   if (header.cells.some(c => c.length > 300)) throw Error("Column headings must be at most 300 characters.");
+-  return { headers: header.cells, records };
++  return { headers: header.cells, records, headerLine: header.line };
+ }
+ export function suggestPriceMapping(headers: string[]): PriceMapping {
+   const normalized = headers.map(h => h.trim().toLowerCase());
+@@ -163,7 +172,9 @@ export function previewPriceRows(table: CsvTable, mapping: PriceMapping): { rows
+   for (const record of table.records) {
+     try {
+       if (record.cells.length !== table.headers.length) throw Error("Column count does not match the header.");
+-      const rate = record.cells[mapping.rate].trim();
++      const mappedError = Object.values(mapping).filter((n): n is number => n !== null).map(n => record.cellErrors?.[n]).find(Boolean);
++      if (mappedError) throw Error(mappedError);
++      const rate = (record.numericValues?.[mapping.rate] ?? record.cells[mapping.rate]).trim();
+       if (!/^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/.test(rate)) throw Error("Rate needs a non-negative decimal (up to 6 decimal places), with no currency symbol or thousands separators.");
+       const row = priceRowSchema.parse({ sourceLine: record.line, stockCode: mapping.stockCode === null ? "" : record.cells[mapping.stockCode],
+         description: record.cells[mapping.description], unit: record.cells[mapping.unit], rate: Number(rate) });
+@@ -218,16 +229,16 @@ export function pricedWorksheetTotals(library: PriceBookLibrary) {
+ }
+ export function pricedWorksheetCsv(library: PriceBookLibrary) {
+   const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+-  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at"],
++  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at", "Source worksheet", "Header row"],
+     ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
+       return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
+-        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt, r.revision.source.worksheet ?? "", r.revision.source.headerRow ?? ""]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+ }
+ export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
+   const r = book.revisions.find(v => v.revision === revisionNumber);
+   if (!r) throw Error("Price book revision not found.");
+   const cell = (v: unknown) => { let text = v === null ? "" : String(v); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+-  return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at"],
++  return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at", "Source worksheet", "Header row"],
+     ...r.rows.map(row => [row.stockCode, row.description, row.unit, row.rate, r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
+-      r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++      r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt, r.source.worksheet ?? "", r.source.headerRow ?? ""])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+ }
+diff --git a/proof/growth/2026-09-07-pricing/before-PriceBookPanel.tsx.txt b/src/studio/pricing/PriceBookPanel.tsx
+index e1ba8c3..091f8bf 100644
+--- a/proof/growth/2026-09-07-pricing/before-PriceBookPanel.tsx.txt
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -1,12 +1,14 @@
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useMemo, useRef, useState } from "react";
+ import { Archive, Download, FileUp, Plus, RefreshCw } from "lucide-react";
+ import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, previewPriceRows, priceBookError,
+   priceCsvTemplate, priceImportSchema, priceLineAmount, priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readBrowserPriceBooks, removePricedLine,
+   resolvePricedLine, savePriceBooks, suggestPriceMapping, PRICE_CSV_LIMIT,
+   type CsvTable, type PriceBook, type PriceBookLibrary, type PriceBookSession, type PriceImport, type PriceMapping } from "./priceBooks.ts";
+ import "./priceBooks.css";
++import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
++import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
+ 
+-type SourceFile = { text: string; fileName: string; sizeBytes: number; sha256: string };
++type SourceFile = { fileName: string; sizeBytes: number; sha256: string } & ({ kind: "csv"; text: string } | { kind: "xlsx"; workbook: PriceWorkbook });
+ type RateSelection = { bookId: string; revision: number; sourceLine: number };
+ function download(text: string, name: string) {
+   const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+@@ -19,17 +21,31 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+   const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
+   const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
+   const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
++  const [worksheet, setWorksheet] = useState(""), [headerRow, setHeaderRow] = useState(1), [readingWorkbook, setReadingWorkbook] = useState(false);
+   const [name, setName] = useState(""), [targetId, setTargetId] = useState(""), [supplier, setSupplier] = useState(""), [currency, setCurrency] = useState("AUD"), [decimals, setDecimals] = useState(2);
+   const [tax, setTax] = useState<"inclusive" | "exclusive" | "unspecified">("unspecified"), [taxPercent, setTaxPercent] = useState(""), [effectiveDate, setEffectiveDate] = useState(""), [sourceReference, setSourceReference] = useState("");
+   const [review, setReview] = useState<PriceImport | null>(null), [selection, setSelection] = useState<RateSelection | null>(null), [quantity, setQuantity] = useState("");
+   const input = useRef<HTMLInputElement>(null), generation = useRef(0), currentJob = useRef(jobId); currentJob.current = jobId;
++  const workbookRead = useRef<AbortController | null>(null);
+   useEffect(() => {
+-    generation.current++; setBusy(false); setSession(readBrowserPriceBooks(jobId)); setFile(null); setMapping(null); setReview(null); setSelection(null); setNotice(""); setTargetId(""); setTab("library");
+-    return () => { generation.current++; };
++    generation.current++; workbookRead.current?.abort(); setBusy(false); setReadingWorkbook(false); setSession(readBrowserPriceBooks(jobId)); setFile(null); setMapping(null); setReview(null); setSelection(null); setNotice(""); setTargetId(""); setTab("library");
++    return () => { generation.current++; workbookRead.current?.abort(); };
+   }, [jobId]);
+   const value = session?.value.jobId === jobId ? session.value : null;
+-  let table: CsvTable | null = null, parseError = "";
+-  if (file) try { table = parsePriceCsv(file.text, delimiter); } catch (error) { parseError = priceBookError(error); }
++  const selectedSheet = file?.kind === "xlsx" ? file.workbook.sheets.find(sheet => sheet.name === worksheet) : null;
++  const { table, parseError } = useMemo((): { table: CsvTable | null; parseError: string } => {
++    try { return { table: file?.kind === "csv" ? parsePriceCsv(file.text, delimiter, headerRow) : selectedSheet ? workbookPriceTable(selectedSheet, headerRow) : null, parseError: "" }; }
++    catch (error) { return { table: null, parseError: priceBookError(error) }; }
++  }, [file, delimiter, headerRow, selectedSheet]);
++  function changeSource(next: { worksheet?: string; headerRow?: number; delimiter?: typeof delimiter }) {
++    const selectedWorksheet = next.worksheet ?? worksheet, selectedHeader = next.headerRow ?? headerRow, separator = next.delimiter ?? delimiter;
++    setWorksheet(selectedWorksheet); setHeaderRow(selectedHeader); setDelimiter(separator); setReview(null);
++    try {
++      const sheet = file?.kind === "xlsx" ? file.workbook.sheets.find(item => item.name === selectedWorksheet) : null;
++      const updated = file?.kind === "csv" ? parsePriceCsv(file.text, separator, selectedHeader) : sheet ? workbookPriceTable(sheet, selectedHeader) : null;
++      setMapping(updated ? suggestPriceMapping(updated.headers) : null);
++    } catch { setMapping(null); }
++  }
+   const rows = table && mapping ? previewPriceRows(table, mapping) : null;
+   const book = value?.books.find(b => b.id === selection?.bookId), revision = book?.revisions.find(r => r.revision === selection?.revision), rate = revision?.rows.find(r => r.sourceLine === selection?.sourceLine);
+   let amount = "", quantityError = "";
+@@ -46,49 +62,61 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+     if (!candidate) return;
+     const ticket = ++generation.current; setBusy(true); setNotice(""); setReview(null); setFile(null); setMapping(null);
+     try {
+-      if (!candidate.size || candidate.size > PRICE_CSV_LIMIT) throw Error("Choose a non-empty CSV up to 2 MB.");
+-      const bytes = await candidate.arrayBuffer(), text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
++      if (!candidate.size || candidate.size > PRICE_CSV_LIMIT) throw Error("Choose a non-empty CSV or XLSX file up to 2 MB.");
++      if (!/\.(csv|tsv|xlsx)$/i.test(candidate.name)) throw Error("Choose a CSV, TSV or XLSX file. Legacy XLS, XLSM and password-protected workbooks are not supported.");
++      const bytes = await candidate.arrayBuffer();
+       const sha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
+       if (ticket !== generation.current) return;
+-      const loaded = { text, fileName: candidate.name, sizeBytes: candidate.size, sha256 };
+-      setFile(loaded); setName(candidate.name.replace(/\.csv$/i, "").slice(0, 120));
+-      try { setMapping(suggestPriceMapping(parsePriceCsv(text, delimiter).headers)); } catch { /* delimiter can be changed after load */ }
++      const common = { fileName: candidate.name, sizeBytes: candidate.size, sha256 };
++      setName(candidate.name.replace(/\.(csv|tsv|xlsx)$/i, "").slice(0, 120)); setWorksheet(""); setHeaderRow(1);
++      if (/\.xlsx$/i.test(candidate.name)) {
++        const controller = new AbortController(); workbookRead.current?.abort(); workbookRead.current = controller; setReadingWorkbook(true);
++        const workbook = await readPriceWorkbookInWorker(bytes, controller.signal);
++        if (ticket === generation.current) setFile({ ...common, kind: "xlsx", workbook });
++      } else {
++        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes), separator = /\.tsv$/i.test(candidate.name) ? "\t" : delimiter;
++        setDelimiter(separator); setFile({ ...common, kind: "csv", text });
++        try { const parsed = parsePriceCsv(text, separator); setHeaderRow(parsed.headerLine ?? 1); setMapping(suggestPriceMapping(parsed.headers)); } catch { /* Header row/separator can be corrected in the preview. */ }
++      }
+     } catch (error) { if (ticket === generation.current) setNotice(priceBookError(error)); }
+-    finally { if (ticket === generation.current) setBusy(false); }
++    finally { if (ticket === generation.current) { setBusy(false); setReadingWorkbook(false); } }
+   }
+   function prepareReview() {
+     try {
+-      if (!file || !table || !mapping || !rows || rows.errors.length) throw Error("Resolve the CSV errors before review.");
++      if (!file || !table || !mapping || !rows || rows.errors.length) throw Error("Resolve the sheet and row errors before review.");
+       if (!targetId && !name.trim()) throw Error("Name this price book.");
+       if (taxPercent && !/^\d{1,3}(?:\.\d{1,6})?$/.test(taxPercent)) throw Error("Tax percent must be a decimal from 0 to 100.");
+       setReview(priceImportSchema.parse({ metadata: { supplier, currency, amountDecimals: decimals, taxBasis: tax,
+         taxPercent: tax === "unspecified" || !taxPercent ? null : Number(taxPercent), effectiveDate, sourceReference },
+-        source: { fileName: file.fileName, sha256: file.sha256, sizeBytes: file.sizeBytes, delimiter, headers: table.headers, mapping }, rows: rows.rows }));
++        source: { fileName: file.fileName, sha256: file.sha256, sizeBytes: file.sizeBytes, kind: file.kind, headerRow,
++          ...(file.kind === "xlsx" ? { worksheet } : { delimiter }), headers: table.headers, mapping }, rows: rows.rows }));
+       setNotice("");
+     } catch (error) { setNotice(priceBookError(error)); }
+   }
+   function useRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
+   const disabled = busy || !value || session?.blocked;
+-  return <section className="price-books" aria-label="Project price books">
++  return <section className="price-books" aria-label="Project price books" data-price-import-state={readingWorkbook ? "loading" : review ? "review" : file ? parseError || rows?.errors.length ? "invalid" : table && mapping ? "ready" : "choose-sheet" : "idle"} data-price-import-rows={rows?.rows.length ?? 0}>
+     <header><div><h2>Price books</h2><p>Import supplier sheets, preserve revisions and apply chosen rates to a priced worksheet.</p></div>
+       <button className="pill" disabled={busy} onClick={() => { setSession(readBrowserPriceBooks(jobId)); setReview(null); setNotice("Library reloaded."); }}><RefreshCw size={16} />Reload library</button></header>
+     <div className="price-tabs" role="group" aria-label="Price book views">
+       <button className="pill" aria-pressed={tab === "library"} onClick={() => setTab("library")}>Library ({value?.books.length ?? 0})</button>
+-      <button className="pill" aria-pressed={tab === "import"} onClick={() => setTab("import")}><FileUp size={16} />Import CSV</button>
++      <button className="pill" aria-pressed={tab === "import"} onClick={() => setTab("import")}><FileUp size={16} />Import price sheet</button>
+       <button className="pill" aria-pressed={tab === "worksheet"} onClick={() => setTab("worksheet")}>Priced worksheet ({value?.worksheet.length ?? 0})</button>
+     </div>
+     {session?.error && <p className="price-notice" role="alert">{session.error}</p>}
+     {notice && <p className="price-notice" role="status">{notice}</p>}
+     <p className="price-help">Saved with this project on this device. Your existing reference sheet remains available in Settings. Worksheet quantities are entered by you; takeoff quantities and quotes are separate.</p>
+     {tab === "import" && <>
+-      <div className="price-actions"><button className="pill" disabled={disabled} onClick={() => input.current?.click()}><FileUp size={16} />Choose supplier CSV</button>
++      <div className="price-actions"><button className="pill" disabled={disabled} onClick={() => input.current?.click()}><FileUp size={16} />Choose CSV or Excel workbook</button>
+         <button className="pill" onClick={() => download(priceCsvTemplate(), "price-book-template.csv")}><Download size={16} />CSV template</button></div>
+-      <input ref={input} hidden type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" aria-label="Supplier price CSV" onChange={e => { void chooseFile(e.target.files?.[0]); e.target.value = ""; }} />
+-      <p className="price-help">UTF-8 CSV, up to 2 MB / 5,000 rates. Rates use decimal points and up to 6 decimal places. Currency symbols and thousands separators need removing. Units are kept exactly as supplied.</p>
++      <input ref={input} hidden type="file" accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Supplier price file" onChange={e => { void chooseFile(e.target.files?.[0]); e.target.value = ""; }} />
++      <p className="price-help">CSV/TSV or XLSX, up to 2 MB / 5,000 rates. Select one worksheet and its header row. Formulas are never calculated; mapped formula cells must be replaced with reviewed values. Rates use decimal points and up to 6 decimal places, without currency symbols or thousands separators.</p>
++      {readingWorkbook && <div className="price-notice" role="status"><p>Reading workbook worksheets…</p><button className="pill" onClick={() => { generation.current++; workbookRead.current?.abort(); setReadingWorkbook(false); setBusy(false); setNotice("Workbook import cancelled. Saved price books are unchanged."); }}>Cancel workbook reading</button></div>}
+       {file && <>
+         <p><strong>{file.fileName}</strong> · {file.sizeBytes.toLocaleString()} bytes</p>
+         {!review && <div className="price-fields">
+-          <label>Separator<select value={delimiter} onChange={e => { const next = e.target.value as typeof delimiter; setDelimiter(next); try { setMapping(suggestPriceMapping(parsePriceCsv(file.text, next).headers)); } catch { setMapping(null); } }}><option value=",">Comma</option><option value=";">Semicolon</option><option value={"\t"}>Tab</option></select></label>
++          {file.kind === "csv" ? <label>Separator<select aria-label="Price file separator" value={delimiter} onChange={e => changeSource({ delimiter: e.target.value as typeof delimiter })}><option value=",">Comma</option><option value=";">Semicolon</option><option value={"\t"}>Tab</option></select></label> : <label>Workbook worksheet<select aria-label="Workbook worksheet" value={worksheet} onChange={e => changeSource({ worksheet: e.target.value, headerRow: 1 })}><option value="">Choose a worksheet</option>{file.workbook.sheets.map(sheet => <option key={sheet.name} value={sheet.name}>{sheet.name}{sheet.issue ? " (needs a smaller table)" : ""}</option>)}</select></label>}
++          <label>Header row<input aria-label="Price header row" type="number" min={1} max={100} value={headerRow || ""} onChange={e => changeSource({ headerRow: Number(e.target.value) })} /></label>
+           <label>Save as<select value={targetId} onChange={e => setTargetId(e.target.value)}><option value="">New price book</option>{value?.books.filter(b => !b.archived).map(b => <option key={b.id} value={b.id}>New revision of {b.name}</option>)}</select></label>
+           {!targetId && <label>Price book name<input maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>}
+           <label>Supplier<input maxLength={200} value={supplier} onChange={e => setSupplier(e.target.value)} /></label>
+@@ -99,20 +127,21 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+           <label>Effective date<input type="date" value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /></label>
+           <label className="price-wide">Source reference<input maxLength={2000} value={sourceReference} onChange={e => setSourceReference(e.target.value)} placeholder="Supplier quote number, catalogue or source URL" /></label>
+         </div>}
++        {!review && selectedSheet && <details className="price-source-preview" open><summary>Worksheet preview — first 8 populated rows</summary><p className="price-help">Use the row numbers to choose your headings. {selectedSheet.formulaCells} formula cells detected in this sheet. Formula values are not read or calculated.</p><div className="price-table-wrap"><table><thead><tr><th>Row</th>{Array.from({ length: Math.min(8, selectedSheet.rows[0]?.cells.length ?? 0) }, (_, i) => <th key={i}>{String.fromCharCode(65 + i)}</th>)}</tr></thead><tbody>{selectedSheet.rows.slice(0, 8).map(row => <tr key={row.line}><th>{row.line}</th>{row.cells.slice(0, 8).map((cell, i) => <td key={i}>{row.cellErrors?.[i] ? <span title={row.cellErrors[i]}>Needs review</span> : cell}</td>)}</tr>)}</tbody></table></div></details>}
+         {parseError && <p role="alert">{parseError}</p>}
+         {!review && table && mapping && <fieldset><legend>Match your columns</legend><div className="price-fields">{(["stockCode", "description", "unit", "rate"] as const).map(field => <label key={field}>{({ stockCode: "Stock code (optional)", description: "Description", unit: "Unit", rate: "Rate" })[field]}<select value={mapping[field] ?? -1} onChange={e => setMapping({ ...mapping, [field]: Number(e.target.value) < 0 ? null : Number(e.target.value) })}>{field === "stockCode" && <option value={-1}>No stock code</option>}{table.headers.map((header, i) => <option key={i} value={i}>{i + 1}: {header || "Unnamed column"}</option>)}</select></label>)}</div></fieldset>}
+         {!!rows?.errors.length && <div className="price-notice" role="alert"><strong>Import blocked until these lines are corrected</strong><ul>{rows.errors.map((error, i) => <li key={i}>{error}</li>)}</ul><p>No rates have been saved.</p></div>}
+-        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td>{row.unit}</td><td>{row.rate}</td></tr>)}</tbody></table></div></>}
++        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td className="price-scalar">{row.unit}</td><td className="price-scalar">{row.rate}</td></tr>)}</tbody></table></div></>}
+         {review ? <div className="price-review"><h3>Review before saving</h3><p>{targetId ? `Append revision to ${value?.books.find(b => b.id === targetId)?.name}` : `Create ${name}`} · {review.rows.length} rates</p>
+           <p>{review.metadata.supplier} · {review.metadata.currency} · {taxLabel(review.metadata.taxBasis)}{review.metadata.taxPercent !== null ? ` (${review.metadata.taxPercent}%)` : ""} · effective {review.metadata.effectiveDate}</p>
+-          <p>{review.metadata.sourceReference}</p><p className="price-help">Existing revisions and priced lines remain unchanged. Saving the book does not apply any rate.</p>
++          <p>{review.metadata.sourceReference}</p><p className="price-help">{review.source.kind === "xlsx" ? `Worksheet: ${review.source.worksheet} · ` : ""}Header row: {review.source.headerRow ?? 1}. Existing revisions and priced lines remain unchanged. Saving the book does not apply any rate.</p>
+           <div className="price-actions"><button className="pill primary" disabled={disabled} onClick={() => { if (value) { try { const next = appendPriceBookRevision(value, review, name, targetId || null); void save(next, "Price book revision saved. Choose a rate in the library to price a line.").then(ok => { if (ok) { setReview(null); setFile(null); setTab("library"); } }); } catch (error) { setNotice(priceBookError(error)); } } }}>Save reviewed price book</button><button className="pill" disabled={busy} onClick={() => setReview(null)}>Back to mapping</button></div>
+         </div> : <button className="pill primary" disabled={disabled || !rows || !!rows.errors.length || !!parseError} onClick={prepareReview}>Review import</button>}
+       </>}
+     </>}
+     {tab === "library" && <>
+       <div className="price-toolbar"><label>Find a price book<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or supplier" /></label><button className="pill" aria-pressed={archived} onClick={() => setArchived(!archived)}><Archive size={16} />{archived ? "Show active" : "Show archived"}</button></div>
+-      {!value?.books.some(b => b.archived === archived) && <div className="price-empty"><h3>{archived ? "No archived price books" : "Keep supplier pricing in one place"}</h3><p>Import a CSV, check its columns and source, then save a named revision. Every applied line keeps the rate version you chose.</p></div>}
++      {!value?.books.some(b => b.archived === archived) && <div className="price-empty"><h3>{archived ? "No archived price books" : "Keep supplier pricing in one place"}</h3><p>Import a supplier sheet, check its columns and source, then save a named revision. Every applied line keeps the rate version you chose.</p></div>}
+       {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => useRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
+     </>}
+     {tab === "worksheet" && <>
+@@ -137,7 +166,7 @@ function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: Pric
+   return <article className="price-book-card"><h3>{book.name}</h3><p>{revision.metadata.supplier} · {revision.metadata.currency} · {taxLabel(revision.metadata.taxBasis)} · effective {revision.metadata.effectiveDate}</p><p className="price-help">{revision.metadata.sourceReference}</p>
+     <div className="price-actions"><label>Price book revision<select value={revision.revision} onChange={e => setRevisionNumber(Number(e.target.value))}>{[...book.revisions].reverse().map(r => <option key={r.revision} value={r.revision}>Revision {r.revision} · {r.metadata.effectiveDate}</option>)}</select></label><button className="pill" onClick={() => download(priceRevisionCsv(book, revision.revision), `${book.name.replace(/[^a-z0-9_-]/gi, "-")}-r${revision.revision}.csv`)}><Download size={16} />Export revision CSV</button><button className="pill" disabled={disabled} onClick={onArchive}>{book.archived ? "Restore price book" : "Archive price book"}</button></div>
+     <details><summary>Rename price book</summary><div className="price-toolbar"><label>New price book name<input maxLength={120} value={draftName} onChange={e => setDraftName(e.target.value)} /></label><button className="pill" disabled={disabled || !draftName.trim()} onClick={() => onSaveName(draftName)}>Save name</button></div></details>
+-    <details><summary>Browse {revision.rows.length} rates and source details</summary><p className="price-help">{revision.source.fileName} · imported {new Date(revision.importedAt).toLocaleString()} · SHA-256 {revision.source.sha256}</p><label>Find a rate<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Description, stock code or unit" /></label>
++    <details><summary>Browse {revision.rows.length} rates and source details</summary><p className="price-help">{revision.source.fileName}{revision.source.kind === "xlsx" ? ` · worksheet ${revision.source.worksheet}` : ""} · header row {revision.source.headerRow ?? 1} · imported {new Date(revision.importedAt).toLocaleString()} · SHA-256 {revision.source.sha256}</p><label>Find a rate<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Description, stock code or unit" /></label>
+       <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{row.rate}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
+     </details>
+   </article>;
+diff --git a/proof/growth/2026-09-07-pricing/before-priceBooks.css.txt b/src/studio/pricing/priceBooks.css
+index d9f5b81..5b61efd 100644
+--- a/proof/growth/2026-09-07-pricing/before-priceBooks.css.txt
++++ b/src/studio/pricing/priceBooks.css
+@@ -22,6 +22,7 @@
+ .price-books table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+ .price-books th, .price-books td { padding: 8px 12px; border-bottom: 1px solid var(--color-line); vertical-align: top; overflow-wrap: anywhere; }
+ .price-books th { background: var(--color-header); color: var(--color-ink); font-weight: 600; }
++.price-books .price-scalar { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
+ .price-book-card { display: grid; gap: var(--price-small-gap); padding-block: var(--price-gap); border-top: 1px solid var(--color-line); min-width: 0; }
+ .price-books details { display: grid; gap: var(--price-small-gap); }
+ .price-books summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 12px; font-weight: 600; }
+diff --git a/src/studio/pricing/priceWorkbook.ts b/src/studio/pricing/priceWorkbook.ts
+new file mode 100644
+index 0000000..12d1701
+--- /dev/null
++++ b/src/studio/pricing/priceWorkbook.ts
+@@ -0,0 +1,123 @@
++import { Unzip, UnzipInflate, zipSync } from "fflate";
++import * as XLSX from "xlsx";
++import { PRICE_CSV_LIMIT, type CsvTable } from "./priceBooks.ts";
++import type { PriceWorkbook } from "./priceWorkbookTable.ts";
++
++export const WORKBOOK_EXPANDED_LIMIT = 20 * 1024 * 1024;
++const MAX_ROWS = 5100, MAX_COLUMNS = 40, MAX_SHEETS = 50;
++
++const crcTable = Array.from({ length: 256 }, (_, index) => {
++  let value = index; for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
++  return value >>> 0;
++});
++function crc32(bytes: Uint8Array) { let crc = 0xffffffff; for (const byte of bytes) crc = crcTable[(crc ^ byte) & 255] ^ (crc >>> 8); return (crc ^ 0xffffffff) >>> 0; }
++function workbookDirectory(bytes: Uint8Array) {
++  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
++  let end = -1;
++  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) if (view.getUint32(i, true) === 0x06054b50 && i + 22 + view.getUint16(i + 20, true) === bytes.length) { end = i; break; }
++  if (end < 0) throw Error("Workbook ZIP directory is missing or truncated.");
++  const count = view.getUint16(end + 10, true), size = view.getUint32(end + 12, true), offset = view.getUint32(end + 16, true);
++  if (view.getUint16(end + 4, true) || view.getUint16(end + 6, true) || view.getUint16(end + 8, true) !== count || !count || count > 2000 || offset + size !== end)
++    throw Error("Split, ZIP64 or oversized workbook archives are not supported.");
++  const records = new Map<string, { size: number; crc: number }>(); let at = offset, declaredSize = 0;
++  for (let i = 0; i < count; i++) {
++    if (at + 46 > end || view.getUint32(at, true) !== 0x02014b50) throw Error("Workbook ZIP directory is invalid.");
++    const flags = view.getUint16(at + 8, true), method = view.getUint16(at + 10, true), compressed = view.getUint32(at + 20, true), uncompressed = view.getUint32(at + 24, true);
++    const nameLength = view.getUint16(at + 28, true), extraLength = view.getUint16(at + 30, true), commentLength = view.getUint16(at + 32, true);
++    if (flags & 1 || ![0, 8].includes(method) || compressed === 0xffffffff || uncompressed === 0xffffffff || at + 46 + nameLength + extraLength + commentLength > end)
++      throw Error("Encrypted or unsupported workbook compression cannot be imported.");
++    const name = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(at + 46, at + 46 + nameLength));
++    if (records.has(name)) throw Error("Workbook ZIP directory contains duplicate file names.");
++    declaredSize += uncompressed;
++    if (declaredSize > WORKBOOK_EXPANDED_LIMIT) throw Error("Workbook expands beyond the 20 MB reading limit. Export only the supplier sheet you need.");
++    records.set(name, { size: uncompressed, crc: view.getUint32(at + 16, true) });
++    at += 46 + nameLength + extraLength + commentLength;
++  }
++  if (at !== end) throw Error("Workbook ZIP directory length is inconsistent.");
++  return records;
++}
++
++/** Inspect actual streamed output, not attacker-supplied ZIP size declarations. */
++export function boundedWorkbookArchive(bytes: Uint8Array): Uint8Array {
++  if (!bytes.length || bytes.length > PRICE_CSV_LIMIT) throw Error("Choose a non-empty XLSX file up to 2 MB.");
++  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 3 || bytes[3] !== 4) throw Error("This is not an XLSX workbook. Save legacy XLS or encrypted workbooks as an unencrypted .xlsx file.");
++  const directory = workbookDirectory(bytes);
++  const files: Record<string, Uint8Array> = Object.create(null);
++  let expanded = 0, entries = 0, finished = 0, failure: Error | null = null;
++  const names = new Set<string>();
++  const unzip = new Unzip(file => {
++    entries++;
++    if (entries > 2000 || names.has(file.name) || file.name.includes("..") || file.name.startsWith("/") || file.name.includes("\\")) throw Error("Workbook archive contains unsupported or duplicate entries.");
++    names.add(file.name);
++    const expected = directory.get(file.name);
++    if (!expected) throw Error("Workbook ZIP contents do not match its directory.");
++    if (/vbaProject\.bin$|^xl\/macrosheets\//i.test(file.name)) throw Error("Macro-enabled workbooks are not supported. Export a values-only .xlsx workbook.");
++    const chunks: Uint8Array[] = []; let length = 0;
++    file.ondata = (error, chunk, final) => {
++      if (error) { failure = error; throw error; }
++      expanded += chunk.length; length += chunk.length;
++      if (expanded > WORKBOOK_EXPANDED_LIMIT) { file.terminate(); throw Error("Workbook expands beyond the 20 MB reading limit. Export only the supplier sheet you need."); }
++      chunks.push(chunk);
++      if (final) {
++        const content = new Uint8Array(length); let offset = 0;
++        for (const part of chunks) { content.set(part, offset); offset += part.length; }
++        if (length !== expected.size || crc32(content) !== expected.crc) throw Error("Workbook ZIP entry failed its size or checksum check.");
++        files[file.name] = content; finished++;
++      }
++    };
++    file.start();
++  });
++  unzip.register(UnzipInflate);
++  // Small input chunks also bound the amount any one inflate callback can emit.
++  for (let offset = 0; offset < bytes.length; offset += 1024) unzip.push(bytes.subarray(offset, Math.min(bytes.length, offset + 1024)), offset + 1024 >= bytes.length);
++  if (failure) throw failure;
++  if (finished !== entries || entries !== directory.size || !files["[Content_Types].xml"] || !files["xl/workbook.xml"]) throw Error("Workbook archive is incomplete or missing its worksheet catalogue.");
++  // Parse only the verified bounded payload; the parser never receives unchecked compressed input.
++  return zipSync(files, { level: 0 });
++}
++
++export function readPriceWorkbook(bytes: Uint8Array): PriceWorkbook {
++  const safeBytes = boundedWorkbookArchive(bytes);
++  const workbook = XLSX.read(safeBytes, { type: "array", cellFormula: true, cellHTML: false, cellNF: true,
++    cellDates: false, sheetStubs: true, sheetRows: MAX_ROWS + 1, bookVBA: false, WTF: true });
++  if (!workbook.SheetNames.length || workbook.SheetNames.length > MAX_SHEETS) throw Error("Choose a workbook with 1 to 50 worksheets.");
++  const sheets = workbook.SheetNames.map(name => {
++    const sheet = workbook.Sheets[name], rows = new Map<number, CsvTable["records"][number]>();
++    let columns = 0, issue: string | undefined, formulaCells = 0;
++    const fullRange = sheet["!fullref"] ?? sheet["!ref"];
++    if (fullRange) {
++      const range = XLSX.utils.decode_range(fullRange);
++      if (range.e.r >= MAX_ROWS || range.e.c >= MAX_COLUMNS) issue = "This worksheet exceeds 5,100 rows or 40 columns. Export a smaller supplier table.";
++    }
++    if (!issue) {
++      for (const [address, cell] of Object.entries(sheet)) {
++        if (address.startsWith("!")) continue;
++        const location = XLSX.utils.decode_cell(address), sourceLine = location.r + 1;
++        if (sourceLine > MAX_ROWS || location.c >= MAX_COLUMNS) { issue = "This worksheet exceeds 5,100 rows or 40 columns."; break; }
++        const record = rows.get(sourceLine) ?? { line: sourceLine, cells: [], cellErrors: {}, numericValues: {} };
++        const value = cell as XLSX.CellObject;
++        let text = "", error = "";
++        if (value.f !== undefined || value.F !== undefined) { formulaCells++; error = `Cell ${address} contains a formula. Replace it with a reviewed constant value before importing this column.`; }
++        else if (value.t === "e") error = `Cell ${address} contains a spreadsheet error.`;
++        else if (value.t === "b") error = `Cell ${address} contains a boolean, not a price-sheet value.`;
++        else if (value.t === "d" || (value.t === "n" && value.z && XLSX.SSF.is_date(value.z))) error = `Cell ${address} is a date. Map a text or numeric column instead.`;
++        else if (value.v !== undefined && value.v !== null) {
++          text = value.t === "n" ? value.w ?? String(value.v) : String(value.v);
++          if (value.t === "n") record.numericValues![location.c] = String(value.v);
++        }
++        if (text.length > 4000) error = `Cell ${address} exceeds 4,000 characters.`;
++        record.cells[location.c] = error ? "" : text;
++        if (error) record.cellErrors![location.c] = error;
++        rows.set(sourceLine, record); columns = Math.max(columns, location.c + 1);
++      }
++      for (const range of sheet["!merges"] ?? []) {
++        // No inherited/repeated merged value is invented, including the top-left anchor.
++        for (let r = range.s.r; r <= Math.min(range.e.r, MAX_ROWS - 1); r++) for (let c = range.s.c; c <= Math.min(range.e.c, MAX_COLUMNS - 1); c++) {
++          const record = rows.get(r + 1); if (record) record.cellErrors![c] = `Cell ${XLSX.utils.encode_cell({ r, c })} is merged. Unmerge mapped data cells before importing.`;
++        }
++      }
++    }
++    return { name, issue, formulaCells, rows: issue ? [] : [...rows.values()].sort((a, b) => a.line - b.line).map(row => ({ ...row, cells: Array.from({ length: columns }, (_, index) => row.cells[index] ?? "") })) };
++  });
++  return { sheets };
++}
+diff --git a/src/studio/pricing/priceWorkbookTable.ts b/src/studio/pricing/priceWorkbookTable.ts
+new file mode 100644
+index 0000000..5f143fa
+--- /dev/null
++++ b/src/studio/pricing/priceWorkbookTable.ts
+@@ -0,0 +1,14 @@
++import type { CsvTable } from "./priceBooks.ts";
++export type PriceWorkbookSheet = { name: string; rows: CsvTable["records"]; issue?: string; formulaCells: number };
++export type PriceWorkbook = { sheets: PriceWorkbookSheet[] };
++export function workbookPriceTable(sheet: PriceWorkbookSheet, headerRow: number): CsvTable {
++  if (sheet.issue) throw Error(sheet.issue);
++  if (!Number.isInteger(headerRow) || headerRow < 1 || headerRow > 100) throw Error("Choose a header row from 1 to 100.");
++  const header = sheet.rows.find(row => row.line === headerRow);
++  if (!header || !header.cells.some(cell => cell.trim())) throw Error("Selected header row is empty. Choose the row containing your column headings.");
++  if (Object.keys(header.cellErrors ?? {}).length) throw Error(`Header row ${headerRow}: ${Object.values(header.cellErrors!)[0]}`);
++  if (header.cells.some(cell => cell.length > 300)) throw Error("Column headings must be at most 300 characters.");
++  const records = sheet.rows.filter(row => row.line > headerRow && (row.cells.some(cell => cell.trim()) || Object.keys(row.cellErrors ?? {}).length));
++  if (!records.length || records.length > 5000) throw Error("Select a worksheet with 1 to 5,000 rate rows after its header.");
++  return { headers: header.cells, records, headerLine: headerRow };
++}
+diff --git a/src/studio/pricing/priceWorkbook.worker.ts b/src/studio/pricing/priceWorkbook.worker.ts
+new file mode 100644
+index 0000000..0b4d270
+--- /dev/null
++++ b/src/studio/pricing/priceWorkbook.worker.ts
+@@ -0,0 +1,5 @@
++import { readPriceWorkbook } from "./priceWorkbook.ts";
++self.onmessage = (event: MessageEvent<ArrayBuffer>) => {
++  try { self.postMessage({ ok: true, value: readPriceWorkbook(new Uint8Array(event.data)) }); }
++  catch (error) { self.postMessage({ ok: false, error: error instanceof Error ? error.message : "Workbook could not be read." }); }
++};
+diff --git a/src/studio/pricing/priceWorkbookClient.ts b/src/studio/pricing/priceWorkbookClient.ts
+new file mode 100644
+index 0000000..06a5803
+--- /dev/null
++++ b/src/studio/pricing/priceWorkbookClient.ts
+@@ -0,0 +1,18 @@
++import type { PriceWorkbook } from "./priceWorkbookTable.ts";
++
++/** Parsing is isolated from the main UI; cancellation and deadline terminate the worker. */
++export function readPriceWorkbookInWorker(bytes: ArrayBuffer, signal: AbortSignal): Promise<PriceWorkbook> {
++  return new Promise((resolve, reject) => {
++    if (signal.aborted) { reject(Error("Workbook import cancelled.")); return; }
++    const worker = new Worker(new URL("./priceWorkbook.worker.ts", import.meta.url), { type: "module" });
++    const finish = () => { clearTimeout(deadline); signal.removeEventListener("abort", abort); worker.terminate(); };
++    const abort = () => { finish(); reject(Error("Workbook import cancelled.")); };
++    const deadline = setTimeout(() => { finish(); reject(Error("Workbook reading exceeded 20 seconds. Export only the supplier sheet you need.")); }, 20000);
++    signal.addEventListener("abort", abort, { once: true });
++    worker.onerror = () => { finish(); reject(Error("Workbook reader could not start or stopped unexpectedly. No prices were imported.")); };
++    worker.onmessage = (event: MessageEvent<{ ok: true; value: PriceWorkbook } | { ok: false; error: string }>) => {
++      finish(); event.data.ok ? resolve(event.data.value) : reject(Error(event.data.error));
++    };
++    worker.postMessage(bytes, [bytes]);
++  });
++}
+diff --git a/src/studio/pricing/priceWorkbook.test.ts b/src/studio/pricing/priceWorkbook.test.ts
+new file mode 100644
+index 0000000..196a535
+--- /dev/null
++++ b/src/studio/pricing/priceWorkbook.test.ts
+@@ -0,0 +1,87 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import * as XLSX from "xlsx";
++import { unzipSync, zipSync, strToU8 } from "fflate";
++import { readPriceWorkbook, boundedWorkbookArchive, WORKBOOK_EXPANDED_LIMIT } from "./priceWorkbook.ts";
++import { workbookPriceTable } from "./priceWorkbookTable.ts";
++import { parsePriceCsv, previewPriceRows, suggestPriceMapping, priceImportSchema, appendPriceBookRevision, emptyPriceBookLibrary, addPricedLine, resolvePricedLine, parsePriceBookLibrary } from "./priceBooks.ts";
++
++function workbook(sheets: Record<string, XLSX.WorkSheet>) {
++  const value = XLSX.utils.book_new(); for (const [name, sheet] of Object.entries(sheets)) XLSX.utils.book_append_sheet(value, sheet, name);
++  return new Uint8Array(XLSX.write(value, { type: "array", bookType: "xlsx", compression: true }));
++}
++const fixture = () => XLSX.utils.aoa_to_sheet([["Supplier pricing — QA only"], [], ["SKU", "Description", "Unit", "Rate"], ["ST-1", "Steel fixture", "kg", 12.345], ["CV-1", "Civil fixture", "m3", 150.25]]);
++const mapping = { stockCode: 0, description: 1, unit: 2, rate: 3 };
++test("real XLSX selects the requested worksheet and header row with physical row provenance", () => {
++  const parsed = readPriceWorkbook(workbook({ Instructions: XLSX.utils.aoa_to_sheet([["Not rates"]]), "Supplier A": fixture() }));
++  assert.deepEqual(parsed.sheets.map(s => s.name), ["Instructions", "Supplier A"]);
++  const table = workbookPriceTable(parsed.sheets[1], 3), preview = previewPriceRows(table, mapping);
++  assert.deepEqual(preview.errors, []); assert.deepEqual(preview.rows.map(r => r.sourceLine), [4, 5]);
++  assert.equal(preview.rows[0].rate, 12.345); assert.equal(table.headerLine, 3);
++  assert.throws(() => workbookPriceTable(parsed.sheets[1], 2), /empty/);
++});
++test("formula, shared/array formula, cached-result and spreadsheet errors never become mapped rates", () => {
++  const sheet = fixture(); sheet.D4 = { t: "n", v: 999, f: "1000-1", F: "D4:D5" }; sheet.D5 = { t: "n", v: 777, F: "D4:D5" };
++  const parsed = readPriceWorkbook(workbook({ Rates: sheet })).sheets[0];
++  assert.equal(parsed.formulaCells, 2);
++  const result = previewPriceRows(workbookPriceTable(parsed, 3), mapping);
++  assert.equal(result.rows.length, 0); assert.equal(result.errors.length, 2);
++  assert.match(result.errors[0], /Line 4: Cell D4 contains a formula/); assert.ok(!JSON.stringify(parsed).includes('999'));
++  const errorSheet = fixture(); errorSheet.D4 = { t: "e", v: 7 };
++  assert.match(previewPriceRows(workbookPriceTable(readPriceWorkbook(workbook({ Rates: errorSheet })).sheets[0], 3), mapping).errors[0], /spreadsheet error/);
++});
++test("formula in an unmapped note column is never used, while mapped constants can be reviewed", () => {
++  const sheet = fixture(); sheet.E3 = { t: "s", v: "Internal note" }; sheet.E4 = { t: "n", f: 'WEBSERVICE("https://invalid.test")', v: 999 }; sheet["!ref"] = "A1:E5";
++  const selected = readPriceWorkbook(workbook({ Rates: sheet })).sheets[0];
++  const result = previewPriceRows(workbookPriceTable(selected, 3), mapping);
++  assert.equal(selected.formulaCells, 1); assert.equal(result.errors.length, 0); assert.equal(result.rows[0].rate, 12.345);
++  assert.ok(!JSON.stringify(selected).includes("WEBSERVICE"));
++});
++test("numeric SKU display padding is retained while price uses raw unrounded numeric value", () => {
++  const sheet = fixture(); sheet.A4 = { t: "n", v: 123, z: "00000" }; sheet.D4 = { t: "n", v: 12.345, z: '"$"0.00' };
++  const table = workbookPriceTable(readPriceWorkbook(workbook({ Rates: sheet })).sheets[0], 3), result = previewPriceRows(table, mapping);
++  assert.equal(result.rows[0].stockCode, "00123"); assert.equal(result.rows[0].rate, 12.345);
++});
++test("merged mapped cells, date-formatted rates and header formulas block with cell-level explanation", () => {
++  const merged = fixture(); merged["!merges"] = [XLSX.utils.decode_range("B4:B5")];
++  assert.match(previewPriceRows(workbookPriceTable(readPriceWorkbook(workbook({ Rates: merged })).sheets[0], 3), mapping).errors[0], /Cell B4 is merged/);
++  const dated = fixture(); dated.D4 = { t: "n", v: 45000, z: "yyyy-mm-dd" };
++  assert.match(previewPriceRows(workbookPriceTable(readPriceWorkbook(workbook({ Rates: dated })).sheets[0], 3), mapping).errors[0], /Cell D4 is a date/);
++  const header = fixture(); header.D3 = { t: "s", f: '"Rate"', v: "Rate" };
++  assert.throws(() => workbookPriceTable(readPriceWorkbook(workbook({ Rates: header })).sheets[0], 3), /Header row 3.*formula/);
++});
++test("truncated, non-workbook, CRC-corrupted and macro archives fail before price parsing", () => {
++  const bytes = workbook({ Rates: fixture() });
++  assert.throws(() => readPriceWorkbook(bytes.subarray(0, bytes.length - 15)), /directory/);
++  assert.throws(() => readPriceWorkbook(strToU8("not excel")), /not an XLSX/);
++  assert.throws(() => readPriceWorkbook(zipSync({ "hello.txt": strToU8("test") })), /catalogue/);
++  const contents = unzipSync(bytes); contents["xl/vbaProject.bin"] = new Uint8Array([1]);
++  assert.throws(() => readPriceWorkbook(zipSync(contents)), /Macro-enabled/);
++  const corrupt = workbook({ Rates: fixture() });
++  const view = new DataView(corrupt.buffer); let index = 0;
++  while (index < corrupt.length - 4 && view.getUint32(index, true) !== 0x02014b50) index++;
++  view.setUint32(index + 16, 123456789, true);
++  assert.throws(() => readPriceWorkbook(corrupt), /checksum/);
++});
++test("ZIP expansion limit rejects oversized content and worksheets exceeding supported dimensions", () => {
++  const bomb = zipSync({ "[Content_Types].xml": strToU8("types"), "xl/workbook.xml": new Uint8Array(WORKBOOK_EXPANDED_LIMIT + 1) });
++  assert.throws(() => boundedWorkbookArchive(bomb), /20 MB/);
++  const wide = fixture(); wide.AO4 = { t: "s", v: "unsupported width" }; wide["!ref"] = "A1:AO5";
++  assert.throws(() => workbookPriceTable(readPriceWorkbook(workbook({ Rates: wide })).sheets[0], 3), /40 columns/);
++});
++test("CSV header-row selection remains explicit and old CSV snapshots still validate unchanged", () => {
++  const text = 'Price sheet\n\nSKU,Description,Unit,Rate\nS1,Steel,kg,12.345\n';
++  const table = parsePriceCsv(text, ",", 3); assert.equal(previewPriceRows(table, suggestPriceMapping(table.headers)).rows[0].sourceLine, 4);
++  const legacy = { metadata: { supplier: "QA", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-07", sourceReference: "QA only" },
++    source: { fileName: "old.csv", sizeBytes: 100, sha256: "a".repeat(64), delimiter: ",", headers: table.headers, mapping }, rows: previewPriceRows(table, mapping).rows };
++  const old = priceImportSchema.parse(legacy); assert.deepEqual(old, legacy);
++  const id = "00000000-0000-4000-8000-000000000010", lineId = "00000000-0000-4000-8000-000000000011";
++  let library = appendPriceBookRevision(emptyPriceBookLibrary("job"), old, "QA book", null, () => id);
++  library = addPricedLine(library, id, 1, 4, "2", () => lineId);
++  const newer = priceImportSchema.parse({ ...legacy, source: { ...legacy.source, kind: "xlsx", delimiter: undefined, worksheet: "Supplier A", headerRow: 3 }, rows: [{ ...legacy.rows[0], rate: 20 }] });
++  library = appendPriceBookRevision(library, newer, "", id);
++  const reloaded = parsePriceBookLibrary(JSON.stringify(library), "job");
++  assert.equal(resolvePricedLine(reloaded, reloaded.worksheet[0]).amount, "24.69");
++  assert.equal(reloaded.books[0].revisions[1].source.worksheet, "Supplier A");
++  assert.equal(priceImportSchema.safeParse({ ...newer, source: { ...newer.source, worksheet: undefined } }).success, false);
++});

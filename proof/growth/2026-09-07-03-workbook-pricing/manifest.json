@@ -1,0 +1,77 @@
+{
+  "id": "2026-09-07-03-workbook-pricing",
+  "title": "Stage 03 — bring supplier workbooks into reviewed pricing",
+  "date": "7 September 2026",
+  "platform": "Development browser · desktop and mobile · isolated test profile",
+  "summary": "Supplier XLSX files now open in a bounded worker, with worksheet and heading-row selection before column mapping. Formula prices are refused, malformed input preserves saved books, and reviewed rates retain the original workbook hash, worksheet and physical source row after reopening. Existing applied revisions remain unchanged.",
+  "requirements": [
+    {
+      "id": "E-01",
+      "status": "Development acceptance passed",
+      "change": "Actual XLSX/CSV preview, formula refusal and malformed-file preservation; 18 focused tests and real browser journeys.",
+      "remaining": "Combined production/native gate. XLS/XLSM and encrypted files unsupported; source limit 2 MiB, expanded archive 20 MiB."
+    },
+    {
+      "id": "E-02",
+      "status": "Development acceptance passed",
+      "change": "Worksheet, heading row, SKU, description, unit and rate mapping; physical row and cell errors remain visible.",
+      "remaining": "Combined production/native gate. No inferred unit/currency conversion. Original workbook bytes are not embedded in backups."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/worksheet-mapping-detail.png",
+      "caption": "After: the selected worksheet, physical source rows and four explicit column mappings lead to reviewed rates.",
+      "sha256": "2afc8476754043be4cf270f15c42febc8cf83749fa94caaa87cc6c10de81a9cf",
+      "archivedFile": "screenshots/growth/2026-09-07-03-workbook-pricing/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/before-csv-only.png",
+      "caption": "Before: supplier import supported CSV only.",
+      "sha256": "09a451ab5a5720fe54388f4b9c1efb6dbd743470878445e2fb4d52a737e8a8bc",
+      "archivedFile": "screenshots/growth/2026-09-07-03-workbook-pricing/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/formula-error-detail.png",
+      "caption": "Formula cell D2 is refused; its cached value is not accepted as a supplier price.",
+      "sha256": "06191394863797ad3f42d0013f204ca05ed29421683978540633c774e04211b5",
+      "archivedFile": "screenshots/growth/2026-09-07-03-workbook-pricing/03.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/workbook-review.png",
+      "caption": "A separate review precedes saving the immutable supplier price-book revision.",
+      "sha256": "99619f2cd92936c2b54f3f2a886ea2ac6362f478f5eff5b921e863ad6a6c7f6f",
+      "archivedFile": "screenshots/growth/2026-09-07-03-workbook-pricing/04.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/malformed-preserves-library.png",
+      "caption": "Truncated workbook input produces a visible error and preserves the saved library.",
+      "sha256": "3680e3bde07dfb3fe14c9f6b1d78906cc4cdb8f32757ec738bf4b935e764dd23",
+      "archivedFile": "screenshots/growth/2026-09-07-03-workbook-pricing/05.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-pricing/workbook-mobile-mapping-final.png",
+      "caption": "Mobile rates remain readable on one line; the review action is clear of the assistant.",
+      "sha256": "90e331da7a96ff75188dbb1919c2893eb410f6e827534ccecec6d4f039fc5ec8",
+      "archivedFile": "screenshots/growth/2026-09-07-03-workbook-pricing/06.png"
+    }
+  ],
+  "commands": [
+    "node --experimental-strip-types --test src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts — 18 passed",
+    "npm.cmd run typecheck — passed",
+    "Batched workbook-flow.json — actual formula refusal, worksheet/header mapping, reviewed save and real reload passed",
+    "Batched malformed-csv-mobile.json — malformed input preserved exact library; CSV heading row 3 and mobile layout passed",
+    "detail-proof.log — final detailed formula/mapping and mobile evidence; 0.87 seconds in the hot session",
+    "Workbook test fixture SHA-256 c950510911d6f27407841922a4ae7bd531162fe6e92f08983a4555e827f02244. All rates are invented QA data, not supplier quotations."
+  ],
+  "logs": [
+    "proof/growth/2026-09-07-pricing/completion.md",
+    "proof/growth/2026-09-07-pricing/tests-final.log",
+    "proof/growth/2026-09-07-pricing/workbook-flow.log",
+    "proof/growth/2026-09-07-pricing/malformed-csv-mobile.log",
+    "proof/growth/2026-09-07-pricing/detail-proof.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 3e422f0084de607a775c2ede8dfecdf0b032c75e. Exact source copies and hashes: proof/growth/2026-09-07-03-pricing-source/source-manifest.json. Frozen combined build source a8a8c4946d93cafa283a7875b97337719f4c1bce8884b5b4097ab30fc5b29b84 is being verified separately.",
+  "codeDiff": "proof/growth/2026-09-07-pricing/implementation.diff compares this wave with captured BEFORE sources; complete snapshot diff also saved in 2026-09-07-03-pricing-source",
+  "summaryImage": "screenshots/growth/2026-09-07-03-workbook-pricing.png"
+}

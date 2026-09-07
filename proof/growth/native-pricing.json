@@ -1,0 +1,326 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Cost",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.price-books')"
+  ],
+  [
+    "eval",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:')),lib=key?JSON.parse(localStorage.getItem(key)):null;sessionStorage.setItem('qa-portable-before',JSON.stringify(lib));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Import price sheet",
+    "--exact"
+  ],
+  [
+    "upload",
+    "input[aria-label='Supplier price file']",
+    "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-07-pricing/supplier-offset.csv"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('input[aria-label=\"Price header row\"]')"
+  ],
+  [
+    "fill",
+    "input[aria-label='Price header row']",
+    "3"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.dataset.priceImportState==='ready'&&document.querySelector('.price-books')?.dataset.priceImportRows==='1'"
+  ],
+  [
+    "find",
+    "label",
+    "Price book name",
+    "fill",
+    "CSV mapped header QA",
+    "--exact"
+  ],
+  [
+    "find",
+    "label",
+    "Supplier",
+    "fill",
+    "QA engineering service supplier",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const input=document.querySelector('.price-books input[type=date]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'2026-09-07');input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "label",
+    "Source reference",
+    "fill",
+    "Owned CSV test fixture — not live pricing",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review import",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.dataset.priceImportState==='review'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save reviewed price book",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-notice')?.textContent.includes('Saved')||[...document.querySelectorAll('.price-books h3')].some(e=>e.textContent==='CSV mapped header QA')"
+  ],
+  [
+    "eval",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:')),lib=key?JSON.parse(localStorage.getItem(key)):null;const book=lib.books.find(b=>b.name==='CSV mapped header QA');if(!book||book.revisions[0].source.headerRow!==3)throw Error('CSV fixture not saved');sessionStorage.setItem('qa-portable-csv',JSON.stringify(book));sessionStorage.setItem('qa-portable-job',lib.jobId);})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Import price sheet",
+    "--exact"
+  ],
+  [
+    "upload",
+    "input[aria-label='Supplier price file']",
+    "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-07-pricing/supplier-workbook.xlsx"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('select[aria-label=\"Workbook worksheet\"]')"
+  ],
+  [
+    "select",
+    "select[aria-label='Workbook worksheet']",
+    "Formula rates"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.textContent.includes('Cell D2 contains a formula')"
+  ],
+  [
+    "eval",
+    "if([...document.querySelectorAll('.price-books button')].find(b=>b.textContent==='Review import')?.disabled!==true)throw Error('Mapped formula did not block import')"
+  ],
+  [
+    "scroll",
+    "down",
+    "3000",
+    "--selector",
+    ".workspace-central-content"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-pricing/native-formula-blocked.png"
+  ],
+  [
+    "select",
+    "select[aria-label='Workbook worksheet']",
+    "Civil and electrical"
+  ],
+  [
+    "fill",
+    "input[aria-label='Price header row']",
+    "3"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('fieldset')?.textContent.includes('Supplier SKU')"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(1) select",
+    "0"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(2) select",
+    "1"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(3) select",
+    "2"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(4) select",
+    "3"
+  ],
+  [
+    "find",
+    "label",
+    "Price book name",
+    "fill",
+    "Civil and electrical workbook QA",
+    "--exact"
+  ],
+  [
+    "find",
+    "label",
+    "Supplier",
+    "fill",
+    "QA civil and electrical supplier",
+    "--exact"
+  ],
+  [
+    "select",
+    ".price-fields > label:nth-child(8) select",
+    "exclusive"
+  ],
+  [
+    "find",
+    "label",
+    "Tax percent (optional)",
+    "fill",
+    "10",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const input=document.querySelector('.price-books input[type=date]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'2026-09-07');input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "label",
+    "Source reference",
+    "fill",
+    "Owned QA workbook fixture — not real supplier pricing",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.dataset.priceImportState==='ready'&&document.querySelector('.price-books')?.dataset.priceImportRows==='2'"
+  ],
+  [
+    "scroll",
+    "down",
+    "3000",
+    "--selector",
+    ".workspace-central-content"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-pricing/native-worksheet-column-mapping.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review import",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.dataset.priceImportState==='review'"
+  ],
+  [
+    "scroll",
+    "down",
+    "3000",
+    "--selector",
+    ".workspace-central-content"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-pricing/native-workbook-review.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save reviewed price book",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('.price-books h3')].some(e=>e.textContent==='Civil and electrical workbook QA')"
+  ],
+  [
+    "eval",
+    "window.__portableReload=true"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__portableReload!==true&&document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Cost",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.price-books')"
+  ],
+  [
+    "eval",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:')),lib=key?JSON.parse(localStorage.getItem(key)):null;const old=JSON.parse(sessionStorage.getItem('qa-portable-before')),r=lib.books.find(b=>b.name==='Civil and electrical workbook QA')?.revisions[0],csv=lib.books.find(b=>b.name==='CSV mapped header QA');if(lib.jobId!==sessionStorage.getItem('qa-portable-job')||!r||r.source.kind!=='xlsx'||r.source.worksheet!=='Civil and electrical'||r.source.headerRow!==3||r.rows[0].sourceLine!==4||r.rows[0].rate!==150.25||r.source.sha256!=='c950510911d6f27407841922a4ae7bd531162fe6e92f08983a4555e827f02244')throw Error('XLSX reload/provenance failed');if(JSON.stringify(csv)!==sessionStorage.getItem('qa-portable-csv'))throw Error('CSV book changed');if(old&&(JSON.stringify(old.worksheet)!==JSON.stringify(lib.worksheet)||old.books.some(b=>JSON.stringify(b)!==JSON.stringify(lib.books.find(v=>v.id===b.id)))))throw Error('Existing price data changed');return {jobId:lib.jobId,books:lib.books.length,worksheet:lib.worksheet.length,source:r.source};})()"
+  ],
+  [
+    "errors"
+  ]
+]

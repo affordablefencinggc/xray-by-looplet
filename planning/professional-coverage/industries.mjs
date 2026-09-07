@@ -1,0 +1,102 @@
+// These are acceptance profiles, not claims of current industry readiness.
+// Every profile also inherits A/B/D/E/I/J/Q/U/V/Z and the working-day scenario.
+const rows = `
+Residential architecture|Architect / building designer|Develop an alteration with existing/new/demolished work|Survey and client brief|Coordinated plans, sections, schedules and issue set|C,R,T,W
+Commercial architecture|Architect / design manager|Coordinate a multi-tenant commercial fit-out|Base build, tenancy requirements and consultant models|Coordinated design, room data and consultant issues|C,H,N,R,W
+High-rise and mixed-use|Architect / BIM lead|Coordinate repeated floors, cores and facade variants|Tower models and level schedule|Level-aware quantities, coordinated core and issue packages|C,H,N,R,S
+Drafting and documentation services|Draftsperson / CAD technician|Turn approved markups into a revised drawing set|Redlines, CAD standards and prior issue|Dimensioned drawings, checked references and change register|C,K,R
+BIM coordination and digital engineering|BIM coordinator / information manager|Federate consultants and resolve clashes|IFC models, origins and information requirements|BCF issues, checked properties and coordinated federation|C,I,Q,R,X
+Interior design and fit-out|Interior designer / fit-out contractor|Specify finishes, joinery and furniture for a tenancy|Room brief and measured existing shell|Finish schedules, reflected ceiling plans and procurement list|C,H,K,M,N,R
+Heritage and conservation|Conservation architect / heritage consultant|Document repairs while retaining existing fabric|Historic records, scans and condition survey|Fabric map, repair schedule and intervention record|G,K,R,W
+Urban design and planning|Urban designer / planner|Compare precinct massing and public-realm options|GIS constraints, terrain and planning brief|Option study, area schedule and consultation package|G,L,R,W
+Landscape architecture|Landscape architect|Design planting and hardscape around a building|Survey, planting brief and drainage plan|Planting schedule, grading and maintenance package|G,L,T,W
+Arboriculture and ecology|Arborist / ecologist|Review tree protection and habitat impacts|Tree survey, habitat mapping and site design|Protection zones, impact register and mitigation plan|G,L,W
+Surveying and cadastral work|Surveyor|Adjust survey observations and issue site control|GNSS/total-station observations and control|Checked coordinates, closure report and survey plan|C,G,Y
+Reality capture and scan-to-BIM|Survey technician / modeler|Record a complex existing building and review derived geometry|Point clouds, photos and control targets|Registered cloud, residual report and source-linked model|G,R,T
+Civil and land development|Civil engineer|Design a serviced subdivision|Terrain, boundaries and utility records|Grading, roads, services, quantities and civil sheets|G,L,S,Y
+Earthworks and excavation|Earthworks estimator / contractor|Price and stage a cut/fill operation|Existing/proposed surfaces and ground investigation|Volume reconciliation, haul assumptions and work packages|F,G,L,T,Y
+Roads and highways|Road designer / transport engineer|Revise a corridor and intersection|Alignment criteria, survey and drainage|Plans, profiles, cross-sections and quantities|G,H,S,Y
+Rail and transit|Rail engineer / station designer|Coordinate track, platform and station services|Rail alignment, envelope and station requirements|Chainage drawings, clearances and systems coordination|G,H,N,S,Y
+Airports and aviation infrastructure|Airfield engineer / terminal designer|Coordinate apron or terminal works|Airside survey, operations constraints and services|Pavement/service layouts and phased issue package|F,G,H,N,Y
+Ports, coastal and marine infrastructure|Marine/civil engineer|Plan a wharf retrofit with operating constraints|Bathymetry, structural survey and asset records|Coordinated marine works and inspected asset handover|G,H,S,Y
+Traffic and transport planning|Transport planner|Check access and circulation around a site|Site plan, vehicle assumptions and movement demand|Swept paths, access option study and assumptions report|G,L,Y
+Stormwater, drainage and flood studies|Hydrologist / drainage engineer|Test a drainage upgrade under defined rainfall scenarios|Catchments, rainfall data, pipes and levels|Hydraulic results, flood extents and design report|G,H,W,Y
+Water and wastewater utilities|Water engineer / asset operator|Upgrade a pressure or wastewater network|Asset GIS, demand and operating data|Checked network scenario and construction/operations package|G,H,O,Y
+Geotechnical and ground engineering|Geotechnical engineer|Assess excavation beside an existing structure|Boreholes, soil tests and groundwater|Staged analysis, displacement results and reviewed report|G,S,Y
+Structural steel buildings|Structural engineer / steel detailer|Design and detail a braced industrial building|Architectural geometry and design actions|Checked model, connection package and fabrication drawings|M,S,T
+Concrete and precast construction|Structural engineer / precast detailer|Coordinate reinforcement, embeds and erection|Structural model, member design and supplier constraints|Bar schedules, cast units and installation package|F,M,S,T
+Timber and mass-timber construction|Timber engineer / fabricator|Coordinate panel joints and erection|Architectural model and material/connection data|Checked panels, cut lists and assembly instructions|M,S,T,W
+Masonry and retaining walls|Engineer / masonry contractor|Design and quantify stepped retaining work|Survey, loads and ground properties|Checked wall details, block schedule and drainage links|H,L,S,T
+Bridges and specialist structures|Bridge engineer|Review staged construction of a bridge component|Survey, design loads and construction stages|Verified analysis, detailing and inspection package|F,G,S,Y
+Facade, glazing and envelope|Facade engineer / glazing contractor|Coordinate curtainwall modules and weatherproof junctions|Facade geometry, performance brief and supplier data|Panel schedule, junction details and reviewed performance|M,R,S,T,W
+Roofing and cladding|Roofing estimator / installer|Measure a roof with hips, valleys and penetrations|Roof plan, sections and product dimensions|Net/stock quantities, flashing schedule and fixing details|C,M,R,T
+HVAC and refrigeration|Mechanical services engineer / contractor|Route and size a multi-zone services installation|Room loads, architectural model and equipment data|Coordinated duct/pipe network and commissioning schedule|H,N,O,W
+Plumbing and gas services|Hydraulic designer / plumber|Coordinate supply, waste and gas in a renovation|Fixture brief, existing services and survey|Risers, layouts, checked calculations and test records|H,O,T
+Fire protection and life safety|Fire services engineer / specialist|Review fire-system layout and design assumptions|Building occupancy, services geometry and fire strategy|Reviewed system package and inspection/commissioning evidence|H,N,Q,W
+Electrical building services|Electrical engineer / contractor|Coordinate lighting, power and distribution|Load brief, building model and device data|Circuit schedule, routes and checked calculations|H,N,O,T
+Controls and instrumentation|Controls engineer / systems integrator|Revise an industrial control loop|P&IDs, device data and control philosophy|Updated I/O, loop drawings, wire lists and test records|M,N,O,Y
+ICT, security and audiovisual|ICT/AV designer / installer|Coordinate cabling, equipment and coverage|Space brief, rack layouts and device requirements|Port/device schedules, pathways and test handover|N,O,T
+Renewables, batteries and EV infrastructure|Energy engineer / installer|Design a distributed energy installation|Site, demand, equipment and connection requirements|Reviewed layout, electrical package and asset handover|G,N,O,W,Y
+Energy, daylight and sustainability consulting|Building performance consultant|Compare envelope and systems alternatives|Thermal model, weather and occupancy assumptions|Checked simulations, carbon/cost comparison and recommendations|H,L,N,W
+Quantity surveying and cost consultancy|Quantity surveyor|Issue a measured cost plan with alternate options|Drawings, specifications and current rate books|Auditable estimate, assumptions and revision comparison|P,T,W
+Builders and general contractors|Project manager / builder|Take a tender through procurement and site delivery|Issued drawings, tender scope and programme|Reviewed estimate, work packages, RFIs and closeout|F,P,T
+Specialty subcontractors|Trade estimator / supervisor|Price, order and install an assigned package|Trade scope, drawings and supplier quotations|Trade takeoff, approved order and progress evidence|F,P,T
+Joinery, kitchens and furniture|Cabinet designer / manufacturer|Design a fitted assembly and prepare manufacture|Measured room, finishes and hardware catalogue|Panel cuts, edging, hardware BOM and installation drawings|C,M,P,T
+Metal fabrication, welding and sheet metal|Fabricator / workshop manager|Produce and inspect a custom metal assembly|Part/assembly model and material specifications|Cut/nest package, weld map and inspection traceability|M,P,S,T
+Fencing, gates and balustrades|Estimator / installer|Measure runs, gates and corner connections|Site plan, boundary measurements and product system|Source-linked takeoff, stock list and installation record|C,F,L,M,T
+Flooring, tiling, painting and finishes|Finishes estimator / contractor|Price net areas with openings, waste and patterns|Room dimensions, finish schedule and product packs|Reconciled net/purchase quantities and supplier order|F,L,P,T
+Demolition, remediation and hazardous materials|Demolition planner / specialist|Stage removal while preserving retained assets|Survey, contamination reports and service isolation plan|Removal package, waste traceability and clearance evidence|F,G,O,W,Y
+Modular and prefabricated construction|DFMA designer / factory coordinator|Release modules through fabrication and installation|Module configuration, interfaces and logistics limits|Revisioned BOM, manufacturing package and site acceptance|F,M,P,S,Y
+Manufacturing and industrial machinery|Mechanical designer / production engineer|Release a machine assembly to production|Part requirements, supplier components and design model|Checked assembly, manufacturing drawings and released BOM|M,N,P
+Automotive, aerospace and rail products|Mechanical engineer / quality engineer|Control a precision component design change|Part model, tolerance requirements and change request|Configuration-bound manufacturing and inspection package|M,N,Q,X
+Medical devices and precision instruments|Product engineer / quality manager|Trace a component requirement through design and inspection|Requirements, CAD and verification protocol|Controlled design history and inspection evidence|M,Q,X
+Industrial plant, process and chemical facilities|Process/plant engineer|Coordinate a brownfield pipe/equipment modification|P&IDs, point cloud, line list and design conditions|Consistent tags, isometrics and commissioning package|G,H,N,O,Y
+Mining, quarrying and materials handling|Mine surveyor / asset engineer|Measure stock and coordinate processing infrastructure|Survey surfaces, equipment layouts and asset records|Reconciled quantities and controlled plant change package|G,M,O,T,Y
+Power generation and transmission|Electrical/civil engineer|Coordinate a substation or transmission upgrade|Network requirements, survey and equipment data|Reviewed routes, electrical/structural package and asset records|G,N,O,S,Y
+Oil, gas and pipelines|Pipeline engineer / integrity manager|Review a pipeline route and integrity works|Terrain, alignment, operating conditions and inspection data|Route sheets, reviewed stress scope and maintenance record|G,H,N,O,Y
+Telecommunications infrastructure|Network planner / rollout manager|Plan fibre routes and equipment deployment|GIS, duct/pole records and connection demand|Route/cable schedules, splice plan and field acceptance|F,G,N,O,Y
+Agriculture and rural infrastructure|Rural designer / contractor|Plan sheds, fences, access and irrigation|Property survey, stock requirements and water data|Site layout, quantities and maintenance records|G,H,L,O,T,Y
+Events, theatre and exhibition|Production designer / rigging specialist|Coordinate a temporary stage, lighting and flown equipment|Venue geometry, rigging inventory and production brief|Layout, load-review package and installation checklist|F,M,N,R,S,Y
+Facilities and property management|Facility manager / building operator|Receive a building and schedule ongoing maintenance|As-built package, asset register and warranties|Searchable asset history, work orders and renewal plan|H,N,O,W
+Public-sector infrastructure owners|Asset manager / public works officer|Prioritize renewal across roads, buildings and utilities|Condition surveys, GIS and budget constraints|Traceable capital programme and asset handover standards|G,O,W,Y
+Developers, owners and project controls|Development manager / owner's representative|Compare options and track budget through handover|Brief, design options, programme and cost plans|Decision register, approved baseline and closeout package|F,O,P,R,W
+Building certification and inspection|Building surveyor / inspector|Review a submitted design against selected requirements|Issued documents, evidence and jurisdiction register|Recorded findings, responses and authorized determination|F,Q,R,W
+Insurance, loss assessment and forensic work|Assessor / forensic engineer|Document damage and compare reinstatement scope|Pre-loss records, photos, survey and inspection findings|Evidence-linked scope, measured costs and limitations|G,Q,R,S,T
+Education, research and training|Educator / research engineer|Teach or evaluate a reproducible design workflow|Anonymized fixtures and known-answer problems|Repeatable tutorial, assessment and benchmark results|K,Q,X
+Healthcare, laboratories and clean facilities|Healthcare planner / specialist engineer|Coordinate rooms, specialist services and maintainability|Room data, workflow brief and equipment requirements|Room/equipment schedules and coordinated service package|H,N,O,Q,W
+Data centres and critical facilities|MEP/operations engineer|Coordinate redundant systems and maintenance access|Load and resilience brief, plant models and asset data|Coordinated systems, reviewed scenarios and commissioning records|H,N,O,Q,W
+Retail, hospitality and multi-site rollouts|Design manager / rollout coordinator|Adapt a standard fit-out to several sites|Brand template, surveys and local constraints|Controlled site variants, procurement and handover sets|H,K,M,N,P,R
+Warehousing, logistics and industrial estates|Industrial planner / operator|Coordinate storage, vehicle flows and services|Survey, racking data and operating requirements|Layout, reviewed clearances and asset/maintenance schedule|F,G,H,N,O,Y
+Shipbuilding and marine fabrication|Marine designer / fabricator|Coordinate equipment, piping and fabricated assemblies|Vessel geometry, system diagrams and material requirements|Controlled assembly, pipe and installation packages|H,M,N,O,Y
+Recycling, waste and circular construction|Resource recovery planner|Plan selective dismantling and reuse of materials|Asset survey, material inventory and condition evidence|Reuse schedule, recovered quantities and disposal records|F,O,P,T,W,Y
+`;
+export const industries = rows.trim().split('\n').map((line,i)=>{
+  const [name,roles,scenario,inputs,outputs,extra]=line.split('|');
+  return {id:`IND-${String(i+1).padStart(2,'0')}`,name,roles,scenario,inputs,outputs,
+    categories:[...new Set(['A','B','D','E','I','J','Q','U','V','Z',...extra.split(',')])],state:'not-tested'};
+});
+
+export const workingDay = [
+  ['DAY-01','Start/reopen','Open the correct job after a full restart; confirm identity, latest revision, source availability, permissions and unsaved-change status.','A,B,D,U'],
+  ['DAY-02','Receive work','Import a new source/revision, name and group its sheets, verify scale/origin, compare changes and retain the prior issue.','C,D,G,I'],
+  ['DAY-03','Design/measure','Perform the profile-specific drawing, modeling or measurement; edit, undo and redo; verify associated schedules and quantities.','C,H,L,M,N,R,S,T,Y'],
+  ['DAY-04','Check/review','Run appropriate geometric/information/calculation checks; record source, assumptions, issues and an authorized review decision.','Q,R,S,W'],
+  ['DAY-05','Price/procure','Import a supplier workbook or request bounded pricing research; compare units and variants; approve selected rates; reconcile the estimate.','E,P,T'],
+  ['DAY-06','Issue/handoff','Select exact drawings, evidence and commercial content; prepare package for named staff; verify recipient access/import and durable receipt where sending is implemented.','D,I,V'],
+  ['DAY-07','Use on site','Open offline field package, record an inspection/change/photo and synchronize with conflict review when reconnected.','F,O,V'],
+  ['DAY-08','End/recover','Save, export complete backup, archive and restore; on clean profile verify originals, design, quantities, prices and history.','B,Q,Z'],
+];
+
+export const initialFindings = [
+  ['Saving','Code exists; fresh daily audit open','Architect design uses saveArchitect and backup/restore; other inventories have separate persistence. This does not prove one complete project backup.','src/studio/architect/persistence.ts; src/studio/store.ts; src/studio/construction/projectMaterials.ts','B-02,B-04,B-09'],
+  ['Archive/store away','Gap; unified lifecycle not established','Document workspaces preserve per-source work, but a user-facing whole-project archive/restore workflow still needs implementation and end-to-end proof.','src/studio/documentWorkspaces.ts','B-07,B-08'],
+  ['Name sheets','Partial','Architectural sheet number is editable. Source-sheet display names, drawing titles, groups and persistent rename need separate acceptance.','src/studio/architect/ArchitectSheets.tsx','D-02'],
+  ['Remove sheets','Gap','Viewport removal exists inside one architectural sheet; this is not source-sheet removal, impact review or a recycle bin.','src/studio/architect/ArchitectSheets.tsx; src/studio/store.ts','D-04,D-05'],
+  ['Multiple authored sheets','Partial','Architect model currently has one sheet with up to four viewports. A proper named sheet-set lifecycle remains open.','src/studio/architect/model.ts; src/studio/architect/ArchitectSheets.tsx','D-03,D-06,D-13'],
+  ['Apply pricing sheets','Partial rates; workbook workflow missing','Wall layers accept manual rates and supplier references. Workbook selection/mapping, currency/tax normalization and reviewed bulk application remain open.','src/studio/architect/ArchitectInspector.tsx; src/studio/architect/ArchitectWorkspace.tsx','E-01,E-02,E-04,E-06'],
+  ['Firecrawl pricing','Integration gap','Official v2 API supports search/scrape. Application integration, credential provisioning, bounded live test and rate-review proof remain open.','planning/professional-coverage/catalogue.mjs','P-01,P-03,P-08,P-09'],
+  ['Forward to staff','Partial exports; live handoff unavailable','Current CRM bridge explicitly returns an unavailable result. A complete portable package and authenticated transmission/receipt are separate deliverables.','src/studio/crmBridge.ts; src/studio/TakeoffTransferPanel.tsx','V-03,V-05,V-06'],
+  ['DWG','Implemented; bounded native checks pass','Independent readback verifies a 431-entity two-level fixture and the 412-entity UI export. Native import/cancel/undo/redo pass after correcting stale level selection. Final installation is tracked in DWG-TODO.md.','src-tauri/src/cad.rs; src/studio/architect/ArchitectCadExchange.tsx; DWG-TODO.md','I-02,C-14'],
+  ['Roof facade','Geometry and native visual checks pass','Redburn gables now have intersecting slopes and host-roof cutouts. Geometry regression, development and native screenshots exist. Final installed delivery remains a separate check.','scripts/build-redburn-model.mjs; src/studio/redburnBuilding.test.ts','R-06'],
+  ['Engineering readiness','Unassessed by discipline','A model or export does not establish a validated structural, hydraulic, electrical or geotechnical solver. Benchmark validation and qualified review remain separate gates.','planning/professional-coverage/industries.mjs','H-03,N-03,S-04,Q-08,Q-10'],
+];

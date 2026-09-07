@@ -68,3 +68,43 @@ Rebuilt and installed current source on feat/model-wireframe-navigation; saved u
 
 
 - 2026-09-06 | feat/model-wireframe-navigation | Redburn BR250157 Three.js reconstruction installed:186 source-linked assemblies, original13-page PDF, plan/cutaway views. Typecheck,655 tests, web/NSIS builds and9 UI scenarios across web/native plus filming repeat passed. Inferred geometry and unresolved outdoor datum remain explicit; no quantity accuracy claim. Proof: proof/audit/IW-REDBURN-3D/completion.md. No stage/commit/merge/push.
+
+- 2026-09-07 | feat/architect-cad-engine | Continued existing branch from 3e422f0; architecture closeout, restored navigation and private Deepgram voice deployed/installed. Profile retained; exact NSIS marker normalization and installed UI proof recorded. No branch creation, worktree, staging, commit, merge or push. Recovery and diff: proof/audit/IW-ARCHITECT-SKETCH/completion.md. Native DWG remains open.
+
+
+## 2026-09-07 ? Native DWG, roof repair and professional A?Z register
+
+On feat/architect-cad-engine (baseline 3e422f0), completed the researched 364-requirement / 26-category / 68-profile / 33-reference register and searchable Proof viewer. Verified local Windows DWG geometry exchange, actual native download with independent readback, import/cancel/undo/redo, the stale-level undo fix, and Redburn gable/roof intersections. Typecheck, 684 JS/TS tests, 29 Rust tests, web/Windows builds and dev/production smoke pass. **Installed delivery remains open:** the existing app did not close normally; no installer started, and user decision on force-closing is pending. Expanded product requirements remain open. No stage, commit, merge, push or worktree. [Diff, screenshots, logs, scope and recovery](proof/audit/IW-DWG/completion.md).
+
+
+- [x] 2026-09-07 | feat/architect-cad-engine | Named workspace backup library verified: immutable save, rename, archive, reload, portable download, validated import preview/library and real IndexedDB rollback/conflict checks. 692 tests at backup snapshot, typecheck, web/native builds, desktop/mobile/native proof. Editor restoration remains open; installed app not replaced. Evidence: proof/audit/IW-PROJECT-BACKUP/completion.md.
+- [x] 2026-09-07 | Dans1 isolated web build worker verified over existing trusted SSH alias. Portable runtime, explicit hashed snapshots, BelowNormal builds with six workers, built-output browser smoke. Native toolchain remains open. Evidence: DANS1-BUILD-TODO.md and proof/audit/IW-DANS1/. No CRM changes, stage, commit, merge, push or deployment.
+
+- [x] 2026-09-07 | feat/architect-cad-engine, baseline 3e422f0 | Redburn enclosure/roof strip fixed and bottom model controls restored. Sixteen focused tests, typecheck, dev/production smoke and native/installed scenarios passed. Dans1 web and NSIS builds complete at BelowNormal with six workers. Installed update includes previously verified DWG and backup library; profile hashes unchanged, no forced user-process closure, normal app reopened and screenshot inspected. Code diff, exact artifact identity, logs and recovery: proof/audit/IW-REDBURN-ENCLOSURE/completion.md. Backup application, Firecrawl and staff handoff remain open. No CRM edits, staging, commit, merge or push.
+
+- 2026-09-07 | feat/architect-cad-engine | Continued authorized parallel professional workflow work on baseline 3e422f0. Shared sheet/pricing/backup work and model control correction verified against final source snapshot 44c9a5bdd386. Uncommitted changes preserved; no new branch/worktree/staging/commit/merge/push. Verified Windows package remains uninstalled and user profile unchanged. Recovery and proof: proof/audit/IW-PROFESSIONAL-NEXT/completion.md; implementation.diff records 25 paths including preserved earlier shared-file edits.
+
+- [x] 2026-09-07 | Dans1 resource allocation updated at user request: High-priority Windows Job Object for the build process tree, all 16 logical processors, no artificial memory quota. Actual Node launcher/child priority and worker environment verified; four local resource tests pass. New worker installed on Dans1; prior build records preserved. Optional local build assistance remains unused and requires a 20% aggregate CPU cap. Proof and source: proof/audit/IW-DANS1-ALLOCATION/completion.md. No CRM changes, commit, merge, push or app installation.
+
+## 2026-09-07 - Bounded growth release verified, package uninstalled
+
+Continued existing `feat/architect-cad-engine` at baseline `3e422f0084de607a775c2ede8dfecdf0b032c75e`; no new branch/worktree, staging, commit, merge or push. Authorized parallel slices SC-01 through SC-05 delivered illustrated reports, read-only B-10 preflight, D-06/D-14 source-sheet organization/views and E-01/E-02 reviewed workbook import. Complete restoration and recovery/writer coordination remain open.
+
+Frozen source `a8a8c4946d93cafa283a7875b97337719f4c1bce8884b5b4097ab30fc5b29b84` and native source `9e85e6501cbe8e92b7f504ba1b9b41b3be8268059955e065a852a1f032b2f6d7` were built sequentially on Dans1 High/16 workers. Typecheck, 95 focused tests, web/NSIS builds, exact post-build source hashes, artifact verification and bounded built-browser/isolated Windows-native workflows passed. Executable SHA-256 `1a6486a3af6425e61996b1641f5ffdeade546df9fa549e4dcafe43209899aa8b`; NSIS SHA-256 `5ff5dc3c35aba4a3c3e57fbb175c6f9c295aac1286cad9e80f260a301560eb6e`.
+
+Disposition: verified local package and source snapshots retained; package **not installed**, normal user profile/data untouched. Final UI testing needed no source changes or rebuild. Historical failed automation attempts remain alongside successful retries. Recovery/evidence: [release records](proof/growth/2026-09-07-release/README.md), [scoped source diffs and illustrated reports](proof/growth/PROGRESS.md), [executed final scenarios](COMPLETE-CHECKLIST.md). CRM source and external staff communications were outside this work.
+
+Latest target scope is tablet/laptop/desktop Windows/macOS/Linux; phone evidence is historical only. Tablet-specific layout and macOS/Linux package acceptance remain open. This disposition is limited to tested browser and Windows-native behavior, not all platforms or the full professional register.
+
+## 2026-09-07 — user-authorized staged push and pause
+
+Authorization: "pause at next safe point and push changes in stages". Existing branch feat/architect-cad-engine; no branch/worktree creation, merge or CRM changes.
+
+- 9db51ed — application workflows and source review; pushed.
+- 0dd730e — tablet44px controls, independently verified; pushed.
+- f72a839 — persistent CDP/reporting and Dans1 tools; pushed.
+- Evidence and progress ledgers — this commit; final remote equality recorded locally in proof/growth/staged-push/push-result.json.
+
+Final verified candidatec32e640187e9:95tests, typecheck, web/native builds,99-command tablet browser flow and24-command retained-profile Windows flow passed. Five HTML/PNG stage reports preserve the progression. Installed app and working user data unchanged. Agents paused; no new requirements started. Native macOS/Linux remain blocked by the Windows-only translator build, with other open requirements retained in the professional checklist.
+
+Final publication status: the evidence stage is held locally. Automatic approval review rejected its roughly50MB upload; exact payload/destination approval has been requested. Remote branch verified atf72a839. The three source/tooling commits are pushed; the evidence commit is local pending approval. Work is paused.

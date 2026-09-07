@@ -1,0 +1,540 @@
+diff --git a/src/studio/pricing/priceBooks.ts b/src/studio/pricing/priceBooks.ts
+new file mode 100644
+index 0000000..6e119e9
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.ts
+@@ -0,0 +1,233 @@
++import { z } from "zod";
++
++export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
++export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
++const shortText = z.string().trim().min(1).max(200);
++const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => {
++  const parsed = new Date(`${v}T00:00:00Z`);
++  return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === v;
++}, "Use a valid effective date.");
++export const priceMetadataSchema = z.object({
++  supplier: shortText,
++  currency: z.string().regex(/^[A-Z]{3}$/, "Enter a three-letter currency code."),
++  amountDecimals: z.number().int().min(0).max(4),
++  taxBasis: z.enum(["exclusive", "inclusive", "unspecified"]),
++  taxPercent: z.number().finite().min(0).max(100).nullable(),
++  effectiveDate: date,
++  sourceReference: z.string().trim().min(1).max(2000),
++}).strict().refine(v => v.taxBasis !== "unspecified" || v.taxPercent === null, "Unknown tax basis cannot have an assumed tax percentage.");
++export type PriceMetadata = z.infer<typeof priceMetadataSchema>;
++export const priceRowSchema = z.object({
++  sourceLine: z.number().int().positive(),
++  stockCode: z.string().trim().max(100), description: z.string().trim().min(1).max(300),
++  unit: z.string().trim().min(1).max(40), rate: z.number().finite().nonnegative().max(1e9).refine(v => Number(v.toFixed(6)) === v, "Rate supports up to six decimal places."),
++}).strict();
++export type PriceRow = z.infer<typeof priceRowSchema>;
++const column = z.number().int().min(0).max(39);
++export const priceMappingSchema = z.object({ stockCode: column.nullable(), description: column, unit: column, rate: column }).strict()
++  .refine(v => { const columns = Object.values(v).filter(n => n !== null); return new Set(columns).size === columns.length; }, "Map each field to a different column.");
++export type PriceMapping = z.infer<typeof priceMappingSchema>;
++export const priceImportSchema = z.object({
++  metadata: priceMetadataSchema,
++  source: z.object({ fileName: z.string().min(1).max(255), sha256: z.string().regex(/^[a-f0-9]{64}$/),
++    sizeBytes: z.number().int().positive().max(PRICE_CSV_LIMIT), delimiter: z.enum([",", ";", "\t"]),
++    headers: z.array(z.string().max(300)).min(1).max(40), mapping: priceMappingSchema }).strict(),
++  rows: z.array(priceRowSchema).min(1).max(5000),
++}).strict().superRefine((v, ctx) => {
++  for (const index of Object.values(v.source.mapping)) if (index !== null && index >= v.source.headers.length)
++    ctx.addIssue({ code: "custom", message: "Mapped column is outside the source header." });
++  const lines = new Set<number>(), codes = new Set<string>();
++  for (const row of v.rows) {
++    if (lines.has(row.sourceLine)) ctx.addIssue({ code: "custom", message: "Duplicate source line." });
++    lines.add(row.sourceLine);
++    const code = row.stockCode.toLocaleLowerCase();
++    if (code && codes.has(code)) ctx.addIssue({ code: "custom", message: `Duplicate stock code: ${row.stockCode}. Distinguish supplier variants before importing.` });
++    if (code) codes.add(code);
++  }
++});
++export type PriceImport = z.infer<typeof priceImportSchema>;
++const revisionSchema = z.object({ ...priceImportSchema.shape, revision: z.number().int().positive(), importedAt: z.string().datetime() }).strict()
++  .superRefine((v, ctx) => { const parsed = priceImportSchema.safeParse({ metadata: v.metadata, source: v.source, rows: v.rows });
++    if (!parsed.success) for (const issue of parsed.error.issues) ctx.addIssue({ code: "custom", message: issue.message }); });
++export const priceBookLibrarySchema = z.object({
++  schema: z.literal("xray.price-books/v1"), jobId: z.string().min(1).max(200), revision: z.number().int().nonnegative(),
++  books: z.array(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), archived: z.boolean(),
++    revisions: z.array(revisionSchema).min(1).max(50) }).strict()).max(100),
++  worksheet: z.array(z.object({ id: z.string().uuid(), bookId: z.string().uuid(), bookRevision: z.number().int().positive(),
++    sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
++    addedAt: z.string().datetime() }).strict()).max(5000),
++}).strict().superRefine((v, ctx) => {
++  if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
++  for (const book of v.books) if (book.revisions.some((r, i) => r.revision !== i + 1))
++    ctx.addIssue({ code: "custom", message: "Price book revisions must be consecutive and preserved." });
++  if (v.books.reduce((n, b) => n + b.revisions.reduce((s, r) => s + r.rows.length, 0), 0) > 25000)
++    ctx.addIssue({ code: "custom", message: "This project library supports up to 25,000 rate records across all revisions." });
++  if (new Set(v.worksheet.map(line => line.id)).size !== v.worksheet.length) ctx.addIssue({ code: "custom", message: "Duplicate priced line identity." });
++  for (const line of v.worksheet) if (!v.books.find(b => b.id === line.bookId)?.revisions.find(r => r.revision === line.bookRevision)?.rows.some(row => row.sourceLine === line.sourceLine))
++    ctx.addIssue({ code: "custom", message: "A priced line references a missing source rate." });
++});
++export type PriceBookLibrary = z.infer<typeof priceBookLibrarySchema>;
++export type PriceBook = PriceBookLibrary["books"][number];
++export function priceBookKey(jobId: string) { return `xray:price-books:v1:${encodeURIComponent(jobId)}`; }
++export function emptyPriceBookLibrary(jobId: string): PriceBookLibrary { return priceBookLibrarySchema.parse({ schema: "xray.price-books/v1", jobId, revision: 0, books: [], worksheet: [] }); }
++export function parsePriceBookLibrary(raw: string, jobId: string): PriceBookLibrary {
++  if (new TextEncoder().encode(raw).length > PRICE_LIBRARY_LIMIT) throw Error("Price book library exceeds 4 MB.");
++  const value = priceBookLibrarySchema.parse(JSON.parse(raw));
++  if (value.jobId !== jobId) throw Error("Price books belong to another project.");
++  return value;
++}
++export function appendPriceBookRevision(library: PriceBookLibrary, incoming: PriceImport, name: string, bookId: string | null, makeId = () => crypto.randomUUID(), now = new Date().toISOString()): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library), value = priceImportSchema.parse(incoming);
++  const existing = current.books.find(b => b.id === bookId);
++  if (bookId && !existing) throw Error("Price book no longer exists. Reload the library.");
++  if (existing?.archived) throw Error("Restore the archived price book before adding a revision.");
++  const revision = { ...value, revision: (existing?.revisions.length ?? 0) + 1, importedAt: now };
++  const book = existing ? { ...existing, revisions: [...existing.revisions, revision] } : { id: makeId(), name, archived: false, revisions: [revision] };
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    books: existing ? current.books.map(b => b.id === existing.id ? book : b) : [...current.books, book] });
++}
++export function editPriceBook(library: PriceBookLibrary, id: string, changes: { name?: string; archived?: boolean }): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library);
++  if (!current.books.some(b => b.id === id)) throw Error("Price book no longer exists.");
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, books: current.books.map(b => b.id === id ? { ...b, ...changes } : b) });
++}
++export type PriceBookSession = { value: PriceBookLibrary; raw: string | null; blocked: boolean; error: string | null };
++type StoragePort = Pick<Storage, "getItem" | "setItem">;
++export function readPriceBooks(storage: StoragePort, jobId: string): PriceBookSession {
++  let raw: string | null = null;
++  try { raw = storage.getItem(priceBookKey(jobId)); return { value: raw === null ? emptyPriceBookLibrary(jobId) : parsePriceBookLibrary(raw, jobId), raw, blocked: false, error: null }; }
++  catch { return { value: emptyPriceBookLibrary(jobId), raw, blocked: true, error: "Saved price books could not be read. They are preserved; saving is blocked. Reload after recovery." }; }
++}
++export function readBrowserPriceBooks(jobId: string): PriceBookSession {
++  try { return readPriceBooks(localStorage, jobId); }
++  catch { return { value: emptyPriceBookLibrary(jobId), raw: null, blocked: true, error: "Price book storage is unavailable. Saving is blocked; existing data has not been changed." }; }
++}
++// Called inside the browser's cross-window Web Lock by savePriceBooks.
++export function persistPriceBooks(storage: StoragePort, session: PriceBookSession, value: PriceBookLibrary): PriceBookSession {
++  if (session.blocked) throw Error(session.error ?? "Price book saving is blocked.");
++  const raw = JSON.stringify(value), parsed = parsePriceBookLibrary(raw, session.value.jobId);
++  if (parsed.revision !== session.value.revision + 1) throw Error("Price book revision changed. Reload before saving.");
++  for (const original of session.value.books) {
++    const next = parsed.books.find(b => b.id === original.id);
++    if (!next || JSON.stringify(next.revisions.slice(0, original.revisions.length)) !== JSON.stringify(original.revisions))
++      throw Error("Saved source revisions cannot be removed or overwritten. Add a new revision instead.");
++  }
++  if (storage.getItem(priceBookKey(parsed.jobId)) !== session.raw) throw Error("Price books changed in another window. Reload before saving; this import has not been applied.");
++  storage.setItem(priceBookKey(parsed.jobId), raw);
++  return { value: parsed, raw, blocked: false, error: null };
++}
++export async function savePriceBooks(session: PriceBookSession, value: PriceBookLibrary): Promise<PriceBookSession> {
++  if (!navigator.locks) throw Error("Safe price book saving is unavailable in this browser. Use the desktop app or a secure browser connection.");
++  return navigator.locks.request(priceBookKey(value.jobId), () => persistPriceBooks(localStorage, session, value));
++}
++export function priceBookError(error: unknown) { return error instanceof z.ZodError ? error.issues.map(i => i.message).join(" ") : error instanceof Error ? error.message : String(error); }
++
++export type CsvTable = { headers: string[]; records: { cells: string[]; line: number }[] };
++export function parsePriceCsv(input: string, delimiter: "," | ";" | "\t" = ","): CsvTable {
++  if (new TextEncoder().encode(input).length > PRICE_CSV_LIMIT) throw Error("Import a CSV up to 2 MB.");
++  const text = input.replace(/^\uFEFF/, "");
++  let cells: string[] = [], cell = "", quoted = false, closed = false, line = 1, startLine = 1;
++  const records: CsvTable["records"] = [];
++  const endCell = () => { if (cell.length > 4000) throw Error(`Line ${startLine}: a field exceeds 4,000 characters.`); cells.push(cell); cell = ""; closed = false; if (cells.length > 40) throw Error("CSV supports up to 40 columns."); };
++  const endRow = () => { endCell(); if (cells.some(c => c.trim())) records.push({ cells, line: startLine }); cells = []; if (records.length > 5001) throw Error("Import up to 5,000 rates."); };
++  for (let i = 0; i < text.length; i++) {
++    const c = text[i];
++    if (quoted) {
++      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else { quoted = false; closed = true; } }
++      else { cell += c; if (c === "\n" || (c === "\r" && text[i + 1] !== "\n")) line++; }
++    } else if (c === delimiter) endCell();
++    else if (c === "\r" || c === "\n") { if (c === "\r" && text[i + 1] === "\n") i++; endRow(); line++; startLine = line; }
++    else if (closed) throw Error(`Line ${line}: unexpected text after a closing quote.`);
++    else if (c === '"') { if (cell) throw Error(`Line ${line}: quote the entire field.`); quoted = true; }
++    else cell += c;
++  }
++  if (quoted) throw Error(`Line ${startLine}: unclosed quoted field.`);
++  if (cell || cells.length || closed) endRow();
++  const header = records.shift();
++  if (!header || !records.length) throw Error("CSV needs a header and at least one rate.");
++  if (header.cells.some(c => c.length > 300)) throw Error("Column headings must be at most 300 characters.");
++  return { headers: header.cells, records };
++}
++export function suggestPriceMapping(headers: string[]): PriceMapping {
++  const normalized = headers.map(h => h.trim().toLowerCase());
++  const find = (aliases: string[], fallback: number) => { const index = normalized.findIndex(h => aliases.includes(h)); return index < 0 ? fallback : index; };
++  const code = find(["sku", "stock code", "code", "product code"], -1);
++  return { stockCode: code < 0 ? null : code, description: find(["description", "item", "product", "name"], 0),
++    unit: find(["unit", "uom", "units"], Math.min(1, headers.length - 1)), rate: find(["rate", "price", "unit price", "unit rate"], Math.min(2, headers.length - 1)) };
++}
++export function previewPriceRows(table: CsvTable, mapping: PriceMapping): { rows: PriceRow[]; errors: string[] } {
++  const checked = priceMappingSchema.safeParse(mapping);
++  if (!checked.success) return { rows: [], errors: checked.error.issues.map(i => i.message) };
++  if (Object.values(mapping).some(i => i !== null && i >= table.headers.length)) return { rows: [], errors: ["Choose an existing source column for every required field."] };
++  const rows: PriceRow[] = [], errors: string[] = [], codes = new Set<string>();
++  for (const record of table.records) {
++    try {
++      if (record.cells.length !== table.headers.length) throw Error("Column count does not match the header.");
++      const rate = record.cells[mapping.rate].trim();
++      if (!/^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/.test(rate)) throw Error("Rate needs a non-negative decimal (up to 6 decimal places), with no currency symbol or thousands separators.");
++      const row = priceRowSchema.parse({ sourceLine: record.line, stockCode: mapping.stockCode === null ? "" : record.cells[mapping.stockCode],
++        description: record.cells[mapping.description], unit: record.cells[mapping.unit], rate: Number(rate) });
++      const code = row.stockCode.toLocaleLowerCase();
++      if (code && codes.has(code)) throw Error(`Duplicate stock code ${row.stockCode}; distinguish variants before importing.`);
++      if (code) codes.add(code);
++      rows.push(row);
++    } catch (error) { if (errors.length < 30) errors.push(`Line ${record.line}: ${priceBookError(error)}`); }
++  }
++  return { rows, errors };
++}
++export const priceCsvTemplate = () => "Stock code,Description,Unit,Rate\r\n";
++// Decimal arithmetic, including half-up rounding, never uses binary floating point multiplication.
++export function priceLineAmount(rate: number, quantity: string, decimals: number): string {
++  priceRowSchema.shape.rate.parse(rate);
++  if (!/^\d{1,10}(?:\.\d{1,6})?$/.test(quantity) || Number(quantity) > 1e9) throw Error("Enter a quantity from 0 to 1,000,000,000 with up to 6 decimal places.");
++  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 4) throw Error("Choose an amount precision from 0 to 4 decimal places.");
++  const scaled = (value: string) => { const [whole, fraction = ""] = value.split("."); return BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, "0")); };
++  const product = scaled(rate.toFixed(6)) * scaled(quantity);
++  const divisor = 10n ** BigInt(12 - decimals), rounded = (product + divisor / 2n) / divisor;
++  if (!decimals) return rounded.toString();
++  const digits = rounded.toString().padStart(decimals + 1, "0"); return `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`;
++}
++export function addPricedLine(library: PriceBookLibrary, bookId: string, bookRevision: number, sourceLine: number, quantity: string, makeId = () => crypto.randomUUID(), now = new Date().toISOString()): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library), book = current.books.find(b => b.id === bookId), revision = book?.revisions.find(r => r.revision === bookRevision), row = revision?.rows.find(r => r.sourceLine === sourceLine);
++  if (!book || book.archived || !revision || !row) throw Error("Choose an active saved source rate.");
++  priceLineAmount(row.rate, quantity, revision.metadata.amountDecimals);
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    worksheet: [...current.worksheet, { id: makeId(), bookId, bookRevision, sourceLine, quantity, addedAt: now }] });
++}
++export function removePricedLine(library: PriceBookLibrary, id: string): PriceBookLibrary {
++  if (!library.worksheet.some(line => line.id === id)) throw Error("Priced line no longer exists.");
++  return priceBookLibrarySchema.parse({ ...library, revision: library.revision + 1, worksheet: library.worksheet.filter(line => line.id !== id) });
++}
++export function resolvePricedLine(library: PriceBookLibrary, line: PriceBookLibrary["worksheet"][number]) {
++  const book = library.books.find(b => b.id === line.bookId), revision = book?.revisions.find(r => r.revision === line.bookRevision), row = revision?.rows.find(r => r.sourceLine === line.sourceLine);
++  if (!book || !revision || !row) throw Error("The priced line's source rate could not be found.");
++  return { book, revision, row, outdated: book.revisions.length > line.bookRevision, amount: priceLineAmount(row.rate, line.quantity, revision.metadata.amountDecimals) };
++}
++export function pricedWorksheetTotals(library: PriceBookLibrary) {
++  const groups = new Map<string, { currency: string; taxBasis: PriceMetadata["taxBasis"]; taxPercent: number | null; decimals: number; count: number; minor: bigint }>();
++  for (const line of library.worksheet) {
++    const resolved = resolvePricedLine(library, line), m = resolved.revision.metadata;
++    const key = JSON.stringify([m.currency, m.taxBasis, m.taxPercent, m.amountDecimals]);
++    const group = groups.get(key) ?? { currency: m.currency, taxBasis: m.taxBasis, taxPercent: m.taxPercent, decimals: m.amountDecimals, count: 0, minor: 0n };
++    group.minor += BigInt(resolved.amount.replace(".", "")); group.count++; groups.set(key, group);
++  }
++  return [...groups.values()].map(({ minor, ...group }) => {
++    const digits = minor.toString().padStart(group.decimals + 1, "0");
++    return { ...group, amount: group.decimals ? `${digits.slice(0, -group.decimals)}.${digits.slice(-group.decimals)}` : digits };
++  });
++}
++export function pricedWorksheetCsv(library: PriceBookLibrary) {
++  const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at"],
++    ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
++      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
++        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
++export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
++  const r = book.revisions.find(v => v.revision === revisionNumber);
++  if (!r) throw Error("Price book revision not found.");
++  const cell = (v: unknown) => { let text = v === null ? "" : String(v); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at"],
++    ...r.rows.map(row => [row.stockCode, row.description, row.unit, row.rate, r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
++      r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
+
+diff --git a/src/studio/pricing/PriceBookPanel.tsx b/src/studio/pricing/PriceBookPanel.tsx
+new file mode 100644
+index 0000000..e1ba8c3
+--- /dev/null
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -0,0 +1,144 @@
++import { useEffect, useRef, useState } from "react";
++import { Archive, Download, FileUp, Plus, RefreshCw } from "lucide-react";
++import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, previewPriceRows, priceBookError,
++  priceCsvTemplate, priceImportSchema, priceLineAmount, priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readBrowserPriceBooks, removePricedLine,
++  resolvePricedLine, savePriceBooks, suggestPriceMapping, PRICE_CSV_LIMIT,
++  type CsvTable, type PriceBook, type PriceBookLibrary, type PriceBookSession, type PriceImport, type PriceMapping } from "./priceBooks.ts";
++import "./priceBooks.css";
++
++type SourceFile = { text: string; fileName: string; sizeBytes: number; sha256: string };
++type RateSelection = { bookId: string; revision: number; sourceLine: number };
++function download(text: string, name: string) {
++  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
++  const link = document.createElement("a"); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
++}
++const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
++
++/** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
++export function PriceBookPanel({ jobId }: { jobId: string }) {
++  const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
++  const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
++  const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
++  const [name, setName] = useState(""), [targetId, setTargetId] = useState(""), [supplier, setSupplier] = useState(""), [currency, setCurrency] = useState("AUD"), [decimals, setDecimals] = useState(2);
++  const [tax, setTax] = useState<"inclusive" | "exclusive" | "unspecified">("unspecified"), [taxPercent, setTaxPercent] = useState(""), [effectiveDate, setEffectiveDate] = useState(""), [sourceReference, setSourceReference] = useState("");
++  const [review, setReview] = useState<PriceImport | null>(null), [selection, setSelection] = useState<RateSelection | null>(null), [quantity, setQuantity] = useState("");
++  const input = useRef<HTMLInputElement>(null), generation = useRef(0), currentJob = useRef(jobId); currentJob.current = jobId;
++  useEffect(() => {
++    generation.current++; setBusy(false); setSession(readBrowserPriceBooks(jobId)); setFile(null); setMapping(null); setReview(null); setSelection(null); setNotice(""); setTargetId(""); setTab("library");
++    return () => { generation.current++; };
++  }, [jobId]);
++  const value = session?.value.jobId === jobId ? session.value : null;
++  let table: CsvTable | null = null, parseError = "";
++  if (file) try { table = parsePriceCsv(file.text, delimiter); } catch (error) { parseError = priceBookError(error); }
++  const rows = table && mapping ? previewPriceRows(table, mapping) : null;
++  const book = value?.books.find(b => b.id === selection?.bookId), revision = book?.revisions.find(r => r.revision === selection?.revision), rate = revision?.rows.find(r => r.sourceLine === selection?.sourceLine);
++  let amount = "", quantityError = "";
++  if (rate && revision && quantity) try { amount = priceLineAmount(rate.rate, quantity, revision.metadata.amountDecimals); } catch (error) { quantityError = priceBookError(error); }
++  async function save(next: PriceBookLibrary, message: string) {
++    if (!session || busy) return false;
++    const savingJob = jobId;
++    setBusy(true); setNotice("");
++    try { const saved = await savePriceBooks(session, next); if (currentJob.current === savingJob) { setSession(saved); setNotice(message); } return true; }
++    catch (error) { if (currentJob.current === savingJob) setNotice(priceBookError(error)); return false; }
++    finally { setBusy(false); }
++  }
++  async function chooseFile(candidate: File | undefined) {
++    if (!candidate) return;
++    const ticket = ++generation.current; setBusy(true); setNotice(""); setReview(null); setFile(null); setMapping(null);
++    try {
++      if (!candidate.size || candidate.size > PRICE_CSV_LIMIT) throw Error("Choose a non-empty CSV up to 2 MB.");
++      const bytes = await candidate.arrayBuffer(), text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
++      const sha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
++      if (ticket !== generation.current) return;
++      const loaded = { text, fileName: candidate.name, sizeBytes: candidate.size, sha256 };
++      setFile(loaded); setName(candidate.name.replace(/\.csv$/i, "").slice(0, 120));
++      try { setMapping(suggestPriceMapping(parsePriceCsv(text, delimiter).headers)); } catch { /* delimiter can be changed after load */ }
++    } catch (error) { if (ticket === generation.current) setNotice(priceBookError(error)); }
++    finally { if (ticket === generation.current) setBusy(false); }
++  }
++  function prepareReview() {
++    try {
++      if (!file || !table || !mapping || !rows || rows.errors.length) throw Error("Resolve the CSV errors before review.");
++      if (!targetId && !name.trim()) throw Error("Name this price book.");
++      if (taxPercent && !/^\d{1,3}(?:\.\d{1,6})?$/.test(taxPercent)) throw Error("Tax percent must be a decimal from 0 to 100.");
++      setReview(priceImportSchema.parse({ metadata: { supplier, currency, amountDecimals: decimals, taxBasis: tax,
++        taxPercent: tax === "unspecified" || !taxPercent ? null : Number(taxPercent), effectiveDate, sourceReference },
++        source: { fileName: file.fileName, sha256: file.sha256, sizeBytes: file.sizeBytes, delimiter, headers: table.headers, mapping }, rows: rows.rows }));
++      setNotice("");
++    } catch (error) { setNotice(priceBookError(error)); }
++  }
++  function useRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
++  const disabled = busy || !value || session?.blocked;
++  return <section className="price-books" aria-label="Project price books">
++    <header><div><h2>Price books</h2><p>Import supplier sheets, preserve revisions and apply chosen rates to a priced worksheet.</p></div>
++      <button className="pill" disabled={busy} onClick={() => { setSession(readBrowserPriceBooks(jobId)); setReview(null); setNotice("Library reloaded."); }}><RefreshCw size={16} />Reload library</button></header>
++    <div className="price-tabs" role="group" aria-label="Price book views">
++      <button className="pill" aria-pressed={tab === "library"} onClick={() => setTab("library")}>Library ({value?.books.length ?? 0})</button>
++      <button className="pill" aria-pressed={tab === "import"} onClick={() => setTab("import")}><FileUp size={16} />Import CSV</button>
++      <button className="pill" aria-pressed={tab === "worksheet"} onClick={() => setTab("worksheet")}>Priced worksheet ({value?.worksheet.length ?? 0})</button>
++    </div>
++    {session?.error && <p className="price-notice" role="alert">{session.error}</p>}
++    {notice && <p className="price-notice" role="status">{notice}</p>}
++    <p className="price-help">Saved with this project on this device. Your existing reference sheet remains available in Settings. Worksheet quantities are entered by you; takeoff quantities and quotes are separate.</p>
++    {tab === "import" && <>
++      <div className="price-actions"><button className="pill" disabled={disabled} onClick={() => input.current?.click()}><FileUp size={16} />Choose supplier CSV</button>
++        <button className="pill" onClick={() => download(priceCsvTemplate(), "price-book-template.csv")}><Download size={16} />CSV template</button></div>
++      <input ref={input} hidden type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" aria-label="Supplier price CSV" onChange={e => { void chooseFile(e.target.files?.[0]); e.target.value = ""; }} />
++      <p className="price-help">UTF-8 CSV, up to 2 MB / 5,000 rates. Rates use decimal points and up to 6 decimal places. Currency symbols and thousands separators need removing. Units are kept exactly as supplied.</p>
++      {file && <>
++        <p><strong>{file.fileName}</strong> · {file.sizeBytes.toLocaleString()} bytes</p>
++        {!review && <div className="price-fields">
++          <label>Separator<select value={delimiter} onChange={e => { const next = e.target.value as typeof delimiter; setDelimiter(next); try { setMapping(suggestPriceMapping(parsePriceCsv(file.text, next).headers)); } catch { setMapping(null); } }}><option value=",">Comma</option><option value=";">Semicolon</option><option value={"\t"}>Tab</option></select></label>
++          <label>Save as<select value={targetId} onChange={e => setTargetId(e.target.value)}><option value="">New price book</option>{value?.books.filter(b => !b.archived).map(b => <option key={b.id} value={b.id}>New revision of {b.name}</option>)}</select></label>
++          {!targetId && <label>Price book name<input maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>}
++          <label>Supplier<input maxLength={200} value={supplier} onChange={e => setSupplier(e.target.value)} /></label>
++          <label>Currency code<input maxLength={3} value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} /></label>
++          <label>Amount decimal places<select value={decimals} onChange={e => setDecimals(Number(e.target.value))}>{[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
++          <label>Tax basis<select value={tax} onChange={e => setTax(e.target.value as typeof tax)}><option value="unspecified">Unspecified</option><option value="exclusive">Tax excluded</option><option value="inclusive">Tax included</option></select></label>
++          {tax !== "unspecified" && <label>Tax percent (optional)<input inputMode="decimal" value={taxPercent} onChange={e => setTaxPercent(e.target.value)} placeholder="Leave blank if unknown" /></label>}
++          <label>Effective date<input type="date" value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /></label>
++          <label className="price-wide">Source reference<input maxLength={2000} value={sourceReference} onChange={e => setSourceReference(e.target.value)} placeholder="Supplier quote number, catalogue or source URL" /></label>
++        </div>}
++        {parseError && <p role="alert">{parseError}</p>}
++        {!review && table && mapping && <fieldset><legend>Match your columns</legend><div className="price-fields">{(["stockCode", "description", "unit", "rate"] as const).map(field => <label key={field}>{({ stockCode: "Stock code (optional)", description: "Description", unit: "Unit", rate: "Rate" })[field]}<select value={mapping[field] ?? -1} onChange={e => setMapping({ ...mapping, [field]: Number(e.target.value) < 0 ? null : Number(e.target.value) })}>{field === "stockCode" && <option value={-1}>No stock code</option>}{table.headers.map((header, i) => <option key={i} value={i}>{i + 1}: {header || "Unnamed column"}</option>)}</select></label>)}</div></fieldset>}
++        {!!rows?.errors.length && <div className="price-notice" role="alert"><strong>Import blocked until these lines are corrected</strong><ul>{rows.errors.map((error, i) => <li key={i}>{error}</li>)}</ul><p>No rates have been saved.</p></div>}
++        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td>{row.unit}</td><td>{row.rate}</td></tr>)}</tbody></table></div></>}
++        {review ? <div className="price-review"><h3>Review before saving</h3><p>{targetId ? `Append revision to ${value?.books.find(b => b.id === targetId)?.name}` : `Create ${name}`} · {review.rows.length} rates</p>
++          <p>{review.metadata.supplier} · {review.metadata.currency} · {taxLabel(review.metadata.taxBasis)}{review.metadata.taxPercent !== null ? ` (${review.metadata.taxPercent}%)` : ""} · effective {review.metadata.effectiveDate}</p>
++          <p>{review.metadata.sourceReference}</p><p className="price-help">Existing revisions and priced lines remain unchanged. Saving the book does not apply any rate.</p>
++          <div className="price-actions"><button className="pill primary" disabled={disabled} onClick={() => { if (value) { try { const next = appendPriceBookRevision(value, review, name, targetId || null); void save(next, "Price book revision saved. Choose a rate in the library to price a line.").then(ok => { if (ok) { setReview(null); setFile(null); setTab("library"); } }); } catch (error) { setNotice(priceBookError(error)); } } }}>Save reviewed price book</button><button className="pill" disabled={busy} onClick={() => setReview(null)}>Back to mapping</button></div>
++        </div> : <button className="pill primary" disabled={disabled || !rows || !!rows.errors.length || !!parseError} onClick={prepareReview}>Review import</button>}
++      </>}
++    </>}
++    {tab === "library" && <>
++      <div className="price-toolbar"><label>Find a price book<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or supplier" /></label><button className="pill" aria-pressed={archived} onClick={() => setArchived(!archived)}><Archive size={16} />{archived ? "Show active" : "Show archived"}</button></div>
++      {!value?.books.some(b => b.archived === archived) && <div className="price-empty"><h3>{archived ? "No archived price books" : "Keep supplier pricing in one place"}</h3><p>Import a CSV, check its columns and source, then save a named revision. Every applied line keeps the rate version you chose.</p></div>}
++      {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => useRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
++    </>}
++    {tab === "worksheet" && <>
++      <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
++      {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
++      {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{rate.rate} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
++        {book.revisions.length > revision.revision && <p>A newer revision exists. This line will use the older revision you selected.</p>}
++        <label>Quantity ({rate.unit})<input inputMode="decimal" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>{quantityError && <p role="alert">{quantityError}</p>}
++        {amount && <p className="price-amount">Line amount: {revision.metadata.currency} {amount} · {taxLabel(revision.metadata.taxBasis)}</p>}
++        <div className="price-actions"><button className="pill primary" disabled={disabled || !amount} onClick={() => { if (value && selection) { try { void save(addPricedLine(value, selection.bookId, selection.revision, selection.sourceLine, quantity), "Reviewed rate applied to the priced worksheet.").then(ok => { if (ok) setSelection(null); }); } catch (error) { setNotice(priceBookError(error)); } } }}><Plus size={16} />Add reviewed priced line</button><button className="pill" onClick={() => setSelection(null)}>Cancel line</button></div>
++      </div>}
++      {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
++      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}<details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details></article>; })}
++    </>}
++  </section>;
++}
++
++function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: PriceBook; disabled: boolean; onUse: (revision: number, line: number) => void; onSaveName: (name: string) => void; onArchive: () => void }) {
++  const [revisionNumber, setRevisionNumber] = useState(book.revisions.length), [query, setQuery] = useState(""), [draftName, setDraftName] = useState(book.name);
++  const revision = book.revisions.find(r => r.revision === revisionNumber) ?? book.revisions.at(-1)!;
++  const matches = revision.rows.filter(r => `${r.stockCode} ${r.description} ${r.unit}`.toLowerCase().includes(query.toLowerCase()));
++  return <article className="price-book-card"><h3>{book.name}</h3><p>{revision.metadata.supplier} · {revision.metadata.currency} · {taxLabel(revision.metadata.taxBasis)} · effective {revision.metadata.effectiveDate}</p><p className="price-help">{revision.metadata.sourceReference}</p>
++    <div className="price-actions"><label>Price book revision<select value={revision.revision} onChange={e => setRevisionNumber(Number(e.target.value))}>{[...book.revisions].reverse().map(r => <option key={r.revision} value={r.revision}>Revision {r.revision} · {r.metadata.effectiveDate}</option>)}</select></label><button className="pill" onClick={() => download(priceRevisionCsv(book, revision.revision), `${book.name.replace(/[^a-z0-9_-]/gi, "-")}-r${revision.revision}.csv`)}><Download size={16} />Export revision CSV</button><button className="pill" disabled={disabled} onClick={onArchive}>{book.archived ? "Restore price book" : "Archive price book"}</button></div>
++    <details><summary>Rename price book</summary><div className="price-toolbar"><label>New price book name<input maxLength={120} value={draftName} onChange={e => setDraftName(e.target.value)} /></label><button className="pill" disabled={disabled || !draftName.trim()} onClick={() => onSaveName(draftName)}>Save name</button></div></details>
++    <details><summary>Browse {revision.rows.length} rates and source details</summary><p className="price-help">{revision.source.fileName} · imported {new Date(revision.importedAt).toLocaleString()} · SHA-256 {revision.source.sha256}</p><label>Find a rate<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Description, stock code or unit" /></label>
++      <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{row.rate}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
++    </details>
++  </article>;
++}
+
+diff --git a/src/studio/pricing/priceBooks.css b/src/studio/pricing/priceBooks.css
+new file mode 100644
+index 0000000..1662e7b
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.css
+@@ -0,0 +1,30 @@
++.price-books { --price-gap: 16px; --price-small-gap: 8px; display: grid; gap: var(--price-gap); padding: 20px; color: var(--color-ink); }
++.price-books header { display: flex; flex-wrap: wrap; gap: var(--price-gap); align-items: start; justify-content: space-between; }
++.price-books h2 { font-size: 20px; font-weight: 600; }
++.price-books h3 { font-size: 15px; font-weight: 600; }
++.price-books p { line-height: 1.5; overflow-wrap: anywhere; }
++.price-help { font-size: 12px; color: var(--color-muted); }
++.price-books label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
++.price-books input:not([type=file]), .price-books select { min-height: 44px; width: 100%; min-width: 0; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-bg); color: var(--color-ink); }
++.price-books input:focus-visible, .price-books select:focus-visible, .price-books button:focus-visible, .price-books summary:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
++.price-books .pill { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: normal; }
++.price-books button:disabled { opacity: .5; cursor: not-allowed; }
++.price-books [aria-pressed=true], .price-books .primary { background: var(--color-navy); color: var(--color-on-navy); }
++.price-tabs, .price-actions, .price-toolbar { display: flex; flex-wrap: wrap; gap: var(--price-small-gap); align-items: end; }
++.price-toolbar label { flex: 1 1 220px; }
++.price-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--price-gap); }
++.price-wide { grid-column: 1 / -1; }
++.price-books fieldset { border: 1px solid var(--color-line); padding: var(--price-gap); border-radius: 8px; }
++.price-books legend { padding: 0 8px; font-weight: 600; font-size: 12px; }
++.price-notice, .price-review, .price-empty { padding: var(--price-gap); display: grid; gap: var(--price-small-gap); border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-header); color: var(--color-ink); }
++.price-notice ul { padding-left: 20px; list-style: disc; font-size: 12px; }
++.price-table-wrap { max-width: 100%; overflow: auto; border: 1px solid var(--color-line); }
++.price-books table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
++.price-books th, .price-books td { padding: 8px 12px; border-bottom: 1px solid var(--color-line); vertical-align: top; overflow-wrap: anywhere; }
++.price-books th { background: var(--color-header); color: var(--color-ink); font-weight: 600; }
++.price-book-card { display: grid; gap: var(--price-small-gap); padding-block: var(--price-gap); border-top: 1px solid var(--color-line); min-width: 0; }
++.price-books details { display: grid; gap: var(--price-small-gap); }
++.price-books summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 12px; font-weight: 600; }
++.price-books details > :not(summary) { margin-top: var(--price-small-gap); }
++.price-amount { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
++@media (max-width: 600px) { .price-books { padding: 12px; } .price-fields { grid-template-columns: minmax(0, 1fr); } .price-books td, .price-books th { padding: 8px; } .price-tabs > button { flex: 1 1 100px; } }
+
+diff --git a/src/studio/pricing/priceBooks.test.ts b/src/studio/pricing/priceBooks.test.ts
+new file mode 100644
+index 0000000..3e0942a
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.test.ts
+@@ -0,0 +1,106 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { addPricedLine, appendPriceBookRevision, editPriceBook, emptyPriceBookLibrary, parsePriceBookLibrary,
++  parsePriceCsv, persistPriceBooks, previewPriceRows, priceBookKey, priceImportSchema, priceLineAmount,
++  priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readPriceBooks, removePricedLine, resolvePricedLine, suggestPriceMapping, type PriceImport } from "./priceBooks.ts";
++
++const bookId = "00000000-0000-4000-8000-000000000001", lineId = "00000000-0000-4000-8000-000000000002";
++const now = "2026-09-07T10:00:00.000Z";
++const source: PriceImport = {
++  metadata: { supplier: "QA supplier", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-07", sourceReference: "QA estimate fixture only" },
++  source: { fileName: "supplier.csv", sizeBytes: 100, sha256: "a".repeat(64), delimiter: ",", headers: ["Code", "Description", "Unit", "Rate"], mapping: { stockCode: 0, description: 1, unit: 2, rate: 3 } },
++  rows: [{ sourceLine: 2, stockCode: "ST-1", description: "Structural steel fixture", unit: "kg", rate: 12.345 }],
++};
++const create = () => appendPriceBookRevision(emptyPriceBookLibrary("job-one"), source, "Structural supplier", null, () => bookId, now);
++function storageFixture() { const data = new Map<string, string>(); return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, raw: string) => { data.set(key, raw); } }; }
++
++test("CSV handles BOM, quoted commas, escaped quotes and physical multiline provenance", () => {
++  const table = parsePriceCsv('\uFEFFSKU,Item,UOM,Unit price\r\nS1,"Steel, \"\"A\"\"",kg,12.345\r\nC1,"Concrete\r\nservice",m3,140\r\n\r\nE1,Electrical service,hour,0\r\n');
++  const result = previewPriceRows(table, suggestPriceMapping(table.headers));
++  assert.deepEqual(result.errors, []); assert.equal(result.rows[0].description, 'Steel, "A"');
++  assert.deepEqual(result.rows.map(r => r.sourceLine), [2, 3, 6]); assert.equal(result.rows[2].rate, 0);
++  assert.equal(result.rows[1].unit, "m3");
++});
++test("separator is explicit; malformed CSV and ambiguous mapping are blocked", () => {
++  const table = parsePriceCsv("Description;Unit;Rate\nEngineering service;hour;150", ";");
++  assert.equal(previewPriceRows(table, { stockCode: null, description: 0, unit: 1, rate: 2 }).rows[0].rate, 150);
++  assert.throws(() => parsePriceCsv('A,B\n"unfinished,2'), /unclosed/);
++  assert.throws(() => parsePriceCsv('A,B\n"closed"oops,2'), /unexpected/);
++  assert.match(previewPriceRows(table, { stockCode: null, description: 0, unit: 0, rate: 2 }).errors[0], /different column/);
++  assert.match(previewPriceRows(table, { stockCode: null, description: 0, unit: 1, rate: 8 }).errors[0], /existing source column/);
++});
++test("invalid prices, missing units, duplicate SKU and irregular row lengths fail without partial save", () => {
++  for (const value of ["", "-1", "1e3", "NaN", "Infinity", "$25", "1,234", "12.1234567"]) {
++    const table = parsePriceCsv(`Code,Description,Unit,Rate\nA,Concrete,m3,"${value}"`);
++    assert.equal(previewPriceRows(table, suggestPriceMapping(table.headers)).errors.length, 1, value);
++  }
++  const table = parsePriceCsv("Code,Description,Unit,Rate\nA,Steel,kg,1\na,Cable,m,2\nB,Service,,3\nC,Concrete,m3,4,extra");
++  const result = previewPriceRows(table, suggestPriceMapping(table.headers));
++  assert.equal(result.errors.length, 3); assert.match(result.errors[0], /Duplicate stock code/);
++});
++test("provenance metadata and source mapping are validated, including leap dates", () => {
++  assert.ok(priceImportSchema.safeParse(source).success);
++  for (const metadata of [{ ...source.metadata, supplier: "" }, { ...source.metadata, currency: "$" }, { ...source.metadata, effectiveDate: "2026-02-29" }, { ...source.metadata, taxBasis: "unspecified" }, { ...source.metadata, amountDecimals: 5 }])
++    assert.equal(priceImportSchema.safeParse({ ...source, metadata }).success, false);
++  assert.ok(priceImportSchema.safeParse({ ...source, metadata: { ...source.metadata, effectiveDate: "2028-02-29" } }).success);
++  assert.equal(priceImportSchema.safeParse({ ...source, source: { ...source.source, sha256: "missing" } }).success, false);
++  assert.equal(priceImportSchema.safeParse({ ...source, source: { ...source.source, mapping: { ...source.source.mapping, rate: 20 } } }).success, false);
++});
++test("revisions preserve original rates and applied worksheet references", () => {
++  let library = addPricedLine(create(), bookId, 1, 2, "2", () => lineId, now);
++  library = appendPriceBookRevision(library, { ...source, rows: [{ ...source.rows[0], rate: 20 }] }, "Ignored for revisions", bookId, undefined, now);
++  const resolved = resolvePricedLine(library, library.worksheet[0]);
++  assert.equal(resolved.amount, "24.69"); assert.equal(resolved.outdated, true); assert.equal(resolved.row.rate, 12.345);
++  assert.equal(library.books[0].name, "Structural supplier"); assert.equal(library.books[0].revisions[1].rows[0].rate, 20);
++  library = editPriceBook(library, bookId, { name: "Supplier renamed", archived: true });
++  assert.equal(resolvePricedLine(library, library.worksheet[0]).amount, "24.69");
++  assert.throws(() => addPricedLine(library, bookId, 2, 2, "1"), /active/);
++  assert.throws(() => appendPriceBookRevision(library, source, "", bookId), /archived/);
++  assert.equal(removePricedLine(library, lineId).worksheet.length, 0); assert.equal(library.worksheet.length, 1);
++});
++test("money calculation uses exact decimal arithmetic and explicit half-up rounding", () => {
++  assert.equal(priceLineAmount(0.1, "3", 2), "0.30"); assert.equal(priceLineAmount(1.005, "1", 2), "1.01");
++  assert.equal(priceLineAmount(0.000001, "1000000", 2), "1.00");
++  assert.equal(priceLineAmount(1000000000, "1000000000", 4), "1000000000000000000.0000");
++  assert.equal(priceLineAmount(2.5, "1", 0), "3"); assert.equal(priceLineAmount(2.5, "0", 2), "0.00");
++  for (const quantity of ["", "-1", "1e2", "0.0000001", "1000000001", "Infinity", "1,000"]) assert.throws(() => priceLineAmount(1, quantity, 2));
++  assert.throws(() => priceLineAmount(0.0000001, "1", 2)); assert.throws(() => priceLineAmount(1, "1", -1));
++});
++test("storage is job-scoped, preserves legacy rates and rejects stale writes", () => {
++  const storage = storageFixture(); storage.setItem("xray.price-sheet.v1", "legacy untouched");
++  const session = readPriceBooks(storage, "job-one"), next = create();
++  const saved = persistPriceBooks(storage, session, next);
++  assert.equal(saved.value.books.length, 1); assert.equal(readPriceBooks(storage, "job-two").value.books.length, 0);
++  assert.equal(storage.getItem("xray.price-sheet.v1"), "legacy untouched");
++  assert.throws(() => persistPriceBooks(storage, session, next), /another window/);
++  assert.throws(() => parsePriceBookLibrary(saved.raw!, "job-two"), /another project/);
++  const mutated = structuredClone(saved.value); mutated.revision++; mutated.books[0].revisions[0].rows[0].rate = 999;
++  assert.throws(() => persistPriceBooks(storage, saved, mutated), /cannot be removed or overwritten/);
++  assert.equal(storage.getItem(priceBookKey("job-one")), saved.raw);
++});
++test("corrupt and quota-failed storage is preserved; no phantom saved revision", () => {
++  const storage = storageFixture(); storage.setItem(priceBookKey("job-one"), "broken");
++  const blocked = readPriceBooks(storage, "job-one"); assert.equal(blocked.blocked, true);
++  assert.throws(() => persistPriceBooks(storage, blocked, create()), /blocked/); assert.equal(storage.getItem(priceBookKey("job-one")), "broken");
++  const fresh = readPriceBooks(storageFixture(), "job-one");
++  assert.throws(() => persistPriceBooks({ getItem: () => null, setItem: () => { throw Error("Quota exceeded"); } }, fresh, create()), /Quota/);
++  assert.equal(fresh.value.books.length, 0);
++});
++test("export records provenance and escapes spreadsheet formulas", () => {
++  const library = appendPriceBookRevision(emptyPriceBookLibrary("job-one"), { ...source, rows: [{ ...source.rows[0], description: '=HYPERLINK("bad")' }] }, "Export QA", null, () => bookId, now);
++  const csv = priceRevisionCsv(library.books[0], 1);
++  assert.ok(csv.includes('"\'=HYPERLINK(""bad"")"')); assert.ok(csv.includes("a".repeat(64)));
++  assert.ok(csv.includes('"AUD","exclusive","10","QA supplier","2026-09-07"')); assert.ok(csv.includes('"2","Export QA","1"'));
++});
++test("worksheet totals sum rounded lines and keep currencies and tax bases separate", () => {
++  let library = addPricedLine(create(), bookId, 1, 2, "1", () => lineId, now);
++  const secondBook = "00000000-0000-4000-8000-000000000003", thirdBook = "00000000-0000-4000-8000-000000000004";
++  library = appendPriceBookRevision(library, { ...source, metadata: { ...source.metadata, currency: "USD" } }, "US engineering", null, () => secondBook, now);
++  library = appendPriceBookRevision(library, { ...source, metadata: { ...source.metadata, taxBasis: "inclusive" } }, "Electrical", null, () => thirdBook, now);
++  library = addPricedLine(library, bookId, 1, 2, "1", () => "00000000-0000-4000-8000-000000000005", now);
++  library = addPricedLine(library, secondBook, 1, 2, "1", () => "00000000-0000-4000-8000-000000000006", now);
++  library = addPricedLine(library, thirdBook, 1, 2, "1", () => "00000000-0000-4000-8000-000000000007", now);
++  const totals = pricedWorksheetTotals(library); assert.equal(totals.length, 3); assert.equal(totals[0].amount, "24.70");
++  assert.equal(totals[1].currency, "USD"); assert.equal(totals[2].taxBasis, "inclusive");
++  const csv = pricedWorksheetCsv(library); assert.ok(csv.includes('"1","kg","12.345","12.35","AUD","exclusive"')); assert.ok(csv.includes(source.source.sha256));
++});

@@ -1,0 +1,57 @@
+{
+  "id": "2026-09-07-01-recovery-review",
+  "title": "Stage 01 — inspect recovery before changing work",
+  "date": "7 September 2026",
+  "platform": "Development browser · desktop and mobile · isolated test profile",
+  "summary": "Backups now show the records and originals a future restore would affect. The review detects source identity conflicts and changes since an earlier review. Actual browser checks confirmed zero localStorage changes and zero IndexedDB readwrite transactions during review. Full editor restoration remains open.",
+  "requirements": [
+    {
+      "id": "B-10",
+      "status": "Partial — review checks pass",
+      "change": "Verified package inspection, existing-original collisions, corrupt records and stale review detection; 14 focused tests plus actual saved-package browser flow.",
+      "remaining": "Replacement itself is not enabled; final acceptance needs the protected restore operation."
+    },
+    {
+      "id": "B-09 / B-11 / B-12",
+      "status": "Open",
+      "change": "Read-only assessment identifies recovery hazards before integration.",
+      "remaining": "Durable restore journal, writer exclusion, interrupted recovery and clean-profile restoration."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-07-recovery-stale.png",
+      "caption": "After: a changed reference record makes the earlier review stale. Existing project data is retained.",
+      "sha256": "c0a2a2943ec839a25d5564314d4d44735c87d6e1958b5c9e2114c83b86384032"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-recovery-before.png",
+      "caption": "Before: the backup library described its contents but had no restore-impact review.",
+      "sha256": "451e5ff8657268c087738660575a62d657873137bb9d6dde81be21bd4a00d7d1"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-recovery-desktop.png",
+      "caption": "After: explicit record-by-record effects. This is a review, not an applied restore.",
+      "sha256": "5866099284381cfcd21dac434e5f4f78bbf1d9ac5c1e8094bf4a119308f8b9c9"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-recovery-mobile.png",
+      "caption": "Mobile: readable review controls with verified touch sizes and no horizontal overflow.",
+      "sha256": "4ed9fa8c306145cd6aed46ea47b4a99e176ccedc9f068d2ade60cad541bba095"
+    }
+  ],
+  "commands": [
+    "node --experimental-strip-types --test src/studio/backupRestorePreflight.test.ts — 14 passed",
+    "npm.cmd run typecheck — passed at integration checkpoint",
+    "node proof/audit/IW-DWG/browser-batch.mjs growth-recovery proof/growth/recovery-final-dev.json — exit 0; no browser errors",
+    "Inspected all four embedded screenshots. Earlier HMR-reset and malformed test-expression attempts are preserved as failures, not counted as passes."
+  ],
+  "logs": [
+    "proof/growth/2026-09-07-recovery/preflight-tests.tap",
+    "proof/growth/recovery-final-dev.log",
+    "proof/growth/typecheck-integrated-retry.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 3e422f0084de607a775c2ede8dfecdf0b032c75e. Scoped source SHA-256 568250f23ff1f32ab53fa3d264fdba8e59eaf4e1e6e80895d111a564ab143bf4. Complete source copies: proof/growth/2026-09-07-01-recovery-source. Development milestone; built/native verification will be recorded in a separate release stage.",
+  "codeDiff": "proof/growth/2026-09-07-01-recovery-source/code.diff (includes preserved earlier shared-file edits)",
+  "summaryImage": "screenshots/growth/2026-09-07-01-recovery-review.png"
+}

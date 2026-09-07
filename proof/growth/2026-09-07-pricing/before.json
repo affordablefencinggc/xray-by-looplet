@@ -1,0 +1,11 @@
+[
+ ["eval","window.__priceGrowthReload=true"],
+ ["reload"],
+ ["wait","--fn","window.__priceGrowthReload!==true&&document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"],
+ ["set","viewport","1440","1000"],
+ ["find","role","button","click","--name","Cost","--exact"],
+ ["wait","--fn","!!document.querySelector('.price-books')"],
+ ["find","role","button","click","--name","Import CSV","--exact"],
+ ["screenshot","screenshots/growth/2026-09-07-pricing/before-csv-only.png"],
+ ["eval","(()=>{const input=document.querySelector('.price-books input[type=file]');if(input.accept.includes('.xlsx'))throw Error('Unexpected baseline XLSX support');return {accept:input.accept,copy:document.querySelector('.price-books').textContent};})()"]
+]

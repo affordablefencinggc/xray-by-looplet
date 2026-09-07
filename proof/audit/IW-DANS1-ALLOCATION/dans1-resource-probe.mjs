@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { constants, getPriority } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { prepareLocalBuild } from './build-resources.mjs';
+assert.equal(process.env.COMPUTERNAME, 'DANS1');
+const before = getPriority();
+const env = prepareLocalBuild('vite', ['build'], { ...process.env, CI: '' });
+const child = JSON.parse(execFileSync(process.execPath, ['-e', 'console.log(JSON.stringify({priority:require("node:os").getPriority(),rayon:process.env.RAYON_NUM_THREADS,cargo:process.env.CARGO_BUILD_JOBS}))'], { env, encoding: 'utf8', windowsHide: true }));
+assert.equal(before, constants.priority.PRIORITY_HIGH);
+assert.equal(getPriority(), before);
+assert.equal(child.priority, before);
+assert.equal(child.rayon, process.env.RAYON_NUM_THREADS);
+assert.equal(child.cargo, process.env.CARGO_BUILD_JOBS);
+console.log(JSON.stringify({status:'pass',before,after:getPriority(),child}));

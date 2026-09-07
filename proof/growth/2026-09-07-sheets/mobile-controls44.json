@@ -1,0 +1,14 @@
+[
+ ["set","viewport","390","844"],
+ ["reload"],
+ ["wait","--fn","!!document.querySelector('[data-hydration-status=ready]')"],
+ ["find","role","button","click","--name","Measure","--exact"],
+ ["wait","--fn","document.querySelector('.measure-document-preview')?.dataset.sourceReady==='true'"],
+ ["click",".sheet-bookmarks summary"],
+ ["find","role","button","click","--name","Open saved view Drainage junction","--exact"],
+ ["wait","--fn","!!document.querySelector('.sheet-bookmarks')?.dataset.restoredView"],
+ ["eval","document.querySelector('.measure-document-preview').scrollIntoView({block:'start'});"],
+ ["eval","var root=document.querySelector('.measure-document-preview'),v=root.querySelector('.document-preview-viewport').getBoundingClientRect(),p=root.querySelector('.document-source-page').getBoundingClientRect();var record=Object.keys(localStorage).filter(k=>k.startsWith('xray.sheet-lifecycle.v1:')).map(k=>JSON.parse(localStorage.getItem(k)))[0],b=record.pages.flatMap(p=>p.bookmarks??[])[0];if(Math.abs((v.left+v.width/2-p.left)/p.width-b.center.x)>.002||Math.abs((v.top+v.height/2-p.top)/p.height-b.center.y)>.002)throw Error('Saved centre mismatch');if(root.querySelector('.document-preview-page')?.textContent!=='Page 2')throw Error('Wrong page');var buttons=[...root.querySelectorAll('.canvas-toolbar button')];if(!buttons.length)throw Error('No bottom controls');var proof=buttons.map(button=>{var r=button.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);if(r.width<44||r.height<44)throw Error('Undersized '+button.title+' '+r.width+'x'+r.height);if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('Clipped control '+button.title);if(hit!==button&&!button.contains(hit))throw Error('Occluded control '+button.title);return {label:button.title||button.textContent,width:r.width,height:r.height,reachable:true}});if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');({page:2,sourceCentreRetained:true,buttons:proof})"],
+ ["screenshot","screenshots/growth/2026-09-07-sheets/bookmarks-mobile-controls44.png"],
+ ["errors"]
+]

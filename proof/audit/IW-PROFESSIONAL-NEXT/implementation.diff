@@ -1,0 +1,2335 @@
+diff --git a/package.json b/package.json
+index 856f01d..710fa4e 100644
+--- a/package.json
++++ b/package.json
+@@ -12,6 +12,7 @@
+     "db:migrate": "node scripts/migrate.mjs",
+     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
+     "build:desktop": "node scripts/with-app-env.mjs vite build --config vite.config.spa.ts",
++    "build:cad": "node scripts/build-cad.mjs",
+     "preview": "node scripts/with-app-env.mjs node scripts/preview-built.mjs",
+     "preview:restart": "node scripts/preview.mjs restart",
+     "preview:stop": "node scripts/preview.mjs stop",
+@@ -26,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/lib/architectAi.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectBackup.test.ts src/studio/sheetLifecycle.test.ts src/studio/pricing/priceBooks.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 7ac7719..559a75b 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -13,6 +13,11 @@ import { useStudio, type Pane } from "./store";
+ import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+ import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
+ import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
++import { ProjectBackups } from "./ProjectBackups";
++import { ProjectDetails } from "./ProjectDetails";
++import { SheetManager } from "./SheetManager";
++import { useSheetLifecycle } from "./useSheetLifecycle.ts";
++import { PriceBookPanel } from "./pricing/PriceBookPanel";
+ import { invalidateModelViews } from "./modelViewSnapshot";
+ import { SourceBuildingViewer } from "./SourceBuildingViewer";
+ import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
+@@ -70,6 +75,10 @@ function StudioContent() {
+   const activePaneTabRef = useRef<HTMLButtonElement>(null);
+   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
+   const pageCount = activeDocument?.pageCount ?? 1;
++  const { value: sheetOrganisation } = useSheetLifecycle(s.job.id, activeDocument);
++  const navigationSheets = sheetOrganisation ? sheetOrganisation.pages.filter(page => !page.archived)
++    : Array.from({ length: pageCount }, (_, pageIndex) => ({ pageIndex, name: activeDocument ? `Sheet ${pageIndex + 1}` : "No source plan" }));
++  const archivedSheetCount = sheetOrganisation?.pages.filter(page => page.archived).length ?? 0;
+   const sourceTakeoffActive = s.pane === "components" && (activeDocument?.sha256 === ALTITUDE_SHA || activeDocument?.sha256 === CONNECTION_SOURCE.sha256);
+   useEffect(() => { invalidateModelViews(s.activePlanBinary?.documentId, s.activePlanBinary?.sha256); }, [s.activePlanBinary?.documentId, s.activePlanBinary?.sha256]);
+ 
+@@ -80,7 +89,12 @@ function StudioContent() {
+   }, []);
+ 
+   useEffect(() => {
+-    activePaneTabRef.current?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
++    const tab = activePaneTabRef.current, nav = tab?.parentElement;
++    if (!tab || !nav) return;
++    const reveal = () => { nav.scrollLeft = Math.max(0, tab.offsetLeft - nav.offsetLeft - (nav.clientWidth - tab.offsetWidth) / 2); };
++    reveal();
++    const observer = new ResizeObserver(reveal); observer.observe(nav);
++    return () => observer.disconnect();
+   }, [s.pane]);
+ 
+   // Global keyboard shortcuts for tool switching and navigation
+@@ -143,6 +157,7 @@ function StudioContent() {
+         <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
+         <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
+         <div className="studio-header-actions ml-auto flex items-center gap-2">
++          <ProjectBackups />
+           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
+           <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
+         </div>
+@@ -168,7 +183,7 @@ function StudioContent() {
+             <h2 className="kicker mb-2">Models</h2>
+             <button type="button" className="sheet-btn mb-4" onClick={() => s.setPane("model")}>Source building</button>
+             <h2 className="kicker mb-2">
+-              Project sheets <span className="float-right">{pageCount}</span>
++              Project sheets <span className="float-right">{navigationSheets.length}</span>
+             </h2>
+             <div className="mb-2 flex gap-1">
+               <button type="button" className="pill" onClick={() => void openPlan()}>
+@@ -178,7 +193,7 @@ function StudioContent() {
+                 Fit sheet
+               </button>
+             </div>
+-            {Array.from({ length: pageCount }, (_, index) => (
++            {navigationSheets.map(({ pageIndex: index, name }) => (
+               <button
+                 key={index}
+                 type="button"
+@@ -187,9 +202,10 @@ function StudioContent() {
+                 title={activeDocument?.name ?? "No source plan"}
+                 onClick={() => s.setSheet(index)}
+               >
+-                {String(index + 1).padStart(2, "0")} {activeDocument ? `Sheet ${index + 1}` : "No source plan"}
++                {String(index + 1).padStart(2, "0")} {name}
+               </button>
+             ))}
++            {archivedSheetCount > 0 && <button className="pill" onClick={() => s.setPane("sheets")}>Sheet register · {archivedSheetCount} archived</button>}
+             <h2 className="kicker mt-4">
+               Evidence layers <span className="float-right">Live</span>
+             </h2>
+@@ -288,10 +304,14 @@ function Overview() {
+ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
+   const s = useStudio();
+   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
++  const { value: organisation } = useSheetLifecycle(s.job.id, activeDocument);
++  const pageName = organisation?.pages.find(page => page.pageIndex === s.sheet)?.name ?? `Sheet ${s.sheet + 1}`;
+   return (
+     <>
++      <ProjectDetails />
++      <SheetManager />
+       <div className="pane-heading-row">
+-        <div><span className="kicker">Source drawings</span><h1>{s.activePlanBinary ? `Sheet ${s.sheet + 1}` : "Your drawing starts here"}</h1></div>
++        <div><span className="kicker">Source drawings</span><h1>{s.activePlanBinary ? pageName : "Your drawing starts here"}</h1></div>
+         {s.activePlanBinary ? <span className={`asset-state ${s.assetReadiness.document.state}`}>{s.assetReadiness.document.state}</span> : null}
+       </div>
+       {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+@@ -1366,13 +1386,19 @@ function CostRightRail() {
+   const snapshot = s.bomState.snapshot;
+   const document = s.job.documents.find((entry) => entry.id === s.job.activeDocumentId && entry.source !== "sample");
+   const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
++  if (!s.job.runs.length) return <aside className="studio-right-rail overflow-auto border-l border-line p-3">
++    <h2 className="kicker">Project pricing</h2>
++    <p>Import supplier rates, review their units and commercial basis, then apply selected rates to a priced worksheet.</p>
++    <p>Enter quantities explicitly. Each worksheet line retains its supplier and price-book revision. Drawing measurements and assembly calculations remain separate until reviewed.</p>
++    <div className="rail-register mt-2.5"><Row a="Project" b={s.job.name} /><Row a="Source" b={document?.name ?? "No drawing required for a price book"} /></div>
++  </aside>;
+   if (generalRuns.length) return <aside className="studio-right-rail overflow-auto border-l border-line p-3">
+     <h2 className="kicker">Quantity scope</h2>
+     <p>General runs report gross measured geometry. Material assemblies, waste, package dimensions and specified weights require separate inputs.</p>
+     <div className="rail-register mt-2.5">
+       <Row a="General runs" b={String(generalRuns.length)} />
+       <Row a="Approved runs" b={String(generalRuns.filter((run) => run.review.status === "approved").length)} />
+-      <Row a="Fencing BOM" b="Unavailable for this job" />
++      <Row a="Assembly quantities" b="Require reviewed rules" />
+     </div>
+     <p>{document?.name ?? "Import a source drawing."}</p>
+   </aside>;
+@@ -1511,6 +1537,7 @@ function CostPane() {
+   const s = useStudio();
+   const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
+   const hasGeneralRuns = generalRuns.length > 0;
++  const hasRecipeRuns = !hasGeneralRuns && s.job.runs.length > 0;
+   const [recipeSet, setRecipeSet] = useState<BomRecipeSet | null>(null);
+   const [compileIssues, setCompileIssues] = useState<readonly BomIssue[]>([]);
+   const [transportStatus, setTransportStatus] = useState<BomTransportStatus>({ phase: "idle" });
+@@ -1520,7 +1547,7 @@ function CostPane() {
+   const buildAbort = useRef<AbortController | null>(null);
+ 
+   useEffect(() => {
+-    if (hasGeneralRuns) {
++    if (!hasRecipeRuns) {
+       setRecipeSet(null);
+       setRecipePersistenceError(null);
+       return;
+@@ -1548,7 +1575,7 @@ function CostPane() {
+       current = false;
+       buildToken.current += 1;
+     };
+-  }, [s.job.id, hasGeneralRuns]);
++  }, [s.job.id, hasRecipeRuns]);
+ 
+   const activeRecipes = useMemo(() => {
+     if (!recipeSet || s.job.runs.length === 0) return [];
+@@ -1710,9 +1737,11 @@ function CostPane() {
+ 
+   return (
+     <div className="cost-workspace">
++      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} />
++        : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
+       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">
+         <header className="specification-heading-row"><div><span className="eyebrow">Measured geometry</span><h2>General construction quantities</h2></div></header>
+-        <p>Gross quantities by run. Openings, overlap and waste are not deducted. These require appropriate assembly rules before material ordering; the fencing BOM is unavailable for a job containing general takeoffs.</p>
++        <p>Gross quantities by run. Openings, overlap and waste are not deducted. Review assembly rules, material specifications and unit conversions before ordering.</p>
+         {generalRuns.map((run) => {
+           const quantity = constructionRunQuantity(s.job, run, s.persistenceHydrated && s.assetReadiness.document.state === "ready");
+           return <div className="specification-group" key={run.id}>
+@@ -1735,7 +1764,7 @@ function CostPane() {
+           <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
+         </div>
+       ) : null}
+-      {!hasGeneralRuns ? <BomPanel
++      {hasRecipeRuns ? <BomPanel
+         state={s.bomState}
+         compileIssues={compileIssues}
+         transportStatus={transportStatus}
+@@ -1784,6 +1813,10 @@ function ProofPane() {
+   return (
+     <div className="proof-workspace">
+       <div className="proof-heading pane-heading-row"><div><span className="kicker">Revisioned evidence</span><h1>Proof manifest</h1><p>Original availability, SHA-256 metadata, links and revision history stay visible with every export.</p></div><button type="button" className="pill-dark inline-flex items-center gap-2" onClick={download}><Download className="size-4" /> Export current manifest</button></div>
++      <details className="proof-revisions">
++        <summary>Professional A–Z delivery checklist · 364 requirements across 68 industry profiles</summary>
++        <iframe title="Professional A to Z requirements and proof" src="/industry-coverage/index.html" loading="lazy" style={{ width: "100%", height: "75vh", border: "1px solid var(--border, #ccd4c8)", marginTop: 12 }} />
++      </details>
+       <div className="proof-artifact-grid">
+         <section className="proof-source-artifact">
+           <span className="kicker">Source artifact</span>
+diff --git a/src/studio/domain.ts b/src/studio/domain.ts
+index 4dafb66..a483b97 100644
+--- a/src/studio/domain.ts
++++ b/src/studio/domain.ts
+@@ -311,7 +311,7 @@ const fencingJobDataSchema = z.object({
+   id: z.string().min(1),
+   revision: z.number().int().positive(),
+   name: z.string().min(1).max(200),
+-  trade: z.literal("fencing"),
++  trade: z.enum(["general", "fencing"]),
+   status: z.enum(["draft", "in-review", "quote-ready", "sent"]),
+   createdAt: isoDateTime,
+   updatedAt: isoDateTime,
+@@ -844,13 +844,13 @@ export function createDefaultJob(now = new Date().toISOString()): FencingJob {
+     schemaVersion: JOB_SCHEMA_VERSION,
+     id: createId("job"),
+     revision: 1,
+-    name: "Ruffles Road",
+-    trade: "fencing",
++    name: "New project",
++    trade: "general",
+     status: "draft",
+     createdAt: now,
+     updatedAt: now,
+     site: {
+-      address: "356 Ruffles Road, Willow Vale",
++      address: "",
+       estimator: "",
+       inspectionDate: "",
+       notes: "",
+@@ -858,7 +858,7 @@ export function createDefaultJob(now = new Date().toISOString()): FencingJob {
+     documents: [
+       {
+         id: "doc-sample",
+-        name: "Ruffles.pdf",
++        name: "No source plan",
+         kind: "pdf",
+         importedAt: now,
+         pageCount: 1,
+diff --git a/src/studio/domain.test.ts b/src/studio/domain.test.ts
+index 0fc40ca..971f059 100644
+--- a/src/studio/domain.test.ts
++++ b/src/studio/domain.test.ts
+@@ -35,7 +35,10 @@ describe("fencing job domain", () => {
+     assert.equal(parsed.schemaVersion, JOB_SCHEMA_VERSION);
+     assert.equal(parsed.revision, 1);
+     assert.deepEqual(parsed.revisionHistory, []);
+-    assert.equal(parsed.trade, "fencing");
++    assert.equal(parsed.trade, "general");
++    assert.equal(parsed.name, "New project");
++    assert.equal(parsed.site.address, "");
++    assert.equal(parseFencingJob({ ...job, trade: "fencing" }).trade, "fencing");
+     assert.equal(parsed.documents[0].source, "sample");
+   });
+ 
+diff --git a/src/studio/persistence.ts b/src/studio/persistence.ts
+index 3254458..36103ff 100644
+--- a/src/studio/persistence.ts
++++ b/src/studio/persistence.ts
+@@ -87,6 +87,23 @@ export function saveFencingJob(
+   }
+ }
+ 
++/** Establish a durable identity before any project-scoped library can be written. */
++export function loadOrCreateProject(fallback: FencingJob, storage: StorageLike | null = browserStorage()): JobLoadResult {
++  const loaded = loadFencingJob(storage);
++  if (loaded.job || loaded.error) return loaded;
++  const saved = saveFencingJob(fallback, storage);
++  if (!saved.ok) return { job: null, error: saved.error };
++  return loadFencingJob(storage);
++}
++
++export async function loadOrCreateBrowserProject(fallback: FencingJob): Promise<JobLoadResult> {
++  // Serialize first-open windows, then re-read inside the lock. Normal editing
++  // remains governed by the existing persistence path, not this initialization lock.
++  if (typeof navigator !== "undefined" && navigator.locks)
++    return navigator.locks.request("xray:project-initialization", () => loadOrCreateProject(fallback));
++  return loadOrCreateProject(fallback);
++}
++
+ export function clearFencingJob(
+   storage: StorageLike | null = browserStorage(),
+ ): JobPersistenceResult {
+diff --git a/src/studio/persistence.test.ts b/src/studio/persistence.test.ts
+index 5d2294a..9b219a4 100644
+--- a/src/studio/persistence.test.ts
++++ b/src/studio/persistence.test.ts
+@@ -6,6 +6,7 @@ import {
+   LEGACY_FENCING_JOB_STORAGE_KEY,
+   clearFencingJob,
+   loadFencingJob,
++  loadOrCreateProject,
+   saveFencingJob,
+ } from "./persistence.ts";
+ 
+@@ -26,6 +27,20 @@ class MemoryStorage {
+ }
+ 
+ describe("fencing job persistence", () => {
++  it("persists a new project identity before separate libraries are saved and reuses it after reopen", () => {
++    const storage = new MemoryStorage(), first = createDefaultJob(), second = createDefaultJob();
++    assert.notEqual(first.id, second.id);
++    assert.equal(loadOrCreateProject(first, storage).job?.id, first.id);
++    assert.equal(loadOrCreateProject(second, storage).job?.id, first.id);
++    assert.equal(loadFencingJob(storage).job?.trade, "general");
++  });
++  it("never initializes over corrupt work and reports unavailable project storage", () => {
++    const storage = new MemoryStorage(); storage.setItem(FENCING_JOB_STORAGE_KEY, "{broken");
++    assert.equal(loadOrCreateProject(createDefaultJob(), storage).job, null);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), "{broken");
++    const missing = loadOrCreateProject(createDefaultJob(), null);
++    assert.equal(missing.job, null); assert.match(missing.error ?? "", /unavailable/i);
++  });
+   it("saves and loads a validated job", () => {
+     const storage = new MemoryStorage();
+     const job = createDefaultJob("2026-09-04T00:00:00.000Z");
+diff --git a/src/studio/store.ts b/src/studio/store.ts
+index 035367b..1421f69 100644
+--- a/src/studio/store.ts
++++ b/src/studio/store.ts
+@@ -18,7 +18,7 @@ import {
+   restoreDocumentWorkspace,
+   prepareDocumentSelection,
+ } from "./documentWorkspaces.ts";
+-import { loadFencingJob, saveFencingJob } from "./persistence.ts";
++import { loadOrCreateBrowserProject, saveFencingJob } from "./persistence.ts";
+ import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
+ import { createBrowserPlanStore } from "./documents.ts";
+ import {
+@@ -2193,7 +2193,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+       const staleUrls = get().photoPreviewUrls;
+       for (const url of Object.values(staleUrls)) URL.revokeObjectURL(url);
+       if (Object.keys(staleUrls).length > 0) set({ photoPreviewUrls: {} });
+-      const loaded = loadFencingJob();
++      const loaded = await loadOrCreateBrowserProject(get().job);
+       if (!loaded.job) {
+         const fallbackJobId = get().job.id;
+         const persistedInventory = loadComponentInventory(fallbackJobId);
+diff --git a/src/studio/workspace-shell.css b/src/studio/workspace-shell.css
+index 607a1c3..54476d4 100644
+--- a/src/studio/workspace-shell.css
++++ b/src/studio/workspace-shell.css
+@@ -7,7 +7,7 @@
+   --workspace-console-height: 220px;
+ }
+ .workbench .studio-header { flex-wrap: wrap; gap: var(--workspace-space-3); }
+-.workbench .studio-pane-nav { order: 3; flex: 1 0 100%; justify-content: center; gap: var(--workspace-space-2); overflow-x: auto; }
++.workbench .studio-pane-nav { order: 3; flex: 1 0 100%; justify-content: safe center; gap: var(--workspace-space-2); overflow-x: auto; }
+ .workbench .studio-pane-nav .pane-tab { min-height: var(--workspace-control-height); padding: var(--workspace-space-3) var(--workspace-space-4); font-size: 13px; font-weight: 600; white-space: nowrap; border-radius: 5px 5px 0 0; }
+ .workbench .studio-pane-nav .pane-tab:hover { color: var(--color-ink); background: var(--color-selected); }
+ .workbench .studio-header-actions { margin-left: auto; }
+diff --git a/src/studio/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index ed02de2..c88791d 100644
+--- a/src/studio/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef, useState } from "react";
+ import * as THREE from "three";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+-import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X } from "lucide-react";
++import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
+ import { useStudio } from "./store";
+ import { inspectPlanBytes } from "./documents";
+ import {
+@@ -16,6 +16,9 @@ import {
+ import "./sourceBuilding.css";
+ import { createModelScope, type ModelScopeOptions } from "./ModelScope";
+ import { BuildingVisualSettings } from "./BuildingVisualSettings";
++import { createFirstPersonNavigation } from "./FirstPersonNavigation";
++import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
++import type { NavigationMode } from "./navigationMovement";
+ import { publishModelView } from "./modelViewSnapshot";
+ import {
+   DEFAULT_APPEARANCE,
+@@ -33,9 +36,13 @@ type ViewOptions = {
+   level: "all" | "ground" | "upper";
+ };
+ type SceneApi = {
++  navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
++  stopNavigation: () => void;
+   options: (value: ViewOptions) => void;
+   select: (id: string | null) => void;
+   fit: () => void;
++  view: (direction: [number, number, number]) => void;
++  zoom: (factor: number) => void;
+   png: () => void;
+   appearance: (value: BuildingAppearance) => void;
+   scope: (value: ModelScopeOptions) => void;
+@@ -50,6 +57,7 @@ function createBuildingScene(
+   onError: (message: string) => void,
+   onScopeZoom: (zoom: number) => void,
+   binding: { documentId: string; sceneId: string; sceneSha256: string },
++  onNavigation: (mode: NavigationMode) => void,
+ ): SceneApi {
+   const renderer = new THREE.WebGLRenderer({
+     antialias: true,
+@@ -91,12 +99,13 @@ function createBuildingScene(
+     level: "all",
+   };
+   let scope: ReturnType<typeof createModelScope> | null = null;
++  let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+   let disposed = false,
+     frame = 0;
+   const render = () => {
+     frame = 0;
+     if (disposed) return;
+-    const changing = controls.update();
++    const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+     renderer.render(scene, camera);
+     scope?.render();
+     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
+@@ -241,11 +250,11 @@ function createBuildingScene(
+       (options.level === "ground"
+         ? part.level !== "upper" && part.level !== "roof"
+         : part.level !== "ground"));
+-  const fit = () => {
++  const fit = (direction?: [number, number, number]) => {
+     const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
+     perspective.aspect = aspect;
+     perspective.updateProjectionMatrix();
+-    const dir = new THREE.Vector3(...(model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
++    const dir = new THREE.Vector3(...(direction ?? model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
+       right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(),
+       up = new THREE.Vector3().crossVectors(dir, right),
+       tan = Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
+@@ -291,7 +300,11 @@ function createBuildingScene(
+   };
+   const resize = () => {
+     renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
+-    fit();
++    if (navigation && navigation.mode !== "orbit") {
++      perspective.aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
++      perspective.updateProjectionMatrix();
++      invalidate();
++    } else fit();
+   };
+   const observer = new ResizeObserver(resize);
+   observer.observe(host);
+@@ -357,6 +370,7 @@ function createBuildingScene(
+     down = { x: event.clientX, y: event.clientY };
+   };
+   const onUp = (event: PointerEvent) => {
++    if (navigation && navigation.mode !== "orbit") return;
+     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
+       down = null;
+       return;
+@@ -397,7 +411,23 @@ function createBuildingScene(
+     onZoomChange: onScopeZoom,
+   });
+   apply();
++  navigation = createFirstPersonNavigation({
++    canvas: renderer.domElement, camera: perspective, bounds,
++    floor: () => model.storeys?.find((s) => s.id === options.level)?.elevation
++      ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
++    invalidate,
++    onChange(mode) {
++      controls.enabled = mode === "orbit";
++      if (mode === "orbit") {
++        controls.target.copy(perspective.position).addScaledVector(perspective.getWorldDirection(new THREE.Vector3()), 5);
++        controls.update();
++      }
++      onNavigation(mode);
++    },
++  });
+   return {
++    navigate: (mode, start) => navigation!.start(mode, start),
++    stopNavigation: () => navigation?.stop(),
+     scope(value) {
+       scope?.setOptions(value);
+       invalidate();
+@@ -418,6 +448,7 @@ function createBuildingScene(
+     options(next) {
+       const changed = next.plan !== options.plan,
+         exploded = next.explode !== options.explode || next.level !== options.level;
++      if (changed || exploded) navigation?.stop();
+       options = next;
+       if (changed) {
+         controls.dispose();
+@@ -435,7 +466,21 @@ function createBuildingScene(
+       renderer.domElement.dataset.selectedPart = id ?? "";
+       apply();
+     },
+-    fit,
++    fit() { navigation?.stop(); fit(); },
++    view(direction) { navigation?.stop(); fit(direction); },
++    zoom(factor) {
++      navigation?.stop();
++      if (camera === orthographic) {
++        orthographic.zoom = THREE.MathUtils.clamp(orthographic.zoom * factor, 0.25, 12);
++        orthographic.updateProjectionMatrix();
++      } else {
++        const offset = perspective.position.clone().sub(controls.target);
++        const distance = THREE.MathUtils.clamp(offset.length() / factor, controls.minDistance, controls.maxDistance);
++        perspective.position.copy(controls.target).add(offset.setLength(distance));
++      }
++      controls.update();
++      invalidate();
++    },
+     png() {
+       renderer.render(scene, camera);
+       const anchor = document.createElement("a");
+@@ -486,6 +531,7 @@ function createBuildingScene(
+     },
+     dispose() {
+       disposed = true;
++      navigation?.dispose();
+       cancelAnimationFrame(frame);
+       scope?.dispose();
+       observer.disconnect();
+@@ -512,6 +558,10 @@ function createBuildingScene(
+ }
+ 
+ export function SourceBuildingViewer() {
++  const controlDock = useRef<HTMLDivElement>(null);
++  const [navigationMode, setNavigationMode] = useState<NavigationMode>("orbit");
++  const [walkPicker, setWalkPicker] = useState(false);
++  const [navigationError, setNavigationError] = useState<string | null>(null);
+   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
+     enabled: false,
+     zoom: 4,
+@@ -665,6 +715,7 @@ export function SourceBuildingViewer() {
+         setError,
+         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
+         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
++        setNavigationMode,
+       );
+     } catch (e) {
+       setError(e instanceof Error ? e.message : String(e));
+@@ -677,6 +728,14 @@ export function SourceBuildingViewer() {
+   useEffect(() => api.current?.options(options), [options, matched]);
+   useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
+   useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
++  function navigate(mode: "fly" | "walk", start?: WalkStart) {
++    const next: ViewOptions = { ...options, plan: false, explode: false, level: mode === "walk" ? "all" : options.level };
++    api.current?.options(next);
++    setOptions(next);
++    setWalkPicker(false);
++    setNavigationError(null);
++    void api.current?.navigate(mode, start).catch((e) => setNavigationError(String(e.message)));
++  }
+   useEffect(() => {
+     api.current?.select(selected);
+     setSourceIndex(0);
+@@ -772,6 +831,22 @@ export function SourceBuildingViewer() {
+       verifiedBytes === binary?.bytes &&
+       model.source.sha256 === binary?.sha256 &&
+       model.source.sha256 === config.sha256;
++  useEffect(() => {
++    const dock = controlDock.current;
++    if (!ready || !dock) return;
++    const root = document.documentElement;
++    const measure = () => root.style.setProperty("--model-controls-clearance", `${Math.max(34, innerHeight - dock.getBoundingClientRect().top + 8)}px`);
++    const observer = new ResizeObserver(measure);
++    observer.observe(dock);
++    if (dock.parentElement) observer.observe(dock.parentElement);
++    window.addEventListener("resize", measure);
++    measure();
++    return () => {
++      observer.disconnect();
++      window.removeEventListener("resize", measure);
++      root.style.removeProperty("--model-controls-clearance");
++    };
++  }, [ready]);
+   return (
+     <div
+       className="source-building"
+@@ -886,7 +961,7 @@ export function SourceBuildingViewer() {
+           {ready ? (
+             <>
+               <div className="building-canvas" ref={host} />
+-              <div className="building-toolbar" aria-label="3D view controls">
++              <div className="building-toolbar" role="toolbar" aria-label="3D view controls">
+                 <div className="building-tool-group">
+                   <button
+                     type="button"
+@@ -906,12 +981,14 @@ export function SourceBuildingViewer() {
+                 <div className="building-tool-group">
+                   <button
+                     type="button"
+-                    aria-pressed={!options.plan}
+-                    onClick={() => setOptions((o) => ({ ...o, plan: false }))}
++                    aria-pressed={!options.plan && navigationMode === "orbit"}
++                    onClick={() => { api.current?.stopNavigation(); setOptions((o) => ({ ...o, plan: false })); }}
+                   >
+                     <Box size={15} />
+                     Orbit
+                   </button>
++                  <button type="button" aria-pressed={navigationMode === "fly"} onClick={() => navigate("fly")}>Fly</button>
++                  <button type="button" aria-pressed={navigationMode === "walk"} onClick={() => { api.current?.stopNavigation(); setWalkPicker(true); }}>Walk-through</button>
+                   <button
+                     type="button"
+                     aria-pressed={options.plan}
+@@ -920,10 +997,6 @@ export function SourceBuildingViewer() {
+                     <ScanLine size={15} />
+                     Plan
+                   </button>
+-                  <button type="button" onClick={() => api.current?.fit()}>
+-                    <Expand size={15} />
+-                    Fit
+-                  </button>
+                 </div>
+                 <div className="building-tool-group">
+                   {model.objects.some((p) => p.level) && (
+@@ -984,6 +1057,7 @@ export function SourceBuildingViewer() {
+                     Explode
+                   </button>
+                 </div>
++                  <button type="button" onClick={() => api.current?.fit()}><Expand size={15} />Fit</button>
+                 <button
+                   type="button"
+                   aria-label="Download model PNG"
+@@ -993,6 +1067,9 @@ export function SourceBuildingViewer() {
+                   <span>PNG</span>
+                 </button>
+               </div>
++              {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
++              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · mouse look · Shift faster · Esc exit</p>}
++              {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
+               {config.id === "caroline" && (
+                 <div className="building-svg-export">
+                   {svgAvailable ? (
+@@ -1077,6 +1154,24 @@ export function SourceBuildingViewer() {
+             </div>
+           )}
+         </div>
++        {ready && (
++              <div ref={controlDock} className="building-toolbar building-control-dock" role="toolbar" aria-label="Model navigation">
++                <div className="building-tool-group" role="group" aria-label="Zoom and standard views">
++                  <button type="button" aria-label="Zoom out model" onClick={() => api.current?.zoom(1 / 1.25)}><ZoomOut size={16} /></button>
++                  <button type="button" aria-label="Zoom in model" onClick={() => api.current?.zoom(1.25)}><ZoomIn size={16} /></button>
++                  <button type="button" onClick={() => api.current?.fit()}><Expand size={15} />Reset model view</button>
++                  <button type="button" onClick={() => {
++                    const next = { ...options, plan: false };
++                    api.current?.options(next); setOptions(next); api.current?.view([0.12, 0.34, -1]);
++                  }}>Front</button>
++                  <button type="button" onClick={() => {
++                    const next = { ...options, plan: false };
++                    api.current?.options(next); setOptions(next); api.current?.view([0.12, 0.34, 1]);
++                  }}>Rear</button>
++                </div>
++
++              </div>
++        )}
+         </div>
+         <aside className="building-inspector" aria-label="Building source evidence">
+           <div className="building-inspector-title">
+diff --git a/src/studio/sourceBuilding.css b/src/studio/sourceBuilding.css
+index 3bd85b5..bf7cd99 100644
+--- a/src/studio/sourceBuilding.css
++++ b/src/studio/sourceBuilding.css
+@@ -717,3 +717,96 @@
+     min-height: 44px;
+   }
+ }
++.building-navigation-hint {
++  position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5;
++  margin: 0; padding: 8px 12px; pointer-events: none;
++  background: var(--color-paper); color: var(--color-ink);
++  border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px;
++}
++
++/* Reserve real layout space: controls must not fall outside the canvas or
++   disappear behind the diagnostics drawer when the viewport gets shorter. */
++.workbench .source-building .building-control-dock {
++  display: flex;
++  justify-content: center;
++  position: relative;
++  inset: auto;
++  flex: 0 0 auto;
++  width: 100%;
++  margin: 0;
++  padding: 8px;
++  gap: 6px;
++  border-top: 1px solid var(--color-line);
++  background: var(--color-header);
++  pointer-events: auto;
++  z-index: 3;
++}
++.workbench .building-control-dock .building-tool-group {
++  flex: 0 0 auto;
++  flex-wrap: nowrap;
++  box-shadow: none;
++  padding: 0;
++}
++.workbench .building-control-dock button,
++.workbench .building-control-dock select {
++  min-height: 44px;
++  min-width: 44px;
++  font-size: 12px;
++}
++.workbench .building-control-dock button:hover {
++  background: var(--color-selected);
++  color: var(--color-ink);
++}
++@media (max-width: 900px) {
++  .workbench .source-building {
++    height: 100%;
++    min-height: 0;
++  }
++  .workbench .source-building .building-workspace {
++    flex: 1;
++    min-height: 0;
++    height: 100%;
++    overflow: auto;
++  }
++  .workbench .source-building .building-center-column {
++    flex: 0 0 100%;
++    min-height: 360px;
++  }
++  .workbench .source-building .building-stage {
++    flex: 1;
++    min-height: 140px;
++    height: auto;
++  }
++  .workbench .source-building .building-canvas {
++    position: absolute;
++    inset: 0;
++    min-height: 0;
++  }
++  .workbench .source-building .building-control-dock {
++    display: flex;
++    justify-content: center;
++    overflow-x: auto;
++    overscroll-behavior-x: contain;
++    scrollbar-width: thin;
++  }
++  .workbench .source-building .building-control-dock .building-tool-group { flex-wrap: wrap; justify-content: center; max-width: 100%; }
++  .workbench .source-building .building-stage > .building-toolbar {
++    position: relative;
++    inset: auto;
++    margin: 54px 8px 8px;
++    z-index: 1;
++    flex: 0 0 auto;
++    display: flex;
++    flex-wrap: wrap;
++    gap: 6px;
++    pointer-events: none;
++  }
++  .workbench .source-building .building-stage > .building-toolbar .building-tool-group { flex-wrap: wrap; }
++  .workbench .source-building .building-canvas-note {
++    position: absolute;
++    inset: auto 8px 38px 8px;
++    margin: 0;
++  }
++  .workbench .source-building .building-view-label { bottom: 8px; right: 8px; }
++  .workbench .source-building .building-visual-settings { position: absolute; top: 0; right: 0; z-index: 2; }
++}
+diff --git a/src/studio/ProjectDetails.tsx b/src/studio/ProjectDetails.tsx
+new file mode 100644
+index 0000000..0d85b4c
+--- /dev/null
++++ b/src/studio/ProjectDetails.tsx
+@@ -0,0 +1,48 @@
++import { useState } from "react";
++import { useStudio } from "./store";
++import { FENCING_JOB_STORAGE_KEY, loadFencingJob } from "./persistence";
++import "./projectDetails.css";
++
++/** This status deliberately covers the main job only, not unsaved editors or cloud sync. */
++export function ProjectDetails() {
++  const job = useStudio(s => s.job), hydrated = useStudio(s => s.persistenceHydrated);
++  const persistenceError = useStudio(s => s.persistenceError);
++  const [edit, setEdit] = useState<{ name: string; jobText: string; stored: string | null } | null>(null);
++  const [message, setMessage] = useState(""), [error, setError] = useState("");
++  function begin() {
++    try {
++      const loaded = loadFencingJob();
++      if (loaded.error) throw Error(loaded.error);
++      if (loaded.job && JSON.stringify(loaded.job) !== JSON.stringify(useStudio.getState().job))
++        throw Error("A different project revision is saved on this device. Reload the workspace before renaming so newer work is preserved.");
++      setEdit({ name: job.name, jobText: JSON.stringify(job), stored: localStorage.getItem(FENCING_JOB_STORAGE_KEY) });
++      setError(""); setMessage("");
++    } catch (failure) { setError(failure instanceof Error ? failure.message : "Project storage is unavailable. The current name is unchanged."); }
++  }
++  function save() {
++    if (!edit?.name.trim()) return;
++    try {
++      if (JSON.stringify(useStudio.getState().job) !== edit.jobText || localStorage.getItem(FENCING_JOB_STORAGE_KEY) !== edit.stored)
++        throw Error("The project changed while you edited its name. Cancel and reopen the name editor to use the latest version.");
++      useStudio.getState().updateJobName(edit.name.trim());
++      const current = useStudio.getState();
++      if (current.persistenceError) throw Error(current.persistenceError);
++      if (localStorage.getItem(FENCING_JOB_STORAGE_KEY) !== JSON.stringify(current.job))
++        throw Error("The new name is in the open workspace but could not be verified in storage. Keep the app open and retry after resolving the save error.");
++      setEdit(null); setMessage("Project name saved on this device. New backups use this name."); setError("");
++    } catch (failure) { setError(failure instanceof Error ? failure.message : "Project name could not be saved."); }
++  }
++  return <section className="project-details" aria-label="Current project">
++    <div><span className="kicker">Current project</span><h2>{job.name}</h2>
++      <p>{hydrated ? `Job revision ${job.revision} · local workspace` : "Restoring project…"}</p></div>
++    <button className="pill" disabled={!hydrated || Boolean(persistenceError)} onClick={begin}>Rename project</button>
++    {edit && <form onSubmit={e => { e.preventDefault(); save(); }}>
++      <label>Project name<input value={edit.name} maxLength={200} onChange={e => setEdit({ ...edit, name: e.target.value })} autoFocus /></label>
++      <button className="pill" disabled={!edit.name.trim()}>Save project name</button>
++      <button className="pill" type="button" onClick={() => { setEdit(null); setError(""); }}>Cancel name edit</button>
++    </form>}
++    {(error || persistenceError) && <p role="alert">{error || persistenceError}</p>}
++    {message && <p role="status">{message}</p>}
++    <small>Original drawing names stay intact. Save a project backup to keep a portable copy of committed work and original files.</small>
++  </section>;
++}
+diff --git a/src/studio/projectDetails.css b/src/studio/projectDetails.css
+new file mode 100644
+index 0000000..a70444c
+--- /dev/null
++++ b/src/studio/projectDetails.css
+@@ -0,0 +1,9 @@
++.project-details { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:16px; margin-bottom:16px; border:1px solid var(--color-line); background:var(--color-header); color:var(--color-ink); border-radius:8px; }
++.project-details > div { flex:1 1 240px; min-width:0; }
++.project-details h2 { font-weight:600; overflow-wrap:anywhere; }
++.project-details p, .project-details small { font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
++.project-details > small, .project-details > p, .project-details form { flex-basis:100%; }
++.project-details form { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
++.project-details label { flex:1 1 240px; display:grid; gap:6px; font-size:12px; }
++.project-details input { width:100%; min-height:44px; border:1px solid var(--color-line); background:var(--color-bg); color:var(--color-ink); border-radius:6px; padding:8px 12px; }
++.project-details .pill { min-height:44px; }
+diff --git a/src/studio/SheetManager.tsx b/src/studio/SheetManager.tsx
+new file mode 100644
+index 0000000..f540b6f
+--- /dev/null
++++ b/src/studio/SheetManager.tsx
+@@ -0,0 +1,95 @@
++import { useEffect, useState } from "react";
++import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Pencil } from "lucide-react";
++import { useStudio } from "./store";
++import { readSheetLifecycle, saveSheetLifecycle, sheetArchiveImpact, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetAction, type SheetLifecycle } from "./sheetLifecycle.ts";
++import { notifySheetLifecycleChanged, SHEET_LIFECYCLE_CHANGED } from "./useSheetLifecycle";
++import "./sheetManager.css";
++
++const errorText = (error: unknown) => error instanceof Error && error.name !== "ZodError" ? error.message : "Saved sheet organisation could not be read. The original drawings are preserved.";
++
++export function SheetManager() {
++  const job = useStudio(s => s.job), sheet = useStudio(s => s.sheet), hydrated = useStudio(s => s.persistenceHydrated);
++  const source = job.documents.find(d => d.id === job.activeDocumentId);
++  const identity = source ? sheetSourceIdentity(job.id, source) : null;
++  const sourceKey = identity ? sheetLifecycleStorageKey(identity) : "";
++  const [saved, setSaved] = useState<SheetLifecycle | null>(null), [error, setError] = useState("");
++  const [message, setMessage] = useState(""), [busy, setBusy] = useState(false), [archived, setArchived] = useState(false), [query, setQuery] = useState("");
++  const [renaming, setRenaming] = useState<number | null>(null), [name, setName] = useState("");
++  const [archiveReview, setArchiveReview] = useState<{ key: string; pageIndex: number; job: typeof job; impact: ReturnType<typeof sheetArchiveImpact> } | null>(null);
++  const current = saved && sourceKey === sheetLifecycleStorageKey(saved.identity) ? saved : null;
++  function refresh() {
++    setError(""); setRenaming(null); setArchiveReview(null);
++    try { setSaved(identity ? readSheetLifecycle(identity, window.localStorage) : null); }
++    catch (failure) { setSaved(null); setError(errorText(failure)); }
++  }
++  useEffect(() => {
++    refresh(); setQuery(""); setArchived(false); setMessage("");
++    const update = (event: StorageEvent) => { if (event.key === sourceKey || event.key === null) refresh(); };
++    const local = (event: Event) => { if ((event as CustomEvent<{key:string}>).detail?.key === sourceKey) refresh(); };
++    window.addEventListener("storage", update);
++    window.addEventListener(SHEET_LIFECYCLE_CHANGED, local);
++    return () => { window.removeEventListener("storage", update); window.removeEventListener(SHEET_LIFECYCLE_CHANGED, local); };
++  }, [sourceKey]);
++  async function mutate(action: SheetAction) {
++    if (!current || busy) return;
++    setBusy(true); setError(""); setMessage("");
++    try {
++      if (!navigator.locks) throw Error("Saving sheet organisation is unavailable in this browser. Open X-Ray in its desktop app or a secure browser window.");
++      await navigator.locks.request(sourceKey, () => {
++        const live = useStudio.getState().job;
++        const doc = live.documents.find(d => d.id === live.activeDocumentId);
++        const liveIdentity = doc && sheetSourceIdentity(live.id, doc);
++        if (!liveIdentity || sheetLifecycleStorageKey(liveIdentity) !== sourceKey) throw Error("The source drawing changed. Reload its sheet list before editing.");
++        if (action.type === "archive" && (!archiveReview || archiveReview.key !== sourceKey || archiveReview.pageIndex !== action.pageIndex || archiveReview.job !== live)) throw Error("The project changed after this review. Cancel and review the sheet again before archiving.");
++        const next = saveSheetLifecycle(current, action, window.localStorage);
++        setSaved(next); setRenaming(null); setArchiveReview(null); notifySheetLifecycleChanged(sourceKey);
++        setMessage(action.type === "archive" ? "Sheet archived. Its source and measurements are preserved." : action.type === "recover" ? "Sheet recovered to the active list." : "Sheet organisation saved.");
++      });
++    } catch (failure) { setError(errorText(failure)); }
++    finally { setBusy(false); }
++  }
++  function reviewArchive(pageIndex: number) {
++    if (!identity) return;
++    try {
++      const live = useStudio.getState().job;
++      setArchiveReview({ key: sourceKey, pageIndex, job: live, impact: sheetArchiveImpact(live, identity, pageIndex) }); setRenaming(null); setError("");
++    } catch (failure) { setError(errorText(failure)); }
++  }
++  async function selectSource(documentId: string) {
++    setBusy(true); setError("");
++    try { await useStudio.getState().selectDocument(documentId); }
++    catch (failure) { setError(errorText(failure)); }
++    finally { setBusy(false); }
++  }
++  const active = current?.pages.filter(p => !p.archived) ?? [];
++  const archiveCount = current?.pages.filter(p => p.archived).length ?? 0;
++  const pages = current?.pages.filter(p => p.archived === archived && `${p.name} ${p.pageIndex + 1}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())) ?? [];
++  const documents = job.documents.filter(d => d.source !== "sample");
++  return <section className="sheet-manager" aria-label="Manage source sheets">
++    <div className="sheet-manager-heading"><div><h2>Sheet register</h2><p>Name, arrange and archive pages for this project. Original page numbers stay fixed for evidence links.</p></div>
++      <button className="pill" onClick={refresh} disabled={busy}>Reload list</button></div>
++    {documents.length > 0 && <label>Source drawing<select aria-label="Source drawing" value={job.activeDocumentId ?? ""} onChange={e => void selectSource(e.target.value)} disabled={busy || !hydrated}>{documents.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
++    {error && <p role="alert" className="sheet-manager-notice">{error}</p>}
++    {message && <p role="status" className="sheet-manager-notice">{message}</p>}
++    {!identity && <p>Import a drawing with verified source pages to organise its sheets.</p>}
++    {current && <>
++      <div className="sheet-manager-toolbar"><div role="group" aria-label="Sheet list filter"><button className="pill" aria-pressed={!archived} onClick={() => { setArchived(false); setRenaming(null); }}>Active ({active.length})</button><button className="pill" aria-pressed={archived} onClick={() => { setArchived(true); setRenaming(null); }}>Archived ({archiveCount})</button></div><label>Find a sheet<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name or original page" /></label></div>
++      {archived && <p className="sheet-manager-help">Archived sheets are hidden from active sheet navigation. They remain in the original drawing and evidence. View or recover them here.</p>}
++      <ol className="sheet-manager-list">{pages.map(page => <li key={page.pageIndex}>
++        <div className="sheet-manager-title"><strong>{page.name}</strong><span>Original page {page.pageIndex + 1}{sheet === page.pageIndex ? " · Viewing" : ""}</span></div>
++        {archiveReview?.key === sourceKey && archiveReview.pageIndex === page.pageIndex ? <div className="sheet-archive-review" role="region" aria-label={`Review archive ${page.name}`}>
++          <strong>Archive {page.name}?</strong><p>This removes original page {page.pageIndex + 1} from active sheet navigation. The original drawing and all saved work stay intact. Recover it at any time from Archived.</p>
++          <dl><div><dt>Calibrations retained</dt><dd>{archiveReview.impact.calibrations}</dd></div><div><dt>Measured traces retained</dt><dd>{archiveReview.impact.traces}</dd></div><div><dt>Located items retained</dt><dd>{archiveReview.impact.items}</dd></div><div><dt>Annotations retained</dt><dd>{archiveReview.impact.annotations}</dd></div><div><dt>Linked photos retained</dt><dd>{archiveReview.impact.linkedPhotos}</dd></div></dl>
++          <p>Estimates and evidence totals are unchanged. Unlinked document photos are also preserved.</p><div className="sheet-manager-actions"><button className="pill" disabled={busy} onClick={() => void mutate({type:"archive",pageIndex:page.pageIndex})}>Confirm archive</button><button className="pill" disabled={busy} onClick={() => setArchiveReview(null)}>Cancel</button></div>
++        </div> : renaming === page.pageIndex ? <form className="sheet-manager-rename" onSubmit={e => { e.preventDefault(); void mutate({ type: "rename", pageIndex: page.pageIndex, name }); }}><label>Sheet name<input autoFocus value={name} onChange={e => setName(e.target.value)} maxLength={120} disabled={busy} /></label><button className="pill" type="submit" disabled={busy || !name.trim()}>Save name</button><button className="pill" type="button" disabled={busy} onClick={() => setRenaming(null)}>Cancel</button></form> : <div className="sheet-manager-actions">
++          <button className="pill" disabled={busy || !hydrated} onClick={() => useStudio.getState().setSheet(page.pageIndex)}>View page {page.pageIndex + 1}</button>
++          <button className="pill" disabled={busy} aria-label={`Rename ${page.name}`} onClick={() => { setRenaming(page.pageIndex); setName(page.name); }}><Pencil size={14} aria-hidden="true" />Rename</button>
++          {!archived && <><button className="pill" disabled={busy || !!query || active[0]?.pageIndex === page.pageIndex} aria-label={`Move ${page.name} up`} onClick={() => void mutate({ type: "move", pageIndex: page.pageIndex, direction: -1 })}><ArrowUp size={14} aria-hidden="true" /></button><button className="pill" disabled={busy || !!query || active.at(-1)?.pageIndex === page.pageIndex} aria-label={`Move ${page.name} down`} onClick={() => void mutate({ type: "move", pageIndex: page.pageIndex, direction: 1 })}><ArrowDown size={14} aria-hidden="true" /></button></>}
++          <button className="pill" disabled={busy} aria-label={`${archived ? "Recover" : "Archive"} ${page.name}`} onClick={() => archived ? void mutate({ type: "recover", pageIndex: page.pageIndex }) : reviewArchive(page.pageIndex)}>{archived ? <ArchiveRestore size={14} aria-hidden="true" /> : <Archive size={14} aria-hidden="true" />}{archived ? "Recover" : "Archive"}</button>
++        </div>}
++      </li>)}</ol>
++      {!pages.length && <p>{query ? "No sheets match your search." : archived ? "No archived sheets." : "All sheets are archived. Recover a sheet from the Archived list."}</p>}
++      <p className="sheet-manager-help">Names and order apply to sheet navigation. Renaming never changes the original drawing file or its page numbers.</p>
++    </>}
++  </section>;
++}
+diff --git a/src/studio/sheetManager.css b/src/studio/sheetManager.css
+new file mode 100644
+index 0000000..7eaec04
+--- /dev/null
++++ b/src/studio/sheetManager.css
+@@ -0,0 +1,24 @@
++.sheet-manager { display: grid; gap: 16px; padding-block: 16px; border-block: 1px solid var(--color-line); color: var(--color-ink); min-width: 0; }
++.sheet-manager h2 { font-size: 18px; font-weight: 600; }
++.sheet-manager p { line-height: 1.5; overflow-wrap: anywhere; }
++.sheet-manager-heading, .sheet-manager-toolbar, .sheet-manager-actions, .sheet-manager-rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
++.sheet-manager-heading > div { flex: 1 1 260px; }
++.sheet-manager-heading p, .sheet-manager-help { font-size: 12px; color: var(--color-muted); }
++.sheet-manager label { display: grid; gap: 8px; font-size: 12px; min-width: 0; }
++.sheet-manager-toolbar > label, .sheet-manager-rename > label { flex: 1 1 200px; }
++.sheet-manager-toolbar [role=group] { display: flex; flex-wrap: wrap; gap: 8px; }
++.sheet-manager input, .sheet-manager select { min-width: 0; max-width: 100%; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-bg); color: var(--color-ink); }
++.sheet-manager .pill { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: normal; }
++.sheet-manager button:disabled { opacity: .45; cursor: default; }
++.sheet-manager [aria-pressed=true] { background: var(--color-navy); color: var(--color-on-navy); }
++.sheet-manager-list { display: grid; max-height: 480px; overflow: auto; overscroll-behavior: contain; }
++.sheet-manager-list > li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-block: 12px; border-top: 1px solid var(--color-line); }
++.sheet-manager-title { display: grid; gap: 4px; min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
++.sheet-manager-title span { font-size: 12px; color: var(--color-muted); }
++.sheet-manager-rename { width: 100%; align-items: end; }
++.sheet-manager-notice { padding: 12px; background: var(--color-header); color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px; }
++.sheet-archive-review { display: grid; gap: 12px; flex-basis: 100%; padding: 16px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-header); color: var(--color-ink); }
++.sheet-archive-review p { font-size: 12px; }
++.sheet-archive-review dl { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); font-size: 12px; }
++.sheet-archive-review dd { font-weight: 600; margin-top: 4px; }
++@media (max-width: 600px) { .sheet-manager-title, .sheet-manager-actions { flex-basis: 100%; } .sheet-manager-list { max-height: 560px; } }
+diff --git a/src/studio/sheetLifecycle.ts b/src/studio/sheetLifecycle.ts
+new file mode 100644
+index 0000000..9c42b5b
+--- /dev/null
++++ b/src/studio/sheetLifecycle.ts
+@@ -0,0 +1,112 @@
++import { z } from "zod";
++import type { DocumentRevision, FencingJob } from "./domain.ts";
++
++const identitySchema = z.object({
++  jobId: z.string().min(1), documentId: z.string().min(1),
++  sha256: z.string().regex(/^[a-f0-9]{64}$/), importedAt: z.string().datetime({ offset: true }),
++  pageCount: z.number().int().positive().max(10000),
++}).strict();
++export type SheetSourceIdentity = z.infer<typeof identitySchema>;
++const lifecycleSchema = z.object({
++  format: z.literal("xray.sheet-lifecycle/v1"), identity: identitySchema,
++  revision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1),
++  pages: z.array(z.object({ pageIndex: z.number().int().nonnegative(), name: z.string().min(1).max(120), archived: z.boolean() }).strict()).max(10000),
++}).strict();
++export type SheetLifecycle = z.infer<typeof lifecycleSchema>;
++export type SheetAction = { type: "rename"; pageIndex: number; name: string } | { type: "archive" | "recover"; pageIndex: number } | { type: "move"; pageIndex: number; direction: -1 | 1 };
++export type SheetStorage = Pick<Storage, "getItem" | "setItem">;
++
++export function sheetSourceIdentity(jobId: string, document: DocumentRevision): SheetSourceIdentity | null {
++  if (document.source === "sample" || !document.sha256 || !document.pageCount) return null;
++  const parsed = identitySchema.safeParse({ jobId, documentId: document.id, sha256: document.sha256, importedAt: document.importedAt, pageCount: document.pageCount });
++  return parsed.success ? parsed.data : null;
++}
++export function sheetLifecycleStorageKey(identity: SheetSourceIdentity): string {
++  return `xray.sheet-lifecycle.v1:${JSON.stringify([identity.jobId, identity.documentId, identity.sha256, identity.importedAt, identity.pageCount])}`;
++}
++export function createSheetLifecycle(identity: SheetSourceIdentity): SheetLifecycle {
++  identitySchema.parse(identity);
++  return { format: "xray.sheet-lifecycle/v1", identity: { ...identity }, revision: 0,
++    pages: Array.from({ length: identity.pageCount }, (_, pageIndex) => ({ pageIndex, name: `Sheet ${pageIndex + 1}`, archived: false })) };
++}
++export function parseSheetLifecycle(raw: string, identity: SheetSourceIdentity): SheetLifecycle {
++  const value = lifecycleSchema.parse(JSON.parse(raw));
++  if (sheetLifecycleStorageKey(value.identity) !== sheetLifecycleStorageKey(identity)) throw Error("Sheet organisation belongs to a different source revision.");
++  const indices = new Set(value.pages.map(p => p.pageIndex));
++  if (value.pages.length !== identity.pageCount || indices.size !== identity.pageCount || value.pages.some(p => p.pageIndex >= identity.pageCount || !p.name.trim() || p.name !== p.name.trim())) throw Error("Saved sheet organisation does not match the source pages.");
++  return value;
++}
++export function readSheetLifecycle(identity: SheetSourceIdentity, storage: Pick<Storage, "getItem">): SheetLifecycle {
++  const raw = storage.getItem(sheetLifecycleStorageKey(identity));
++  return raw === null ? createSheetLifecycle(identity) : parseSheetLifecycle(raw, identity);
++}
++export function changeSheetLifecycle(value: SheetLifecycle, action: SheetAction): SheetLifecycle {
++  parseSheetLifecycle(JSON.stringify(value), value.identity);
++  const index = value.pages.findIndex(p => p.pageIndex === action.pageIndex);
++  if (index < 0) throw Error("That page is no longer part of this source.");
++  const next = structuredClone(value), page = next.pages[index];
++  if (action.type === "rename") {
++    const name = action.name.trim();
++    if (!name || name.length > 120) throw Error("Enter a sheet name between 1 and 120 characters.");
++    page.name = name;
++  } else if (action.type === "move") {
++    if (page.archived) throw Error("Recover this sheet before changing its order.");
++    // Swap with the neighbouring active sheet, preserving archived slots and source indices.
++    let other = index + action.direction;
++    while (other >= 0 && other < next.pages.length && next.pages[other].archived) other += action.direction;
++    if (other < 0 || other >= next.pages.length) return value;
++    [next.pages[index], next.pages[other]] = [next.pages[other], next.pages[index]];
++  } else page.archived = action.type === "archive";
++  next.revision += 1;
++  return next;
++}
++/** Call within the key's exclusive Web Lock. A stale UI cannot replace another window's edits. */
++export function saveSheetLifecycle(previous: SheetLifecycle, action: SheetAction, storage: SheetStorage): SheetLifecycle {
++  const current = readSheetLifecycle(previous.identity, storage);
++  if (JSON.stringify(current) !== JSON.stringify(previous)) throw Error("Sheet organisation changed in another window. Reload the list before trying again.");
++  const next = changeSheetLifecycle(previous, action);
++  if (next !== previous) storage.setItem(sheetLifecycleStorageKey(next.identity), JSON.stringify(next));
++  return next;
++}
++type JobSources = Pick<FencingJob, "id" | "documents">;
++/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. */
++export function sheetArchiveImpact(job: Pick<FencingJob, "id" | "documents" | "activeDocumentId"> & {
++  calibrations: Pick<FencingJob["calibrations"][number], "sheet">[];
++  runs: Pick<FencingJob["runs"][number], "id" | "sheet" | "photoIds">[];
++  gates: Pick<FencingJob["gates"][number], "id" | "sheet" | "photoIds">[];
++  photos: Pick<FencingJob["photos"][number], "id" | "runIds" | "gateIds">[];
++  annotations?: { sheet: number; documentId: string }[];
++}, identity: SheetSourceIdentity, pageIndex: number) {
++  const document = job.documents.find(d => d.id === job.activeDocumentId);
++  const actual = document && sheetSourceIdentity(job.id, document);
++  if (!actual || sheetLifecycleStorageKey(actual) !== sheetLifecycleStorageKey(identity) || pageIndex < 0 || pageIndex >= identity.pageCount) throw Error("The source drawing changed. Review the sheet again before archiving.");
++  const runs = job.runs.filter(r => r.sheet === pageIndex), items = job.gates.filter(g => g.sheet === pageIndex);
++  const runIds = new Set(runs.map(r => r.id)), itemIds = new Set(items.map(g => g.id));
++  const photoIds = new Set([...runs, ...items].flatMap(row => row.photoIds));
++  const photos = job.photos.filter(photo => photoIds.has(photo.id) || photo.runIds.some(id => runIds.has(id)) || photo.gateIds.some(id => itemIds.has(id)));
++  return { calibrations: job.calibrations.filter(c => c.sheet === pageIndex).length, traces: runs.length, items: items.length,
++    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length };
++}
++/** Capture every saved source sidecar, including inactive documents, for a portable backup. */
++export function readJobSheetMetadata(job: JobSources, storage: Pick<Storage, "getItem">): string | null {
++  const values: SheetLifecycle[] = [];
++  for (const document of job.documents) {
++    const identity = sheetSourceIdentity(job.id, document);
++    if (!identity) continue;
++    const raw = storage.getItem(sheetLifecycleStorageKey(identity));
++    if (raw !== null) values.push(parseSheetLifecycle(raw, identity));
++  }
++  return values.length ? JSON.stringify(values) : null;
++}
++export function validateJobSheetMetadata(raw: string | null, job: JobSources): SheetLifecycle[] {
++  if (raw === null) return [];
++  const values = z.array(lifecycleSchema).max(10000).parse(JSON.parse(raw));
++  const seen = new Set<string>();
++  return values.map(value => {
++    const source = job.documents.find(d => d.id === value.identity.documentId);
++    const identity = source && sheetSourceIdentity(job.id, source);
++    if (!identity || seen.has(source.id)) throw Error("Sheet organisation contains an unknown or duplicate source.");
++    seen.add(source.id);
++    return parseSheetLifecycle(JSON.stringify(value), identity);
++  });
++}
+diff --git a/src/studio/sheetLifecycle.test.ts b/src/studio/sheetLifecycle.test.ts
+new file mode 100644
+index 0000000..0a1a1e1
+--- /dev/null
++++ b/src/studio/sheetLifecycle.test.ts
+@@ -0,0 +1,110 @@
++import { describe, it } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob } from "./domain.ts";
++import { changeSheetLifecycle, createSheetLifecycle, parseSheetLifecycle, readJobSheetMetadata, readSheetLifecycle, saveSheetLifecycle, sheetArchiveImpact, sheetLifecycleStorageKey, sheetSourceIdentity, validateJobSheetMetadata, type SheetStorage } from "./sheetLifecycle.ts";
++
++function fixture() {
++  const job = createDefaultJob();
++  job.documents = [{ id: "plan-1", name: "Architectural.pdf", kind: "pdf", source: "web", importedAt: "2026-09-07T00:00:00.000Z", sha256: "a".repeat(64), pageCount: 4 }];
++  const identity = sheetSourceIdentity(job.id, job.documents[0])!;
++  const map = new Map<string, string>();
++  const storage: SheetStorage = { getItem: key => map.get(key) ?? null, setItem: (key, value) => { map.set(key, value); } };
++  return { job, identity, storage, map };
++}
++describe("source sheet organisation", () => {
++  it("archive review counts only the selected page's evidence, deduplicates linked photos and refuses changed sources", () => {
++    const { job, identity } = fixture();
++    const input = { ...job, activeDocumentId: identity.documentId,
++      calibrations: [{sheet:0},{sheet:1}], runs: [{id:"r1",sheet:0,photoIds:["p1"]},{id:"r2",sheet:1,photoIds:["p2"]}],
++      gates: [{id:"i1",sheet:0,photoIds:["p1"]}],
++      photos: [{id:"p1",runIds:["r1"],gateIds:["i1"]},{id:"p2",runIds:["r2"],gateIds:[]},{id:"p3",runIds:[],gateIds:[]}],
++      annotations: [{sheet:0,documentId:identity.documentId},{sheet:1,documentId:identity.documentId},{sheet:0,documentId:"other"}] };
++    const before = structuredClone(input);
++    assert.deepEqual(sheetArchiveImpact(input, identity, 0), {calibrations:1,traces:1,items:1,annotations:1,linkedPhotos:1});
++    assert.deepEqual(input, before);
++    assert.throws(() => sheetArchiveImpact({...input,activeDocumentId:"other"}, identity, 0), /source drawing changed/);
++  });
++  it("accepts valid source timestamps with a timezone offset", () => {
++    const { job } = fixture();
++    job.documents[0].importedAt = "2026-09-07T10:00:00+10:00";
++    const identity = sheetSourceIdentity(job.id, job.documents[0]);
++    assert.ok(identity);
++    const value = createSheetLifecycle(identity);
++    assert.deepEqual(parseSheetLifecycle(JSON.stringify(value), identity), value);
++  });
++  it("renames and reorders without renumbering source pages or changing their source", () => {
++    const { identity, storage } = fixture();
++    const initial = readSheetLifecycle(identity, storage);
++    const renamed = saveSheetLifecycle(initial, { type: "rename", pageIndex: 2, name: "  Structural bracing  " }, storage);
++    const moved = saveSheetLifecycle(renamed, { type: "move", pageIndex: 2, direction: -1 }, storage);
++    assert.deepEqual(moved.pages.map(p => p.pageIndex), [0, 2, 1, 3]);
++    assert.equal(moved.pages[1].name, "Structural bracing");
++    assert.deepEqual(moved.identity, identity);
++    assert.deepEqual(readSheetLifecycle(identity, storage), moved);
++    assert.deepEqual(initial.pages.map(p => p.pageIndex), [0, 1, 2, 3]);
++  });
++  it("archives and recovers every page without deleting a page; ordering skips archived slots", () => {
++    const { identity } = fixture();
++    let value = changeSheetLifecycle(createSheetLifecycle(identity), { type: "archive", pageIndex: 1 });
++    value = changeSheetLifecycle(value, { type: "move", pageIndex: 2, direction: -1 });
++    assert.deepEqual(value.pages.map(p => p.pageIndex), [2, 1, 0, 3]);
++    assert.throws(() => changeSheetLifecycle(value, { type: "move", pageIndex: 1, direction: 1 }), /Recover/);
++    for (let pageIndex = 0; pageIndex < 4; pageIndex++) value = changeSheetLifecycle(value, { type: "archive", pageIndex });
++    assert.equal(value.pages.filter(p => p.archived).length, 4);
++    value = changeSheetLifecycle(value, { type: "recover", pageIndex: 1 });
++    assert.equal(value.pages.filter(p => !p.archived)[0].pageIndex, 1);
++    assert.equal(value.pages.length, 4);
++  });
++  it("refuses stale edits and preserves the latest saved names", () => {
++    const { identity, storage } = fixture();
++    const windowA = readSheetLifecycle(identity, storage), windowB = readSheetLifecycle(identity, storage);
++    saveSheetLifecycle(windowA, { type: "rename", pageIndex: 0, name: "Site plan" }, storage);
++    assert.throws(() => saveSheetLifecycle(windowB, { type: "archive", pageIndex: 1 }, storage), /another window/);
++    assert.equal(readSheetLifecycle(identity, storage).pages[0].name, "Site plan");
++    assert.equal(readSheetLifecycle(identity, storage).pages[1].archived, false);
++  });
++  it("keeps organisation separate when source bytes, revision, page count or project change", () => {
++    const { identity, storage } = fixture();
++    const value = saveSheetLifecycle(createSheetLifecycle(identity), { type: "rename", pageIndex: 0, name: "Old revision" }, storage);
++    for (const patch of [{ sha256: "b".repeat(64) }, { importedAt: "2026-09-08T00:00:00.000Z" }, { pageCount: 3 }, { jobId: "other-job" }, { documentId: "other-plan" }]) {
++      const other = { ...identity, ...patch };
++      assert.notEqual(sheetLifecycleStorageKey(other), sheetLifecycleStorageKey(identity));
++      assert.equal(readSheetLifecycle(other, storage).pages[0].name, "Sheet 1");
++      assert.throws(() => parseSheetLifecycle(JSON.stringify(value), other), /different source/);
++    }
++  });
++  it("refuses malformed stored metadata and does not overwrite it", () => {
++    const { identity, storage, map } = fixture();
++    const initial = createSheetLifecycle(identity), key = sheetLifecycleStorageKey(identity);
++    const duplicate = structuredClone(initial); duplicate.pages[1].pageIndex = 0;
++    for (const raw of ["{broken", JSON.stringify({ ...initial, format: "future" }), JSON.stringify(duplicate), JSON.stringify({ ...initial, pages: initial.pages.slice(1) })]) {
++      map.set(key, raw);
++      assert.throws(() => saveSheetLifecycle(initial, { type: "archive", pageIndex: 0 }, storage));
++      assert.equal(map.get(key), raw);
++    }
++  });
++  it("surfaces storage failures without presenting an unsaved edit as successful", () => {
++    const { identity } = fixture();
++    const previous = createSheetLifecycle(identity);
++    assert.throws(() => saveSheetLifecycle(previous, { type: "rename", pageIndex: 0, name: "Site" }, { getItem: () => null, setItem: () => { throw Error("Quota exceeded"); } }), /Quota exceeded/);
++    assert.equal(previous.pages[0].name, "Sheet 1");
++    assert.throws(() => readSheetLifecycle(identity, { getItem: () => { throw Error("Storage denied"); } }), /Storage denied/);
++    assert.throws(() => changeSheetLifecycle(previous, { type: "rename", pageIndex: 0, name: " " }), /sheet name/);
++    assert.throws(() => changeSheetLifecycle(previous, { type: "archive", pageIndex: 4 }), /no longer/);
++  });
++  it("captures inactive documents and validates portable metadata against every exact source identity", () => {
++    const { job, identity, storage } = fixture();
++    job.documents.push({ ...job.documents[0], id: "plan-2", sha256: "b".repeat(64), pageCount: 2 });
++    const second = sheetSourceIdentity(job.id, job.documents[1])!;
++    assert.equal(readJobSheetMetadata(job, storage), null);
++    saveSheetLifecycle(createSheetLifecycle(identity), { type: "rename", pageIndex: 0, name: "First" }, storage);
++    saveSheetLifecycle(createSheetLifecycle(second), { type: "archive", pageIndex: 1 }, storage);
++    const raw = readJobSheetMetadata(job, storage)!;
++    assert.equal(validateJobSheetMetadata(raw, job).length, 2);
++    assert.deepEqual(validateJobSheetMetadata(null, job), []);
++    assert.throws(() => validateJobSheetMetadata(raw, { ...job, id: "other" }), /different source/);
++    assert.throws(() => validateJobSheetMetadata(raw, { ...job, documents: [job.documents[0]] }), /unknown/);
++    const values = JSON.parse(raw);
++    assert.throws(() => validateJobSheetMetadata(JSON.stringify([values[0], values[0]]), job), /duplicate/);
++  });
++});
+diff --git a/src/studio/useSheetLifecycle.ts b/src/studio/useSheetLifecycle.ts
+new file mode 100644
+index 0000000..2e08d19
+--- /dev/null
++++ b/src/studio/useSheetLifecycle.ts
+@@ -0,0 +1,28 @@
++import { useCallback, useEffect, useState } from "react";
++import type { DocumentRevision } from "./domain.ts";
++import { readSheetLifecycle, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetLifecycle } from "./sheetLifecycle.ts";
++
++export const SHEET_LIFECYCLE_CHANGED = "xray:sheet-lifecycle-changed";
++export function notifySheetLifecycleChanged(key: string) {
++  window.dispatchEvent(new CustomEvent(SHEET_LIFECYCLE_CHANGED, { detail: { key } }));
++}
++
++/** Source-aware display data. A missing/corrupt sidecar yields null, never missing source pages. */
++export function useSheetLifecycle(jobId: string, document?: DocumentRevision | null) {
++  const identity = document ? sheetSourceIdentity(jobId, document) : null;
++  const key = identity ? sheetLifecycleStorageKey(identity) : "";
++  const [loaded, setLoaded] = useState<{ key: string; value: SheetLifecycle | null; error: string }>({ key: "", value: null, error: "" });
++  const reload = useCallback(() => {
++    try { setLoaded({ key, value: identity ? readSheetLifecycle(identity, window.localStorage) : null, error: "" }); }
++    catch { setLoaded({ key, value: null, error: "Saved sheet organisation could not be read. Original pages remain available." }); }
++  }, [key]);
++  useEffect(() => {
++    reload();
++    const storage = (event: StorageEvent) => { if (event.key === key || event.key === null) reload(); };
++    const local = (event: Event) => { if ((event as CustomEvent<{ key: string }>).detail?.key === key) reload(); };
++    window.addEventListener("storage", storage);
++    window.addEventListener(SHEET_LIFECYCLE_CHANGED, local);
++    return () => { window.removeEventListener("storage", storage); window.removeEventListener(SHEET_LIFECYCLE_CHANGED, local); };
++  }, [key, reload]);
++  return { value: loaded.key === key ? loaded.value : null, error: loaded.key === key ? loaded.error : "", reload };
++}
+diff --git a/src/studio/projectBackup.ts b/src/studio/projectBackup.ts
+new file mode 100644
+index 0000000..51aca97
+--- /dev/null
++++ b/src/studio/projectBackup.ts
+@@ -0,0 +1,185 @@
++import { z } from "zod";
++import { fencingJobSchema, type FencingJob } from "./domain.ts";
++import { validateProject } from "./architect/model.ts";
++import { bomStateEnvelopeSchema } from "./bomState.ts";
++import { componentInventorySchema } from "./construction/inventory.ts";
++import { projectMaterialsSchema } from "./construction/projectMaterials.ts";
++import { takeoffSchema } from "./construction/altitudeTakeoff.ts";
++import { trialSchema } from "./construction/connectionTrial.ts";
++import { loadFencingRecipeSet } from "./fencingRecipePersistence.ts";
++import { inspectPlanBytes } from "./documents.ts";
++import { verifyPhotoContent, type StoredPhotoContent } from "./evidence.ts";
++import type { StoredPlanContent } from "./documentContract.ts";
++import { validateJobSheetMetadata } from "./sheetLifecycle.ts";
++import { parsePriceBookLibrary } from "./pricing/priceBooks.ts";
++
++export const BACKUP_FORMAT = "xray.workspace-backup/v2";
++export const BACKUP_LEGACY_FORMAT = "xray.workspace-backup/v1";
++export const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
++export const BACKUP_EXCLUSIONS = [
++  "Separate construction-runtime jobs and their history",
++  "Source-model location notes, camera views and appearance settings",
++  "Unsaved form edits, undo history, accounts and credentials",
++] as const;
++const text = z.string().min(1).max(300);
++const raw = z.string().max(30 * 1024 * 1024).nullable();
++export const backupRecordsSchema = z.object({
++  architecture: raw, bom: raw, components: raw, recipes: raw,
++  sourceTakeoff: raw, connectionReview: raw, materials: raw, referenceRates: raw,
++  sheetMetadata: raw.optional(), priceBooks: raw.optional(),
++}).strict();
++export type BackupRecords = z.infer<typeof backupRecordsSchema>;
++const assetSchema = z.object({
++  id: text, kind: z.enum(["plan", "photo"]), name: text, mimeType: text,
++  sha256: z.string().regex(/^[a-f0-9]{64}$/),
++  bytesBase64: z.string().min(4).max(Math.ceil(100 * 1024 * 1024 / 3) * 4),
++}).strict();
++const payloadSchema = z.object({
++  format: z.enum([BACKUP_FORMAT, BACKUP_LEGACY_FORMAT]), createdAt: z.string().datetime({ offset: true }),
++  name: z.string().trim().min(1).max(120), job: fencingJobSchema,
++  records: backupRecordsSchema, assets: z.array(assetSchema).max(2000),
++}).strict();
++export type ProjectBackup = z.infer<typeof payloadSchema>;
++export type BackupAsset = z.infer<typeof assetSchema>;
++export const emptyBackupRecords = (): BackupRecords => ({
++  architecture: null, bom: null, components: null, recipes: null,
++  sourceTakeoff: null, connectionReview: null, materials: null, referenceRates: null,
++  sheetMetadata: null, priceBooks: null,
++});
++export function backupPhotos(job: FencingJob): FencingJob["photos"] {
++  const photos = new Map<string, FencingJob["photos"][number]>();
++  for (const photo of [...job.photos, ...Object.values(job.documentWorkspaces ?? {}).flatMap(w => w.photos)]) {
++    const previous = photos.get(photo.id);
++    if (previous && (previous.sha256 !== photo.sha256 || previous.name !== photo.name ||
++      previous.sizeBytes !== photo.sizeBytes || previous.mimeType !== photo.mimeType))
++      throw Error("A photo identity refers to conflicting originals across document workspaces.");
++    photos.set(photo.id, photo);
++  }
++  return [...photos.values()];
++}
++export async function backupDigest(value: string | ArrayBuffer): Promise<string> {
++  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
++  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
++    .map(n => n.toString(16).padStart(2, "0")).join("");
++}
++export function encodeBackupBytes(bytes: ArrayBuffer): string {
++  const array = new Uint8Array(bytes);
++  let binary = "";
++  for (let offset = 0; offset < array.length; offset += 16384)
++    binary += String.fromCharCode(...array.subarray(offset, offset + 16384));
++  return btoa(binary);
++}
++export function decodeBackupBytes(value: string): ArrayBuffer {
++  if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value))
++    throw Error("Original file contains invalid base64.");
++  const binary = atob(value);
++  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
++  if (encodeBackupBytes(bytes.buffer) !== value) throw Error("Original file encoding is not canonical.");
++  return bytes.buffer;
++}
++function sameId(actual: string, expected: string, label: string) {
++  if (actual !== expected) throw Error(`${label} belongs to a different project.`);
++}
++export async function validateBackupRecords(records: BackupRecords, jobId: string) {
++  const parse = (s: string) => JSON.parse(s);
++  if (records.architecture !== null) sameId(validateProject(parse(records.architecture)).id, jobId, "Design");
++  if (records.bom !== null) sameId(bomStateEnvelopeSchema.parse(parse(records.bom)).jobId, jobId, "BOM");
++  if (records.components !== null) componentInventorySchema.parse(parse(records.components));
++  if (records.materials !== null) sameId(projectMaterialsSchema.parse(parse(records.materials)).projectId, jobId, "Materials");
++  if (records.sourceTakeoff !== null) sameId(takeoffSchema.parse(parse(records.sourceTakeoff)).projectId, jobId, "Takeoff");
++  if (records.connectionReview !== null) sameId(trialSchema.parse(parse(records.connectionReview)).projectId, jobId, "Connection review");
++  if (records.recipes !== null) {
++    const result = await loadFencingRecipeSet(jobId, { getItem: () => records.recipes, setItem: () => { throw Error("Read only"); } });
++    if (!result.ok) throw Error(`Saved recipes failed verification (${result.reason}).`);
++  }
++  if (records.referenceRates !== null) z.object({
++    currency: z.enum(["AUD", "NZD", "USD", "GBP", "EUR"]),
++    rows: z.array(z.object({ id: text, description: text, unit: text,
++      rate: z.string().trim().min(1).max(100).refine(s => Number.isFinite(Number(s)) && Number(s) >= 0),
++    }).strict()).max(1000),
++  }).strict().parse(parse(records.referenceRates));
++}
++export async function validateProjectBackup(input: unknown): Promise<ProjectBackup> {
++  const value = payloadSchema.parse(input);
++  if (value.format === BACKUP_LEGACY_FORMAT && (value.records.sheetMetadata !== undefined || value.records.priceBooks !== undefined))
++    throw Error("Sheet and price book records require backup format v2.");
++  await validateBackupRecords(value.records, value.job.id);
++  validateJobSheetMetadata(value.records.sheetMetadata ?? null, value.job);
++  if (value.records.priceBooks != null) parsePriceBookLibrary(value.records.priceBooks, value.job.id);
++  const originals = value.job.documents.filter(d => d.source !== "sample");
++  const photos = backupPhotos(value.job);
++  if (new Set(value.assets.map(a => `${a.kind}:${a.id}`)).size !== value.assets.length)
++    throw Error("Duplicate original file identities.");
++  if (value.assets.length !== originals.length + photos.length)
++    throw Error("Backup must include exactly every referenced original plan and photo.");
++  for (const asset of value.assets) {
++    const bytes = decodeBackupBytes(asset.bytesBase64);
++    if (asset.kind === "plan") {
++      const document = originals.find(d => d.id === asset.id);
++      if (!document || !["pdf", "dxf", "svg"].includes(document.kind)) throw Error("Unreferenced or unsupported original plan.");
++      if (asset.name !== document.name) throw Error("Original plan name does not match its document.");
++      const inspected = await inspectPlanBytes({ name: asset.name, bytes: new Uint8Array(bytes), source: "web" });
++      if (inspected.binary.sha256 !== asset.sha256 || asset.sha256 !== document.sha256 ||
++        inspected.binary.mimeType !== asset.mimeType || inspected.revision.pageCount !== document.pageCount)
++        throw Error(`Original plan “${asset.name}” failed metadata or SHA-256 verification.`);
++    } else {
++      const photo = photos.find(p => p.id === asset.id);
++      if (!photo) throw Error("Unreferenced original photo.");
++      const result = await verifyPhotoContent({ id: asset.id, name: asset.name,
++        mimeType: asset.mimeType as StoredPhotoContent["mimeType"], sha256: asset.sha256, bytes }, photo);
++      if (result.status !== "ready") throw Error(result.message);
++    }
++  }
++  // Material evidence may reference an original removed from the main document set.
++  // Reject incomplete packages instead of silently calling them recoverable.
++  if (value.records.materials !== null) {
++    const materials = projectMaterialsSchema.parse(JSON.parse(value.records.materials));
++    for (const source of materials.sources)
++      if (!originals.some(d => d.sha256 === source.sha256))
++        throw Error(`Material source “${source.name}” is missing from the project plans. Import that original before backing up.`);
++  }
++  return value;
++}
++export async function parseProjectBackup(serialized: string): Promise<ProjectBackup> {
++  if (serialized.length > MAX_BACKUP_BYTES || new Blob([serialized]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++  return validateProjectBackup(JSON.parse(serialized));
++}
++export function backupContents(value: ProjectBackup) {
++  return { plans: value.assets.filter(a => a.kind === "plan").length,
++    photos: value.assets.filter(a => a.kind === "photo").length,
++    records: Object.entries(value.records).filter(([, v]) => v != null).map(([key]) => key),
++    jobRevision: value.job.revision, jobName: value.job.name };
++}
++export type BackupCapturePort = {
++  records(jobId: string, job: FencingJob): Promise<BackupRecords>;
++  plan(id: string): Promise<StoredPlanContent | null>;
++  photo(id: string): Promise<StoredPhotoContent | null>;
++  currentJob(): FencingJob;
++};
++export async function captureProjectBackup(job: FencingJob, name: string, port: BackupCapturePort): Promise<ProjectBackup> {
++  const jobText = JSON.stringify(job), records = await port.records(job.id, job);
++  const assets: BackupAsset[] = [];
++  let total = jobText.length + JSON.stringify(records).length;
++  for (const doc of job.documents.filter(d => d.source !== "sample")) {
++    const content = await port.plan(doc.id);
++    if (!content) throw Error(`Original plan “${doc.name}” is missing. No backup was saved.`);
++    total += Math.ceil(content.bytes.byteLength / 3) * 4;
++    if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++    assets.push({ id: doc.id, kind: "plan", name: content.name, mimeType: content.mimeType,
++      sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
++  }
++  for (const photo of backupPhotos(job)) {
++    const content = await port.photo(photo.id);
++    if (!content) throw Error(`Original photo “${photo.name}” is missing. No backup was saved.`);
++    total += Math.ceil(content.bytes.byteLength / 3) * 4;
++    if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++    assets.push({ id: photo.id, kind: "photo", name: content.name, mimeType: content.mimeType,
++      sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
++  }
++  const result = await validateProjectBackup({ format: BACKUP_FORMAT, name, job: JSON.parse(jobText),
++    createdAt: new Date().toISOString(), records, assets });
++  if (JSON.stringify(port.currentJob()) !== jobText || JSON.stringify(await port.records(job.id, job)) !== JSON.stringify(records))
++    throw Error("Project changed while the backup was being prepared. Save again to capture a consistent version.");
++  if (new Blob([JSON.stringify(result)]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++  return result;
++}
+diff --git a/src/studio/projectBackup.test.ts b/src/studio/projectBackup.test.ts
+new file mode 100644
+index 0000000..682df80
+--- /dev/null
++++ b/src/studio/projectBackup.test.ts
+@@ -0,0 +1,107 @@
++import { describe, it } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob, type FencingJob } from "./domain.ts";
++import { inspectPlanBytes } from "./documents.ts";
++import { importPhotoFile } from "./evidence.ts";
++import { captureDocumentWorkspace, restoreDocumentWorkspace } from "./documentWorkspaces.ts";
++import { demonstration } from "./architect/model.ts";
++import { createSheetLifecycle, changeSheetLifecycle, sheetSourceIdentity } from "./sheetLifecycle.ts";
++import { emptyPriceBookLibrary } from "./pricing/priceBooks.ts";
++import { BACKUP_FORMAT, backupContents, backupDigest, captureProjectBackup, decodeBackupBytes, emptyBackupRecords, parseProjectBackup, validateProjectBackup, type BackupCapturePort } from "./projectBackup.ts";
++
++async function fixture() {
++  const first = await inspectPlanBytes({ name: "Site.svg", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L10 0"/></svg>'), source: "web" });
++  const second = await inspectPlanBytes({ name: "Level.svg", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'), source: "web" });
++  const photo = await importPhotoFile(new File([new Uint8Array([255,216,255,224,0,0,255,217])], "Site.jpg", { type: "image/jpeg" }), 0);
++  let job: FencingJob = { ...createDefaultJob(), documents: [first.revision, second.revision], activeDocumentId: first.revision.id, photos: [photo.record] };
++  job = restoreDocumentWorkspace(captureDocumentWorkspace(job, 0), second.revision);
++  const records = emptyBackupRecords(); records.architecture = JSON.stringify(demonstration(job.id));
++  const port: BackupCapturePort = { records: async () => structuredClone(records), currentJob: () => job,
++    plan: async id => { const b = [first, second].find(p => p.binary.documentId === id)?.binary; return b ? { ...b, bytes: new Uint8Array(b.bytes).buffer } : null; },
++    photo: async id => id === photo.content.id ? photo.content : null };
++  const value = await captureProjectBackup(job, "Tender issue A", port);
++  return { value, job, records, port, first, photo };
++}
++describe("portable main workspace backups", () => {
++  it("keeps v1 packages readable and version-binds new sheet and pricing records", async () => {
++    const { value } = await fixture();
++    const legacy = structuredClone(value); legacy.format = "xray.workspace-backup/v1";
++    delete legacy.records.sheetMetadata; delete legacy.records.priceBooks;
++    assert.deepEqual(await parseProjectBackup(JSON.stringify(legacy)), legacy);
++    await assert.rejects(validateProjectBackup({ ...legacy, records: { ...legacy.records, priceBooks: null } }), /require backup format v2/);
++  });
++  it("round-trips source-bound sheet organisation and job-bound pricing without accepting mismatched records", async () => {
++    const { value, first } = await fixture();
++    const identity = sheetSourceIdentity(value.job.id, first.revision)!;
++    const sheets = changeSheetLifecycle(createSheetLifecycle(identity), { type: "rename", pageIndex: 0, name: "Tender cover" });
++    value.records.sheetMetadata = JSON.stringify([sheets]);
++    value.records.priceBooks = JSON.stringify(emptyPriceBookLibrary(value.job.id));
++    assert.deepEqual(await parseProjectBackup(JSON.stringify(value)), value);
++    assert.ok(backupContents(value).records.includes("sheetMetadata"));
++    const wrongSheets = structuredClone(value);
++    wrongSheets.records.sheetMetadata = JSON.stringify([{ ...sheets, identity: { ...identity, sha256: "0".repeat(64) } }]);
++    await assert.rejects(validateProjectBackup(wrongSheets));
++    const wrongPrices = structuredClone(value); wrongPrices.records.priceBooks = JSON.stringify(emptyPriceBookLibrary("other-job"));
++    await assert.rejects(validateProjectBackup(wrongPrices));
++  });
++  it("round-trips two source documents, inactive-plan photo evidence and the full architectural design", async () => {
++    const { value, first, photo } = await fixture();
++    const restored = await parseProjectBackup(JSON.stringify(value));
++    assert.deepEqual(restored, value);
++    assert.equal(restored.job.photos.length, 0);
++    assert.equal(backupContents(restored).plans, 2);
++    assert.equal(backupContents(restored).photos, 1);
++    assert.deepEqual(new Uint8Array(decodeBackupBytes(restored.assets.find(a => a.id === first.binary.documentId)!.bytesBase64)), first.binary.bytes);
++    assert.equal(await backupDigest(decodeBackupBytes(restored.assets.find(a => a.id === photo.record.id)!.bytesBase64)), photo.record.sha256);
++    assert.equal(JSON.parse(restored.records.architecture!).walls.length, 5);
++  });
++  it("refuses a missing inactive-plan photo instead of producing an incomplete backup", async () => {
++    const { job, port } = await fixture();
++    await assert.rejects(captureProjectBackup(job, "Incomplete", { ...port, photo: async () => null }), /Original photo.*missing/);
++  });
++  it("rejects missing plans, duplicate assets and unreferenced assets", async () => {
++    const { value } = await fixture();
++    await assert.rejects(validateProjectBackup({ ...value, assets: value.assets.slice(1) }), /exactly every/);
++    await assert.rejects(validateProjectBackup({ ...value, assets: [...value.assets, value.assets[0]] }), /Duplicate/);
++    const changed = structuredClone(value); changed.assets[0].id = "wrong-id";
++    await assert.rejects(validateProjectBackup(changed), /Unreferenced/);
++  });
++  it("rejects modified source bytes, mismatched MIME types and page counts", async () => {
++    const { value } = await fixture();
++    const corrupt = structuredClone(value); corrupt.assets[0].sha256 = "0".repeat(64);
++    await assert.rejects(validateProjectBackup(corrupt), /verification/);
++    const mime = structuredClone(value); mime.assets[0].mimeType = "text/html";
++    await assert.rejects(validateProjectBackup(mime), /verification/);
++    const page = structuredClone(value); page.job.documents[0].pageCount = 2;
++    await assert.rejects(validateProjectBackup(page), /verification/);
++  });
++  it("rejects invalid encoding, future formats and unexpected top-level data", async () => {
++    const { value } = await fixture();
++    assert.throws(() => decodeBackupBytes("abc!"), /base64/);
++    assert.throws(() => decodeBackupBytes("Zh=="), /canonical/);
++    await assert.rejects(validateProjectBackup({ ...value, format: "xray.workspace-backup/v99" }));
++    await assert.rejects(validateProjectBackup({ ...value, accessToken: "must-not-be-accepted" }));
++  });
++  it("rejects another project's design and corrupt saved modules", async () => {
++    const { value } = await fixture();
++    const changed = structuredClone(value); changed.records.architecture = JSON.stringify(demonstration("other-job"));
++    await assert.rejects(validateProjectBackup(changed), /different project/);
++    changed.records.architecture = "{broken";
++    await assert.rejects(validateProjectBackup(changed));
++    changed.records.architecture = null; changed.records.components = "{}";
++    await assert.rejects(validateProjectBackup(changed));
++  });
++  it("rejects changes to the job or another saved module during capture", async () => {
++    const { job, port, records } = await fixture();
++    await assert.rejects(captureProjectBackup(job, "Race", { ...port, currentJob: () => ({ ...job, name: "Changed" }) }), /changed while/);
++    let count = 0;
++    await assert.rejects(captureProjectBackup(job, "Race", { ...port, records: async () => ++count === 1 ? records : { ...records, architecture: null } }), /changed while/);
++  });
++  it("accepts an empty job with clear zero-original coverage and trims its backup label", async () => {
++    const job = createDefaultJob();
++    const value = await validateProjectBackup({ format: BACKUP_FORMAT, name: "  Empty study  ", job,
++      createdAt: new Date().toISOString(), records: emptyBackupRecords(), assets: [] });
++    assert.equal(value.name, "Empty study"); assert.equal(backupContents(value).plans, 0);
++    await assert.rejects(validateProjectBackup({ ...value, name: " " }));
++  });
++});
+diff --git a/src/studio/projectBackupStorage.ts b/src/studio/projectBackupStorage.ts
+new file mode 100644
+index 0000000..8a7382b
+--- /dev/null
++++ b/src/studio/projectBackupStorage.ts
+@@ -0,0 +1,122 @@
++import { z } from "zod";
++import type { FencingJob } from "./domain.ts";
++import { readJobSheetMetadata } from "./sheetLifecycle.ts";
++import { priceBookKey } from "./pricing/priceBooks.ts";
++import { architectKey } from "./architect/persistence.ts";
++import { bomStorageKey } from "./bomPersistence.ts";
++import { inventoryStorageKey } from "./construction/inventoryPersistence.ts";
++import { fencingRecipeStorageKey } from "./fencingRecipePersistence.ts";
++import { takeoffKey } from "./construction/altitudeTakeoff.ts";
++import { trialKey } from "./construction/connectionTrial.ts";
++import { restoreMaterialDatabase } from "./projectMaterialsPersistence.ts";
++import { backupContents, backupDigest, parseProjectBackup, type BackupRecords, type ProjectBackup } from "./projectBackup.ts";
++
++export const BACKUP_DATABASE = "xray-workspace-backups-v1";
++const summarySchema = z.object({
++  id: z.string().uuid(), name: z.string().trim().min(1).max(120),
++  createdAt: z.string().datetime({ offset: true }), storedAt: z.string().datetime({ offset: true }),
++  archived: z.boolean(), revision: z.number().int().positive(),
++  sha256: z.string().regex(/^[a-f0-9]{64}$/), sizeBytes: z.number().int().positive(),
++  jobName: z.string(), jobId: z.string(), jobRevision: z.number().int().positive(),
++  plans: z.number().int().nonnegative(), photos: z.number().int().nonnegative(),
++  records: z.array(z.string()),
++}).strict();
++export type BackupSummary = z.infer<typeof summarySchema>;
++export async function readBackupRecords(jobId: string, job: FencingJob): Promise<BackupRecords> {
++  // Explicit allowlist. Never enumerate storage or include credentials, queues or other projects.
++  const materials = await restoreMaterialDatabase(jobId);
++  if (materials.blocked || materials.error) throw Error(materials.error ?? "Material inventory is not readable.");
++  return {
++    architecture: localStorage.getItem(architectKey(jobId)),
++    bom: localStorage.getItem(bomStorageKey(jobId)),
++    components: localStorage.getItem(inventoryStorageKey(jobId)),
++    recipes: localStorage.getItem(fencingRecipeStorageKey(jobId)),
++    sourceTakeoff: localStorage.getItem(takeoffKey(jobId)),
++    connectionReview: localStorage.getItem(trialKey(jobId)),
++    materials: materials.raw, referenceRates: localStorage.getItem("xray.price-sheet.v1"),
++    sheetMetadata: readJobSheetMetadata(job, localStorage),
++    priceBooks: localStorage.getItem(priceBookKey(jobId)),
++  };
++}
++function openDatabase(): Promise<IDBDatabase> {
++  return new Promise((resolve, reject) => {
++    const request = indexedDB.open(BACKUP_DATABASE, 1);
++    request.onupgradeneeded = () => {
++      request.result.createObjectStore("summaries", { keyPath: "id" });
++      request.result.createObjectStore("packages");
++    };
++    request.onsuccess = () => resolve(request.result);
++    request.onerror = () => reject(request.error ?? Error("Backup storage is unavailable."));
++    request.onblocked = () => reject(Error("Backup storage is blocked by another app window."));
++  });
++}
++async function transact<T>(mode: IDBTransactionMode, issue: (tx: IDBTransaction, result: (value: T) => void, fail: (error: Error) => void) => void): Promise<T> {
++  const db = await openDatabase();
++  try {
++    return await new Promise<T>((resolve, reject) => {
++      const tx = db.transaction(["summaries", "packages"], mode);
++      let result: T, reason: Error | undefined;
++      const fail = (error: Error) => { reason = error; tx.abort(); };
++      tx.oncomplete = () => resolve(result);
++      tx.onabort = () => reject(reason ?? tx.error ?? Error("Backup transaction did not complete. Previous backups are unchanged."));
++      tx.onerror = () => { /* Transaction abort reports the failure. */ };
++      try { issue(tx, value => { result = value; }, fail); }
++      catch (error) { fail(error instanceof Error ? error : Error("Backup operation failed.")); }
++    });
++  } finally { db.close(); }
++}
++export async function listProjectBackups(): Promise<BackupSummary[]> {
++  return transact("readonly", (tx, result, fail) => {
++    const req = tx.objectStore("summaries").getAll();
++    req.onsuccess = () => {
++      try { result(z.array(summarySchema).parse(req.result).sort((a, b) => b.storedAt.localeCompare(a.storedAt))); }
++      catch { fail(Error("The backup catalogue contains an unreadable entry. Stored data has been preserved.")); }
++    };
++  });
++}
++export async function storeProjectBackup(candidate: ProjectBackup): Promise<BackupSummary> {
++  // Revalidate even callers that bypass the import preview.
++  const serialized = JSON.stringify(candidate), value = await parseProjectBackup(serialized);
++  const summary = summarySchema.parse({ id: crypto.randomUUID(), name: value.name,
++    createdAt: value.createdAt, storedAt: new Date().toISOString(), archived: false, revision: 1,
++    sha256: await backupDigest(serialized), sizeBytes: new Blob([serialized]).size,
++    jobId: value.job.id, ...backupContents(value) });
++  return transact("readwrite", (tx, result) => {
++    tx.objectStore("packages").add(serialized, summary.id);
++    tx.objectStore("summaries").add(summary);
++    result(summary);
++  });
++}
++export async function readProjectBackup(id: string): Promise<{ summary: BackupSummary; value: ProjectBackup; serialized: string }> {
++  const { summary, serialized } = await transact<{ summary: BackupSummary; serialized: string }>("readonly", (tx, result, fail) => {
++    const metadata = tx.objectStore("summaries").get(id), content = tx.objectStore("packages").get(id);
++    let meta: BackupSummary | undefined, data: string | undefined;
++    const finish = () => { if (meta && data !== undefined) result({ summary: meta, serialized: data }); };
++    metadata.onsuccess = () => {
++      try { meta = summarySchema.parse(metadata.result); finish(); }
++      catch { fail(Error("Backup metadata is missing or invalid. Original stored data is preserved.")); }
++    };
++    content.onsuccess = () => {
++      if (typeof content.result !== "string") { fail(Error("Backup package is missing. Nothing was restored.")); return; }
++      data = content.result; finish();
++    };
++  });
++  if (new Blob([serialized]).size !== summary.sizeBytes || await backupDigest(serialized) !== summary.sha256)
++    throw Error("Backup failed SHA-256 verification. Stored bytes are preserved; download and import are blocked.");
++  const value = await parseProjectBackup(serialized);
++  if (value.job.id !== summary.jobId || value.createdAt !== summary.createdAt)
++    throw Error("Backup identity does not match its catalogue entry.");
++  return { summary, value, serialized };
++}
++export function updateBackupSummary(previous: BackupSummary, change: { name?: string; archived?: boolean }): Promise<BackupSummary> {
++  const next = summarySchema.parse({ ...previous, ...change, revision: previous.revision + 1 });
++  return transact("readwrite", (tx, result, fail) => {
++    const store = tx.objectStore("summaries"), request = store.get(previous.id);
++    request.onsuccess = () => {
++      if (JSON.stringify(request.result) !== JSON.stringify(previous)) {
++        fail(Error("This backup changed in another window. Refresh the library before trying again.")); return;
++      }
++      store.put(next); result(next);
++    };
++  });
++}
+diff --git a/src/studio/ProjectBackups.tsx b/src/studio/ProjectBackups.tsx
+new file mode 100644
+index 0000000..8b18e96
+--- /dev/null
++++ b/src/studio/ProjectBackups.tsx
+@@ -0,0 +1,147 @@
++import { useEffect, useRef, useState } from "react";
++import { createPortal } from "react-dom";
++import { Archive, ArchiveRestore, Download, FolderArchive, Save, Upload } from "lucide-react";
++import { WorkspaceDialog } from "./WorkspaceDialog";
++import { useStudio } from "./store";
++import { createBrowserPlanStore } from "./documents";
++import { createBrowserPhotoStore } from "./evidence";
++import { BACKUP_EXCLUSIONS, MAX_BACKUP_BYTES, backupContents, captureProjectBackup, parseProjectBackup, type ProjectBackup } from "./projectBackup";
++import { listProjectBackups, readBackupRecords, readProjectBackup, storeProjectBackup, updateBackupSummary, type BackupSummary } from "./projectBackupStorage";
++import "./projectBackups.css";
++
++const labels: Record<string, string> = { architecture: "Architectural design and sheet layout", bom: "BOM and review state",
++  components: "Component inventory", recipes: "Fencing recipes", sourceTakeoff: "Source takeoff and material rates",
++  connectionReview: "Connection review", materials: "Project materials and evidence", referenceRates: "Reference price sheet (unapplied)",
++  sheetMetadata: "Source sheet names, order and archive state", priceBooks: "Supplier price books and priced worksheet" };
++const size = (bytes: number) => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
++function problem(error: unknown) {
++  if (error instanceof Error && error.name === "ZodError") return "Saved data did not pass the supported backup format checks. Nothing was overwritten.";
++  return error instanceof Error ? error.message : "The backup operation failed. Previous backups are preserved.";
++}
++function downloadBackup(serialized: string, name: string) {
++  const url = URL.createObjectURL(new Blob([serialized], { type: "application/json" }));
++  const a = document.createElement("a");
++  a.href = url; a.download = `${name.replace(/[^a-zA-Z0-9 _-]/g, "_").slice(0, 100) || "X-Ray backup"}.xray-backup.json`;
++  document.body.append(a); a.click(); a.remove();
++  setTimeout(() => URL.revokeObjectURL(url), 30000);
++}
++export function ProjectBackups() {
++  const [open, setOpen] = useState(false);
++  const trigger = useRef<HTMLButtonElement>(null);
++  // Keep the dialog within the theme root, outside responsive header visibility rules.
++  return <><button ref={trigger} className="pill backup-trigger" onClick={() => setOpen(true)}><FolderArchive size={15} /> Backups</button>
++    {open && createPortal(<BackupLibrary onClose={() => setOpen(false)} />, trigger.current?.closest(".workbench") ?? document.body)}</>;
++}
++function BackupLibrary({ onClose }: { onClose: () => void }) {
++  const job = useStudio(s => s.job);
++  const [items, setItems] = useState<BackupSummary[]>([]), [name, setName] = useState(`${job.name} — ${new Date().toLocaleDateString()}`);
++  const [filter, setFilter] = useState(""), [archived, setArchived] = useState(false);
++  const [busy, setBusy] = useState(false), [ready, setReady] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
++  const [preview, setPreview] = useState<{ value: ProjectBackup; imported: boolean; label: string } | null>(null);
++  const [renaming, setRenaming] = useState<BackupSummary | null>(null), [newName, setNewName] = useState("");
++  const input = useRef<HTMLInputElement>(null), flight = useRef(false);
++  async function refresh() { setItems(await listProjectBackups()); setReady(true); }
++  async function run(action: () => Promise<void>) {
++    if (flight.current) return;
++    flight.current = true; setBusy(true); setError(""); setMessage("");
++    try { await action(); } catch (failure) { setError(problem(failure)); }
++    finally { flight.current = false; setBusy(false); }
++  }
++  useEffect(() => { void run(refresh); }, []);
++  async function save() {
++    await run(async () => {
++      const state = useStudio.getState();
++      if (!state.persistenceHydrated || state.hydrationStatus !== "ready") throw Error("Wait for the workspace to finish restoring before saving a backup.");
++      if (state.persistenceError || state.bomPersistenceError || state.inventoryPersistenceError)
++        throw Error("Resolve the workspace's save errors before creating a backup, so no working data is omitted.");
++      const plans = createBrowserPlanStore(), photos = createBrowserPhotoStore();
++      const value = await captureProjectBackup(state.job, name, {
++        records: readBackupRecords, plan: id => plans.get(id), photo: id => photos.get(id),
++        currentJob: () => useStudio.getState().job,
++      });
++      await storeProjectBackup(value); await refresh(); setArchived(false); setFilter("");
++      setMessage(`“${value.name}” saved and verified on this device. Download a copy to keep it outside this app.`);
++    });
++  }
++  async function importFile(file: File) {
++    await run(async () => {
++      if (file.size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++      const value = await parseProjectBackup(await file.text());
++      setPreview({ value, imported: true, label: value.name });
++    });
++  }
++  const visible = items.filter(i => i.archived === archived && `${i.name} ${i.jobName}`.toLowerCase().includes(filter.toLowerCase()));
++  return <WorkspaceDialog title="Project backups" onClose={() => { if (!flight.current) onClose(); }}>
++    <div className="project-backups" aria-busy={busy}>
++      <p>Keep a named copy of committed work and its original files. Backups stay on this device; download a package for storage elsewhere or a later handoff.</p>
++      <div className="backup-save-row">
++        <label>Backup name<input maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>
++        <button className="pill" disabled={busy || !ready || !name.trim()} onClick={() => void save()}><Save size={16} /> Save project backup</button>
++        <button className="pill" disabled={busy} onClick={() => input.current?.click()}><Upload size={16} /> Import backup</button>
++        <input ref={input} hidden aria-label="Import project backup file" type="file" accept=".json" onChange={e => {
++          const file = e.target.files?.[0]; e.target.value = ""; if (file) void importFile(file);
++        }} />
++      </div>
++      <details className="backup-scope"><summary>What this package includes</summary>
++        <p>Current job, document workspaces, calibration, measurements, annotations and evidence; saved design, sheet layout, quantities, recipes, reviews, materials and reference rates; every referenced original plan and photo. Missing or corrupt originals block the backup.</p>
++        <p>Not included:</p><ul>{BACKUP_EXCLUSIONS.map(item => <li key={item}>{item}</li>)}</ul>
++        <p>New packages also include saved source sheet names, order and archive state, supplier price books and their priced worksheet. Format v2 requires an updated X-Ray reader; older v1 packages can still be inspected and imported.</p>
++        <p>Import adds a verified package to this library. Applying a package to the editing workspace is not available yet. Stored backups are not cloud sync or a staff delivery receipt.</p>
++      </details>
++      {busy && <p role="status">Checking files and saving data…</p>}
++      {message && <p className="backup-notice" role="status">{message}</p>}
++      {error && <p className="backup-notice" role="alert">{error}</p>}
++      {preview && <section className="backup-preview" aria-label="Backup contents review">
++        <h3>{preview.imported ? "Review imported backup" : "Verified backup contents"}</h3>
++        <b>{preview.label}</b>
++        <p>{preview.value.job.name} · revision {preview.value.job.revision} · {new Date(preview.value.createdAt).toLocaleString()}</p>
++        <p>{backupContents(preview.value).plans} original plans · {backupContents(preview.value).photos} original photos · hashes verified</p>
++        <ul><li>Job, document workspaces, measurements and evidence</li>{backupContents(preview.value).records.map(key => <li key={key}>{labels[key]}</li>)}</ul>
++        <p>The open workspace remains unchanged.</p>
++        <div className="backup-actions">
++          <button className="pill" disabled={busy} onClick={() => setPreview(null)}>{preview.imported ? "Cancel import" : "Close contents"}</button>
++          {preview.imported && <button className="pill" disabled={busy} onClick={() => void run(async () => {
++            await storeProjectBackup(preview.value); await refresh(); setPreview(null); setArchived(false); setFilter("");
++            setMessage("Verified package added to the library. The open workspace was not changed.");
++          })}>Add to backup library</button>}
++        </div>
++      </section>}
++      {renaming && <form className="backup-rename" onSubmit={e => { e.preventDefault(); void run(async () => {
++        await updateBackupSummary(renaming, { name: newName }); setRenaming(null); await refresh(); setMessage("Backup label updated. The original snapshot is unchanged.");
++      }); }}>
++        <label>New backup label<input value={newName} maxLength={120} onChange={e => setNewName(e.target.value)} autoFocus /></label>
++        <button className="pill" disabled={busy || !newName.trim()} type="submit">Save label</button>
++        <button className="pill" disabled={busy} type="button" onClick={() => setRenaming(null)}>Cancel rename</button>
++      </form>}
++      <div className="backup-toolbar">
++        <label>Search backups<input type="search" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Name or project" /></label>
++        <div className="backup-actions">
++          <button className="pill" aria-pressed={!archived} onClick={() => setArchived(false)}>Active ({items.filter(i => !i.archived).length})</button>
++          <button className="pill" aria-pressed={archived} onClick={() => setArchived(true)}>Archived ({items.filter(i => i.archived).length})</button>
++          <button className="pill" disabled={busy} onClick={() => void run(refresh)}>Refresh library</button>
++        </div>
++      </div>
++      <div className="backup-list">
++        {!visible.length && ready && <p>{filter ? "No backups match this search." : archived ? "No archived backups. Archive a saved copy to store it away without deleting it." : "No active backups yet. Save the current project or import a package."}</p>}
++        {visible.map(item => <article className="backup-item" key={item.id}>
++          <div><h3>{item.name}</h3><p>{item.jobName} · revision {item.jobRevision} · {size(item.sizeBytes)}</p>
++            <p>{item.plans} plans · {item.photos} photos · saved {new Date(item.storedAt).toLocaleString()}</p></div>
++          <div className="backup-actions">
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              const { value } = await readProjectBackup(item.id); setPreview({ value, imported: false, label: item.name });
++            })}>Inspect</button>
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              const { serialized } = await readProjectBackup(item.id); downloadBackup(serialized, item.name);
++              setMessage("Package verified; download requested. Keep the file with your project records.");
++            })}><Download size={15} /> Download</button>
++            <button className="pill" disabled={busy} onClick={() => { setRenaming(item); setNewName(item.name); }}>Rename</button>
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              await updateBackupSummary(item, { archived: !item.archived }); await refresh();
++              setMessage(item.archived ? "Backup returned to the active library." : "Backup archived. Its data is retained in Archived.");
++            })}>{item.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}{item.archived ? "Unarchive" : "Archive"}</button>
++          </div>
++        </article>)}
++      </div>
++    </div>
++  </WorkspaceDialog>;
++}
+diff --git a/src/studio/pricing/PriceBookPanel.tsx b/src/studio/pricing/PriceBookPanel.tsx
+new file mode 100644
+index 0000000..e1ba8c3
+--- /dev/null
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -0,0 +1,144 @@
++import { useEffect, useRef, useState } from "react";
++import { Archive, Download, FileUp, Plus, RefreshCw } from "lucide-react";
++import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, previewPriceRows, priceBookError,
++  priceCsvTemplate, priceImportSchema, priceLineAmount, priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readBrowserPriceBooks, removePricedLine,
++  resolvePricedLine, savePriceBooks, suggestPriceMapping, PRICE_CSV_LIMIT,
++  type CsvTable, type PriceBook, type PriceBookLibrary, type PriceBookSession, type PriceImport, type PriceMapping } from "./priceBooks.ts";
++import "./priceBooks.css";
++
++type SourceFile = { text: string; fileName: string; sizeBytes: number; sha256: string };
++type RateSelection = { bookId: string; revision: number; sourceLine: number };
++function download(text: string, name: string) {
++  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
++  const link = document.createElement("a"); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
++}
++const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
++
++/** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
++export function PriceBookPanel({ jobId }: { jobId: string }) {
++  const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
++  const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
++  const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
++  const [name, setName] = useState(""), [targetId, setTargetId] = useState(""), [supplier, setSupplier] = useState(""), [currency, setCurrency] = useState("AUD"), [decimals, setDecimals] = useState(2);
++  const [tax, setTax] = useState<"inclusive" | "exclusive" | "unspecified">("unspecified"), [taxPercent, setTaxPercent] = useState(""), [effectiveDate, setEffectiveDate] = useState(""), [sourceReference, setSourceReference] = useState("");
++  const [review, setReview] = useState<PriceImport | null>(null), [selection, setSelection] = useState<RateSelection | null>(null), [quantity, setQuantity] = useState("");
++  const input = useRef<HTMLInputElement>(null), generation = useRef(0), currentJob = useRef(jobId); currentJob.current = jobId;
++  useEffect(() => {
++    generation.current++; setBusy(false); setSession(readBrowserPriceBooks(jobId)); setFile(null); setMapping(null); setReview(null); setSelection(null); setNotice(""); setTargetId(""); setTab("library");
++    return () => { generation.current++; };
++  }, [jobId]);
++  const value = session?.value.jobId === jobId ? session.value : null;
++  let table: CsvTable | null = null, parseError = "";
++  if (file) try { table = parsePriceCsv(file.text, delimiter); } catch (error) { parseError = priceBookError(error); }
++  const rows = table && mapping ? previewPriceRows(table, mapping) : null;
++  const book = value?.books.find(b => b.id === selection?.bookId), revision = book?.revisions.find(r => r.revision === selection?.revision), rate = revision?.rows.find(r => r.sourceLine === selection?.sourceLine);
++  let amount = "", quantityError = "";
++  if (rate && revision && quantity) try { amount = priceLineAmount(rate.rate, quantity, revision.metadata.amountDecimals); } catch (error) { quantityError = priceBookError(error); }
++  async function save(next: PriceBookLibrary, message: string) {
++    if (!session || busy) return false;
++    const savingJob = jobId;
++    setBusy(true); setNotice("");
++    try { const saved = await savePriceBooks(session, next); if (currentJob.current === savingJob) { setSession(saved); setNotice(message); } return true; }
++    catch (error) { if (currentJob.current === savingJob) setNotice(priceBookError(error)); return false; }
++    finally { setBusy(false); }
++  }
++  async function chooseFile(candidate: File | undefined) {
++    if (!candidate) return;
++    const ticket = ++generation.current; setBusy(true); setNotice(""); setReview(null); setFile(null); setMapping(null);
++    try {
++      if (!candidate.size || candidate.size > PRICE_CSV_LIMIT) throw Error("Choose a non-empty CSV up to 2 MB.");
++      const bytes = await candidate.arrayBuffer(), text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
++      const sha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
++      if (ticket !== generation.current) return;
++      const loaded = { text, fileName: candidate.name, sizeBytes: candidate.size, sha256 };
++      setFile(loaded); setName(candidate.name.replace(/\.csv$/i, "").slice(0, 120));
++      try { setMapping(suggestPriceMapping(parsePriceCsv(text, delimiter).headers)); } catch { /* delimiter can be changed after load */ }
++    } catch (error) { if (ticket === generation.current) setNotice(priceBookError(error)); }
++    finally { if (ticket === generation.current) setBusy(false); }
++  }
++  function prepareReview() {
++    try {
++      if (!file || !table || !mapping || !rows || rows.errors.length) throw Error("Resolve the CSV errors before review.");
++      if (!targetId && !name.trim()) throw Error("Name this price book.");
++      if (taxPercent && !/^\d{1,3}(?:\.\d{1,6})?$/.test(taxPercent)) throw Error("Tax percent must be a decimal from 0 to 100.");
++      setReview(priceImportSchema.parse({ metadata: { supplier, currency, amountDecimals: decimals, taxBasis: tax,
++        taxPercent: tax === "unspecified" || !taxPercent ? null : Number(taxPercent), effectiveDate, sourceReference },
++        source: { fileName: file.fileName, sha256: file.sha256, sizeBytes: file.sizeBytes, delimiter, headers: table.headers, mapping }, rows: rows.rows }));
++      setNotice("");
++    } catch (error) { setNotice(priceBookError(error)); }
++  }
++  function useRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
++  const disabled = busy || !value || session?.blocked;
++  return <section className="price-books" aria-label="Project price books">
++    <header><div><h2>Price books</h2><p>Import supplier sheets, preserve revisions and apply chosen rates to a priced worksheet.</p></div>
++      <button className="pill" disabled={busy} onClick={() => { setSession(readBrowserPriceBooks(jobId)); setReview(null); setNotice("Library reloaded."); }}><RefreshCw size={16} />Reload library</button></header>
++    <div className="price-tabs" role="group" aria-label="Price book views">
++      <button className="pill" aria-pressed={tab === "library"} onClick={() => setTab("library")}>Library ({value?.books.length ?? 0})</button>
++      <button className="pill" aria-pressed={tab === "import"} onClick={() => setTab("import")}><FileUp size={16} />Import CSV</button>
++      <button className="pill" aria-pressed={tab === "worksheet"} onClick={() => setTab("worksheet")}>Priced worksheet ({value?.worksheet.length ?? 0})</button>
++    </div>
++    {session?.error && <p className="price-notice" role="alert">{session.error}</p>}
++    {notice && <p className="price-notice" role="status">{notice}</p>}
++    <p className="price-help">Saved with this project on this device. Your existing reference sheet remains available in Settings. Worksheet quantities are entered by you; takeoff quantities and quotes are separate.</p>
++    {tab === "import" && <>
++      <div className="price-actions"><button className="pill" disabled={disabled} onClick={() => input.current?.click()}><FileUp size={16} />Choose supplier CSV</button>
++        <button className="pill" onClick={() => download(priceCsvTemplate(), "price-book-template.csv")}><Download size={16} />CSV template</button></div>
++      <input ref={input} hidden type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" aria-label="Supplier price CSV" onChange={e => { void chooseFile(e.target.files?.[0]); e.target.value = ""; }} />
++      <p className="price-help">UTF-8 CSV, up to 2 MB / 5,000 rates. Rates use decimal points and up to 6 decimal places. Currency symbols and thousands separators need removing. Units are kept exactly as supplied.</p>
++      {file && <>
++        <p><strong>{file.fileName}</strong> · {file.sizeBytes.toLocaleString()} bytes</p>
++        {!review && <div className="price-fields">
++          <label>Separator<select value={delimiter} onChange={e => { const next = e.target.value as typeof delimiter; setDelimiter(next); try { setMapping(suggestPriceMapping(parsePriceCsv(file.text, next).headers)); } catch { setMapping(null); } }}><option value=",">Comma</option><option value=";">Semicolon</option><option value={"\t"}>Tab</option></select></label>
++          <label>Save as<select value={targetId} onChange={e => setTargetId(e.target.value)}><option value="">New price book</option>{value?.books.filter(b => !b.archived).map(b => <option key={b.id} value={b.id}>New revision of {b.name}</option>)}</select></label>
++          {!targetId && <label>Price book name<input maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>}
++          <label>Supplier<input maxLength={200} value={supplier} onChange={e => setSupplier(e.target.value)} /></label>
++          <label>Currency code<input maxLength={3} value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} /></label>
++          <label>Amount decimal places<select value={decimals} onChange={e => setDecimals(Number(e.target.value))}>{[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
++          <label>Tax basis<select value={tax} onChange={e => setTax(e.target.value as typeof tax)}><option value="unspecified">Unspecified</option><option value="exclusive">Tax excluded</option><option value="inclusive">Tax included</option></select></label>
++          {tax !== "unspecified" && <label>Tax percent (optional)<input inputMode="decimal" value={taxPercent} onChange={e => setTaxPercent(e.target.value)} placeholder="Leave blank if unknown" /></label>}
++          <label>Effective date<input type="date" value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /></label>
++          <label className="price-wide">Source reference<input maxLength={2000} value={sourceReference} onChange={e => setSourceReference(e.target.value)} placeholder="Supplier quote number, catalogue or source URL" /></label>
++        </div>}
++        {parseError && <p role="alert">{parseError}</p>}
++        {!review && table && mapping && <fieldset><legend>Match your columns</legend><div className="price-fields">{(["stockCode", "description", "unit", "rate"] as const).map(field => <label key={field}>{({ stockCode: "Stock code (optional)", description: "Description", unit: "Unit", rate: "Rate" })[field]}<select value={mapping[field] ?? -1} onChange={e => setMapping({ ...mapping, [field]: Number(e.target.value) < 0 ? null : Number(e.target.value) })}>{field === "stockCode" && <option value={-1}>No stock code</option>}{table.headers.map((header, i) => <option key={i} value={i}>{i + 1}: {header || "Unnamed column"}</option>)}</select></label>)}</div></fieldset>}
++        {!!rows?.errors.length && <div className="price-notice" role="alert"><strong>Import blocked until these lines are corrected</strong><ul>{rows.errors.map((error, i) => <li key={i}>{error}</li>)}</ul><p>No rates have been saved.</p></div>}
++        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td>{row.unit}</td><td>{row.rate}</td></tr>)}</tbody></table></div></>}
++        {review ? <div className="price-review"><h3>Review before saving</h3><p>{targetId ? `Append revision to ${value?.books.find(b => b.id === targetId)?.name}` : `Create ${name}`} · {review.rows.length} rates</p>
++          <p>{review.metadata.supplier} · {review.metadata.currency} · {taxLabel(review.metadata.taxBasis)}{review.metadata.taxPercent !== null ? ` (${review.metadata.taxPercent}%)` : ""} · effective {review.metadata.effectiveDate}</p>
++          <p>{review.metadata.sourceReference}</p><p className="price-help">Existing revisions and priced lines remain unchanged. Saving the book does not apply any rate.</p>
++          <div className="price-actions"><button className="pill primary" disabled={disabled} onClick={() => { if (value) { try { const next = appendPriceBookRevision(value, review, name, targetId || null); void save(next, "Price book revision saved. Choose a rate in the library to price a line.").then(ok => { if (ok) { setReview(null); setFile(null); setTab("library"); } }); } catch (error) { setNotice(priceBookError(error)); } } }}>Save reviewed price book</button><button className="pill" disabled={busy} onClick={() => setReview(null)}>Back to mapping</button></div>
++        </div> : <button className="pill primary" disabled={disabled || !rows || !!rows.errors.length || !!parseError} onClick={prepareReview}>Review import</button>}
++      </>}
++    </>}
++    {tab === "library" && <>
++      <div className="price-toolbar"><label>Find a price book<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or supplier" /></label><button className="pill" aria-pressed={archived} onClick={() => setArchived(!archived)}><Archive size={16} />{archived ? "Show active" : "Show archived"}</button></div>
++      {!value?.books.some(b => b.archived === archived) && <div className="price-empty"><h3>{archived ? "No archived price books" : "Keep supplier pricing in one place"}</h3><p>Import a CSV, check its columns and source, then save a named revision. Every applied line keeps the rate version you chose.</p></div>}
++      {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => useRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
++    </>}
++    {tab === "worksheet" && <>
++      <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
++      {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
++      {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{rate.rate} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
++        {book.revisions.length > revision.revision && <p>A newer revision exists. This line will use the older revision you selected.</p>}
++        <label>Quantity ({rate.unit})<input inputMode="decimal" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>{quantityError && <p role="alert">{quantityError}</p>}
++        {amount && <p className="price-amount">Line amount: {revision.metadata.currency} {amount} · {taxLabel(revision.metadata.taxBasis)}</p>}
++        <div className="price-actions"><button className="pill primary" disabled={disabled || !amount} onClick={() => { if (value && selection) { try { void save(addPricedLine(value, selection.bookId, selection.revision, selection.sourceLine, quantity), "Reviewed rate applied to the priced worksheet.").then(ok => { if (ok) setSelection(null); }); } catch (error) { setNotice(priceBookError(error)); } } }}><Plus size={16} />Add reviewed priced line</button><button className="pill" onClick={() => setSelection(null)}>Cancel line</button></div>
++      </div>}
++      {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
++      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}<details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details></article>; })}
++    </>}
++  </section>;
++}
++
++function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: PriceBook; disabled: boolean; onUse: (revision: number, line: number) => void; onSaveName: (name: string) => void; onArchive: () => void }) {
++  const [revisionNumber, setRevisionNumber] = useState(book.revisions.length), [query, setQuery] = useState(""), [draftName, setDraftName] = useState(book.name);
++  const revision = book.revisions.find(r => r.revision === revisionNumber) ?? book.revisions.at(-1)!;
++  const matches = revision.rows.filter(r => `${r.stockCode} ${r.description} ${r.unit}`.toLowerCase().includes(query.toLowerCase()));
++  return <article className="price-book-card"><h3>{book.name}</h3><p>{revision.metadata.supplier} · {revision.metadata.currency} · {taxLabel(revision.metadata.taxBasis)} · effective {revision.metadata.effectiveDate}</p><p className="price-help">{revision.metadata.sourceReference}</p>
++    <div className="price-actions"><label>Price book revision<select value={revision.revision} onChange={e => setRevisionNumber(Number(e.target.value))}>{[...book.revisions].reverse().map(r => <option key={r.revision} value={r.revision}>Revision {r.revision} · {r.metadata.effectiveDate}</option>)}</select></label><button className="pill" onClick={() => download(priceRevisionCsv(book, revision.revision), `${book.name.replace(/[^a-z0-9_-]/gi, "-")}-r${revision.revision}.csv`)}><Download size={16} />Export revision CSV</button><button className="pill" disabled={disabled} onClick={onArchive}>{book.archived ? "Restore price book" : "Archive price book"}</button></div>
++    <details><summary>Rename price book</summary><div className="price-toolbar"><label>New price book name<input maxLength={120} value={draftName} onChange={e => setDraftName(e.target.value)} /></label><button className="pill" disabled={disabled || !draftName.trim()} onClick={() => onSaveName(draftName)}>Save name</button></div></details>
++    <details><summary>Browse {revision.rows.length} rates and source details</summary><p className="price-help">{revision.source.fileName} · imported {new Date(revision.importedAt).toLocaleString()} · SHA-256 {revision.source.sha256}</p><label>Find a rate<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Description, stock code or unit" /></label>
++      <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{row.rate}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
++    </details>
++  </article>;
++}
+diff --git a/src/studio/pricing/priceBooks.ts b/src/studio/pricing/priceBooks.ts
+new file mode 100644
+index 0000000..6e119e9
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.ts
+@@ -0,0 +1,233 @@
++import { z } from "zod";
++
++export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
++export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
++const shortText = z.string().trim().min(1).max(200);
++const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => {
++  const parsed = new Date(`${v}T00:00:00Z`);
++  return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === v;
++}, "Use a valid effective date.");
++export const priceMetadataSchema = z.object({
++  supplier: shortText,
++  currency: z.string().regex(/^[A-Z]{3}$/, "Enter a three-letter currency code."),
++  amountDecimals: z.number().int().min(0).max(4),
++  taxBasis: z.enum(["exclusive", "inclusive", "unspecified"]),
++  taxPercent: z.number().finite().min(0).max(100).nullable(),
++  effectiveDate: date,
++  sourceReference: z.string().trim().min(1).max(2000),
++}).strict().refine(v => v.taxBasis !== "unspecified" || v.taxPercent === null, "Unknown tax basis cannot have an assumed tax percentage.");
++export type PriceMetadata = z.infer<typeof priceMetadataSchema>;
++export const priceRowSchema = z.object({
++  sourceLine: z.number().int().positive(),
++  stockCode: z.string().trim().max(100), description: z.string().trim().min(1).max(300),
++  unit: z.string().trim().min(1).max(40), rate: z.number().finite().nonnegative().max(1e9).refine(v => Number(v.toFixed(6)) === v, "Rate supports up to six decimal places."),
++}).strict();
++export type PriceRow = z.infer<typeof priceRowSchema>;
++const column = z.number().int().min(0).max(39);
++export const priceMappingSchema = z.object({ stockCode: column.nullable(), description: column, unit: column, rate: column }).strict()
++  .refine(v => { const columns = Object.values(v).filter(n => n !== null); return new Set(columns).size === columns.length; }, "Map each field to a different column.");
++export type PriceMapping = z.infer<typeof priceMappingSchema>;
++export const priceImportSchema = z.object({
++  metadata: priceMetadataSchema,
++  source: z.object({ fileName: z.string().min(1).max(255), sha256: z.string().regex(/^[a-f0-9]{64}$/),
++    sizeBytes: z.number().int().positive().max(PRICE_CSV_LIMIT), delimiter: z.enum([",", ";", "\t"]),
++    headers: z.array(z.string().max(300)).min(1).max(40), mapping: priceMappingSchema }).strict(),
++  rows: z.array(priceRowSchema).min(1).max(5000),
++}).strict().superRefine((v, ctx) => {
++  for (const index of Object.values(v.source.mapping)) if (index !== null && index >= v.source.headers.length)
++    ctx.addIssue({ code: "custom", message: "Mapped column is outside the source header." });
++  const lines = new Set<number>(), codes = new Set<string>();
++  for (const row of v.rows) {
++    if (lines.has(row.sourceLine)) ctx.addIssue({ code: "custom", message: "Duplicate source line." });
++    lines.add(row.sourceLine);
++    const code = row.stockCode.toLocaleLowerCase();
++    if (code && codes.has(code)) ctx.addIssue({ code: "custom", message: `Duplicate stock code: ${row.stockCode}. Distinguish supplier variants before importing.` });
++    if (code) codes.add(code);
++  }
++});
++export type PriceImport = z.infer<typeof priceImportSchema>;
++const revisionSchema = z.object({ ...priceImportSchema.shape, revision: z.number().int().positive(), importedAt: z.string().datetime() }).strict()
++  .superRefine((v, ctx) => { const parsed = priceImportSchema.safeParse({ metadata: v.metadata, source: v.source, rows: v.rows });
++    if (!parsed.success) for (const issue of parsed.error.issues) ctx.addIssue({ code: "custom", message: issue.message }); });
++export const priceBookLibrarySchema = z.object({
++  schema: z.literal("xray.price-books/v1"), jobId: z.string().min(1).max(200), revision: z.number().int().nonnegative(),
++  books: z.array(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), archived: z.boolean(),
++    revisions: z.array(revisionSchema).min(1).max(50) }).strict()).max(100),
++  worksheet: z.array(z.object({ id: z.string().uuid(), bookId: z.string().uuid(), bookRevision: z.number().int().positive(),
++    sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
++    addedAt: z.string().datetime() }).strict()).max(5000),
++}).strict().superRefine((v, ctx) => {
++  if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
++  for (const book of v.books) if (book.revisions.some((r, i) => r.revision !== i + 1))
++    ctx.addIssue({ code: "custom", message: "Price book revisions must be consecutive and preserved." });
++  if (v.books.reduce((n, b) => n + b.revisions.reduce((s, r) => s + r.rows.length, 0), 0) > 25000)
++    ctx.addIssue({ code: "custom", message: "This project library supports up to 25,000 rate records across all revisions." });
++  if (new Set(v.worksheet.map(line => line.id)).size !== v.worksheet.length) ctx.addIssue({ code: "custom", message: "Duplicate priced line identity." });
++  for (const line of v.worksheet) if (!v.books.find(b => b.id === line.bookId)?.revisions.find(r => r.revision === line.bookRevision)?.rows.some(row => row.sourceLine === line.sourceLine))
++    ctx.addIssue({ code: "custom", message: "A priced line references a missing source rate." });
++});
++export type PriceBookLibrary = z.infer<typeof priceBookLibrarySchema>;
++export type PriceBook = PriceBookLibrary["books"][number];
++export function priceBookKey(jobId: string) { return `xray:price-books:v1:${encodeURIComponent(jobId)}`; }
++export function emptyPriceBookLibrary(jobId: string): PriceBookLibrary { return priceBookLibrarySchema.parse({ schema: "xray.price-books/v1", jobId, revision: 0, books: [], worksheet: [] }); }
++export function parsePriceBookLibrary(raw: string, jobId: string): PriceBookLibrary {
++  if (new TextEncoder().encode(raw).length > PRICE_LIBRARY_LIMIT) throw Error("Price book library exceeds 4 MB.");
++  const value = priceBookLibrarySchema.parse(JSON.parse(raw));
++  if (value.jobId !== jobId) throw Error("Price books belong to another project.");
++  return value;
++}
++export function appendPriceBookRevision(library: PriceBookLibrary, incoming: PriceImport, name: string, bookId: string | null, makeId = () => crypto.randomUUID(), now = new Date().toISOString()): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library), value = priceImportSchema.parse(incoming);
++  const existing = current.books.find(b => b.id === bookId);
++  if (bookId && !existing) throw Error("Price book no longer exists. Reload the library.");
++  if (existing?.archived) throw Error("Restore the archived price book before adding a revision.");
++  const revision = { ...value, revision: (existing?.revisions.length ?? 0) + 1, importedAt: now };
++  const book = existing ? { ...existing, revisions: [...existing.revisions, revision] } : { id: makeId(), name, archived: false, revisions: [revision] };
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    books: existing ? current.books.map(b => b.id === existing.id ? book : b) : [...current.books, book] });
++}
++export function editPriceBook(library: PriceBookLibrary, id: string, changes: { name?: string; archived?: boolean }): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library);
++  if (!current.books.some(b => b.id === id)) throw Error("Price book no longer exists.");
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, books: current.books.map(b => b.id === id ? { ...b, ...changes } : b) });
++}
++export type PriceBookSession = { value: PriceBookLibrary; raw: string | null; blocked: boolean; error: string | null };
++type StoragePort = Pick<Storage, "getItem" | "setItem">;
++export function readPriceBooks(storage: StoragePort, jobId: string): PriceBookSession {
++  let raw: string | null = null;
++  try { raw = storage.getItem(priceBookKey(jobId)); return { value: raw === null ? emptyPriceBookLibrary(jobId) : parsePriceBookLibrary(raw, jobId), raw, blocked: false, error: null }; }
++  catch { return { value: emptyPriceBookLibrary(jobId), raw, blocked: true, error: "Saved price books could not be read. They are preserved; saving is blocked. Reload after recovery." }; }
++}
++export function readBrowserPriceBooks(jobId: string): PriceBookSession {
++  try { return readPriceBooks(localStorage, jobId); }
++  catch { return { value: emptyPriceBookLibrary(jobId), raw: null, blocked: true, error: "Price book storage is unavailable. Saving is blocked; existing data has not been changed." }; }
++}
++// Called inside the browser's cross-window Web Lock by savePriceBooks.
++export function persistPriceBooks(storage: StoragePort, session: PriceBookSession, value: PriceBookLibrary): PriceBookSession {
++  if (session.blocked) throw Error(session.error ?? "Price book saving is blocked.");
++  const raw = JSON.stringify(value), parsed = parsePriceBookLibrary(raw, session.value.jobId);
++  if (parsed.revision !== session.value.revision + 1) throw Error("Price book revision changed. Reload before saving.");
++  for (const original of session.value.books) {
++    const next = parsed.books.find(b => b.id === original.id);
++    if (!next || JSON.stringify(next.revisions.slice(0, original.revisions.length)) !== JSON.stringify(original.revisions))
++      throw Error("Saved source revisions cannot be removed or overwritten. Add a new revision instead.");
++  }
++  if (storage.getItem(priceBookKey(parsed.jobId)) !== session.raw) throw Error("Price books changed in another window. Reload before saving; this import has not been applied.");
++  storage.setItem(priceBookKey(parsed.jobId), raw);
++  return { value: parsed, raw, blocked: false, error: null };
++}
++export async function savePriceBooks(session: PriceBookSession, value: PriceBookLibrary): Promise<PriceBookSession> {
++  if (!navigator.locks) throw Error("Safe price book saving is unavailable in this browser. Use the desktop app or a secure browser connection.");
++  return navigator.locks.request(priceBookKey(value.jobId), () => persistPriceBooks(localStorage, session, value));
++}
++export function priceBookError(error: unknown) { return error instanceof z.ZodError ? error.issues.map(i => i.message).join(" ") : error instanceof Error ? error.message : String(error); }
++
++export type CsvTable = { headers: string[]; records: { cells: string[]; line: number }[] };
++export function parsePriceCsv(input: string, delimiter: "," | ";" | "\t" = ","): CsvTable {
++  if (new TextEncoder().encode(input).length > PRICE_CSV_LIMIT) throw Error("Import a CSV up to 2 MB.");
++  const text = input.replace(/^\uFEFF/, "");
++  let cells: string[] = [], cell = "", quoted = false, closed = false, line = 1, startLine = 1;
++  const records: CsvTable["records"] = [];
++  const endCell = () => { if (cell.length > 4000) throw Error(`Line ${startLine}: a field exceeds 4,000 characters.`); cells.push(cell); cell = ""; closed = false; if (cells.length > 40) throw Error("CSV supports up to 40 columns."); };
++  const endRow = () => { endCell(); if (cells.some(c => c.trim())) records.push({ cells, line: startLine }); cells = []; if (records.length > 5001) throw Error("Import up to 5,000 rates."); };
++  for (let i = 0; i < text.length; i++) {
++    const c = text[i];
++    if (quoted) {
++      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else { quoted = false; closed = true; } }
++      else { cell += c; if (c === "\n" || (c === "\r" && text[i + 1] !== "\n")) line++; }
++    } else if (c === delimiter) endCell();
++    else if (c === "\r" || c === "\n") { if (c === "\r" && text[i + 1] === "\n") i++; endRow(); line++; startLine = line; }
++    else if (closed) throw Error(`Line ${line}: unexpected text after a closing quote.`);
++    else if (c === '"') { if (cell) throw Error(`Line ${line}: quote the entire field.`); quoted = true; }
++    else cell += c;
++  }
++  if (quoted) throw Error(`Line ${startLine}: unclosed quoted field.`);
++  if (cell || cells.length || closed) endRow();
++  const header = records.shift();
++  if (!header || !records.length) throw Error("CSV needs a header and at least one rate.");
++  if (header.cells.some(c => c.length > 300)) throw Error("Column headings must be at most 300 characters.");
++  return { headers: header.cells, records };
++}
++export function suggestPriceMapping(headers: string[]): PriceMapping {
++  const normalized = headers.map(h => h.trim().toLowerCase());
++  const find = (aliases: string[], fallback: number) => { const index = normalized.findIndex(h => aliases.includes(h)); return index < 0 ? fallback : index; };
++  const code = find(["sku", "stock code", "code", "product code"], -1);
++  return { stockCode: code < 0 ? null : code, description: find(["description", "item", "product", "name"], 0),
++    unit: find(["unit", "uom", "units"], Math.min(1, headers.length - 1)), rate: find(["rate", "price", "unit price", "unit rate"], Math.min(2, headers.length - 1)) };
++}
++export function previewPriceRows(table: CsvTable, mapping: PriceMapping): { rows: PriceRow[]; errors: string[] } {
++  const checked = priceMappingSchema.safeParse(mapping);
++  if (!checked.success) return { rows: [], errors: checked.error.issues.map(i => i.message) };
++  if (Object.values(mapping).some(i => i !== null && i >= table.headers.length)) return { rows: [], errors: ["Choose an existing source column for every required field."] };
++  const rows: PriceRow[] = [], errors: string[] = [], codes = new Set<string>();
++  for (const record of table.records) {
++    try {
++      if (record.cells.length !== table.headers.length) throw Error("Column count does not match the header.");
++      const rate = record.cells[mapping.rate].trim();
++      if (!/^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/.test(rate)) throw Error("Rate needs a non-negative decimal (up to 6 decimal places), with no currency symbol or thousands separators.");
++      const row = priceRowSchema.parse({ sourceLine: record.line, stockCode: mapping.stockCode === null ? "" : record.cells[mapping.stockCode],
++        description: record.cells[mapping.description], unit: record.cells[mapping.unit], rate: Number(rate) });
++      const code = row.stockCode.toLocaleLowerCase();
++      if (code && codes.has(code)) throw Error(`Duplicate stock code ${row.stockCode}; distinguish variants before importing.`);
++      if (code) codes.add(code);
++      rows.push(row);
++    } catch (error) { if (errors.length < 30) errors.push(`Line ${record.line}: ${priceBookError(error)}`); }
++  }
++  return { rows, errors };
++}
++export const priceCsvTemplate = () => "Stock code,Description,Unit,Rate\r\n";
++// Decimal arithmetic, including half-up rounding, never uses binary floating point multiplication.
++export function priceLineAmount(rate: number, quantity: string, decimals: number): string {
++  priceRowSchema.shape.rate.parse(rate);
++  if (!/^\d{1,10}(?:\.\d{1,6})?$/.test(quantity) || Number(quantity) > 1e9) throw Error("Enter a quantity from 0 to 1,000,000,000 with up to 6 decimal places.");
++  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 4) throw Error("Choose an amount precision from 0 to 4 decimal places.");
++  const scaled = (value: string) => { const [whole, fraction = ""] = value.split("."); return BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, "0")); };
++  const product = scaled(rate.toFixed(6)) * scaled(quantity);
++  const divisor = 10n ** BigInt(12 - decimals), rounded = (product + divisor / 2n) / divisor;
++  if (!decimals) return rounded.toString();
++  const digits = rounded.toString().padStart(decimals + 1, "0"); return `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`;
++}
++export function addPricedLine(library: PriceBookLibrary, bookId: string, bookRevision: number, sourceLine: number, quantity: string, makeId = () => crypto.randomUUID(), now = new Date().toISOString()): PriceBookLibrary {
++  const current = priceBookLibrarySchema.parse(library), book = current.books.find(b => b.id === bookId), revision = book?.revisions.find(r => r.revision === bookRevision), row = revision?.rows.find(r => r.sourceLine === sourceLine);
++  if (!book || book.archived || !revision || !row) throw Error("Choose an active saved source rate.");
++  priceLineAmount(row.rate, quantity, revision.metadata.amountDecimals);
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    worksheet: [...current.worksheet, { id: makeId(), bookId, bookRevision, sourceLine, quantity, addedAt: now }] });
++}
++export function removePricedLine(library: PriceBookLibrary, id: string): PriceBookLibrary {
++  if (!library.worksheet.some(line => line.id === id)) throw Error("Priced line no longer exists.");
++  return priceBookLibrarySchema.parse({ ...library, revision: library.revision + 1, worksheet: library.worksheet.filter(line => line.id !== id) });
++}
++export function resolvePricedLine(library: PriceBookLibrary, line: PriceBookLibrary["worksheet"][number]) {
++  const book = library.books.find(b => b.id === line.bookId), revision = book?.revisions.find(r => r.revision === line.bookRevision), row = revision?.rows.find(r => r.sourceLine === line.sourceLine);
++  if (!book || !revision || !row) throw Error("The priced line's source rate could not be found.");
++  return { book, revision, row, outdated: book.revisions.length > line.bookRevision, amount: priceLineAmount(row.rate, line.quantity, revision.metadata.amountDecimals) };
++}
++export function pricedWorksheetTotals(library: PriceBookLibrary) {
++  const groups = new Map<string, { currency: string; taxBasis: PriceMetadata["taxBasis"]; taxPercent: number | null; decimals: number; count: number; minor: bigint }>();
++  for (const line of library.worksheet) {
++    const resolved = resolvePricedLine(library, line), m = resolved.revision.metadata;
++    const key = JSON.stringify([m.currency, m.taxBasis, m.taxPercent, m.amountDecimals]);
++    const group = groups.get(key) ?? { currency: m.currency, taxBasis: m.taxBasis, taxPercent: m.taxPercent, decimals: m.amountDecimals, count: 0, minor: 0n };
++    group.minor += BigInt(resolved.amount.replace(".", "")); group.count++; groups.set(key, group);
++  }
++  return [...groups.values()].map(({ minor, ...group }) => {
++    const digits = minor.toString().padStart(group.decimals + 1, "0");
++    return { ...group, amount: group.decimals ? `${digits.slice(0, -group.decimals)}.${digits.slice(-group.decimals)}` : digits };
++  });
++}
++export function pricedWorksheetCsv(library: PriceBookLibrary) {
++  const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at"],
++    ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
++      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
++        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
++export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
++  const r = book.revisions.find(v => v.revision === revisionNumber);
++  if (!r) throw Error("Price book revision not found.");
++  const cell = (v: unknown) => { let text = v === null ? "" : String(v); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at"],
++    ...r.rows.map(row => [row.stockCode, row.description, row.unit, row.rate, r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
++      r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
+diff --git a/src/studio/pricing/priceBooks.css b/src/studio/pricing/priceBooks.css
+new file mode 100644
+index 0000000..d9f5b81
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.css
+@@ -0,0 +1,32 @@
++.price-books { --price-gap: 16px; --price-small-gap: 8px; display: grid; gap: var(--price-gap); padding: 20px; color: var(--color-ink); }
++.price-books header { display: flex; flex-wrap: wrap; gap: var(--price-gap); align-items: start; justify-content: space-between; }
++.price-books h2 { font-size: 20px; font-weight: 600; }
++.price-books h3 { font-size: 15px; font-weight: 600; }
++.price-books p { line-height: 1.5; overflow-wrap: anywhere; }
++.price-help { font-size: 12px; color: var(--color-muted); }
++.price-books label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
++.price-books input:not([type=file]), .price-books select { min-height: 44px; width: 100%; min-width: 0; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-bg); color: var(--color-ink); }
++.price-books input:focus-visible, .price-books select:focus-visible, .price-books button:focus-visible, .price-books summary:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
++.price-books .pill { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: normal; }
++.price-books button:disabled { opacity: .5; cursor: not-allowed; }
++.price-books [aria-pressed=true], .price-books .primary { background: var(--color-navy); color: var(--color-on-navy); }
++.price-tabs, .price-actions, .price-toolbar { display: flex; flex-wrap: wrap; gap: var(--price-small-gap); align-items: end; }
++.price-toolbar label { flex: 1 1 220px; }
++.price-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--price-gap); }
++.price-wide { grid-column: 1 / -1; }
++.price-books fieldset { border: 1px solid var(--color-line); padding: var(--price-gap); border-radius: 8px; }
++.price-books legend { padding: 0 8px; font-weight: 600; font-size: 12px; }
++.price-notice, .price-review, .price-empty { padding: var(--price-gap); display: grid; gap: var(--price-small-gap); border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-header); color: var(--color-ink); }
++.price-notice ul { padding-left: 20px; list-style: disc; font-size: 12px; }
++.price-table-wrap { max-width: 100%; overflow: auto; border: 1px solid var(--color-line); }
++.price-books table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
++.price-books th, .price-books td { padding: 8px 12px; border-bottom: 1px solid var(--color-line); vertical-align: top; overflow-wrap: anywhere; }
++.price-books th { background: var(--color-header); color: var(--color-ink); font-weight: 600; }
++.price-book-card { display: grid; gap: var(--price-small-gap); padding-block: var(--price-gap); border-top: 1px solid var(--color-line); min-width: 0; }
++.price-books details { display: grid; gap: var(--price-small-gap); }
++.price-books summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 12px; font-weight: 600; }
++.price-books details > :not(summary) { margin-top: var(--price-small-gap); }
++.price-amount { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
++@media (max-width: 600px) { .price-books { padding: 12px; } .price-fields { grid-template-columns: minmax(0, 1fr); } .price-books td, .price-books th { padding: 8px; } .price-tabs > button { flex: 1 1 100px; } }
++/* Allow the last worksheet action to scroll fully above the floating assistant. */
++.price-books { padding-bottom: calc(var(--price-gap) * 5); }
+diff --git a/src/studio/pricing/priceBooks.test.ts b/src/studio/pricing/priceBooks.test.ts
+new file mode 100644
+index 0000000..3e0942a
+--- /dev/null
++++ b/src/studio/pricing/priceBooks.test.ts
+@@ -0,0 +1,106 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { addPricedLine, appendPriceBookRevision, editPriceBook, emptyPriceBookLibrary, parsePriceBookLibrary,
++  parsePriceCsv, persistPriceBooks, previewPriceRows, priceBookKey, priceImportSchema, priceLineAmount,
++  priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readPriceBooks, removePricedLine, resolvePricedLine, suggestPriceMapping, type PriceImport } from "./priceBooks.ts";
++
++const bookId = "00000000-0000-4000-8000-000000000001", lineId = "00000000-0000-4000-8000-000000000002";
++const now = "2026-09-07T10:00:00.000Z";
++const source: PriceImport = {
++  metadata: { supplier: "QA supplier", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-07", sourceReference: "QA estimate fixture only" },
++  source: { fileName: "supplier.csv", sizeBytes: 100, sha256: "a".repeat(64), delimiter: ",", headers: ["Code", "Description", "Unit", "Rate"], mapping: { stockCode: 0, description: 1, unit: 2, rate: 3 } },
++  rows: [{ sourceLine: 2, stockCode: "ST-1", description: "Structural steel fixture", unit: "kg", rate: 12.345 }],
++};
++const create = () => appendPriceBookRevision(emptyPriceBookLibrary("job-one"), source, "Structural supplier", null, () => bookId, now);
++function storageFixture() { const data = new Map<string, string>(); return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, raw: string) => { data.set(key, raw); } }; }
++
++test("CSV handles BOM, quoted commas, escaped quotes and physical multiline provenance", () => {
++  const table = parsePriceCsv('\uFEFFSKU,Item,UOM,Unit price\r\nS1,"Steel, \"\"A\"\"",kg,12.345\r\nC1,"Concrete\r\nservice",m3,140\r\n\r\nE1,Electrical service,hour,0\r\n');
++  const result = previewPriceRows(table, suggestPriceMapping(table.headers));
++  assert.deepEqual(result.errors, []); assert.equal(result.rows[0].description, 'Steel, "A"');
++  assert.deepEqual(result.rows.map(r => r.sourceLine), [2, 3, 6]); assert.equal(result.rows[2].rate, 0);
++  assert.equal(result.rows[1].unit, "m3");
++});
++test("separator is explicit; malformed CSV and ambiguous mapping are blocked", () => {
++  const table = parsePriceCsv("Description;Unit;Rate\nEngineering service;hour;150", ";");
++  assert.equal(previewPriceRows(table, { stockCode: null, description: 0, unit: 1, rate: 2 }).rows[0].rate, 150);
++  assert.throws(() => parsePriceCsv('A,B\n"unfinished,2'), /unclosed/);
++  assert.throws(() => parsePriceCsv('A,B\n"closed"oops,2'), /unexpected/);
++  assert.match(previewPriceRows(table, { stockCode: null, description: 0, unit: 0, rate: 2 }).errors[0], /different column/);
++  assert.match(previewPriceRows(table, { stockCode: null, description: 0, unit: 1, rate: 8 }).errors[0], /existing source column/);
++});
++test("invalid prices, missing units, duplicate SKU and irregular row lengths fail without partial save", () => {
++  for (const value of ["", "-1", "1e3", "NaN", "Infinity", "$25", "1,234", "12.1234567"]) {
++    const table = parsePriceCsv(`Code,Description,Unit,Rate\nA,Concrete,m3,"${value}"`);
++    assert.equal(previewPriceRows(table, suggestPriceMapping(table.headers)).errors.length, 1, value);
++  }
++  const table = parsePriceCsv("Code,Description,Unit,Rate\nA,Steel,kg,1\na,Cable,m,2\nB,Service,,3\nC,Concrete,m3,4,extra");
++  const result = previewPriceRows(table, suggestPriceMapping(table.headers));
++  assert.equal(result.errors.length, 3); assert.match(result.errors[0], /Duplicate stock code/);
++});
++test("provenance metadata and source mapping are validated, including leap dates", () => {
++  assert.ok(priceImportSchema.safeParse(source).success);
++  for (const metadata of [{ ...source.metadata, supplier: "" }, { ...source.metadata, currency: "$" }, { ...source.metadata, effectiveDate: "2026-02-29" }, { ...source.metadata, taxBasis: "unspecified" }, { ...source.metadata, amountDecimals: 5 }])
++    assert.equal(priceImportSchema.safeParse({ ...source, metadata }).success, false);
++  assert.ok(priceImportSchema.safeParse({ ...source, metadata: { ...source.metadata, effectiveDate: "2028-02-29" } }).success);
++  assert.equal(priceImportSchema.safeParse({ ...source, source: { ...source.source, sha256: "missing" } }).success, false);
++  assert.equal(priceImportSchema.safeParse({ ...source, source: { ...source.source, mapping: { ...source.source.mapping, rate: 20 } } }).success, false);
++});
++test("revisions preserve original rates and applied worksheet references", () => {
++  let library = addPricedLine(create(), bookId, 1, 2, "2", () => lineId, now);
++  library = appendPriceBookRevision(library, { ...source, rows: [{ ...source.rows[0], rate: 20 }] }, "Ignored for revisions", bookId, undefined, now);
++  const resolved = resolvePricedLine(library, library.worksheet[0]);
++  assert.equal(resolved.amount, "24.69"); assert.equal(resolved.outdated, true); assert.equal(resolved.row.rate, 12.345);
++  assert.equal(library.books[0].name, "Structural supplier"); assert.equal(library.books[0].revisions[1].rows[0].rate, 20);
++  library = editPriceBook(library, bookId, { name: "Supplier renamed", archived: true });
++  assert.equal(resolvePricedLine(library, library.worksheet[0]).amount, "24.69");
++  assert.throws(() => addPricedLine(library, bookId, 2, 2, "1"), /active/);
++  assert.throws(() => appendPriceBookRevision(library, source, "", bookId), /archived/);
++  assert.equal(removePricedLine(library, lineId).worksheet.length, 0); assert.equal(library.worksheet.length, 1);
++});
++test("money calculation uses exact decimal arithmetic and explicit half-up rounding", () => {
++  assert.equal(priceLineAmount(0.1, "3", 2), "0.30"); assert.equal(priceLineAmount(1.005, "1", 2), "1.01");
++  assert.equal(priceLineAmount(0.000001, "1000000", 2), "1.00");
++  assert.equal(priceLineAmount(1000000000, "1000000000", 4), "1000000000000000000.0000");
++  assert.equal(priceLineAmount(2.5, "1", 0), "3"); assert.equal(priceLineAmount(2.5, "0", 2), "0.00");
++  for (const quantity of ["", "-1", "1e2", "0.0000001", "1000000001", "Infinity", "1,000"]) assert.throws(() => priceLineAmount(1, quantity, 2));
++  assert.throws(() => priceLineAmount(0.0000001, "1", 2)); assert.throws(() => priceLineAmount(1, "1", -1));
++});
++test("storage is job-scoped, preserves legacy rates and rejects stale writes", () => {
++  const storage = storageFixture(); storage.setItem("xray.price-sheet.v1", "legacy untouched");
++  const session = readPriceBooks(storage, "job-one"), next = create();
++  const saved = persistPriceBooks(storage, session, next);
++  assert.equal(saved.value.books.length, 1); assert.equal(readPriceBooks(storage, "job-two").value.books.length, 0);
++  assert.equal(storage.getItem("xray.price-sheet.v1"), "legacy untouched");
++  assert.throws(() => persistPriceBooks(storage, session, next), /another window/);
++  assert.throws(() => parsePriceBookLibrary(saved.raw!, "job-two"), /another project/);
++  const mutated = structuredClone(saved.value); mutated.revision++; mutated.books[0].revisions[0].rows[0].rate = 999;
++  assert.throws(() => persistPriceBooks(storage, saved, mutated), /cannot be removed or overwritten/);
++  assert.equal(storage.getItem(priceBookKey("job-one")), saved.raw);
++});
++test("corrupt and quota-failed storage is preserved; no phantom saved revision", () => {
++  const storage = storageFixture(); storage.setItem(priceBookKey("job-one"), "broken");
++  const blocked = readPriceBooks(storage, "job-one"); assert.equal(blocked.blocked, true);
++  assert.throws(() => persistPriceBooks(storage, blocked, create()), /blocked/); assert.equal(storage.getItem(priceBookKey("job-one")), "broken");
++  const fresh = readPriceBooks(storageFixture(), "job-one");
++  assert.throws(() => persistPriceBooks({ getItem: () => null, setItem: () => { throw Error("Quota exceeded"); } }, fresh, create()), /Quota/);
++  assert.equal(fresh.value.books.length, 0);
++});
++test("export records provenance and escapes spreadsheet formulas", () => {
++  const library = appendPriceBookRevision(emptyPriceBookLibrary("job-one"), { ...source, rows: [{ ...source.rows[0], description: '=HYPERLINK("bad")' }] }, "Export QA", null, () => bookId, now);
++  const csv = priceRevisionCsv(library.books[0], 1);
++  assert.ok(csv.includes('"\'=HYPERLINK(""bad"")"')); assert.ok(csv.includes("a".repeat(64)));
++  assert.ok(csv.includes('"AUD","exclusive","10","QA supplier","2026-09-07"')); assert.ok(csv.includes('"2","Export QA","1"'));
++});
++test("worksheet totals sum rounded lines and keep currencies and tax bases separate", () => {
++  let library = addPricedLine(create(), bookId, 1, 2, "1", () => lineId, now);
++  const secondBook = "00000000-0000-4000-8000-000000000003", thirdBook = "00000000-0000-4000-8000-000000000004";
++  library = appendPriceBookRevision(library, { ...source, metadata: { ...source.metadata, currency: "USD" } }, "US engineering", null, () => secondBook, now);
++  library = appendPriceBookRevision(library, { ...source, metadata: { ...source.metadata, taxBasis: "inclusive" } }, "Electrical", null, () => thirdBook, now);
++  library = addPricedLine(library, bookId, 1, 2, "1", () => "00000000-0000-4000-8000-000000000005", now);
++  library = addPricedLine(library, secondBook, 1, 2, "1", () => "00000000-0000-4000-8000-000000000006", now);
++  library = addPricedLine(library, thirdBook, 1, 2, "1", () => "00000000-0000-4000-8000-000000000007", now);
++  const totals = pricedWorksheetTotals(library); assert.equal(totals.length, 3); assert.equal(totals[0].amount, "24.70");
++  assert.equal(totals[1].currency, "USD"); assert.equal(totals[2].taxBasis, "inclusive");
++  const csv = pricedWorksheetCsv(library); assert.ok(csv.includes('"1","kg","12.345","12.35","AUD","exclusive"')); assert.ok(csv.includes(source.source.sha256));
++});

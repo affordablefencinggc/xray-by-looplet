@@ -1,0 +1,12 @@
+import { spawn } from 'node:child_process';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+const installed = process.argv.includes('--installed');
+const exe = installed ? path.join(process.env.LOCALAPPDATA, 'X-Ray by Looplet/xray-by-looplet.exe') : path.resolve('src-tauri/target/release/xray-by-looplet.exe');
+const profile = path.resolve('.temp', `dwg-${installed ? 'installed' : 'native'}-${Date.now()}`);
+mkdirSync(profile, { recursive: true });
+const child = spawn(exe, [], { windowsHide: true, detached: true, stdio: 'ignore', env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9248', WEBVIEW2_USER_DATA_FOLDER: profile } });
+child.unref();
+writeFileSync(`proof/audit/IW-DWG/${installed ? 'installed' : 'native'}-launch.json`, JSON.stringify({ exe, pid: child.pid, profile, sha256: createHash('sha256').update(readFileSync(exe)).digest('hex') }, null, 2));
+console.log(`Launched isolated ${installed ? 'installed' : 'built'} desktop QA process ${child.pid}.`);

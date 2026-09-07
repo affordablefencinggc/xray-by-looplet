@@ -1,0 +1,2309 @@
+diff --git a/package.json b/package.json
+index 856f01d..b7eb2ce 100644
+--- a/package.json
++++ b/package.json
+@@ -12,6 +12,7 @@
+     "db:migrate": "node scripts/migrate.mjs",
+     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
+     "build:desktop": "node scripts/with-app-env.mjs vite build --config vite.config.spa.ts",
++    "build:cad": "node scripts/build-cad.mjs",
+     "preview": "node scripts/with-app-env.mjs node scripts/preview-built.mjs",
+     "preview:restart": "node scripts/preview.mjs restart",
+     "preview:stop": "node scripts/preview.mjs stop",
+@@ -26,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/lib/architectAi.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/scripts/build-redburn-model.mjs b/scripts/build-redburn-model.mjs
+index 5d096e9..c90a90d 100644
+--- a/scripts/build-redburn-model.mjs
++++ b/scripts/build-redburn-model.mjs
+@@ -3,6 +3,7 @@ import fs from "node:fs";
+ import crypto from "node:crypto";
+ import * as T from "three";
+ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
++import polygonClipping from "polygon-clipping";
+ import { parseSourceBuilding } from "../src/studio/sourceBuilding.ts";
+ const root = "public/models/redburn",
+   sha256 = crypto
+@@ -599,7 +600,68 @@ function polygon(points) {
+   g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+   return g;
+ }
+-function roof(id, label, a0, a1, b0, b1, eave, pitch) {
++const mainRoofBounds = [-0.48, 11.79, -0.48, 7.05];
++const roofPitch = Math.tan((22.5 * Math.PI) / 180);
++const gables = [
++  { id: "terrace-gable", axis: "a", c: 8.05, fixed: -0.22, width: 4.4 },
++  { id: "stair-gable", axis: "b", c: 3.15, fixed: -0.27, width: 4.8 },
++].map((g) => {
++  const r = g.width / 2;
++  const y = 5.86 + (g.fixed - mainRoofBounds[g.axis === "a" ? 2 : 0]) * roofPitch;
++  const point = (across, height, inward = 0) =>
++    g.axis === "a" ? [across, height, g.fixed + inward] : [g.fixed + inward, height, across];
++  const left = point(g.c - r, y),
++    right = point(g.c + r, y);
++  const peak = point(g.c, y + r * roofPitch),
++    join = point(g.c, y + r * roofPitch, r);
++  return {
++    ...g,
++    y,
++    left,
++    right,
++    peak,
++    join,
++    footprint: [left, right, join].map((p) => [p[0], p[2]]),
++  };
++});
++// Split host sheet ribs at every gable footprint edge; no hidden duplicate roof
++// sheet or rib is left underneath the new intersecting roof slopes.
++function exposedRib(start, end, openings) {
++  const breaks = [0, 1],
++    dx = end[0] - start[0],
++    dz = end[2] - start[2];
++  const cross = (x, z, u, v) => x * v - z * u;
++  for (const g of openings)
++    for (let i = 0; i < 3; i++) {
++      const a = g.footprint[i],
++        b = g.footprint[(i + 1) % 3];
++      const ex = b[0] - a[0],
++        ez = b[1] - a[1],
++        det = cross(dx, dz, ex, ez);
++      if (Math.abs(det) < 1e-10) continue;
++      const ax = a[0] - start[0],
++        az = a[1] - start[2];
++      const t = cross(ax, az, ex, ez) / det,
++        u = cross(ax, az, dx, dz) / det;
++      if (t > 0 && t < 1 && u >= 0 && u <= 1) breaks.push(t);
++    }
++  const at = (t) => start.map((v, i) => v + (end[i] - v) * t);
++  const inside = (p, ring) => {
++    const signs = ring.map((a, i) => {
++      const b = ring[(i + 1) % ring.length];
++      return cross(b[0] - a[0], b[1] - a[1], p[0] - a[0], p[2] - a[1]);
++    });
++    return signs.every((v) => v >= -1e-9) || signs.every((v) => v <= 1e-9);
++  };
++  breaks.sort((a, b) => a - b);
++  return breaks.slice(1).flatMap((endT, i) => {
++    const startT = breaks[i];
++    if (endT - startT < 1e-8 || openings.some((g) => inside(at((startT + endT) / 2), g.footprint)))
++      return [];
++    return [rod(P(...at(startT)), P(...at(endT)), 0.007)];
++  });
++}
++function roof(id, label, a0, a1, b0, b1, eave, pitch, openings = []) {
+   const k = Math.tan((pitch * Math.PI) / 180),
+     r = Math.min((a1 - a0) / 2, (b1 - b0) / 2),
+     rise = r * k,
+@@ -639,7 +701,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     for (const side of [0, 1]) {
+       const b = side ? b1 : b0,
+         d = side ? -run : run;
+-      ribs.push(rod(P(a, eave + 0.012, b), P(a, eave + run * k + 0.012, b + d), 0.007));
++      ribs.push(...exposedRib([a, eave + 0.012, b], [a, eave + run * k + 0.012, b + d], openings));
+     }
+   }
+   for (let b = b0 + 0.065; b < b1; b += 0.12) {
+@@ -647,7 +709,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     for (const side of [0, 1]) {
+       const a = side ? a1 : a0,
+         d = side ? -run : run;
+-      ribs.push(rod(P(a, eave + 0.012, b), P(a + d, eave + run * k + 0.012, b), 0.007));
++      ribs.push(...exposedRib([a, eave + 0.012, b], [a + d, eave + run * k + 0.012, b], openings));
+     }
+   }
+   add(
+@@ -656,7 +718,27 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     "roof",
+     "roof",
+     "roof",
+-    faces.map(polygon),
++    faces.flatMap((f) => {
++      if (!openings.length) return [polygon(f)];
++      const clipped = polygonClipping.difference(
++        [f.map((p) => [p[0], p[2]])],
++        ...openings.map((g) => [g.footprint]),
++      );
++      return clipped.map((rings) => {
++        const vectors = rings.map((r) => r.slice(0, -1).map((p) => new T.Vector2(...p)));
++        const triangles = T.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1));
++        const points = vectors.flat();
++        const positions = triangles.flatMap((t) =>
++          t.flatMap((i) => {
++            const { x: a, y: b } = points[i];
++            return P(a, eave + Math.min(a - a0, a1 - a, b - b0, b1 - b) * k, b).toArray();
++          }),
++        );
++        const geometry = new T.BufferGeometry();
++        geometry.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
++        return geometry;
++      });
++    }),
+     ref(
+       6,
+       `${pitch} degree metal roof specified. Hip/ridge intersections inferred from elevations and cover; no roof framing plan.`,
+@@ -687,7 +769,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     ref(6),
+   );
+ }
+-roof("main-roof", "Main residence / 22.5 degree hip roof", -0.48, 11.79, -0.48, 7.05, 5.86, 22.5);
++roof("main-roof", "Main residence / 22.5 degree hip roof", ...mainRoofBounds, 5.86, 22.5, gables);
+ roof("carport-roof", "Carport / 22.5 degree roof", 0.95, 7.57, 6.15, 13.78, 5.86, 22.5);
+ const a0 = -0.32,
+   a1 = 11.67,
+@@ -736,7 +818,7 @@ add(
+   ],
+   ref(6),
+ );
+-function gable(id, axis, c, fixed, width, y) {
++function gable({ id, axis, c, fixed, width, y, left, right, peak, join }) {
+   const r = width / 2,
+     h = r * Math.tan((22.5 * Math.PI) / 180),
+     p =
+@@ -781,9 +863,59 @@ function gable(id, axis, c, fixed, width, y) {
+     bars,
+     ref(6),
+   );
++  add(
++    id + "-roof",
++    "Decorative gable / intersecting roof slopes",
++    "roof",
++    "roof",
++    "roof",
++    [polygon([left, peak, join]), polygon([peak, right, join])],
++    ref(
++      6,
++      "Gable roof joins the host hip at two valleys; aligned to the decorative face shown on page 1 and elevation 6. Undimensioned depth inferred.",
++    ),
++  );
++  const ribs = [];
++  for (let depth = 0.06; depth < r; depth += 0.12) {
++    const length = r - depth;
++    const ridge =
++      axis === "a"
++        ? [c, y + r * roofPitch + 0.012, fixed + depth]
++        : [fixed + depth, y + r * roofPitch + 0.012, c];
++    for (const sign of [-1, 1]) {
++      const valley =
++        axis === "a"
++          ? [c + sign * length, y + depth * roofPitch + 0.012, fixed + depth]
++          : [fixed + depth, y + depth * roofPitch + 0.012, c + sign * length];
++      ribs.push(rod(P(...ridge), P(...valley), 0.007));
++    }
++  }
++  add(
++    id + "-roof-ribs",
++    "Decorative gable / roof sheet ribs",
++    "roof-trim",
++    "metal",
++    "roof",
++    ribs,
++    ref(6),
++  );
++  add(
++    id + "-roof-caps",
++    "Decorative gable / ridge, valleys and barge flashing",
++    "roof-trim",
++    "metal",
++    "roof",
++    [
++      [left, peak],
++      [right, peak],
++      [peak, join],
++      [left, join],
++      [right, join],
++    ].map(([a, b]) => rod(P(...a), P(...b), 0.035)),
++    ref(6),
++  );
+ }
+-gable("terrace-gable", "a", 8.05, -0.22, 4.4, 5.98);
+-gable("stair-gable", "b", 3.15, -0.27, 4.8, 6.04);
++for (const spec of gables) gable(spec);
+ add(
+   "flue",
+   "Fireplace flue / indicative termination",
+@@ -1063,7 +1195,7 @@ const scene = {
+     floors: 2,
+     wallRuns: objects.filter((o) => o.category === "wall").length,
+     openings: objects.filter((o) => /opening-\d+$/.test(o.id)).length,
+-    roofFaces: 11,
++    roofFaces: 15,
+     objects: objects.length,
+     visibleNamedRooms: 13,
+     method:
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index bbe7b25..e085290 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -2,6 +2,8 @@
+ //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
+ 
+ mod material_ai;
++mod voice;
++mod cad;
+ #[cfg(target_os = "windows")]
+ mod window_chrome;
+ use material_ai::*;
+@@ -674,6 +676,7 @@ pub fn run() {
+     tauri::Builder::default()
+         .manage(BomInvocationState::production())
+         .manage(MaterialAiState::default())
++        .manage(cad::CadState::default())
+         .plugin(tauri_plugin_dialog::init())
+         .setup(|app| {
+             #[cfg(target_os = "windows")]
+@@ -689,9 +692,15 @@ pub fn run() {
+             }
+             if matches!(event, WindowEvent::CloseRequested { .. }) {
+                 window.state::<BomInvocationState>().cancel_all();
++                window.state::<cad::CadState>().cancel_all();
+             }
+         })
+         .invoke_handler(tauri::generate_handler![
++            cad::xray_cad_status,
++            cad::xray_cad_convert,
++            cad::xray_cad_cancel,
++            voice::xray_voice_status,
++            voice::xray_voice_request,
+             xray_material_ai_status,
+             xray_configure_material_ai,
+             xray_interpret_material_ai,
+@@ -707,6 +716,7 @@ pub fn run() {
+         .run(|app, event| {
+             if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
+                 app.state::<BomInvocationState>().cancel_all();
++                app.state::<cad::CadState>().cancel_all();
+             }
+         });
+ }
+diff --git a/src-tauri/tauri.conf.json b/src-tauri/tauri.conf.json
+index bcc3ba0..2390fd9 100644
+--- a/src-tauri/tauri.conf.json
++++ b/src-tauri/tauri.conf.json
+@@ -6,7 +6,7 @@
+   "build": {
+     "beforeDevCommand": "",
+     "devUrl": "http://127.0.0.1:8080",
+-    "beforeBuildCommand": "npm run build:desktop",
++    "beforeBuildCommand": "npm run build:cad && npm run build:desktop",
+     "frontendDist": "../dist"
+   },
+   "app": {
+@@ -40,7 +40,8 @@
+       "icons/icon.ico"
+     ],
+     "resources": {
+-      "../engine/python": "engine/python"
++      "../engine/python": "engine/python",
++      "../engine/cad/bin/": "engine/cad/"
+     },
+     "windows": {
+       "nsis": {
+diff --git a/src/studio/CapabilitiesChecklist.tsx b/src/studio/CapabilitiesChecklist.tsx
+index a0d870f..6724043 100644
+--- a/src/studio/CapabilitiesChecklist.tsx
++++ b/src/studio/CapabilitiesChecklist.tsx
+@@ -85,8 +85,8 @@ export function CapabilitiesChecklist({ onClose }: { onClose: () => void }) {
+       "Architectural sketch",
+       "architect-dwg",
+       "Native DWG translation",
+-      "Requires a licensed DWG translator. Export ASCII DXF from the source CAD application meanwhile.",
+-      "Planned",
++      "Windows desktop: local DWG drawing import/export. External CAD becomes supported 2D reference geometry; use DXF or backup for parametric assemblies. Web uses DXF.",
++      "Limited",
+       "sketch",
+     );
+     add(
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 7ac7719..1e576a8 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -1784,6 +1784,10 @@ function ProofPane() {
+   return (
+     <div className="proof-workspace">
+       <div className="proof-heading pane-heading-row"><div><span className="kicker">Revisioned evidence</span><h1>Proof manifest</h1><p>Original availability, SHA-256 metadata, links and revision history stay visible with every export.</p></div><button type="button" className="pill-dark inline-flex items-center gap-2" onClick={download}><Download className="size-4" /> Export current manifest</button></div>
++      <details className="proof-revisions">
++        <summary>Professional A–Z delivery checklist · 364 requirements across 68 industry profiles</summary>
++        <iframe title="Professional A to Z requirements and proof" src="/industry-coverage/index.html" loading="lazy" style={{ width: "100%", height: "75vh", border: "1px solid var(--border, #ccd4c8)", marginTop: 12 }} />
++      </details>
+       <div className="proof-artifact-grid">
+         <section className="proof-source-artifact">
+           <span className="kicker">Source artifact</span>
+diff --git a/src/studio/architect/ArchitectWorkspace.tsx b/src/studio/architect/ArchitectWorkspace.tsx
+index 3a43a79..3b68122 100644
+--- a/src/studio/architect/ArchitectWorkspace.tsx
++++ b/src/studio/architect/ArchitectWorkspace.tsx
+@@ -1,8 +1,9 @@
++import { useDesignConfirmation } from "./useDesignConfirmation";
+ import { SyncDesignMaterials } from "./SyncDesignMaterials";
+ import { ArchitectAi } from "./ArchitectAi";
+ import { ArchitectSheets } from "./ArchitectSheets";
+-import { exportDxf, importDxf, csv } from "./exchange";
+-import { exportIfc } from "./ifc";
++import { csv } from "./exchange";
++import { ArchitectCadExchange } from "./ArchitectCadExchange";
+ import {
+   useEffect,
+   useMemo,
+@@ -100,6 +101,7 @@ function download(data: string, name: string, type = "application/json") {
+   setTimeout(() => URL.revokeObjectURL(url), 1000);
+ }
+ export function ArchitectWorkspace() {
++  const { confirmDesign, confirmation } = useDesignConfirmation();
+   const jobId = useStudio((s) => s.job.id),
+     [session, setSession] = useState<ArchitectSession>(() => ({
+       value: emptyProject(jobId),
+@@ -176,6 +178,9 @@ export function ArchitectWorkspace() {
+         redo.current = [];
+       }
+       setSession(saved);
++      setLevelId((current) =>
++        value.levels.some((level) => level.id === current) ? current : value.levels[0].id,
++      );
+       setError(null);
+       setNotice("Saved · revision " + value.revision);
+       return true;
+@@ -539,12 +544,12 @@ export function ArchitectWorkspace() {
+         </div>
+         <div className="arch-button-row">
+           <button
+-            onClick={() => {
++            onClick={async () => {
+               if (
+                 (p.walls.length || p.lines.length) &&
+-                !confirm(
++                !(await confirmDesign(
+                   "Replace this design with the labelled demonstration? Undo will remain available.",
+-                )
++                ))
+               )
+                 return;
+               const q = demonstration(p.id);
+@@ -581,9 +586,9 @@ export function ArchitectWorkspace() {
+                 if (f.size > 8 * 1024 * 1024) throw Error("Design backup exceeds 8 MB.");
+                 const incoming = validateProject(JSON.parse(await f.text()));
+                 if (
+-                  !confirm(
++                  !(await confirmDesign(
+                     "Replace this design with the validated backup? The current saved snapshot will be preserved for recovery.",
+-                  )
++                  ))
+                 )
+                   return;
+                 const q = { ...incoming, id: p.id };
+@@ -968,7 +973,11 @@ export function ArchitectWorkspace() {
+                   />
+                   <label className="arch-field">
+                     Boundary / mirror axis
+-                    <select value={boundary} onChange={(e) => setBoundary(e.target.value)}>
++                    <select
++                      aria-label="Boundary / mirror axis"
++                      value={boundary}
++                      onChange={(e) => setBoundary(e.target.value)}
++                    >
+                       <option value="">Vertical origin axis for mirror</option>
+                       {[...p.walls, ...p.lines]
+                         .filter((e) => e.id !== selected)
+@@ -1245,75 +1254,24 @@ export function ArchitectWorkspace() {
+       )}
+       {panel === "ai" && <ArchitectAi project={p} levelId={levelId} onChange={commit} />}
+       {panel === "sheets" && <ArchitectSheets project={p} onChange={commit} onError={setError} />}
+-      <footer className="arch-exchange">
+-        <span>CAD exchange</span>
+-        <button
+-          onClick={async () => {
+-            try {
+-              download(await exportDxf(p), "architect-design.dxf", "application/dxf");
+-            } catch (e) {
+-              setError(String(e));
+-            }
+-          }}
+-        >
+-          Export DXF
+-        </button>
+-        <label className="arch-file-button">
+-          Import DXF
+-          <input
+-            type="file"
+-            accept=".dxf,.dwg"
+-            hidden
+-            onChange={async (e) => {
+-              const f = e.target.files?.[0];
+-              if (!f) return;
+-              try {
+-                if (f.size > 12e6) throw Error("CAD file exceeds 12 MB.");
+-                const result = await importDxf(await f.text(), p.id);
+-                if (
+-                  !confirm(
+-                    "Replace the current design with this CAD import? Export a backup first if needed. Undo remains available.",
+-                  )
+-                )
+-                  return;
+-                if (commit(result.project)) {
+-                  setLevelId(result.project.levels[0].id);
+-                  setNotice(
+-                    result.parametric
+-                      ? "Parametric DXF restored with stable identities"
+-                      : result.warnings.join(" "),
+-                  );
+-                  setSelected(null);
+-                  setFitToken((n) => n + 1);
+-                }
+-              } catch (e) {
+-                setError(String(e));
+-              }
+-              e.target.value = "";
+-            }}
+-          />
+-        </label>
+-        <button
+-          onClick={() => {
+-            try {
+-              download(exportIfc(p), "architect-design.ifc", "application/x-step");
+-            } catch (e) {
+-              setError(String(e));
+-            }
+-          }}
+-        >
+-          Export IFC
+-        </button>
+-        <details>
+-          <summary>Exchange coverage</summary>
+-          <p>
+-            DXF: plan vectors and unchanged X-Ray parametric round trips. External DXF: reference
+-            lines and curves. IFC: modelled walls, openings, slabs and roof surfaces. Native DWG
+-            requires a licensed translator; use ASCII DXF meanwhile. No structural or regulatory
+-            certification is implied.
+-          </p>
+-        </details>
+-      </footer>
++      <ArchitectCadExchange
++        project={p}
++        confirm={confirmDesign}
++        onError={setError}
++        onImport={(result) => {
++          if (commit(result.project)) {
++            setLevelId(result.project.levels[0].id);
++            setNotice(
++              result.parametric
++                ? "Parametric DXF restored with stable identities"
++                : result.warnings.join(" "),
++            );
++            setSelected(null);
++            setFitToken((n) => n + 1);
++          }
++        }}
++      />
++      {confirmation}
+     </section>
+   );
+ }
+diff --git a/src/studio/architect/architect.css b/src/studio/architect/architect.css
+index e675307..94298bd 100644
+--- a/src/studio/architect/architect.css
++++ b/src/studio/architect/architect.css
+@@ -206,6 +206,20 @@
+   height: 100%;
+   touch-action: none;
+ }
++.architect-3d-render { width: 100%; height: 100%; }
++.arch-navigation {
++  position: absolute; top: 8px; left: 8px; right: 8px;
++  display: flex; flex-wrap: wrap; gap: 4px; width: fit-content;
++  padding: 4px; background: var(--color-paper); color: var(--color-ink);
++  border: 1px solid var(--color-line); border-radius: 8px;
++}
++.arch-navigation button { min-height: 44px; }
++.architect-3d-caption { right: 12px; }
++.arch-walk-plan {
++  display: block; width: 100%; height: 280px; cursor: crosshair;
++  background: var(--color-paper); color: var(--color-ink); border: 1px solid var(--color-line);
++}
++.arch-walk-point { fill: var(--color-accent, #ad553d); }
+ .architect-3d-caption {
+   position: absolute;
+   bottom: 12px;
+@@ -587,3 +601,14 @@
+ .workspace-rails:has(.architect-workspace) > .rail-controls-right {
+   display: none !important;
+ }
++.workspace-dialog:has(.arch-confirmation) {
++  width: min(720px, calc(100vw - 32px));
++}
++.arch-confirmation {
++  padding: 24px;
++}
++.arch-confirmation p {
++  margin: 0 0 20px;
++  white-space: pre-line;
++  line-height: 1.6;
++}
+diff --git a/src/studio/architect/exchange.ts b/src/studio/architect/exchange.ts
+index 095b83b..7f1a121 100644
+--- a/src/studio/architect/exchange.ts
++++ b/src/studio/architect/exchange.ts
+@@ -71,7 +71,8 @@ export async function exportDxf(project: ArchitectProject) {
+   const body = out.join("\n") + "\n",
+     payload = JSON.stringify({ hash: await hash(body), project: p }),
+     encoded = btoa(unescape(encodeURIComponent(payload))),
+-    chunks = encoded.match(/.{1,180}/g) ?? [];
++    chunks = encoded.match(/.{1,180}/g) ?? [],
++    layers = [...new Set(p.levels.map((l) => "LEVEL_" + l.name.replace(/[^a-z0-9_-]/gi, "_")))];
+   return [
+     "0",
+     "SECTION",
+@@ -88,6 +89,68 @@ export async function exportDxf(project: ArchitectProject) {
+     "0",
+     "ENDSEC",
+     ...chunks.flatMap((c, i) => ["999", `XRAY_MODEL:${i}:${chunks.length}:${c}`]),
++    // Strict CAD readers resolve each entity's layer through this table.
++    // Entity geometry (and the embedded model's body hash) remains unchanged.
++    "0",
++    "SECTION",
++    "2",
++    "TABLES",
++    "0",
++    "TABLE",
++    "2",
++    "LTYPE",
++    "100",
++    "AcDbSymbolTable",
++    "70",
++    "1",
++    "0",
++    "LTYPE",
++    "100",
++    "AcDbSymbolTableRecord",
++    "100",
++    "AcDbLinetypeTableRecord",
++    "2",
++    "CONTINUOUS",
++    "70",
++    "0",
++    "3",
++    "Solid line",
++    "72",
++    "65",
++    "73",
++    "0",
++    "40",
++    "0",
++    "0",
++    "ENDTAB",
++    "0",
++    "TABLE",
++    "2",
++    "LAYER",
++    "100",
++    "AcDbSymbolTable",
++    "70",
++    String(layers.length),
++    ...layers.flatMap((name) => [
++      "0",
++      "LAYER",
++      "100",
++      "AcDbSymbolTableRecord",
++      "100",
++      "AcDbLayerTableRecord",
++      "2",
++      name,
++      "70",
++      "0",
++      "62",
++      "7",
++      "6",
++      "CONTINUOUS",
++    ]),
++    "0",
++    "ENDTAB",
++    "0",
++    "ENDSEC",
+     "0",
+     "SECTION",
+     "2",
+@@ -104,7 +167,7 @@ export async function importDxf(text: string, jobId: string) {
+   if (text.length > 12e6) throw Error("DXF exceeds 12 MB.");
+   if (/^AC10\d\d/.test(text))
+     throw Error(
+-      "Binary DWG requires a licensed DWG translator. Export an ASCII DXF from your CAD application.",
++      "Open this DWG in the Windows desktop app, or export an ASCII DXF from your CAD application.",
+     );
+   const normalized = text.replace(/\r/g, ""),
+     body = normalized.match(/0\nSECTION\n2\nENTITIES\n([\s\S]*?)0\nENDSEC/)?.[1],
+diff --git a/src/studio/redburnBuilding.test.ts b/src/studio/redburnBuilding.test.ts
+index bc30175..9cb54fa 100644
+--- a/src/studio/redburnBuilding.test.ts
++++ b/src/studio/redburnBuilding.test.ts
+@@ -15,6 +15,64 @@ const input = JSON.parse(
+     ),
+   ),
+   scene = parseSourceBuilding(input);
++test("Decorative gables have roof slopes meeting the facade and no duplicate host roof underneath", () => {
++  const ids = ["main-roof", "terrace-gable-roof", "stair-gable-roof"];
++  const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
++  const meshes = ids.map((id) => {
++    const part = scene.objects.find((o) => o.id === id);
++    assert.ok(part, `${id} roof missing`);
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
++    geometry.setIndex(part.indices);
++    return new THREE.Mesh(geometry, mat);
++  });
++  try {
++    for (const [id, axis, center, fixed, radius] of [
++      ["terrace-gable", "a", 8.05, -0.22, 2.2],
++      ["stair-gable", "b", 3.15, -0.27, 2.4],
++    ] as const) {
++      const base = 5.86 + (fixed + 0.48) * Math.tan(Math.PI / 8);
++      for (const depth of [0.03, 0.4, 1])
++        for (const offset of [-0.6, 0.45]) {
++          const a = axis === "a" ? center + offset : fixed + depth;
++          const b = axis === "a" ? fixed + depth : center + offset;
++          const ray = new THREE.Raycaster(
++            new THREE.Vector3(a - 5.655, 10, 3.325 - b),
++            new THREE.Vector3(0, -1, 0),
++          );
++          const hits = ray.intersectObjects(meshes);
++          assert.equal(
++            hits.length,
++            1,
++            `${id}: missing roof or overlapping host sheet at ${depth}/${offset}`,
++          );
++          assert.ok(
++            Math.abs(
++              hits[0].point.y - (base + (radius - Math.abs(offset)) * Math.tan(Math.PI / 8)),
++            ) < 0.00005,
++          );
++        }
++      const face = scene.objects.find((o) => o.id === id)!;
++      const roof = scene.objects.find((o) => o.id === id + "-roof")!;
++      for (let i = 0; i < face.positions.length; i += 3) {
++        const p = face.positions.slice(i, i + 3);
++        assert.ok(
++          roof.positions.some(
++            (_, j) =>
++              j % 3 === 0 &&
++              Math.hypot(
++                ...(p.map((v, k) => v - roof.positions[j + k]) as [number, number, number]),
++              ) < 0.00005,
++          ),
++          `${id}: facade vertex does not meet roof`,
++        );
++      }
++    }
++  } finally {
++    for (const m of meshes) m.geometry.dispose();
++    mat.dispose();
++  }
++});
+ test("Redburn is bound to the supplied original, and modified source bytes are rejected", async () => {
+   const bytes = new Uint8Array(
+     fs.readFileSync(new URL("../../public/models/redburn/source.pdf", import.meta.url)),
+diff --git a/src/styles.css b/src/styles.css
+index ac4448d..4d7a9e4 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -516,7 +516,9 @@
+     .bom-table tbody td:nth-child(3) { grid-column: 2; grid-row: 1; text-align: right; }
+     .bom-table tbody td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
+   }
+-  .proof-workspace { display: grid; gap: 12px; }
++  .proof-workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 12px; }
++  .proof-workspace > * { min-width: 0; }
++  .proof-workspace .proof-heading { flex-wrap: wrap; }
+   .proof-heading p { max-width: 65ch; }
+   .proof-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 16px; }
+   .photo-evidence-error { margin-top: 10px; color: var(--color-danger); }
+@@ -573,7 +575,7 @@
+   .proof-rail-section { margin-top: 14px; border-top: 1px solid var(--color-line); padding-top: 12px; }
+   .proof-rail-section p { margin: 7px 0 0; color: var(--color-muted); }
+   .proof-rail-section ol { display: grid; gap: 7px; margin: 8px 0 0; padding-left: 18px; color: var(--color-muted); }
+-  .proof-artifact-grid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(360px, 1.2fr); gap: 8px; }
++  .proof-artifact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; }
+   .proof-source-artifact {
+     min-width: 0;
+     border-top: 2px solid var(--color-blue);
+diff --git a/vite.config.ts b/vite.config.ts
+index 9810755..c3d8cac 100644
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -151,7 +151,7 @@ export default defineConfig(({ command, isPreview }) => ({
+     port: 8080,
+     strictPort: true,
+     watch: {
+-      ignored: ["**/.vercel/**", "**/.output/**", "**/dist/**", "**/snapshots/**", "**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
++      ignored: ["**/.vercel/**", "**/.output/**", "**/dist/**", "**/snapshots/**", "**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/.temp/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
+     },
+   },
+   preview: {
+
+diff --git a/src/studio/architect/ArchitectCadExchange.tsx b/src/studio/architect/ArchitectCadExchange.tsx
+new file mode 100644
+index 0000000..5bbfbbb
+--- /dev/null
++++ b/src/studio/architect/ArchitectCadExchange.tsx
+@@ -0,0 +1,205 @@
++import { useEffect, useRef, useState } from "react";
++import { exportDxf, importDxf } from "./exchange";
++import { exportIfc } from "./ifc";
++import type { ArchitectProject } from "./model";
++import { CAD_LIMIT, convertCad, getCadStatus, type CadStatus } from "./cadTransport";
++
++type ImportResult = Awaited<ReturnType<typeof importDxf>>;
++function download(data: BlobPart, name: string, type: string) {
++  const url = URL.createObjectURL(new Blob([data], { type }));
++  const a = document.createElement("a");
++  a.href = url;
++  a.download = name;
++  a.click();
++  setTimeout(() => URL.revokeObjectURL(url), 1000);
++}
++export function ArchitectCadExchange({
++  project,
++  confirm,
++  onImport,
++  onError,
++}: {
++  project: ArchitectProject;
++  confirm: (message: string) => Promise<boolean>;
++  onImport: (result: ImportResult) => void;
++  onError: (message: string) => void;
++}) {
++  const [status, setStatus] = useState<CadStatus>({ available: false });
++  const [busy, setBusy] = useState(false);
++  const [notice, setNotice] = useState("");
++  const [importDiagnostics, setImportDiagnostics] = useState<string[]>([]);
++  const pending = useRef<AbortController | null>(null);
++  const current = useRef(project);
++  current.current = project;
++  useEffect(() => {
++    let live = true;
++    void getCadStatus()
++      .then((s) => {
++        if (live) setStatus(s);
++      })
++      .catch(() => {
++        if (live)
++          setStatus({
++            available: false,
++            reason:
++              "Local DWG translator unavailable. Use DXF or reinstall the current desktop build.",
++          });
++      });
++    return () => {
++      live = false;
++      pending.current?.abort();
++    };
++  }, []);
++  async function run(task: (signal: AbortSignal) => Promise<void>) {
++    if (pending.current) return;
++    const controller = new AbortController();
++    pending.current = controller;
++    setBusy(true);
++    setNotice("");
++    try {
++      await task(controller.signal);
++    } catch (e) {
++      if (controller.signal.aborted)
++        setNotice("CAD conversion cancelled. Your design is unchanged.");
++      else onError(String(e));
++    } finally {
++      pending.current = null;
++      setBusy(false);
++    }
++  }
++  function unchanged(snapshot: ArchitectProject, signal: AbortSignal) {
++    if (signal.aborted) throw Error("CAD conversion cancelled.");
++    if (current.current.id !== snapshot.id || current.current.revision !== snapshot.revision)
++      throw Error(
++        "Your design changed during CAD import. Import again to review it against the current design.",
++      );
++  }
++  return (
++    <footer className="arch-exchange">
++      <span>CAD exchange</span>
++      <button
++        disabled={busy}
++        onClick={() =>
++          void run(async (signal) => {
++            const dxf = await exportDxf(project);
++            if (!signal.aborted) download(dxf, "architect-design.dxf", "application/dxf");
++          })
++        }
++      >
++        Export DXF
++      </button>
++      <button
++        disabled={busy || !status.available}
++        title={status.reason}
++        onClick={() =>
++          void run(async (signal) => {
++            const result = await convertCad(
++              "to-dwg",
++              new TextEncoder().encode(await exportDxf(project)),
++              signal,
++            );
++            if (signal.aborted) return;
++            download(result.bytes, "architect-design.dwg", "application/acad");
++            setNotice(
++              `DWG exported locally: ${result.entityCount} drawing entities. Keep a DXF or backup to retain editable assemblies.`,
++            );
++          })
++        }
++      >
++        Export DWG
++      </button>
++      <label className="arch-file-button">
++        {status.available ? "Import DXF / DWG" : "Import DXF"}
++        <input
++          type="file"
++          accept={status.available ? ".dxf,.dwg" : ".dxf"}
++          hidden
++          disabled={busy}
++          onChange={(e) => {
++            const file = e.currentTarget.files?.[0];
++            e.currentTarget.value = "";
++            if (!file) return;
++            const snapshot = project;
++            void run(async (signal) => {
++              if (!file.size || file.size > CAD_LIMIT)
++                throw Error("CAD file is empty or exceeds 12 MB.");
++              const bytes = new Uint8Array(await file.arrayBuffer());
++              const isDwg =
++                /\.dwg$/i.test(file.name) ||
++                /^AC10\d\d/.test(new TextDecoder().decode(bytes.subarray(0, 6)));
++              const converted = isDwg ? await convertCad("to-dxf", bytes, signal) : null;
++              const result = await importDxf(
++                new TextDecoder().decode(converted?.bytes ?? bytes),
++                snapshot.id,
++              );
++              if (isDwg) {
++                result.project.name = "Imported DWG reference geometry";
++                result.warnings.unshift(
++                  "DWG imported as 2D reference geometry; assemblies and original level structure are not restored.",
++                );
++                setImportDiagnostics(converted?.warnings ?? []);
++                if (converted?.warnings.length)
++                  result.warnings.push(
++                    `${converted.warnings.length} CAD compatibility warning(s) recorded in Import diagnostics.`,
++                  );
++              }
++              unchanged(snapshot, signal);
++              const summary = result.parametric
++                ? "This restores the X-Ray parametric design."
++                : `${result.project.lines.length} lines, ${result.project.circles.length} circles and ${result.project.arcs.length} arcs. ${result.warnings.join(" ")}`;
++              if (
++                !(await confirm(
++                  `${summary}\n\nReplace the current design? Export a backup first if needed. Undo remains available.`,
++                ))
++              )
++                return;
++              unchanged(snapshot, signal);
++              onImport(result);
++            });
++          }}
++        />
++      </label>
++      <button
++        disabled={busy}
++        onClick={() => {
++          try {
++            download(exportIfc(project), "architect-design.ifc", "application/x-step");
++          } catch (e) {
++            onError(String(e));
++          }
++        }}
++      >
++        Export IFC
++      </button>
++      {busy && (
++        <>
++          <span role="status">Converting CAD…</span>
++          <button onClick={() => pending.current?.abort()}>Cancel CAD</button>
++        </>
++      )}
++      {notice && (
++        <p className="arch-note" role="status">
++          {notice}
++        </p>
++      )}
++      {importDiagnostics.length > 0 && (
++        <details>
++          <summary>Import diagnostics ({importDiagnostics.length})</summary>
++          <ul>{importDiagnostics.map((message, i) => <li key={i}>{message}</li>)}</ul>
++        </details>
++      )}
++      <details>
++        <summary>Exchange coverage</summary>
++        <p>
++          DXF: plan vectors and unchanged X-Ray parametric round trips. DWG: local Windows desktop
++          conversion, R14–2018 format import and 2013 format export. DWG exchanges drawing geometry;
++          retain a DXF or backup for editable assemblies. External CAD imports supported 2D lines
++          and curves as references. Blocks, text and unsupported entities are reported when skipped.
++          IFC: modelled walls, openings, slabs and roof surfaces. Web users can exchange DXF. No
++          structural or regulatory certification is implied.
++        </p>
++        {!status.available && status.reason && <p>{status.reason}</p>}
++      </details>
++    </footer>
++  );
++}
+
+diff --git a/src/studio/architect/cadTransport.ts b/src/studio/architect/cadTransport.ts
+new file mode 100644
+index 0000000..44796e7
+--- /dev/null
++++ b/src/studio/architect/cadTransport.ts
+@@ -0,0 +1,63 @@
++export const CAD_LIMIT = 12_000_000;
++export type CadStatus = { available: boolean; reason?: string; translator?: string };
++export type CadResult = {
++  format: "dwg" | "dxf";
++  bytes: Uint8Array<ArrayBuffer>;
++  entityCount: number;
++  warnings: string[];
++};
++export const desktopCad = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
++export async function getCadStatus(): Promise<CadStatus> {
++  if (!desktopCad())
++    return {
++      available: false,
++      reason: "DWG conversion is available in the Windows desktop app. Use DXF on the web.",
++    };
++  const { invoke } = await import("@tauri-apps/api/core");
++  return invoke("xray_cad_status");
++}
++export function cadBase64(bytes: Uint8Array): string {
++  if (!bytes.length || bytes.length > CAD_LIMIT) throw Error("CAD file is empty or exceeds 12 MB.");
++  let binary = "";
++  for (let i = 0; i < bytes.length; i += 8192)
++    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
++  return btoa(binary);
++}
++export function cadBytes(value: string): Uint8Array<ArrayBuffer> {
++  if (!value || value.length > Math.ceil(CAD_LIMIT / 3) * 4)
++    throw Error("Invalid CAD output size.");
++  const binary = atob(value);
++  if (binary.length > CAD_LIMIT) throw Error("CAD output exceeds 12 MB.");
++  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
++}
++export async function convertCad(
++  action: "to-dwg" | "to-dxf",
++  bytes: Uint8Array,
++  signal: AbortSignal,
++): Promise<CadResult> {
++  if (!desktopCad())
++    throw Error("DWG conversion is available in the Windows desktop app. Use DXF on the web.");
++  if (signal.aborted) throw Error("CAD conversion cancelled.");
++  const sourceBase64 = cadBase64(bytes);
++  const { invoke } = await import("@tauri-apps/api/core");
++  if (signal.aborted) throw Error("CAD conversion cancelled.");
++  const requestId = crypto.randomUUID();
++  const cancel = () => {
++    void invoke("xray_cad_cancel", { requestId }).catch(() => {});
++  };
++  signal.addEventListener("abort", cancel, { once: true });
++  try {
++    const result = await invoke<{
++      bytesBase64: string;
++      format: "dwg" | "dxf";
++      entityCount: number;
++      warnings: string[];
++    }>("xray_cad_convert", { requestId, action, sourceBase64 });
++    if (signal.aborted) throw Error("CAD conversion cancelled.");
++    if (result.format !== (action === "to-dwg" ? "dwg" : "dxf"))
++      throw Error("Unexpected CAD conversion format.");
++    return { ...result, bytes: cadBytes(result.bytesBase64) };
++  } finally {
++    signal.removeEventListener("abort", cancel);
++  }
++}
+
+diff --git a/src/studio/architect/cadTransport.test.ts b/src/studio/architect/cadTransport.test.ts
+new file mode 100644
+index 0000000..7e7f00e
+--- /dev/null
++++ b/src/studio/architect/cadTransport.test.ts
+@@ -0,0 +1,19 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { cadBase64, cadBytes, convertCad, CAD_LIMIT } from "./cadTransport.ts";
++test("binary CAD transport preserves bytes, including NUL and non-UTF8 data", () => {
++  const bytes = Uint8Array.from({ length: 17000 }, (_, i) => i % 256);
++  assert.deepEqual(cadBytes(cadBase64(bytes)), bytes);
++});
++test("CAD transport rejects empty, malformed and oversized payloads", () => {
++  assert.throws(() => cadBase64(new Uint8Array()));
++  assert.throws(() => cadBase64(new Uint8Array(CAD_LIMIT + 1)));
++  assert.throws(() => cadBytes("not-base64!"));
++  assert.throws(() => cadBytes("A".repeat(16000004)));
++});
++test("web conversion fails before any remote request", async () => {
++  await assert.rejects(
++    () => convertCad("to-dxf", new Uint8Array([1]), new AbortController().signal),
++    /Windows desktop/,
++  );
++});
+
+diff --git a/src/studio/architect/useDesignConfirmation.tsx b/src/studio/architect/useDesignConfirmation.tsx
+new file mode 100644
+index 0000000..0b842e1
+--- /dev/null
++++ b/src/studio/architect/useDesignConfirmation.tsx
+@@ -0,0 +1,30 @@
++import { useEffect, useRef, useState } from "react";
++import { WorkspaceDialog } from "../WorkspaceDialog";
++
++export function useDesignConfirmation() {
++  const [message, setMessage] = useState<string | null>(null);
++  const pending = useRef<((accepted: boolean) => void) | null>(null);
++  useEffect(() => () => { pending.current?.(false); }, []);
++  const finish = (accepted: boolean) => {
++    pending.current?.(accepted);
++    pending.current = null;
++    setMessage(null);
++  };
++  const confirmDesign = (text: string) => new Promise<boolean>(resolve => {
++    pending.current?.(false);
++    pending.current = resolve;
++    setMessage(text);
++  });
++  const confirmation = message === null ? null : (
++    <WorkspaceDialog title="Review design change" onClose={() => finish(false)}>
++      <div className="arch-confirmation">
++        <p>{message}</p>
++        <div className="arch-button-row">
++          <button autoFocus onClick={() => finish(false)}>Cancel change</button>
++          <button onClick={() => finish(true)}>Confirm design change</button>
++        </div>
++      </div>
++    </WorkspaceDialog>
++  );
++  return { confirmDesign, confirmation };
++}
+
+diff --git a/src-tauri/src/cad.rs b/src-tauri/src/cad.rs
+new file mode 100644
+index 0000000..08cc926
+--- /dev/null
++++ b/src-tauri/src/cad.rs
+@@ -0,0 +1,243 @@
++use base64::{engine::general_purpose::STANDARD, Engine};
++use serde_json::{json, Value};
++use std::io::{Read, Write};
++use std::path::{Path, PathBuf};
++use std::process::{Command, Stdio};
++use std::sync::{
++    atomic::{AtomicBool, Ordering},
++    Arc, Mutex,
++};
++use std::time::{Duration, Instant};
++use tauri::{AppHandle, Manager, State};
++
++const LIMIT: usize = 12_000_000;
++const RESPONSE_LIMIT: usize = 17_000_000;
++#[derive(Default)]
++pub struct CadState(Mutex<Option<(String, Arc<AtomicBool>)>>);
++impl CadState {
++    pub fn cancel_all(&self) {
++        if let Ok(guard) = self.0.lock() {
++            if let Some((_, token)) = guard.as_ref() {
++                token.store(true, Ordering::SeqCst);
++            }
++        }
++    }
++}
++fn executable(app: &AppHandle) -> Result<PathBuf, String> {
++    if !cfg!(target_os = "windows") {
++        return Err("DWG conversion is available in the Windows desktop app.".into());
++    }
++    let packaged = app
++        .path()
++        .resource_dir()
++        .map_err(|_| "CAD resources unavailable.")?
++        .join("engine/cad/XRayCad.exe");
++    if packaged.is_file() {
++        return Ok(packaged);
++    }
++    #[cfg(debug_assertions)]
++    {
++        let development =
++            Path::new(env!("CARGO_MANIFEST_DIR")).join("../engine/cad/bin/XRayCad.exe");
++        if development.is_file() {
++            return Ok(development);
++        }
++    }
++    Err("The local DWG translator is missing. Reinstall the current desktop build.".into())
++}
++#[tauri::command]
++pub fn xray_cad_status(app: AppHandle) -> Value {
++    let result = executable(&app);
++    json!({"available":result.is_ok(), "translator":"ACadSharp 3.7.1", "reason":result.err()})
++}
++fn decode_request(action: &str, source: &str) -> Result<Vec<u8>, String> {
++    if action != "to-dwg" && action != "to-dxf" {
++        return Err("Invalid CAD conversion direction.".into());
++    }
++    if source.len() > LIMIT.div_ceil(3) * 4 {
++        return Err("CAD file exceeds 12 MB.".into());
++    }
++    let bytes = STANDARD
++        .decode(source)
++        .map_err(|_| "Invalid CAD file encoding.")?;
++    if bytes.len() < 6 || bytes.len() > LIMIT {
++        return Err("CAD file is empty, incomplete or exceeds 12 MB.".into());
++    }
++    if action == "to-dxf"
++        && ![
++            b"AC1014", b"AC1015", b"AC1018", b"AC1021", b"AC1024", b"AC1027", b"AC1032",
++        ]
++        .iter()
++        .any(|s| bytes.starts_with(*s))
++    {
++        return Err("DWG import supports AutoCAD R14 through the 2018 file format. This file has an unsupported signature.".into());
++    }
++    if action == "to-dwg"
++        && (std::str::from_utf8(&bytes).is_err() || !bytes.windows(7).any(|s| s == b"SECTION"))
++    {
++        return Err("DWG export requires an ASCII DXF drawing.".into());
++    }
++    Ok(bytes)
++}
++fn limited_read(mut reader: impl Read) -> Result<Vec<u8>, String> {
++    let mut bytes = Vec::new();
++    reader
++        .by_ref()
++        .take((RESPONSE_LIMIT + 1) as u64)
++        .read_to_end(&mut bytes)
++        .map_err(|_| "CAD output could not be read.")?;
++    if bytes.len() > RESPONSE_LIMIT {
++        return Err("CAD output exceeded its size limit.".into());
++    }
++    Ok(bytes)
++}
++fn convert(
++    exe: &Path,
++    action: &str,
++    bytes: Vec<u8>,
++    cancelled: Arc<AtomicBool>,
++) -> Result<Value, String> {
++    if cancelled.load(Ordering::SeqCst) {
++        return Err("CAD conversion cancelled.".into());
++    }
++    let mut command = Command::new(exe);
++    command
++        .arg(action)
++        .stdin(Stdio::piped())
++        .stdout(Stdio::piped())
++        .stderr(Stdio::null());
++    #[cfg(target_os = "windows")]
++    {
++        use std::os::windows::process::CommandExt;
++        command.creation_flags(0x08000000);
++    }
++    let mut child = command.spawn().map_err(|_| {
++        "Local CAD translator could not start. Windows requires .NET Framework 4.8."
++    })?;
++    let mut stdin = child.stdin.take().ok_or("CAD input unavailable.")?;
++    let stdout = child.stdout.take().ok_or("CAD output unavailable.")?;
++    let writer = std::thread::spawn(move || stdin.write_all(&bytes));
++    let reader = std::thread::spawn(move || limited_read(stdout));
++    let started = Instant::now();
++    let outcome = loop {
++        if cancelled.load(Ordering::SeqCst) {
++            break Err("CAD conversion cancelled.");
++        }
++        if started.elapsed() > Duration::from_secs(30) {
++            break Err("CAD conversion exceeded 30 seconds. Try a smaller drawing.");
++        }
++        match child.try_wait() {
++            Ok(Some(status)) => break Ok(status),
++            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
++            Err(_) => break Err("CAD translator stopped unexpectedly."),
++        }
++    };
++    if outcome.is_err() {
++        let _ = child.kill();
++        let _ = child.wait();
++    }
++    let write_result = writer.join();
++    let read_result = reader.join();
++    let status = outcome.map_err(str::to_string)?;
++    let output = read_result.map_err(|_| "CAD output reader stopped.")??;
++    let result: Value = serde_json::from_slice(&output)
++        .map_err(|_| "CAD translator returned an invalid response.")?;
++    if !status.success() || result["ok"] != true {
++        return Err(result["error"]
++            .as_str()
++            .unwrap_or("CAD conversion failed.")
++            .chars()
++            .take(500)
++            .collect());
++    }
++    write_result
++        .map_err(|_| "CAD input writer stopped.")?
++        .map_err(|_| "CAD input was interrupted.")?;
++    if cancelled.load(Ordering::SeqCst) {
++        return Err("CAD conversion cancelled.".into());
++    }
++    let source = result["bytesBase64"]
++        .as_str()
++        .ok_or("CAD output is missing.")?;
++    // Validate bytes in the opposite direction before returning them to the UI.
++    decode_request(
++        if action == "to-dwg" {
++            "to-dxf"
++        } else {
++            "to-dwg"
++        },
++        source,
++    )?;
++    Ok(result)
++}
++#[tauri::command]
++pub async fn xray_cad_convert(
++    app: AppHandle,
++    state: State<'_, CadState>,
++    request_id: String,
++    action: String,
++    source_base64: String,
++) -> Result<Value, String> {
++    if request_id.len() < 8
++        || request_id.len() > 80
++        || !request_id
++            .bytes()
++            .all(|c| c.is_ascii_alphanumeric() || c == b'-')
++    {
++        return Err("Invalid CAD request identity.".into());
++    }
++    let bytes = decode_request(&action, &source_base64)?;
++    let exe = executable(&app)?;
++    let token = Arc::new(AtomicBool::new(false));
++    {
++        let mut active = state.0.lock().map_err(|_| "CAD state unavailable.")?;
++        if active.is_some() {
++            return Err("A CAD conversion is already running.".into());
++        }
++        *active = Some((request_id, token.clone()));
++    }
++    let result = tauri::async_runtime::spawn_blocking(move || convert(&exe, &action, bytes, token))
++        .await
++        .map_err(|_| "CAD conversion stopped.".to_string())
++        .and_then(|r| r);
++    if let Ok(mut active) = state.0.lock() {
++        *active = None;
++    }
++    result
++}
++#[tauri::command]
++pub fn xray_cad_cancel(state: State<'_, CadState>, request_id: String) {
++    if let Ok(active) = state.0.lock() {
++        if let Some((id, token)) = active.as_ref() {
++            if id == &request_id {
++                token.store(true, Ordering::SeqCst);
++            }
++        }
++    }
++}
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn rejects_invalid_cad_before_starting_process() {
++        assert!(decode_request("shell", "AAAA").is_err());
++        assert!(decode_request("to-dxf", "not base64").is_err());
++        assert!(decode_request("to-dxf", &STANDARD.encode(b"%PDF-1.7 test")).is_err());
++        assert!(decode_request("to-dwg", &STANDARD.encode(b"AC1027binary")).is_err());
++        assert!(decode_request("to-dxf", &"A".repeat(16_000_004)).is_err());
++    }
++    #[test]
++    fn bounds_translator_output_and_honors_early_cancellation() {
++        assert!(limited_read(std::io::repeat(0).take((RESPONSE_LIMIT + 1) as u64)).is_err());
++        assert_eq!(
++            convert(
++                Path::new("missing.exe"),
++                "to-dwg",
++                vec![],
++                Arc::new(AtomicBool::new(true))
++            )
++            .unwrap_err(),
++            "CAD conversion cancelled."
++        );
++    }
++}
+
+diff --git a/engine/cad/Converter.cs b/engine/cad/Converter.cs
+new file mode 100644
+index 0000000..3211653
+--- /dev/null
++++ b/engine/cad/Converter.cs
+@@ -0,0 +1,82 @@
++using System;
++using System.IO;
++using System.Linq;
++using System.Text;
++using System.Collections.Generic;
++using System.Web.Script.Serialization;
++using ACadSharp;
++using ACadSharp.IO;
++
++// A single request per process. The desktop host bounds runtime and cancels by
++// terminating this process. Drawing bytes never leave the local computer.
++internal static class Converter
++{
++    const int Limit = 12000000;
++    static int Main(string[] args)
++    {
++        Console.OutputEncoding = new UTF8Encoding(false);
++        var warnings = new List<string>();
++        NotificationEventHandler notify = (sender, e) => {
++            string message = e.Message ?? "CAD translator warning.";
++            if (warnings.Count < 25 && !warnings.Contains(message))
++                warnings.Add(message.Substring(0, Math.Min(message.Length, 300)));
++        };
++        try
++        {
++            if (args.Length != 1 || (args[0] != "to-dwg" && args[0] != "to-dxf"))
++                throw new InvalidOperationException("Choose DWG import or export.");
++            byte[] bytes;
++            using (var input = Console.OpenStandardInput())
++            using (var buffer = new MemoryStream())
++            {
++                byte[] chunk = new byte[8192];
++                int count;
++                while ((count = input.Read(chunk, 0, chunk.Length)) > 0)
++                {
++                    if (buffer.Length + count > Limit) throw new InvalidOperationException("CAD file exceeds 12 MB.");
++                    buffer.Write(chunk, 0, count);
++                }
++                bytes = buffer.ToArray();
++            }
++            if (bytes.Length < 6) throw new InvalidOperationException("CAD file is empty or incomplete.");
++            bool export = args[0] == "to-dwg";
++            CadDocument doc;
++            using (var input = new MemoryStream(bytes))
++                doc = export ? DxfReader.Read(input, notify) : DwgReader.Read(input, notify);
++            if (doc.Entities.Count == 0 || doc.Entities.Count > 100000)
++                throw new InvalidOperationException("CAD drawing must contain 1 to 100,000 model-space entities.");
++            // Minimal ASCII DXF omits optional CAD defaults required by DWG.
++            // Layer declarations come from the exporter, never guessed here.
++            if (export) doc.CreateDefaults();
++            int units = (int)doc.Header.InsUnits;
++            if (!new[] { 1, 2, 4, 5, 6 }.Contains(units))
++                throw new InvalidOperationException("CAD file must declare millimetres, centimetres, metres, inches or feet.");
++            byte[] converted;
++            using (var output = new MemoryStream())
++            {
++                if (export) DwgWriter.Write(output, doc, new DwgWriterConfiguration(), notify);
++                else DxfWriter.Write(output, doc, false, new DxfWriterConfiguration(), notify);
++                converted = output.ToArray();
++            }
++            if (converted.Length == 0 || converted.Length > Limit)
++                throw new InvalidOperationException("Converted CAD file exceeds 12 MB or is empty.");
++            Write(new {
++                ok = true, format = export ? "dwg" : "dxf",
++                bytesBase64 = Convert.ToBase64String(converted),
++                entityCount = doc.Entities.Count, units = units,
++                warnings = warnings.ToArray(), translator = "ACadSharp 3.7.1",
++            });
++            return 0;
++        }
++        catch (Exception e)
++        {
++            string message = e is InvalidOperationException ? e.Message : "CAD conversion failed. The drawing may be damaged or use unsupported entities or a DWG version.";
++            Write(new { ok = false, error = message, warnings = warnings.ToArray() });
++            return 1;
++        }
++    }
++    static void Write(object value)
++    {
++        Console.WriteLine(new JavaScriptSerializer { MaxJsonLength = 24000000 }.Serialize(value));
++    }
++}
+
+diff --git a/engine/cad/THIRD-PARTY-NOTICES.txt b/engine/cad/THIRD-PARTY-NOTICES.txt
+new file mode 100644
+index 0000000..c77cdfb
+--- /dev/null
++++ b/engine/cad/THIRD-PARTY-NOTICES.txt
+@@ -0,0 +1,53 @@
++X-Ray local CAD translator third-party notices
++
++ACadSharp 3.7.1: https://github.com/DomCR/ACadSharp
++
++MIT License
++
++Copyright (c) 2021 Albert Domenech
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++
++
++The MIT License (MIT)
++
++Copyright (c) .NET Foundation and Contributors
++
++All rights reserved.
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++
++
++System.Memory 4.6.3, System.Buffers 4.6.1, System.Numerics.Vectors 4.6.1, and System.Runtime.CompilerServices.Unsafe 6.1.2 are Microsoft .NET libraries, MIT licensed.
+
+diff --git a/scripts/build-cad.mjs b/scripts/build-cad.mjs
+new file mode 100644
+index 0000000..07637a6
+--- /dev/null
++++ b/scripts/build-cad.mjs
+@@ -0,0 +1,109 @@
++import { mkdir, readFile, writeFile, copyFile } from "node:fs/promises";
++import { existsSync } from "node:fs";
++import { createHash } from "node:crypto";
++import { spawnSync } from "node:child_process";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++const root = fileURLToPath(new URL("../", import.meta.url));
++const cad = path.join(root, "engine/cad");
++const bin = path.join(cad, "bin");
++if (process.platform !== "win32")
++  throw Error(
++    "The local DWG translator currently targets Windows desktop. Web builds do not use it.",
++  );
++const packages = [
++  [
++    "acadsharp",
++    "3.7.1",
++    "net48",
++    "ACadSharp.dll",
++    "4f9ca3a5dafd1a18af651312522147a3163999818763d168b4d5f59d6ffc1701",
++  ],
++  [
++    "system.memory",
++    "4.6.3",
++    "net462",
++    "System.Memory.dll",
++    "26078aeb758c9ae985e8bf851f973026061da6a5eb4837204d0c2d2204c72955",
++  ],
++  [
++    "system.buffers",
++    "4.6.1",
++    "net462",
++    "System.Buffers.dll",
++    "b00451e91d016fbec091ad1e361f3a7015e1d91d4047f7e48a74455b2a673d79",
++  ],
++  [
++    "system.numerics.vectors",
++    "4.6.1",
++    "net462",
++    "System.Numerics.Vectors.dll",
++    "2bc500a86dcb02f2032d6d877f9e2d6e9e4a79080e57239b4198679d4031f2c7",
++  ],
++  [
++    "system.runtime.compilerservices.unsafe",
++    "6.1.2",
++    "net462",
++    "System.Runtime.CompilerServices.Unsafe.dll",
++    "5f6a7f53af3465f92beb6da873ebe0e496206c313313b98badee4355a6b25937",
++  ],
++];
++await mkdir(bin, { recursive: true });
++const psQuote = (value) => "'" + value.replaceAll("'", "''") + "'";
++for (const [name, version, framework, dll, expected] of packages) {
++  const directory = path.join(cad, "packages", `${name}-${version}`);
++  await mkdir(directory, { recursive: true });
++  const archive = path.join(directory, "package.zip");
++  let bytes;
++  if (existsSync(archive)) bytes = await readFile(archive);
++  else {
++    const response = await fetch(
++      `https://api.nuget.org/v3-flatcontainer/${name}/${version}/${name}.${version}.nupkg`,
++    );
++    if (!response.ok) throw Error(`${name}: HTTP ${response.status}`);
++    bytes = Buffer.from(await response.arrayBuffer());
++  }
++  if (createHash("sha256").update(bytes).digest("hex") !== expected)
++    throw Error(`${name}: package checksum mismatch`);
++  await writeFile(archive, bytes);
++  const extraction = spawnSync(
++    "powershell.exe",
++    [
++      "-NoProfile",
++      "-NonInteractive",
++      "-Command",
++      `Expand-Archive -LiteralPath ${psQuote(archive)} -DestinationPath ${psQuote(directory)} -Force`,
++    ],
++    { windowsHide: true, encoding: "utf8" },
++  );
++  if (extraction.status !== 0) throw Error(extraction.stderr);
++  await copyFile(path.join(directory, "lib", framework, dll), path.join(bin, dll));
++}
++const compiler = path.join(
++  process.env.SystemRoot || "C:/Windows",
++  "Microsoft.NET/Framework64/v4.0.30319/csc.exe",
++);
++const result = spawnSync(
++  compiler,
++  [
++    "/nologo",
++    "/optimize+",
++    "/target:exe",
++    `/out:${path.join(bin, "XRayCad.exe")}`,
++    "/reference:System.Web.Extensions.dll",
++    ...packages.map((p) => `/reference:${path.join(bin, p[3])}`),
++    path.join(cad, "Converter.cs"),
++  ],
++  { windowsHide: true, encoding: "utf8" },
++);
++if (result.status !== 0) throw Error(result.stdout + result.stderr);
++await writeFile(
++  path.join(bin, "XRayCad.exe.config"),
++  '<?xml version="1.0"?><configuration><startup><supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" /></startup></configuration>\n',
++);
++await copyFile(
++  path.join(cad, "THIRD-PARTY-NOTICES.txt"),
++  path.join(bin, "THIRD-PARTY-NOTICES.txt"),
++);
++console.log("Built local DWG translator: ACadSharp 3.7.1; verified 5 dependency checksums.");
+
+diff --git a/planning/professional-coverage/catalogue.mjs b/planning/professional-coverage/catalogue.mjs
+new file mode 100644
+index 0000000..25188a2
+--- /dev/null
++++ b/planning/professional-coverage/catalogue.mjs
+@@ -0,0 +1,466 @@
++// Requirement statements and acceptance cases are X-Ray's proposed product scope,
++// not a claim that a benchmark vendor supplies every item in a category.
++export const researchedAt = '2026-09-07';
++export const sources = [
++  ['ACAD','Autodesk AutoCAD','https://www.autodesk.com/products/autocad','2D/3D drafting and seven discipline toolsets, including plant and raster workflows.'],
++  ['REVIT','Autodesk Revit MEP documentation','https://help.autodesk.com/cloudhelp/2026/ENU/Revit-MEPEng/files/GUID-195C2C6C-5E2C-422E-A44D-FB3FDFDE276A.htm','Ducts, circuits, piping and connected building-services systems.'],
++  ['ARCHICAD','Graphisoft Archicad Collaborate','https://www.graphisoft.com/en-us/plans-and-products/archicad-collaborate/','Architecture and MEP authoring, BIMcloud teamwork and BIMx presentation.'],
++  ['BIMCLOUD','Graphisoft BIMcloud teams','https://helpcenter.graphisoft.com/user-guide/134439/','Teams and permissions across project participants.'],
++  ['OPENBUILD','Bentley OpenBuildings Designer','https://www.bentley.com/software/openbuildings-designer/','Multidiscipline building modeling, documentation and analysis workflows.'],
++  ['CIVIL','Autodesk Civil 3D','https://www.autodesk.com/uk/products/civil-3d/features','Survey, surfaces, corridors, pressure networks and civil documentation.'],
++  ['OPENSITE','Bentley OpenSite Designer','https://www.bentley.com/software/opensite-designer/','Site layout, grading, earthworks and site utility design.'],
++  ['TRIMBLE','Trimble Business Center','https://civilconstruction.trimble.com/en/products/software/trimble-business-center','Field data, earthwork takeoff, corridors and machine-control models.'],
++  ['TBC','Trimble Business Center command matrix','https://help.fieldsystems.trimble.com/tbc/pdf/tbc-command-matrix-editions-modules.pdf','Published edition matrix, October 2025: network adjustment, COGO, surfaces and survey drafting.'],
++  ['GIS','Esri ArcGIS Pro','https://www.esri.com/en-us/arcgis/products/arcgis-pro/features','Spatial analysis, imagery, geoprocessing and extensibility.'],
++  ['ETABS','CSI ETABS','https://www.csiamerica.com/products/etabs','Building structural modeling, analysis, design and reporting.'],
++  ['TEDDS','Tekla Tedds','https://www.tekla.com/products/tekla-tedds','Documented structural calculations across materials.'],
++  ['PLAXIS','Bentley PLAXIS 3D','https://www.bentley.com/products/plaxis-3d','Soil/structure interaction, staged excavation, groundwater and dynamic analysis.'],
++  ['WATER','Bentley OpenFlows Water','https://www.bentley.com/products/openflows-water','Water-network scenarios, fire flow, water quality and transient analysis.'],
++  ['LANDMARK','Vectorworks Design Suite','https://www.vectorworks.net/en-GB/design-suite','Architecture, landscape and entertainment design disciplines.'],
++  ['RIGGING','Vectorworks Braceworks','https://www.vectorworks.net/en-CA/braceworks','Temporary entertainment structure load analysis and engineer review workflows.'],
++  ['SOLID','SOLIDWORKS Design','https://www.solidworks.com/product/solidworks-design','Parts, assemblies, drawings, sheet metal, weldments and manufacturing connections.'],
++  ['NX','Siemens NX Manufacturing','https://blogs.sw.siemens.com/nx-manufacturing/whats-new-in-nx-for-manufacturing-2606-june-2026/','June 2026 release covers CAM, additive manufacturing, probing and production data management.'],
++  ['EPLAN','Eplan Electric P8','https://www.eplan.com/de-en/products/eplan-electric-p8/','Electrical schematics, cross references, device data, wire lists and ERP/PDM connections.'],
++  ['AVEVA','AVEVA Unified Engineering','https://www.aveva.com/en/products/unified-engineering/','Shared 1D/2D/3D engineering information and continuous asset handover.'],
++  ['IES','IES Virtual Environment','https://www.iesve.com/software/virtual-environment','Building energy and environmental performance, daylight and lighting design.'],
++  ['LCA','One Click LCA','https://oneclicklca.com/en-be/software/design-construction','Embodied-carbon assessment from early design through construction.'],
++  ['LCC','One Click LCA life-cycle costing','https://oneclicklca.com/en-gb/software/design-construction/life-cycle-costing','Construction, operating, maintenance and replacement cost assessment.'],
++  ['COSTX','RIB CostX','https://www.rib-software.com/en/rib-costx','2D/3D takeoff, revision comparison, rate databases and linked estimating workbooks.'],
++  ['BLUEBEAM','Bluebeam markups and data','https://www.bluebeam.com/product/markups-and-data/','Measurements and markups with statuses, custom fields and structured exports.'],
++  ['PROCORE','Procore Project Management','https://www.procore.com/project-management','Drawings, RFIs, submittals, daily reporting and team workflows.'],
++  ['FORMA','Autodesk Forma construction document management','https://construction.autodesk.com/workflows/construction-document-management/','Document organization, distribution and permission controls. Current page notes the Autodesk Construction Cloud name transition.'],
++  ['ACONEX','Oracle Aconex','https://www.oracle.com/construction-engineering/aconex/','Document packages connected to reviews, communications, approvals and history.'],
++  ['MAXIMO','IBM Maximo','https://www.ibm.com/products/maximo','Asset history, maintenance, inspections, condition and investment planning.'],
++  ['BCF','buildingSMART BCF','https://www.buildingsmart.org/standards/bsi-standards/bim-collaboration-format/','Open model-issue exchange. This is a standard, not a competing application.'],
++  ['IDS','buildingSMART IDS','https://www.buildingsmart.org/standards/bsi-standards/information-delivery-specification-ids/','Machine-readable information requirements and IFC checking.'],
++  ['FIRECRAWL','Firecrawl v2 search API','https://docs.firecrawl.dev/api-reference/endpoint/search','Search with optional page scraping, geographic filters and bounded result counts. Supplier prices still require interpretation and review.'],
++  ['DWG','ACadSharp','https://github.com/DomCR/ACadSharp','MIT-licensed CAD library evaluated locally for bounded Windows DWG exchange.'],
++];
++
++// Letter | category | benchmark IDs | required capability => observable acceptance result
++const blocks = [
++['A','Administration, accounts and access','BIMCLOUD,FORMA,ACONEX',`
++Organization workspaces => Two companies cannot read each other's project records
++Individual sign-in and sign-out => Sign-out removes access and cached private views
++Staff invitations => An accepted invitation grants only the invited role
++Project roles => Viewer cannot edit; estimator cannot approve engineering
++Document and field permissions => Restricted rates remain hidden in screens and exports
++External guest access => Guest sees only explicitly shared packages
++Access revocation => Previously valid links and sessions lose access when revoked
++Multi-factor and enterprise identity => Enforced identity policy survives account recovery
++Staff directory and teams => Reassignment preserves historical authorship
++Audit trail => Actor, time, action and affected revision are recorded
++Account recovery and offboarding => Removed staff cannot retain active organization access
++Regional settings => Units, currency, date and timezone are explicit per project
++Custom fields and classifications => Required fields validate and survive export/import
++Organization templates => Template revisions do not silently alter existing projects
++`],
++['B','Backups, saving and project lifecycle','FORMA,ACONEX',`
++Create and name projects => Unique IDs survive duplicate display names
++Automatic save feedback => Saved appears only after durable storage succeeds
++Save As and duplicate => Copy gets new identity without sharing mutable records
++Reopen recent projects => Latest saved revision and source sheets return after restart
++Offline local storage => Airplane-mode restart restores drawings and attached originals
++Cross-device project storage => Authorized second device opens the same confirmed revision
++Archive and restore projects => Archived jobs leave the active list and restore intact
++Recycle bin => Accidental removal is recoverable with links and history intact
++Portable complete backup => Restore on a clean profile includes sources, models, rates and evidence
++Backup integrity preview => Corrupt or missing assets block replacement before any write
++Crash and interrupted-write recovery => Last confirmed snapshot survives forced termination
++Concurrent edit protection => Stale writer cannot silently overwrite a newer revision
++Storage failure recovery => Full disk/quota error preserves previous data and supports retry
++Migration and retention => Older supported backups upgrade with a reversible audit record
++`],
++['C','CAD precision and drawing tools','ACAD',`
++Lines, polylines, arcs and circles => Exact coordinates survive save and CAD exchange
++Splines and curves => Control points and curve tolerance survive supported exchanges
++Object snaps and tracking => Endpoint, midpoint, perpendicular and intersection picks are correct
++Numeric and relative entry => Typed distance/angle yields the expected measured geometry
++Coordinate systems and origins => Local and project origins transform without drift
++Layers and visibility => Hidden, locked and isolated layers retain correct entity membership
++Selection and properties => Window/crossing selection and batch edits affect intended objects only
++Move, rotate, scale and copy => Transform and undo preserve dimensions and IDs
++Offset, trim, extend and fillet => Edge cases retain valid connected geometry
++Blocks and reusable symbols => Definition update changes intended instances without broken attributes
++Constraints and parameters => Driving dimension regenerates dependent geometry consistently
++Dimensions, leaders and text => Annotation values update and plot legibly at scale
++Hatches, lineweights and plot styles => Screen and exported output agree on declared styles
++Undo, redo and transaction history => One user operation undoes atomically without losing active context
++`],
++['D','Documents, sheets and drawing registers','ACAD,BLUEBEAM,ACONEX',`
++Multi-file and multi-page import => PDFs with different page sizes preserve every original page
++Sheet names and numbers => Rename changes labels without breaking evidence references
++Add and duplicate drawing sheets => New sheet receives an independent identity and layout
++Remove with impact preview => Review lists dependent takeoffs, links and viewports before removal
++Restore removed sheets => Restored sheet recovers annotations, scale and original ordering
++Reorder and group sheets => Discipline groups and order persist after restart and export
++Title blocks and templates => Project metadata updates linked fields without clipping
++Viewports and per-view scale => Independent scales measure correctly in exported PDF
++Drawing revisions and supersession => Old revision remains retrievable and visibly superseded
++Revision overlay and slip-sheeting => Added/deleted geometry is inspectable with alignment controls
++OCR and sheet indexing => Suggested names are reviewable and uncertainty is visible
++Cross-sheet references and hyperlinks => Detail callout opens the intended sheet revision
++Batch printing and issue sets => Selected sheets export in reviewed order with an issue register
++Bookmarks and saved views => Personal navigation restores the correct page and viewport
++`],
++['E','Estimation, pricing and commercial work','COSTX,LCC',`
++Pricing workbook import => XLSX/CSV sheets preview without executing spreadsheet formulas
++Column and worksheet mapping => SKU, description, unit and rate map with row-level errors
++Named price books and revisions => Supplier revisions coexist and old estimates remain reproducible
++Currency, tax and effective dates => Mixed currencies never total without a reviewed conversion
++Unit and pack normalization => Each/metre/square-metre/pack conversion shows its dimensional basis
++Apply and remove a price book => Impact preview preserves manual overrides and supports undo
++Supplier quote comparison => Equal specifications compare landed cost and exclusions
++Material, labour and plant build-ups => Assembly rate reconciles to separately editable components
++Waste, yield and productivity => Assumptions remain separate from measured net quantities
++Discount, margin and contingency => Formula order is explicit and totals independently reconcile
++Tender alternates and scenarios => Base and options compare without altering the accepted baseline
++Escalation and exchange rates => Source and effective date bind each applied factor
++Quote approval and issue => Issued estimate freezes rates, quantities, exclusions and revision
++Cost-to-complete and variations => Approved changes reconcile original budget to current forecast
++`],
++['F','Field work, construction and site delivery','PROCORE,BLUEBEAM',`
++Offline field packages => Required drawings and checklists open without connectivity
++RFIs => Question links to exact drawing revision and tracks response/closure
++Submittals and shop drawing review => Review route, due date and resubmission history persist
++Daily site reports => Labour, plant, weather and work records retain author and attachments
++Tasks and punch lists => Assigned location-based defect closes only with recorded evidence
++Inspection and test plans => Hold points prevent progression until authorized release
++Photos, videos and geolocation => Original media and capture context survive synchronization
++Field markups and as-built capture => Redline links to source and proposed changed object
++Delivery docket and receiving => Received quantities reconcile order and damaged/rejected goods
++Crew timesheets and productivity => Approved hours reconcile work package quantities
++Permits and safety observations => Expired permits and unresolved hazards remain visible
++Temporary works and lift planning => Reviewed configuration links to checked calculation package
++Progress quantities and claims => Claimed installed work reconciles verified measured evidence
++Offline synchronization conflicts => Conflicting field edits require review without losing either copy
++`],
++['G','Geospatial, surveying and reality capture','GIS,TBC,TRIMBLE',`
++CRS, datum and geoid management => Known survey control transforms within stated tolerance
++Survey points and coding => Point IDs, descriptions and units survive field-data import
++Traverses and network adjustment => Closure and residuals match an independent benchmark
++GNSS and total-station exchange => Supported observation metadata and quality flags persist
++COGO and boundaries => Bearings, distances and closure reproduce the survey input
++Terrain surfaces and breaklines => Triangulation respects boundaries, breaklines and holes
++Contours and spot elevations => Labels and contours match the underlying surface
++Point-cloud import and indexing => Large dataset streams with declared coordinate accuracy
++Registration and control fitting => Residuals and excluded control points are reported
++Scan-to-model review => Derived object retains source region and uncertainty
++Drone imagery and orthophotos => Ground control and image resolution remain traceable
++GIS layers and spatial queries => Attribute filters and spatial selections return known fixtures
++Stakeout and machine-control export => Independent device/parser verifies coordinates and units
++Change and deformation surveys => Time-stamped comparisons separate movement from registration error
++`],
++['H','HVAC, hydraulics, plumbing and fire services','REVIT,WATER',`
++Connected system topology => Equipment, terminals and branches form a validated network
++Duct routing and fittings => Size, elevation, clearance and fitting rules persist
++Airflow and pressure calculations => Known network matches checked design calculation
++Heating and cooling loads => Zone assumptions and weather input reproduce benchmark results
++Equipment selection schedules => Selected duty reconciles specified performance and source data
++Water supply and sanitary routing => Pipe size, fall and connection direction are inspectable
++Hydraulic networks and pumps => Flow, head and operating point match reference cases
++Stormwater and roof drainage => Catchment, design event and outlet capacity remain linked
++Sprinkler and hydrant systems => Reviewed coverage and demand calculations retain edition/jurisdiction
++Gas and process services => Service compatibility and design conditions are explicit
++Insulation and supports => Quantities distinguish bare pipe, insulation and support spacing
++Plantroom access and coordination => Maintenance clearances are checked against actual geometry
++Risers, schematics and schedules => Changes propagate consistently between representations
++Commissioning and balancing records => As-tested performance links to installed equipment revision
++`],
++['I','Interoperability, imports and integrations','ACAD,DWG,BCF,IDS',`
++DXF import/export => Independent reader verifies supported geometry, layers and units
++Native Windows DWG exchange => Binary file opens independently; unsupported objects are disclosed
++IFC geometry and property exchange => Declared schema validates with correct object identity
++BCF issue exchange => Viewpoint, object references and discussion survive a second application
++LandXML and civil exchange => Alignments, surfaces and units pass independent readback
++STEP, IGES and manufacturing exchange => Declared solids and tolerances survive a second kernel
++Point-cloud and GIS formats => LAS/E57/GeoJSON support is explicit and independently checked
++PDF, image and vector export => Clipping, scale, fonts and transparency render correctly
++Spreadsheet and tabular export => Column types, escaping and formulas are handled predictably
++Referenced file management => Missing external dependencies are reported before issue
++Connector authentication => Provider permissions and token revocation are tested
++Versioned API and webhooks => Retries use idempotency and durable acknowledgement
++Import preview and cancellation => Invalid/cancelled import leaves current project unchanged
++Compatibility and loss reports => Every conversion lists supported scope and detected losses
++`],
++['J','Jobs, programmes and commercial administration','PROCORE,ACONEX',`
++Client, site and contact records => Project links remain valid when contact details change
++Brief and requirements register => Each requirement links to a responsible person and deliverable
++Scope, exclusions and assumptions => Issued scope is immutable and changes are revisioned
++Work breakdown and cost codes => Tasks, quantities and costs roll up without duplicates
++Programme and dependencies => Date changes recalculate dependent tasks and reveal conflicts
++Design deliverables and milestones => Overdue deliverables remain assigned and visible
++Resources and capacity => Overallocated people and equipment are identifiable
++Contracts and commitments => Approved scope and committed amount reconcile to supplier records
++Change events and approvals => Proposed variation cannot enter approved totals prematurely
++Procurement schedule => Required-on-site dates reconcile lead time and order status
++Meeting decisions and actions => Decision links to affected document and assigned follow-up
++Progress payment evidence => Claimed work links to approved measurement and period
++Portfolio search and reporting => User only sees permitted jobs and correct aggregate totals
++Closeout and lessons learned => Complete record archives and reopens with its issue history
++`],
++['K','Knowledge, libraries and reusable standards','ACAD,SOLID,EPLAN',`
++Component and assembly libraries => Reuse preserves source, units and revision identity
++Manufacturer product catalogues => Model/specification maps to an identifiable product
++Detail and symbol libraries => Inserted detail retains attribution and discipline metadata
++Organization naming conventions => Invalid drawing/asset names produce actionable validation
++Classification mapping => Local codes map explicitly to selected classification systems
++Specification clauses => Object properties link to the issued specification revision
++Calculation templates => Inputs, formulas and validated range remain visible
++Custom property sets => Type-safe fields survive import, duplication and export
++Search and tags => Material, detail and project search returns permission-filtered results
++Favourite tool palettes => User presets restore without changing project data
++Library change control => Updating master content offers review before replacing instances
++Content provenance and licensing => Restricted content cannot be silently redistributed
++Training and contextual help => New user can complete a fixture workflow without hidden steps
++Organization template portability => Import checks dependencies and conflicting identifiers
++`],
++['L','Landscape, land development and public realm','LANDMARK,OPENSITE',`
++Site constraints and setbacks => Mapped constraints remain visible in design and issue sheets
++Grading and drainage design => Surface edits produce consistent slopes and catchments
++Cut/fill and earthworks => Independent volumes reconcile existing and proposed surfaces
++Planting and species schedules => Counts, spacing, maturity and stock sizes reconcile plans
++Irrigation networks => Zones, demand and equipment link to checked hydraulic inputs
++Hardscape and paving patterns => Edge cuts and net areas reconcile layout geometry
++Retaining walls and terraces => Height/level changes update quantities and sections
++Accessible paths and ramps => Slopes and landings report measured values against selected criteria
++Street furniture and lighting => Location schedule matches placed assets
++Arboriculture and tree protection => Surveyed trees retain condition, exclusion zone and decision history
++Erosion, sediment and water-sensitive design => Staging and treatment assumptions remain recorded
++Playgrounds, parks and sports facilities => Equipment clearances and maintenance needs are traceable
++Habitat and biodiversity schedules => Habitat areas and stated assessment method remain inspectable
++Landscape maintenance handover => Planting, irrigation and warranty records follow installed assets
++`],
++['M','Manufacturing, mechanical design and fabrication','SOLID,NX,EPLAN',`
++Parametric parts and feature history => Dimension change regenerates a valid part or explains failure
++Assemblies, mates and interference => Assembly motion and collision checks match known fixtures
++Tolerances and GD&T => Drawing annotations bind to intended datum and feature
++Sheet metal and flat patterns => Bend allowance and unfolded dimensions match fabrication reference
++Weldments and structural frames => Cut list reconciles lengths, end treatments and members
++Joinery and cabinet manufacture => Panels, edging, hardware and drilling reconcile assembly
++Part numbers, BOM and configurations => Variant BOM contains exactly the selected components
++Nesting and stock optimization => Kerf, grain and remnants are respected in material yield
++CAM toolpaths and posts => Independent simulation validates chosen machine/post combination
++Additive manufacturing preparation => Wall limits, supports and build orientation are checked
++Tooling, jigs and fixtures => Setup constraints and reference positions are documented
++Weld maps and traceability => Weld procedure and inspection link to material and serial identity
++Quality inspection and metrology => Measured deviations reconcile nominal geometry and tolerance
++Engineering change and release => Released manufacturing package remains reproducible after changes
++`],
++['N','Networks, electrical, controls and communications','REVIT,EPLAN',`
++Single-line and circuit diagrams => Circuit identity is consistent across drawings and schedules
++Electrical load schedules => Diversity and connected demand reconcile checked inputs
++Cable sizing and voltage drop => Selected assumptions reproduce a checked calculation
++Protection and fault coordination => Device curves and fault assumptions are version-bound
++Lighting layout and calculations => Fixture data and measured illuminance match reference cases
++Earthing and lightning protection => Conductors and test points link to reviewed design criteria
++Panel and switchboard schedules => Ways, phases and equipment reconcile connected circuits
++Cable tray and containment routes => Lengths, fill and clearances follow actual routing
++Controls, PLC and I/O schedules => Each tag maps consistently to device, terminal and channel
++Telecommunications and fibre => Ports, fibres, splices and loss budgets remain traceable
++Security, CCTV and access systems => Device coverage and restricted credentials stay separate
++Solar, batteries and EV charging => Equipment, demand and connection assumptions are explicit
++Instrumentation and loop diagrams => Tag and loop changes propagate through affected documents
++Testing and electrical handover => Test results link to installed circuit and equipment revision
++`],
++['O','Operations, facilities and asset management','MAXIMO,AVEVA',`
++Asset register and location hierarchy => Installed asset is findable by ID, space and system
++O&M manuals and warranties => Exact asset links to current manual and warranty dates
++Commissioning and practical completion => Open defects remain visible at handover
++Preventive maintenance plans => Recurrence generates the correct due work orders
++Reactive work orders => Request progresses through assignment, execution and verification
++Condition inspection and history => Condition scores retain method, date and supporting evidence
++Spare parts and maintenance inventory => Consumption links to work order and stock balance
++QR/barcode field lookup => Scan resolves correct asset and permitted records
++Space and occupancy management => Space changes reconcile floor area and assigned occupancy
++Metering and performance trends => Time-series units, gaps and calibration are explicit
++Sensor/BMS integrations => Disconnected or stale feed cannot appear current
++Service contractors and SLAs => Escalations respect priority, business hours and contract
++Lifecycle renewal and budgets => Replacement forecasts retain condition and cost assumptions
++Decommissioning and disposal => Retired assets preserve records and disposal evidence
++`],
++['P','Procurement, products and pricing research','FIRECRAWL,COSTX,PROCORE',`
++User-initiated Firecrawl search => Explicit query returns bounded real source links or honest failure
++Supplier and regional filters => Results show selected country, supplier and search timestamp
++Structured product extraction => SKU, specification, price basis and source excerpt are reviewable
++Variant and product matching => Different grade/size/finish cannot silently substitute requested item
++Price basis and availability => Ex-tax/inc-tax, pack size, stock and delivery conditions remain explicit
++Missing and quoted-only prices => Unknown price remains unknown instead of zero or invented value
++Price freshness and provenance => Each rate retains retrieval time, source URL and quoted currency
++Review before rate application => Unreviewed research never changes project costs
++Provider budgets and credentials => Secrets remain server/native-only and requests respect limits
++Search cancellation and retry => Cancel stops application; rate limits retain existing data
++RFQ preparation and comparisons => Supplier offers compare matched scope and exclusions
++Purchase orders and approvals => Only approved quantities/rates enter issued orders
++Lead times, alternates and substitutions => Approved alternative retains original specification and decision
++Receiving, returns and reconciliation => Ordered, delivered, returned and invoiced quantities reconcile
++`],
++['Q','Quality, checking, compliance and proof','IDS,ETABS,BLUEBEAM',`
++Requirement-to-evidence traceability => Each acceptance item points to exact fixture and output
++Smoke tests per delivered change => Actual screen renders with no uncaught runtime failures
++Screenshot and code-diff proof => Completed UI row has inspected PNG plus matching source diff
++Model geometry validation => Invalid solids, overlaps and missing faces are detected and explained
++Information requirement checking => Missing required properties fail the selected rule set
++Clash and clearance checking => Known hard and clearance clashes are detected without duplicates
++Drawing/model/quantity consistency => Edit updates all linked outputs or marks them stale
++Engineering benchmark validation => Independent known cases verify results and supported range
++Jurisdiction and edition register => Every compliance claim identifies applicable published criteria
++Review and professional sign-off => Checker identity and limitations remain attached to issued result
++Evidence integrity and reproducibility => Hashes bind source, app build, fixture and result
++Regression and adversarial tests => Malformed files, cancellations and stale edits preserve data
++Release and installed-app verification => Installed binary and packaged resources match tested build
++Honest capability states => Planned, partial, failed and verified remain visibly distinct
++`],
++['R','Review, visualization and coordination','ARCHICAD,BCF,BLUEBEAM',`
++Orbit, pan, zoom and fit => Model remains reachable at different scales and aspect ratios
++Walk and fly navigation => Movement direction, collision and floor levels match visible controls
++Section boxes and clipping => Clipped geometry and caps reveal intended interior sections
++Visibility by discipline and phase => Saved views reproduce selected object sets
++Source-linked 3D inspection => Picked object opens matching source evidence and assumptions
++Roof and facade integrity => Gables join roof slopes without floating faces or hidden duplicate surfaces
++Materials, lighting and render views => Export matches saved camera and material settings
++Viewpoint snapshots => Snapshot retains camera, selection, model revision and annotation
++Measurement in 3D => Picked distance reports coordinates and units with known accuracy
++Markups and threaded issues => Issue preserves author, status, due date and model references
++Design options and comparisons => Alternative model changes are inspectable against baseline
++Federated model coordination => Different origins, versions and disciplines align explicitly
++Client presentations and approval => Viewer comments bind to the exact presented revision
++Image/video export and accessibility => Output is legible and controls support keyboard operation
++`],
++['S','Structural and specialist engineering','ETABS,TEDDS,PLAXIS',`
++Analytical model and connectivity => Nodes, releases and offsets reproduce intended load path
++Materials, sections and member libraries => Selected values retain source and design units
++Loads, combinations and mass => Applied load totals and combination factors reconcile
++Linear and second-order analysis => Reference frame forces and displacements match independent results
++Dynamic, seismic and wind studies => Modes, damping and hazard assumptions remain inspectable
++Steel and cold-formed design => Utilization and governing checks match benchmark calculations
++Reinforced and prestressed concrete => Reinforcement, serviceability and detailing remain traceable
++Timber, masonry and composite design => Declared material method and limitations accompany results
++Connections, base plates and anchors => Connection forces link to verified member/load case
++Foundations and soil interaction => Bearing, settlement and pile assumptions match geotechnical inputs
++Retaining structures and excavations => Stages and groundwater conditions bind each result
++Bridges, tanks, towers and specialty assets => Selected solver scope explicitly supports the asset type
++Fabrication detailing and reinforcement schedules => Marks, quantities and geometry reconcile issued drawings
++Calculation reports and check signatures => Inputs, equations, units, solver version and reviewer are retained
++`],
++['T','Takeoff, measurement and quantities','COSTX,BLUEBEAM,TRIMBLE',`
++Scale calibration per sheet => Known distance measures correctly after rotation and reload
++Separate axes and distorted scans => Calibration records anisotropy or blocks unsupported measurement
++Lengths, perimeters and counts => Totals match independently measured fixture values
++Areas, holes and net deductions => Openings subtract once and self-intersections are rejected
++Volumes, slopes and elevations => 3D quantity basis distinguishes projected from actual surface
++Trade and work-package classification => Reclassification updates totals without duplicate measurements
++Assembly breakdowns => Element quantity decomposes into explicit materials and assumptions
++Duplicate detection and exclusions => Overlapping takeoffs are reviewable before totaling
++Revision quantity comparison => Additions, removals and changed quantities reconcile prior issue
++Measurement source links => Each quantity opens exact page, region and source revision
++Stock lengths, packs and wastage => Purchased quantities remain distinct from net measured demand
++Manual, model and AI quantity provenance => User can distinguish and review each quantity origin
++Reconciliation and audit exports => Summary totals reproduce detailed rows with units and rounding
++Bulk edit, undo and recovery => Batch operation restores all affected quantities and associations
++`],
++['U','Usability, performance and everyday flexibility','BLUEBEAM,ACAD',`
++Role-specific workspace presets => Architect and estimator get useful tools without separate data copies
++Search, command palette and shortcuts => Common commands work from keyboard and show discoverable labels
++Resizable panels and saved layouts => Layout restores on the user's monitor without hiding actions
++Large plan/model navigation => Representative heavy fixture meets recorded load and interaction budget
++Accessible focus, contrast and labels => Core workflow is usable without pointer or color alone
++Touch and small-screen field use => Critical actions remain reachable without horizontal clipping
++Multi-monitor and high-DPI desktop => Dialogs and text remain visible at tested scaling levels
++Progress, cancellation and background jobs => Long operation shows honest status and can be stopped
++Useful validation and empty states => User can recover from invalid input without losing edits
++Bulk operations and multi-selection => Preview clearly reports affected items before applying changes
++Per-user preferences and units => Preference changes do not reinterpret existing geometry
++Localization and terminology => Industry-specific terms do not change underlying data meaning
++Onboarding and sample isolation => Sample work cannot be mistaken for the user's source project
++Support diagnostics and recovery guidance => Export omits secrets and includes reproducible failure context
++`],
++['V','Versioning, collaboration and staff handoff','BIMCLOUD,BCF,ACONEX,FORMA',`
++Named project versions => Saved milestone reopens exact drawing, sources and commercial state
++Change comparisons => Reviewer can inspect changed objects, quantities, documents and rates
++Staff handoff package => Fresh recipient profile restores complete reviewed project context
++Selective package content => Private rates and unrelated documents are excluded by review
++Recipient and distribution list => Intended staff and access level are visible before sending
++Transmittals and receipts => Sent status requires durable receipt rather than button click
++Download links and expiry => Revoked or expired link cannot fetch protected documents
++Assignments and notifications => Task owner receives only relevant authorized information
++Comments and review decisions => Replies retain authorship and referenced revision
++Checkout/reservation and live collaboration => Concurrent edits resolve without silent last-writer loss
++Merge and conflict review => Both versions remain recoverable until explicit resolution
++Approval stages and issued status => Work-in-progress cannot appear as approved construction issue
++External consultant exchanges => Returned package reconciles identity and reported differences
++Organization boundaries and activity logs => Cross-company sharing exposes only authorized content
++`],
++['W','Whole-life performance, sustainability and risk','IES,LCA,LCC',`
++Energy modeling exchange => Geometry, zones and envelope properties reconcile source model
++Thermal and operational simulation => Weather, occupancy and plant assumptions reproduce benchmark
++Daylight, glare and solar studies => Location, time and optical assumptions are recorded
++Natural ventilation and airflow => Openings and boundary conditions match checked scenario
++Acoustic and vibration assessments => Declared model and frequency range accompany predictions
++Embodied carbon and EPD mapping => Material quantities map to sourced factors and declared life stages
++Lifecycle cost comparison => Discount, replacement and maintenance assumptions remain explicit
++Circularity and material reuse => Reuse options retain recoverability and quality assumptions
++Water consumption and reuse => Demand, supply and treatment assumptions balance
++Climate and resilience scenarios => Scenario source and time horizon bind results
++Design risk register => Risk links to owner, mitigation and unresolved assumptions
++Hazard and emergency planning => Evacuation/access proposals remain linked to professional review
++Performance targets and dashboards => Targets compare with attributable measured/calculated results
++As-designed versus in-use review => Operational evidence compares against matching model revision
++`],
++['X','Extensibility, automation and AI assistance','FIRECRAWL,IDS,AVEVA',`
++Plugin and adapter boundaries => Extension failure cannot corrupt the project store
++Versioned data schema => Unsupported schema is rejected with original bytes preserved
++Custom workflows and forms => Organization can add fields and stages without source-code edits
++Rules and calculation extensions => Execution is bounded and results identify rule version
++Batch processing queue => Jobs are resumable, cancellable and individually diagnosed
++AI extraction from source plans => Suggested object retains exact source region and uncertainty
++AI layout/design proposals => Proposal is separately reviewable before modifying authored design
++Voice and natural-language actions => Intended edit is understandable and reversible
++AI pricing research assistant => Source evidence accompanies suggested supplier match and rate
++Tool permission and secret boundaries => AI cannot reveal keys or issue unapproved external mutations
++Usage limits and cost reporting => Provider usage is capped and reported per operation
++Human review and rejection => Rejected proposal leaves authoritative design unchanged
++Automation provenance => Prompt/input version, tool and accepted changes are traceable
++Integration health and retries => Unavailable service is visible and retry does not duplicate work
++`],
++['Y','Yards, infrastructure, industrial and specialist assets','CIVIL,AVEVA,TRIMBLE',`
++Road alignments and corridors => Stationing, profiles and sections reconcile corridor geometry
++Intersections and swept paths => Design vehicle envelope follows the selected path and assumptions
++Rail and transit infrastructure => Chainage, cant and clearance data remain version-bound
++Airports, ports and marine works => Asset-specific geometry and design criteria are explicit
++Water, sewer and utility networks => Connectivity, levels and asset IDs reconcile GIS and design
++Plant P&IDs and isometrics => Tags and line lists remain consistent across representations
++Piping stress and support design => Load cases and boundary conditions match checked solver inputs
++Mining, quarries and bulk materials => Survey surfaces and stockpile volumes retain survey dates
++Power generation and transmission => Equipment, routes and reviewed clearances remain traceable
++Telecom and linear utility corridors => Route changes update crossings, lengths and access constraints
++Warehouses and logistics yards => Vehicle movements, storage and pedestrian zones are inspectable
++Agricultural and rural infrastructure => Fencing, sheds, irrigation and access reconcile site records
++Temporary events and modular facilities => Reusable configuration retains load and installation reviews
++Brownfield retrofit and decommissioning => Existing/removed/new assets stay distinct with source evidence
++`],
++['Z','Zero-loss delivery, release and business continuity','FORMA,MAXIMO',`
++Reproducible build identity => Proof records commit, dirty diff and artifact hashes
++Desktop install and upgrade => Upgrade retains real user profile and compatible project data
++Offline cold start => Installed app opens source and design without development services
++Web production parity => Built site completes the same declared workflows as development
++Dependency and license inventory => Bundled components carry required notices and versions
++Security and tenant isolation => Adversarial access tests cannot cross project permissions
++Backup/restore disaster drill => Clean machine restoration proves complete recoverability
++Observability without secrets => Error reports omit keys, private prompts and unauthorized documents
++Performance and resource limits => Oversized files fail safely without freezing or partial writes
++Rollback and forward compatibility => Failed upgrade can recover last confirmed data revision
++Support and incident handling => Reproducible ticket links diagnostics, affected build and recovery
++Proof expiry after changes => Dependency changes reopen affected completed acceptance rows
++Release notes and capability contract => Users see delivered limits and verified platform support
++Full working-day acceptance => Named industry scenario completes create-to-handover-to-reopen with proof
++`],
++];
++
++export const categories = blocks.map(([id,title,benchmarks,body]) => ({
++  id,title,benchmarks:benchmarks.split(','),
++  items:body.trim().split('\n').map((line,i)=>{
++    const [name,acceptance]=line.split(' => ');
++    return {id:`${id}-${String(i+1).padStart(2,'0')}`,name,acceptance,state:'not-assessed',delivery:'open',evidence:[],code:[]};
++  }),
++}));
+
+diff --git a/planning/professional-coverage/industries.mjs b/planning/professional-coverage/industries.mjs
+new file mode 100644
+index 0000000..2915a63
+--- /dev/null
++++ b/planning/professional-coverage/industries.mjs
+@@ -0,0 +1,102 @@
++// These are acceptance profiles, not claims of current industry readiness.
++// Every profile also inherits A/B/D/E/I/J/Q/U/V/Z and the working-day scenario.
++const rows = `
++Residential architecture|Architect / building designer|Develop an alteration with existing/new/demolished work|Survey and client brief|Coordinated plans, sections, schedules and issue set|C,R,T,W
++Commercial architecture|Architect / design manager|Coordinate a multi-tenant commercial fit-out|Base build, tenancy requirements and consultant models|Coordinated design, room data and consultant issues|C,H,N,R,W
++High-rise and mixed-use|Architect / BIM lead|Coordinate repeated floors, cores and facade variants|Tower models and level schedule|Level-aware quantities, coordinated core and issue packages|C,H,N,R,S
++Drafting and documentation services|Draftsperson / CAD technician|Turn approved markups into a revised drawing set|Redlines, CAD standards and prior issue|Dimensioned drawings, checked references and change register|C,K,R
++BIM coordination and digital engineering|BIM coordinator / information manager|Federate consultants and resolve clashes|IFC models, origins and information requirements|BCF issues, checked properties and coordinated federation|C,I,Q,R,X
++Interior design and fit-out|Interior designer / fit-out contractor|Specify finishes, joinery and furniture for a tenancy|Room brief and measured existing shell|Finish schedules, reflected ceiling plans and procurement list|C,H,K,M,N,R
++Heritage and conservation|Conservation architect / heritage consultant|Document repairs while retaining existing fabric|Historic records, scans and condition survey|Fabric map, repair schedule and intervention record|G,K,R,W
++Urban design and planning|Urban designer / planner|Compare precinct massing and public-realm options|GIS constraints, terrain and planning brief|Option study, area schedule and consultation package|G,L,R,W
++Landscape architecture|Landscape architect|Design planting and hardscape around a building|Survey, planting brief and drainage plan|Planting schedule, grading and maintenance package|G,L,T,W
++Arboriculture and ecology|Arborist / ecologist|Review tree protection and habitat impacts|Tree survey, habitat mapping and site design|Protection zones, impact register and mitigation plan|G,L,W
++Surveying and cadastral work|Surveyor|Adjust survey observations and issue site control|GNSS/total-station observations and control|Checked coordinates, closure report and survey plan|C,G,Y
++Reality capture and scan-to-BIM|Survey technician / modeler|Record a complex existing building and review derived geometry|Point clouds, photos and control targets|Registered cloud, residual report and source-linked model|G,R,T
++Civil and land development|Civil engineer|Design a serviced subdivision|Terrain, boundaries and utility records|Grading, roads, services, quantities and civil sheets|G,L,S,Y
++Earthworks and excavation|Earthworks estimator / contractor|Price and stage a cut/fill operation|Existing/proposed surfaces and ground investigation|Volume reconciliation, haul assumptions and work packages|F,G,L,T,Y
++Roads and highways|Road designer / transport engineer|Revise a corridor and intersection|Alignment criteria, survey and drainage|Plans, profiles, cross-sections and quantities|G,H,S,Y
++Rail and transit|Rail engineer / station designer|Coordinate track, platform and station services|Rail alignment, envelope and station requirements|Chainage drawings, clearances and systems coordination|G,H,N,S,Y
++Airports and aviation infrastructure|Airfield engineer / terminal designer|Coordinate apron or terminal works|Airside survey, operations constraints and services|Pavement/service layouts and phased issue package|F,G,H,N,Y
++Ports, coastal and marine infrastructure|Marine/civil engineer|Plan a wharf retrofit with operating constraints|Bathymetry, structural survey and asset records|Coordinated marine works and inspected asset handover|G,H,S,Y
++Traffic and transport planning|Transport planner|Check access and circulation around a site|Site plan, vehicle assumptions and movement demand|Swept paths, access option study and assumptions report|G,L,Y
++Stormwater, drainage and flood studies|Hydrologist / drainage engineer|Test a drainage upgrade under defined rainfall scenarios|Catchments, rainfall data, pipes and levels|Hydraulic results, flood extents and design report|G,H,W,Y
++Water and wastewater utilities|Water engineer / asset operator|Upgrade a pressure or wastewater network|Asset GIS, demand and operating data|Checked network scenario and construction/operations package|G,H,O,Y
++Geotechnical and ground engineering|Geotechnical engineer|Assess excavation beside an existing structure|Boreholes, soil tests and groundwater|Staged analysis, displacement results and reviewed report|G,S,Y
++Structural steel buildings|Structural engineer / steel detailer|Design and detail a braced industrial building|Architectural geometry and design actions|Checked model, connection package and fabrication drawings|M,S,T
++Concrete and precast construction|Structural engineer / precast detailer|Coordinate reinforcement, embeds and erection|Structural model, member design and supplier constraints|Bar schedules, cast units and installation package|F,M,S,T
++Timber and mass-timber construction|Timber engineer / fabricator|Coordinate panel joints and erection|Architectural model and material/connection data|Checked panels, cut lists and assembly instructions|M,S,T,W
++Masonry and retaining walls|Engineer / masonry contractor|Design and quantify stepped retaining work|Survey, loads and ground properties|Checked wall details, block schedule and drainage links|H,L,S,T
++Bridges and specialist structures|Bridge engineer|Review staged construction of a bridge component|Survey, design loads and construction stages|Verified analysis, detailing and inspection package|F,G,S,Y
++Facade, glazing and envelope|Facade engineer / glazing contractor|Coordinate curtainwall modules and weatherproof junctions|Facade geometry, performance brief and supplier data|Panel schedule, junction details and reviewed performance|M,R,S,T,W
++Roofing and cladding|Roofing estimator / installer|Measure a roof with hips, valleys and penetrations|Roof plan, sections and product dimensions|Net/stock quantities, flashing schedule and fixing details|C,M,R,T
++HVAC and refrigeration|Mechanical services engineer / contractor|Route and size a multi-zone services installation|Room loads, architectural model and equipment data|Coordinated duct/pipe network and commissioning schedule|H,N,O,W
++Plumbing and gas services|Hydraulic designer / plumber|Coordinate supply, waste and gas in a renovation|Fixture brief, existing services and survey|Risers, layouts, checked calculations and test records|H,O,T
++Fire protection and life safety|Fire services engineer / specialist|Review fire-system layout and design assumptions|Building occupancy, services geometry and fire strategy|Reviewed system package and inspection/commissioning evidence|H,N,Q,W
++Electrical building services|Electrical engineer / contractor|Coordinate lighting, power and distribution|Load brief, building model and device data|Circuit schedule, routes and checked calculations|H,N,O,T
++Controls and instrumentation|Controls engineer / systems integrator|Revise an industrial control loop|P&IDs, device data and control philosophy|Updated I/O, loop drawings, wire lists and test records|M,N,O,Y
++ICT, security and audiovisual|ICT/AV designer / installer|Coordinate cabling, equipment and coverage|Space brief, rack layouts and device requirements|Port/device schedules, pathways and test handover|N,O,T
++Renewables, batteries and EV infrastructure|Energy engineer / installer|Design a distributed energy installation|Site, demand, equipment and connection requirements|Reviewed layout, electrical package and asset handover|G,N,O,W,Y
++Energy, daylight and sustainability consulting|Building performance consultant|Compare envelope and systems alternatives|Thermal model, weather and occupancy assumptions|Checked simulations, carbon/cost comparison and recommendations|H,L,N,W
++Quantity surveying and cost consultancy|Quantity surveyor|Issue a measured cost plan with alternate options|Drawings, specifications and current rate books|Auditable estimate, assumptions and revision comparison|P,T,W
++Builders and general contractors|Project manager / builder|Take a tender through procurement and site delivery|Issued drawings, tender scope and programme|Reviewed estimate, work packages, RFIs and closeout|F,P,T
++Specialty subcontractors|Trade estimator / supervisor|Price, order and install an assigned package|Trade scope, drawings and supplier quotations|Trade takeoff, approved order and progress evidence|F,P,T
++Joinery, kitchens and furniture|Cabinet designer / manufacturer|Design a fitted assembly and prepare manufacture|Measured room, finishes and hardware catalogue|Panel cuts, edging, hardware BOM and installation drawings|C,M,P,T
++Metal fabrication, welding and sheet metal|Fabricator / workshop manager|Produce and inspect a custom metal assembly|Part/assembly model and material specifications|Cut/nest package, weld map and inspection traceability|M,P,S,T
++Fencing, gates and balustrades|Estimator / installer|Measure runs, gates and corner connections|Site plan, boundary measurements and product system|Source-linked takeoff, stock list and installation record|C,F,L,M,T
++Flooring, tiling, painting and finishes|Finishes estimator / contractor|Price net areas with openings, waste and patterns|Room dimensions, finish schedule and product packs|Reconciled net/purchase quantities and supplier order|F,L,P,T
++Demolition, remediation and hazardous materials|Demolition planner / specialist|Stage removal while preserving retained assets|Survey, contamination reports and service isolation plan|Removal package, waste traceability and clearance evidence|F,G,O,W,Y
++Modular and prefabricated construction|DFMA designer / factory coordinator|Release modules through fabrication and installation|Module configuration, interfaces and logistics limits|Revisioned BOM, manufacturing package and site acceptance|F,M,P,S,Y
++Manufacturing and industrial machinery|Mechanical designer / production engineer|Release a machine assembly to production|Part requirements, supplier components and design model|Checked assembly, manufacturing drawings and released BOM|M,N,P
++Automotive, aerospace and rail products|Mechanical engineer / quality engineer|Control a precision component design change|Part model, tolerance requirements and change request|Configuration-bound manufacturing and inspection package|M,N,Q,X
++Medical devices and precision instruments|Product engineer / quality manager|Trace a component requirement through design and inspection|Requirements, CAD and verification protocol|Controlled design history and inspection evidence|M,Q,X
++Industrial plant, process and chemical facilities|Process/plant engineer|Coordinate a brownfield pipe/equipment modification|P&IDs, point cloud, line list and design conditions|Consistent tags, isometrics and commissioning package|G,H,N,O,Y
++Mining, quarrying and materials handling|Mine surveyor / asset engineer|Measure stock and coordinate processing infrastructure|Survey surfaces, equipment layouts and asset records|Reconciled quantities and controlled plant change package|G,M,O,T,Y
++Power generation and transmission|Electrical/civil engineer|Coordinate a substation or transmission upgrade|Network requirements, survey and equipment data|Reviewed routes, electrical/structural package and asset records|G,N,O,S,Y
++Oil, gas and pipelines|Pipeline engineer / integrity manager|Review a pipeline route and integrity works|Terrain, alignment, operating conditions and inspection data|Route sheets, reviewed stress scope and maintenance record|G,H,N,O,Y
++Telecommunications infrastructure|Network planner / rollout manager|Plan fibre routes and equipment deployment|GIS, duct/pole records and connection demand|Route/cable schedules, splice plan and field acceptance|F,G,N,O,Y
++Agriculture and rural infrastructure|Rural designer / contractor|Plan sheds, fences, access and irrigation|Property survey, stock requirements and water data|Site layout, quantities and maintenance records|G,H,L,O,T,Y
++Events, theatre and exhibition|Production designer / rigging specialist|Coordinate a temporary stage, lighting and flown equipment|Venue geometry, rigging inventory and production brief|Layout, load-review package and installation checklist|F,M,N,R,S,Y
++Facilities and property management|Facility manager / building operator|Receive a building and schedule ongoing maintenance|As-built package, asset register and warranties|Searchable asset history, work orders and renewal plan|H,N,O,W
++Public-sector infrastructure owners|Asset manager / public works officer|Prioritize renewal across roads, buildings and utilities|Condition surveys, GIS and budget constraints|Traceable capital programme and asset handover standards|G,O,W,Y
++Developers, owners and project controls|Development manager / owner's representative|Compare options and track budget through handover|Brief, design options, programme and cost plans|Decision register, approved baseline and closeout package|F,O,P,R,W
++Building certification and inspection|Building surveyor / inspector|Review a submitted design against selected requirements|Issued documents, evidence and jurisdiction register|Recorded findings, responses and authorized determination|F,Q,R,W
++Insurance, loss assessment and forensic work|Assessor / forensic engineer|Document damage and compare reinstatement scope|Pre-loss records, photos, survey and inspection findings|Evidence-linked scope, measured costs and limitations|G,Q,R,S,T
++Education, research and training|Educator / research engineer|Teach or evaluate a reproducible design workflow|Anonymized fixtures and known-answer problems|Repeatable tutorial, assessment and benchmark results|K,Q,X
++Healthcare, laboratories and clean facilities|Healthcare planner / specialist engineer|Coordinate rooms, specialist services and maintainability|Room data, workflow brief and equipment requirements|Room/equipment schedules and coordinated service package|H,N,O,Q,W
++Data centres and critical facilities|MEP/operations engineer|Coordinate redundant systems and maintenance access|Load and resilience brief, plant models and asset data|Coordinated systems, reviewed scenarios and commissioning records|H,N,O,Q,W
++Retail, hospitality and multi-site rollouts|Design manager / rollout coordinator|Adapt a standard fit-out to several sites|Brand template, surveys and local constraints|Controlled site variants, procurement and handover sets|H,K,M,N,P,R
++Warehousing, logistics and industrial estates|Industrial planner / operator|Coordinate storage, vehicle flows and services|Survey, racking data and operating requirements|Layout, reviewed clearances and asset/maintenance schedule|F,G,H,N,O,Y
++Shipbuilding and marine fabrication|Marine designer / fabricator|Coordinate equipment, piping and fabricated assemblies|Vessel geometry, system diagrams and material requirements|Controlled assembly, pipe and installation packages|H,M,N,O,Y
++Recycling, waste and circular construction|Resource recovery planner|Plan selective dismantling and reuse of materials|Asset survey, material inventory and condition evidence|Reuse schedule, recovered quantities and disposal records|F,O,P,T,W,Y
++`;
++export const industries = rows.trim().split('\n').map((line,i)=>{
++  const [name,roles,scenario,inputs,outputs,extra]=line.split('|');
++  return {id:`IND-${String(i+1).padStart(2,'0')}`,name,roles,scenario,inputs,outputs,
++    categories:[...new Set(['A','B','D','E','I','J','Q','U','V','Z',...extra.split(',')])],state:'not-tested'};
++});
++
++export const workingDay = [
++  ['DAY-01','Start/reopen','Open the correct job after a full restart; confirm identity, latest revision, source availability, permissions and unsaved-change status.','A,B,D,U'],
++  ['DAY-02','Receive work','Import a new source/revision, name and group its sheets, verify scale/origin, compare changes and retain the prior issue.','C,D,G,I'],
++  ['DAY-03','Design/measure','Perform the profile-specific drawing, modeling or measurement; edit, undo and redo; verify associated schedules and quantities.','C,H,L,M,N,R,S,T,Y'],
++  ['DAY-04','Check/review','Run appropriate geometric/information/calculation checks; record source, assumptions, issues and an authorized review decision.','Q,R,S,W'],
++  ['DAY-05','Price/procure','Import a supplier workbook or request bounded pricing research; compare units and variants; approve selected rates; reconcile the estimate.','E,P,T'],
++  ['DAY-06','Issue/handoff','Select exact drawings, evidence and commercial content; prepare package for named staff; verify recipient access/import and durable receipt where sending is implemented.','D,I,V'],
++  ['DAY-07','Use on site','Open offline field package, record an inspection/change/photo and synchronize with conflict review when reconnected.','F,O,V'],
++  ['DAY-08','End/recover','Save, export complete backup, archive and restore; on clean profile verify originals, design, quantities, prices and history.','B,Q,Z'],
++];
++
++export const initialFindings = [
++  ['Saving','Code exists; fresh daily audit open','Architect design uses saveArchitect and backup/restore; other inventories have separate persistence. This does not prove one complete project backup.','src/studio/architect/persistence.ts; src/studio/store.ts; src/studio/construction/projectMaterials.ts','B-02,B-04,B-09'],
++  ['Archive/store away','Gap; unified lifecycle not established','Document workspaces preserve per-source work, but a user-facing whole-project archive/restore workflow still needs implementation and end-to-end proof.','src/studio/documentWorkspaces.ts','B-07,B-08'],
++  ['Name sheets','Partial','Architectural sheet number is editable. Source-sheet display names, drawing titles, groups and persistent rename need separate acceptance.','src/studio/architect/ArchitectSheets.tsx','D-02'],
++  ['Remove sheets','Gap','Viewport removal exists inside one architectural sheet; this is not source-sheet removal, impact review or a recycle bin.','src/studio/architect/ArchitectSheets.tsx; src/studio/store.ts','D-04,D-05'],
++  ['Multiple authored sheets','Partial','Architect model currently has one sheet with up to four viewports. A proper named sheet-set lifecycle remains open.','src/studio/architect/model.ts; src/studio/architect/ArchitectSheets.tsx','D-03,D-06,D-13'],
++  ['Apply pricing sheets','Partial rates; workbook workflow missing','Wall layers accept manual rates and supplier references. Workbook selection/mapping, currency/tax normalization and reviewed bulk application remain open.','src/studio/architect/ArchitectInspector.tsx; src/studio/architect/ArchitectWorkspace.tsx','E-01,E-02,E-04,E-06'],
++  ['Firecrawl pricing','Integration gap','Official v2 API supports search/scrape. Application integration, credential provisioning, bounded live test and rate-review proof remain open.','planning/professional-coverage/catalogue.mjs','P-01,P-03,P-08,P-09'],
++  ['Forward to staff','Partial exports; live handoff unavailable','Current CRM bridge explicitly returns an unavailable result. A complete portable package and authenticated transmission/receipt are separate deliverables.','src/studio/crmBridge.ts; src/studio/TakeoffTransferPanel.tsx','V-03,V-05,V-06'],
++  ['DWG','Implemented; bounded native checks pass','Independent readback verifies a 431-entity two-level fixture and the 412-entity UI export. Native import/cancel/undo/redo pass after correcting stale level selection. Final installation is tracked in DWG-TODO.md.','src-tauri/src/cad.rs; src/studio/architect/ArchitectCadExchange.tsx; DWG-TODO.md','I-02,C-14'],
++  ['Roof facade','Geometry and native visual checks pass','Redburn gables now have intersecting slopes and host-roof cutouts. Geometry regression, development and native screenshots exist. Final installed delivery remains a separate check.','scripts/build-redburn-model.mjs; src/studio/redburnBuilding.test.ts','R-06'],
++  ['Engineering readiness','Unassessed by discipline','A model or export does not establish a validated structural, hydraulic, electrical or geotechnical solver. Benchmark validation and qualified review remain separate gates.','planning/professional-coverage/industries.mjs','H-03,N-03,S-04,Q-08,Q-10'],
++];
+
+diff --git a/planning/professional-coverage/generate.mjs b/planning/professional-coverage/generate.mjs
+new file mode 100644
+index 0000000..05dd40d
+--- /dev/null
++++ b/planning/professional-coverage/generate.mjs
+@@ -0,0 +1,116 @@
++import { mkdirSync, writeFileSync, existsSync, copyFileSync, readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import { categories, sources, researchedAt } from './catalogue.mjs';
++import { industries, initialFindings, workingDay } from './industries.mjs';
++
++const root=resolve(import.meta.dirname,'../..');
++const out=resolve(root,'public/industry-coverage');
++mkdirSync(out,{recursive:true});
++const items=categories.flatMap(c=>c.items.map(i=>({...i,category:c.id,categoryName:c.title,benchmarks:c.benchmarks})));
++const ids=new Set(items.map(i=>i.id));
++if(ids.size!==items.length || categories.length!==26 || items.some(i=>!i.name||!i.acceptance)) throw Error('Incomplete catalogue');
++if(industries.some(i=>i.categories.some(c=>!categories.some(x=>x.id===c)))) throw Error('Unknown industry category');
++const sourceIds=new Set(sources.map(s=>s[0]));
++if(categories.some(c=>c.benchmarks.some(s=>!sourceIds.has(s))))throw Error('Unknown benchmark');
++// No manual ticking in the generated report. Acceptance is an evidence-bearing source change.
++for(const i of items) if(i.state==='verified') {
++  if(!i.code.length||!i.evidence.length)throw Error(`${i.id}: missing code or proof`);
++  for(const p of [...i.code,...i.evidence])if(!existsSync(resolve(root,p)))throw Error(`${i.id}: missing ${p}`);
++}
++const data={schema:'xray-professional-coverage/v1',researchedAt,scope:'Living requirements catalogue, not a parity or readiness claim',categories,industries,workingDay,initialFindings,sources};
++writeFileSync(resolve(out,'catalogue.json'),JSON.stringify(data,null,2)+'\n');
++const cell=s=>'"'+String(s).replaceAll('"','""')+'"';
++writeFileSync(resolve(out,'requirements.csv'),'\ufeff'+[
++  ['ID','Category','Requirement','Acceptance test','State','Code','Proof','Benchmarks'],
++  ...items.map(i=>[i.id,i.categoryName,i.name,i.acceptance,i.state,i.code.join('; '),i.evidence.join('; '),i.benchmarks.join('; ')])
++].map(r=>r.map(cell).join(',')).join('\r\n')+'\r\n');
++writeFileSync(resolve(out,'industries.csv'),'\ufeff'+[
++  ['ID','Industry/profile','Roles','Scenario','Inputs','Required outputs','Categories','State'],
++  ...industries.map(i=>[i.id,i.name,i.roles,i.scenario,i.inputs,i.outputs,i.categories.join(', '),i.state])
++].map(r=>r.map(cell).join(',')).join('\r\n')+'\r\n');
++
++const intro=`# Professional workspace: A–Z requirements and proof checklist
++
++Research checked ${researchedAt}. ${items.length} requirements, ${categories.length} categories, ${industries.length} industry/professional profiles and ${sources.length} primary-source references.
++
++User authorization: “smoke testing as you go with screenshots of proof means ticked off a list” and an extensive A–Z across relevant industries and use cases. Work continues on feat/architect-cad-engine, baseline 3e422f0084de607a775c2ede8dfecdf0b032c75e, preserving prior work and user data.
++
++This is the expanded scope register. It does not replace the historical 150-feature ledger or promote prior evidence to current acceptance. Vendor documentation establishes benchmark coverage, not an independently ranked market-share survey or proof of X-Ray capabilities. Requirements and tests below are our synthesis. No finite catalogue guarantees every specialist use case; new disciplines, format variants and jurisdiction requirements must enter this register with explicit acceptance before a readiness claim.
++
++**Tick rule:** a requirement remains unchecked until its complete stated behavior has a matching code diff, executed test/log, inspected screenshot where visual, source/fixture identity, tested platform/build and reviewer/date. A screenshot alone cannot prove persistence, arithmetic, access control or delivery. Historical evidence and partial implementations do not count as current full passes. Changes affecting a dependency reopen its acceptance. Industry readiness additionally requires all applicable rows and its full working-day scenario to pass.
++
++Delivery states: not-assessed → gap / partial / in-progress / failed / dependency-blocked → verified. No implied completion from a vendor feature, an installed package, a visible button or a green build.
++
++Read-only searchable report: public/industry-coverage/index.html. Portable CSV/JSON are beside it. Source: planning/professional-coverage/. Regenerate with node planning/professional-coverage/generate.mjs.
++
++## Current concrete findings
++
++| User concern | Current assessment | Evidence boundary / next acceptance |
++|---|---|---|
++${initialFindings.map(([name,state,detail,code,refs])=>`| ${name} | ${state} | ${detail} Relevant rows: ${refs}. Code: ${code}. |`).join('\n')}
++
++## Delivery sequence and dependencies
++
++1. Finish current roof/DWG fixes and their native, installed and web proof. An undo crash discovered in the new import scenario must pass regression before closure.
++2. Establish one project lifecycle: stable project/document/sheet IDs, full backup asset manifest, save feedback, reopen, archive/restore and concurrent-edit protection (B, D, V).
++3. Add complete named sheet sets and safe sheet removal/recovery; maintain source hashes and dependent takeoff links (D, T).
++4. Build rate books, worksheet/column mapping and reviewed application with units/currency/tax/date provenance (E). Costs must not reinterpret measured quantities.
++5. Integrate bounded Firecrawl search using native/server credentials; gather candidates and source evidence, then require review before applying a rate (P, X). Live provider test requires an actual configured credential; mocked responses only prove error/control paths.
++6. Complete portable staff handoff, then authenticated team storage, permissions, invitations and durable delivery receipts (A, B, V). Preparing a package is distinct from sending it; external sending requires an explicit instruction naming the recipient.
++7. Deliver discipline scenarios against the shared primitives. Specialist solvers, standards content, hardware formats and proprietary integrations need separately validated engines or licensed adapters (G–O, S, W, Y).
++8. Run complete working-day and disaster-recovery scenarios, reopen impacted checks after changes, then close only the matching platform-specific release rows (Q, Z).
++
++These are implementation waves, not a narrowing of the catalogue. All categories remain in scope; dependencies determine delivery order. Credentials, commercial licenses, specialist validation and live recipient access are recorded when encountered rather than represented as working features.
++
++## Universal working-day acceptance
++
++Every industry profile below inherits these steps. Run with a representative source fixture, two named staff roles where applicable, a supplier sheet with mixed units, a controlled revision and a fresh recovery profile. Retain before/after screenshots, assertions, outputs and hashes.
++
++| ID | Stage | Scenario | Categories |
++|---|---|---|---|
++${workingDay.map(r=>`| ${r.join(' | ')} |`).join('\n')}
++
++## A–Z requirements
++`;
++let md=intro;
++for(const c of categories){
++  md+=`\n### ${c.id} — ${c.title}\n\nBenchmark references: ${c.benchmarks.map(id=>{const s=sources.find(s=>s[0]===id);return `[${s[1]}](${s[2]})`;}).join(', ')}. These references inform the category; each acceptance requirement is X-Ray's own target.\n\n`;
++  md+=c.items.map(i=>`- [ ] **${i.id} ${i.name}** — ${i.acceptance}. State: ${i.state}. Code/proof: pending.`).join('\n')+'\n';
++}
++md+='\n## Industry and professional scenarios\n\nAll profiles inherit A/B/D/E/I/J/Q/U/V/Z plus the listed discipline categories. Each starts untested. Building geometry alone does not qualify a professional solver or establish regulatory approval.\n\n';
++md+='| ID | Industry and roles | Day-to-day use case | Inputs → required output | Categories | Status |\n|---|---|---|---|---|---|\n';
++md+=industries.map(i=>`| ${i.id} | ${i.name}; ${i.roles} | ${i.scenario} | ${i.inputs} → ${i.outputs} | ${i.categories.join(', ')} | ${i.state} |`).join('\n');
++md+='\n\n## Benchmark source register\n\nPrimary product documentation reviewed on the date above. Vendor performance and superiority claims are not adopted. Feature availability can vary by version, tier, module, platform and license.\n\n';
++md+=sources.map(([id,name,url,note])=>`- **${id}** [${name}](${url}) — ${note}`).join('\n');
++md+='\n\n## Evidence packet template\n\nFor every accepted row: requirement ID; declared platform/scope; base SHA and exact patch; fixture paths and SHA-256; executed action sequence; expected and actual assertions; screenshot paths and visual-review notes; build/test logs; artifact hashes; reviewer/date; residual limits; related industry profiles. Backend-only rows require executed proof; visual rows also require inspected screenshots.\n';
++writeFileSync(resolve(root,'PROFESSIONAL-A-Z-CHECKLIST.md'),md);
++
++const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++const proofSources=[
++  ['screenshots/redburn-roof/dev-exterior.png','roof-development.png','Roof repair — development view','Actual rendered repair. Final installed verification remains open.'],
++  ['screenshots/dwg/native-import-review.png','dwg-review.png','DWG — import review','Actual desktop import confirmation before changing the design.'],
++  ['screenshots/dwg/native-imported.png','dwg-imported.png','DWG — imported reference geometry','Imported fixture: 474 lines, 9 circles and 3 arcs. This screenshot does not prove undo or delivery.'],
++];
++mkdirSync(resolve(out,'proof'),{recursive:true});
++const gallery=proofSources.filter(([p])=>existsSync(resolve(root,p))).map(([p,name,title,note])=>{
++  copyFileSync(resolve(root,p),resolve(out,'proof',name));
++  return `<figure><a href="proof/${name}"><img loading="lazy" src="proof/${name}" alt="${esc(title)}"></a><figcaption><strong>${esc(title)}</strong><p>${esc(note)}</p></figcaption></figure>`;
++}).join('');
++const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>X-Ray — Professional coverage and proof</title><style>
++:root{font-family:system-ui,sans-serif;color:#203432;background:#f3f2ed;font-size:15px;line-height:1.55}*{box-sizing:border-box}body{margin:0}header{background:#1f3834;color:#fff;padding:44px max(24px,calc((100vw - 1280px)/2))}h1{font-size:clamp(28px,4vw,44px);font-weight:550;letter-spacing:-1px;margin:8px 0}h2{font-weight:600;margin:0 0 12px}h3{margin:0}p{max-width:95ch}a{color:#136957;text-underline-offset:3px}header a{color:#d1ecde}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase}.counts{display:flex;gap:36px;flex-wrap:wrap;margin-top:24px}.counts strong{display:block;font-size:30px;font-weight:500}.counts span{font-size:13px;color:#d2ddd8}main{max-width:1328px;padding:28px 24px 60px;margin:auto}section{margin:0 0 36px}.note{border-left:4px solid #aa7638;background:#fffbf0;padding:14px 18px}.toolbar{position:sticky;top:0;background:#f3f2edf5;border-block:1px solid #d0d7d0;padding:14px 0;display:flex;gap:12px;flex-wrap:wrap;z-index:2}.toolbar label{display:grid;font-size:12px;gap:3px;flex:1;min-width:170px}.toolbar label:first-child{flex:2}input,select{font:inherit;padding:10px;background:white;border:1px solid #96aaa1;border-radius:4px;width:100%;color:#203432}button{font:inherit;cursor:pointer;padding:9px 14px;border:1px solid #96aaa1;background:white;border-radius:4px}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #b0752e;outline-offset:2px}nav{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0}nav a{padding:3px 8px;border:1px solid #c5d2c9;border-radius:3px;text-decoration:none}.category{scroll-margin-top:145px;background:#fffefa;border:1px solid #d4dbd2;border-radius:5px;margin:16px 0}.cathead{padding:20px 22px;border-bottom:1px solid #e0e4dc}.benchmarks{font-size:12px;margin:5px 0 0;color:#5a6b63}.requirement{display:grid;grid-template-columns:85px 1fr 130px;gap:16px;padding:16px 22px;border-bottom:1px solid #e8ebe3}.requirement:last-child{border:0}.reqid{font-variant-numeric:tabular-nums;font-size:13px;color:#5e7067}.check{display:inline-block;border:1px solid #84968b;width:15px;height:15px;vertical-align:-2px;margin-right:6px}.acceptance{color:#4b6055;font-size:13px;margin:4px 0}.state{font-size:11px;align-self:start;border:1px solid #c9cfbf;border-radius:3px;padding:4px 7px;white-space:nowrap;text-align:center;background:#f3f2e9}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;background:#fffefa;font-size:13px}th,td{text-align:left;vertical-align:top;padding:12px;border-bottom:1px solid #dbe1d6}th{background:#e4e9df}td{min-width:120px}details{border:1px solid #d4dbd2;background:#fffefa;margin-bottom:12px;padding:14px}summary{cursor:pointer;font-weight:600}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}figure{margin:0;background:#fffefa;border:1px solid #d4dbd2}img{display:block;width:100%;height:200px;object-fit:contain;background:#e2e2d8}figcaption{padding:14px;font-size:13px}figcaption p{margin-bottom:0}.source{margin:10px 0}.muted{color:#607167}.hidden{display:none!important}footer{font-size:12px;border-top:1px solid #ccd4c8;padding-top:18px}@media(max-width:650px){header{padding:28px 20px}main{padding:20px 14px}.toolbar{position:static}.requirement{grid-template-columns:65px 1fr;padding:14px;gap:10px}.state{grid-column:2;justify-self:start}.counts{gap:20px}.cathead{padding:16px}.category{scroll-margin-top:15px}}@media print{.toolbar,nav,button{display:none}.category{break-inside:avoid}header{background:white;color:black}.counts span{color:black}body{background:white}a{color:inherit}main{padding:0}details{display:block}}
++</style></head><body><header><div class="eyebrow">X-Ray by Looplet · Scope & delivery evidence</div><h1>The professional workspace, A–Z.</h1><p>A working-day checklist across design, engineering, construction, fabrication and operations. Every tick requires a matching change and inspected proof.</p><div class="counts"><div><strong>${items.length}</strong><span>Testable requirements</span></div><div><strong>${industries.length}</strong><span>Industry & role profiles</span></div><div><strong>${sources.length}</strong><span>Primary references</span></div><div><strong>${items.filter(i=>i.state==='verified').length}</strong><span>Full requirements verified in this register</span></div></div><p><a href="requirements.csv" download>Requirements CSV</a> · <a href="industries.csv" download>Industry CSV</a> · <a href="catalogue.json" download>Full catalogue JSON</a></p></header><main>
++<section class="note"><strong>Coverage is a delivery commitment, not a completion claim.</strong><p>Research checked ${researchedAt}. Existing work and historical passes remain in their original ledgers. This expanded register starts unassessed; a partial feature or screenshot cannot certify a whole requirement. Specialist calculations require their own validated engine, applicable criteria and professional review.</p></section>
++<section><h2>What the current audit has found</h2><div class="tablewrap"><table><thead><tr><th>Daily need</th><th>Current assessment</th><th>What remains</th></tr></thead><tbody>${initialFindings.map(([n,s,d])=>`<tr><td>${esc(n)}</td><td>${esc(s)}</td><td>${esc(d)}</td></tr>`).join('')}</tbody></table></div></section>
++<section><h2>Actual work in progress</h2><p class="muted">Captured from the running app. These are scoped observations; the requirement stays open until its complete acceptance passes.</p><div class="gallery">${gallery}</div></section>
++<section><h2>Find a requirement</h2><div class="toolbar"><label>Search requirements and acceptance<input id="search" type="search" placeholder="Try pricing, rename, roof, archive…"></label><label>Industry / professional profile<select id="industry"><option value="">All profiles</option>${industries.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('')}</select></label><label>Category<select id="category"><option value="">All A–Z categories</option>${categories.map(c=>`<option value="${c.id}">${c.id} — ${esc(c.title)}</option>`).join('')}</select></label><button id="reset" type="button">Reset</button></div><p id="results" role="status" aria-live="polite"></p><nav aria-label="A to Z category index">${categories.map(c=>`<a href="#category-${c.id}">${c.id}</a>`).join('')}</nav><div id="requirements">${categories.map(c=>`<section class="category" id="category-${c.id}" data-category="${c.id}"><div class="cathead"><h2>${c.id} — ${esc(c.title)}</h2><p class="benchmarks">Benchmarks: ${c.benchmarks.map(id=>{const s=sources.find(s=>s[0]===id);return `<a href="${esc(s[2])}" target="_blank" rel="noopener noreferrer">${esc(s[1])}</a>`;}).join(' · ')}. Requirements below are X-Ray targets.</p></div>${c.items.map(i=>`<article class="requirement" data-search="${esc((i.id+' '+i.name+' '+i.acceptance).toLowerCase())}"><div class="reqid"><span class="check" aria-label="Unchecked"></span>${i.id}</div><div><strong>${esc(i.name)}</strong><p class="acceptance">Pass when: ${esc(i.acceptance)}.</p><small class="muted">Code diff + executed proof + visual review: pending</small></div><span class="state">Not assessed</span></article>`).join('')}</section>`).join('')}</div></section>
++<section><h2>One complete working day</h2><p>Each industry profile must complete all eight stages using its own representative fixture and outputs. Include restart, cancellation, permission boundaries, a source revision and clean-profile recovery.</p>${workingDay.map(([id,n,t])=>`<details><summary>${id} · ${esc(n)}</summary><p>${esc(t)}</p></details>`).join('')}</section>
++<section><h2>${industries.length} industry and professional scenarios</h2><p>The industry filter above selects applicable requirement categories. Profiles share project, document, cost, access, exchange, collaboration and release foundations.</p><div class="tablewrap"><table><thead><tr><th>Profile</th><th>Daily scenario</th><th>Input</th><th>Required output</th><th>State</th></tr></thead><tbody>${industries.map(i=>`<tr data-profile="${i.id}"><td><strong>${esc(i.name)}</strong><br>${esc(i.roles)}</td><td>${esc(i.scenario)}</td><td>${esc(i.inputs)}</td><td>${esc(i.outputs)}</td><td>Not tested</td></tr>`).join('')}</tbody></table></div></section>
++<section><h2>Benchmark source register</h2><p>Established vendor suites and specialist tools provide comparison coverage. This is not a market-share ranking. Version, license and platform limits must be checked when implementing an adapter.</p>${sources.map(([id,n,url,note])=>`<p class="source"><strong>${id}</strong> · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(n)}</a> — ${esc(note)}</p>`).join('')}</section><footer>Scope remains expandable. New specialist use cases require explicit acceptance and evidence before an industry-readiness claim. Generated from the versioned catalogue; checklist marks cannot be changed by clicking this report.</footer></main><script>
++const profiles=${JSON.stringify(industries.map(i=>({id:i.id,categories:i.categories})))};
++const search=document.getElementById('search'),industry=document.getElementById('industry'),category=document.getElementById('category');
++function filter(){const query=search.value.trim().toLowerCase();const selected=profiles.find(p=>p.id===industry.value);let count=0;document.querySelectorAll('.category').forEach(section=>{const allowed=(!category.value||section.dataset.category===category.value)&&(!selected||selected.categories.includes(section.dataset.category));let matches=0;section.querySelectorAll('.requirement').forEach(row=>{const show=allowed&&row.dataset.search.includes(query);row.classList.toggle('hidden',!show);if(show){matches++;count++;}});section.classList.toggle('hidden',!matches);});document.getElementById('results').textContent=count+' of ${items.length} requirements shown. Unchecked items remain open.';document.querySelectorAll('[data-profile]').forEach(row=>row.classList.toggle('hidden',!!industry.value&&row.dataset.profile!==industry.value));}
++search.addEventListener('input',filter);industry.addEventListener('change',filter);category.addEventListener('change',filter);document.getElementById('reset').addEventListener('click',()=>{search.value='';industry.value='';category.value='';filter();});filter();
++</script></body></html>`;
++writeFileSync(resolve(out,'index.html'),html);
++writeFileSync(resolve(root,'planning/professional-coverage/validation.json'),JSON.stringify({researchedAt,categories:categories.length,requirements:items.length,profiles:industries.length,sources:sources.length,uniqueIds:ids.size,allAcceptancePresent:true,allCategoryReferencesValid:true,verifiedRequirements:items.filter(i=>i.state==='verified').length},null,2)+'\n');
++console.log(JSON.stringify({categories:categories.length,requirements:items.length,profiles:industries.length,sources:sources.length,out}));

@@ -1,0 +1,35 @@
+# Shared professional workflows
+
+Branch `feat/architect-cad-engine`, baseline `3e422f0`; existing working changes preserved, uncommitted. Authorized parallel work across source sheets, supplier pricing, backup integration and a researched industry gap audit. User steering: stop focusing on fencing. New projects therefore start as general projects with a neutral name and blank address, and an empty Cost view opens supplier pricing rather than initializing a specialist recipe workflow. Existing saved project values and supported specialist workflows remain readable.
+
+## Implemented and exercised in development
+
+- Source sheet names and order appear in both the register and normal navigation. Archive requires an impact review, retains originals and dependent data, and can be recovered. Exact source identity includes timestamp, hash and original page count; page indices never change. Timezone-offset dates are accepted. Same-window notifications and cross-window storage refresh keep labels current; guarded writes reject stale metadata.
+- Supplier CSV import supports mapping and validation, reviewed commercial provenance, immutable revisions, rename/archive/restore, revision exports and a priced worksheet. Explicit quantities use the source unit; fixed-decimal line amounts and separate subtotal groups preserve currency/tax boundaries. Applied lines retain their original rate revision. CSV imports are fixture-based test evidence, not market-price claims.
+- Main project name editing is available in Sheets. An existing newer saved job blocks a stale rename. First-open project identity is saved before any project-scoped library writes, under an initialization lock, so a pricing-only project survives restart. Corrupt existing jobs are preserved. General editing autosave still needs a comprehensive cross-window transaction design; this initialization lock is not that feature.
+- Backup v2 includes source sheet metadata and price books/worksheet, validates project/source identities, and still reads v1 packages. Original plan/photo bytes remain verified. Supplier CSV row values/provenance are included; original supplier CSV bytes are not embedded. Package application to the editing workspace remains unavailable.
+- Mobile navigation now falls back to start alignment when tabs overflow, keeping the active tab reachable. Project details, sheets and pricing have desktop/mobile screenshots.
+
+## Evidence
+
+`implementation.diff` records 25 file paths and includes earlier preserved edits in shared files. Per-slice tests and screenshots: `../IW-SHEET-LIFECYCLE/`, `../IW-PRICE-BOOK/`. Root rename/reload/stale-save checks: `project-dev.log`, `project-conflict-final.log`. Real IndexedDB backup inspection: `backup-sheets.log`, screenshot `screenshots/professional-next/backup-sheet-metadata.png` (inspected). Backward format/source-binding tests are in `projectBackup.test.ts`. First-open project regression: `initial-project-tests.log`, and pricing `reload-final.log` confirms the same job identity plus one book and one priced line after reload.
+
+Development final typecheck: `typecheck-initial-project.log`. Desktop/mobile smoke: `dev-smoke-initial-project.log`, both images inspected, no page/console errors or overflow. Earlier logs preserve a navigation timeout and a transient missing-module SSR cache error; those are not counted as successful runs. A subsequent fresh smoke cleared that error. Existing utility share-card placeholder yields a BRAND NOTE.
+
+The first remote snapshot was superseded after the pricing-only restart defect was discovered; its web/tests passed but native build was deliberately interrupted. It is retained under `remote/superseded-3943db9e240e/` and must not be called the final release.
+
+Final Dans1 source snapshot `44c9a5bdd38690cc22a6c61caec9884e9e3591a734c8fc5b3789e1f9652630e6` passed typecheck, 69 focused tests, web build and native NSIS build. Native build took 173.02 seconds at BelowNormal with six workers. All 589 source entries were verified after build and all 10 retrieved artifacts matched; no source drift. Executable SHA-256 `b4e7683b095ccc9c04c01c933db70a205c2eaff05ee85ba62355df98eda80a83`; installer `b19d072f305002745d1f4f9a05c9c5d787df73baaf3caf3bf004647100636e86`. Records: `remote/release-44c9a5bdd386/`.
+
+Final built web smoke passed (`final-production-smoke.log`), with desktop, short-window and mobile top/bottom control screenshots inspected. `final-controls-confirm.log` separately verifies five lower navigation buttons and preserved top options. Production pricing import, fixed-decimal application, actual reload and backup passed on the preceding candidate, whose pricing logic is identical; the final delta changes only model toolbar layout and worksheet bottom clearance. `../IW-PRICE-BOOK/mobile-clearance-final.log` verifies fully accessible mobile removal controls without deleting data.
+
+Final native checks passed in an isolated profile (`native-launch.json`): restored top options and five lower navigation controls, 198-part source model, reviewed pricing application, actual reload with the same project identity, and real backup-v2 contents. Clean executed logs: `native-controls-confirm.log`, `native-pricing-apply.log`, `native-pricing-reload.log`, `native-pricing-backup.log`. All corresponding screenshots under `screenshots/professional-next/native-*` were inspected. The reused filename `native-pricing-worksheet-mobile.png` is a native 1440x1000 screenshot, not mobile proof; mobile proof is the separate browser run.
+
+Native test job `job-d898a5d5-520b-4eb8-8f4f-391c10df7198` retained one price book and one worksheet line: 2 kg at AUD 12.345, rounded amount AUD 24.69, revision 1 and source CSV hash preserved. The first native automation connection timed out after creating the model screenshot; a fresh connection also stalled. These are retained as failed automation attempts. The next flow saved the reviewed import but hit an assistant-covered click point; ordinary scrolling exposed the rate action, and application/reload/backup then exited 0. No forced click, data deletion or product-code change was used to bypass that interaction.
+
+**Installed delivery remains open.** The final executable was launched only in an isolated test profile. Existing installed app/profile remain untouched; this package is verified, not installed.
+
+## Scope still open
+
+The researched audit at `planning/professional-coverage/next-wave-audit.md` maps 98 existing requirement IDs to 26 category gates, with 17 official sources. Research does not tick the 364 product acceptance requirements. `restore-transaction-plan.md` maps the next recovery slice to concrete stores, locks, journaling, interruption and conflict tests.
+
+Still open: backup application to editor, XLSX pricing, direct reviewed takeoff-to-rate binding, real Firecrawl calls and price evidence, staff transmission/receipts, authenticated collaboration, and specialist calculations across the wider industry register. No CRM changes, user messages sent, staging, commit, merge or push.

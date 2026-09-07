@@ -1,0 +1,15 @@
+[
+ ["press","Escape"],
+ ["errors","--clear"],
+ ["find","role","button","click","--name","Backups","--exact"],
+ ["wait","--fn","document.querySelector('.backup-item h3')?.textContent==='Growth recovery baseline'"],
+ ["find","role","button","click","--name","Inspect","--exact"],
+ ["wait","--fn","!!document.querySelector('.backup-restore-review')"],
+ ["eval","window.__growthBeforeStorage=JSON.stringify(Object.fromEntries(Object.keys(localStorage).sort().map(k=>[k,localStorage.getItem(k)])))"],
+ ["find","role","button","click","--name","Review restore impact","--exact"],
+ ["wait","--fn","document.querySelector('.restore-review-result')?.textContent.includes('Integrity review complete')"],
+ ["eval","(()=>{const current=JSON.stringify(Object.fromEntries(Object.keys(localStorage).sort().map(k=>[k,localStorage.getItem(k)]))); if(window.__growthBeforeStorage!==current)throw Error('Restore review mutated local storage'); return {readOnly:true,impacts:document.querySelectorAll('.restore-impact-list article').length}})()"],
+ ["eval","document.querySelector('.restore-review-result').scrollIntoView({block:'start'})"],
+ ["screenshot","screenshots/growth/2026-09-07-recovery-after.png"],
+ ["errors"]
+]

@@ -1,0 +1,136 @@
+[
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Cost",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Import price sheet",
+    "--exact"
+  ],
+  [
+    "upload",
+    "input[aria-label='Supplier price file']",
+    "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-07-pricing/supplier-workbook.xlsx"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('select[aria-label=\"Workbook worksheet\"]')"
+  ],
+  [
+    "select",
+    "select[aria-label='Workbook worksheet']",
+    "Civil and electrical"
+  ],
+  [
+    "fill",
+    "input[aria-label='Price header row']",
+    "3"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('fieldset')?.textContent.includes('Supplier SKU')"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(1) select",
+    "0"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(2) select",
+    "1"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(3) select",
+    "2"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(4) select",
+    "3"
+  ],
+  [
+    "set",
+    "viewport",
+    "390",
+    "844"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.dataset.priceImportState==='ready'"
+  ],
+  [
+    "scroll",
+    "down",
+    "3000",
+    "--selector",
+    ".workspace-central-content"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-pricing/workbook-mobile-mapping-final.png"
+  ],
+  [
+    "eval",
+    "(()=>{for(const td of document.querySelectorAll('.price-scalar'))if(getComputedStyle(td).whiteSpace!=='nowrap')throw Error('Price wraps');if(document.documentElement.scrollWidth>innerWidth)throw Error('Page overflow');return 'Mobile rates remain on one line';})()"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "scroll",
+    "down",
+    "3000",
+    "--selector",
+    ".workspace-central-content"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-pricing/worksheet-mapping-detail.png"
+  ],
+  [
+    "select",
+    "select[aria-label='Workbook worksheet']",
+    "Formula rates"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.dataset.priceImportState==='invalid'&&document.querySelector('.price-books')?.textContent.includes('Cell D2')"
+  ],
+  [
+    "scroll",
+    "down",
+    "3000",
+    "--selector",
+    ".workspace-central-content"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-07-pricing/formula-error-detail.png"
+  ],
+  [
+    "eval",
+    "(()=>{const review=[...document.querySelectorAll('.price-books button')].find(b=>b.textContent==='Review import');if(!review?.disabled)throw Error('Formula review enabled');const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:')),lib=JSON.parse(localStorage.getItem(key));if(lib.books.length!==3||lib.worksheet.length!==1||lib.worksheet[0].bookRevision!==1)throw Error('Saved data changed');return 'Formula blocked; three books and original applied revision preserved';})()"
+  ],
+  [
+    "errors"
+  ]
+]

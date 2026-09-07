@@ -1,0 +1,38 @@
+{
+ "id":"2026-09-07-05-tablet-controls",
+ "title":"Stage 05 — tablet controls and safe pause",
+ "date":"7 September 2026",
+ "platform":"Tablet browser layouts at 1024×768 and 768×1024; Windows executable update in the existing isolated QA profile",
+ "summary":"The final tablet audit found 24px drawing controls. They now measure at least 44×44 and wrap within the drawing area. Both orientations retain the saved original page and viewport centre. The updated Windows executable reopened the prior test project, two price books, sheet groups, saved view and backup. Work pauses here at the user's request.",
+ "requirements":[
+  {"id":"SC-06 / D-14","status":"Pass — tablet layout correction","change":"Eight lower controls pass size, viewport bounds and centre hit tests in both tablet orientations. Source page and centre stay correct after resize and reload.","remaining":"Actual tablet hardware and other browser engines still require their own testing. Phones are excluded."},
+  {"id":"Windows persistence","status":"Pass — executable update","change":"The previous isolated profile retained its job, 13 sheets, two price books, saved view and verified backup when reopened in the new executable.","remaining":"This is not an installed-app upgrade or full restore; normal user data was untouched."},
+  {"id":"macOS / Linux","status":"Blocked — native build dependency","change":"Current build-cad.mjs refuses non-Windows platforms and is required by the native beforeBuildCommand.","remaining":"Provide a platform-aware DWG translator/build path, then build and test each native package. No compatibility claim is made."}
+ ],
+ "images":[
+  {"file":"screenshots/growth/2026-09-07-sheets/stage05-built-tablet-landscape-canvas.png","caption":"After: tablet landscape. Larger lower controls wrap within the available drawing width; all eight are reachable and at least 44×44."},
+  {"file":"screenshots/growth/2026-09-07-sheets/production-tablet-landscape-canvas.png","caption":"Before: the original tablet audit measured the lower controls at roughly 24px, despite their being visible and reachable."},
+  {"file":"screenshots/growth/2026-09-07-sheets/stage05-built-tablet-portrait-canvas.png","caption":"After: tablet portrait. The original drawing centre is retained and the inspector follows the drawing in the scroll flow."},
+  {"file":"screenshots/growth/2026-09-07-tablet-native-retained-view.png","caption":"Windows executable update: the prior saved detail remains available and opens the same source page and centre."},
+  {"file":"screenshots/growth/2026-09-07-tablet-native-retained-backup.png","caption":"Windows executable update: the prior backup still verifies against the retained project and original source bytes. Review remains read-only."}
+ ],
+ "commands":[
+  "Development: npm.cmd run typecheck passed; stage05-dev-tablet.json passed 27 commands in 1.481 seconds. All six development images inspected.",
+  "Dans1 c32e640187e9, High priority and 16 workers: dependencies, typecheck, 95 focused tests, web build and native build all exited 0. Native build 147.10 seconds. All 613 source files and 10 downloaded artifacts verified.",
+  "node scripts/fast-cdp-test.mjs growth-tablet-release proof/growth/tablet-production-final.json — 99 commands, 9.737 seconds, exit 0. Real source import, groups, zoom/pan, save/reload and both tablet orientations.",
+  "node scripts/fast-cdp-test.mjs growth-tablet-native proof/growth/tablet-native-upgrade.json --cdp 9263 — 24 commands, 3.268 seconds, exit 0. Prior isolated QA app closed normally before its profile was reused.",
+  "All five embedded images visually inspected. Screenshots supplement measured target bounds, hit tests, source geometry and stored-state assertions.",
+  "Source application commit 9db51ed, tablet correction 0dd730e, tooling f72a839 were pushed separately to feat/architect-cad-engine; evidence/reporting follows as its own commit. No merge or installed-app replacement."
+ ],
+ "logs":[
+  "proof/growth/2026-09-07-sheets/stage05-tablet-correction.md",
+  "proof/growth/2026-09-07-tablet-release/README.md",
+  "proof/growth/2026-09-07-tablet-release/release-c32e640187e9/native-completion.json",
+  "proof/growth/2026-09-07-tablet-release/release-c32e640187e9/artifacts-verified.json",
+  "proof/growth/runner/2026-09-07T13-35-18-576Z-growth-tablet-release.log",
+  "proof/growth/runner/2026-09-07T13-38-14-807Z-growth-tablet-native.log"
+ ],
+ "sourceIdentity":"Frozen source c32e640187e924fc29e0ed2fa94da565aa2c8e5d7b6c7f0a384cc41a90926c3e; native source 9e85e6501cbe8e92b7f504ba1b9b41b3be8268059955e065a852a1f032b2f6d7. src/styles.css SHA-256 6f7751e9b7d9fdf8008ec9414a166e564545a0cf62d419779b453f3fd912e2ca. EXE 44271fdc59f7f28636e38b703e2fa0aa508e3fca545915ee7d6bb7663a41f641; installer 381fa994340df840aadf2eedd86fbef328364afed31b63faf091555c40d0bd5e. CSS snapshot scope dd1c746a8eb4817f40fe9a6083d12b75121ded44a9b08457a265fc1b16f2b6ec against application commit 9db51ed.",
+ "codeDiff":"proof/growth/2026-09-07-05-tablet-source/code.diff — exactly 20 added stylesheet lines, isolated from earlier application changes.",
+ "summaryImage":"screenshots/growth/2026-09-07-05-tablet-controls.png"
+}

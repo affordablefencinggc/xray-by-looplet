@@ -1,0 +1,973 @@
+diff --git a/scripts/build-redburn-model.mjs b/scripts/build-redburn-model.mjs
+index 5d096e9..6ffc76d 100644
+--- a/scripts/build-redburn-model.mjs
++++ b/scripts/build-redburn-model.mjs
+@@ -3,6 +3,7 @@ import fs from "node:fs";
+ import crypto from "node:crypto";
+ import * as T from "three";
+ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
++import polygonClipping from "polygon-clipping";
+ import { parseSourceBuilding } from "../src/studio/sourceBuilding.ts";
+ const root = "public/models/redburn",
+   sha256 = crypto
+@@ -459,10 +460,17 @@ add(
+   "slab",
+   "concrete",
+   "upper",
+-  plate(outdoor, 3.12, 0.2),
++  // Leave an actual recess for the written 100 mm carport stepdown.
++  polygonClipping.difference([outdoor], [[[1.39, 6.65], [7.11, 6.65], [7.11, 13.64], [1.39, 13.64]]])
++    .flatMap((rings) => {
++      const vectors = rings.map((ring) => ring.slice(0, -1).map((p) => new T.Vector2(...p)));
++      const points = vectors.flat();
++      return T.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1)).map((triangle) =>
++        plate(triangle.map((i) => points[i].toArray()), 3.12, 0.2));
++    }),
+   ref(
+     4,
+-    "Outdoor RL22.50 conflicts with 100 mm stepdown relative to FFL22.47. Displayed at upper datum pending clarification.",
++    "Outdoor RL22.50 conflicts with the written 100 mm stepdown relative to FFL22.47. Walkway remains at upper datum; carport follows the explicit 100 mm stepdown. Datum conflict requires clarification.",
+   ),
+ );
+ add(
+@@ -471,7 +479,8 @@ add(
+   "room",
+   "concrete",
+   "upper",
+-  box(1.45, 6.85, 5.62, 6.59, 3.12, 0.015),
++  box(1.39, 6.65, 5.72, 6.99, 2.82, 0.2),
++  ref(4, "Carport slab at 100 mm below upper FFL, following the written stepdown. RL22.50 annotation conflicts; not resolved survey levels."),
+ );
+ add(
+   "walkway",
+@@ -487,9 +496,19 @@ add("carport-walls", "Carport walls and walkway retaining wall", "wall", "concre
+   box(1.19, 6.65, 0.2, 6.99, 3.12, 2.74),
+   box(7.11, 6.65, 0.2, 6.99, 3.12, 2.74),
+ ]);
+-const garage = [];
+-for (let h = 0; h < 2.84; h += 0.355) garage.push(box(1.69, 13.54, 5.12, 0.09, 3.12 + h, 0.34));
+-add("garage-door", "2840 h x 5120 w sectional steel door", "door", "architrave", "upper", garage);
++add("carport-door-returns", "Carport door jamb wall returns", "wall", "concrete", "upper", [
++  box(1.19, 13.44, 0.5, 0.2, 3.02, 2.84),
++  box(6.81, 13.44, 0.5, 0.2, 3.02, 2.84),
++], ref(4, "Wall returns close the plan's 5120 mm door opening to the carport side walls. Return depths inferred."));
++// Integer panel count avoids a ninth panel from accumulated floating-point error.
++// A continuous inner leaf closes the shallow panel rebates instead of leaving holes.
++const garage = [box(1.69, 13.54, 5.12, 0.035, 3.02, 2.84)];
++for (let panel = 0; panel < 8; panel++) {
++  const bottom = panel * 2.84 / 8;
++  garage.push(box(1.69, 13.575, 5.12, 0.055, 3.02 + bottom, 2.84 / 8 - 0.015));
++}
++add("garage-door", "2840 h x 5120 w sectional steel door", "door", "architrave", "upper", garage,
++  ref(4, "2840 x 5120 door; the written 100 mm carport stepdown places its head at the 2740 mm upper ceiling datum. Panel count/profile inferred."));
+ const slats = [];
+ for (let a = 7.43; a < 11.15; a += 0.095) slats.push(box(a, 6.73, 0.035, 0.045, 3.12, 1.65));
+ add("court-screen", "Courtyard aluminium privacy screen", "fence", "metal", "upper", slats);
+@@ -599,7 +618,70 @@ function polygon(points) {
+   g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+   return g;
+ }
+-function roof(id, label, a0, a1, b0, b1, eave, pitch) {
++const mainRoofBounds = [-0.48, 11.79, -0.48, 7.05];
++const carportRoofBounds = [0.95, 7.57, 6.15, 13.78];
++const roofPitch = Math.tan((22.5 * Math.PI) / 180);
++const gables = [
++  { id: "terrace-gable", axis: "a", c: 8.05, fixed: -0.22, width: 4.4, inward: 1 },
++  { id: "stair-gable", axis: "b", c: 3.15, fixed: -0.27, width: 4.8, inward: 1 },
++  { id: "carport-gable", axis: "a", c: 4.26, fixed: 13.78, width: 6.62, inward: -1 },
++].map((g) => {
++  const r = g.width / 2;
++  const y = g.id === "carport-gable" ? 5.86 : 5.86 + (g.fixed - mainRoofBounds[g.axis === "a" ? 2 : 0]) * roofPitch;
++  const point = (across, height, inward = 0) =>
++    g.axis === "a" ? [across, height, g.fixed + inward * g.inward] : [g.fixed + inward * g.inward, height, across];
++  const left = point(g.c - r, y),
++    right = point(g.c + r, y);
++  const peak = point(g.c, y + r * roofPitch),
++    join = point(g.c, y + r * roofPitch, r);
++  return {
++    ...g,
++    y,
++    left,
++    right,
++    peak,
++    join,
++    footprint: [left, right, join].map((p) => [p[0], p[2]]),
++  };
++});
++// Split host sheet ribs at every gable footprint edge; no hidden duplicate roof
++// sheet or rib is left underneath the new intersecting roof slopes.
++function exposedRib(start, end, openings) {
++  const breaks = [0, 1],
++    dx = end[0] - start[0],
++    dz = end[2] - start[2];
++  const cross = (x, z, u, v) => x * v - z * u;
++  for (const g of openings)
++    for (let i = 0; i < 3; i++) {
++      const a = g.footprint[i],
++        b = g.footprint[(i + 1) % 3];
++      const ex = b[0] - a[0],
++        ez = b[1] - a[1],
++        det = cross(dx, dz, ex, ez);
++      if (Math.abs(det) < 1e-10) continue;
++      const ax = a[0] - start[0],
++        az = a[1] - start[2];
++      const t = cross(ax, az, ex, ez) / det,
++        u = cross(ax, az, dx, dz) / det;
++      if (t > 0 && t < 1 && u >= 0 && u <= 1) breaks.push(t);
++    }
++  const at = (t) => start.map((v, i) => v + (end[i] - v) * t);
++  const inside = (p, ring) => {
++    const signs = ring.map((a, i) => {
++      const b = ring[(i + 1) % ring.length];
++      return cross(b[0] - a[0], b[1] - a[1], p[0] - a[0], p[2] - a[1]);
++    });
++    return signs.every((v) => v >= -1e-9) || signs.every((v) => v <= 1e-9);
++  };
++  breaks.sort((a, b) => a - b);
++  return breaks.slice(1).flatMap((endT, i) => {
++    const startT = breaks[i];
++    if (endT - startT < 1e-8 || openings.some((g) => inside(at((startT + endT) / 2), g.footprint)))
++      return [];
++    return [rod(P(...at(startT)), P(...at(endT)), 0.007)];
++  });
++}
++function roof(id, label, a0, a1, b0, b1, eave, pitch, openings = []) {
+   const k = Math.tan((pitch * Math.PI) / 180),
+     r = Math.min((a1 - a0) / 2, (b1 - b0) / 2),
+     rise = r * k,
+@@ -639,7 +721,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     for (const side of [0, 1]) {
+       const b = side ? b1 : b0,
+         d = side ? -run : run;
+-      ribs.push(rod(P(a, eave + 0.012, b), P(a, eave + run * k + 0.012, b + d), 0.007));
++      ribs.push(...exposedRib([a, eave + 0.012, b], [a, eave + run * k + 0.012, b + d], openings));
+     }
+   }
+   for (let b = b0 + 0.065; b < b1; b += 0.12) {
+@@ -647,7 +729,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     for (const side of [0, 1]) {
+       const a = side ? a1 : a0,
+         d = side ? -run : run;
+-      ribs.push(rod(P(a, eave + 0.012, b), P(a + d, eave + run * k + 0.012, b), 0.007));
++      ribs.push(...exposedRib([a, eave + 0.012, b], [a + d, eave + run * k + 0.012, b], openings));
+     }
+   }
+   add(
+@@ -656,7 +738,27 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     "roof",
+     "roof",
+     "roof",
+-    faces.map(polygon),
++    faces.flatMap((f) => {
++      if (!openings.length) return [polygon(f)];
++      const clipped = polygonClipping.difference(
++        [f.map((p) => [p[0], p[2]])],
++        ...openings.map((g) => [g.footprint]),
++      );
++      return clipped.map((rings) => {
++        const vectors = rings.map((r) => r.slice(0, -1).map((p) => new T.Vector2(...p)));
++        const triangles = T.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1));
++        const points = vectors.flat();
++        const positions = triangles.flatMap((t) =>
++          t.flatMap((i) => {
++            const { x: a, y: b } = points[i];
++            return P(a, eave + Math.min(a - a0, a1 - a, b - b0, b1 - b) * k, b).toArray();
++          }),
++        );
++        const geometry = new T.BufferGeometry();
++        geometry.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
++        return geometry;
++      });
++    }),
+     ref(
+       6,
+       `${pitch} degree metal roof specified. Hip/ridge intersections inferred from elevations and cover; no roof framing plan.`,
+@@ -687,8 +789,8 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     ref(6),
+   );
+ }
+-roof("main-roof", "Main residence / 22.5 degree hip roof", -0.48, 11.79, -0.48, 7.05, 5.86, 22.5);
+-roof("carport-roof", "Carport / 22.5 degree roof", 0.95, 7.57, 6.15, 13.78, 5.86, 22.5);
++roof("main-roof", "Main residence / 22.5 degree hip roof", ...mainRoofBounds, 5.86, 22.5, gables.filter(g => g.id !== "carport-gable"));
++roof("carport-roof", "Carport / 22.5 degree roof", ...carportRoofBounds, 5.86, 22.5, gables.filter(g => g.id === "carport-gable"));
+ const a0 = -0.32,
+   a1 = 11.67,
+   b0 = -3.13,
+@@ -736,7 +838,8 @@ add(
+   ],
+   ref(6),
+ );
+-function gable(id, axis, c, fixed, width, y) {
++function gable({ id, axis, c, fixed, width, y, left, right, peak, join, inward = 1 }) {
++  const page = id === "carport-gable" ? 5 : 6;
+   const r = width / 2,
+     h = r * Math.tan((22.5 * Math.PI) / 180),
+     p =
+@@ -759,7 +862,7 @@ function gable(id, axis, c, fixed, width, y) {
+     "roof",
+     polygon(p),
+     ref(
+-      6,
++      page,
+       "Decorative gable shown. Width, ridge and batten spacing inferred from elevation/cover.",
+     ),
+   );
+@@ -768,8 +871,8 @@ function gable(id, axis, c, fixed, width, y) {
+     const hh = (r - Math.abs(t)) * Math.tan((22.5 * Math.PI) / 180);
+     bars.push(
+       axis === "a"
+-        ? rod(P(c + t, y, fixed - 0.012), P(c + t, y + hh, fixed - 0.012), 0.02)
+-        : rod(P(fixed - 0.012, y, c + t), P(fixed - 0.012, y + hh, c + t), 0.02),
++        ? rod(P(c + t, y, fixed - inward * 0.012), P(c + t, y + hh, fixed - inward * 0.012), 0.02)
++        : rod(P(fixed - inward * 0.012, y, c + t), P(fixed - inward * 0.012, y + hh, c + t), 0.02),
+     );
+   }
+   add(
+@@ -779,11 +882,61 @@ function gable(id, axis, c, fixed, width, y) {
+     "architrave",
+     "roof",
+     bars,
+-    ref(6),
++    ref(page),
++  );
++  add(
++    id + "-roof",
++    "Decorative gable / intersecting roof slopes",
++    "roof",
++    "roof",
++    "roof",
++    [polygon([left, peak, join]), polygon([peak, right, join])],
++    ref(
++      page,
++      "Gable roof joins the host hip at two valleys; aligned to the decorative face shown on the cover and elevations. Undimensioned depth inferred.",
++    ),
++  );
++  const ribs = [];
++  for (let depth = 0.06; depth < r; depth += 0.12) {
++    const length = r - depth;
++    const ridge =
++      axis === "a"
++        ? [c, y + r * roofPitch + 0.012, fixed + inward * depth]
++        : [fixed + inward * depth, y + r * roofPitch + 0.012, c];
++    for (const sign of [-1, 1]) {
++      const valley =
++        axis === "a"
++          ? [c + sign * length, y + depth * roofPitch + 0.012, fixed + inward * depth]
++          : [fixed + inward * depth, y + depth * roofPitch + 0.012, c + sign * length];
++      ribs.push(rod(P(...ridge), P(...valley), 0.007));
++    }
++  }
++  add(
++    id + "-roof-ribs",
++    "Decorative gable / roof sheet ribs",
++    "roof-trim",
++    "metal",
++    "roof",
++    ribs,
++    ref(page),
++  );
++  add(
++    id + "-roof-caps",
++    "Decorative gable / ridge, valleys and barge flashing",
++    "roof-trim",
++    "metal",
++    "roof",
++    [
++      [left, peak],
++      [right, peak],
++      [peak, join],
++      [left, join],
++      [right, join],
++    ].map(([a, b]) => rod(P(...a), P(...b), 0.035)),
++    ref(page),
+   );
+ }
+-gable("terrace-gable", "a", 8.05, -0.22, 4.4, 5.98);
+-gable("stair-gable", "b", 3.15, -0.27, 4.8, 6.04);
++for (const spec of gables) gable(spec);
+ add(
+   "flue",
+   "Fireplace flue / indicative termination",
+@@ -1051,7 +1204,7 @@ const scene = {
+   assumptions: [
+     "Presentation reconstruction from the original 13-page preliminary council PDF. Not coordinated CAD/BIM, fabrication drawings, structural analysis or a verified bill of materials.",
+     "Lower FFL19.35 and upper FFL22.47 give 3.12 m separation. Ceiling heights2740 mm and upper floor zone380 mm are shown in elevations.",
+-    "Outdoor RL22.50 and 100 mm stepdown annotations conflict with upper FFL22.47. Outdoor slabs shown at upper datum pending clarification.",
++    "Outdoor RL22.50 and 100 mm stepdown annotations conflict with upper FFL22.47. Carport follows the written 100 mm stepdown; walkway/court remain at upper datum pending clarification.",
+     "Written dimensions anchor the layout. Un-dimensioned positions, roof intersections, subfloor depths and aperture locations are visually approximated. Source states do not scale.",
+     "Main/carport roof pitch22.5 degrees; verandah15 degrees. Gable geometry inferred from cover and elevations. Roof framing is not supplied.",
+     "Cladding180 mm, verandah posts112 x112 mm and terrace balustrade1020 mm are specified. Rib/cable spacing, tile module, joinery profiles and glass blade counts are illustrative.",
+@@ -1063,7 +1216,7 @@ const scene = {
+     floors: 2,
+     wallRuns: objects.filter((o) => o.category === "wall").length,
+     openings: objects.filter((o) => /opening-\d+$/.test(o.id)).length,
+-    roofFaces: 11,
++    roofFaces: 15,
+     objects: objects.length,
+     visibleNamedRooms: 13,
+     method:
+diff --git a/src/studio/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index ed02de2..52e87eb 100644
+--- a/src/studio/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef, useState } from "react";
+ import * as THREE from "three";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+-import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X } from "lucide-react";
++import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
+ import { useStudio } from "./store";
+ import { inspectPlanBytes } from "./documents";
+ import {
+@@ -16,6 +16,9 @@ import {
+ import "./sourceBuilding.css";
+ import { createModelScope, type ModelScopeOptions } from "./ModelScope";
+ import { BuildingVisualSettings } from "./BuildingVisualSettings";
++import { createFirstPersonNavigation } from "./FirstPersonNavigation";
++import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
++import type { NavigationMode } from "./navigationMovement";
+ import { publishModelView } from "./modelViewSnapshot";
+ import {
+   DEFAULT_APPEARANCE,
+@@ -33,9 +36,13 @@ type ViewOptions = {
+   level: "all" | "ground" | "upper";
+ };
+ type SceneApi = {
++  navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
++  stopNavigation: () => void;
+   options: (value: ViewOptions) => void;
+   select: (id: string | null) => void;
+   fit: () => void;
++  view: (direction: [number, number, number]) => void;
++  zoom: (factor: number) => void;
+   png: () => void;
+   appearance: (value: BuildingAppearance) => void;
+   scope: (value: ModelScopeOptions) => void;
+@@ -50,6 +57,7 @@ function createBuildingScene(
+   onError: (message: string) => void,
+   onScopeZoom: (zoom: number) => void,
+   binding: { documentId: string; sceneId: string; sceneSha256: string },
++  onNavigation: (mode: NavigationMode) => void,
+ ): SceneApi {
+   const renderer = new THREE.WebGLRenderer({
+     antialias: true,
+@@ -91,12 +99,13 @@ function createBuildingScene(
+     level: "all",
+   };
+   let scope: ReturnType<typeof createModelScope> | null = null;
++  let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+   let disposed = false,
+     frame = 0;
+   const render = () => {
+     frame = 0;
+     if (disposed) return;
+-    const changing = controls.update();
++    const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+     renderer.render(scene, camera);
+     scope?.render();
+     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
+@@ -241,11 +250,11 @@ function createBuildingScene(
+       (options.level === "ground"
+         ? part.level !== "upper" && part.level !== "roof"
+         : part.level !== "ground"));
+-  const fit = () => {
++  const fit = (direction?: [number, number, number]) => {
+     const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
+     perspective.aspect = aspect;
+     perspective.updateProjectionMatrix();
+-    const dir = new THREE.Vector3(...(model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
++    const dir = new THREE.Vector3(...(direction ?? model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
+       right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(),
+       up = new THREE.Vector3().crossVectors(dir, right),
+       tan = Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
+@@ -291,7 +300,11 @@ function createBuildingScene(
+   };
+   const resize = () => {
+     renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
+-    fit();
++    if (navigation && navigation.mode !== "orbit") {
++      perspective.aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
++      perspective.updateProjectionMatrix();
++      invalidate();
++    } else fit();
+   };
+   const observer = new ResizeObserver(resize);
+   observer.observe(host);
+@@ -357,6 +370,7 @@ function createBuildingScene(
+     down = { x: event.clientX, y: event.clientY };
+   };
+   const onUp = (event: PointerEvent) => {
++    if (navigation && navigation.mode !== "orbit") return;
+     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
+       down = null;
+       return;
+@@ -397,7 +411,23 @@ function createBuildingScene(
+     onZoomChange: onScopeZoom,
+   });
+   apply();
++  navigation = createFirstPersonNavigation({
++    canvas: renderer.domElement, camera: perspective, bounds,
++    floor: () => model.storeys?.find((s) => s.id === options.level)?.elevation
++      ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
++    invalidate,
++    onChange(mode) {
++      controls.enabled = mode === "orbit";
++      if (mode === "orbit") {
++        controls.target.copy(perspective.position).addScaledVector(perspective.getWorldDirection(new THREE.Vector3()), 5);
++        controls.update();
++      }
++      onNavigation(mode);
++    },
++  });
+   return {
++    navigate: (mode, start) => navigation!.start(mode, start),
++    stopNavigation: () => navigation?.stop(),
+     scope(value) {
+       scope?.setOptions(value);
+       invalidate();
+@@ -418,6 +448,7 @@ function createBuildingScene(
+     options(next) {
+       const changed = next.plan !== options.plan,
+         exploded = next.explode !== options.explode || next.level !== options.level;
++      if (changed || exploded) navigation?.stop();
+       options = next;
+       if (changed) {
+         controls.dispose();
+@@ -435,7 +466,21 @@ function createBuildingScene(
+       renderer.domElement.dataset.selectedPart = id ?? "";
+       apply();
+     },
+-    fit,
++    fit() { navigation?.stop(); fit(); },
++    view(direction) { navigation?.stop(); fit(direction); },
++    zoom(factor) {
++      navigation?.stop();
++      if (camera === orthographic) {
++        orthographic.zoom = THREE.MathUtils.clamp(orthographic.zoom * factor, 0.25, 12);
++        orthographic.updateProjectionMatrix();
++      } else {
++        const offset = perspective.position.clone().sub(controls.target);
++        const distance = THREE.MathUtils.clamp(offset.length() / factor, controls.minDistance, controls.maxDistance);
++        perspective.position.copy(controls.target).add(offset.setLength(distance));
++      }
++      controls.update();
++      invalidate();
++    },
+     png() {
+       renderer.render(scene, camera);
+       const anchor = document.createElement("a");
+@@ -486,6 +531,7 @@ function createBuildingScene(
+     },
+     dispose() {
+       disposed = true;
++      navigation?.dispose();
+       cancelAnimationFrame(frame);
+       scope?.dispose();
+       observer.disconnect();
+@@ -512,6 +558,10 @@ function createBuildingScene(
+ }
+ 
+ export function SourceBuildingViewer() {
++  const controlDock = useRef<HTMLDivElement>(null);
++  const [navigationMode, setNavigationMode] = useState<NavigationMode>("orbit");
++  const [walkPicker, setWalkPicker] = useState(false);
++  const [navigationError, setNavigationError] = useState<string | null>(null);
+   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
+     enabled: false,
+     zoom: 4,
+@@ -665,6 +715,7 @@ export function SourceBuildingViewer() {
+         setError,
+         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
+         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
++        setNavigationMode,
+       );
+     } catch (e) {
+       setError(e instanceof Error ? e.message : String(e));
+@@ -677,6 +728,14 @@ export function SourceBuildingViewer() {
+   useEffect(() => api.current?.options(options), [options, matched]);
+   useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
+   useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
++  function navigate(mode: "fly" | "walk", start?: WalkStart) {
++    const next: ViewOptions = { ...options, plan: false, explode: false, level: mode === "walk" ? "all" : options.level };
++    api.current?.options(next);
++    setOptions(next);
++    setWalkPicker(false);
++    setNavigationError(null);
++    void api.current?.navigate(mode, start).catch((e) => setNavigationError(String(e.message)));
++  }
+   useEffect(() => {
+     api.current?.select(selected);
+     setSourceIndex(0);
+@@ -772,6 +831,22 @@ export function SourceBuildingViewer() {
+       verifiedBytes === binary?.bytes &&
+       model.source.sha256 === binary?.sha256 &&
+       model.source.sha256 === config.sha256;
++  useEffect(() => {
++    const dock = controlDock.current;
++    if (!ready || !dock) return;
++    const root = document.documentElement;
++    const measure = () => root.style.setProperty("--model-controls-clearance", `${Math.max(34, innerHeight - dock.getBoundingClientRect().top + 8)}px`);
++    const observer = new ResizeObserver(measure);
++    observer.observe(dock);
++    if (dock.parentElement) observer.observe(dock.parentElement);
++    window.addEventListener("resize", measure);
++    measure();
++    return () => {
++      observer.disconnect();
++      window.removeEventListener("resize", measure);
++      root.style.removeProperty("--model-controls-clearance");
++    };
++  }, [ready]);
+   return (
+     <div
+       className="source-building"
+@@ -886,7 +961,108 @@ export function SourceBuildingViewer() {
+           {ready ? (
+             <>
+               <div className="building-canvas" ref={host} />
+-              <div className="building-toolbar" aria-label="3D view controls">
++              {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
++              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · mouse look · Shift faster · Esc exit</p>}
++              {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
++              {config.id === "caroline" && (
++                <div className="building-svg-export">
++                  {svgAvailable ? (
++                    <button type="button" onClick={() => void exportSvg()}>
++                      <Download size={13} /> SVG /{" "}
++                      {options.plan
++                        ? options.level === "upper"
++                          ? "upper plan"
++                          : "ground plan"
++                        : "fixed axonometric"}
++                    </button>
++                  ) : (
++                    <span>SVG export preparing</span>
++                  )}
++                </div>
++              )}
++              <div className="building-canvas-note">
++                <MousePointer2 size={13} /> Drag to orbit · wheel to zoom · right-drag to pan ·
++                click a part
++              </div>
++              <div
++                className="building-view-label"
++                style={{ color: appearance.wire, background: appearance.background }}
++              >
++                {options.wireframe
++                  ? "X-RAY EDGES / DECORATIVE REPEATS OMITTED"
++                  : options.plan
++                    ? "ORTHOGRAPHIC PLAN"
++                    : "PERSPECTIVE"}
++                <span>{model.objects.length} source-linked parts</span>
++              </div>
++            </>
++          ) : (
++            <div className="building-empty">
++              {model && (
++                <img
++                  src={
++                    model.sourceSheets.find((s) => s.role.includes("elev"))?.image ??
++                    model.sourceSheets[0].image
++                  }
++                  alt={`Original ${config.title} drawing`}
++                />
++              )}
++              <div className="building-empty-content">
++                <label className="building-part-picker">
++                  Prepared reconstruction
++                  <select
++                    value={config.id}
++                    disabled={loading}
++                    onChange={(e) => setChosen(e.target.value)}
++                  >
++                    {BUILDING_CATALOG.map((c) => (
++                      <option key={c.id} value={c.id}>
++                        {c.title}
++                      </option>
++                    ))}
++                  </select>
++                </label>
++                <span className="building-eyebrow">ONE REAL PLAN. ITS OWN BUILDING.</span>
++                <h2>
++                  {checking
++                    ? "Checking original drawing bytes…"
++                    : binary
++                      ? "This plan has no prepared 3D reconstruction"
++                      : "A real home, traced from its source"}
++                </h2>
++                <p>
++                  {binary && !checking
++                    ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
++                    : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore its documented walls, openings, roof and rooms.`}
++                </p>
++                <button
++                  type="button"
++                  className="building-primary"
++                  disabled={!model || loading || !hydrated || checking}
++                  onClick={() => void openSource()}
++                >
++                  {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
++                  <Box size={17} />
++                </button>
++              </div>
++            </div>
++          )}
++        </div>
++        {ready && (
++              <div ref={controlDock} className="building-toolbar building-control-dock" role="toolbar" aria-label="3D view controls">
++                <div className="building-tool-group" role="group" aria-label="Zoom and standard views">
++                  <button type="button" aria-label="Zoom out model" onClick={() => api.current?.zoom(1 / 1.25)}><ZoomOut size={16} /></button>
++                  <button type="button" aria-label="Zoom in model" onClick={() => api.current?.zoom(1.25)}><ZoomIn size={16} /></button>
++                  <button type="button" onClick={() => api.current?.fit()}><Expand size={15} />Fit</button>
++                  <button type="button" onClick={() => {
++                    const next = { ...options, plan: false };
++                    api.current?.options(next); setOptions(next); api.current?.view([0.12, 0.34, -1]);
++                  }}>Front</button>
++                  <button type="button" onClick={() => {
++                    const next = { ...options, plan: false };
++                    api.current?.options(next); setOptions(next); api.current?.view([0.12, 0.34, 1]);
++                  }}>Rear</button>
++                </div>
+                 <div className="building-tool-group">
+                   <button
+                     type="button"
+@@ -906,12 +1082,14 @@ export function SourceBuildingViewer() {
+                 <div className="building-tool-group">
+                   <button
+                     type="button"
+-                    aria-pressed={!options.plan}
+-                    onClick={() => setOptions((o) => ({ ...o, plan: false }))}
++                    aria-pressed={!options.plan && navigationMode === "orbit"}
++                    onClick={() => { api.current?.stopNavigation(); setOptions((o) => ({ ...o, plan: false })); }}
+                   >
+                     <Box size={15} />
+                     Orbit
+                   </button>
++                  <button type="button" aria-pressed={navigationMode === "fly"} onClick={() => navigate("fly")}>Fly</button>
++                  <button type="button" aria-pressed={navigationMode === "walk"} onClick={() => { api.current?.stopNavigation(); setWalkPicker(true); }}>Walk-through</button>
+                   <button
+                     type="button"
+                     aria-pressed={options.plan}
+@@ -920,10 +1098,6 @@ export function SourceBuildingViewer() {
+                     <ScanLine size={15} />
+                     Plan
+                   </button>
+-                  <button type="button" onClick={() => api.current?.fit()}>
+-                    <Expand size={15} />
+-                    Fit
+-                  </button>
+                 </div>
+                 <div className="building-tool-group">
+                   {model.objects.some((p) => p.level) && (
+@@ -993,90 +1167,7 @@ export function SourceBuildingViewer() {
+                   <span>PNG</span>
+                 </button>
+               </div>
+-              {config.id === "caroline" && (
+-                <div className="building-svg-export">
+-                  {svgAvailable ? (
+-                    <button type="button" onClick={() => void exportSvg()}>
+-                      <Download size={13} /> SVG /{" "}
+-                      {options.plan
+-                        ? options.level === "upper"
+-                          ? "upper plan"
+-                          : "ground plan"
+-                        : "fixed axonometric"}
+-                    </button>
+-                  ) : (
+-                    <span>SVG export preparing</span>
+-                  )}
+-                </div>
+-              )}
+-              <div className="building-canvas-note">
+-                <MousePointer2 size={13} /> Drag to orbit · wheel to zoom · right-drag to pan ·
+-                click a part
+-              </div>
+-              <div
+-                className="building-view-label"
+-                style={{ color: appearance.wire, background: appearance.background }}
+-              >
+-                {options.wireframe
+-                  ? "X-RAY EDGES / DECORATIVE REPEATS OMITTED"
+-                  : options.plan
+-                    ? "ORTHOGRAPHIC PLAN"
+-                    : "PERSPECTIVE"}
+-                <span>{model.objects.length} source-linked parts</span>
+-              </div>
+-            </>
+-          ) : (
+-            <div className="building-empty">
+-              {model && (
+-                <img
+-                  src={
+-                    model.sourceSheets.find((s) => s.role.includes("elev"))?.image ??
+-                    model.sourceSheets[0].image
+-                  }
+-                  alt={`Original ${config.title} drawing`}
+-                />
+-              )}
+-              <div className="building-empty-content">
+-                <label className="building-part-picker">
+-                  Prepared reconstruction
+-                  <select
+-                    value={config.id}
+-                    disabled={loading}
+-                    onChange={(e) => setChosen(e.target.value)}
+-                  >
+-                    {BUILDING_CATALOG.map((c) => (
+-                      <option key={c.id} value={c.id}>
+-                        {c.title}
+-                      </option>
+-                    ))}
+-                  </select>
+-                </label>
+-                <span className="building-eyebrow">ONE REAL PLAN. ITS OWN BUILDING.</span>
+-                <h2>
+-                  {checking
+-                    ? "Checking original drawing bytes…"
+-                    : binary
+-                      ? "This plan has no prepared 3D reconstruction"
+-                      : "A real home, traced from its source"}
+-                </h2>
+-                <p>
+-                  {binary && !checking
+-                    ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
+-                    : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore its documented walls, openings, roof and rooms.`}
+-                </p>
+-                <button
+-                  type="button"
+-                  className="building-primary"
+-                  disabled={!model || loading || !hydrated || checking}
+-                  onClick={() => void openSource()}
+-                >
+-                  {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
+-                  <Box size={17} />
+-                </button>
+-              </div>
+-            </div>
+-          )}
+-        </div>
++        )}
+         </div>
+         <aside className="building-inspector" aria-label="Building source evidence">
+           <div className="building-inspector-title">
+diff --git a/src/studio/liveAssistant.css b/src/studio/liveAssistant.css
+index ea3f166..da55838 100644
+--- a/src/studio/liveAssistant.css
++++ b/src/studio/liveAssistant.css
+@@ -5,7 +5,7 @@
+   --assistant-shadow: #17233026;
+   position: fixed;
+   right: 12px;
+-  bottom: 34px;
++  bottom: var(--model-controls-clearance, 34px);
+   width: min(calc(var(--right-menu-width, 380px) - 24px), calc(100vw - 24px));
+   z-index: 38;
+   color: var(--color-ink);
+@@ -49,3 +49,8 @@
+ @keyframes assistant-reveal { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+ @media (max-width: 940px) { .live-assistant { width: min(320px, calc(100vw - 24px)); } .live-assistant button { min-height: 40px; } }
+ @media (prefers-reduced-motion: reduce) { .live-assistant-panel { animation: none; } .live-assistant-launcher svg:last-child { transition: none; } }
++.live-assistant-voice { display: grid; gap: 6px; padding: 10px 0; color: var(--color-ink); }
++.live-assistant-voice > div { display: flex; flex-wrap: wrap; gap: 6px; }
++.live-assistant-voice button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); color: var(--color-ink); }
++.live-assistant-voice button:disabled { opacity: .5; cursor: default; }
++.live-assistant-voice small { font-size: 11px; line-height: 1.5; }
+diff --git a/src/studio/redburnBuilding.test.ts b/src/studio/redburnBuilding.test.ts
+index bc30175..8d546bf 100644
+--- a/src/studio/redburnBuilding.test.ts
++++ b/src/studio/redburnBuilding.test.ts
+@@ -15,6 +15,105 @@ const input = JSON.parse(
+     ),
+   ),
+   scene = parseSourceBuilding(input);
++test("Carport enclosure has no open jambs or panel seams and the specified door clears its roof", () => {
++  const ids = ["garage-door", "carport-door-returns", "carport-walls"];
++  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
++  const mesh = (id: string) => {
++    const part = scene.objects.find((part) => part.id === id)!;
++    assert.ok(part, `${id} missing`);
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
++    geometry.setIndex(part.indices);
++    return new THREE.Mesh(geometry, material);
++  };
++  const enclosure = ids.map(mesh), roofs = ["carport-roof", "carport-gable-roof"].map(mesh);
++  const slab = [mesh("carport-zone"), mesh("upper-outdoor")];
++  try {
++    for (const a of [1.3, 1.5, 1.68, 1.7, 4.2, 6.8, 6.82, 7, 7.2])
++      for (const y of [3.13, 4.3, 5.8]) {
++        const ray = new THREE.Raycaster(new THREE.Vector3(a - 5.655, y, -10.8), new THREE.Vector3(0, 0, 1), 0, 0.9);
++        assert.ok(ray.intersectObjects(enclosure).length, `Open jamb or leaf at ${a}/${y}`);
++      }
++    for (let panel = 1; panel < 8; panel++) {
++      const y = 3.02 + panel * 2.84 / 8 - 0.007;
++      const ray = new THREE.Raycaster(new THREE.Vector3(4.2 - 5.655, y, -10.8), new THREE.Vector3(0, 0, 1), 0, 0.9);
++      assert.ok(ray.intersectObject(enclosure[0]).length, `See-through panel rebate ${panel}`);
++    }
++    const door = scene.objects.find((part) => part.id === "garage-door")!;
++    const heights = door.positions.filter((_, i) => i % 3 === 1);
++    assert.ok(Math.abs(Math.min(...heights) - 3.02) < 0.00001);
++    assert.ok(Math.abs(Math.max(...heights) - 5.86) < 0.00001, "Extra panel protrudes above the door head");
++    for (const a of [1.7, 4.2, 6.8]) {
++      const ray = new THREE.Raycaster(new THREE.Vector3(a - 5.655, 10, 3.325 - 13.6), new THREE.Vector3(0, -1, 0));
++      const hits = ray.intersectObjects(roofs);
++      assert.equal(hits.length, 1, "Missing/overlapping carport roof");
++      assert.ok(hits[0].point.y > Math.max(...heights), "Door intersects roofing");
++    }
++    const floorRay = new THREE.Raycaster(new THREE.Vector3(4.2 - 5.655, 4, 3.325 - 9), new THREE.Vector3(0, -1, 0));
++    assert.ok(Math.abs(floorRay.intersectObjects(slab)[0].point.y - 3.02) < 0.00001, "Upper slab fills the 100 mm carport recess");
++  } finally {
++    [...enclosure, ...roofs, ...slab].forEach((part) => part.geometry.dispose());
++    material.dispose();
++  }
++});
++test("Decorative gables have roof slopes meeting the facade and no duplicate host roof underneath", () => {
++  const ids = ["main-roof", "terrace-gable-roof", "stair-gable-roof"];
++  const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
++  const meshes = ids.map((id) => {
++    const part = scene.objects.find((o) => o.id === id);
++    assert.ok(part, `${id} roof missing`);
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
++    geometry.setIndex(part.indices);
++    return new THREE.Mesh(geometry, mat);
++  });
++  try {
++    for (const [id, axis, center, fixed, radius] of [
++      ["terrace-gable", "a", 8.05, -0.22, 2.2],
++      ["stair-gable", "b", 3.15, -0.27, 2.4],
++    ] as const) {
++      const base = 5.86 + (fixed + 0.48) * Math.tan(Math.PI / 8);
++      for (const depth of [0.03, 0.4, 1])
++        for (const offset of [-0.6, 0.45]) {
++          const a = axis === "a" ? center + offset : fixed + depth;
++          const b = axis === "a" ? fixed + depth : center + offset;
++          const ray = new THREE.Raycaster(
++            new THREE.Vector3(a - 5.655, 10, 3.325 - b),
++            new THREE.Vector3(0, -1, 0),
++          );
++          const hits = ray.intersectObjects(meshes);
++          assert.equal(
++            hits.length,
++            1,
++            `${id}: missing roof or overlapping host sheet at ${depth}/${offset}`,
++          );
++          assert.ok(
++            Math.abs(
++              hits[0].point.y - (base + (radius - Math.abs(offset)) * Math.tan(Math.PI / 8)),
++            ) < 0.00005,
++          );
++        }
++      const face = scene.objects.find((o) => o.id === id)!;
++      const roof = scene.objects.find((o) => o.id === id + "-roof")!;
++      for (let i = 0; i < face.positions.length; i += 3) {
++        const p = face.positions.slice(i, i + 3);
++        assert.ok(
++          roof.positions.some(
++            (_, j) =>
++              j % 3 === 0 &&
++              Math.hypot(
++                ...(p.map((v, k) => v - roof.positions[j + k]) as [number, number, number]),
++              ) < 0.00005,
++          ),
++          `${id}: facade vertex does not meet roof`,
++        );
++      }
++    }
++  } finally {
++    for (const m of meshes) m.geometry.dispose();
++    mat.dispose();
++  }
++});
+ test("Redburn is bound to the supplied original, and modified source bytes are rejected", async () => {
+   const bytes = new Uint8Array(
+     fs.readFileSync(new URL("../../public/models/redburn/source.pdf", import.meta.url)),
+diff --git a/src/studio/sourceBuilding.css b/src/studio/sourceBuilding.css
+index 3bd85b5..323fd23 100644
+--- a/src/studio/sourceBuilding.css
++++ b/src/studio/sourceBuilding.css
+@@ -717,3 +717,83 @@
+     min-height: 44px;
+   }
+ }
++.building-navigation-hint {
++  position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5;
++  margin: 0; padding: 8px 12px; pointer-events: none;
++  background: var(--color-paper); color: var(--color-ink);
++  border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px;
++}
++
++/* Reserve real layout space: controls must not fall outside the canvas or
++   disappear behind the diagnostics drawer when the viewport gets shorter. */
++.workbench .source-building .building-control-dock {
++  position: relative;
++  inset: auto;
++  flex: 0 0 auto;
++  width: 100%;
++  margin: 0;
++  padding: 8px;
++  gap: 6px;
++  border-top: 1px solid var(--color-line);
++  background: var(--color-header);
++  pointer-events: auto;
++  z-index: 3;
++}
++.workbench .building-control-dock .building-tool-group {
++  flex: 0 0 auto;
++  flex-wrap: nowrap;
++  box-shadow: none;
++  padding: 0;
++}
++.workbench .building-control-dock button,
++.workbench .building-control-dock select {
++  min-height: 44px;
++  min-width: 44px;
++  font-size: 12px;
++}
++.workbench .building-control-dock button:hover {
++  background: var(--color-selected);
++  color: var(--color-ink);
++}
++@media (max-width: 900px) {
++  .workbench .source-building {
++    height: 100%;
++    min-height: 0;
++  }
++  .workbench .source-building .building-workspace {
++    flex: 1;
++    min-height: 0;
++    height: 100%;
++    overflow: auto;
++  }
++  .workbench .source-building .building-center-column {
++    flex: 0 0 100%;
++    min-height: 360px;
++  }
++  .workbench .source-building .building-stage {
++    flex: 1;
++    min-height: 140px;
++    height: auto;
++  }
++  .workbench .source-building .building-canvas {
++    position: absolute;
++    inset: 0;
++    min-height: 0;
++  }
++  .workbench .source-building .building-control-dock {
++    display: grid;
++    grid-template-rows: repeat(2, 46px);
++    grid-auto-flow: column;
++    grid-auto-columns: max-content;
++    overflow-x: auto;
++    overscroll-behavior-x: contain;
++    scrollbar-width: thin;
++  }
++  .workbench .source-building .building-canvas-note {
++    position: absolute;
++    inset: auto 8px 38px 8px;
++    margin: 0;
++  }
++  .workbench .source-building .building-view-label { bottom: 8px; right: 8px; }
++  .workbench .source-building .building-visual-settings { position: absolute; top: 0; right: 0; z-index: 2; }
++}

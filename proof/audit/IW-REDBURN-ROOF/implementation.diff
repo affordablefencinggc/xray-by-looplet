@@ -1,0 +1,287 @@
+diff --git a/scripts/build-redburn-model.mjs b/scripts/build-redburn-model.mjs
+index 5d096e9..c90a90d 100644
+--- a/scripts/build-redburn-model.mjs
++++ b/scripts/build-redburn-model.mjs
+@@ -3,6 +3,7 @@ import fs from "node:fs";
+ import crypto from "node:crypto";
+ import * as T from "three";
+ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
++import polygonClipping from "polygon-clipping";
+ import { parseSourceBuilding } from "../src/studio/sourceBuilding.ts";
+ const root = "public/models/redburn",
+   sha256 = crypto
+@@ -599,7 +600,68 @@ function polygon(points) {
+   g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+   return g;
+ }
+-function roof(id, label, a0, a1, b0, b1, eave, pitch) {
++const mainRoofBounds = [-0.48, 11.79, -0.48, 7.05];
++const roofPitch = Math.tan((22.5 * Math.PI) / 180);
++const gables = [
++  { id: "terrace-gable", axis: "a", c: 8.05, fixed: -0.22, width: 4.4 },
++  { id: "stair-gable", axis: "b", c: 3.15, fixed: -0.27, width: 4.8 },
++].map((g) => {
++  const r = g.width / 2;
++  const y = 5.86 + (g.fixed - mainRoofBounds[g.axis === "a" ? 2 : 0]) * roofPitch;
++  const point = (across, height, inward = 0) =>
++    g.axis === "a" ? [across, height, g.fixed + inward] : [g.fixed + inward, height, across];
++  const left = point(g.c - r, y),
++    right = point(g.c + r, y);
++  const peak = point(g.c, y + r * roofPitch),
++    join = point(g.c, y + r * roofPitch, r);
++  return {
++    ...g,
++    y,
++    left,
++    right,
++    peak,
++    join,
++    footprint: [left, right, join].map((p) => [p[0], p[2]]),
++  };
++});
++// Split host sheet ribs at every gable footprint edge; no hidden duplicate roof
++// sheet or rib is left underneath the new intersecting roof slopes.
++function exposedRib(start, end, openings) {
++  const breaks = [0, 1],
++    dx = end[0] - start[0],
++    dz = end[2] - start[2];
++  const cross = (x, z, u, v) => x * v - z * u;
++  for (const g of openings)
++    for (let i = 0; i < 3; i++) {
++      const a = g.footprint[i],
++        b = g.footprint[(i + 1) % 3];
++      const ex = b[0] - a[0],
++        ez = b[1] - a[1],
++        det = cross(dx, dz, ex, ez);
++      if (Math.abs(det) < 1e-10) continue;
++      const ax = a[0] - start[0],
++        az = a[1] - start[2];
++      const t = cross(ax, az, ex, ez) / det,
++        u = cross(ax, az, dx, dz) / det;
++      if (t > 0 && t < 1 && u >= 0 && u <= 1) breaks.push(t);
++    }
++  const at = (t) => start.map((v, i) => v + (end[i] - v) * t);
++  const inside = (p, ring) => {
++    const signs = ring.map((a, i) => {
++      const b = ring[(i + 1) % ring.length];
++      return cross(b[0] - a[0], b[1] - a[1], p[0] - a[0], p[2] - a[1]);
++    });
++    return signs.every((v) => v >= -1e-9) || signs.every((v) => v <= 1e-9);
++  };
++  breaks.sort((a, b) => a - b);
++  return breaks.slice(1).flatMap((endT, i) => {
++    const startT = breaks[i];
++    if (endT - startT < 1e-8 || openings.some((g) => inside(at((startT + endT) / 2), g.footprint)))
++      return [];
++    return [rod(P(...at(startT)), P(...at(endT)), 0.007)];
++  });
++}
++function roof(id, label, a0, a1, b0, b1, eave, pitch, openings = []) {
+   const k = Math.tan((pitch * Math.PI) / 180),
+     r = Math.min((a1 - a0) / 2, (b1 - b0) / 2),
+     rise = r * k,
+@@ -639,7 +701,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     for (const side of [0, 1]) {
+       const b = side ? b1 : b0,
+         d = side ? -run : run;
+-      ribs.push(rod(P(a, eave + 0.012, b), P(a, eave + run * k + 0.012, b + d), 0.007));
++      ribs.push(...exposedRib([a, eave + 0.012, b], [a, eave + run * k + 0.012, b + d], openings));
+     }
+   }
+   for (let b = b0 + 0.065; b < b1; b += 0.12) {
+@@ -647,7 +709,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     for (const side of [0, 1]) {
+       const a = side ? a1 : a0,
+         d = side ? -run : run;
+-      ribs.push(rod(P(a, eave + 0.012, b), P(a + d, eave + run * k + 0.012, b), 0.007));
++      ribs.push(...exposedRib([a, eave + 0.012, b], [a + d, eave + run * k + 0.012, b], openings));
+     }
+   }
+   add(
+@@ -656,7 +718,27 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     "roof",
+     "roof",
+     "roof",
+-    faces.map(polygon),
++    faces.flatMap((f) => {
++      if (!openings.length) return [polygon(f)];
++      const clipped = polygonClipping.difference(
++        [f.map((p) => [p[0], p[2]])],
++        ...openings.map((g) => [g.footprint]),
++      );
++      return clipped.map((rings) => {
++        const vectors = rings.map((r) => r.slice(0, -1).map((p) => new T.Vector2(...p)));
++        const triangles = T.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1));
++        const points = vectors.flat();
++        const positions = triangles.flatMap((t) =>
++          t.flatMap((i) => {
++            const { x: a, y: b } = points[i];
++            return P(a, eave + Math.min(a - a0, a1 - a, b - b0, b1 - b) * k, b).toArray();
++          }),
++        );
++        const geometry = new T.BufferGeometry();
++        geometry.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
++        return geometry;
++      });
++    }),
+     ref(
+       6,
+       `${pitch} degree metal roof specified. Hip/ridge intersections inferred from elevations and cover; no roof framing plan.`,
+@@ -687,7 +769,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+     ref(6),
+   );
+ }
+-roof("main-roof", "Main residence / 22.5 degree hip roof", -0.48, 11.79, -0.48, 7.05, 5.86, 22.5);
++roof("main-roof", "Main residence / 22.5 degree hip roof", ...mainRoofBounds, 5.86, 22.5, gables);
+ roof("carport-roof", "Carport / 22.5 degree roof", 0.95, 7.57, 6.15, 13.78, 5.86, 22.5);
+ const a0 = -0.32,
+   a1 = 11.67,
+@@ -736,7 +818,7 @@ add(
+   ],
+   ref(6),
+ );
+-function gable(id, axis, c, fixed, width, y) {
++function gable({ id, axis, c, fixed, width, y, left, right, peak, join }) {
+   const r = width / 2,
+     h = r * Math.tan((22.5 * Math.PI) / 180),
+     p =
+@@ -781,9 +863,59 @@ function gable(id, axis, c, fixed, width, y) {
+     bars,
+     ref(6),
+   );
++  add(
++    id + "-roof",
++    "Decorative gable / intersecting roof slopes",
++    "roof",
++    "roof",
++    "roof",
++    [polygon([left, peak, join]), polygon([peak, right, join])],
++    ref(
++      6,
++      "Gable roof joins the host hip at two valleys; aligned to the decorative face shown on page 1 and elevation 6. Undimensioned depth inferred.",
++    ),
++  );
++  const ribs = [];
++  for (let depth = 0.06; depth < r; depth += 0.12) {
++    const length = r - depth;
++    const ridge =
++      axis === "a"
++        ? [c, y + r * roofPitch + 0.012, fixed + depth]
++        : [fixed + depth, y + r * roofPitch + 0.012, c];
++    for (const sign of [-1, 1]) {
++      const valley =
++        axis === "a"
++          ? [c + sign * length, y + depth * roofPitch + 0.012, fixed + depth]
++          : [fixed + depth, y + depth * roofPitch + 0.012, c + sign * length];
++      ribs.push(rod(P(...ridge), P(...valley), 0.007));
++    }
++  }
++  add(
++    id + "-roof-ribs",
++    "Decorative gable / roof sheet ribs",
++    "roof-trim",
++    "metal",
++    "roof",
++    ribs,
++    ref(6),
++  );
++  add(
++    id + "-roof-caps",
++    "Decorative gable / ridge, valleys and barge flashing",
++    "roof-trim",
++    "metal",
++    "roof",
++    [
++      [left, peak],
++      [right, peak],
++      [peak, join],
++      [left, join],
++      [right, join],
++    ].map(([a, b]) => rod(P(...a), P(...b), 0.035)),
++    ref(6),
++  );
+ }
+-gable("terrace-gable", "a", 8.05, -0.22, 4.4, 5.98);
+-gable("stair-gable", "b", 3.15, -0.27, 4.8, 6.04);
++for (const spec of gables) gable(spec);
+ add(
+   "flue",
+   "Fireplace flue / indicative termination",
+@@ -1063,7 +1195,7 @@ const scene = {
+     floors: 2,
+     wallRuns: objects.filter((o) => o.category === "wall").length,
+     openings: objects.filter((o) => /opening-\d+$/.test(o.id)).length,
+-    roofFaces: 11,
++    roofFaces: 15,
+     objects: objects.length,
+     visibleNamedRooms: 13,
+     method:
+diff --git a/src/studio/redburnBuilding.test.ts b/src/studio/redburnBuilding.test.ts
+index bc30175..9cb54fa 100644
+--- a/src/studio/redburnBuilding.test.ts
++++ b/src/studio/redburnBuilding.test.ts
+@@ -15,6 +15,64 @@ const input = JSON.parse(
+     ),
+   ),
+   scene = parseSourceBuilding(input);
++test("Decorative gables have roof slopes meeting the facade and no duplicate host roof underneath", () => {
++  const ids = ["main-roof", "terrace-gable-roof", "stair-gable-roof"];
++  const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
++  const meshes = ids.map((id) => {
++    const part = scene.objects.find((o) => o.id === id);
++    assert.ok(part, `${id} roof missing`);
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
++    geometry.setIndex(part.indices);
++    return new THREE.Mesh(geometry, mat);
++  });
++  try {
++    for (const [id, axis, center, fixed, radius] of [
++      ["terrace-gable", "a", 8.05, -0.22, 2.2],
++      ["stair-gable", "b", 3.15, -0.27, 2.4],
++    ] as const) {
++      const base = 5.86 + (fixed + 0.48) * Math.tan(Math.PI / 8);
++      for (const depth of [0.03, 0.4, 1])
++        for (const offset of [-0.6, 0.45]) {
++          const a = axis === "a" ? center + offset : fixed + depth;
++          const b = axis === "a" ? fixed + depth : center + offset;
++          const ray = new THREE.Raycaster(
++            new THREE.Vector3(a - 5.655, 10, 3.325 - b),
++            new THREE.Vector3(0, -1, 0),
++          );
++          const hits = ray.intersectObjects(meshes);
++          assert.equal(
++            hits.length,
++            1,
++            `${id}: missing roof or overlapping host sheet at ${depth}/${offset}`,
++          );
++          assert.ok(
++            Math.abs(
++              hits[0].point.y - (base + (radius - Math.abs(offset)) * Math.tan(Math.PI / 8)),
++            ) < 0.00005,
++          );
++        }
++      const face = scene.objects.find((o) => o.id === id)!;
++      const roof = scene.objects.find((o) => o.id === id + "-roof")!;
++      for (let i = 0; i < face.positions.length; i += 3) {
++        const p = face.positions.slice(i, i + 3);
++        assert.ok(
++          roof.positions.some(
++            (_, j) =>
++              j % 3 === 0 &&
++              Math.hypot(
++                ...(p.map((v, k) => v - roof.positions[j + k]) as [number, number, number]),
++              ) < 0.00005,
++          ),
++          `${id}: facade vertex does not meet roof`,
++        );
++      }
++    }
++  } finally {
++    for (const m of meshes) m.geometry.dispose();
++    mat.dispose();
++  }
++});
+ test("Redburn is bound to the supplied original, and modified source bytes are rejected", async () => {
+   const bytes = new Uint8Array(
+     fs.readFileSync(new URL("../../public/models/redburn/source.pdf", import.meta.url)),

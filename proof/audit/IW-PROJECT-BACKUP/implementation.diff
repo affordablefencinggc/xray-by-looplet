@@ -1,0 +1,628 @@
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 7ac7719..9864b9d 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -13,6 +13,7 @@ import { useStudio, type Pane } from "./store";
+ import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+ import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
+ import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
++import { ProjectBackups } from "./ProjectBackups";
+ import { invalidateModelViews } from "./modelViewSnapshot";
+ import { SourceBuildingViewer } from "./SourceBuildingViewer";
+ import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
+@@ -143,6 +144,7 @@ function StudioContent() {
+         <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
+         <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
+         <div className="studio-header-actions ml-auto flex items-center gap-2">
++          <ProjectBackups />
+           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
+           <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
+         </div>
+@@ -1784,6 +1786,10 @@ function ProofPane() {
+   return (
+     <div className="proof-workspace">
+       <div className="proof-heading pane-heading-row"><div><span className="kicker">Revisioned evidence</span><h1>Proof manifest</h1><p>Original availability, SHA-256 metadata, links and revision history stay visible with every export.</p></div><button type="button" className="pill-dark inline-flex items-center gap-2" onClick={download}><Download className="size-4" /> Export current manifest</button></div>
++      <details className="proof-revisions">
++        <summary>Professional A–Z delivery checklist · 364 requirements across 68 industry profiles</summary>
++        <iframe title="Professional A to Z requirements and proof" src="/industry-coverage/index.html" loading="lazy" style={{ width: "100%", height: "75vh", border: "1px solid var(--border, #ccd4c8)", marginTop: 12 }} />
++      </details>
+       <div className="proof-artifact-grid">
+         <section className="proof-source-artifact">
+           <span className="kicker">Source artifact</span>
+diff --git a/src/studio/projectMaterialsPersistence.ts b/src/studio/projectMaterialsPersistence.ts
+index 8af1a8d..3bef84d 100644
+--- a/src/studio/projectMaterialsPersistence.ts
++++ b/src/studio/projectMaterialsPersistence.ts
+@@ -3,7 +3,7 @@ import {
+   projectMaterialsSchema,
+   type ProjectMaterials,
+   type ProjectMaterialsSession,
+-} from "./construction/projectMaterials";
++} from "./construction/projectMaterials.ts";
+ 
+ // Large projects use IndexedDB, avoiding the small localStorage quota. A single
+ // read-write transaction compares and replaces the prior snapshot atomically.
+diff --git a/src/studio/projectBackup.ts b/src/studio/projectBackup.ts
+new file mode 100644
+index 0000000..08ca351
+--- /dev/null
++++ b/src/studio/projectBackup.ts
+@@ -0,0 +1,176 @@
++import { z } from "zod";
++import { fencingJobSchema, type FencingJob } from "./domain.ts";
++import { validateProject } from "./architect/model.ts";
++import { bomStateEnvelopeSchema } from "./bomState.ts";
++import { componentInventorySchema } from "./construction/inventory.ts";
++import { projectMaterialsSchema } from "./construction/projectMaterials.ts";
++import { takeoffSchema } from "./construction/altitudeTakeoff.ts";
++import { trialSchema } from "./construction/connectionTrial.ts";
++import { loadFencingRecipeSet } from "./fencingRecipePersistence.ts";
++import { inspectPlanBytes } from "./documents.ts";
++import { verifyPhotoContent, type StoredPhotoContent } from "./evidence.ts";
++import type { StoredPlanContent } from "./documentContract.ts";
++
++export const BACKUP_FORMAT = "xray.workspace-backup/v1";
++export const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
++export const BACKUP_EXCLUSIONS = [
++  "Separate construction-runtime jobs and their history",
++  "Source-model location notes, camera views and appearance settings",
++  "Unsaved form edits, undo history, accounts and credentials",
++] as const;
++const text = z.string().min(1).max(300);
++const raw = z.string().max(30 * 1024 * 1024).nullable();
++export const backupRecordsSchema = z.object({
++  architecture: raw, bom: raw, components: raw, recipes: raw,
++  sourceTakeoff: raw, connectionReview: raw, materials: raw, referenceRates: raw,
++}).strict();
++export type BackupRecords = z.infer<typeof backupRecordsSchema>;
++const assetSchema = z.object({
++  id: text, kind: z.enum(["plan", "photo"]), name: text, mimeType: text,
++  sha256: z.string().regex(/^[a-f0-9]{64}$/),
++  bytesBase64: z.string().min(4).max(Math.ceil(100 * 1024 * 1024 / 3) * 4),
++}).strict();
++const payloadSchema = z.object({
++  format: z.literal(BACKUP_FORMAT), createdAt: z.string().datetime({ offset: true }),
++  name: z.string().trim().min(1).max(120), job: fencingJobSchema,
++  records: backupRecordsSchema, assets: z.array(assetSchema).max(2000),
++}).strict();
++export type ProjectBackup = z.infer<typeof payloadSchema>;
++export type BackupAsset = z.infer<typeof assetSchema>;
++export const emptyBackupRecords = (): BackupRecords => ({
++  architecture: null, bom: null, components: null, recipes: null,
++  sourceTakeoff: null, connectionReview: null, materials: null, referenceRates: null,
++});
++export function backupPhotos(job: FencingJob): FencingJob["photos"] {
++  const photos = new Map<string, FencingJob["photos"][number]>();
++  for (const photo of [...job.photos, ...Object.values(job.documentWorkspaces ?? {}).flatMap(w => w.photos)]) {
++    const previous = photos.get(photo.id);
++    if (previous && (previous.sha256 !== photo.sha256 || previous.name !== photo.name ||
++      previous.sizeBytes !== photo.sizeBytes || previous.mimeType !== photo.mimeType))
++      throw Error("A photo identity refers to conflicting originals across document workspaces.");
++    photos.set(photo.id, photo);
++  }
++  return [...photos.values()];
++}
++export async function backupDigest(value: string | ArrayBuffer): Promise<string> {
++  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
++  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
++    .map(n => n.toString(16).padStart(2, "0")).join("");
++}
++export function encodeBackupBytes(bytes: ArrayBuffer): string {
++  const array = new Uint8Array(bytes);
++  let binary = "";
++  for (let offset = 0; offset < array.length; offset += 16384)
++    binary += String.fromCharCode(...array.subarray(offset, offset + 16384));
++  return btoa(binary);
++}
++export function decodeBackupBytes(value: string): ArrayBuffer {
++  if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value))
++    throw Error("Original file contains invalid base64.");
++  const binary = atob(value);
++  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
++  if (encodeBackupBytes(bytes.buffer) !== value) throw Error("Original file encoding is not canonical.");
++  return bytes.buffer;
++}
++function sameId(actual: string, expected: string, label: string) {
++  if (actual !== expected) throw Error(`${label} belongs to a different project.`);
++}
++export async function validateBackupRecords(records: BackupRecords, jobId: string) {
++  const parse = (s: string) => JSON.parse(s);
++  if (records.architecture !== null) sameId(validateProject(parse(records.architecture)).id, jobId, "Design");
++  if (records.bom !== null) sameId(bomStateEnvelopeSchema.parse(parse(records.bom)).jobId, jobId, "BOM");
++  if (records.components !== null) componentInventorySchema.parse(parse(records.components));
++  if (records.materials !== null) sameId(projectMaterialsSchema.parse(parse(records.materials)).projectId, jobId, "Materials");
++  if (records.sourceTakeoff !== null) sameId(takeoffSchema.parse(parse(records.sourceTakeoff)).projectId, jobId, "Takeoff");
++  if (records.connectionReview !== null) sameId(trialSchema.parse(parse(records.connectionReview)).projectId, jobId, "Connection review");
++  if (records.recipes !== null) {
++    const result = await loadFencingRecipeSet(jobId, { getItem: () => records.recipes, setItem: () => { throw Error("Read only"); } });
++    if (!result.ok) throw Error(`Saved recipes failed verification (${result.reason}).`);
++  }
++  if (records.referenceRates !== null) z.object({
++    currency: z.enum(["AUD", "NZD", "USD", "GBP", "EUR"]),
++    rows: z.array(z.object({ id: text, description: text, unit: text,
++      rate: z.string().trim().min(1).max(100).refine(s => Number.isFinite(Number(s)) && Number(s) >= 0),
++    }).strict()).max(1000),
++  }).strict().parse(parse(records.referenceRates));
++}
++export async function validateProjectBackup(input: unknown): Promise<ProjectBackup> {
++  const value = payloadSchema.parse(input);
++  await validateBackupRecords(value.records, value.job.id);
++  const originals = value.job.documents.filter(d => d.source !== "sample");
++  const photos = backupPhotos(value.job);
++  if (new Set(value.assets.map(a => `${a.kind}:${a.id}`)).size !== value.assets.length)
++    throw Error("Duplicate original file identities.");
++  if (value.assets.length !== originals.length + photos.length)
++    throw Error("Backup must include exactly every referenced original plan and photo.");
++  for (const asset of value.assets) {
++    const bytes = decodeBackupBytes(asset.bytesBase64);
++    if (asset.kind === "plan") {
++      const document = originals.find(d => d.id === asset.id);
++      if (!document || !["pdf", "dxf", "svg"].includes(document.kind)) throw Error("Unreferenced or unsupported original plan.");
++      if (asset.name !== document.name) throw Error("Original plan name does not match its document.");
++      const inspected = await inspectPlanBytes({ name: asset.name, bytes: new Uint8Array(bytes), source: "web" });
++      if (inspected.binary.sha256 !== asset.sha256 || asset.sha256 !== document.sha256 ||
++        inspected.binary.mimeType !== asset.mimeType || inspected.revision.pageCount !== document.pageCount)
++        throw Error(`Original plan “${asset.name}” failed metadata or SHA-256 verification.`);
++    } else {
++      const photo = photos.find(p => p.id === asset.id);
++      if (!photo) throw Error("Unreferenced original photo.");
++      const result = await verifyPhotoContent({ id: asset.id, name: asset.name,
++        mimeType: asset.mimeType as StoredPhotoContent["mimeType"], sha256: asset.sha256, bytes }, photo);
++      if (result.status !== "ready") throw Error(result.message);
++    }
++  }
++  // Material evidence may reference an original removed from the main document set.
++  // Reject incomplete packages instead of silently calling them recoverable.
++  if (value.records.materials !== null) {
++    const materials = projectMaterialsSchema.parse(JSON.parse(value.records.materials));
++    for (const source of materials.sources)
++      if (!originals.some(d => d.sha256 === source.sha256))
++        throw Error(`Material source “${source.name}” is missing from the project plans. Import that original before backing up.`);
++  }
++  return value;
++}
++export async function parseProjectBackup(serialized: string): Promise<ProjectBackup> {
++  if (serialized.length > MAX_BACKUP_BYTES || new Blob([serialized]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++  return validateProjectBackup(JSON.parse(serialized));
++}
++export function backupContents(value: ProjectBackup) {
++  return { plans: value.assets.filter(a => a.kind === "plan").length,
++    photos: value.assets.filter(a => a.kind === "photo").length,
++    records: Object.entries(value.records).filter(([, v]) => v !== null).map(([key]) => key),
++    jobRevision: value.job.revision, jobName: value.job.name };
++}
++export type BackupCapturePort = {
++  records(jobId: string): Promise<BackupRecords>;
++  plan(id: string): Promise<StoredPlanContent | null>;
++  photo(id: string): Promise<StoredPhotoContent | null>;
++  currentJob(): FencingJob;
++};
++export async function captureProjectBackup(job: FencingJob, name: string, port: BackupCapturePort): Promise<ProjectBackup> {
++  const jobText = JSON.stringify(job), records = await port.records(job.id);
++  const assets: BackupAsset[] = [];
++  let total = jobText.length + JSON.stringify(records).length;
++  for (const doc of job.documents.filter(d => d.source !== "sample")) {
++    const content = await port.plan(doc.id);
++    if (!content) throw Error(`Original plan “${doc.name}” is missing. No backup was saved.`);
++    total += Math.ceil(content.bytes.byteLength / 3) * 4;
++    if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++    assets.push({ id: doc.id, kind: "plan", name: content.name, mimeType: content.mimeType,
++      sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
++  }
++  for (const photo of backupPhotos(job)) {
++    const content = await port.photo(photo.id);
++    if (!content) throw Error(`Original photo “${photo.name}” is missing. No backup was saved.`);
++    total += Math.ceil(content.bytes.byteLength / 3) * 4;
++    if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++    assets.push({ id: photo.id, kind: "photo", name: content.name, mimeType: content.mimeType,
++      sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
++  }
++  const result = await validateProjectBackup({ format: BACKUP_FORMAT, name, job: JSON.parse(jobText),
++    createdAt: new Date().toISOString(), records, assets });
++  if (JSON.stringify(port.currentJob()) !== jobText || JSON.stringify(await port.records(job.id)) !== JSON.stringify(records))
++    throw Error("Project changed while the backup was being prepared. Save again to capture a consistent version.");
++  if (new Blob([JSON.stringify(result)]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++  return result;
++}
+
+diff --git a/src/studio/projectBackupStorage.ts b/src/studio/projectBackupStorage.ts
+new file mode 100644
+index 0000000..3d45c20
+--- /dev/null
++++ b/src/studio/projectBackupStorage.ts
+@@ -0,0 +1,117 @@
++import { z } from "zod";
++import { architectKey } from "./architect/persistence.ts";
++import { bomStorageKey } from "./bomPersistence.ts";
++import { inventoryStorageKey } from "./construction/inventoryPersistence.ts";
++import { fencingRecipeStorageKey } from "./fencingRecipePersistence.ts";
++import { takeoffKey } from "./construction/altitudeTakeoff.ts";
++import { trialKey } from "./construction/connectionTrial.ts";
++import { restoreMaterialDatabase } from "./projectMaterialsPersistence.ts";
++import { backupContents, backupDigest, parseProjectBackup, type BackupRecords, type ProjectBackup } from "./projectBackup.ts";
++
++export const BACKUP_DATABASE = "xray-workspace-backups-v1";
++const summarySchema = z.object({
++  id: z.string().uuid(), name: z.string().trim().min(1).max(120),
++  createdAt: z.string().datetime({ offset: true }), storedAt: z.string().datetime({ offset: true }),
++  archived: z.boolean(), revision: z.number().int().positive(),
++  sha256: z.string().regex(/^[a-f0-9]{64}$/), sizeBytes: z.number().int().positive(),
++  jobName: z.string(), jobId: z.string(), jobRevision: z.number().int().positive(),
++  plans: z.number().int().nonnegative(), photos: z.number().int().nonnegative(),
++  records: z.array(z.string()),
++}).strict();
++export type BackupSummary = z.infer<typeof summarySchema>;
++export async function readBackupRecords(jobId: string): Promise<BackupRecords> {
++  // Explicit allowlist. Never enumerate storage or include credentials, queues or other projects.
++  const materials = await restoreMaterialDatabase(jobId);
++  if (materials.blocked || materials.error) throw Error(materials.error ?? "Material inventory is not readable.");
++  return {
++    architecture: localStorage.getItem(architectKey(jobId)),
++    bom: localStorage.getItem(bomStorageKey(jobId)),
++    components: localStorage.getItem(inventoryStorageKey(jobId)),
++    recipes: localStorage.getItem(fencingRecipeStorageKey(jobId)),
++    sourceTakeoff: localStorage.getItem(takeoffKey(jobId)),
++    connectionReview: localStorage.getItem(trialKey(jobId)),
++    materials: materials.raw, referenceRates: localStorage.getItem("xray.price-sheet.v1"),
++  };
++}
++function openDatabase(): Promise<IDBDatabase> {
++  return new Promise((resolve, reject) => {
++    const request = indexedDB.open(BACKUP_DATABASE, 1);
++    request.onupgradeneeded = () => {
++      request.result.createObjectStore("summaries", { keyPath: "id" });
++      request.result.createObjectStore("packages");
++    };
++    request.onsuccess = () => resolve(request.result);
++    request.onerror = () => reject(request.error ?? Error("Backup storage is unavailable."));
++    request.onblocked = () => reject(Error("Backup storage is blocked by another app window."));
++  });
++}
++async function transact<T>(mode: IDBTransactionMode, issue: (tx: IDBTransaction, result: (value: T) => void, fail: (error: Error) => void) => void): Promise<T> {
++  const db = await openDatabase();
++  try {
++    return await new Promise<T>((resolve, reject) => {
++      const tx = db.transaction(["summaries", "packages"], mode);
++      let result: T, reason: Error | undefined;
++      const fail = (error: Error) => { reason = error; tx.abort(); };
++      tx.oncomplete = () => resolve(result);
++      tx.onabort = () => reject(reason ?? tx.error ?? Error("Backup transaction did not complete. Previous backups are unchanged."));
++      tx.onerror = () => { /* Transaction abort reports the failure. */ };
++      try { issue(tx, value => { result = value; }, fail); }
++      catch (error) { fail(error instanceof Error ? error : Error("Backup operation failed.")); }
++    });
++  } finally { db.close(); }
++}
++export async function listProjectBackups(): Promise<BackupSummary[]> {
++  return transact("readonly", (tx, result, fail) => {
++    const req = tx.objectStore("summaries").getAll();
++    req.onsuccess = () => {
++      try { result(z.array(summarySchema).parse(req.result).sort((a, b) => b.storedAt.localeCompare(a.storedAt))); }
++      catch { fail(Error("The backup catalogue contains an unreadable entry. Stored data has been preserved.")); }
++    };
++  });
++}
++export async function storeProjectBackup(candidate: ProjectBackup): Promise<BackupSummary> {
++  // Revalidate even callers that bypass the import preview.
++  const serialized = JSON.stringify(candidate), value = await parseProjectBackup(serialized);
++  const summary = summarySchema.parse({ id: crypto.randomUUID(), name: value.name,
++    createdAt: value.createdAt, storedAt: new Date().toISOString(), archived: false, revision: 1,
++    sha256: await backupDigest(serialized), sizeBytes: new Blob([serialized]).size,
++    jobId: value.job.id, ...backupContents(value) });
++  return transact("readwrite", (tx, result) => {
++    tx.objectStore("packages").add(serialized, summary.id);
++    tx.objectStore("summaries").add(summary);
++    result(summary);
++  });
++}
++export async function readProjectBackup(id: string): Promise<{ summary: BackupSummary; value: ProjectBackup; serialized: string }> {
++  const { summary, serialized } = await transact<{ summary: BackupSummary; serialized: string }>("readonly", (tx, result, fail) => {
++    const metadata = tx.objectStore("summaries").get(id), content = tx.objectStore("packages").get(id);
++    let meta: BackupSummary | undefined, data: string | undefined;
++    const finish = () => { if (meta && data !== undefined) result({ summary: meta, serialized: data }); };
++    metadata.onsuccess = () => {
++      try { meta = summarySchema.parse(metadata.result); finish(); }
++      catch { fail(Error("Backup metadata is missing or invalid. Original stored data is preserved.")); }
++    };
++    content.onsuccess = () => {
++      if (typeof content.result !== "string") { fail(Error("Backup package is missing. Nothing was restored.")); return; }
++      data = content.result; finish();
++    };
++  });
++  if (new Blob([serialized]).size !== summary.sizeBytes || await backupDigest(serialized) !== summary.sha256)
++    throw Error("Backup failed SHA-256 verification. Stored bytes are preserved; download and import are blocked.");
++  const value = await parseProjectBackup(serialized);
++  if (value.job.id !== summary.jobId || value.createdAt !== summary.createdAt)
++    throw Error("Backup identity does not match its catalogue entry.");
++  return { summary, value, serialized };
++}
++export function updateBackupSummary(previous: BackupSummary, change: { name?: string; archived?: boolean }): Promise<BackupSummary> {
++  const next = summarySchema.parse({ ...previous, ...change, revision: previous.revision + 1 });
++  return transact("readwrite", (tx, result, fail) => {
++    const store = tx.objectStore("summaries"), request = store.get(previous.id);
++    request.onsuccess = () => {
++      if (JSON.stringify(request.result) !== JSON.stringify(previous)) {
++        fail(Error("This backup changed in another window. Refresh the library before trying again.")); return;
++      }
++      store.put(next); result(next);
++    };
++  });
++}
+
+diff --git a/src/studio/ProjectBackups.tsx b/src/studio/ProjectBackups.tsx
+new file mode 100644
+index 0000000..59f8efe
+--- /dev/null
++++ b/src/studio/ProjectBackups.tsx
+@@ -0,0 +1,145 @@
++import { useEffect, useRef, useState } from "react";
++import { createPortal } from "react-dom";
++import { Archive, ArchiveRestore, Download, FolderArchive, Save, Upload } from "lucide-react";
++import { WorkspaceDialog } from "./WorkspaceDialog";
++import { useStudio } from "./store";
++import { createBrowserPlanStore } from "./documents";
++import { createBrowserPhotoStore } from "./evidence";
++import { BACKUP_EXCLUSIONS, MAX_BACKUP_BYTES, backupContents, captureProjectBackup, parseProjectBackup, type ProjectBackup } from "./projectBackup";
++import { listProjectBackups, readBackupRecords, readProjectBackup, storeProjectBackup, updateBackupSummary, type BackupSummary } from "./projectBackupStorage";
++import "./projectBackups.css";
++
++const labels: Record<string, string> = { architecture: "Architectural design and sheet layout", bom: "BOM and review state",
++  components: "Component inventory", recipes: "Fencing recipes", sourceTakeoff: "Source takeoff and material rates",
++  connectionReview: "Connection review", materials: "Project materials and evidence", referenceRates: "Reference price sheet (unapplied)" };
++const size = (bytes: number) => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
++function problem(error: unknown) {
++  if (error instanceof Error && error.name === "ZodError") return "Saved data did not pass the supported backup format checks. Nothing was overwritten.";
++  return error instanceof Error ? error.message : "The backup operation failed. Previous backups are preserved.";
++}
++function downloadBackup(serialized: string, name: string) {
++  const url = URL.createObjectURL(new Blob([serialized], { type: "application/json" }));
++  const a = document.createElement("a");
++  a.href = url; a.download = `${name.replace(/[^a-zA-Z0-9 _-]/g, "_").slice(0, 100) || "X-Ray backup"}.xray-backup.json`;
++  document.body.append(a); a.click(); a.remove();
++  setTimeout(() => URL.revokeObjectURL(url), 30000);
++}
++export function ProjectBackups() {
++  const [open, setOpen] = useState(false);
++  const trigger = useRef<HTMLButtonElement>(null);
++  // Keep the dialog within the theme root, outside responsive header visibility rules.
++  return <><button ref={trigger} className="pill backup-trigger" onClick={() => setOpen(true)}><FolderArchive size={15} /> Backups</button>
++    {open && createPortal(<BackupLibrary onClose={() => setOpen(false)} />, trigger.current?.closest(".workbench") ?? document.body)}</>;
++}
++function BackupLibrary({ onClose }: { onClose: () => void }) {
++  const job = useStudio(s => s.job);
++  const [items, setItems] = useState<BackupSummary[]>([]), [name, setName] = useState(`${job.name} — ${new Date().toLocaleDateString()}`);
++  const [filter, setFilter] = useState(""), [archived, setArchived] = useState(false);
++  const [busy, setBusy] = useState(false), [ready, setReady] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
++  const [preview, setPreview] = useState<{ value: ProjectBackup; imported: boolean; label: string } | null>(null);
++  const [renaming, setRenaming] = useState<BackupSummary | null>(null), [newName, setNewName] = useState("");
++  const input = useRef<HTMLInputElement>(null), flight = useRef(false);
++  async function refresh() { setItems(await listProjectBackups()); setReady(true); }
++  async function run(action: () => Promise<void>) {
++    if (flight.current) return;
++    flight.current = true; setBusy(true); setError(""); setMessage("");
++    try { await action(); } catch (failure) { setError(problem(failure)); }
++    finally { flight.current = false; setBusy(false); }
++  }
++  useEffect(() => { void run(refresh); }, []);
++  async function save() {
++    await run(async () => {
++      const state = useStudio.getState();
++      if (!state.persistenceHydrated || state.hydrationStatus !== "ready") throw Error("Wait for the workspace to finish restoring before saving a backup.");
++      if (state.persistenceError || state.bomPersistenceError || state.inventoryPersistenceError)
++        throw Error("Resolve the workspace's save errors before creating a backup, so no working data is omitted.");
++      const plans = createBrowserPlanStore(), photos = createBrowserPhotoStore();
++      const value = await captureProjectBackup(state.job, name, {
++        records: readBackupRecords, plan: id => plans.get(id), photo: id => photos.get(id),
++        currentJob: () => useStudio.getState().job,
++      });
++      await storeProjectBackup(value); await refresh(); setArchived(false); setFilter("");
++      setMessage(`“${value.name}” saved and verified on this device. Download a copy to keep it outside this app.`);
++    });
++  }
++  async function importFile(file: File) {
++    await run(async () => {
++      if (file.size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
++      const value = await parseProjectBackup(await file.text());
++      setPreview({ value, imported: true, label: value.name });
++    });
++  }
++  const visible = items.filter(i => i.archived === archived && `${i.name} ${i.jobName}`.toLowerCase().includes(filter.toLowerCase()));
++  return <WorkspaceDialog title="Project backups" onClose={() => { if (!flight.current) onClose(); }}>
++    <div className="project-backups" aria-busy={busy}>
++      <p>Keep a named copy of committed work and its original files. Backups stay on this device; download a package for storage elsewhere or a later handoff.</p>
++      <div className="backup-save-row">
++        <label>Backup name<input maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>
++        <button className="pill" disabled={busy || !ready || !name.trim()} onClick={() => void save()}><Save size={16} /> Save project backup</button>
++        <button className="pill" disabled={busy} onClick={() => input.current?.click()}><Upload size={16} /> Import backup</button>
++        <input ref={input} hidden aria-label="Import project backup file" type="file" accept=".json" onChange={e => {
++          const file = e.target.files?.[0]; e.target.value = ""; if (file) void importFile(file);
++        }} />
++      </div>
++      <details className="backup-scope"><summary>What this package includes</summary>
++        <p>Current job, document workspaces, calibration, measurements, annotations and evidence; saved design, sheet layout, quantities, recipes, reviews, materials and reference rates; every referenced original plan and photo. Missing or corrupt originals block the backup.</p>
++        <p>Not included:</p><ul>{BACKUP_EXCLUSIONS.map(item => <li key={item}>{item}</li>)}</ul>
++        <p>Import adds a verified package to this library. Applying a package to the editing workspace is not available yet. Stored backups are not cloud sync or a staff delivery receipt.</p>
++      </details>
++      {busy && <p role="status">Checking files and saving data…</p>}
++      {message && <p className="backup-notice" role="status">{message}</p>}
++      {error && <p className="backup-notice" role="alert">{error}</p>}
++      {preview && <section className="backup-preview" aria-label="Backup contents review">
++        <h3>{preview.imported ? "Review imported backup" : "Verified backup contents"}</h3>
++        <b>{preview.label}</b>
++        <p>{preview.value.job.name} · revision {preview.value.job.revision} · {new Date(preview.value.createdAt).toLocaleString()}</p>
++        <p>{backupContents(preview.value).plans} original plans · {backupContents(preview.value).photos} original photos · hashes verified</p>
++        <ul><li>Job, document workspaces, measurements and evidence</li>{backupContents(preview.value).records.map(key => <li key={key}>{labels[key]}</li>)}</ul>
++        <p>The open workspace remains unchanged.</p>
++        <div className="backup-actions">
++          <button className="pill" disabled={busy} onClick={() => setPreview(null)}>{preview.imported ? "Cancel import" : "Close contents"}</button>
++          {preview.imported && <button className="pill" disabled={busy} onClick={() => void run(async () => {
++            await storeProjectBackup(preview.value); await refresh(); setPreview(null); setArchived(false); setFilter("");
++            setMessage("Verified package added to the library. The open workspace was not changed.");
++          })}>Add to backup library</button>}
++        </div>
++      </section>}
++      {renaming && <form className="backup-rename" onSubmit={e => { e.preventDefault(); void run(async () => {
++        await updateBackupSummary(renaming, { name: newName }); setRenaming(null); await refresh(); setMessage("Backup label updated. The original snapshot is unchanged.");
++      }); }}>
++        <label>New backup label<input value={newName} maxLength={120} onChange={e => setNewName(e.target.value)} autoFocus /></label>
++        <button className="pill" disabled={busy || !newName.trim()} type="submit">Save label</button>
++        <button className="pill" disabled={busy} type="button" onClick={() => setRenaming(null)}>Cancel rename</button>
++      </form>}
++      <div className="backup-toolbar">
++        <label>Search backups<input type="search" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Name or project" /></label>
++        <div className="backup-actions">
++          <button className="pill" aria-pressed={!archived} onClick={() => setArchived(false)}>Active ({items.filter(i => !i.archived).length})</button>
++          <button className="pill" aria-pressed={archived} onClick={() => setArchived(true)}>Archived ({items.filter(i => i.archived).length})</button>
++          <button className="pill" disabled={busy} onClick={() => void run(refresh)}>Refresh library</button>
++        </div>
++      </div>
++      <div className="backup-list">
++        {!visible.length && ready && <p>{filter ? "No backups match this search." : archived ? "No archived backups. Archive a saved copy to store it away without deleting it." : "No active backups yet. Save the current project or import a package."}</p>}
++        {visible.map(item => <article className="backup-item" key={item.id}>
++          <div><h3>{item.name}</h3><p>{item.jobName} · revision {item.jobRevision} · {size(item.sizeBytes)}</p>
++            <p>{item.plans} plans · {item.photos} photos · saved {new Date(item.storedAt).toLocaleString()}</p></div>
++          <div className="backup-actions">
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              const { value } = await readProjectBackup(item.id); setPreview({ value, imported: false, label: item.name });
++            })}>Inspect</button>
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              const { serialized } = await readProjectBackup(item.id); downloadBackup(serialized, item.name);
++              setMessage("Package verified; download requested. Keep the file with your project records.");
++            })}><Download size={15} /> Download</button>
++            <button className="pill" disabled={busy} onClick={() => { setRenaming(item); setNewName(item.name); }}>Rename</button>
++            <button className="pill" disabled={busy} onClick={() => void run(async () => {
++              await updateBackupSummary(item, { archived: !item.archived }); await refresh();
++              setMessage(item.archived ? "Backup returned to the active library." : "Backup archived. Its data is retained in Archived.");
++            })}>{item.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}{item.archived ? "Unarchive" : "Archive"}</button>
++          </div>
++        </article>)}
++      </div>
++    </div>
++  </WorkspaceDialog>;
++}
+
+diff --git a/src/studio/projectBackups.css b/src/studio/projectBackups.css
+new file mode 100644
+index 0000000..b913d5d
+--- /dev/null
++++ b/src/studio/projectBackups.css
+@@ -0,0 +1,28 @@
++.workspace-dialog:has(.project-backups) { width: min(960px, calc(100vw - 24px)); }
++.backup-trigger { display: inline-flex; align-items: center; gap: 6px; }
++.project-backups { padding: 20px; display: grid; gap: 16px; color: var(--color-ink); }
++.project-backups p { line-height: 1.5; overflow-wrap: anywhere; }
++.project-backups h3 { font-weight: 600; overflow-wrap: anywhere; }
++.project-backups label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
++.project-backups input:not([type=file]) { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-bg); color: var(--color-ink); }
++.project-backups .pill { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: normal; }
++.project-backups button:disabled { opacity: .5; cursor: wait; }
++.backup-save-row, .backup-toolbar, .backup-rename { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
++.backup-save-row label, .backup-toolbar label, .backup-rename label { flex: 1 1 240px; }
++.backup-actions { display: flex; flex-wrap: wrap; gap: 8px; }
++.backup-scope { border-block: 1px solid var(--color-line); padding: 12px 0; font-size: 12px; }
++.backup-scope summary { cursor: pointer; font-weight: 600; min-height: 24px; }
++.backup-scope p, .backup-scope ul { margin-top: 8px; }
++.backup-scope ul, .backup-preview ul { padding-left: 20px; list-style: disc; }
++.backup-preview, .backup-notice, .backup-rename { padding: 16px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-header); color: var(--color-ink); }
++.backup-preview { display: grid; gap: 8px; }
++.backup-list { display: grid; }
++.backup-item { padding: 16px 0; border-top: 1px solid var(--color-line); display: grid; gap: 12px; }
++.backup-item p { font-size: 12px; color: var(--color-muted); margin-top: 4px; }
++.project-backups [aria-pressed=true] { background: var(--color-navy); color: var(--color-on-navy); }
++@media (max-width: 600px) {
++  .project-backups { padding: 12px; }
++  .backup-save-row { align-items: stretch; }
++  .backup-save-row > label { flex-basis: 100%; }
++  .backup-save-row > button { flex: 1; }
++}
+
+diff --git a/src/studio/projectBackup.test.ts b/src/studio/projectBackup.test.ts
+new file mode 100644
+index 0000000..a88db9d
+--- /dev/null
++++ b/src/studio/projectBackup.test.ts
+@@ -0,0 +1,84 @@
++import { describe, it } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob, type FencingJob } from "./domain.ts";
++import { inspectPlanBytes } from "./documents.ts";
++import { importPhotoFile } from "./evidence.ts";
++import { captureDocumentWorkspace, restoreDocumentWorkspace } from "./documentWorkspaces.ts";
++import { demonstration } from "./architect/model.ts";
++import { BACKUP_FORMAT, backupContents, backupDigest, captureProjectBackup, decodeBackupBytes, emptyBackupRecords, parseProjectBackup, validateProjectBackup, type BackupCapturePort } from "./projectBackup.ts";
++
++async function fixture() {
++  const first = await inspectPlanBytes({ name: "Site.svg", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L10 0"/></svg>'), source: "web" });
++  const second = await inspectPlanBytes({ name: "Level.svg", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'), source: "web" });
++  const photo = await importPhotoFile(new File([new Uint8Array([255,216,255,224,0,0,255,217])], "Site.jpg", { type: "image/jpeg" }), 0);
++  let job: FencingJob = { ...createDefaultJob(), documents: [first.revision, second.revision], activeDocumentId: first.revision.id, photos: [photo.record] };
++  job = restoreDocumentWorkspace(captureDocumentWorkspace(job, 0), second.revision);
++  const records = emptyBackupRecords(); records.architecture = JSON.stringify(demonstration(job.id));
++  const port: BackupCapturePort = { records: async () => structuredClone(records), currentJob: () => job,
++    plan: async id => { const b = [first, second].find(p => p.binary.documentId === id)?.binary; return b ? { ...b, bytes: new Uint8Array(b.bytes).buffer } : null; },
++    photo: async id => id === photo.content.id ? photo.content : null };
++  const value = await captureProjectBackup(job, "Tender issue A", port);
++  return { value, job, records, port, first, photo };
++}
++describe("portable main workspace backups", () => {
++  it("round-trips two source documents, inactive-plan photo evidence and the full architectural design", async () => {
++    const { value, first, photo } = await fixture();
++    const restored = await parseProjectBackup(JSON.stringify(value));
++    assert.deepEqual(restored, value);
++    assert.equal(restored.job.photos.length, 0);
++    assert.equal(backupContents(restored).plans, 2);
++    assert.equal(backupContents(restored).photos, 1);
++    assert.deepEqual(new Uint8Array(decodeBackupBytes(restored.assets.find(a => a.id === first.binary.documentId)!.bytesBase64)), first.binary.bytes);
++    assert.equal(await backupDigest(decodeBackupBytes(restored.assets.find(a => a.id === photo.record.id)!.bytesBase64)), photo.record.sha256);
++    assert.equal(JSON.parse(restored.records.architecture!).walls.length, 5);
++  });
++  it("refuses a missing inactive-plan photo instead of producing an incomplete backup", async () => {
++    const { job, port } = await fixture();
++    await assert.rejects(captureProjectBackup(job, "Incomplete", { ...port, photo: async () => null }), /Original photo.*missing/);
++  });
++  it("rejects missing plans, duplicate assets and unreferenced assets", async () => {
++    const { value } = await fixture();
++    await assert.rejects(validateProjectBackup({ ...value, assets: value.assets.slice(1) }), /exactly every/);
++    await assert.rejects(validateProjectBackup({ ...value, assets: [...value.assets, value.assets[0]] }), /Duplicate/);
++    const changed = structuredClone(value); changed.assets[0].id = "wrong-id";
++    await assert.rejects(validateProjectBackup(changed), /Unreferenced/);
++  });
++  it("rejects modified source bytes, mismatched MIME types and page counts", async () => {
++    const { value } = await fixture();
++    const corrupt = structuredClone(value); corrupt.assets[0].sha256 = "0".repeat(64);
++    await assert.rejects(validateProjectBackup(corrupt), /verification/);
++    const mime = structuredClone(value); mime.assets[0].mimeType = "text/html";
++    await assert.rejects(validateProjectBackup(mime), /verification/);
++    const page = structuredClone(value); page.job.documents[0].pageCount = 2;
++    await assert.rejects(validateProjectBackup(page), /verification/);
++  });
++  it("rejects invalid encoding, future formats and unexpected top-level data", async () => {
++    const { value } = await fixture();
++    assert.throws(() => decodeBackupBytes("abc!"), /base64/);
++    assert.throws(() => decodeBackupBytes("Zh=="), /canonical/);
++    await assert.rejects(validateProjectBackup({ ...value, format: "xray.workspace-backup/v2" }));
++    await assert.rejects(validateProjectBackup({ ...value, accessToken: "must-not-be-accepted" }));
++  });
++  it("rejects another project's design and corrupt saved modules", async () => {
++    const { value } = await fixture();
++    const changed = structuredClone(value); changed.records.architecture = JSON.stringify(demonstration("other-job"));
++    await assert.rejects(validateProjectBackup(changed), /different project/);
++    changed.records.architecture = "{broken";
++    await assert.rejects(validateProjectBackup(changed));
++    changed.records.architecture = null; changed.records.components = "{}";
++    await assert.rejects(validateProjectBackup(changed));
++  });
++  it("rejects changes to the job or another saved module during capture", async () => {
++    const { job, port, records } = await fixture();
++    await assert.rejects(captureProjectBackup(job, "Race", { ...port, currentJob: () => ({ ...job, name: "Changed" }) }), /changed while/);
++    let count = 0;
++    await assert.rejects(captureProjectBackup(job, "Race", { ...port, records: async () => ++count === 1 ? records : { ...records, architecture: null } }), /changed while/);
++  });
++  it("accepts an empty job with clear zero-original coverage and trims its backup label", async () => {
++    const job = createDefaultJob();
++    const value = await validateProjectBackup({ format: BACKUP_FORMAT, name: "  Empty study  ", job,
++      createdAt: new Date().toISOString(), records: emptyBackupRecords(), assets: [] });
++    assert.equal(value.name, "Empty study"); assert.equal(backupContents(value).plans, 0);
++    await assert.rejects(validateProjectBackup({ ...value, name: " " }));
++  });
++});

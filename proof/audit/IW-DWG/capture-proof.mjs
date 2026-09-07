@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+const tracked=['src/studio/architect/ArchitectWorkspace.tsx','src/studio/architect/architect.css','src/studio/architect/exchange.ts','src/studio/CapabilitiesChecklist.tsx','src/studio/Studio.tsx','src/styles.css','src-tauri/src/lib.rs','src-tauri/tauri.conf.json','package.json','vite.config.ts','scripts/build-redburn-model.mjs','src/studio/redburnBuilding.test.ts'];
+const added=['src/studio/architect/ArchitectCadExchange.tsx','src/studio/architect/cadTransport.ts','src/studio/architect/cadTransport.test.ts','src/studio/architect/useDesignConfirmation.tsx','src-tauri/src/cad.rs','engine/cad/Converter.cs','engine/cad/THIRD-PARTY-NOTICES.txt','scripts/build-cad.mjs','planning/professional-coverage/catalogue.mjs','planning/professional-coverage/industries.mjs','planning/professional-coverage/generate.mjs'];
+const git=(args)=>spawnSync('git',args,{encoding:'utf8',windowsHide:true,maxBuffer:8e6}).stdout;
+let diff=git(['diff','--',...tracked]);
+for(const p of added)diff+='\n'+git(['diff','--no-index','--','NUL',p]);
+fs.writeFileSync('proof/audit/IW-DWG/implementation.diff',diff);
+fs.writeFileSync('proof/audit/IW-REDBURN-ROOF/implementation.diff',git(['diff','--','scripts/build-redburn-model.mjs','src/studio/redburnBuilding.test.ts']));
+const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const files=[...tracked,...added,'public/models/redburn/source-building.json','public/industry-coverage/index.html','public/industry-coverage/catalogue.json','public/industry-coverage/requirements.csv','public/industry-coverage/industries.csv'];
+const screenshots=['screenshots/redburn-roof/dev-detail.png','screenshots/redburn-roof/native-detail.png','screenshots/redburn-roof/installed-detail.png','screenshots/dwg/native-import-review.png','screenshots/dwg/native-imported.png','screenshots/dwg/native-undo-restored.png','screenshots/dwg/installed-import-review.png','screenshots/dwg/installed-undo-restored.png','screenshots/professional-coverage/dev.png','screenshots/professional-coverage/dev-mobile.png','screenshots/professional-coverage/search.png','screenshots/professional-coverage/industry-filter.png','screenshots/professional-coverage/in-app.png','screenshots/professional-coverage/installed-in-app.png'];
+const evidence=['converter-proof.json','native-ui-independent.json','native-download-events.json','catalogue-download-events.json','installed-identity.json','install.json','native-final.log','installed-final.log','tests.log','rust-tests.log','typecheck-final.log','native-build-final.log','web-build-final.log'];
+const packet={capturedAt:new Date().toISOString(),branch:git(['branch','--show-current']).trim(),baseline:git(['rev-parse','HEAD']).trim(),note:'Uncommitted working-branch diff includes preserved earlier architectural changes; no commit, merge or publication performed.',files:files.map(path=>({path,sha256:hash(path)})),screenshots:screenshots.filter(fs.existsSync).map(path=>({path,sha256:hash(path)})),evidence:evidence.map(p=>'proof/audit/IW-DWG/'+p).filter(fs.existsSync).map(path=>({path,sha256:hash(path)}))};
+fs.writeFileSync('proof/audit/IW-DWG/proof-manifest.json',JSON.stringify(packet,null,2));
+console.log(JSON.stringify({sources:packet.files.length,screenshots:packet.screenshots.length,evidence:packet.evidence.length}));

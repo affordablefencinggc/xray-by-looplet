@@ -1,0 +1,88 @@
+{
+  "id": "2026-09-07-02-sheets-views",
+  "title": "Stage 02 — organize sheets and return to saved details",
+  "date": "7 September 2026",
+  "platform": "Development browser · desktop and mobile · isolated test profile",
+  "summary": "Source sheets now have custom discipline groups and a downloadable ordered register. Saved views remember the original page, zoom and source-relative centre, including after resizing or reopening. The mobile drawing workflow scrolls in one column, with calibration below the drawing and eight lower controls at least 44 by 44 pixels.",
+  "requirements": [
+    {
+      "id": "D-06",
+      "status": "Development acceptance passed",
+      "change": "Discipline grouping, filtering and order survive restart; actual downloaded JSON preserves all 13 original pages in reviewed order.",
+      "remaining": "Combined production/native release verification. Export is a register, not a rewritten PDF."
+    },
+    {
+      "id": "D-14",
+      "status": "Development acceptance passed",
+      "change": "Real page, pan and zoom restoration, resize, reload, removal and storage-failure refusal tested.",
+      "remaining": "Combined production/native release verification. Views are local source metadata; no account synchronization."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/bookmarks-desktop.png",
+      "caption": "After: Drainage junction returns to original page 2 at 156.25%, with the measured source centre restored.",
+      "sha256": "af79194c1b5f15f4063b6c0d567f5d1728608cf6632f21a65fdaeef844270e21",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/before.png",
+      "caption": "Before: the source register lacked discipline groups.",
+      "sha256": "34274171ef5587032f2585902995b3d979707cb8ae2bd421b9fca3bcf638d953",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/before-views.png",
+      "caption": "Before: the drawing view had no named saved-view library.",
+      "sha256": "1c038bbc0edb498c8077d49b61dd08a225878af0a5ebe07331085d04bb1a1bc2",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/03.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/groups-desktop.png",
+      "caption": "After: Architecture, Civil and Structural groups retain original page indices.",
+      "sha256": "5412e93674e47f3c73cc74fb415f3d206c8bbfcc5f9234aaf34e8b8e0f500c80",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/04.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/storage-refusal.png",
+      "caption": "A simulated capacity failure preserves the previously saved view metadata.",
+      "sha256": "b55160896e085845283ecdf6122f7768ebce54410724de41ef87ac7117709f8d",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/05.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/bookmarks-mobile-final.png",
+      "caption": "Mobile saved views remain readable and accessible.",
+      "sha256": "ee63a0ce5e20759349ba99172c315a83405d0619e24843df47af3ebf09b9b766",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/06.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/bookmarks-mobile-controls44.png",
+      "caption": "All eight lower drawing controls are at least 44 by 44 pixels, in view and unobstructed.",
+      "sha256": "36fdc045ec93b14846c6aa5259275adf2d01554cbf4239af6ba8e6ca9dfae56d",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/07.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-07-sheets/bookmarks-mobile-inspector.png",
+      "caption": "Calibration follows the drawing instead of covering half of the mobile workspace.",
+      "sha256": "887aeaca5f4478f4c361e06e07a9f3ea076f94172e5c0884c0d16a68e14b1476",
+      "archivedFile": "screenshots/growth/2026-09-07-02-sheets-views/08.png"
+    }
+  ],
+  "commands": [
+    "node --experimental-strip-types --test src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts — 13 passed",
+    "npm.cmd run typecheck — passed",
+    "Batched groups-final.json, bookmarks.json and failures.json — pass; complete commands retained in proof/growth/2026-09-07-sheets",
+    "node scripts/fast-cdp-test.mjs xray-sheet-growth proof/growth/2026-09-07-sheets/mobile-final.json --cdp 50580 — 15 commands, 1.377 seconds, exit 0",
+    "Final 44-pixel control check — 12 commands, 4.438 seconds, exit 0; screenshot inspected",
+    "Real downloaded ordered register: 2,814 bytes; SHA-256 950f3aa5f51476bb3d22e367a415c155c0a3cebf2fd08d03dc8bbe5a905cee6f"
+  ],
+  "logs": [
+    "proof/growth/2026-09-07-sheets/completion.md",
+    "proof/growth/2026-09-07-sheets/download-proof.json",
+    "proof/growth/2026-09-07-sheets/errors.json",
+    "proof/growth/runner/2026-09-07T13-04-34-177Z-xray-sheet-growth.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 3e422f0084de607a775c2ede8dfecdf0b032c75e. Exact scoped source hashes and copies: proof/growth/2026-09-07-02-sheets-source/source-manifest.json. Redburn source SHA-256 b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38; 13 pages unchanged.",
+  "codeDiff": "proof/growth/2026-09-07-02-sheets-source/code.diff; includes preserved earlier shared-file edits",
+  "summaryImage": "screenshots/growth/2026-09-07-02-sheets-views.png"
+}

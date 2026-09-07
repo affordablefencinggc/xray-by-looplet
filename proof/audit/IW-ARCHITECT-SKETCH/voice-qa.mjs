@@ -1,0 +1,26 @@
+﻿import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {chromium} from 'playwright';import crypto from 'node:crypto';
+const mode=process.argv[2]||'dev',dir='proof/audit/IW-ARCHITECT-SKETCH',report={ok:false,mode,checks:[],errors:[]};let browser,child,p;
+try {
+ if(['native','installed'].includes(mode)) {
+  const env={...process.env};for(const line of fs.readFileSync('.env.local','utf8').split(/\r?\n/)){const m=line.match(/^(GEMINI_API_KEY|XRAY_AI_MODEL|DEEPGRAM_API_KEY|XRAY_VOICE_EDGE_URL|XRAY_VOICE_EDGE_TOKEN)=(.*)$/);if(m)env[m[1]]=m[2].trim();}
+  const exe=mode==='native'?'src-tauri/target/release/xray-by-looplet.exe':path.join(process.env.LOCALAPPDATA,'X-Ray by Looplet','xray-by-looplet.exe');report.sha256=crypto.createHash('sha256').update(fs.readFileSync(exe)).digest('hex');
+  child=spawn(exe,[],{windowsHide:true,stdio:'ignore',env:{...env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9239',WEBVIEW2_USER_DATA_FOLDER:path.resolve(dir,'qa-voice-'+Date.now())}});
+  for(let i=0;i<100;i++){try{browser=await chromium.connectOverCDP('http://127.0.0.1:9239');break;}catch{await new Promise(r=>setTimeout(r,300));}}if(!browser)throw Error('Native connection failed');p=browser.contexts()[0].pages()[0];
+ }else{browser=await chromium.launch({channel:'msedge',headless:true});p=await browser.newPage();await p.goto('http://127.0.0.1:'+(mode==='web'?8081:8080),{waitUntil:'domcontentloaded'});}
+ await p.setViewportSize({width:1500,height:950});p.setDefaultTimeout(25000);p.on('pageerror',e=>report.errors.push(String(e)));p.on('console',e=>{if(e.type()==='error')report.errors.push(e.text());});
+ await p.locator('[data-hydration-status=ready]').waitFor();
+ await p.evaluate(async audioBase64=>{
+  window.__voiceQa={stopped:0,played:0};const nativePlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.__voiceQa.played++;return nativePlay.call(this);};
+  navigator.mediaDevices.getUserMedia=async()=>{const context=new AudioContext();await context.resume();const source=context.createBufferSource();source.buffer=await context.decodeAudioData(Uint8Array.from(atob(audioBase64),c=>c.charCodeAt(0)).buffer);const destination=context.createMediaStreamDestination();source.connect(destination);source.start();const track=destination.stream.getAudioTracks()[0],stop=track.stop.bind(track);track.stop=()=>{window.__voiceQa.stopped++;stop();source.stop();void context.close();};return destination.stream;};
+ },fs.readFileSync(dir+'/voice-sample.mp3').toString('base64'));
+ const b=name=>p.getByRole('button',{name,exact:true});await p.locator('.live-assistant-launcher').click();await p.waitForFunction(()=>!Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Speak instructions'))?.disabled);
+ await p.getByLabel('Drawing review instructions',{exact:true}).fill('Keep existing instructions.');
+ await b('Speak instructions').click();await b('Stop recording').waitFor();await p.waitForTimeout(4000);await b('Stop recording').click();
+ await p.waitForFunction(()=>document.querySelector('#live-assistant-prompt')?.value.toLowerCase().includes('walls and windows'),{},{timeout:40000});
+ assert.match(await p.getByLabel('Drawing review instructions',{exact:true}).inputValue(),/^Keep existing instructions\./);
+ assert.ok(await p.evaluate(()=>window.__voiceQa.stopped>0));report.checks.push('Synthetic microphone speech captured by MediaRecorder, transcribed by live Deepgram edge function and appended to existing instructions');
+ await p.screenshot({path:`screenshots/architect/${mode}-voice-transcript.png`});await b('Read aloud').click();await p.waitForFunction(()=>window.__voiceQa.played>0,{},{timeout:40000});await b('Cancel voice').click();report.checks.push('Live Deepgram read-aloud audio plays and can be cancelled');
+ const before=await p.getByLabel('Drawing review instructions',{exact:true}).inputValue();await b('Speak instructions').click();await b('Stop recording').waitFor();await b('Cancel voice').click();assert.equal(await p.getByLabel('Drawing review instructions',{exact:true}).inputValue(),before);
+ await b('Speak instructions').click();await b('Stop recording').waitFor();const stopped=await p.evaluate(()=>window.__voiceQa.stopped);await b('Collapse live assistant').click();assert.ok(await p.evaluate(()=>window.__voiceQa.stopped)>stopped);report.checks.push('Cancel and collapse release microphone tracks and preserve the draft');
+ await p.setViewportSize({width:390,height:844});await p.locator('.live-assistant-launcher').click();await p.getByRole('button',{name:'Speak instructions',exact:true}).waitFor({state:'visible'});await p.screenshot({animations:"disabled",path:`screenshots/architect/${mode}-voice-mobile.png`});assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(report.errors,[]);report.ok=true;
+}catch(e){report.failure=String(e.stack);if(p)await p.screenshot({path:`screenshots/architect/${mode}-voice-failure.png`}).catch(()=>{});process.exitCode=1;}finally{fs.writeFileSync(`${dir}/${mode}-voice-qa.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));await browser?.close();child?.kill();}

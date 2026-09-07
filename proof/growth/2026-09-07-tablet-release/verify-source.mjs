@@ -1,0 +1,11 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+const root = 'proof/growth/2026-09-07-tablet-release';
+const web = JSON.parse(readFileSync(`${root}/transfer/source-manifest.json`, 'utf8'));
+const native = JSON.parse(readFileSync(`${root}/transfer/native-manifest.json`, 'utf8'));
+const drift = [...web.entries, ...native.entries].filter(entry => createHash('sha256').update(readFileSync(entry.path)).digest('hex') !== entry.sha256).map(entry => entry.path);
+const result = {checkedAt:new Date().toISOString(),status:drift.length?'failed':'pass',runId:'c32e640187e9',webFiles:web.entries.length,nativeFiles:native.entries.length,drift};
+writeFileSync(`${root}/release-c32e640187e9/source-drift.json`, `${JSON.stringify(result,null,2)}\n`);
+assert.equal(drift.length,0,`Source changed after freeze: ${drift.join(', ')}`);
+console.log(JSON.stringify(result));

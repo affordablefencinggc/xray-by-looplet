@@ -1,0 +1,12 @@
+import { spawn } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+const logBytes=readFileSync('proof/audit/IW-PROJECT-BACKUP/native-build.log');
+const log=logBytes.toString(logBytes[0]===255&&logBytes[1]===254?'utf16le':'utf8');
+if(!log.includes('Finished 2 bundles'))throw Error('Native packaging is not complete.');
+const exe=path.resolve('src-tauri/target/release/xray-by-looplet.exe');
+const profile=path.resolve('.temp',`backup-native-${Date.now()}`);mkdirSync(profile,{recursive:true});
+const child=spawn(exe,[],{windowsHide:true,detached:true,stdio:'ignore',env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9248',WEBVIEW2_USER_DATA_FOLDER:profile}});child.unref();
+const record={exe,profile,pid:child.pid,sha256:createHash('sha256').update(readFileSync(exe)).digest('hex')};
+writeFileSync('proof/audit/IW-PROJECT-BACKUP/native-launch.json',JSON.stringify(record,null,2));console.log(JSON.stringify(record));

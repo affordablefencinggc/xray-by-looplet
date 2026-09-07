@@ -1,0 +1,14 @@
+import {spawn} from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+const dir='proof/audit/IW-REDBURN-ENCLOSURE';
+const record=JSON.parse(fs.readFileSync(dir+'/native-completion.json','utf8').replace(/^\uFEFF/,''));
+if(record.exitCode!==0)throw Error('Native build did not pass');
+const exe=path.resolve('.temp/dans1-native/xray-by-looplet.exe');
+const sha256=createHash('sha256').update(fs.readFileSync(exe)).digest('hex');
+if(!record.artifacts.some(a=>a.sha256===sha256&&a.path.endsWith('xray-by-looplet.exe')))throw Error('Remote executable identity mismatch');
+const profile=path.resolve('.temp',`redburn-native-${Date.now()}`);fs.mkdirSync(profile,{recursive:true});
+const app=spawn(exe,[],{windowsHide:true,detached:true,stdio:'ignore',env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9250',WEBVIEW2_USER_DATA_FOLDER:profile}});app.unref();
+const result={pid:app.pid,exe,profile,sha256,cdpPort:9250};
+fs.writeFileSync(dir+'/native-launch.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
