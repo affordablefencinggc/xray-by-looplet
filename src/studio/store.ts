@@ -18,7 +18,7 @@ import {
   restoreDocumentWorkspace,
   prepareDocumentSelection,
 } from "./documentWorkspaces.ts";
-import { loadFencingJob, saveFencingJob } from "./persistence.ts";
+import { loadOrCreateBrowserProject, saveFencingJob } from "./persistence.ts";
 import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
 import { createBrowserPlanStore } from "./documents.ts";
 import {
@@ -2193,7 +2193,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       const staleUrls = get().photoPreviewUrls;
       for (const url of Object.values(staleUrls)) URL.revokeObjectURL(url);
       if (Object.keys(staleUrls).length > 0) set({ photoPreviewUrls: {} });
-      const loaded = loadFencingJob();
+      const loaded = await loadOrCreateBrowserProject(get().job);
       if (!loaded.job) {
         const fallbackJobId = get().job.id;
         const persistedInventory = loadComponentInventory(fallbackJobId);

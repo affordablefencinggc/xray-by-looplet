@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X } from "lucide-react";
+import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useStudio } from "./store";
 import { inspectPlanBytes } from "./documents";
 import {
@@ -16,6 +16,9 @@ import {
 import "./sourceBuilding.css";
 import { createModelScope, type ModelScopeOptions } from "./ModelScope";
 import { BuildingVisualSettings } from "./BuildingVisualSettings";
+import { createFirstPersonNavigation } from "./FirstPersonNavigation";
+import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
+import type { NavigationMode } from "./navigationMovement";
 import { publishModelView } from "./modelViewSnapshot";
 import {
   DEFAULT_APPEARANCE,
@@ -33,9 +36,13 @@ type ViewOptions = {
   level: "all" | "ground" | "upper";
 };
 type SceneApi = {
+  navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+  stopNavigation: () => void;
   options: (value: ViewOptions) => void;
   select: (id: string | null) => void;
   fit: () => void;
+  view: (direction: [number, number, number]) => void;
+  zoom: (factor: number) => void;
   png: () => void;
   appearance: (value: BuildingAppearance) => void;
   scope: (value: ModelScopeOptions) => void;
@@ -50,6 +57,7 @@ function createBuildingScene(
   onError: (message: string) => void,
   onScopeZoom: (zoom: number) => void,
   binding: { documentId: string; sceneId: string; sceneSha256: string },
+  onNavigation: (mode: NavigationMode) => void,
 ): SceneApi {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -91,12 +99,13 @@ function createBuildingScene(
     level: "all",
   };
   let scope: ReturnType<typeof createModelScope> | null = null;
+  let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
   let disposed = false,
     frame = 0;
   const render = () => {
     frame = 0;
     if (disposed) return;
-    const changing = controls.update();
+    const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
     renderer.render(scene, camera);
     scope?.render();
     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
@@ -241,11 +250,11 @@ function createBuildingScene(
       (options.level === "ground"
         ? part.level !== "upper" && part.level !== "roof"
         : part.level !== "ground"));
-  const fit = () => {
+  const fit = (direction?: [number, number, number]) => {
     const aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
     perspective.aspect = aspect;
     perspective.updateProjectionMatrix();
-    const dir = new THREE.Vector3(...(model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
+    const dir = new THREE.Vector3(...(direction ?? model.presentation?.cameraDirection ?? [0.8, 0.67, 1.2] as [number, number, number])).normalize(),
       right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(),
       up = new THREE.Vector3().crossVectors(dir, right),
       tan = Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
@@ -291,7 +300,11 @@ function createBuildingScene(
   };
   const resize = () => {
     renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1), false);
-    fit();
+    if (navigation && navigation.mode !== "orbit") {
+      perspective.aspect = Math.max(host.clientWidth, 1) / Math.max(host.clientHeight, 1);
+      perspective.updateProjectionMatrix();
+      invalidate();
+    } else fit();
   };
   const observer = new ResizeObserver(resize);
   observer.observe(host);
@@ -357,6 +370,7 @@ function createBuildingScene(
     down = { x: event.clientX, y: event.clientY };
   };
   const onUp = (event: PointerEvent) => {
+    if (navigation && navigation.mode !== "orbit") return;
     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
       down = null;
       return;
@@ -397,7 +411,23 @@ function createBuildingScene(
     onZoomChange: onScopeZoom,
   });
   apply();
+  navigation = createFirstPersonNavigation({
+    canvas: renderer.domElement, camera: perspective, bounds,
+    floor: () => model.storeys?.find((s) => s.id === options.level)?.elevation
+      ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
+    invalidate,
+    onChange(mode) {
+      controls.enabled = mode === "orbit";
+      if (mode === "orbit") {
+        controls.target.copy(perspective.position).addScaledVector(perspective.getWorldDirection(new THREE.Vector3()), 5);
+        controls.update();
+      }
+      onNavigation(mode);
+    },
+  });
   return {
+    navigate: (mode, start) => navigation!.start(mode, start),
+    stopNavigation: () => navigation?.stop(),
     scope(value) {
       scope?.setOptions(value);
       invalidate();
@@ -418,6 +448,7 @@ function createBuildingScene(
     options(next) {
       const changed = next.plan !== options.plan,
         exploded = next.explode !== options.explode || next.level !== options.level;
+      if (changed || exploded) navigation?.stop();
       options = next;
       if (changed) {
         controls.dispose();
@@ -435,7 +466,21 @@ function createBuildingScene(
       renderer.domElement.dataset.selectedPart = id ?? "";
       apply();
     },
-    fit,
+    fit() { navigation?.stop(); fit(); },
+    view(direction) { navigation?.stop(); fit(direction); },
+    zoom(factor) {
+      navigation?.stop();
+      if (camera === orthographic) {
+        orthographic.zoom = THREE.MathUtils.clamp(orthographic.zoom * factor, 0.25, 12);
+        orthographic.updateProjectionMatrix();
+      } else {
+        const offset = perspective.position.clone().sub(controls.target);
+        const distance = THREE.MathUtils.clamp(offset.length() / factor, controls.minDistance, controls.maxDistance);
+        perspective.position.copy(controls.target).add(offset.setLength(distance));
+      }
+      controls.update();
+      invalidate();
+    },
     png() {
       renderer.render(scene, camera);
       const anchor = document.createElement("a");
@@ -486,6 +531,7 @@ function createBuildingScene(
     },
     dispose() {
       disposed = true;
+      navigation?.dispose();
       cancelAnimationFrame(frame);
       scope?.dispose();
       observer.disconnect();
@@ -512,6 +558,10 @@ function createBuildingScene(
 }
 
 export function SourceBuildingViewer() {
+  const controlDock = useRef<HTMLDivElement>(null);
+  const [navigationMode, setNavigationMode] = useState<NavigationMode>("orbit");
+  const [walkPicker, setWalkPicker] = useState(false);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
     enabled: false,
     zoom: 4,
@@ -665,6 +715,7 @@ export function SourceBuildingViewer() {
         setError,
         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
+        setNavigationMode,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -677,6 +728,14 @@ export function SourceBuildingViewer() {
   useEffect(() => api.current?.options(options), [options, matched]);
   useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
   useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
+  function navigate(mode: "fly" | "walk", start?: WalkStart) {
+    const next: ViewOptions = { ...options, plan: false, explode: false, level: mode === "walk" ? "all" : options.level };
+    api.current?.options(next);
+    setOptions(next);
+    setWalkPicker(false);
+    setNavigationError(null);
+    void api.current?.navigate(mode, start).catch((e) => setNavigationError(String(e.message)));
+  }
   useEffect(() => {
     api.current?.select(selected);
     setSourceIndex(0);
@@ -772,6 +831,22 @@ export function SourceBuildingViewer() {
       verifiedBytes === binary?.bytes &&
       model.source.sha256 === binary?.sha256 &&
       model.source.sha256 === config.sha256;
+  useEffect(() => {
+    const dock = controlDock.current;
+    if (!ready || !dock) return;
+    const root = document.documentElement;
+    const measure = () => root.style.setProperty("--model-controls-clearance", `${Math.max(34, innerHeight - dock.getBoundingClientRect().top + 8)}px`);
+    const observer = new ResizeObserver(measure);
+    observer.observe(dock);
+    if (dock.parentElement) observer.observe(dock.parentElement);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      root.style.removeProperty("--model-controls-clearance");
+    };
+  }, [ready]);
   return (
     <div
       className="source-building"
@@ -886,7 +961,7 @@ export function SourceBuildingViewer() {
           {ready ? (
             <>
               <div className="building-canvas" ref={host} />
-              <div className="building-toolbar" aria-label="3D view controls">
+              <div className="building-toolbar" role="toolbar" aria-label="3D view controls">
                 <div className="building-tool-group">
                   <button
                     type="button"
@@ -906,12 +981,14 @@ export function SourceBuildingViewer() {
                 <div className="building-tool-group">
                   <button
                     type="button"
-                    aria-pressed={!options.plan}
-                    onClick={() => setOptions((o) => ({ ...o, plan: false }))}
+                    aria-pressed={!options.plan && navigationMode === "orbit"}
+                    onClick={() => { api.current?.stopNavigation(); setOptions((o) => ({ ...o, plan: false })); }}
                   >
                     <Box size={15} />
                     Orbit
                   </button>
+                  <button type="button" aria-pressed={navigationMode === "fly"} onClick={() => navigate("fly")}>Fly</button>
+                  <button type="button" aria-pressed={navigationMode === "walk"} onClick={() => { api.current?.stopNavigation(); setWalkPicker(true); }}>Walk-through</button>
                   <button
                     type="button"
                     aria-pressed={options.plan}
@@ -919,10 +996,6 @@ export function SourceBuildingViewer() {
                   >
                     <ScanLine size={15} />
                     Plan
-                  </button>
-                  <button type="button" onClick={() => api.current?.fit()}>
-                    <Expand size={15} />
-                    Fit
                   </button>
                 </div>
                 <div className="building-tool-group">
@@ -984,6 +1057,7 @@ export function SourceBuildingViewer() {
                     Explode
                   </button>
                 </div>
+                  <button type="button" onClick={() => api.current?.fit()}><Expand size={15} />Fit</button>
                 <button
                   type="button"
                   aria-label="Download model PNG"
@@ -993,6 +1067,9 @@ export function SourceBuildingViewer() {
                   <span>PNG</span>
                 </button>
               </div>
+              {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
+              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · mouse look · Shift faster · Esc exit</p>}
+              {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
               {config.id === "caroline" && (
                 <div className="building-svg-export">
                   {svgAvailable ? (
@@ -1077,6 +1154,24 @@ export function SourceBuildingViewer() {
             </div>
           )}
         </div>
+        {ready && (
+              <div ref={controlDock} className="building-toolbar building-control-dock" role="toolbar" aria-label="Model navigation">
+                <div className="building-tool-group" role="group" aria-label="Zoom and standard views">
+                  <button type="button" aria-label="Zoom out model" onClick={() => api.current?.zoom(1 / 1.25)}><ZoomOut size={16} /></button>
+                  <button type="button" aria-label="Zoom in model" onClick={() => api.current?.zoom(1.25)}><ZoomIn size={16} /></button>
+                  <button type="button" onClick={() => api.current?.fit()}><Expand size={15} />Reset model view</button>
+                  <button type="button" onClick={() => {
+                    const next = { ...options, plan: false };
+                    api.current?.options(next); setOptions(next); api.current?.view([0.12, 0.34, -1]);
+                  }}>Front</button>
+                  <button type="button" onClick={() => {
+                    const next = { ...options, plan: false };
+                    api.current?.options(next); setOptions(next); api.current?.view([0.12, 0.34, 1]);
+                  }}>Rear</button>
+                </div>
+
+              </div>
+        )}
         </div>
         <aside className="building-inspector" aria-label="Building source evidence">
           <div className="building-inspector-title">

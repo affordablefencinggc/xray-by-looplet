@@ -35,7 +35,10 @@ describe("fencing job domain", () => {
     assert.equal(parsed.schemaVersion, JOB_SCHEMA_VERSION);
     assert.equal(parsed.revision, 1);
     assert.deepEqual(parsed.revisionHistory, []);
-    assert.equal(parsed.trade, "fencing");
+    assert.equal(parsed.trade, "general");
+    assert.equal(parsed.name, "New project");
+    assert.equal(parsed.site.address, "");
+    assert.equal(parseFencingJob({ ...job, trade: "fencing" }).trade, "fencing");
     assert.equal(parsed.documents[0].source, "sample");
   });
 

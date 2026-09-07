@@ -378,3 +378,22 @@ test("design sync preserves user stock names and supplied unit weights when no d
   assert.equal(r.materials[0].stock.specifiedWeightKg, 12);
   assert.equal(r.materials[0].review, "pending");
 });
+
+test('near-aligned layered walls remain closed and subtract hosted openings without clipping crashes', () => {
+  for (const drift of [0.001, -0.001, 0.002, 0.017]) {
+    for (const order of [[0,1,2,3], [1,2,3,0], [2,3,0,1], [3,0,1,2], [1,0,3,2], [3,2,1,0]]) {
+      const p = emptyProject('near-aligned'), level = p.levels[0].id;
+      const points: [number, number][] = [[0, drift], [4500, drift], [4500, 3000], [0, 3000]];
+      p.walls = points.map((a, i) => ({ ...newWall(p, level, a, points[(i + 1) % 4]), id: 'wall-' + order[i] }));
+      p.openings = [{ ...demonstration('fixture').openings[0], wallId: p.walls[0].id, offset: 2250, width: 900, height: 2100 }];
+      const solids = wallSolids(p), net = solids.reduce((sum, solid) => sum + solid.volumeM3, 0);
+      assert.ok(solids.length > 0 && solids.every(s => Number.isFinite(s.volumeM3) && s.volumeM3 > 0));
+      const interior = rooms(p, level);
+      assert.equal(interior.length, 1);
+      assert.ok(Math.abs(interior[0].areaM2 - 4.24 * 2.74) < 0.001);
+      p.openings = [];
+      const healed = wallSolids(p).reduce((sum, solid) => sum + solid.volumeM3, 0);
+      assert.ok(Math.abs(healed - net - .9 * 2.1 * .26) < 1e-6);
+    }
+  }
+});

@@ -18,14 +18,20 @@ import {
 } from "./model.ts";
 export type Polygon = Point[][];
 export type MultiPolygon = Polygon[];
+// Boolean intersections can produce coordinates a few floating-point bits apart.
+// Canonicalize their inputs far below the model's 0.001 mm editing precision so
+// coincident layer edges remain identical across successive union/difference calls.
+const canonical = (polygons: MultiPolygon): MultiPolygon => polygons.map(polygon =>
+  polygon.map(ring => ring.map(([x, y]) =>
+    [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6] as Point)));
 const close = (ring: Point[]): Point[] =>
   distance(ring[0], ring[ring.length - 1]) < 0.001 ? ring : [...ring, ring[0]];
 export function union(...polygons: MultiPolygon[]): MultiPolygon {
-  const nonempty = polygons.filter((p) => p.length);
+  const nonempty = polygons.filter((p) => p.length).map(canonical);
   return nonempty.length ? (clipping.union(nonempty[0], ...nonempty.slice(1)) as MultiPolygon) : [];
 }
 export function difference(a: MultiPolygon, b: MultiPolygon): MultiPolygon {
-  return !a.length ? [] : !b.length ? a : (clipping.difference(a, b) as MultiPolygon);
+  return !a.length ? [] : !b.length ? a : (clipping.difference(canonical(a), canonical(b)) as MultiPolygon);
 }
 export const polygonArea = (p: MultiPolygon) =>
   p.reduce((s, r) => s + area(r[0]) - r.slice(1).reduce((a, h) => a + area(h), 0), 0);

@@ -5,7 +5,7 @@ $workspace = Split-Path -Parent $PSScriptRoot
 $settingsPath = Join-Path $workspace '.env.local'
 $installDirectory = Join-Path $env:LOCALAPPDATA 'X-Ray by Looplet'
 $applicationPath = Join-Path $installDirectory 'xray-by-looplet.exe'
-$allowedNames = @('GEMINI_API_KEY', 'XRAY_AI_MODEL')
+$allowedNames = @('GEMINI_API_KEY', 'XRAY_AI_MODEL', 'DEEPGRAM_API_KEY', 'XRAY_VOICE_EDGE_URL', 'XRAY_VOICE_EDGE_TOKEN')
 $previous = @{}
 
 try {
@@ -14,7 +14,7 @@ try {
     }
     if (Test-Path -LiteralPath $settingsPath) {
         foreach ($line in [System.IO.File]::ReadAllLines($settingsPath)) {
-            if ($line -match '^\s*(?:export\s+)?(GEMINI_API_KEY|XRAY_AI_MODEL)\s*=\s*(.*?)\s*$') {
+            if ($line -match '^\s*(?:export\s+)?(GEMINI_API_KEY|XRAY_AI_MODEL|DEEPGRAM_API_KEY|XRAY_VOICE_EDGE_URL|XRAY_VOICE_EDGE_TOKEN)\s*=\s*(.*?)\s*$') {
                 $name = $Matches[1]
                 $value = $Matches[2].Trim().Trim('"').Trim("'")
                 if ($name -eq 'GEMINI_API_KEY' -and $value -notmatch '^AIza[0-9A-Za-z_-]{20,100}$') {

@@ -6,6 +6,7 @@ import {
   LEGACY_FENCING_JOB_STORAGE_KEY,
   clearFencingJob,
   loadFencingJob,
+  loadOrCreateProject,
   saveFencingJob,
 } from "./persistence.ts";
 
@@ -26,6 +27,20 @@ class MemoryStorage {
 }
 
 describe("fencing job persistence", () => {
+  it("persists a new project identity before separate libraries are saved and reuses it after reopen", () => {
+    const storage = new MemoryStorage(), first = createDefaultJob(), second = createDefaultJob();
+    assert.notEqual(first.id, second.id);
+    assert.equal(loadOrCreateProject(first, storage).job?.id, first.id);
+    assert.equal(loadOrCreateProject(second, storage).job?.id, first.id);
+    assert.equal(loadFencingJob(storage).job?.trade, "general");
+  });
+  it("never initializes over corrupt work and reports unavailable project storage", () => {
+    const storage = new MemoryStorage(); storage.setItem(FENCING_JOB_STORAGE_KEY, "{broken");
+    assert.equal(loadOrCreateProject(createDefaultJob(), storage).job, null);
+    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), "{broken");
+    const missing = loadOrCreateProject(createDefaultJob(), null);
+    assert.equal(missing.job, null); assert.match(missing.error ?? "", /unavailable/i);
+  });
   it("saves and loads a validated job", () => {
     const storage = new MemoryStorage();
     const job = createDefaultJob("2026-09-04T00:00:00.000Z");

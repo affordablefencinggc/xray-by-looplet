@@ -85,8 +85,8 @@ export function CapabilitiesChecklist({ onClose }: { onClose: () => void }) {
       "Architectural sketch",
       "architect-dwg",
       "Native DWG translation",
-      "Requires a licensed DWG translator. Export ASCII DXF from the source CAD application meanwhile.",
-      "Planned",
+      "Windows desktop: local DWG drawing import/export. External CAD becomes supported 2D reference geometry; use DXF or backup for parametric assemblies. Web uses DXF.",
+      "Limited",
       "sketch",
     );
     add(

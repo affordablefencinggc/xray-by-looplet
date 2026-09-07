@@ -1,5 +1,10 @@
 ﻿import { useEffect, useRef } from "react";
 import * as T from "three";
+import { useState } from "react";
+import { createFirstPersonNavigation } from "../FirstPersonNavigation";
+import type { NavigationMode } from "../navigationMovement";
+import type { WalkStart } from "../WalkStartDialog";
+import { ArchitectWalkStart } from "./ArchitectWalkStart";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { wallSolids, roofFaces, roofTrims, type Polygon } from "./geometry";
 import { unit, add, mul, wallThickness, type ArchitectProject, type Point } from "./model";
@@ -27,10 +32,15 @@ export function Architect3D({
   roofVisible: boolean;
   fitToken: number;
 }) {
+  const [mode, setMode] = useState<NavigationMode>("orbit");
+  const [walkPicker, setWalkPicker] = useState(false);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const host = useRef<HTMLDivElement>(null),
     api = useRef<{
       update: (p: ArchitectProject, l: string, s: string | null, r: boolean) => void;
       fit: () => void;
+      navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+      stop: () => void;
     } | null>(null),
     pick = useRef(onSelect);
   pick.current = onSelect;
@@ -73,10 +83,13 @@ export function Architect3D({
     let frame = 0,
       disposed = false,
       initial = true;
+    let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
+    const navigationBounds = new T.Box3();
+    let floorElevation = 0;
     const render = () => {
         frame = 0;
         if (disposed) return;
-        const moving = controls.update();
+        const moving = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
         renderer.render(scene, camera);
         renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
         renderer.domElement.dataset.frameCount = String(
@@ -88,7 +101,20 @@ export function Architect3D({
         if (!frame && !disposed) frame = requestAnimationFrame(render);
       };
     controls.addEventListener("change", invalidate);
+    navigation = createFirstPersonNavigation({
+      canvas: renderer.domElement, camera, bounds: navigationBounds,
+      floor: () => floorElevation, invalidate,
+      onChange(next) {
+        controls.enabled = next === "orbit";
+        if (next === "orbit") {
+          controls.target.copy(camera.position).addScaledVector(camera.getWorldDirection(new T.Vector3()), 3);
+          controls.update();
+        }
+        setMode(next);
+      },
+    });
     const fit = () => {
+      navigation?.stop();
       const b = new T.Box3().setFromObject(group);
       if (b.isEmpty()) {
         b.min.set(0, 0, 0);
@@ -227,6 +253,11 @@ export function Architect3D({
         }
       const b = new T.Box3().setFromObject(group);
       ground.position.y = b.isEmpty() ? -0.3 : b.min.y - 0.01;
+      navigationBounds.copy(b);
+      if (b.isEmpty()) navigationBounds.set(new T.Vector3(0, 0, 0), new T.Vector3(9, 2.7, 6));
+      const nextFloor = (p.levels.find((level) => level.id === l) ?? p.levels[0]).elevation / 1000;
+      if (nextFloor !== floorElevation) navigation?.stop();
+      floorElevation = nextFloor;
       renderer.domElement.dataset.projectRevision = String(p.revision);
       renderer.domElement.dataset.meshCount = String(group.children.length);
       renderer.domElement.dataset.selected = s ?? "";
@@ -250,6 +281,7 @@ export function Architect3D({
         down = [e.clientX, e.clientY];
       },
       pointerUp = (e: PointerEvent) => {
+        if (navigation?.mode !== "orbit") return;
         if (Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
         const r = renderer.domElement.getBoundingClientRect(),
           ray = new T.Raycaster();
@@ -265,10 +297,11 @@ export function Architect3D({
       };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
-    api.current = { update, fit };
+    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), stop: () => navigation?.stop() };
     resize();
     return () => {
       disposed = true;
+      navigation?.dispose();
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
@@ -286,5 +319,20 @@ export function Architect3D({
   useEffect(() => {
     api.current?.fit();
   }, [fitToken]);
-  return <div className="architect-3d" ref={host} />;
+  function navigate(next: "fly" | "walk", start?: WalkStart) {
+    setWalkPicker(false);
+    setNavigationError(null);
+    void api.current?.navigate(next, start).catch((e) => setNavigationError(String(e.message)));
+  }
+  return <div className="architect-3d">
+    <div className="architect-3d-render" ref={host} />
+    <div className="arch-navigation" aria-label="Architectural 3D navigation">
+      <button aria-pressed={mode === "orbit"} onClick={() => api.current?.stop()}>Orbit</button>
+      <button aria-pressed={mode === "fly"} onClick={() => navigate("fly")}>Fly</button>
+      <button aria-pressed={mode === "walk"} onClick={() => { api.current?.stop(); setWalkPicker(true); }}>Walk-through</button>
+    </div>
+    {mode !== "orbit" && <p className="architect-3d-caption">WASD move · mouse look · Shift faster · Esc exit{mode === "fly" ? " · Space/Ctrl altitude" : " · eye height 1.65 m; walls do not block movement"}</p>}
+    {navigationError && <p role="alert" className="architect-3d-caption">{navigationError}</p>}
+    {walkPicker && <ArchitectWalkStart project={project} initialLevel={levelId} onClose={() => setWalkPicker(false)} onStart={(point) => navigate("walk", point)} />}
+  </div>;
 }

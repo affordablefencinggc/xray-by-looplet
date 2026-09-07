@@ -3,7 +3,7 @@ import {
   projectMaterialsSchema,
   type ProjectMaterials,
   type ProjectMaterialsSession,
-} from "./construction/projectMaterials";
+} from "./construction/projectMaterials.ts";
 
 // Large projects use IndexedDB, avoiding the small localStorage quota. A single
 // read-write transaction compares and replaces the prior snapshot atomically.

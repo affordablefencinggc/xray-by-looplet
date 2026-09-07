@@ -87,6 +87,23 @@ export function saveFencingJob(
   }
 }
 
+/** Establish a durable identity before any project-scoped library can be written. */
+export function loadOrCreateProject(fallback: FencingJob, storage: StorageLike | null = browserStorage()): JobLoadResult {
+  const loaded = loadFencingJob(storage);
+  if (loaded.job || loaded.error) return loaded;
+  const saved = saveFencingJob(fallback, storage);
+  if (!saved.ok) return { job: null, error: saved.error };
+  return loadFencingJob(storage);
+}
+
+export async function loadOrCreateBrowserProject(fallback: FencingJob): Promise<JobLoadResult> {
+  // Serialize first-open windows, then re-read inside the lock. Normal editing
+  // remains governed by the existing persistence path, not this initialization lock.
+  if (typeof navigator !== "undefined" && navigator.locks)
+    return navigator.locks.request("xray:project-initialization", () => loadOrCreateProject(fallback));
+  return loadOrCreateProject(fallback);
+}
+
 export function clearFencingJob(
   storage: StorageLike | null = browserStorage(),
 ): JobPersistenceResult {

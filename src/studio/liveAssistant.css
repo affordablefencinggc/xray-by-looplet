@@ -5,7 +5,7 @@
   --assistant-shadow: #17233026;
   position: fixed;
   right: 12px;
-  bottom: 34px;
+  bottom: var(--model-controls-clearance, 34px);
   width: min(calc(var(--right-menu-width, 380px) - 24px), calc(100vw - 24px));
   z-index: 38;
   color: var(--color-ink);
@@ -49,3 +49,8 @@
 @keyframes assistant-reveal { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 940px) { .live-assistant { width: min(320px, calc(100vw - 24px)); } .live-assistant button { min-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { .live-assistant-panel { animation: none; } .live-assistant-launcher svg:last-child { transition: none; } }
+.live-assistant-voice { display: grid; gap: 6px; padding: 10px 0; color: var(--color-ink); }
+.live-assistant-voice > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.live-assistant-voice button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); color: var(--color-ink); }
+.live-assistant-voice button:disabled { opacity: .5; cursor: default; }
+.live-assistant-voice small { font-size: 11px; line-height: 1.5; }

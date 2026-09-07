@@ -3,6 +3,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import polygonClipping from "polygon-clipping";
 import { parseSourceBuilding } from "../src/studio/sourceBuilding.ts";
 const root = "public/models/redburn",
   sha256 = crypto
@@ -459,10 +460,17 @@ add(
   "slab",
   "concrete",
   "upper",
-  plate(outdoor, 3.12, 0.2),
+  // Leave an actual recess for the written 100 mm carport stepdown.
+  polygonClipping.difference([outdoor], [[[1.39, 6.65], [7.11, 6.65], [7.11, 13.64], [1.39, 13.64]]])
+    .flatMap((rings) => {
+      const vectors = rings.map((ring) => ring.slice(0, -1).map((p) => new T.Vector2(...p)));
+      const points = vectors.flat();
+      return T.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1)).map((triangle) =>
+        plate(triangle.map((i) => points[i].toArray()), 3.12, 0.2));
+    }),
   ref(
     4,
-    "Outdoor RL22.50 conflicts with 100 mm stepdown relative to FFL22.47. Displayed at upper datum pending clarification.",
+    "Outdoor RL22.50 conflicts with the written 100 mm stepdown relative to FFL22.47. Walkway remains at upper datum; carport follows the explicit 100 mm stepdown. Datum conflict requires clarification.",
   ),
 );
 add(
@@ -471,7 +479,8 @@ add(
   "room",
   "concrete",
   "upper",
-  box(1.45, 6.85, 5.62, 6.59, 3.12, 0.015),
+  box(1.39, 6.65, 5.72, 6.99, 2.82, 0.2),
+  ref(4, "Carport slab at 100 mm below upper FFL, following the written stepdown. RL22.50 annotation conflicts; not resolved survey levels."),
 );
 add(
   "walkway",
@@ -487,9 +496,19 @@ add("carport-walls", "Carport walls and walkway retaining wall", "wall", "concre
   box(1.19, 6.65, 0.2, 6.99, 3.12, 2.74),
   box(7.11, 6.65, 0.2, 6.99, 3.12, 2.74),
 ]);
-const garage = [];
-for (let h = 0; h < 2.84; h += 0.355) garage.push(box(1.69, 13.54, 5.12, 0.09, 3.12 + h, 0.34));
-add("garage-door", "2840 h x 5120 w sectional steel door", "door", "architrave", "upper", garage);
+add("carport-door-returns", "Carport door jamb wall returns", "wall", "concrete", "upper", [
+  box(1.19, 13.44, 0.5, 0.2, 3.02, 2.84),
+  box(6.81, 13.44, 0.5, 0.2, 3.02, 2.84),
+], ref(4, "Wall returns close the plan's 5120 mm door opening to the carport side walls. Return depths inferred."));
+// Integer panel count avoids a ninth panel from accumulated floating-point error.
+// A continuous inner leaf closes the shallow panel rebates instead of leaving holes.
+const garage = [box(1.69, 13.54, 5.12, 0.035, 3.02, 2.84)];
+for (let panel = 0; panel < 8; panel++) {
+  const bottom = panel * 2.84 / 8;
+  garage.push(box(1.69, 13.575, 5.12, 0.055, 3.02 + bottom, 2.84 / 8 - 0.015));
+}
+add("garage-door", "2840 h x 5120 w sectional steel door", "door", "architrave", "upper", garage,
+  ref(4, "2840 x 5120 door; the written 100 mm carport stepdown places its head at the 2740 mm upper ceiling datum. Panel count/profile inferred."));
 const slats = [];
 for (let a = 7.43; a < 11.15; a += 0.095) slats.push(box(a, 6.73, 0.035, 0.045, 3.12, 1.65));
 add("court-screen", "Courtyard aluminium privacy screen", "fence", "metal", "upper", slats);
@@ -599,7 +618,70 @@ function polygon(points) {
   g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
   return g;
 }
-function roof(id, label, a0, a1, b0, b1, eave, pitch) {
+const mainRoofBounds = [-0.48, 11.79, -0.48, 7.05];
+const carportRoofBounds = [0.95, 7.57, 6.15, 13.78];
+const roofPitch = Math.tan((22.5 * Math.PI) / 180);
+const gables = [
+  { id: "terrace-gable", axis: "a", c: 8.05, fixed: -0.22, width: 4.4, inward: 1 },
+  { id: "stair-gable", axis: "b", c: 3.15, fixed: -0.27, width: 4.8, inward: 1 },
+  { id: "carport-gable", axis: "a", c: 4.26, fixed: 13.78, width: 6.62, inward: -1 },
+].map((g) => {
+  const r = g.width / 2;
+  const y = g.id === "carport-gable" ? 5.86 : 5.86 + (g.fixed - mainRoofBounds[g.axis === "a" ? 2 : 0]) * roofPitch;
+  const point = (across, height, inward = 0) =>
+    g.axis === "a" ? [across, height, g.fixed + inward * g.inward] : [g.fixed + inward * g.inward, height, across];
+  const left = point(g.c - r, y),
+    right = point(g.c + r, y);
+  const peak = point(g.c, y + r * roofPitch),
+    join = point(g.c, y + r * roofPitch, r);
+  return {
+    ...g,
+    y,
+    left,
+    right,
+    peak,
+    join,
+    footprint: [left, right, join].map((p) => [p[0], p[2]]),
+  };
+});
+// Split host sheet ribs at every gable footprint edge; no hidden duplicate roof
+// sheet or rib is left underneath the new intersecting roof slopes.
+function exposedRib(start, end, openings) {
+  const breaks = [0, 1],
+    dx = end[0] - start[0],
+    dz = end[2] - start[2];
+  const cross = (x, z, u, v) => x * v - z * u;
+  for (const g of openings)
+    for (let i = 0; i < 3; i++) {
+      const a = g.footprint[i],
+        b = g.footprint[(i + 1) % 3];
+      const ex = b[0] - a[0],
+        ez = b[1] - a[1],
+        det = cross(dx, dz, ex, ez);
+      if (Math.abs(det) < 1e-10) continue;
+      const ax = a[0] - start[0],
+        az = a[1] - start[2];
+      const t = cross(ax, az, ex, ez) / det,
+        u = cross(ax, az, dx, dz) / det;
+      if (t > 0 && t < 1 && u >= 0 && u <= 1) breaks.push(t);
+    }
+  const at = (t) => start.map((v, i) => v + (end[i] - v) * t);
+  const inside = (p, ring) => {
+    const signs = ring.map((a, i) => {
+      const b = ring[(i + 1) % ring.length];
+      return cross(b[0] - a[0], b[1] - a[1], p[0] - a[0], p[2] - a[1]);
+    });
+    return signs.every((v) => v >= -1e-9) || signs.every((v) => v <= 1e-9);
+  };
+  breaks.sort((a, b) => a - b);
+  return breaks.slice(1).flatMap((endT, i) => {
+    const startT = breaks[i];
+    if (endT - startT < 1e-8 || openings.some((g) => inside(at((startT + endT) / 2), g.footprint)))
+      return [];
+    return [rod(P(...at(startT)), P(...at(endT)), 0.007)];
+  });
+}
+function roof(id, label, a0, a1, b0, b1, eave, pitch, openings = []) {
   const k = Math.tan((pitch * Math.PI) / 180),
     r = Math.min((a1 - a0) / 2, (b1 - b0) / 2),
     rise = r * k,
@@ -639,7 +721,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
     for (const side of [0, 1]) {
       const b = side ? b1 : b0,
         d = side ? -run : run;
-      ribs.push(rod(P(a, eave + 0.012, b), P(a, eave + run * k + 0.012, b + d), 0.007));
+      ribs.push(...exposedRib([a, eave + 0.012, b], [a, eave + run * k + 0.012, b + d], openings));
     }
   }
   for (let b = b0 + 0.065; b < b1; b += 0.12) {
@@ -647,7 +729,7 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
     for (const side of [0, 1]) {
       const a = side ? a1 : a0,
         d = side ? -run : run;
-      ribs.push(rod(P(a, eave + 0.012, b), P(a + d, eave + run * k + 0.012, b), 0.007));
+      ribs.push(...exposedRib([a, eave + 0.012, b], [a + d, eave + run * k + 0.012, b], openings));
     }
   }
   add(
@@ -656,7 +738,27 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
     "roof",
     "roof",
     "roof",
-    faces.map(polygon),
+    faces.flatMap((f) => {
+      if (!openings.length) return [polygon(f)];
+      const clipped = polygonClipping.difference(
+        [f.map((p) => [p[0], p[2]])],
+        ...openings.map((g) => [g.footprint]),
+      );
+      return clipped.map((rings) => {
+        const vectors = rings.map((r) => r.slice(0, -1).map((p) => new T.Vector2(...p)));
+        const triangles = T.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1));
+        const points = vectors.flat();
+        const positions = triangles.flatMap((t) =>
+          t.flatMap((i) => {
+            const { x: a, y: b } = points[i];
+            return P(a, eave + Math.min(a - a0, a1 - a, b - b0, b1 - b) * k, b).toArray();
+          }),
+        );
+        const geometry = new T.BufferGeometry();
+        geometry.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
+        return geometry;
+      });
+    }),
     ref(
       6,
       `${pitch} degree metal roof specified. Hip/ridge intersections inferred from elevations and cover; no roof framing plan.`,
@@ -687,8 +789,8 @@ function roof(id, label, a0, a1, b0, b1, eave, pitch) {
     ref(6),
   );
 }
-roof("main-roof", "Main residence / 22.5 degree hip roof", -0.48, 11.79, -0.48, 7.05, 5.86, 22.5);
-roof("carport-roof", "Carport / 22.5 degree roof", 0.95, 7.57, 6.15, 13.78, 5.86, 22.5);
+roof("main-roof", "Main residence / 22.5 degree hip roof", ...mainRoofBounds, 5.86, 22.5, gables.filter(g => g.id !== "carport-gable"));
+roof("carport-roof", "Carport / 22.5 degree roof", ...carportRoofBounds, 5.86, 22.5, gables.filter(g => g.id === "carport-gable"));
 const a0 = -0.32,
   a1 = 11.67,
   b0 = -3.13,
@@ -736,7 +838,8 @@ add(
   ],
   ref(6),
 );
-function gable(id, axis, c, fixed, width, y) {
+function gable({ id, axis, c, fixed, width, y, left, right, peak, join, inward = 1 }) {
+  const page = id === "carport-gable" ? 5 : 6;
   const r = width / 2,
     h = r * Math.tan((22.5 * Math.PI) / 180),
     p =
@@ -759,7 +862,7 @@ function gable(id, axis, c, fixed, width, y) {
     "roof",
     polygon(p),
     ref(
-      6,
+      page,
       "Decorative gable shown. Width, ridge and batten spacing inferred from elevation/cover.",
     ),
   );
@@ -768,8 +871,8 @@ function gable(id, axis, c, fixed, width, y) {
     const hh = (r - Math.abs(t)) * Math.tan((22.5 * Math.PI) / 180);
     bars.push(
       axis === "a"
-        ? rod(P(c + t, y, fixed - 0.012), P(c + t, y + hh, fixed - 0.012), 0.02)
-        : rod(P(fixed - 0.012, y, c + t), P(fixed - 0.012, y + hh, c + t), 0.02),
+        ? rod(P(c + t, y, fixed - inward * 0.012), P(c + t, y + hh, fixed - inward * 0.012), 0.02)
+        : rod(P(fixed - inward * 0.012, y, c + t), P(fixed - inward * 0.012, y + hh, c + t), 0.02),
     );
   }
   add(
@@ -779,11 +882,61 @@ function gable(id, axis, c, fixed, width, y) {
     "architrave",
     "roof",
     bars,
-    ref(6),
+    ref(page),
+  );
+  add(
+    id + "-roof",
+    "Decorative gable / intersecting roof slopes",
+    "roof",
+    "roof",
+    "roof",
+    [polygon([left, peak, join]), polygon([peak, right, join])],
+    ref(
+      page,
+      "Gable roof joins the host hip at two valleys; aligned to the decorative face shown on the cover and elevations. Undimensioned depth inferred.",
+    ),
+  );
+  const ribs = [];
+  for (let depth = 0.06; depth < r; depth += 0.12) {
+    const length = r - depth;
+    const ridge =
+      axis === "a"
+        ? [c, y + r * roofPitch + 0.012, fixed + inward * depth]
+        : [fixed + inward * depth, y + r * roofPitch + 0.012, c];
+    for (const sign of [-1, 1]) {
+      const valley =
+        axis === "a"
+          ? [c + sign * length, y + depth * roofPitch + 0.012, fixed + inward * depth]
+          : [fixed + inward * depth, y + depth * roofPitch + 0.012, c + sign * length];
+      ribs.push(rod(P(...ridge), P(...valley), 0.007));
+    }
+  }
+  add(
+    id + "-roof-ribs",
+    "Decorative gable / roof sheet ribs",
+    "roof-trim",
+    "metal",
+    "roof",
+    ribs,
+    ref(page),
+  );
+  add(
+    id + "-roof-caps",
+    "Decorative gable / ridge, valleys and barge flashing",
+    "roof-trim",
+    "metal",
+    "roof",
+    [
+      [left, peak],
+      [right, peak],
+      [peak, join],
+      [left, join],
+      [right, join],
+    ].map(([a, b]) => rod(P(...a), P(...b), 0.035)),
+    ref(page),
   );
 }
-gable("terrace-gable", "a", 8.05, -0.22, 4.4, 5.98);
-gable("stair-gable", "b", 3.15, -0.27, 4.8, 6.04);
+for (const spec of gables) gable(spec);
 add(
   "flue",
   "Fireplace flue / indicative termination",
@@ -1051,7 +1204,7 @@ const scene = {
   assumptions: [
     "Presentation reconstruction from the original 13-page preliminary council PDF. Not coordinated CAD/BIM, fabrication drawings, structural analysis or a verified bill of materials.",
     "Lower FFL19.35 and upper FFL22.47 give 3.12 m separation. Ceiling heights2740 mm and upper floor zone380 mm are shown in elevations.",
-    "Outdoor RL22.50 and 100 mm stepdown annotations conflict with upper FFL22.47. Outdoor slabs shown at upper datum pending clarification.",
+    "Outdoor RL22.50 and 100 mm stepdown annotations conflict with upper FFL22.47. Carport follows the written 100 mm stepdown; walkway/court remain at upper datum pending clarification.",
     "Written dimensions anchor the layout. Un-dimensioned positions, roof intersections, subfloor depths and aperture locations are visually approximated. Source states do not scale.",
     "Main/carport roof pitch22.5 degrees; verandah15 degrees. Gable geometry inferred from cover and elevations. Roof framing is not supplied.",
     "Cladding180 mm, verandah posts112 x112 mm and terrace balustrade1020 mm are specified. Rib/cable spacing, tile module, joinery profiles and glass blade counts are illustrative.",
@@ -1063,7 +1216,7 @@ const scene = {
     floors: 2,
     wallRuns: objects.filter((o) => o.category === "wall").length,
     openings: objects.filter((o) => /opening-\d+$/.test(o.id)).length,
-    roofFaces: 11,
+    roofFaces: 15,
     objects: objects.length,
     visibleNamedRooms: 13,
     method:

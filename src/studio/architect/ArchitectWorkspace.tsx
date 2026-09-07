@@ -1,8 +1,9 @@
+import { useDesignConfirmation } from "./useDesignConfirmation";
 import { SyncDesignMaterials } from "./SyncDesignMaterials";
 import { ArchitectAi } from "./ArchitectAi";
 import { ArchitectSheets } from "./ArchitectSheets";
-import { exportDxf, importDxf, csv } from "./exchange";
-import { exportIfc } from "./ifc";
+import { csv } from "./exchange";
+import { ArchitectCadExchange } from "./ArchitectCadExchange";
 import {
   useEffect,
   useMemo,
@@ -100,6 +101,7 @@ function download(data: string, name: string, type = "application/json") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function ArchitectWorkspace() {
+  const { confirmDesign, confirmation } = useDesignConfirmation();
   const jobId = useStudio((s) => s.job.id),
     [session, setSession] = useState<ArchitectSession>(() => ({
       value: emptyProject(jobId),
@@ -176,6 +178,9 @@ export function ArchitectWorkspace() {
         redo.current = [];
       }
       setSession(saved);
+      setLevelId((current) =>
+        value.levels.some((level) => level.id === current) ? current : value.levels[0].id,
+      );
       setError(null);
       setNotice("Saved · revision " + value.revision);
       return true;
@@ -539,12 +544,12 @@ export function ArchitectWorkspace() {
         </div>
         <div className="arch-button-row">
           <button
-            onClick={() => {
+            onClick={async () => {
               if (
                 (p.walls.length || p.lines.length) &&
-                !confirm(
+                !(await confirmDesign(
                   "Replace this design with the labelled demonstration? Undo will remain available.",
-                )
+                ))
               )
                 return;
               const q = demonstration(p.id);
@@ -581,9 +586,9 @@ export function ArchitectWorkspace() {
                 if (f.size > 8 * 1024 * 1024) throw Error("Design backup exceeds 8 MB.");
                 const incoming = validateProject(JSON.parse(await f.text()));
                 if (
-                  !confirm(
+                  !(await confirmDesign(
                     "Replace this design with the validated backup? The current saved snapshot will be preserved for recovery.",
-                  )
+                  ))
                 )
                   return;
                 const q = { ...incoming, id: p.id };
@@ -968,7 +973,11 @@ export function ArchitectWorkspace() {
                   />
                   <label className="arch-field">
                     Boundary / mirror axis
-                    <select value={boundary} onChange={(e) => setBoundary(e.target.value)}>
+                    <select
+                      aria-label="Boundary / mirror axis"
+                      value={boundary}
+                      onChange={(e) => setBoundary(e.target.value)}
+                    >
                       <option value="">Vertical origin axis for mirror</option>
                       {[...p.walls, ...p.lines]
                         .filter((e) => e.id !== selected)
@@ -1245,75 +1254,24 @@ export function ArchitectWorkspace() {
       )}
       {panel === "ai" && <ArchitectAi project={p} levelId={levelId} onChange={commit} />}
       {panel === "sheets" && <ArchitectSheets project={p} onChange={commit} onError={setError} />}
-      <footer className="arch-exchange">
-        <span>CAD exchange</span>
-        <button
-          onClick={async () => {
-            try {
-              download(await exportDxf(p), "architect-design.dxf", "application/dxf");
-            } catch (e) {
-              setError(String(e));
-            }
-          }}
-        >
-          Export DXF
-        </button>
-        <label className="arch-file-button">
-          Import DXF
-          <input
-            type="file"
-            accept=".dxf,.dwg"
-            hidden
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              try {
-                if (f.size > 12e6) throw Error("CAD file exceeds 12 MB.");
-                const result = await importDxf(await f.text(), p.id);
-                if (
-                  !confirm(
-                    "Replace the current design with this CAD import? Export a backup first if needed. Undo remains available.",
-                  )
-                )
-                  return;
-                if (commit(result.project)) {
-                  setLevelId(result.project.levels[0].id);
-                  setNotice(
-                    result.parametric
-                      ? "Parametric DXF restored with stable identities"
-                      : result.warnings.join(" "),
-                  );
-                  setSelected(null);
-                  setFitToken((n) => n + 1);
-                }
-              } catch (e) {
-                setError(String(e));
-              }
-              e.target.value = "";
-            }}
-          />
-        </label>
-        <button
-          onClick={() => {
-            try {
-              download(exportIfc(p), "architect-design.ifc", "application/x-step");
-            } catch (e) {
-              setError(String(e));
-            }
-          }}
-        >
-          Export IFC
-        </button>
-        <details>
-          <summary>Exchange coverage</summary>
-          <p>
-            DXF: plan vectors and unchanged X-Ray parametric round trips. External DXF: reference
-            lines and curves. IFC: modelled walls, openings, slabs and roof surfaces. Native DWG
-            requires a licensed translator; use ASCII DXF meanwhile. No structural or regulatory
-            certification is implied.
-          </p>
-        </details>
-      </footer>
+      <ArchitectCadExchange
+        project={p}
+        confirm={confirmDesign}
+        onError={setError}
+        onImport={(result) => {
+          if (commit(result.project)) {
+            setLevelId(result.project.levels[0].id);
+            setNotice(
+              result.parametric
+                ? "Parametric DXF restored with stable identities"
+                : result.warnings.join(" "),
+            );
+            setSelected(null);
+            setFitToken((n) => n + 1);
+          }
+        }}
+      />
+      {confirmation}
     </section>
   );
 }

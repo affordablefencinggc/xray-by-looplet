@@ -151,7 +151,7 @@ export default defineConfig(({ command, isPreview }) => ({
     port: 8080,
     strictPort: true,
     watch: {
-      ignored: ["**/.vercel/**", "**/.output/**", "**/dist/**", "**/snapshots/**", "**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
+      ignored: ["**/.vercel/**", "**/.output/**", "**/dist/**", "**/snapshots/**", "**/src-tauri/target/**", "**/engine/host/target/**", "**/.autopilot/**", "**/.temp/**", "**/proof/**", "**/screenshots/**", "**/planning/control/**"],
     },
   },
   preview: {

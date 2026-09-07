@@ -717,3 +717,96 @@
     min-height: 44px;
   }
 }
+.building-navigation-hint {
+  position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5;
+  margin: 0; padding: 8px 12px; pointer-events: none;
+  background: var(--color-paper); color: var(--color-ink);
+  border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px;
+}
+
+/* Reserve real layout space: controls must not fall outside the canvas or
+   disappear behind the diagnostics drawer when the viewport gets shorter. */
+.workbench .source-building .building-control-dock {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+  padding: 8px;
+  gap: 6px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-header);
+  pointer-events: auto;
+  z-index: 3;
+}
+.workbench .building-control-dock .building-tool-group {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  box-shadow: none;
+  padding: 0;
+}
+.workbench .building-control-dock button,
+.workbench .building-control-dock select {
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 12px;
+}
+.workbench .building-control-dock button:hover {
+  background: var(--color-selected);
+  color: var(--color-ink);
+}
+@media (max-width: 900px) {
+  .workbench .source-building {
+    height: 100%;
+    min-height: 0;
+  }
+  .workbench .source-building .building-workspace {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+  }
+  .workbench .source-building .building-center-column {
+    flex: 0 0 100%;
+    min-height: 360px;
+  }
+  .workbench .source-building .building-stage {
+    flex: 1;
+    min-height: 140px;
+    height: auto;
+  }
+  .workbench .source-building .building-canvas {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+  }
+  .workbench .source-building .building-control-dock {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .workbench .source-building .building-control-dock .building-tool-group { flex-wrap: wrap; justify-content: center; max-width: 100%; }
+  .workbench .source-building .building-stage > .building-toolbar {
+    position: relative;
+    inset: auto;
+    margin: 54px 8px 8px;
+    z-index: 1;
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    pointer-events: none;
+  }
+  .workbench .source-building .building-stage > .building-toolbar .building-tool-group { flex-wrap: wrap; }
+  .workbench .source-building .building-canvas-note {
+    position: absolute;
+    inset: auto 8px 38px 8px;
+    margin: 0;
+  }
+  .workbench .source-building .building-view-label { bottom: 8px; right: 8px; }
+  .workbench .source-building .building-visual-settings { position: absolute; top: 0; right: 0; z-index: 2; }
+}

@@ -5,6 +5,7 @@ import { useLiveAssistant } from "./liveAssistantState";
 import { getMaterialAiStatus, type MaterialAiStatus } from "./materialAiTransport";
 import { inspectPlanBytes } from "./documents";
 import "./liveAssistant.css";
+import { LiveAssistantVoice } from "./LiveAssistantVoice";
 
 export function LiveAssistant() {
   const { open, draft, guide } = useLiveAssistant();
@@ -65,6 +66,7 @@ export function LiveAssistant() {
               onChange={event => useLiveAssistant.setState({ draft: event.target.value })} />
             <div className="live-assistant-compose-footer"><span>Source-linked materials. Your review.</span><button type="submit" aria-label="Prepare drawing review" disabled={!hydrated || binary?.kind !== "pdf"}><ArrowUpRight size={18} /><span>Prepare review</span></button></div>
           </form>
+          <LiveAssistantVoice onMessage={setMessage} reply={message || "Tell me what to look for in the drawing. Speak your instructions, review the transcript, then prepare a drawing review. Your drawing is only sent when you choose Send selected sheet to Gemini in AI review."} />
           <div className="live-assistant-suggestions" aria-label="Drawing review suggestions">
             <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "List every visible material on this sheet, with its source evidence. Flag unknown quantities and avoid counting repeated views twice." }); input.current?.focus(); }}>All materials</button>
             <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "Find missing dimensions, quantities and material specifications on this sheet. Keep unsupported values unresolved." }); input.current?.focus(); }}>Missing details</button>

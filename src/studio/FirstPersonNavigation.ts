@@ -20,7 +20,8 @@ export function createFirstPersonNavigation({
     yaw = 0,
     pitch = 0,
     last = 0,
-    walkY = 0;
+    walkY = 0,
+    orbitFov = camera.fov;
   const keys = new Set<string>(),
     velocity = new THREE.Vector3(),
     direction = new THREE.Vector3();
@@ -46,6 +47,8 @@ export function createFirstPersonNavigation({
   function stop() {
     if (mode === "orbit") return;
     mode = "orbit";
+    camera.fov = orbitFov;
+    camera.updateProjectionMatrix();
     arrival = null;
     canvas.dataset.navigationTransition = "idle";
     keys.clear();
@@ -96,6 +99,9 @@ export function createFirstPersonNavigation({
       return mode;
     },
     async start(next: "fly" | "walk", start?: WalkStart) {
+      orbitFov = camera.fov;
+      camera.fov = 65;
+      camera.updateProjectionMatrix();
       const origin = camera.position.clone(),
         originRotation = camera.quaternion.clone();
       arrival = null;
@@ -129,10 +135,21 @@ export function createFirstPersonNavigation({
       try {
         await canvas.requestPointerLock();
       } catch {
+        camera.fov = orbitFov;
+        camera.updateProjectionMatrix();
+        camera.position.copy(origin);
+        camera.quaternion.copy(originRotation);
+        invalidate();
         throw Error("Mouse capture was unavailable. Click Fly or Walk again to enter navigation.");
       }
-      if (document.pointerLockElement !== canvas)
+      if (document.pointerLockElement !== canvas) {
+        camera.fov = orbitFov;
+        camera.updateProjectionMatrix();
+        camera.position.copy(origin);
+        camera.quaternion.copy(originRotation);
+        invalidate();
         throw Error("Click the model again to allow mouse capture.");
+      }
       mode = next;
       if (animate)
         arrival = {

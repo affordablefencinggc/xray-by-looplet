@@ -13,6 +13,11 @@ import { useStudio, type Pane } from "./store";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
 import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
+import { ProjectBackups } from "./ProjectBackups";
+import { ProjectDetails } from "./ProjectDetails";
+import { SheetManager } from "./SheetManager";
+import { useSheetLifecycle } from "./useSheetLifecycle.ts";
+import { PriceBookPanel } from "./pricing/PriceBookPanel";
 import { invalidateModelViews } from "./modelViewSnapshot";
 import { SourceBuildingViewer } from "./SourceBuildingViewer";
 import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
@@ -24,6 +29,7 @@ import { ALTITUDE_SHA } from "./construction/altitudeTakeoff";
 import { RenderStudio } from "./RenderStudio";
 import { CalibrationPanel } from "./CalibrationPanel";
 import { DocumentPreview } from "./DocumentPreview";
+import { SheetBookmarks } from "./SourceSheetBookmarks";
 import { PhotoEvidencePanel } from "./PhotoEvidencePanel";
 import { SpecificationPanel } from "./SpecificationPanel";
 import { constructionRunQuantity } from "./construction/runQuantity";
@@ -70,6 +76,10 @@ function StudioContent() {
   const activePaneTabRef = useRef<HTMLButtonElement>(null);
   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
   const pageCount = activeDocument?.pageCount ?? 1;
+  const { value: sheetOrganisation } = useSheetLifecycle(s.job.id, activeDocument);
+  const navigationSheets = sheetOrganisation ? sheetOrganisation.pages.filter(page => !page.archived)
+    : Array.from({ length: pageCount }, (_, pageIndex) => ({ pageIndex, name: activeDocument ? `Sheet ${pageIndex + 1}` : "No source plan" }));
+  const archivedSheetCount = sheetOrganisation?.pages.filter(page => page.archived).length ?? 0;
   const sourceTakeoffActive = s.pane === "components" && (activeDocument?.sha256 === ALTITUDE_SHA || activeDocument?.sha256 === CONNECTION_SOURCE.sha256);
   useEffect(() => { invalidateModelViews(s.activePlanBinary?.documentId, s.activePlanBinary?.sha256); }, [s.activePlanBinary?.documentId, s.activePlanBinary?.sha256]);
 
@@ -80,7 +90,12 @@ function StudioContent() {
   }, []);
 
   useEffect(() => {
-    activePaneTabRef.current?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    const tab = activePaneTabRef.current, nav = tab?.parentElement;
+    if (!tab || !nav) return;
+    const reveal = () => { nav.scrollLeft = Math.max(0, tab.offsetLeft - nav.offsetLeft - (nav.clientWidth - tab.offsetWidth) / 2); };
+    reveal();
+    const observer = new ResizeObserver(reveal); observer.observe(nav);
+    return () => observer.disconnect();
   }, [s.pane]);
 
   // Global keyboard shortcuts for tool switching and navigation
@@ -143,6 +158,7 @@ function StudioContent() {
         <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
         <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
         <div className="studio-header-actions ml-auto flex items-center gap-2">
+          <ProjectBackups />
           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
           <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
         </div>
@@ -168,7 +184,7 @@ function StudioContent() {
             <h2 className="kicker mb-2">Models</h2>
             <button type="button" className="sheet-btn mb-4" onClick={() => s.setPane("model")}>Source building</button>
             <h2 className="kicker mb-2">
-              Project sheets <span className="float-right">{pageCount}</span>
+              Project sheets <span className="float-right">{navigationSheets.length}</span>
             </h2>
             <div className="mb-2 flex gap-1">
               <button type="button" className="pill" onClick={() => void openPlan()}>
@@ -178,7 +194,7 @@ function StudioContent() {
                 Fit sheet
               </button>
             </div>
-            {Array.from({ length: pageCount }, (_, index) => (
+            {navigationSheets.map(({ pageIndex: index, name }) => (
               <button
                 key={index}
                 type="button"
@@ -187,9 +203,10 @@ function StudioContent() {
                 title={activeDocument?.name ?? "No source plan"}
                 onClick={() => s.setSheet(index)}
               >
-                {String(index + 1).padStart(2, "0")} {activeDocument ? `Sheet ${index + 1}` : "No source plan"}
+                {String(index + 1).padStart(2, "0")} {name}
               </button>
             ))}
+            {archivedSheetCount > 0 && <button className="pill" onClick={() => s.setPane("sheets")}>Sheet register · {archivedSheetCount} archived</button>}
             <h2 className="kicker mt-4">
               Evidence layers <span className="float-right">Live</span>
             </h2>
@@ -288,10 +305,14 @@ function Overview() {
 function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
   const s = useStudio();
   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
+  const { value: organisation } = useSheetLifecycle(s.job.id, activeDocument);
+  const pageName = organisation?.pages.find(page => page.pageIndex === s.sheet)?.name ?? `Sheet ${s.sheet + 1}`;
   return (
     <>
+      <ProjectDetails />
+      <SheetManager />
       <div className="pane-heading-row">
-        <div><span className="kicker">Source drawings</span><h1>{s.activePlanBinary ? `Sheet ${s.sheet + 1}` : "Your drawing starts here"}</h1></div>
+        <div><span className="kicker">Source drawings</span><h1>{s.activePlanBinary ? pageName : "Your drawing starts here"}</h1></div>
         {s.activePlanBinary ? <span className={`asset-state ${s.assetReadiness.document.state}`}>{s.assetReadiness.document.state}</span> : null}
       </div>
       {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
@@ -346,6 +367,7 @@ function MeasurePane() {
         {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
         {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
         {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+        <SheetBookmarks />
         <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview" zoom={s.zoom2d} pan={s.pan2d} showSource={s.showSrc} onSourceReady={setSourceReady}>
           {(page)=><PlanCanvas
             interactive
@@ -502,6 +524,7 @@ function SourceSketchPane() {
       <p className="text-muted">Draw source-linked annotation paths on the original plan, then commit the trace.</p>
       {(!calibration.locked || legacyReadOnly) && <div className="integrity-notice" role="status"><strong>Calibrate this source before drawing</strong><span>Sketch points use the original page coordinates and its locked scale.</span><button type="button" className="pill" onClick={() => s.setPane("measure")}>Open Measure to calibrate</button></div>}
       {s.calibrationError && <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} />}
+      <SheetBookmarks />
       <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="measure-document-preview" zoom={s.zoom2d} pan={s.pan2d} showSource={s.showSrc} onSourceReady={setSourceReady}>
         {(page) => <PlanCanvas interactive sourceMode="overlay" sourceBounds={page?.bounds ?? null} legacyReadOnly={legacyReadOnly} />}
       </DocumentPreview>
@@ -1366,13 +1389,19 @@ function CostRightRail() {
   const snapshot = s.bomState.snapshot;
   const document = s.job.documents.find((entry) => entry.id === s.job.activeDocumentId && entry.source !== "sample");
   const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
+  if (!s.job.runs.length) return <aside className="studio-right-rail overflow-auto border-l border-line p-3">
+    <h2 className="kicker">Project pricing</h2>
+    <p>Import supplier rates, review their units and commercial basis, then apply selected rates to a priced worksheet.</p>
+    <p>Enter quantities explicitly. Each worksheet line retains its supplier and price-book revision. Drawing measurements and assembly calculations remain separate until reviewed.</p>
+    <div className="rail-register mt-2.5"><Row a="Project" b={s.job.name} /><Row a="Source" b={document?.name ?? "No drawing required for a price book"} /></div>
+  </aside>;
   if (generalRuns.length) return <aside className="studio-right-rail overflow-auto border-l border-line p-3">
     <h2 className="kicker">Quantity scope</h2>
     <p>General runs report gross measured geometry. Material assemblies, waste, package dimensions and specified weights require separate inputs.</p>
     <div className="rail-register mt-2.5">
       <Row a="General runs" b={String(generalRuns.length)} />
       <Row a="Approved runs" b={String(generalRuns.filter((run) => run.review.status === "approved").length)} />
-      <Row a="Fencing BOM" b="Unavailable for this job" />
+      <Row a="Assembly quantities" b="Require reviewed rules" />
     </div>
     <p>{document?.name ?? "Import a source drawing."}</p>
   </aside>;
@@ -1511,6 +1540,7 @@ function CostPane() {
   const s = useStudio();
   const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
   const hasGeneralRuns = generalRuns.length > 0;
+  const hasRecipeRuns = !hasGeneralRuns && s.job.runs.length > 0;
   const [recipeSet, setRecipeSet] = useState<BomRecipeSet | null>(null);
   const [compileIssues, setCompileIssues] = useState<readonly BomIssue[]>([]);
   const [transportStatus, setTransportStatus] = useState<BomTransportStatus>({ phase: "idle" });
@@ -1520,7 +1550,7 @@ function CostPane() {
   const buildAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (hasGeneralRuns) {
+    if (!hasRecipeRuns) {
       setRecipeSet(null);
       setRecipePersistenceError(null);
       return;
@@ -1548,7 +1578,7 @@ function CostPane() {
       current = false;
       buildToken.current += 1;
     };
-  }, [s.job.id, hasGeneralRuns]);
+  }, [s.job.id, hasRecipeRuns]);
 
   const activeRecipes = useMemo(() => {
     if (!recipeSet || s.job.runs.length === 0) return [];
@@ -1710,9 +1740,11 @@ function CostPane() {
 
   return (
     <div className="cost-workspace">
+      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} />
+        : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">
         <header className="specification-heading-row"><div><span className="eyebrow">Measured geometry</span><h2>General construction quantities</h2></div></header>
-        <p>Gross quantities by run. Openings, overlap and waste are not deducted. These require appropriate assembly rules before material ordering; the fencing BOM is unavailable for a job containing general takeoffs.</p>
+        <p>Gross quantities by run. Openings, overlap and waste are not deducted. Review assembly rules, material specifications and unit conversions before ordering.</p>
         {generalRuns.map((run) => {
           const quantity = constructionRunQuantity(s.job, run, s.persistenceHydrated && s.assetReadiness.document.state === "ready");
           return <div className="specification-group" key={run.id}>
@@ -1735,7 +1767,7 @@ function CostPane() {
           <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
         </div>
       ) : null}
-      {!hasGeneralRuns ? <BomPanel
+      {hasRecipeRuns ? <BomPanel
         state={s.bomState}
         compileIssues={compileIssues}
         transportStatus={transportStatus}
@@ -1784,6 +1816,10 @@ function ProofPane() {
   return (
     <div className="proof-workspace">
       <div className="proof-heading pane-heading-row"><div><span className="kicker">Revisioned evidence</span><h1>Proof manifest</h1><p>Original availability, SHA-256 metadata, links and revision history stay visible with every export.</p></div><button type="button" className="pill-dark inline-flex items-center gap-2" onClick={download}><Download className="size-4" /> Export current manifest</button></div>
+      <details className="proof-revisions">
+        <summary>Professional A–Z delivery checklist · 364 requirements across 68 industry profiles</summary>
+        <iframe title="Professional A to Z requirements and proof" src="/industry-coverage/index.html" loading="lazy" style={{ width: "100%", height: "75vh", border: "1px solid var(--border, #ccd4c8)", marginTop: 12 }} />
+      </details>
       <div className="proof-artifact-grid">
         <section className="proof-source-artifact">
           <span className="kicker">Source artifact</span>

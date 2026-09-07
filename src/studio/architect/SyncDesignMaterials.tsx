@@ -1,3 +1,4 @@
+import { useDesignConfirmation } from "./useDesignConfirmation";
 ﻿import { useRef, useState } from "react";
 import { restoreMaterialDatabase, saveMaterialDatabase } from "../projectMaterialsPersistence";
 import { inspectPlanBytes } from "../documents";
@@ -12,6 +13,7 @@ export function SyncDesignMaterials({
   project: ArchitectProject;
   onError: (s: string) => void;
 }) {
+  const { confirmDesign, confirmation } = useDesignConfirmation();
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     latest = useRef(p);
@@ -33,9 +35,9 @@ export function SyncDesignMaterials({
               return;
             }
             if (
-              !confirm(
+              !(await confirmDesign(
                 `Sync authored design quantities? Add ${counts.add}, update ${counts.update}, retire ${counts.retire} rows to zero. A source PDF snapshot will be saved. Source-plan takeoffs remain separate.`,
-              )
+              ))
             )
               return;
             const snapshot = await exportMaterialSnapshotPdf(p),
@@ -69,6 +71,7 @@ export function SyncDesignMaterials({
           {message}
         </p>
       )}
+      {confirmation}
     </>
   );
 }

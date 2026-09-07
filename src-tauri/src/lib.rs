@@ -2,6 +2,8 @@
 //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
 
 mod material_ai;
+mod voice;
+mod cad;
 #[cfg(target_os = "windows")]
 mod window_chrome;
 use material_ai::*;
@@ -674,6 +676,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(BomInvocationState::production())
         .manage(MaterialAiState::default())
+        .manage(cad::CadState::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(target_os = "windows")]
@@ -689,9 +692,15 @@ pub fn run() {
             }
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 window.state::<BomInvocationState>().cancel_all();
+                window.state::<cad::CadState>().cancel_all();
             }
         })
         .invoke_handler(tauri::generate_handler![
+            cad::xray_cad_status,
+            cad::xray_cad_convert,
+            cad::xray_cad_cancel,
+            voice::xray_voice_status,
+            voice::xray_voice_request,
             xray_material_ai_status,
             xray_configure_material_ai,
             xray_interpret_material_ai,
@@ -707,6 +716,7 @@ pub fn run() {
         .run(|app, event| {
             if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
                 app.state::<BomInvocationState>().cancel_all();
+                app.state::<cad::CadState>().cancel_all();
             }
         });
 }
