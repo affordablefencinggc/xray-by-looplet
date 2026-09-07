@@ -1,0 +1,123 @@
+[
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Model",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.building-canvas canvas')"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas').dataset.walkArmAsset==='ready'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.building-canvas canvas').requestPointerLock=()=>Promise.reject(new DOMException('QA drag','NotAllowedError'))"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.walk-clean-plan')"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/body-arm-dev-01-plan.png"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.walk-clean-plan'),p=new DOMPoint(0,2.1).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));return document.querySelector('.walk-start-selected').textContent})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas').dataset.navigationTransition==='idle'&&document.querySelector('.building-canvas canvas').dataset.navigation==='walk'"
+  ],
+  [
+    "eval",
+    "window.__f=Number(document.querySelector('.building-canvas canvas').dataset.frameCount)"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.building-canvas canvas').dataset.frameCount)>window.__f"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector('.building-canvas canvas'),r=c.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,dx=(Number(c.dataset.navigationYaw)-Math.PI)/.002,dy=Number(c.dataset.navigationPitch)/.002;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));document.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));document.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));return 'Facing door'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas').dataset.walkDoor!==''"
+  ],
+  [
+    "eval",
+    "document.querySelector('.building-canvas canvas').dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));document.querySelector('.building-canvas canvas').dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}))"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas').dataset.walkArmVisible==='true'&&Number(document.querySelector('.building-canvas canvas').dataset.walkArmProgress)>.2"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/body-arm-dev-01-reach.png"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.building-canvas canvas').dataset.walkArmProgress)>.6"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/body-arm-dev-01-reach-late.png"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas').dataset.walkArmVisible==='false'"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/body-arm-dev-01-open.png"
+  ],
+  [
+    "eval",
+    "({...document.querySelector('.building-canvas canvas').dataset})"
+  ],
+  [
+    "errors"
+  ]
+]

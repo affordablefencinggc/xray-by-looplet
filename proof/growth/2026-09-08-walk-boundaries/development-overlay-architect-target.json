@@ -1,0 +1,131 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sketch",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Architectural workspace",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Load demonstration",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.architect-header')?.textContent.includes('Demonstration design loaded')"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-overlay-architect-setup.png"
+  ],
+  [
+    "errors"
+  ],
+  [
+    "eval",
+    "window.__boundaryRuntimeErrors=[];addEventListener('error',e=>window.__boundaryRuntimeErrors.push({type:'error',message:e.message}));addEventListener('unhandledrejection',e=>window.__boundaryRuntimeErrors.push({type:'rejection',message:String(e.reason)}));'Runtime event monitor installed'"
+  ],
+  [
+    "console",
+    "--clear"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRealCapture??=c.requestPointerLock;c.requestPointerLock=()=>Promise.reject(new DOMException('Isolated QA capture refusal','NotAllowedError'));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(4700,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\")?.dataset.navigation==='walk'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryFrame=Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)>window.__boundaryFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\"),yaw=Number(c.dataset.navigationYaw),pitch=Number(c.dataset.navigationPitch),dx=(yaw-(-1.5707963267948966))/0.002,dy=pitch/0.002;const r=c.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));c.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));c.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.walk-door-prompt')"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.walk-door-card button'),r=b.getBoundingClientRect(),card=document.querySelector('.walk-door-card').getBoundingClientRect(),hint=document.querySelector('.architect-walk-overlay .architect-3d-caption').getBoundingClientRect();if(r.height<44||r.width<44||hint.top-card.bottom<7.9)throw Error(JSON.stringify({r,card,hint}));return {button:r.toJSON(),gap:hint.top-card.bottom}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-overlay-architect-target-verified.png"
+  ]
+]

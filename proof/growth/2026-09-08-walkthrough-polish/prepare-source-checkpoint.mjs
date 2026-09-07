@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+const base='proof/growth/2026-09-08-walkthrough-polish/';
+const scope=JSON.parse(fs.readFileSync('proof/growth/2026-09-08-09-walkthrough-polish-source/source-manifest.json'));
+const assets=JSON.parse(fs.readFileSync(base+'asset-source-identity.json'));
+const entries=[...scope.entries,...assets.entries];
+for(const f of entries)if(crypto.createHash('sha256').update(fs.readFileSync(f.path)).digest('hex')!==f.sha256)throw Error('Source drift: '+f.path);
+const staged=execFileSync('git',['diff','--cached','--name-only'],{encoding:'utf8',windowsHide:true}).trim();
+if(staged)throw Error('Preserve existing index; unexpected staged paths: '+staged);
+execFileSync('git',['diff','--check','--',...entries.map(e=>e.path)],{stdio:'pipe',windowsHide:true});
+fs.writeFileSync(base+'source-checkpoint-paths.txt',entries.map(e=>e.path).join('\n')+'\n',{flag:'wx'});
+fs.writeFileSync(base+'source-checkpoint-preflight.json',JSON.stringify({at:new Date().toISOString(),status:'pass',sourceScope:scope.scopeSha256,entries},null,2),{flag:'wx'});
+console.log(JSON.stringify({status:'pass',files:entries.length}));

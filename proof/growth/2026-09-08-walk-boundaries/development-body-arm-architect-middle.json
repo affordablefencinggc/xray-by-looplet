@@ -1,0 +1,555 @@
+[
+  [
+    "eval",
+    "document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}))"
+  ],
+  [
+    "eval",
+    "window.__boundaryRuntimeErrors=[];addEventListener('error',e=>window.__boundaryRuntimeErrors.push({type:'error',message:e.message}));addEventListener('unhandledrejection',e=>window.__boundaryRuntimeErrors.push({type:'rejection',message:String(e.reason)}));'Runtime event monitor installed'"
+  ],
+  [
+    "console",
+    "--clear"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRealCapture??=c.requestPointerLock;c.requestPointerLock=()=>Promise.reject(new DOMException('Isolated QA capture refusal','NotAllowedError'));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(4700,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\")?.dataset.navigation==='walk'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryFrame=Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)>window.__boundaryFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\"),yaw=Number(c.dataset.navigationYaw),pitch=Number(c.dataset.navigationPitch),dx=(yaw-(-1.5707963267948966))/0.002,dy=pitch/0.002;const r=c.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));c.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));c.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.walk-door-prompt')"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-prompt.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRuns??={};const run=window.__boundaryRuns[\"door-closed\"]={start:[...c.dataset.cameraPosition.split(',').map(Number)],feetStart:c.dataset.walkFeet,frames:0,done:false};const since=performance.now();let blockedFrames=0;const release=()=>c.dispatchEvent(new KeyboardEvent('keyup',{code:\"KeyW\",bubbles:true}));c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:\"KeyW\",bubbles:true}));function tick(){const p=c.dataset.cameraPosition.split(',').map(Number),feet=(c.dataset.walkFeet||'').split(',').map(Number);run.frames++;blockedFrames=c.dataset.navigationBlocked==='true'?blockedFrames+1:0;if((feet[0]>5.5&&feet[0]<5.8)&&blockedFrames>=12){release();Object.assign(run,{done:true,passed:true,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked,blockedFrames});return;}if(performance.now()-since>8000){release();Object.assign(run,{done:true,passed:false,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked});return;}requestAnimationFrame(tick);}requestAnimationFrame(tick);})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__boundaryRuns?.[\"door-closed\"]?.done"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__boundaryRuns[\"door-closed\"];if(!r.passed)throw Error(JSON.stringify(r));return r;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationSpeed)<0.005"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-closed-block.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__beforeDoor=c.dataset.walkFeet;c.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));c.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkDoorBusy==='true'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmVisible==='true'&&Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmProgress)>.45&&!!document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmHandProjection"
+  ],
+  [
+    "eval",
+    "(()=>{const d=document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset,p=d.walkArmHandProjection.split(',').map(Number);if(d.walkArmAnchor!=='camera-body'||d.walkArmAsset!=='ready'||!p.every(Number.isFinite)||Math.abs(p[0])>1||Math.abs(p[1])>1)throw Error('Body arm projection not visible '+JSON.stringify({...d}));return {anchor:d.walkArmAnchor,animation:d.walkArmAnimation,handProjection:p,progress:d.walkArmProgress}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-reach.png"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkDoorBusy==='false'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkDoorProgress==='1'"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkFeet!==window.__beforeDoor)throw Error('Door animation moved walking body');return {...document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-open.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRuns??={};const run=window.__boundaryRuns[\"door-through\"]={start:[...c.dataset.cameraPosition.split(',').map(Number)],feetStart:c.dataset.walkFeet,frames:0,done:false};const since=performance.now();let blockedFrames=0;const release=()=>c.dispatchEvent(new KeyboardEvent('keyup',{code:\"KeyW\",bubbles:true}));c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:\"KeyW\",bubbles:true}));function tick(){const p=c.dataset.cameraPosition.split(',').map(Number),feet=(c.dataset.walkFeet||'').split(',').map(Number);run.frames++;blockedFrames=c.dataset.navigationBlocked==='true'?blockedFrames+1:0;if((feet[0]>6.5&&feet[0]<7)){release();Object.assign(run,{done:true,passed:true,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked,blockedFrames});return;}if(performance.now()-since>8000){release();Object.assign(run,{done:true,passed:false,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked});return;}requestAnimationFrame(tick);}requestAnimationFrame(tick);})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__boundaryRuns?.[\"door-through\"]?.done"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__boundaryRuns[\"door-through\"];if(!r.passed)throw Error(JSON.stringify(r));return r;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationSpeed)<0.005"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-through.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");c.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigation==='orbit'"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRealCapture??=c.requestPointerLock;c.requestPointerLock=()=>Promise.reject(new DOMException('Isolated QA capture refusal','NotAllowedError'));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(4700,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\")?.dataset.navigation==='walk'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryFrame=Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)>window.__boundaryFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\"),yaw=Number(c.dataset.navigationYaw),pitch=Number(c.dataset.navigationPitch),dx=(yaw-(-1.5707963267948966))/0.002,dy=pitch/0.002;const r=c.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));c.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));c.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.walk-door-prompt')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Open door: Door",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkDoorBusy==='true'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmVisible==='true'&&Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmProgress)>.45&&!!document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmHandProjection"
+  ],
+  [
+    "eval",
+    "(()=>{const d=document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset,p=d.walkArmHandProjection.split(',').map(Number);if(d.walkArmAnchor!=='camera-body'||d.walkArmAsset!=='ready'||!p.every(Number.isFinite)||Math.abs(p[0])>1||Math.abs(p[1])>1)throw Error('Body arm projection not visible '+JSON.stringify({...d}));return {anchor:d.walkArmAnchor,animation:d.walkArmAnimation,handProjection:p,progress:d.walkArmProgress}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-button-reach.png"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkDoorBusy==='false'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.walkDoorProgress==='1'"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRuns??={};const run=window.__boundaryRuns[\"door-button-through\"]={start:[...c.dataset.cameraPosition.split(',').map(Number)],feetStart:c.dataset.walkFeet,frames:0,done:false};const since=performance.now();let blockedFrames=0;const release=()=>c.dispatchEvent(new KeyboardEvent('keyup',{code:\"KeyW\",bubbles:true}));c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:\"KeyW\",bubbles:true}));function tick(){const p=c.dataset.cameraPosition.split(',').map(Number),feet=(c.dataset.walkFeet||'').split(',').map(Number);run.frames++;blockedFrames=c.dataset.navigationBlocked==='true'?blockedFrames+1:0;if((feet[0]>6.5&&feet[0]<7)){release();Object.assign(run,{done:true,passed:true,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked,blockedFrames});return;}if(performance.now()-since>8000){release();Object.assign(run,{done:true,passed:false,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked});return;}requestAnimationFrame(tick);}requestAnimationFrame(tick);})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__boundaryRuns?.[\"door-button-through\"]?.done"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__boundaryRuns[\"door-button-through\"];if(!r.passed)throw Error(JSON.stringify(r));return r;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationSpeed)<0.005"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-door-button-through.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");c.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRealCapture??=c.requestPointerLock;c.requestPointerLock=()=>Promise.reject(new DOMException('Isolated QA capture refusal','NotAllowedError'));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(3000,1100).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\")?.dataset.navigation==='walk'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryFrame=Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)>window.__boundaryFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\"),yaw=Number(c.dataset.navigationYaw),pitch=Number(c.dataset.navigationPitch),dx=(yaw-(0))/0.002,dy=pitch/0.002;const r=c.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));c.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));c.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRuns??={};const run=window.__boundaryRuns[\"window-block\"]={start:[...c.dataset.cameraPosition.split(',').map(Number)],feetStart:c.dataset.walkFeet,frames:0,done:false};const since=performance.now();let blockedFrames=0;const release=()=>c.dispatchEvent(new KeyboardEvent('keyup',{code:\"KeyW\",bubbles:true}));c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:\"KeyW\",bubbles:true}));function tick(){const p=c.dataset.cameraPosition.split(',').map(Number),feet=(c.dataset.walkFeet||'').split(',').map(Number);run.frames++;blockedFrames=c.dataset.navigationBlocked==='true'?blockedFrames+1:0;if((feet[2]>0.25&&feet[2]<0.5)&&blockedFrames>=12){release();Object.assign(run,{done:true,passed:true,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked,blockedFrames});return;}if(performance.now()-since>8000){release();Object.assign(run,{done:true,passed:false,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked});return;}requestAnimationFrame(tick);}requestAnimationFrame(tick);})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__boundaryRuns?.[\"window-block\"]?.done"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__boundaryRuns[\"window-block\"];if(!r.passed)throw Error(JSON.stringify(r));return r;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationSpeed)<0.005"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-window-block.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");c.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(1000,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\")?.dataset.navigation==='walk'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryFrame=Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)>window.__boundaryFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\"),yaw=Number(c.dataset.navigationYaw),pitch=Number(c.dataset.navigationPitch),dx=(yaw-(1.5707963267948966))/0.002,dy=pitch/0.002;const r=c.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));c.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));c.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRuns??={};const run=window.__boundaryRuns[\"wall-block\"]={start:[...c.dataset.cameraPosition.split(',').map(Number)],feetStart:c.dataset.walkFeet,frames:0,done:false};const since=performance.now();let blockedFrames=0;const release=()=>c.dispatchEvent(new KeyboardEvent('keyup',{code:\"KeyW\",bubbles:true}));c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:\"KeyW\",bubbles:true}));function tick(){const p=c.dataset.cameraPosition.split(',').map(Number),feet=(c.dataset.walkFeet||'').split(',').map(Number);run.frames++;blockedFrames=c.dataset.navigationBlocked==='true'?blockedFrames+1:0;if((feet[0]>0.25&&feet[0]<0.5)&&blockedFrames>=12){release();Object.assign(run,{done:true,passed:true,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked,blockedFrames});return;}if(performance.now()-since>8000){release();Object.assign(run,{done:true,passed:false,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked});return;}requestAnimationFrame(tick);}requestAnimationFrame(tick);})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__boundaryRuns?.[\"wall-block\"]?.done"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__boundaryRuns[\"wall-block\"];if(!r.passed)throw Error(JSON.stringify(r));return r;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationSpeed)<0.005"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-wall-block.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");c.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "window.__orbitFrame=Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.frameCount)"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.frameCount)>window.__orbitFrame"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryOrbit=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.cameraPosition})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(-350,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.architect-3d [role=\"alert\"]')"
+  ],
+  [
+    "eval",
+    "(()=>{const text=document.querySelector('.architect-3d [role=\"alert\"]').textContent,before=window.__boundaryOrbit.split(',').map(Number),after=document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.cameraPosition.split(',').map(Number),distance=Math.hypot(...before.map((v,i)=>v-after[i]));if(!text.includes('supported landing')||document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.navigation!=='orbit'||distance>1e-6)throw Error('Invalid landing did not safely restore orbit: '+JSON.stringify({text,before,after,distance}));return {text,before,after,distance};})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-invalid-start.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRealCapture??=c.requestPointerLock;c.requestPointerLock=()=>Promise.reject(new DOMException('Isolated QA capture refusal','NotAllowedError'));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Fly",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigation==='fly'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__flyOrigin=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.cameraPosition.split(',').map(Number);return window.__flyOrigin})()"
+  ],
+  [
+    "eval",
+    "window.__flyReadyFrame=Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.frameCount)"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.frameCount)>window.__flyReadyFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRuns??={};const run=window.__boundaryRuns[\"fly-through-building\"]={start:[...c.dataset.cameraPosition.split(',').map(Number)],feetStart:c.dataset.walkFeet,frames:0,done:false};const since=performance.now();let blockedFrames=0;const release=()=>c.dispatchEvent(new KeyboardEvent('keyup',{code:\"KeyW\",bubbles:true}));c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:\"KeyW\",bubbles:true}));function tick(){const p=c.dataset.cameraPosition.split(',').map(Number),feet=(c.dataset.walkFeet||'').split(',').map(Number);run.frames++;blockedFrames=c.dataset.navigationBlocked==='true'?blockedFrames+1:0;if((p[2]<-1)){release();Object.assign(run,{done:true,passed:true,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked,blockedFrames});return;}if(performance.now()-since>15000){release();Object.assign(run,{done:true,passed:false,end:p,feetEnd:feet,blocked:c.dataset.navigationBlocked});return;}requestAnimationFrame(tick);}requestAnimationFrame(tick);})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__boundaryRuns?.[\"fly-through-building\"]?.done"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__boundaryRuns[\"fly-through-building\"];if(!r.passed)throw Error(JSON.stringify(r));return r;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationSpeed)<0.005"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-fly-through-building.png"
+  ],
+  [
+    "eval",
+    "(()=>{const d=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset;if(d.walkFeet||d.navigationBlocked==='true')throw Error('Fly used physical walking collision');return {...d}})()"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");c.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigation==='orbit'"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");if(window.__boundaryRealCapture)c.requestPointerLock=window.__boundaryRealCapture;return window.__boundaryRuns})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-body-arm-architect-middle-fly-escape.png"
+  ],
+  [
+    "eval",
+    "if(window.__boundaryRuntimeErrors.length)throw Error(JSON.stringify(window.__boundaryRuntimeErrors));JSON.stringify({runtimeErrors:window.__boundaryRuntimeErrors,runs:window.__boundaryRuns,dataset:{...document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset}})"
+  ],
+  [
+    "console"
+  ],
+  [
+    "errors"
+  ]
+]

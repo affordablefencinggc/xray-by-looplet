@@ -1,0 +1,11 @@
+﻿import fs from 'node:fs';
+const dir='proof/growth/2026-09-08-walkthrough-polish/asset-acquisition';fs.mkdirSync(dir,{recursive:true});
+const response=await fetch('https://drillimpact.itch.io/psx-first-person-arms-free');if(!response.ok)throw Error('Creator page HTTP '+response.status);const html=await response.text();const csrf=html.match(/name="csrf_token" value="([^"]+)"/)?.[1];if(!csrf)throw Error('Creator form token absent');const cookies=response.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
+const access=await fetch('https://drillimpact.itch.io/psx-first-person-arms-free/download_url',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Cookie':cookies,'Referer':response.url},body:new URLSearchParams({csrf_token:csrf})});const data=await access.json();if(!data.url)throw Error('Free download access unavailable: '+JSON.stringify(data));
+const download=await fetch(data.url,{headers:{Cookie:cookies}}),page=await download.text();fs.writeFileSync(`${dir}/creator-download-page.html`,page);console.log(JSON.stringify({status:download.status,bytes:page.length,downloadData:page.match(/.{0,100}(?:upload_id|data-upload_id|download_btn|download_url).{0,180}/g)}));
+const uploadId=page.match(/data-upload_id="(\d+)"/)?.[1],token=page.match(/name="csrf_token" value="([^"]+)"/)?.[1];if(!uploadId||!token)throw Error('Free download button data absent');
+const cookie2=[cookies,...download.headers.getSetCookie().map(v=>v.split(';')[0])].filter(Boolean).join('; ');
+const fileResponse=await fetch(`https://drillimpact.itch.io/psx-first-person-arms-free/file/${uploadId}?source=game_download`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:cookie2,Referer:data.url},body:new URLSearchParams({csrf_token:token})});const file=await fileResponse.json();if(!file.url)throw Error('Creator file response unavailable: '+JSON.stringify(file));
+const bytes=await fetch(file.url);if(!bytes.ok)throw Error('Asset HTTP '+bytes.status);const buffer=Buffer.from(await bytes.arrayBuffer());if(buffer.length>20e6||buffer.readUInt32LE(0)!==0x04034b50)throw Error('Unexpected ZIP response');fs.writeFileSync(`${dir}/creator-arms.zip`,buffer);console.log(JSON.stringify({zipBytes:buffer.length,downloaded:true,creator:'https://drillimpact.itch.io/psx-first-person-arms-free'}));
+
+

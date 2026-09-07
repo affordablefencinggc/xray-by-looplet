@@ -1,0 +1,59 @@
+[
+  [
+    "eval",
+    "document.querySelector('.architect-3d').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const r=document.querySelector('.architect-3d').getBoundingClientRect();return r.top>=0&&r.bottom<innerHeight})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-clean-architect-valid-start-scrolled.png"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]');c.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));return {...c.dataset}})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan');s.scrollIntoView({block:'center',behavior:'instant'});const p=new DOMPoint(-350,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.architect-3d [role=alert]')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.architect-3d').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/development-clean-architect-unsupported-scrolled.png"
+  ]
+]

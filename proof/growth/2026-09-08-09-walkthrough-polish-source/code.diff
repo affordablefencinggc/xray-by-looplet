@@ -1,0 +1,2119 @@
+diff --git a/package.json b/package.json
+index e5b653c..dae0702 100644
+--- a/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/FirstPersonNavigation.test.ts b/src/studio/FirstPersonNavigation.test.ts
+index 3cd93bf..01ca0b3 100644
+--- a/src/studio/FirstPersonNavigation.test.ts
++++ b/src/studio/FirstPersonNavigation.test.ts
+@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
+ import * as THREE from "three";
+ import { createFirstPersonNavigation } from "./FirstPersonNavigation.ts";
+ 
+-function fixture(t: TestContext, reducedMotion = true) {
++function fixture(
++  t: TestContext,
++  reducedMotion = true,
++  options: Pick<
++    Parameters<typeof createFirstPersonNavigation>[0],
++    "walkWorld" | "onInteract" | "interactionBusy"
++  > = {},
++) {
+   const originals = new Map<string, PropertyDescriptor | undefined>();
+   const doc = Object.assign(new EventTarget(), {
+     pointerLockElement: null as unknown,
+@@ -51,6 +58,7 @@ function fixture(t: TestContext, reducedMotion = true) {
+     onChange: (mode) => changes.push(mode),
+     onCaptureChange: (mode) => captures.push(mode),
+     invalidate() {},
++    ...options,
+   });
+   const event = (target: EventTarget, type: string, props: Record<string, unknown> = {}) => {
+     const e = Object.assign(new Event(type, { cancelable: true }), props);
+@@ -301,3 +309,220 @@ test("old rejection cannot drop cleanup for a newer event-only request", async (
+   assert.equal(f.doc.pointerLockElement, null);
+   assert.equal(f.api.mode, "orbit");
+ });
++
++test("collision stops attempted walk motion and reports actual feet without residual velocity", async (t) => {
++  let calls = 0;
++  const f = fixture(t, true, {
++    walkWorld: () => ({
++      validStart: () => true,
++      move(feet, displacement) {
++        calls++;
++        assert.ok(displacement.z < 0);
++        return { position: feet.clone(), blocked: true };
++      },
++    }),
++  });
++  await f.api.start("walk", start);
++  const position = f.camera.position.clone();
++  f.event(f.doc, "keydown", { code: "KeyW" });
++  for (let i = 0; i < 4; i++) f.tick();
++  assert.equal(calls, 4);
++  assert.ok(position.equals(f.camera.position));
++  assert.deepEqual(f.canvas.dataset.walkFeet.split(",").map(Number), [2, 3, 4]);
++  assert.equal(f.canvas.dataset.navigationBlocked, "true");
++  assert.equal(Number(f.canvas.dataset.navigationSpeed), 0);
++});
++
++test("collision keeps permitted wall-slide movement instead of discarding the whole velocity", async (t) => {
++  const f = fixture(t, true, {
++    walkWorld: () => ({
++      validStart: () => true,
++      move(feet, displacement) {
++        return {
++          position: feet.clone().add(new THREE.Vector3(0, 0, displacement.z)),
++          blocked: true,
++        };
++      },
++    }),
++  });
++  await f.api.start("walk", start);
++  f.event(f.doc, "keydown", { code: "KeyW" });
++  f.event(f.doc, "keydown", { code: "KeyD" });
++  for (let i = 0; i < 5; i++) f.tick();
++  assert.equal(f.camera.position.x, start.x);
++  assert.ok(f.camera.position.z < start.z);
++  assert.equal(f.canvas.dataset.navigationBlocked, "true");
++  assert.ok(Number(f.canvas.dataset.navigationSpeed) > 0);
++});
++
++test("stair feet change immediately while camera height eases up and down then settles at eye height", async (t) => {
++  let support = 0.2;
++  const seenFeet: number[] = [];
++  const f = fixture(t, true, {
++    walkWorld: () => ({
++      validStart: () => true,
++      move(feet, displacement) {
++        seenFeet.push(feet.y);
++        const position = feet.clone().add(displacement);
++        position.y = support;
++        return { position, blocked: false };
++      },
++    }),
++  });
++  await f.api.start("walk", { ...start, elevation: 0 });
++  f.tick();
++  assert.equal(Number(f.canvas.dataset.walkFeet.split(",")[1]), 0.2);
++  assert.ok(f.camera.position.y > 1.65 && f.camera.position.y < 1.85);
++  f.tick();
++  assert.equal(seenFeet[1], 0.2); // Physics sees actual feet, not lagging camera minus eye height.
++  for (let i = 0; i < 20; i++) f.tick();
++  assert.equal(f.camera.position.y, 0.2 + 1.65);
++  support = 0;
++  f.tick();
++  assert.equal(Number(f.canvas.dataset.walkFeet.split(",")[1]), 0);
++  assert.ok(f.camera.position.y > 1.65 && f.camera.position.y < 1.85);
++  for (let i = 0; i < 20; i++) f.tick();
++  assert.equal(f.camera.position.y, 1.65);
++});
++
++test("free Fly never consults walking collision or waits for walking interactions", async (t) => {
++  const f = fixture(t, true, {
++    walkWorld: () => {
++      throw Error("Walk world must not run in Fly");
++    },
++    interactionBusy: () => true,
++  });
++  await f.api.start("fly");
++  const position = f.camera.position.clone();
++  f.event(f.doc, "keydown", { code: "KeyW" });
++  f.tick();
++  assert.ok(position.distanceTo(f.camera.position) > 0);
++  assert.equal(f.canvas.dataset.walkFeet, undefined);
++  assert.equal(f.canvas.dataset.navigationBlocked, "false");
++});
++
++test("invalid or unavailable physical landing restores prior camera and rejects before capture", async (t) => {
++  let available = false;
++  const f = fixture(t, true, {
++    walkWorld: () =>
++      available
++        ? { validStart: () => false, move: (feet) => ({ position: feet, blocked: true }) }
++        : null,
++  });
++  let captures = 0;
++  f.canvas.requestPointerLock = async () => {
++    captures++;
++  };
++  const position = f.camera.position.clone(),
++    rotation = f.camera.quaternion.clone();
++  await assert.rejects(f.api.start("walk", start), /supported landing/);
++  available = true;
++  await assert.rejects(f.api.start("walk", start), /supported landing/);
++  assert.ok(position.equals(f.camera.position));
++  assert.ok(rotation.equals(f.camera.quaternion));
++  assert.equal(f.camera.fov, 48);
++  assert.equal(f.api.mode, "orbit");
++  assert.equal(captures, 0);
++});
++
++test("E fires once per press; busy interaction pauses walking but permits look and Escape", async (t) => {
++  let busy = false,
++    interactions = 0,
++    moves = 0;
++  const f = fixture(t, true, {
++    onInteract() {
++      interactions++;
++      busy = true;
++    },
++    interactionBusy: () => busy,
++    walkWorld: () => ({
++      validStart: () => true,
++      move(feet, displacement) {
++        moves++;
++        return { position: feet.clone().add(displacement), blocked: false };
++      },
++    }),
++  });
++  await f.api.start("walk", start);
++  f.event(f.doc, "keydown", { code: "KeyW" });
++  f.tick();
++  const position = f.camera.position.clone(),
++    moveCount = moves;
++  f.event(f.doc, "keydown", { code: "KeyE" });
++  f.event(f.doc, "keydown", { code: "KeyE", repeat: true });
++  f.tick();
++  assert.ok(position.equals(f.camera.position));
++  assert.equal(moves, moveCount);
++  assert.equal(interactions, 1);
++  f.event(f.canvas, "pointerdown", { pointerId: 1, button: 0, clientX: 10, clientY: 10 });
++  f.event(f.doc, "pointermove", { pointerId: 1, clientX: 40, clientY: 10 });
++  assert.ok(f.camera.getWorldDirection(new THREE.Vector3()).x > 0);
++  busy = false;
++  f.event(f.doc, "keyup", { code: "KeyE" });
++  f.tick();
++  assert.ok(position.distanceTo(f.camera.position) > 0);
++  f.event(f.doc, "keydown", { code: "KeyE" });
++  assert.equal(interactions, 2);
++  f.event(f.doc, "keydown", { code: "Escape" });
++  assert.equal(f.api.mode, "orbit");
++});
++
++test("cinematic 1600 ms arrival remains an arc and never collides until walking begins", async (t) => {
++  let moves = 0;
++  const f = fixture(t, false, {
++    walkWorld: () => ({
++      validStart: (feet) => feet.equals(new THREE.Vector3(2, 3, 4)),
++      move(feet, displacement) {
++        moves++;
++        return { position: feet.clone().add(displacement), blocked: false };
++      },
++    }),
++  });
++  const origin = f.camera.position.clone();
++  await f.api.start("walk", start);
++  f.tick(800);
++  assert.equal(moves, 0);
++  assert.equal(f.canvas.dataset.navigationTransition, "arriving");
++  assert.ok(f.camera.position.y > (origin.y + 4.65) / 2);
++  f.tick(800);
++  assert.equal(moves, 0);
++  assert.equal(f.canvas.dataset.navigationTransition, "idle");
++  assert.deepEqual(f.camera.position.toArray(), [2, 4.65, 4]);
++  f.tick();
++  assert.equal(moves, 1);
++});
++
++test("a missing or invalid world result freezes an active walk instead of bypassing collision", async (t) => {
++  let state: "ready" | "missing" | "invalid" = "ready";
++  const f = fixture(t, true, {
++    walkWorld: () =>
++      state === "missing"
++        ? null
++        : {
++            validStart: () => true,
++            move(feet, displacement) {
++              return {
++                position:
++                  state === "invalid"
++                    ? new THREE.Vector3(NaN, 0, 0)
++                    : feet.clone().add(displacement),
++                blocked: false,
++              };
++            },
++          },
++  });
++  await f.api.start("walk", start);
++  const origin = f.camera.position.clone();
++  f.event(f.doc, "keydown", { code: "KeyW" });
++  for (const unavailable of ["missing", "invalid"] as const) {
++    state = unavailable;
++    f.tick();
++    assert.ok(origin.equals(f.camera.position));
++    assert.equal(f.canvas.dataset.navigationBlocked, "true");
++    assert.equal(Number(f.canvas.dataset.navigationSpeed), 0);
++  }
++  state = "ready";
++  f.tick();
++  assert.ok(f.camera.position.z < origin.z);
++  assert.equal(f.canvas.dataset.navigationBlocked, "false");
++});
+diff --git a/src/studio/FirstPersonNavigation.ts b/src/studio/FirstPersonNavigation.ts
+index f6f7f93..900a888 100644
+--- a/src/studio/FirstPersonNavigation.ts
++++ b/src/studio/FirstPersonNavigation.ts
+@@ -1,6 +1,7 @@
+ import * as THREE from "three";
+ import { movementVector, type NavigationMode } from "./navigationMovement.ts";
+ import type { WalkStart } from "./WalkStartDialog";
++import type { WalkCollisionWorld } from "./walkCollision.ts";
+ export function createFirstPersonNavigation({
+   canvas,
+   camera,
+@@ -8,6 +9,9 @@ export function createFirstPersonNavigation({
+   floor,
+   onChange,
+   onCaptureChange,
++  walkWorld,
++  onInteract,
++  interactionBusy,
+   invalidate,
+ }: {
+   canvas: HTMLCanvasElement;
+@@ -16,6 +20,9 @@ export function createFirstPersonNavigation({
+   floor: () => number;
+   onChange: (mode: NavigationMode) => void;
+   onCaptureChange?: (capture: "locked" | "drag" | null) => void;
++  walkWorld?: () => WalkCollisionWorld | null;
++  onInteract?: () => void;
++  interactionBusy?: () => boolean;
+   invalidate: () => void;
+ }) {
+   let mode: NavigationMode = "orbit",
+@@ -35,7 +42,9 @@ export function createFirstPersonNavigation({
+   canvas.dataset.navigationCapture = "none";
+   const keys = new Set<string>(),
+     velocity = new THREE.Vector3(),
+-    direction = new THREE.Vector3();
++    direction = new THREE.Vector3(),
++    walkFeet = new THREE.Vector3();
++  canvas.dataset.navigationBlocked = "false";
+   let arrival: {
+     position: THREE.Vector3;
+     rotation: THREE.Quaternion;
+@@ -97,6 +106,8 @@ export function createFirstPersonNavigation({
+     setCapture(null);
+     releaseLock();
+     canvas.dataset.navigation = "orbit";
++    canvas.dataset.navigationBlocked = "false";
++    delete canvas.dataset.walkFeet;
+     if (changed) onChange(mode);
+     invalidate();
+   }
+@@ -112,6 +123,16 @@ export function createFirstPersonNavigation({
+       stop();
+       return;
+     }
++    if (e.code === "KeyE" && mode === "walk" && onInteract) {
++      e.preventDefault();
++      e.stopImmediatePropagation();
++      if (!arrival && !e.repeat && !keys.has(e.code) && !interactionBusy?.()) {
++        keys.add(e.code);
++        onInteract();
++        invalidate();
++      }
++      return;
++    }
+     if (supported.has(e.code)) {
+       e.preventDefault();
+       e.stopImmediatePropagation();
+@@ -255,9 +276,24 @@ export function createFirstPersonNavigation({
+         arrival = null;
+         const center = bounds.getCenter(new THREE.Vector3()),
+           size = bounds.getSize(new THREE.Vector3());
+-        walkY = (start?.elevation ?? floor()) + 1.65;
++        const floorY = start?.elevation ?? floor();
++        walkY = floorY + 1.65;
+         if (next === "walk") {
+-          camera.position.set(start?.x ?? center.x, walkY, start?.z ?? bounds.max.z - 3);
++          const feet = new THREE.Vector3(
++            start?.x ?? center.x,
++            floorY,
++            start?.z ?? bounds.max.z - 3,
++          );
++          const world = walkWorld?.();
++          if (
++            !feet.toArray().every(Number.isFinite) ||
++            (walkWorld && (!world || !world.validStart(feet.clone())))
++          )
++            throw Error(
++              "This walking start has no clear, supported landing. Choose another start.",
++            );
++          walkFeet.copy(feet);
++          camera.position.set(feet.x, walkY, feet.z);
+           camera.rotation.set(0, start?.yaw ?? 0, 0, "YXZ");
+         } else {
+           camera.position.set(
+@@ -292,6 +328,9 @@ export function createFirstPersonNavigation({
+           };
+         canvas.dataset.navigationTransition = arrival ? "arriving" : "idle";
+         canvas.dataset.navigation = mode;
++        canvas.dataset.navigationBlocked = "false";
++        if (mode === "walk") canvas.dataset.walkFeet = walkFeet.toArray().join(",");
++        else delete canvas.dataset.walkFeet;
+         setCapture(document.pointerLockElement === canvas ? "locked" : "drag");
+         canvas.focus({ preventScroll: true });
+         onChange(mode);
+@@ -337,8 +376,49 @@ export function createFirstPersonNavigation({
+         speed,
+       );
+       velocity.lerp(target, 1 - Math.exp(-(mode === "walk" ? 5 : 10) * dt));
+-      camera.position.addScaledVector(velocity, dt);
+-      if (mode === "walk") camera.position.y = walkY;
++      if (mode === "walk") {
++        const before = walkFeet.clone(),
++          displacement = velocity.clone().multiplyScalar(dt);
++        let blocked = false;
++        if (interactionBusy?.()) {
++          velocity.set(0, 0, 0);
++        } else {
++          try {
++            const world = walkWorld?.();
++            if (walkWorld && !world) {
++              blocked = true;
++              velocity.set(0, 0, 0);
++            } else if (world) {
++              const resolved = world.move(before.clone(), displacement);
++              if (!resolved.position.toArray().every(Number.isFinite))
++                throw Error("Invalid walking position");
++              walkFeet.copy(resolved.position);
++              blocked = resolved.blocked;
++              // Keep the collision solver's slide direction while removing motion into the obstacle.
++              if (blocked && dt > 0)
++                velocity.set((walkFeet.x - before.x) / dt, 0, (walkFeet.z - before.z) / dt);
++            } else walkFeet.add(displacement);
++          } catch {
++            // A missing/invalid collision result must never turn into unrestricted movement.
++            walkFeet.copy(before);
++            velocity.set(0, 0, 0);
++            blocked = true;
++          }
++        }
++        walkY = walkFeet.y + 1.65;
++        camera.position.x = walkFeet.x;
++        camera.position.z = walkFeet.z;
++        const heightDelta = walkY - camera.position.y;
++        camera.position.y =
++          Math.abs(heightDelta) < 0.001
++            ? walkY
++            : camera.position.y + heightDelta * (1 - Math.exp(-12 * dt));
++        canvas.dataset.walkFeet = walkFeet.toArray().join(",");
++        canvas.dataset.navigationBlocked = String(blocked);
++      } else {
++        camera.position.addScaledVector(velocity, dt);
++        canvas.dataset.navigationBlocked = "false";
++      }
+       camera.getWorldDirection(direction);
+       canvas.dataset.navigationYaw = String(yaw);
+       canvas.dataset.navigationPitch = String(pitch);
+diff --git a/src/studio/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index 5c8749a..e898f1e 100644
+--- a/src/studio/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -19,6 +19,11 @@ import { BuildingVisualSettings } from "./BuildingVisualSettings";
+ import { createFirstPersonNavigation } from "./FirstPersonNavigation";
+ import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
+ import type { NavigationMode } from "./navigationMovement";
++import { createWalkCollisionWorld } from "./walkCollision";
++import { createWalkDoors, type WalkDoorState } from "./WalkDoors";
++import { WalkDoorPrompt } from "./WalkDoorPrompt";
++import { prepareSourceWalkDoors } from "./sourceWalkDoors";
++import { createFirstPersonArm } from "./FirstPersonArm";
+ import { publishModelView } from "./modelViewSnapshot";
+ import {
+   DEFAULT_APPEARANCE,
+@@ -39,6 +44,7 @@ type SceneApi = {
+   navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+   captureNavigation: () => Promise<boolean>;
+   stopNavigation: () => void;
++  interactDoor: () => void;
+   options: (value: ViewOptions) => void;
+   select: (id: string | null) => void;
+   fit: () => void;
+@@ -60,6 +66,7 @@ function createBuildingScene(
+   binding: { documentId: string; sceneId: string; sceneSha256: string },
+   onNavigation: (mode: NavigationMode) => void,
+   onCapture: (capture: "locked" | "drag" | null) => void,
++  onDoor: (state: WalkDoorState | null) => void,
+ ): SceneApi {
+   const renderer = new THREE.WebGLRenderer({
+     antialias: true,
+@@ -102,12 +109,17 @@ function createBuildingScene(
+   };
+   let scope: ReturnType<typeof createModelScope> | null = null;
+   let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
++  let doors: ReturnType<typeof createWalkDoors> | null = null;
++  let arm: ReturnType<typeof createFirstPersonArm> | null = null;
++  let currentDoorState: WalkDoorState | null = null;
+   let disposed = false,
+     frame = 0;
+   const render = () => {
+     frame = 0;
+     if (disposed) return;
+     const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
++    const doorChanging = doors?.tick(navigation?.mode === "walk" && renderer.domElement.dataset.navigationTransition === "idle");
++    arm?.tick(navigation?.mode === "walk" ? currentDoorState : null);
+     renderer.render(scene, camera);
+     scope?.render();
+     renderer.domElement.dataset.renderCalls = String(renderer.info.render.calls);
+@@ -132,7 +144,7 @@ function createBuildingScene(
+         projectionMatrix: camera.projectionMatrix.toArray(),
+       },
+     });
+-    if (changing) invalidate();
++    if (changing || doorChanging) invalidate();
+   };
+   const invalidate = () => {
+     if (!disposed && !frame) frame = requestAnimationFrame(render);
+@@ -241,6 +253,14 @@ function createBuildingScene(
+     }
+   }
+   let selected: string | null = null;
++  const doorGeometry = prepareSourceWalkDoors(model, meshMap);
++  const collisionMeshes = [...meshMap.values(), ...doorGeometry.extraMeshes];
++  const supportMeshes = model.objects.filter((part) => ["room", "slab", "stair"].includes(part.category))
++    .map((part) => meshMap.get(part.id)!);
++  const walkWorld = createWalkCollisionWorld({ solids: () => collisionMeshes, supports: () => supportMeshes });
++  doors = createWalkDoors({ doors: doorGeometry.doors, camera: perspective, canvas: renderer.domElement,
++    solids: () => collisionMeshes, onChange: (state) => { currentDoorState = state; onDoor(state); }, invalidate });
++  arm = createFirstPersonArm({ scene, camera: perspective, canvas: renderer.domElement, invalidate });
+   const visiblePart = (part: SourceBuilding["objects"][number]) =>
+     !(
+       options.wireframe &&
+@@ -318,10 +338,10 @@ function createBuildingScene(
+     highlight.visible = !options.wireframe;
+     clippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
+     selectedClippedWireMaterial.clippingPlanes = options.cutaway ? [plane] : [];
+-    for (const [id, mesh] of meshMap) {
++    for (const [id, mesh] of [...meshMap, ...doorGeometry.extraMeshes.map((mesh) => [mesh.userData.partId as string, mesh] as const)]) {
+       const part = parts.get(id)!;
+       mesh.visible = visiblePart(part);
+-      mesh.position.y = options.explode
++      if (mesh.matrixAutoUpdate) mesh.position.y = options.explode
+         ? ROOF_CATEGORIES.has(part.category)
+           ? 4
+           : WALL_CATEGORIES.has(part.category) || part.category === "column"
+@@ -419,6 +439,9 @@ function createBuildingScene(
+       ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
+     invalidate,
+     onCaptureChange: onCapture,
++    walkWorld: () => walkWorld,
++    onInteract: () => doors?.interact(),
++    interactionBusy: () => doors?.busy ?? false,
+     onChange(mode) {
+       controls.enabled = mode === "orbit";
+       if (mode === "orbit") {
+@@ -429,6 +452,7 @@ function createBuildingScene(
+     },
+   });
+   return {
++    interactDoor: () => doors?.interact(),
+     navigate: (mode, start) => navigation!.start(mode, start),
+     captureNavigation: () => navigation!.capture(),
+     stopNavigation: () => navigation?.stop(),
+@@ -452,7 +476,7 @@ function createBuildingScene(
+     options(next) {
+       const changed = next.plan !== options.plan,
+         exploded = next.explode !== options.explode || next.level !== options.level;
+-      if (changed || exploded) navigation?.stop();
++      if (changed || exploded) { navigation?.stop(); doors?.reset(); }
+       options = next;
+       if (changed) {
+         controls.dispose();
+@@ -536,6 +560,8 @@ function createBuildingScene(
+     dispose() {
+       disposed = true;
+       navigation?.dispose();
++      doors?.dispose();
++      arm?.dispose();
+       cancelAnimationFrame(frame);
+       scope?.dispose();
+       observer.disconnect();
+@@ -544,6 +570,10 @@ function createBuildingScene(
+       renderer.domElement.removeEventListener("pointerup", onUp);
+       renderer.domElement.removeEventListener("webglcontextlost", lost);
+       for (const mesh of meshMap.values()) mesh.geometry.dispose();
++      for (const mesh of doorGeometry.extraMeshes) {
++        mesh.geometry.dispose();
++        for (const child of mesh.children) if (child instanceof THREE.LineSegments) child.geometry.dispose();
++      }
+       for (const edge of edges) edge.geometry.dispose();
+       for (const material of materials.values()) material.dispose();
+       edgeMaterial.dispose();
+@@ -567,6 +597,7 @@ export function SourceBuildingViewer() {
+   const [navigationCapture, setNavigationCapture] = useState<"locked" | "drag" | null>(null);
+   const [walkPicker, setWalkPicker] = useState(false);
+   const [navigationError, setNavigationError] = useState<string | null>(null);
++  const [doorState, setDoorState] = useState<WalkDoorState | null>(null);
+   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
+     enabled: false,
+     zoom: 4,
+@@ -722,6 +753,7 @@ export function SourceBuildingViewer() {
+         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
+         setNavigationMode,
+         setNavigationCapture,
++        setDoorState,
+       );
+     } catch (e) {
+       setError(e instanceof Error ? e.message : String(e));
+@@ -1075,7 +1107,10 @@ export function SourceBuildingViewer() {
+                 </button>
+               </div>
+               {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
+-              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · {navigationCapture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit</p>}
++              {navigationMode !== "orbit" && <div className="building-walk-overlay">
++                {navigationMode === "walk" && <WalkDoorPrompt state={doorState} onInteract={() => api.current?.interactDoor()} />}
++                <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk · solid boundaries · stairs follow floor · E opens doors"} · WASD move · {navigationCapture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit</p>
++              </div>}
+               {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
+               {config.id === "caroline" && (
+                 <div className="building-svg-export">
+diff --git a/src/studio/WalkStartDialog.tsx b/src/studio/WalkStartDialog.tsx
+index dfeabf9..02bf597 100644
+--- a/src/studio/WalkStartDialog.tsx
++++ b/src/studio/WalkStartDialog.tsx
+@@ -1,6 +1,6 @@
+-import { useEffect, useMemo, useRef, useState } from "react";
++import { useMemo, useState } from "react";
+ import type { SourceBuilding } from "./sourceBuilding";
+-import { floorKey, planBounds } from "./componentLocation";
++import { buildCleanWalkPlan, planPath } from "./cleanWalkPlan.ts";
+ import { WorkspaceDialog } from "./WorkspaceDialog";
+ import { assessWalkStart, listWalkFloors, recommendWalkStarts, type WalkPlacement } from "./walkStartPlacement.ts";
+ import "./walkStartPlacement.css";
+@@ -18,44 +18,16 @@ export function WalkStartDialog({ model, initialFloor, onClose, onStart }: {
+   const [chosen, setChosen] = useState<{ floor: string; point: WalkPlacement } | null>(null);
+   const [error, setError] = useState("");
+   const point = chosen?.floor === floor ? chosen.point : suggestions[0] ?? null;
+-  const canvas = useRef<HTMLCanvasElement>(null);
+-  const parts = useMemo(() => model.objects.filter(p => floorKey(p) === floor), [model, floor]);
+-  const bounds = planBounds(parts), width = 600, height = 360;
+-  const scale = Math.min(552 / Math.max(.1, bounds[2] - bounds[0]), 312 / Math.max(.1, bounds[3] - bounds[1]));
+-  const ox = (width - (bounds[2] - bounds[0]) * scale) / 2 - bounds[0] * scale;
+-  const oz = (height - (bounds[3] - bounds[1]) * scale) / 2 - bounds[1] * scale;
+-  useEffect(() => {
+-    const ctx = canvas.current?.getContext("2d"); if (!ctx) return;
+-    const tokens = getComputedStyle(canvas.current!), ink = tokens.getPropertyValue("--color-ink").trim() || "#182126";
+-    ctx.clearRect(0, 0, width, height);
+-    ctx.strokeStyle = tokens.getPropertyValue("--color-muted").trim() || "#646a70"; ctx.lineWidth = .6;
+-    for (const p of [...parts].sort((a, b) => Number(!["room", "slab"].includes(a.category)) - Number(!["room", "slab"].includes(b.category)))) {
+-      ctx.fillStyle = ["room", "slab"].includes(p.category) ? (tokens.getPropertyValue("--color-selected").trim() || "#d4d6d8") : (tokens.getPropertyValue("--color-line").trim() || "#a0a4a6");
+-      for (let i = 0; i + 2 < p.indices.length; i += 3) {
+-        ctx.beginPath();
+-        for (let j = 0; j < 3; j++) { const n = p.indices[i + j] * 3, x = ox + p.positions[n] * scale, z = oz + p.positions[n + 2] * scale; if (j === 0) ctx.moveTo(x, z); else ctx.lineTo(x, z); }
+-        ctx.closePath(); ctx.fill(); ctx.stroke();
+-      }
+-    }
+-    suggestions.forEach((suggestion, index) => {
+-      const x = ox + suggestion.x * scale, y = oz + suggestion.z * scale;
+-      ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
+-      ctx.fillStyle = tokens.getPropertyValue("--color-paper").trim() || "#fff"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(index + 1), x, y);
+-    });
+-    if (point) {
+-      const x = ox + point.x * scale, y = oz + point.z * scale, dx = -Math.sin(point.yaw), dz = -Math.cos(point.yaw);
+-      ctx.strokeStyle = ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.stroke();
+-      ctx.beginPath(); ctx.moveTo(x + dx * 15, y + dz * 15); ctx.lineTo(x + dx * 40, y + dz * 40); ctx.stroke();
+-      ctx.beginPath(); ctx.moveTo(x + dx * 42, y + dz * 42); ctx.lineTo(x + dx * 29 - dz * 7, y + dz * 29 + dx * 7); ctx.lineTo(x + dx * 29 + dz * 7, y + dz * 29 - dx * 7); ctx.closePath(); ctx.fillStyle = ink; ctx.fill();
+-    }
+-  }, [model, floor, point, suggestions]);
++  const plan = useMemo(() => buildCleanWalkPlan(model, floor), [model, floor]);
++  const bounds = plan.bounds, span = Math.max(bounds[2] - bounds[0], bounds[3] - bounds[1], 1), pad = span * .055;
++  const marker = span / 48, labelSize = span / 38;
+   function choose(x: number, z: number) {
+     const result = assessWalkStart(model, floor, { x, z });
+     if (result.ok) { setChosen({ floor, point: result.placement }); setError(""); }
+     else setError(result.reason);
+   }
+   const headingLabel = point ? Math.round((Math.atan2(-Math.sin(point.yaw), Math.cos(point.yaw)) * 180 / Math.PI + 360) % 360) + "° clockwise from plan up" : "";
+-  return <WorkspaceDialog title="Pick your walking start" onClose={onClose}>
++  return <WorkspaceDialog title="Pick your walkthrough starting point" onClose={onClose}>
+     <div className="walk-start-picker" data-start-ready={Boolean(point) && !error} data-start-floor={floor} data-start-yaw={point?.yaw ?? ""}>
+       <p>Choose a suggested clear area or click the floor plan. The arrow shows your starting view.</p>
+       <label>Starting floor<select aria-label="Starting floor" value={floor} onChange={e => { setFloor(e.target.value); setChosen(null); setError(""); }}>
+@@ -66,12 +38,25 @@ export function WalkStartDialog({ model, initialFloor, onClose, onStart }: {
+         <strong>{i + 1}. {p.label.split(" / ")[0]}</strong><span>{p.clearView.toFixed(1)} m clear starting view</span>
+       </button>)}</div>}
+       {floor && !suggestions.length && <p>No clear starting area could be suggested for this floor. Select a supported clear area, or use orbit navigation.</p>}
+-      <canvas ref={canvas} width={width} height={height} tabIndex={0} role="button" aria-label="Choose walking start on floor plan"
+-        onClick={e => { const r = e.currentTarget.getBoundingClientRect(); choose((((e.clientX - r.left) * width) / r.width - ox) / scale, (((e.clientY - r.top) * height) / r.height - oz) / scale); }}
++      <div className="walk-plan-caption"><span>Floor plan · walls, openings and stairs</span><span>↑ Plan up</span></div>
++      <svg className="walk-clean-plan" viewBox={`${bounds[0]-pad} ${bounds[1]-pad} ${bounds[2]-bounds[0]+pad*2} ${bounds[3]-bounds[1]+pad*2}`}
++        data-plan-bounds={bounds.join(",")} tabIndex={0} role="button" aria-label="Choose walking start on floor plan"
++        onClick={e => { const matrix = e.currentTarget.getScreenCTM(); if (matrix) { const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()); choose(p.x, p.y); } }}
+         onKeyDown={e => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", " "].includes(e.key)) {
+           e.preventDefault(); const p = point ?? { x: (bounds[0] + bounds[2]) / 2, z: (bounds[1] + bounds[3]) / 2 };
+           choose(p.x + (e.key === "ArrowRight" ? .5 : e.key === "ArrowLeft" ? -.5 : 0), p.z + (e.key === "ArrowDown" ? .5 : e.key === "ArrowUp" ? -.5 : 0));
+-        } }} />
++        } }}>
++        {["floor", "stair", "wall", "window", "door"].map(kind => <g key={kind} className={`walk-plan-${kind}`}>{plan.shapes.filter(s => s.kind === kind).map(shape => <path key={shape.id} d={planPath(shape.loops)} fillRule="evenodd" vectorEffect="non-scaling-stroke" />)}</g>)}
++        <g className="walk-plan-labels" fontSize={labelSize}>{plan.labels.map(label => <text key={label.id} x={label.point[0]} y={label.point[1] + labelSize * 1.5} textAnchor="middle">{label.text}</text>)}</g>
++        {suggestions.map((suggestion,index) => <g key={suggestion.supportId} className="walk-plan-suggestion" transform={`translate(${suggestion.x} ${suggestion.z})`}>
++          <circle r={marker} /><text textAnchor="middle" dominantBaseline="central" fontSize={marker*1.2}>{index+1}</text>
++        </g>)}
++        {point && <g className="walk-plan-chosen" transform={`translate(${point.x} ${point.z})`}>
++          <circle r={marker*1.4} fill="none" vectorEffect="non-scaling-stroke" />
++          {!suggestions.some(s=>s.x===point.x&&s.z===point.z) && <circle r={marker*.55} />}
++          <g transform={`rotate(${-point.yaw*180/Math.PI})`}><path d={`M0,${-marker*1.5} L0,${-marker*3.6}`} vectorEffect="non-scaling-stroke"/><path d={`M0,${-marker*4.1} L${-marker*.6},${-marker*3.1} L${marker*.6},${-marker*3.1} Z`} /></g>
++        </g>}
++      </svg>
+       {error && <p role="alert">{error} The previous start is retained; select a clear point before continuing.</p>}
+       {point && <p className="walk-start-selected" role="status"><strong>{point.label}</strong><span>X {point.x.toFixed(2)} m · Z {point.z.toFixed(2)} m · floor {point.elevation.toFixed(2)} m</span><span>View: {headingLabel} · {point.clearView.toFixed(1)} m clear ahead</span></p>}
+       <p className="walk-start-inference">Suggested position and heading are inferred from modelled room/slab surfaces and solid geometry. They are not a verified access route. Eye height is 1.65 m above the selected surface.</p>
+@@ -80,7 +65,7 @@ export function WalkStartDialog({ model, initialFloor, onClose, onStart }: {
+         if (!result.ok) { setError(result.reason); return; }
+         onStart(floor, { x: result.placement.x, z: result.placement.z, elevation: result.placement.elevation, level: floor, yaw: result.placement.yaw });
+       }}>Start walking here</button></div>
+-      <small>The start avoids modelled obstacles. Subsequent movement remains a free walk-through.</small>
++      <small>Walking follows modelled floors and stairs. Solid boundaries and closed doors block movement; press E near a door to open it.</small>
+     </div>
+   </WorkspaceDialog>;
+ }
+diff --git a/src/studio/architect/Architect3D.tsx b/src/studio/architect/Architect3D.tsx
+index 26fe171..aff2161 100644
+--- a/src/studio/architect/Architect3D.tsx
++++ b/src/studio/architect/Architect3D.tsx
+@@ -5,6 +5,10 @@ import { createFirstPersonNavigation } from "../FirstPersonNavigation";
+ import type { NavigationMode } from "../navigationMovement";
+ import type { WalkStart } from "../WalkStartDialog";
+ import { ArchitectWalkStart } from "./ArchitectWalkStart";
++import { createWalkCollisionWorld, type WalkCollisionWorld } from "../walkCollision";
++import { createWalkDoors, type WalkDoorState } from "../WalkDoors";
++import { WalkDoorPrompt } from "../WalkDoorPrompt";
++import { createFirstPersonArm } from "../FirstPersonArm";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+ import { wallSolids, roofFaces, roofTrims, type Polygon } from "./geometry";
+ import { unit, add, mul, wallThickness, type ArchitectProject, type Point } from "./model";
+@@ -36,6 +40,7 @@ export function Architect3D({
+   const [capture, setCapture] = useState<"locked" | "drag" | null>(null);
+   const [walkPicker, setWalkPicker] = useState(false);
+   const [navigationError, setNavigationError] = useState<string | null>(null);
++  const [doorState, setDoorState] = useState<WalkDoorState | null>(null);
+   const host = useRef<HTMLDivElement>(null),
+     api = useRef<{
+       update: (p: ArchitectProject, l: string, s: string | null, r: boolean) => void;
+@@ -43,6 +48,7 @@ export function Architect3D({
+       navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+       capture: () => Promise<boolean>;
+       stop: () => void;
++      interactDoor: () => void;
+     } | null>(null),
+     pick = useRef(onSelect);
+   pick.current = onSelect;
+@@ -86,27 +92,37 @@ export function Architect3D({
+       disposed = false,
+       initial = true;
+     let navigation: ReturnType<typeof createFirstPersonNavigation> | null = null;
++    let walkWorld: WalkCollisionWorld | null = null;
++    let doors: ReturnType<typeof createWalkDoors> | null = null;
++    let arm: ReturnType<typeof createFirstPersonArm> | null = null;
++    let currentDoorState: WalkDoorState | null = null;
+     const navigationBounds = new T.Box3();
+     let floorElevation = 0;
+     const render = () => {
+         frame = 0;
+         if (disposed) return;
+         const moving = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
++        const doorMoving = doors?.tick(navigation?.mode === "walk" && renderer.domElement.dataset.navigationTransition === "idle");
++        arm?.tick(navigation?.mode === "walk" ? currentDoorState : null);
+         renderer.render(scene, camera);
+         renderer.domElement.dataset.cameraPosition = camera.position.toArray().join(",");
+         renderer.domElement.dataset.frameCount = String(
+           Number(renderer.domElement.dataset.frameCount ?? 0) + 1,
+         );
+-        if (moving) invalidate();
++        if (moving || doorMoving) invalidate();
+       },
+       invalidate = () => {
+         if (!frame && !disposed) frame = requestAnimationFrame(render);
+       };
+     controls.addEventListener("change", invalidate);
++    arm = createFirstPersonArm({ scene, camera, canvas: renderer.domElement, invalidate });
+     navigation = createFirstPersonNavigation({
+       canvas: renderer.domElement, camera, bounds: navigationBounds,
+       floor: () => floorElevation, invalidate,
+       onCaptureChange: setCapture,
++      walkWorld: () => walkWorld,
++      onInteract: () => doors?.interact(),
++      interactionBusy: () => doors?.busy ?? false,
+       onChange(next) {
+         controls.enabled = next === "orbit";
+         if (next === "orbit") {
+@@ -146,7 +162,11 @@ export function Architect3D({
+       group.clear();
+     };
+     function update(p: ArchitectProject, l: string, s: string | null, roofs: boolean) {
++      navigation?.stop();
++      doors?.dispose(); doors = null; walkWorld = null;
+       clear();
++      const solids: T.Mesh[] = [], supports: T.Mesh[] = [];
++      const doorLeaves: Parameters<typeof createWalkDoors>[0]["doors"][number][] = [];
+       const mesh = (g: T.BufferGeometry, id: string, color: string, opacity = 1) => {
+         const material = new T.MeshStandardMaterial({
+             color: id === s ? "#bd7053" : color,
+@@ -162,6 +182,8 @@ export function Architect3D({
+         m.castShadow = opacity === 1;
+         m.receiveShadow = true;
+         group.add(m);
++        solids.push(m);
++        return m;
+       };
+       for (const solid of wallSolids(p).filter(
+         (w) => w.kind !== "void" && (l === "all" || w.levelId === l),
+@@ -174,7 +196,7 @@ export function Architect3D({
+           );
+       for (const slab of p.slabs.filter((s) => l === "all" || s.levelId === l)) {
+         const elevation = p.levels.find((l) => l.id === slab.levelId)!.elevation + slab.offset;
+-        mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, "#b5b7b3");
++        supports.push(mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, "#b5b7b3"));
+       }
+       const beam = (
+         a: Point,
+@@ -193,7 +215,7 @@ export function Architect3D({
+         );
+         g.rotateY(-Math.atan2(b[1] - a[1], b[0] - a[0]));
+         g.translate((a[0] + b[0]) / 2000, (bottom + height / 2) / 1000, (a[1] + b[1]) / 2000);
+-        mesh(g, id, color, opacity);
++        return mesh(g, id, color, opacity);
+       };
+       for (const o of p.openings) {
+         const w = p.walls.find((w) => w.id === o.wallId)!;
+@@ -201,8 +223,7 @@ export function Architect3D({
+         const y = p.levels.find((l) => l.id === w.levelId)!.elevation + o.sill,
+           d = unit(w.a, w.b),
+           a = add(w.a, mul(d, o.offset - o.width / 2)),
+-          b = add(a, mul(d, o.width)),
+-          n: Point = [-d[1], d[0]];
++          b = add(a, mul(d, o.width));
+         beam(a, add(a, mul(d, 40)), y, o.height, wallThickness(w), o.id, "#717e81");
+         beam(add(b, mul(d, -40)), b, y, o.height, wallThickness(w), o.id, "#717e81");
+         beam(a, b, y + o.height - 40, 40, wallThickness(w), o.id, "#717e81");
+@@ -210,9 +231,11 @@ export function Architect3D({
+           beam(a, b, y, 40, wallThickness(w), o.id, "#717e81");
+           beam(a, b, y + 40, o.height - 80, 12, o.id, "#aac6c9", 0.5);
+         } else {
+-          const hinge = o.hinge === "left" ? a : b,
+-            end = add(hinge, mul(n, o.width * (o.swing === "in" ? 1 : -1)));
+-          beam(hinge, end, y, o.height, 40, o.id, "#c6c1b6");
++          const hinge = o.hinge === "left" ? a : b;
++          const leaf = beam(add(a, mul(d, 40)), add(b, mul(d, -40)), y + 5, o.height - 45, 40, o.id, "#c6c1b6");
++          doorLeaves.push({ id: o.id, label: "Door", meshes: [leaf], motion: "swing",
++            hinge: new T.Vector3(hinge[0] / 1000, y / 1000, hinge[1] / 1000),
++            swingAngle: (o.hinge === "left" ? -1 : 1) * (o.swing === "in" ? 1 : -1) * Math.PI / 2 });
+         }
+       }
+       if (roofs)
+@@ -255,6 +278,9 @@ export function Architect3D({
+           }
+         }
+       const b = new T.Box3().setFromObject(group);
++      walkWorld = createWalkCollisionWorld({ solids: () => solids, supports: () => supports });
++      doors = createWalkDoors({ doors: doorLeaves, camera, canvas: renderer.domElement,
++        solids: () => solids, onChange: (state) => { currentDoorState = state; setDoorState(state); }, invalidate });
+       ground.position.y = b.isEmpty() ? -0.3 : b.min.y - 0.01;
+       navigationBounds.copy(b);
+       if (b.isEmpty()) navigationBounds.set(new T.Vector3(0, 0, 0), new T.Vector3(9, 2.7, 6));
+@@ -300,11 +326,13 @@ export function Architect3D({
+       };
+     renderer.domElement.addEventListener("pointerdown", pointerDown);
+     renderer.domElement.addEventListener("pointerup", pointerUp);
+-    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), capture: () => navigation!.capture(), stop: () => navigation?.stop() };
++    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), capture: () => navigation!.capture(), stop: () => navigation?.stop(), interactDoor: () => doors?.interact() };
+     resize();
+     return () => {
+       disposed = true;
+       navigation?.dispose();
++      doors?.dispose();
++      arm?.dispose();
+       cancelAnimationFrame(frame);
+       observer.disconnect();
+       controls.dispose();
+@@ -335,7 +363,10 @@ export function Architect3D({
+       <button aria-pressed={mode === "walk"} onClick={() => { api.current?.stop(); setWalkPicker(true); }}>Walk-through</button>
+       {mode !== "orbit" && capture === "drag" && <button onClick={() => { void api.current?.capture(); }}>Capture mouse</button>}
+     </div>
+-    {mode !== "orbit" && <p className="architect-3d-caption">WASD move · {capture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit{mode === "fly" ? " · Space/Ctrl altitude" : " · eye height 1.65 m; walls do not block movement"}</p>}
++    {mode !== "orbit" && <div className="architect-walk-overlay">
++      {mode === "walk" && <WalkDoorPrompt state={doorState} onInteract={() => api.current?.interactDoor()} />}
++      <p className="architect-3d-caption">WASD move · {capture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit{mode === "fly" ? " · Space/Ctrl altitude" : " · solid boundaries · E opens doors"}</p>
++    </div>}
+     {navigationError && <p role="alert" className="architect-3d-caption">{navigationError}</p>}
+     {walkPicker && <ArchitectWalkStart project={project} initialLevel={levelId} onClose={() => setWalkPicker(false)} onStart={(point) => navigate("walk", point)} />}
+   </div>;
+diff --git a/src/studio/architect/ArchitectWalkStart.tsx b/src/studio/architect/ArchitectWalkStart.tsx
+index 5178c66..4964535 100644
+--- a/src/studio/architect/ArchitectWalkStart.tsx
++++ b/src/studio/architect/ArchitectWalkStart.tsx
+@@ -1,7 +1,9 @@
+-import { useState } from "react";
++import { useMemo, useState } from "react";
+ import { WorkspaceDialog } from "../WorkspaceDialog";
+ import type { WalkStart } from "../WalkStartDialog";
+ import type { ArchitectProject, Point } from "./model";
++import { wallAtHeight } from "./geometry.ts";
++import "../walkStartPlacement.css";
+ 
+ export function ArchitectWalkStart({ project, initialLevel, onClose, onStart }: {
+   project: ArchitectProject; initialLevel: string; onClose: () => void; onStart: (point: WalkStart) => void;
+@@ -9,27 +11,37 @@ export function ArchitectWalkStart({ project, initialLevel, onClose, onStart }:
+   const levels = initialLevel === "all" ? project.levels : project.levels.filter(l => l.id === initialLevel);
+   const [levelId, setLevelId] = useState(levels[0].id);
+   const [point, setPoint] = useState<Point | null>(null);
+-  const walls = project.walls.filter(w => w.levelId === levelId);
++  const walls = useMemo(() => project.walls.filter(w => w.levelId === levelId), [project, levelId]);
++  const sections = useMemo(() => walls.map(w => ({ id: w.id, polygons: wallAtHeight(w, project, 1000) })), [walls, project]);
+   const points = walls.flatMap(w => [w.a, w.b]);
+   const minX = Math.min(0, ...points.map(p => p[0])) - 500, minZ = Math.min(0, ...points.map(p => p[1])) - 500;
+   const width = Math.max(9000, ...points.map(p => p[0])) - minX + 500;
+   const height = Math.max(6000, ...points.map(p => p[1])) - minZ + 500;
+   const clamp = (p: Point): Point => [Math.max(minX, Math.min(minX + width, p[0])), Math.max(minZ, Math.min(minZ + height, p[1]))];
+-  return <WorkspaceDialog title="Pick your walking start" onClose={onClose}>
++  return <WorkspaceDialog title="Pick your walkthrough starting point" onClose={onClose}>
+     <div className="walk-start-picker">
+       <p>Choose a floor and click its plan to place your starting point.</p>
+       <label>Starting floor<select aria-label="Starting floor" value={levelId} onChange={e => { setLevelId(e.target.value); setPoint(null); }}>
+         {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+       </select></label>
++      <div className="walk-plan-caption"><span>Floor plan · walls and openings</span><span>↑ Plan up</span></div>
+       <svg className="arch-walk-plan" viewBox={`${minX} ${minZ} ${width} ${height}`} role="button" tabIndex={0} aria-label="Choose walking start on floor plan"
+         onClick={e => { const matrix = e.currentTarget.getScreenCTM(); if (matrix) { const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()); setPoint(clamp([p.x, p.y])); } }}
+         onKeyDown={e => { if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", " "].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); const p = point ?? [minX + width / 2, minZ + height / 2]; setPoint(clamp([p[0] + (e.key === "ArrowRight" ? 100 : e.key === "ArrowLeft" ? -100 : 0), p[1] + (e.key === "ArrowDown" ? 100 : e.key === "ArrowUp" ? -100 : 0)])); }}>
+-        {walls.map(w => <line key={w.id} x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke="currentColor" strokeWidth={100} />)}
+-        {point && <circle cx={point[0]} cy={point[1]} r={140} className="arch-walk-point" />}
++        <g className="walk-plan-floor">{project.slabs.filter(s=>s.levelId===levelId).map(s=><polygon key={s.id} points={s.points.map(p=>p.join(",")).join(" ")} vectorEffect="non-scaling-stroke" />)}</g>
++        <g className="walk-plan-wall">{sections.map(s=><path key={s.id} fillRule="evenodd" d={s.polygons.flatMap(p=>p.map(r=>r.map((v,i)=>`${i?"L":"M"}${v[0]},${v[1]}`).join(" ")+" Z")).join(" ")} />)}</g>
++        {project.openings.filter(o=>walls.some(w=>w.id===o.wallId)).map(o=>{
++          const wall=walls.find(w=>w.id===o.wallId)!,length=Math.hypot(wall.b[0]-wall.a[0],wall.b[1]-wall.a[1]);
++          if(!length)return null;
++          const at=(offset:number)=>[wall.a[0]+(wall.b[0]-wall.a[0])*offset/length,wall.a[1]+(wall.b[1]-wall.a[1])*offset/length],a=at(o.offset-o.width/2),b=at(o.offset+o.width/2);
++          return <line key={o.id} className={`walk-plan-${o.kind}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />;
++        })}
++        <g className="walk-plan-labels" fontSize={Math.max(width,height)/48}>{project.roomTags.filter(t=>t.levelId===levelId).map(t=><text key={t.id} x={t.point[0]} y={t.point[1]} textAnchor="middle">{t.name}</text>)}</g>
++        {point && <g className="walk-plan-chosen" transform={`translate(${point[0]} ${point[1]})`}><circle r={140} /><circle r={210} fill="none" /><path d="M0,-220 L0,-560 M0,-650 L-110,-460 L110,-460 Z" /></g>}
+       </svg>
+       <p>{point ? `Start: X ${(point[0] / 1000).toFixed(2)} m · Z ${(point[1] / 1000).toFixed(2)} m` : "Click the plan, or focus it and use the arrow keys."}</p>
+       <button disabled={!point} onClick={() => point && onStart({ x: point[0] / 1000, z: point[1] / 1000, elevation: project.levels.find(l => l.id === levelId)!.elevation / 1000 })}>Start walking here</button>
+-      <p>Eye height 1.65 m above the floor. Free walkthrough; walls do not block movement. Esc exits.</p>
++      <p>Eye height 1.65 m above a modelled floor. Solid boundaries block walking; approach a door and press E to open it. Esc exits.</p>
+     </div>
+   </WorkspaceDialog>;
+ }
+diff --git a/src/studio/sourceBuilding.css b/src/studio/sourceBuilding.css
+index d72abdc..cab95cf 100644
+--- a/src/studio/sourceBuilding.css
++++ b/src/studio/sourceBuilding.css
+@@ -625,7 +625,7 @@
+   padding: 0 4px;
+ }
+ 
+-@media (max-width: 900px) {
++@media (max-width: 1179px) {
+   .studio-main.source-model-main {
+     overflow: auto;
+   }
+@@ -776,7 +776,7 @@
+   background: var(--color-selected);
+   color: var(--color-ink);
+ }
+-@media (max-width: 900px) {
++@media (max-width: 1179px) {
+   .workbench .source-building {
+     height: 100%;
+     min-height: 0;
+diff --git a/src/studio/walkStartPlacement.css b/src/studio/walkStartPlacement.css
+index 7f8f24d..6f6fb8d 100644
+--- a/src/studio/walkStartPlacement.css
++++ b/src/studio/walkStartPlacement.css
+@@ -7,4 +7,24 @@
+ .walk-start-footer button { min-width: 44px; min-height: 44px; }
+ .walk-start-picker [role="alert"] { border-left: 3px solid var(--color-ink); padding-left: 8px; }
+ .walk-start-picker canvas:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
++.workspace-dialog[open]:has(.walk-start-picker) { width: min(980px, 96vw); }
++.workspace-dialog:has(.walk-start-picker) button { min-height: 44px; min-width: 44px; }
++.walk-clean-plan, .walk-start-picker .arch-walk-plan { display: block; width: 100%; height: clamp(340px, 52vh, 560px); border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); cursor: crosshair; touch-action: manipulation; }
++.walk-clean-plan:focus-visible, .arch-walk-plan:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
++.walk-plan-caption { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--color-muted); }
++.walk-plan-floor { fill: var(--color-selected); fill-opacity: .42; stroke: var(--color-line); stroke-width: .8px; }
++.walk-plan-wall { fill: var(--color-ink); stroke: var(--color-ink); stroke-width: .7px; }
++.walk-plan-door { fill: var(--color-paper); stroke: var(--color-muted); stroke-width: 1px; stroke-dasharray: 4 3; }
++.walk-plan-window { fill: var(--color-paper); stroke: var(--color-blue); stroke-width: 1px; }
++.walk-plan-stair { fill: var(--color-paper); stroke: var(--color-muted); stroke-width: .7px; }
++.walk-plan-labels { fill: var(--color-muted); pointer-events: none; }
++.walk-plan-suggestion circle, .walk-plan-chosen { fill: var(--color-ink); stroke: var(--color-ink); stroke-width: 2px; }
++.walk-plan-suggestion circle { stroke: var(--color-paper); stroke-width: .6px; vector-effect: non-scaling-stroke; }
++.walk-plan-suggestion text { fill: var(--color-paper); stroke: none; pointer-events: none; }
++.walk-plan-chosen { pointer-events: none; }
++.walk-plan-chosen * { vector-effect: non-scaling-stroke; }
++.walk-start-picker .arch-walk-plan .walk-plan-floor { stroke-width: 1px; }
++.walk-start-picker .arch-walk-plan .walk-plan-wall { stroke: none; }
++.walk-start-picker .arch-walk-plan .walk-plan-door { fill: none; }
++@media (min-width: 761px) and (max-height: 850px) { .walk-clean-plan, .walk-start-picker .arch-walk-plan { height: 380px; } }
+ @media (max-width: 760px) { .walk-start-suggestions { grid-template-columns: 1fr; } }
+
+diff --git a/src/studio/FirstPersonArm.test.ts b/src/studio/FirstPersonArm.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/FirstPersonArm.test.ts
+@@ -0,0 +1,36 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import * as THREE from "three";
++import { createFirstPersonArm } from "./FirstPersonArm.ts";
++
++function fixture(reduced=false) {
++  const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera();
++  const canvas={dataset:{},ownerDocument:{defaultView:{matchMedia:()=>({matches:reduced})}}} as unknown as HTMLCanvasElement;
++  const model=new THREE.Group(), hand=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial());
++  hand.name="hand";model.add(hand);
++  const animation=new THREE.AnimationClip("grab.R",1,[new THREE.VectorKeyframeTrack("hand.position",[0,1],[0,0,0,1,0,0])]);
++  const asset={scene:model,animations:[animation]};return {scene,camera,canvas,asset,hand};
++}
++test("reach rig follows camera/body and real animation time, then hides on cancellation",async()=>{
++  const f=fixture(),arm=createFirstPersonArm({...f,invalidate:()=>{},loadAsset:async()=>f.asset});await arm.ready;
++  assert.equal(f.hand.material.transparent,true,"arm must render after transparent building surfaces");
++  assert.equal(f.hand.material.depthTest,false);
++  assert.equal(f.hand.material.depthWrite,false);
++  f.camera.position.set(4,2,3);f.camera.rotation.y=.8;
++  assert.equal(arm.tick({id:"door",label:"Door",open:false,busy:true,progress:.5,motion:"swing"}),true);
++  const body=f.scene.getObjectByName("Walkthrough body")!;body.updateWorldMatrix(true,true);
++  assert.ok(body.matrixWorld.equals(f.camera.matrixWorld));assert.equal(f.hand.position.x,.5);
++  f.camera.position.x+=2;arm.tick({id:"door",label:"Door",open:false,busy:true,progress:.75,motion:"slide"});
++  body.updateWorldMatrix(true,true);assert.equal(body.getWorldPosition(new THREE.Vector3()).x,6);
++  assert.equal(arm.tick(null),false);assert.equal(body.visible,false);
++  arm.dispose();assert.equal(f.scene.getObjectByName("Walkthrough body"),undefined);assert.equal(arm.tick({id:"x",label:"x",busy:true,open:false,progress:.4,motion:"swing"}),false);
++});
++test("reduced motion hides the body reach without changing door state; late asset is disposed",async()=>{
++  const f=fixture(true),arm=createFirstPersonArm({...f,invalidate:()=>{},loadAsset:async()=>f.asset});await arm.ready;
++  const state={id:"door",label:"Door",open:false,busy:true,progress:.5,motion:"swing" as const};
++  assert.equal(arm.tick(state),false);assert.equal(state.progress,.5);arm.dispose();
++  const late=fixture();let resolve!:(asset:typeof late.asset)=>void,disposed=0;
++  late.hand.geometry.addEventListener("dispose",()=>disposed++);
++  const gone=createFirstPersonArm({...late,invalidate:()=>{},loadAsset:()=>new Promise(done=>{resolve=done;})});gone.dispose();resolve(late.asset);await gone.ready;
++  assert.equal(disposed,1);assert.equal(late.scene.children.length,0);
++});
+
+diff --git a/src/studio/FirstPersonArm.ts b/src/studio/FirstPersonArm.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/FirstPersonArm.ts
+@@ -0,0 +1,75 @@
++import * as THREE from "three";
++import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
++import type { WalkDoorState } from "./WalkDoors";
++
++/** A real first-person rig, parented to the view so its shoulder stays at the body. */
++export function createFirstPersonArm({ scene, camera, canvas, invalidate, loadAsset }: {
++  scene: THREE.Scene; camera: THREE.PerspectiveCamera; canvas: HTMLCanvasElement; invalidate: () => void;
++  loadAsset?: () => Promise<Pick<GLTF, "scene" | "animations">>;
++}) {
++  const anchor = new THREE.Group(), rig = new THREE.Group();
++  anchor.name = "Walkthrough body"; anchor.matrixAutoUpdate = false; anchor.visible = false;
++  anchor.add(rig); scene.add(anchor);
++  let disposed = false, mixer: THREE.AnimationMixer | null = null;
++  let action: THREE.AnimationAction | null = null, duration = 0;
++  canvas.dataset.walkArmAsset = "loading";
++  canvas.dataset.walkArmVisible = "false";
++  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
++  const load = (loadAsset?.() ?? new GLTFLoader().loadAsync("/assets/walkthrough/arms.glb")).then(gltf => {
++    gltf.scene.traverse(object => {
++      if (!(object instanceof THREE.Mesh)) return;
++      geometries.add(object.geometry); object.frustumCulled = false;
++      object.renderOrder = 10000; object.castShadow = false; object.receiveShadow = false;
++      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
++        materials.add(material); material.depthTest = false; material.depthWrite = false;
++        // Model glazing renders in the transparent queue; draw the view arm after it.
++        material.transparent = true;
++        for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
++      }
++    });
++    if (disposed) { release(); return; }
++    rig.add(gltf.scene);
++    // The authored first-person rig uses metre units and its own shoulder-relative origin.
++    rig.position.set(0.1, -1.743155, -0.16);
++    rig.rotation.y = Math.PI; // Authored reach is +Z; a Three.js camera looks along -Z.
++    const clip = gltf.animations.find(clip => /grab[._ ]?r$/i.test(clip.name))
++      ?? gltf.animations.find(clip => /push[._ ]?r$/i.test(clip.name));
++    if (!clip) throw Error("First-person reach animation is missing");
++    mixer = new THREE.AnimationMixer(gltf.scene);
++    action = mixer.clipAction(clip); action.setLoop(THREE.LoopOnce, 1);
++    action.clampWhenFinished = true; action.play(); duration = clip.duration;
++    canvas.dataset.walkArmAsset = "ready"; canvas.dataset.walkArmAnimation = clip.name;
++    canvas.dataset.walkArmAnchor = "camera-body";
++    invalidate();
++  }).catch(() => { if (!disposed) { canvas.dataset.walkArmAsset = "unavailable"; invalidate(); } });
++  void load;
++  function release() { for (const g of geometries) g.dispose(); for (const m of materials) m.dispose(); for (const t of textures) t.dispose(); }
++  return {
++    ready: load,
++    tick(state: WalkDoorState | null) {
++      if (disposed) return false;
++      const reduce = canvas.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
++      const visible = Boolean(state?.busy && action && mixer && !reduce);
++      anchor.visible = visible; canvas.dataset.walkArmVisible = String(visible);
++      if (!visible || !state || !action || !mixer) return false;
++      const t = THREE.MathUtils.clamp(state.open ? 1 - state.progress : state.progress, 0, 1);
++      action.enabled = true; action.paused = true; action.time = t * duration;
++      mixer.update(0);
++      // This interaction uses the right hand; keep the resting left arm below view.
++      rig.getObjectByName("shoulderL")?.scale.setScalar(0);
++      camera.updateWorldMatrix(true, false); anchor.matrix.copy(camera.matrixWorld);
++      anchor.matrixWorldNeedsUpdate = true;
++      anchor.updateWorldMatrix(true, true);
++      const hand = rig.getObjectByName("handR");
++      if (hand) canvas.dataset.walkArmHandProjection = hand.getWorldPosition(new THREE.Vector3()).project(camera).toArray().join(",");
++      canvas.dataset.walkArmProgress = String(t);
++      return true;
++    },
++    dispose() {
++      if (disposed) return; disposed = true;
++      canvas.dataset.walkArmVisible = "false";
++      mixer?.stopAllAction(); if (mixer) mixer.uncacheRoot(mixer.getRoot());
++      anchor.removeFromParent(); release();
++    },
++  };
++}
+
+diff --git a/src/studio/WalkDoorPrompt.tsx b/src/studio/WalkDoorPrompt.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/studio/WalkDoorPrompt.tsx
+@@ -0,0 +1,16 @@
++import type { WalkDoorState } from "./WalkDoors.ts";
++import "./walkDoors.css";
++
++export function WalkDoorPrompt({ state, onInteract }: { state: WalkDoorState | null; onInteract: () => void }) {
++  if (!state) return null;
++  const action = state.open ? "Close door" : "Open door";
++  return <div className="walk-door-prompt" aria-label="Nearby door" data-busy={state.busy}>
++    <div className="walk-door-card">
++      <span className="walk-door-label">{state.label}</span>
++      <button type="button" onClick={onInteract} disabled={state.busy || !!state.blockedReason} aria-label={`${action}: ${state.label}`}>
++        {state.busy ? state.open ? "Closing…" : "Opening…" : action}<kbd aria-hidden="true">E</kbd>
++      </button>
++      <span className="walk-door-status" role="status">{state.blockedReason ?? (state.busy ? "Reaching for the door" : "Approach and press E, or use the button")}</span>
++    </div>
++  </div>;
++}
+
+diff --git a/src/studio/WalkDoors.test.ts b/src/studio/WalkDoors.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/WalkDoors.test.ts
+@@ -0,0 +1,150 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import * as THREE from "three";
++import { createWalkDoors, type WalkDoorDefinition, type WalkDoorState } from "./WalkDoors.ts";
++import { prepareSourceWalkDoors } from "./sourceWalkDoors.ts";
++
++function fixture(options: { motion?: "swing" | "slide" | "lift"; reduced?: boolean; angle?: number; rotation?: number } = {}) {
++  const scene = new THREE.Scene(), group = new THREE.Group(); scene.add(group);
++  group.rotation.y = options.rotation ?? 0;
++  const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.1, 0.06), new THREE.MeshBasicMaterial());
++  leaf.position.y = 1.05; group.add(leaf); scene.updateMatrixWorld(true);
++  const camera = new THREE.PerspectiveCamera(); camera.position.set(0, 1.65, 1); camera.lookAt(0, 1.65, 0);
++  const canvas = { dataset: {} } as unknown as HTMLCanvasElement;
++  let time = 0, state: WalkDoorState | null = null, invalidations = 0;
++  const solids: THREE.Object3D[] = [leaf];
++  const definition: WalkDoorDefinition = { id: "door-1", label: "Study door", meshes: [leaf], motion: options.motion };
++  if (options.angle !== undefined) { definition.swingAngle = options.angle; definition.hinge = new THREE.Vector3(-0.45, 0, 0).applyMatrix4(group.matrixWorld); }
++  const originalPosition = leaf.geometry.getAttribute("position").array.slice(), originalMatrix = leaf.matrix.clone();
++  const api = createWalkDoors({ doors: [definition], camera, canvas, solids: () => solids, now: () => time, reducedMotion: () => options.reduced ?? false,
++    onChange: value => { state = value; }, invalidate: () => { invalidations++; } });
++  return { api, leaf, camera, canvas, scene, group, solids, originalMatrix, originalPosition, state: () => state,
++    time: (value: number) => { time = value; }, invalidations: () => invalidations };
++}
++
++test("door prompt requires near, facing and vertically matching approach; other solids block it", () => {
++  const f = fixture(); f.api.tick(true); assert.equal(f.state()?.id, "door-1");
++  f.camera.position.z = 2; f.api.tick(true); assert.equal(f.state(), null); f.api.interact(); assert.equal(f.api.busy, false);
++  f.camera.position.z = 1; f.camera.lookAt(0, 1.65, 3); f.api.tick(true); assert.equal(f.state(), null);
++  f.camera.position.y = 4; f.camera.lookAt(0, 4, 0); f.api.tick(true); assert.equal(f.state(), null);
++  f.camera.position.y = 1.65; f.camera.lookAt(0, 1.65, 0);
++  const wall = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.05), new THREE.MeshBasicMaterial({ side: THREE.FrontSide }));
++  wall.position.set(0, 1.5, 0.5); wall.rotation.y = Math.PI; f.scene.add(wall); f.solids.push(wall);
++  f.api.tick(true); assert.equal(f.state(), null); f.api.interact(); assert.equal(f.api.busy, false);
++  wall.visible = false; f.api.tick(true); assert.equal(f.state()?.id, "door-1");
++  f.api.dispose();
++});
++
++test("swing animates the actual leaf about its edge, away from viewer, without changing geometry", () => {
++  const f = fixture(); f.api.tick(true); f.api.interact(); assert.equal(f.api.busy, true);
++  f.time(310); assert.equal(f.api.tick(true), true); assert.equal(f.state()?.progress, 0.5);
++  assert(f.leaf.getWorldPosition(new THREE.Vector3()).z < -0.2);
++  f.time(620); f.api.tick(true); assert.equal(f.api.busy, false); assert.equal(f.state()?.open, true);
++  const box = new THREE.Box3().setFromObject(f.leaf); assert(box.max.x - box.min.x < 0.07); assert(box.max.z - box.min.z > 0.89);
++  assert.deepEqual(f.leaf.geometry.getAttribute("position").array, f.originalPosition);
++  f.api.interact(); assert.equal(f.api.busy, true); f.time(1240); f.api.tick(true);
++  assert.equal(f.state()?.open, false); assert(f.leaf.matrix.equals(f.originalMatrix)); f.api.dispose();
++});
++
++test("closed doorway and open swing area refuse closing without moving the leaf", () => {
++  const f = fixture({ reduced: true }); f.api.tick(true); f.api.interact(); assert.equal(f.state()?.open, true);
++  const opened = f.leaf.matrix.clone(); f.camera.position.set(0, 1.65, 0); f.camera.lookAt(0, 1.65, -1);
++  f.api.tick(true); assert.match(f.state()?.blockedReason ?? "", /clear/); f.api.interact();
++  assert(f.leaf.matrix.equals(opened)); assert.equal(f.state()?.open, true);
++  f.camera.position.set(0, 1.65, 1); f.camera.lookAt(0, 1.65, 0); f.api.tick(true); f.api.interact();
++  assert.equal(f.state()?.open, false); f.api.dispose();
++});
++
++test("explicit hinge swing refuses opening through a nearby body, but works about one metre away", () => {
++  const f = fixture({ reduced: true, angle: -Math.PI / 2 });
++  f.camera.position.set(-0.35, 1.65, 0.55); f.camera.lookAt(0, 1.65, 0); f.api.tick(true);
++  assert.match(f.state()?.blockedReason ?? "", /Step back/); f.api.interact(); assert.equal(f.state()?.open, false);
++  f.camera.position.set(0, 1.65, 1.2); f.camera.lookAt(0, 1.65, 0); f.api.tick(true);
++  assert.equal(f.state()?.blockedReason, undefined); f.api.interact(); assert.equal(f.state()?.open, true); f.api.dispose();
++});
++
++test("slide and lift change the same collider-visible meshes; open garage control remains reachable", () => {
++  for (const motion of ["slide", "lift"] as const) {
++    const f = fixture({ motion, reduced: true }); f.api.tick(true); f.api.interact();
++    assert.equal(f.api.busy, false); assert.equal(f.state()?.motion, motion); assert.equal(f.state()?.open, true);
++    const world = f.leaf.getWorldPosition(new THREE.Vector3());
++    if (motion === "slide") assert(Math.abs(world.x - 0.936) < 1e-6); else assert(Math.abs(world.y - 3.234) < 1e-6);
++    f.api.tick(true); assert.equal(f.state()?.id, "door-1"); f.api.interact(); assert.equal(f.state()?.open, false);
++    f.api.dispose();
++  }
++});
++
++test("camera entering the sweep during animation stops motion at its current pose", () => {
++  const f = fixture(); f.api.tick(true); f.api.interact(); f.time(620); f.api.tick(true);
++  f.api.interact(); f.time(775); f.api.tick(true); const partial = f.leaf.matrix.clone();
++  f.camera.position.set(0, 1.65, 0); f.camera.lookAt(0, 1.65, -1); f.time(930); f.api.tick(true);
++  assert.equal(f.api.busy, false); assert(f.leaf.matrix.equals(partial)); assert.match(f.state()?.blockedReason ?? "", /clear/); f.api.dispose();
++});
++
++test("reset/exit/dispose restore original local transforms under a rotated parent", () => {
++  const f = fixture({ reduced: true, rotation: Math.PI / 4, angle: Math.PI / 2 });
++  f.api.tick(true); f.api.interact(); assert.equal(f.state()?.open, true); assert(!f.leaf.matrix.equals(f.originalMatrix));
++  f.api.reset(); assert(f.leaf.matrix.equals(f.originalMatrix)); assert.equal(f.leaf.matrixAutoUpdate, true); assert.equal(f.state(), null);
++  f.api.tick(true); f.api.interact(); f.api.tick(false); assert(f.leaf.matrix.equals(f.originalMatrix)); assert.equal(f.state(), null);
++  f.leaf.position.y = 4; f.leaf.updateMatrix(); f.api.tick(false); assert.equal(f.leaf.position.y, 4); // Inactive view options remain untouched.
++  f.api.dispose(); assert(f.leaf.matrix.equals(f.originalMatrix)); f.api.interact(); assert.equal(f.api.tick(true), false); f.api.dispose();
++});
++
++test("duplicate leaf ownership is rejected before ambiguous interaction", () => {
++  const f = fixture();
++  assert.throws(() => createWalkDoors({ doors: [{ id: "a", label: "A", meshes: [f.leaf] }, { id: "b", label: "B", meshes: [f.leaf] }], camera: f.camera, canvas: f.canvas, onChange() {}, invalidate() {} }), /two door/);
++  f.api.dispose();
++});
++
++test("actual Redburn bifold retains close access near the original portal and reports open state when looking away", () => {
++  const model = JSON.parse(readFileSync(new URL("../../public/models/redburn/source-building.json", import.meta.url), "utf8"));
++  const scene = new THREE.Scene(), meshes = new Map<string, THREE.Mesh>();
++  for (const part of model.objects) {
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3)); geometry.setIndex(part.indices);
++    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
++    scene.add(mesh); meshes.set(part.id, mesh);
++  }
++  const prepared = prepareSourceWalkDoors(model, meshes), camera = new THREE.PerspectiveCamera();
++  const canvas = { dataset: {} } as unknown as HTMLCanvasElement;
++  let state: WalkDoorState | null = null, time = 0;
++  const api = createWalkDoors({ doors: prepared.doors, camera, canvas, solids: () => [...meshes.values(), ...prepared.extraMeshes], now: () => time,
++    onChange: value => { state = value; }, invalidate() {} });
++  const readState = () => state;
++  // At the actual collision-stop position the closed glass is clear, but an
++  // offset mullion would cross the body during sliding. Five centimetres back is safe.
++  camera.position.set(-0.04036, 1.665, 3.04828); camera.lookAt(-0.04036, 1.665, 4.04828);
++  api.tick(true); assert.match(readState()?.blockedReason ?? "", /Step back/);
++  camera.position.z -= 0.05; api.tick(true); assert.equal(readState()?.blockedReason, undefined);
++  api.tick(true); api.interact(); time = 620; api.tick(true);
++  assert.equal(readState()?.open, true);
++  camera.position.set(-0.04036, 1.665, 3.04828); camera.lookAt(-0.04036, 1.665, 4.04828); api.tick(true);
++  assert.equal(readState()?.id, "lower-terrace-wall-opening-1");
++  assert.equal(readState()?.open, true); assert.match(readState()?.blockedReason ?? "", /clear/);
++  camera.lookAt(-0.04036, 1.665, 2.04828); api.tick(true);
++  assert.equal(readState(), null);
++  assert.equal(JSON.parse(canvas.dataset.walkDoors!).find((door: { id: string }) => door.id === "lower-terrace-wall-opening-1").progress, 1);
++  camera.position.set(0, 1.58, 4.1); camera.lookAt(0, 1.58, 3.1); api.tick(true);
++  assert.equal(readState()?.open, true); assert.equal(readState()?.blockedReason, undefined);
++  api.interact(); time = 1240; api.tick(true); assert.equal(readState()?.open, false);
++  api.dispose();
++  for (const mesh of [...meshes.values(), ...prepared.extraMeshes]) { mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); }
++});
++
++test("empty space in merged leaf geometry does not become a solid swept box", () => {
++  const positions: number[] = [];
++  for (const x of [-0.45, 0.45]) {
++    const bar = new THREE.BoxGeometry(0.06, 2.1, 0.06).toNonIndexed(); bar.translate(x, 1.05, 0);
++    positions.push(...bar.getAttribute("position").array); bar.dispose();
++  }
++  const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
++  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial()), camera = new THREE.PerspectiveCamera();
++  camera.position.set(0, 1.65, 0.2); camera.lookAt(0, 1.65, 0);
++  let state: WalkDoorState | null = null;
++  const readState = () => state;
++  const api = createWalkDoors({ doors: [{ id: "bars", label: "Lift assembly", meshes: [mesh], motion: "lift" }], camera,
++    canvas: { dataset: {} } as unknown as HTMLCanvasElement, reducedMotion: () => true, onChange: value => { state = value; }, invalidate() {} });
++  api.tick(true); assert.equal(readState()?.blockedReason, undefined); api.interact(); assert.equal(readState()?.open, true);
++  api.dispose(); geometry.dispose(); (mesh.material as THREE.Material).dispose();
++});
+
+diff --git a/src/studio/WalkDoors.ts b/src/studio/WalkDoors.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/WalkDoors.ts
+@@ -0,0 +1,203 @@
++import * as THREE from "three";
++import { capsuleFaceDistanceSq } from "./walkCollision.ts";
++
++export type WalkDoorMotion = "swing" | "slide" | "lift";
++export type WalkDoorState = { id: string; label: string; open: boolean; busy: boolean; progress: number; motion: WalkDoorMotion; blockedReason?: string };
++export type WalkDoorDefinition = {
++  id: string; label: string; meshes: THREE.Mesh[]; motion?: WalkDoorMotion;
++  /** World-space hinge and signed opening angle, when known by the authoring model. */
++  hinge?: THREE.Vector3; swingAngle?: number;
++};
++type Original = { mesh: THREE.Mesh; matrix: THREE.Matrix4; world: THREE.Matrix4; position: THREE.Vector3; quaternion: THREE.Quaternion; scale: THREE.Vector3; auto: boolean };
++type Door = { definition: WalkDoorDefinition; originals: Original[]; bounds: THREE.Box3; axis: THREE.Vector3; normal: THREE.Vector3; hinge: THREE.Vector3; width: number; height: number; angle: number; progress: number; open: boolean };
++const REACH = 1.5, DURATION = 620, BODY_RADIUS = 0.27;
++
++/** View-only leaf transforms; the same mesh objects remain available to collision checks. */
++export function createWalkDoors({ doors, camera, canvas, onChange, invalidate, solids, now = () => performance.now(), reducedMotion }: {
++  doors: readonly WalkDoorDefinition[]; camera: THREE.PerspectiveCamera; canvas: HTMLCanvasElement;
++  onChange: (state: WalkDoorState | null) => void; invalidate: () => void;
++  solids?: () => readonly THREE.Object3D[]; now?: () => number; reducedMotion?: () => boolean;
++}) {
++  const claimed = new Set<THREE.Mesh>(), identities = new Set<string>();
++  const records: Door[] = doors.map(definition => {
++    if (!definition.id || identities.has(definition.id) || !definition.meshes.length) throw Error("Door identities and leaves must be unique and non-empty.");
++    identities.add(definition.id);
++    const corners: THREE.Vector3[] = [];
++    const originals = definition.meshes.map(mesh => {
++      if (claimed.has(mesh)) throw Error("A door leaf cannot belong to two door controls.");
++      claimed.add(mesh); mesh.updateWorldMatrix(true, false);
++      mesh.geometry.computeBoundingBox();
++      const box = mesh.geometry.boundingBox;
++      if (!box || box.isEmpty()) throw Error("Door leaf geometry is empty.");
++      for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(x, y, z).applyMatrix4(mesh.matrixWorld));
++      return { mesh, matrix: mesh.matrix.clone(), world: mesh.matrixWorld.clone(), position: mesh.position.clone(), quaternion: mesh.quaternion.clone(), scale: mesh.scale.clone(), auto: mesh.matrixAutoUpdate };
++    });
++    const bounds = new THREE.Box3().setFromPoints(corners), centre = bounds.getCenter(new THREE.Vector3());
++    let xx = 0, zz = 0, xz = 0;
++    for (const p of corners) { xx += (p.x - centre.x) ** 2; zz += (p.z - centre.z) ** 2; xz += (p.x - centre.x) * (p.z - centre.z); }
++    const yaw = Math.atan2(2 * xz, xx - zz) / 2;
++    const axis = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw)), normal = new THREE.Vector3(-axis.z, 0, axis.x);
++    const along = corners.map(p => p.dot(axis)), across = corners.map(p => p.dot(normal));
++    const min = Math.min(...along), width = Math.max(...along) - min, height = bounds.max.y - bounds.min.y;
++    if (![width, height, ...centre.toArray()].every(Number.isFinite) || width < 0.05 || height < 0.2) throw Error("Door leaf dimensions are invalid.");
++    const hinge = definition.hinge?.clone() ?? axis.clone().multiplyScalar(min).addScaledVector(normal, (Math.min(...across) + Math.max(...across)) / 2).setY(bounds.min.y);
++    if (!hinge.toArray().every(Number.isFinite) || (definition.swingAngle !== undefined && (!Number.isFinite(definition.swingAngle) || Math.abs(definition.swingAngle) < 0.01 || Math.abs(definition.swingAngle) > Math.PI))) throw Error("Door hinge or swing angle is invalid.");
++    return { definition, originals, bounds, axis, normal, hinge, width, height, angle: definition.swingAngle ?? Math.PI / 2, progress: 0, open: false };
++  });
++  let disposed = false, active = false, candidate: Door | null = null, lastState = "";
++  let animation: { door: Door; from: number; to: number; started: number } | null = null;
++  const eye = new THREE.Vector3(), facing = new THREE.Vector3(), raycaster = new THREE.Raycaster();
++  const rayMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
++  const rayProxies = new WeakMap<THREE.Mesh, THREE.Mesh>();
++  function cameraPosition() { camera.updateWorldMatrix(true, false); return camera.getWorldPosition(eye); }
++  function delta(door: Door, progress: number) {
++    const motion = door.definition.motion ?? "swing";
++    if (motion === "slide") return new THREE.Matrix4().makeTranslation(...door.axis.clone().multiplyScalar(door.width * 1.04 * progress).toArray());
++    if (motion === "lift") return new THREE.Matrix4().makeTranslation(0, door.height * 1.04 * progress, 0);
++    return new THREE.Matrix4().makeTranslation(...door.hinge.toArray()).multiply(new THREE.Matrix4().makeRotationY(door.angle * progress)).multiply(new THREE.Matrix4().makeTranslation(...door.hinge.clone().negate().toArray()));
++  }
++  function apply(door: Door, progress: number) {
++    const transform = delta(door, progress);
++    for (const original of door.originals) {
++      const { mesh } = original;
++      mesh.parent?.updateWorldMatrix(true, false);
++      const inverseParent = mesh.parent ? mesh.parent.matrixWorld.clone().invert() : new THREE.Matrix4();
++      mesh.matrix.copy(inverseParent.multiply(transform.clone().multiply(original.world)));
++      mesh.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
++      mesh.matrixAutoUpdate = false; mesh.matrixWorldNeedsUpdate = true; mesh.updateWorldMatrix(false, false);
++    }
++    door.progress = progress;
++  }
++  function visible(object: THREE.Object3D) { for (let part: THREE.Object3D | null = object; part; part = part.parent) if (!part.visible) return false; return true; }
++  function currentBounds(door: Door) {
++    const box = new THREE.Box3();
++    for (const { mesh } of door.originals) box.union(new THREE.Box3().setFromObject(mesh));
++    return box;
++  }
++  function obstructed(door: Door, target: THREE.Vector3) {
++    if (!solids) return false;
++    const direction = target.clone().sub(eye), distance = direction.length();
++    if (distance < 0.04) return false;
++    raycaster.set(eye, direction.normalize()); raycaster.near = 0; raycaster.far = Math.max(0, distance - 0.025);
++    const leaves = new Set(door.definition.meshes), checked = new Set<THREE.Mesh>();
++    let blocked = false;
++    for (const solid of solids()) solid.traverse(object => {
++      if (blocked || !(object instanceof THREE.Mesh) || leaves.has(object) || checked.has(object) || !visible(object)) return;
++      checked.add(object); object.updateWorldMatrix(true, false);
++      let proxy = rayProxies.get(object);
++      if (!proxy) { proxy = new THREE.Mesh(object.geometry, rayMaterial); rayProxies.set(object, proxy); }
++      proxy.geometry = object.geometry; proxy.matrixWorld.copy(object.matrixWorld);
++      const hits: THREE.Intersection[] = []; proxy.raycast(raycaster, hits);
++      if (hits.length) blocked = true;
++    });
++    return blocked;
++  }
++  function chooseSwing(door: Door) {
++    if (!door.open && door.definition.swingAngle === undefined) {
++      const side = cameraPosition().clone().sub(door.hinge).dot(door.normal);
++      door.angle = side >= 0 ? Math.PI / 2 : -Math.PI / 2;
++    }
++  }
++  function sweepBlocked(door: Door) {
++    const position = cameraPosition();
++    const feet = position.y - 1.65;
++    const low = new THREE.Vector3(position.x, feet + BODY_RADIUS, position.z);
++    const high = new THREE.Vector3(position.x, feet + 1.8 - BODY_RADIUS, position.z);
++    const bodyBounds = new THREE.Box3(new THREE.Vector3(position.x - BODY_RADIUS, feet, position.z - BODY_RADIUS),
++      new THREE.Vector3(position.x + BODY_RADIUS, feet + 1.8, position.z + BODY_RADIUS));
++    // Bounding boxes are only a broad phase: joined mullion meshes contain empty
++    // space. The same triangle/capsule narrow phase as walking preserves those gaps.
++    for (let i = 0; i <= 16; i++) {
++      const transform = delta(door, i / 16);
++      for (const original of door.originals) {
++        const world = transform.clone().multiply(original.world), localBox = original.mesh.geometry.boundingBox!;
++        const worldBox = localBox.clone().applyMatrix4(world);
++        if (!worldBox.intersectsBox(bodyBounds)) continue;
++        const geometry = original.mesh.geometry, vertices = geometry.getAttribute("position"), index = geometry.index;
++        const triangle = new THREE.Triangle(), faceBounds = new THREE.Box3();
++        for (let j = 0; j < (index?.count ?? vertices.count); j += 3) {
++          for (const [offset, point] of [triangle.a, triangle.b, triangle.c].entries()) point.fromBufferAttribute(vertices, index ? index.getX(j + offset) : j + offset).applyMatrix4(world);
++          faceBounds.setFromPoints([triangle.a, triangle.b, triangle.c]);
++          if (faceBounds.intersectsBox(bodyBounds) && capsuleFaceDistanceSq(low, high, triangle) < (BODY_RADIUS - 0.002) ** 2) return true;
++        }
++      }
++    }
++    return false;
++  }
++  function eligible(door: Door) {
++    if (!door.originals.some(({ mesh }) => visible(mesh))) return null;
++    cameraPosition(); camera.getWorldDirection(facing);
++    if (eye.y < door.bounds.min.y - 0.1 || eye.y > door.bounds.max.y + 0.35) return null;
++    const target = (door.open ? door.bounds : currentBounds(door)).clampPoint(eye, new THREE.Vector3()), distance = target.distanceTo(eye);
++    const toward = target.clone().sub(eye);
++    if (distance > REACH || (distance > 0.01 && toward.normalize().dot(facing) < 0.35) || obstructed(door, target)) return null;
++    return distance;
++  }
++  function choose() {
++    let best: Door | null = null, nearest = Infinity;
++    for (const door of records) { const distance = eligible(door); if (distance !== null && distance < nearest) { best = door; nearest = distance; } }
++    return best;
++  }
++  function publish(door: Door | null) {
++    if (door && !animation) chooseSwing(door);
++    const state: WalkDoorState | null = door ? { id: door.definition.id, label: door.definition.label, open: door.open, busy: animation?.door === door, progress: Math.round(door.progress * 1000) / 1000, motion: door.definition.motion ?? "swing",
++      ...(!animation && sweepBlocked(door) ? { blockedReason: door.open ? "Step clear of the doorway before closing." : "Step back to open the door." } : {}) } : null;
++    const text = JSON.stringify(state);
++    if (text !== lastState) { lastState = text; onChange(state); }
++    canvas.dataset.walkDoor = state?.id ?? "";
++    canvas.dataset.walkDoorProgress = state ? String(state.progress) : "";
++    canvas.dataset.walkDoorBusy = String(state?.busy ?? false);
++    canvas.dataset.walkDoorOpen = String(state?.open ?? false);
++    // Door transforms persist when the viewer turns away and the nearby prompt hides.
++    // Keep physical state separate from prompt eligibility for diagnostics and QA.
++    canvas.dataset.walkDoors = JSON.stringify(records.map(record => ({ id: record.definition.id, open: record.open, progress: Math.round(record.progress * 1000) / 1000 })));
++  }
++  function reset() {
++    animation = null; candidate = null;
++    for (const door of records) {
++      for (const original of door.originals) {
++        const { mesh } = original;
++        mesh.position.copy(original.position); mesh.quaternion.copy(original.quaternion); mesh.scale.copy(original.scale);
++        mesh.matrix.copy(original.matrix); mesh.matrixAutoUpdate = original.auto; mesh.matrixWorldNeedsUpdate = true; mesh.updateWorldMatrix(true, false);
++      }
++      door.progress = 0; door.open = false;
++    }
++    publish(null); invalidate();
++  }
++  return {
++    get busy() { return animation !== null; },
++    tick(nextActive: boolean) {
++      if (disposed) return false;
++      if (active && !nextActive) reset();
++      active = nextActive;
++      if (!active) return false;
++      if (animation && sweepBlocked(animation.door)) {
++        // Another movement can enter the sweep after interaction. Stop at the current
++        // safe pose rather than animate a solid leaf through the camera body.
++        animation.door.open = animation.door.progress > 0.001; animation = null;
++      }
++      if (animation) {
++        const run = animation, t = Math.min(1, Math.max(0, (now() - run.started) / DURATION));
++        const eased = t * t * (3 - 2 * t);
++        apply(run.door, run.from + (run.to - run.from) * eased);
++        if (t === 1) { run.door.open = run.to === 1; animation = null; }
++      }
++      candidate = animation?.door ?? choose(); publish(candidate);
++      return animation !== null;
++    },
++    interact() {
++      if (disposed || !active || animation) return;
++      candidate = choose();
++      if (!candidate) { publish(null); return; }
++      chooseSwing(candidate);
++      if (sweepBlocked(candidate)) { publish(candidate); return; }
++      const to = candidate.open ? 0 : 1;
++      const reduce = reducedMotion?.() ?? canvas.ownerDocument?.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
++      if (reduce) { apply(candidate, to); candidate.open = to === 1; }
++      else animation = { door: candidate, from: candidate.progress, to, started: now() };
++      publish(candidate); invalidate();
++    },
++    reset,
++    dispose() { if (disposed) return; reset(); active = false; disposed = true; rayMaterial.dispose(); },
++  };
++}
+
+diff --git a/src/studio/cleanWalkPlan.test.ts b/src/studio/cleanWalkPlan.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/cleanWalkPlan.test.ts
+@@ -0,0 +1,36 @@
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import test from "node:test";
++import * as THREE from "three";
++import { buildCleanWalkPlan, sectionContours } from "./cleanWalkPlan.ts";
++import { parseSourceBuilding, type BuildingPart } from "./sourceBuilding.ts";
++import { recommendWalkStarts } from "./walkStartPlacement.ts";
++const model=parseSourceBuilding(JSON.parse(fs.readFileSync(new URL("../../public/models/redburn/source-building.json",import.meta.url),"utf8")));
++function composite(boxes:[number,number,number,number,number,number][]):BuildingPart {
++  const positions:number[]=[],indices:number[]=[];
++  for(const [x,y,z,sx,sy,sz] of boxes) {const g=new THREE.BoxGeometry(sx,sy,sz);g.translate(x,y,z);const offset=positions.length/3;positions.push(...g.attributes.position.array);indices.push(...[...g.index!.array].map(i=>i+offset));g.dispose();}
++  return {...model.objects[0],id:"doorway-wall",category:"wall",level:"ground",positions,indices};
++}
++function inside(point:number[],loop:number[][]) {let result=false;for(let i=0,j=loop.length-1;i<loop.length;j=i++) {const a=loop[i],b=loop[j];if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])result=!result;}return result;}
++test("wall sections preserve a real doorway void while its overhead lintel remains excluded",()=>{
++  const part=composite([[-1.25,1.5,0,1.5,3,.2],[1.25,1.5,0,1.5,3,.2],[0,2.6,0,1, .8,.2]]), loops=sectionContours(part,1);
++  assert.equal(loops.length,2);assert.equal(loops.some(l=>inside([0,0],l)),false);assert.equal(loops.some(l=>inside([-1,0],l)),true);
++  assert.ok(loops.flat().every(p=>Math.abs(p[1])<=.10001));
++  assert.equal(sectionContours(part,2.7).some(l=>inside([0,0],l)),true,"upper cut encounters the actual lintel");
++});
++test("clean plans retain true Redburn floor/start coordinates and stairs while omitting decorative triangles",()=>{
++  const original=JSON.stringify(model);
++  for(const floor of ["ground","upper"]) {
++    const plan=buildCleanWalkPlan(model,floor), starts=recommendWalkStarts(model,floor);
++    assert.ok(plan.shapes.some(s=>s.kind==="wall"));assert.ok(plan.shapes.some(s=>s.kind==="floor"));assert.ok(plan.labels.length>=3);
++    const detailIds=new Set(model.objects.filter(p=>["fixture","roof","fence","solar"].includes(p.category)).map(p=>p.id));
++    assert.ok(plan.shapes.every(s=>!detailIds.has(s.id)));
++    for(const start of starts) {assert.ok(start.x>=plan.bounds[0]&&start.x<=plan.bounds[2]&&start.z>=plan.bounds[1]&&start.z<=plan.bounds[3]);assert.ok(plan.shapes.filter(s=>s.kind==="floor").some(s=>s.loops.some(l=>inside([start.x,start.z],l))),`actual start ${start.label} remains on drawn floor`);}
++  }
++  assert.equal(buildCleanWalkPlan(model,"ground").shapes.find(s=>s.id==="external-stairs")?.loops.length,18);
++  assert.equal(JSON.stringify(model),original);
++});
++test("missing floors and invalid triangle coordinates do not create artificial plan geometry",()=>{
++  assert.equal(buildCleanWalkPlan(model,"missing").shapes.length,0);
++  const broken={...model.objects[0],positions:[NaN,0,0],indices:[0,1,2]};assert.deepEqual(sectionContours(broken,1),[]);
++});
+
+diff --git a/src/studio/cleanWalkPlan.ts b/src/studio/cleanWalkPlan.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/cleanWalkPlan.ts
+@@ -0,0 +1,84 @@
++import type { BuildingPart, SourceBuilding } from "./sourceBuilding.ts";
++import { floorKey } from "./componentLocation.ts";
++import { listWalkFloors } from "./walkStartPlacement.ts";
++
++export type PlanPoint = [number, number];
++type V3 = [number, number, number];
++type Segment = [PlanPoint, PlanPoint];
++export type CleanPlanShape = { id: string; kind: "floor" | "wall" | "door" | "window" | "stair"; loops: PlanPoint[][] };
++const EPS=1e-5;
++const key=(p:PlanPoint)=>`${Math.round(p[0]/EPS)},${Math.round(p[1]/EPS)}`;
++function triangles(part:BuildingPart):V3[][] {
++  const result:V3[][]=[];
++  for(let i=0;i+2<part.indices.length;i+=3) {
++    const points=part.indices.slice(i,i+3).map(n=>part.positions.slice(n*3,n*3+3) as V3);
++    if(points.some(p=>p.length!==3||!p.every(Number.isFinite))) return [];
++    result.push(points);
++  }
++  return result;
++}
++function contours(segments:Segment[]):PlanPoint[][] {
++  const edges=new Map<string,Segment>();
++  for(const edge of segments) {const a=key(edge[0]),b=key(edge[1]);if(a===b)continue;const id=[a,b].sort().join("/");if(edges.has(id))edges.delete(id);else edges.set(id,edge);}
++  const remaining=[...edges.values()], adjacency=new Map<string,Set<number>>();
++  remaining.forEach((edge,i)=>edge.forEach(p=>{const k=key(p), set=adjacency.get(k)??new Set();set.add(i);adjacency.set(k,set);}));
++  const unused=new Set(remaining.map((_,i)=>i)), result:PlanPoint[][]=[];
++  while(unused.size) {
++    const first=unused.values().next().value!;unused.delete(first);
++    const loop=[...remaining[first]];let cursor=key(loop[1]);
++    while(cursor!==key(loop[0])) {
++      const next=[...(adjacency.get(cursor)??[])].find(i=>unused.has(i));if(next===undefined)break;
++      unused.delete(next);const edge=remaining[next], point=key(edge[0])===cursor?edge[1]:edge[0];loop.push(point);cursor=key(point);
++    }
++    // Open sections still draw as lines; only actual closed geometry is filled by callers.
++    if(loop.length>1)result.push(loop);
++  }
++  return result;
++}
++/** Horizontal section of actual triangles. Header geometry above the cut cannot fill a doorway. */
++export function sectionContours(part:BuildingPart,elevation:number):PlanPoint[][] {
++  const segments:Segment[]=[];
++  for(const triangle of triangles(part)) {
++    const hits:PlanPoint[]=[];
++    for(let i=0;i<3;i++) {
++      const a=triangle[i],b=triangle[(i+1)%3], da=a[1]-elevation,db=b[1]-elevation;
++      if(Math.abs(da)<EPS)hits.push([a[0],a[2]]);
++      if((da<-EPS&&db>EPS)||(da>EPS&&db<-EPS)) {const t=da/(da-db);hits.push([a[0]+t*(b[0]-a[0]),a[2]+t*(b[2]-a[2])]);}
++    }
++    const unique=[...new Map(hits.map(p=>[key(p),p])).values()];if(unique.length===2)segments.push([unique[0],unique[1]]);
++  }
++  return contours(segments);
++}
++function tops(part:BuildingPart,minY:number,maxY:number,highestOnly:boolean):PlanPoint[][] {
++  const groups=new Map<number,Segment[]>();
++  for(const [a,b,c] of triangles(part)) {
++    if(Math.max(a[1],b[1],c[1])-Math.min(a[1],b[1],c[1])>EPS||a[1]<minY-EPS||a[1]>maxY+EPS)continue;
++    const normalY=(b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2]);
++    if(normalY<=EPS)continue;
++    const y=Math.round(a[1]/EPS), edges=groups.get(y)??[],p:[PlanPoint,PlanPoint,PlanPoint]=[[a[0],a[2]],[b[0],b[2]],[c[0],c[2]]];
++    edges.push([p[0],p[1]],[p[1],p[2]],[p[2],p[0]]);groups.set(y,edges);
++  }
++  const heights=[...groups.keys()];if(!heights.length)return [];
++  return (highestOnly?[Math.max(...heights)]:heights).flatMap(y=>contours(groups.get(y)!));
++}
++export function buildCleanWalkPlan(model:SourceBuilding,floor:string) {
++  const elevation=listWalkFloors(model).find(f=>f.id===floor)?.elevation;
++  const shapes:CleanPlanShape[]=[],labels:{id:string;text:string;point:PlanPoint}[]=[];
++  if(elevation!==undefined)for(const part of model.objects.filter(p=>floorKey(p)===floor)) {
++    let kind:CleanPlanShape["kind"]|null=null,loops:PlanPoint[][]=[];
++    if(part.category==="room"||part.category==="slab") {kind="floor";loops=tops(part,elevation-.35,elevation+.15,true);}
++    else if(part.category==="wall"||part.category==="column") {kind="wall";loops=sectionContours(part,elevation+1);}
++    else if(part.category==="door"||part.category==="window") {kind=part.category;loops=sectionContours(part,elevation+1);}
++    else if(part.category==="stair") {kind="stair";loops=tops(part,elevation-.35,elevation+4.5,false);}
++    if(!kind||!loops.length)continue;
++    shapes.push({id:part.id,kind,loops});
++    if(part.category==="room") {
++      const points=loops.flat(),xs=points.map(p=>p[0]),zs=points.map(p=>p[1]);
++      labels.push({id:part.id,text:part.label.split(" / ")[0].slice(0,28),point:[(Math.min(...xs)+Math.max(...xs))/2,(Math.min(...zs)+Math.max(...zs))/2]});
++    }
++  }
++  const points=shapes.flatMap(s=>s.loops.flat()),xs=points.map(p=>p[0]),zs=points.map(p=>p[1]);
++  const bounds: [number,number,number,number]=points.length?[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)]:[0,0,1,1];
++  return {shapes,labels,bounds,elevation};
++}
++export const planPath=(loops:PlanPoint[][])=>loops.map(loop=>loop.map((p,i)=>`${i?"L":"M"}${p[0]},${p[1]}`).join(" ")+(key(loop[0])===key(loop.at(-1)!)?" Z":"")).join(" ");
+
+diff --git a/src/studio/sourceWalkDoors.test.ts b/src/studio/sourceWalkDoors.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/sourceWalkDoors.test.ts
+@@ -0,0 +1,35 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import fs from "node:fs";
++import * as THREE from "three";
++import { prepareSourceWalkDoors } from "./sourceWalkDoors.ts";
++import type { SourceBuilding } from "./sourceBuilding.ts";
++
++test("Redburn leaves retain glazing and moving mullions while door jambs remain fixed", () => {
++  const model = JSON.parse(fs.readFileSync("public/models/redburn/source-building.json", "utf8")) as SourceBuilding;
++  const scene = new THREE.Scene(), meshes = new Map<string, THREE.Mesh>();
++  for (const part of model.objects) {
++    const geometry = new THREE.BufferGeometry();
++    geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
++    geometry.setIndex(part.indices);
++    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
++    scene.add(mesh); meshes.set(part.id, mesh);
++  }
++  const originalTriangles = [...meshes.values()].reduce((n, mesh) => n + mesh.geometry.index!.count / 3, 0);
++  const result = prepareSourceWalkDoors(model, meshes);
++  assert.ok(result.doors.length > 5);
++  assert.ok(result.doors.some(door => door.motion === "slide"));
++  assert.ok(result.doors.some(door => door.motion === "swing"));
++  assert.equal(result.doors.find(door => door.id === "garage-door")?.motion, "lift");
++  assert.ok(result.extraMeshes.length > 5);
++  const finalTriangles = [...meshes.values(), ...result.extraMeshes].reduce((n, mesh) => n + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3, 0);
++  assert.equal(finalTriangles, originalTriangles, "No source triangles are dropped or duplicated");
++  for (const door of result.doors.filter(door => door.meshes.length > 1)) {
++    const frame = meshes.get(door.id + "-frame")!;
++    assert.ok(!door.meshes.includes(frame), "Fixed jambs must never move with the leaf");
++    const before = frame.matrixWorld.clone();
++    for (const leaf of door.meshes) leaf.position.x += 1;
++    scene.updateMatrixWorld(true);
++    assert.ok(frame.matrixWorld.equals(before));
++  }
++});
+
+diff --git a/src/studio/sourceWalkDoors.ts b/src/studio/sourceWalkDoors.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/sourceWalkDoors.ts
+@@ -0,0 +1,60 @@
++import * as THREE from "three";
++import type { SourceBuilding } from "./sourceBuilding";
++
++/** Separate fixed jambs from leaf mullions in presentation-model door assemblies. */
++export function prepareSourceWalkDoors(model: SourceBuilding, meshes: Map<string, THREE.Mesh>) {
++  const extraMeshes: THREE.Mesh[] = [];
++  const doors = model.objects.filter((part) => part.category === "door" && !part.id.endsWith("-frame"))
++    .flatMap((part) => {
++      const leaf = meshes.get(part.id);
++      if (!leaf) return [];
++      const leaves = [leaf], frame = meshes.get(part.id + "-frame");
++      if (frame) {
++        const geometry = frame.geometry, p = geometry.getAttribute("position"), index = geometry.index;
++        geometry.computeBoundingBox();
++        const bounds = geometry.boundingBox!, size = bounds.getSize(new THREE.Vector3());
++        const axis = size.x >= size.z ? "x" : "z", fixed: number[] = [], moving: number[] = [];
++        const vertex = new THREE.Vector3(), center = new THREE.Vector3();
++        for (let i = 0; i < (index?.count ?? p.count); i += 3) {
++          const triangle: number[] = [];
++          center.set(0, 0, 0);
++          for (let k = 0; k < 3; k++) {
++            vertex.fromBufferAttribute(p, index ? index.getX(i + k) : i + k);
++            triangle.push(vertex.x, vertex.y, vertex.z); center.add(vertex);
++          }
++          center.multiplyScalar(1 / 3);
++          const perimeter = center[axis] <= bounds.min[axis] + 0.055 || center[axis] >= bounds.max[axis] - 0.055
++            || center.y <= bounds.min.y + 0.055 || center.y >= bounds.max.y - 0.055;
++          (perimeter ? fixed : moving).push(...triangle);
++        }
++        if (moving.length && fixed.length) {
++          const make = (positions: number[]) => {
++            const g = new THREE.BufferGeometry();
++            g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
++            g.computeVertexNormals(); return g;
++          };
++          frame.geometry = make(fixed);
++          geometry.dispose();
++          // Existing frame edge lines used the unsplit geometry. Rebuild them on each new piece.
++          for (const child of frame.children) if (child instanceof THREE.LineSegments) {
++            child.geometry.dispose(); child.geometry = new THREE.EdgesGeometry(frame.geometry, 28);
++          }
++          const mullions = new THREE.Mesh(make(moving), frame.material);
++          mullions.userData = { ...frame.userData, partId: part.id };
++          mullions.castShadow = frame.castShadow; mullions.receiveShadow = true;
++          const frameEdge = frame.children.find((child) => child instanceof THREE.LineSegments);
++          if (frameEdge instanceof THREE.LineSegments) {
++            const edge = new THREE.LineSegments(new THREE.EdgesGeometry(mullions.geometry, 28), frameEdge.material);
++            edge.userData.solidEdge = true; edge.raycast = () => {};
++            mullions.add(edge);
++          }
++          frame.parent?.add(mullions);
++          leaves.push(mullions); extraMeshes.push(mullions);
++        }
++      }
++      const motion: "swing" | "slide" | "lift" = /sectional|roller|panel lift/i.test(part.label) ? "lift"
++        : /slid|bifold/i.test(part.label) ? "slide" : "swing";
++      return [{ id: part.id, label: part.label, meshes: leaves, motion }];
++    });
++  return { doors, extraMeshes };
++}
+
+diff --git a/src/studio/walkCollision.test.ts b/src/studio/walkCollision.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/walkCollision.test.ts
+@@ -0,0 +1,116 @@
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import { test } from "node:test";
++import * as THREE from "three";
++import { createWalkCollisionWorld } from "./walkCollision.ts";
++const v = (x=0,y=0,z=0) => new THREE.Vector3(x,y,z);
++const box = (x:number,y:number,z:number,sx:number,sy:number,sz:number) => {
++  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz)); mesh.position.set(x,y,z); return mesh;
++};
++const floor = () => box(0,-.1,0,30,.2,30);
++const world = (solids:THREE.Mesh[], supports:THREE.Mesh[] = [solids[0]]) => createWalkCollisionWorld({solids:()=>solids,supports:()=>supports});
++test("thin walls stop large movement; tangential movement slides and corners stay solid",()=>{
++  const f=floor(), wall=box(0,1.5,0,.02,3,20), end=box(-2,1.5,3,4,3,.02), w=world([f,wall,end]);
++  const start=v(-2,0,0), displacement=v(50,0,0), result=w.move(start,displacement);
++  assert.ok(result.blocked); assert.ok(result.position.x<=-.277); assert.ok(result.position.x>-.4);
++  assert.deepEqual(start,v(-2,0,0)); assert.deepEqual(displacement,v(50,0,0));
++  const slide=w.move(v(-1,0,0),v(2,0,2)); assert.ok(slide.position.z>1.9); assert.ok(slide.position.x<=-.277);
++  const corner=w.move(v(-1,0,0),v(3,0,5)); assert.ok(corner.position.z<=2.723); assert.ok(corner.position.x<=-.277);
++});
++test("real opening width and transformed swinging door determine passage; transparent windows remain solid",()=>{
++  const f=floor(), left=box(-2.2,1.5,0,3.6,3,.15), right=box(2.2,1.5,0,3.6,3,.15);
++  const hinge=new THREE.Group(); hinge.position.x=-.4;
++  const door=box(.4,1,0,.8,2,.05); hinge.add(door);
++  const meshes=[f,left,right,door], w=world(meshes);
++  assert.ok(w.move(v(0,0,1),v(0,0,-2)).position.z>.29);
++  hinge.rotation.y=Math.PI/2;
++  assert.ok(w.move(v(0,0,1),v(0,0,-2)).position.z<-.99,"rotating parent invalidates door cache");
++  right.position.x=1.9; assert.ok(w.move(v(0,0,1),v(0,0,-2)).blocked,"opening narrower than capsule");
++  right.position.x=2.2; meshes.pop();
++  const window=box(0,1,0,.8,2,.01); window.material=new THREE.MeshBasicMaterial({transparent:true,opacity:0}); window.visible=false; meshes.push(window);
++  assert.ok(w.move(v(0,0,1),v(0,0,-2)).position.z>.27);
++});
++test("head clearance, thick solid interiors and unsupported edges reject walking",()=>{
++  const f=floor(), ceiling=box(0,1.75,0,4,.1,4), w=world([f,ceiling]);
++  assert.equal(w.validStart(v()),false); ceiling.position.y=1.9; assert.equal(w.validStart(v()),true);
++  const solid=box(0,2,0,5,4,5), enclosed=world([f,solid]); assert.equal(enclosed.validStart(v()),false); assert.ok(enclosed.move(v(),v(1)).blocked);
++  const edge=world([box(0,-.1,0,2,.2,2)]); const result=edge.move(v(),v(2)); assert.ok(result.blocked); assert.ok(result.position.x<=.732);
++});
++function stairs(rise=.2) {
++  const meshes=[box(0,-.1,1.5,3,.2,3)];
++  for(let i=0;i<10;i++) meshes.push(box(0,(i+1)*rise/2,-i*.3-.15,3,(i+1)*rise,.3));
++  meshes.push(box(0,10*rise/2,-4,3,10*rise,2));
++  return meshes;
++}
++test("stair treads ascend and descend with floor following",()=>{
++  const meshes=stairs(), w=world(meshes,meshes);
++  const up=w.move(v(0,0,.7),v(0,0,-4.2)); assert.ok(up.position.z<-3.45,JSON.stringify(up)); assert.ok(Math.abs(up.position.y-2)<1e-5);
++  const down=w.move(up.position,v(0,0,4.2)); assert.ok(down.position.z>.65,JSON.stringify(down)); assert.ok(Math.abs(down.position.y)<1e-5);
++});
++test("maximum .3m steps work while .31m ledges block in both directions",()=>{
++  for(const rise of [.3,.31]) {
++    const meshes=[box(0,-.1,1,3,.2,2),box(0,rise/2,-1,3,rise,2)], w=world(meshes,meshes);
++    const up=w.move(v(0,0,.7),v(0,0,-1.4)), down=w.move(v(0,rise,-.7),v(0,0,1.4));
++    if(rise===.3) {assert.ok(up.position.z<-.65,JSON.stringify(up)); assert.ok(down.position.z>.65,JSON.stringify(down));}
++    else {assert.ok(up.blocked && up.position.z>0); assert.ok(down.blocked && down.position.z<0);}
++  }
++});
++test("floor-backed narrow thresholds, grout and seams remain traversable in separate frames",()=>{
++  for(const height of [.001,.003,.045,.3,.31]) {
++    const f=floor(), detail=box(0,height/2,0,3,height,.012), w=world([f,detail],[f]);
++    let point=v(0,0,.7);
++    for(let i=0;i<70;i++) point=w.move(point,v(0,0,-.02)).position;
++    if(height>.3) { assert.ok(point.z>0); continue; }
++    assert.ok(point.z<-.69,`height ${height} stopped at ${point.z}`);
++    for(let i=0;i<70;i++) point=w.move(point,v(0,0,.02)).position;
++    assert.ok(point.z>.69,`return height ${height} stopped at ${point.z}`);
++  }
++});
++test("a low solid strip cannot become an invented floor across an unsupported gap",()=>{
++  const left=box(0,-.1,1.5,3,.2,2), right=box(0,-.1,-1.5,3,.2,2), bridge=box(0,.025,0,3,.05,1.2);
++  const w=world([left,right,bridge],[left,right]);
++  const result=w.move(v(0,0,1),v(0,0,-2)); assert.ok(result.blocked && result.position.z>.5);
++});
++test("malformed mesh fails closed repeatedly; changed attributes rebuild cached geometry",()=>{
++  const f=floor(), wall=box(0,1.5,0,.1,3,4), w=world([f,wall]); assert.ok(w.move(v(-1),v(2)).blocked);
++  wall.geometry.translate(10,0,0); assert.equal(w.move(v(-1),v(2)).blocked,false);
++  wall.geometry.setIndex([0,1,999999]); assert.equal(w.validStart(v(-1)),false); assert.equal(w.validStart(v(-1)),false);
++  assert.ok(w.move(v(-1),v(1)).blocked); assert.equal(w.validStart(v(NaN)),false);
++});
++const model=JSON.parse(fs.readFileSync(new URL("../../public/models/redburn/source-building.json",import.meta.url),"utf8"));
++const sourceMeshes=model.objects.map((part:{id:string;positions:number[];indices:number[];category:string})=>{
++  const geometry=new THREE.BufferGeometry(); geometry.setAttribute("position",new THREE.Float32BufferAttribute(part.positions,3)); geometry.setIndex(part.indices);
++  const mesh=new THREE.Mesh(geometry); mesh.name=part.id; mesh.userData.category=part.category; return mesh;
++}) as THREE.Mesh[];
++test("actual Redburn selected starts remain walkable despite fine floor seams",()=>{
++  const w=world(sourceMeshes,sourceMeshes.filter(m=>["room","slab","stair"].includes(m.userData.category)));
++  for(const point of [v(-1.3925,.015,-1.37),v(0,3.135,0)]) {
++    assert.equal(w.validStart(point),true,point.toArray().join(","));
++    const moved=w.move(point,v(.15,0,0)); assert.ok(moved.position.distanceTo(point)>.1,JSON.stringify(moved));
++  }
++});
++test("full Redburn stair surroundings retain physical blockers rather than inventing missing support",()=>{
++  const w=world(sourceMeshes,sourceMeshes.filter(m=>["room","slab","stair"].includes(m.userData.category)));
++  const start=v(-6.21,-.07,2.7);
++  assert.equal(w.validStart(start),true);
++  const up=w.move(start,v(0,0,-5.5));
++  assert.ok(up.position.y>3,"real full model reaches upper stair tread");
++  assert.ok(up.blocked && up.position.z>-2.405,"existing unsupported upper connection must remain blocked");
++  const down=w.move(up.position,v(0,0,4.8)); assert.ok(down.position.z>2.6,JSON.stringify(down)); assert.ok(Math.abs(down.position.y+.07)<1e-5);
++});
++test("actual Redburn 18-tread mesh supports ascent and descent without modifying original geometry",()=>{
++  const stair=sourceMeshes.find(m=>m.name==="external-stairs")!;
++  const original=Array.from(stair.geometry.attributes.position.array);
++  const bounds=new THREE.Box3().setFromObject(stair), x=(bounds.min.x+bounds.max.x)/2;
++  const lower=box(x,-.17,bounds.max.z+1,1.16,.2,2), upper=box(x,bounds.max.y/2,bounds.min.z-1,1.16,bounds.max.y,2);
++  const meshes=[stair,lower,upper], w=world(meshes,meshes);
++  const start=v(x,-.07,bounds.max.z+.5), delta=v(0,0,bounds.min.z-bounds.max.z-1);
++  const up=w.move(start,delta); assert.ok(up.position.z<bounds.min.z-.4,JSON.stringify(up)); assert.ok(Math.abs(up.position.y-bounds.max.y)<1e-4);
++  const down=w.move(up.position,delta.clone().negate()); assert.ok(down.position.z>bounds.max.z+.4,JSON.stringify(down)); assert.ok(Math.abs(down.position.y+.07)<1e-4);
++  let frame=start.clone();
++  for(let i=0;i<120;i++) frame=w.move(frame,delta.clone().divideScalar(120)).position;
++  assert.ok(frame.distanceTo(up.position)<1e-4,`frame-sized ascent ${JSON.stringify(frame)}`);
++  for(let i=0;i<120;i++) frame=w.move(frame,delta.clone().divideScalar(-120)).position;
++  assert.ok(frame.distanceTo(start)<1e-4,`frame-sized descent ${JSON.stringify(frame)}`);
++  assert.deepEqual(Array.from(stair.geometry.attributes.position.array),original);
++});
+
+diff --git a/src/studio/walkCollision.ts b/src/studio/walkCollision.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/walkCollision.ts
+@@ -0,0 +1,205 @@
++import * as THREE from "three";
++
++export type WalkCollisionWorld = {
++  move(feet: THREE.Vector3, displacement: THREE.Vector3): { position: THREE.Vector3; blocked: boolean };
++  validStart(feet: THREE.Vector3): boolean;
++};
++const RADIUS = .27, HEIGHT = 1.8, STEP = .3, SKIN = .002, CELL = 2, SUBSTEP = .1;
++type Face = { triangle: THREE.Triangle; bounds: THREE.Box3; normal: THREE.Vector3; owner: THREE.Mesh; solid: boolean; support: boolean };
++type Cache = { stamp: string; geometry: THREE.BufferGeometry; position: unknown; index: unknown; valid: boolean; faces: Face[]; bounds: THREE.Box3; cells: Set<string> };
++const finite = (v: THREE.Vector3) => [v.x, v.y, v.z].every(Number.isFinite);
++const cellKey = (x: number, y: number, z: number) => `${x},${y},${z}`;
++
++function segmentDistanceSq(p1: THREE.Vector3, q1: THREE.Vector3, p2: THREE.Vector3, q2: THREE.Vector3) {
++  const d1 = q1.clone().sub(p1), d2 = q2.clone().sub(p2), r = p1.clone().sub(p2);
++  const a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r);
++  let s = 0, t = 0;
++  if (a <= 1e-12 && e <= 1e-12) return p1.distanceToSquared(p2);
++  if (a <= 1e-12) t = THREE.MathUtils.clamp(f / e, 0, 1);
++  else {
++    const c = d1.dot(r);
++    if (e <= 1e-12) s = THREE.MathUtils.clamp(-c / a, 0, 1);
++    else {
++      const b = d1.dot(d2), denominator = a * e - b * b;
++      if (Math.abs(denominator) > 1e-12) s = THREE.MathUtils.clamp((b * f - c * e) / denominator, 0, 1);
++      t = (b * s + f) / e;
++      if (t < 0) { t = 0; s = THREE.MathUtils.clamp(-c / a, 0, 1); }
++      else if (t > 1) { t = 1; s = THREE.MathUtils.clamp((b - c) / a, 0, 1); }
++    }
++  }
++  return p1.clone().addScaledVector(d1, s).distanceToSquared(p2.clone().addScaledVector(d2, t));
++}
++export function capsuleFaceDistanceSq(low: THREE.Vector3, high: THREE.Vector3, triangle: THREE.Triangle) {
++  const hit = new THREE.Ray(low, new THREE.Vector3(0, 1, 0)).intersectTriangle(triangle.a, triangle.b, triangle.c, false, new THREE.Vector3());
++  if (hit && hit.y <= high.y) return 0;
++  const nearest = new THREE.Vector3();
++  let distance = Math.min(triangle.closestPointToPoint(low, nearest).distanceToSquared(low), triangle.closestPointToPoint(high, nearest).distanceToSquared(high));
++  for (const [a, b] of [[triangle.a, triangle.b], [triangle.b, triangle.c], [triangle.c, triangle.a]]) distance = Math.min(distance, segmentDistanceSq(low, high, a, b));
++  return distance;
++}
++
++/** Grounded capsule navigation over supplied world-space model geometry. Rendering visibility is not physical solidity. */
++export function createWalkCollisionWorld({ solids, supports }: {
++  solids: () => readonly THREE.Mesh[]; supports: () => readonly THREE.Mesh[];
++}): WalkCollisionWorld {
++  const cache = new Map<THREE.Mesh, Cache>(), grid = new Map<string, Set<Face>>(), large = new Set<Face>();
++  let invalid = false;
++  function remove(entry: Cache) {
++    for (const key of entry.cells) { const bucket = grid.get(key); if (!bucket) continue; for (const face of entry.faces) bucket.delete(face); if (!bucket.size) grid.delete(key); }
++    for (const face of entry.faces) large.delete(face);
++  }
++  function refresh() {
++    invalid = false;
++    const solidSet = new Set(solids()), supportSet = new Set(supports()), meshes = new Set([...solidSet, ...supportSet]);
++    for (const [mesh, entry] of cache) if (!meshes.has(mesh)) { remove(entry); cache.delete(mesh); }
++    for (const mesh of meshes) {
++      mesh.updateWorldMatrix(true, false);
++      const geometry = mesh.geometry, position = geometry?.getAttribute("position"), index = geometry?.getIndex();
++      if (!position || position.itemSize < 3 || !mesh.matrixWorld.elements.every(Number.isFinite)) { invalid = true; continue; }
++      const version = "version" in position ? position.version : position.data.version;
++      const stamp = `${version}/${index?.version ?? 0}/${position.count}/${index?.count ?? 0}/${solidSet.has(mesh)}/${supportSet.has(mesh)}/${mesh.matrixWorld.elements.join(",")}`;
++      const previous = cache.get(mesh);
++      if (previous?.stamp === stamp && previous.geometry === geometry && previous.position === position && previous.index === index) { if (!previous.valid) invalid = true; continue; }
++      if (previous) remove(previous);
++      const entry: Cache = { stamp, geometry, position, index, valid: true, faces: [], bounds: new THREE.Box3(), cells: new Set() };
++      const count = index?.count ?? position.count;
++      if (count % 3) { invalid = true; cache.delete(mesh); continue; }
++      for (let i = 0; i < count; i += 3) {
++        const ids = [0, 1, 2].map(j => index ? index.getX(i + j) : i + j);
++        if (ids.some(id => !Number.isInteger(id) || id < 0 || id >= position.count)) { invalid = true; entry.valid = false; break; }
++        const points = ids.map(id => new THREE.Vector3().fromBufferAttribute(position, id).applyMatrix4(mesh.matrixWorld));
++        if (!points.every(finite)) { invalid = true; entry.valid = false; break; }
++        const triangle = new THREE.Triangle(...points as [THREE.Vector3, THREE.Vector3, THREE.Vector3]);
++        if (triangle.getArea() < 1e-10) continue;
++        const bounds = new THREE.Box3().setFromPoints(points), normal = triangle.getNormal(new THREE.Vector3());
++        const face: Face = { triangle, bounds, normal, owner: mesh, solid: solidSet.has(mesh), support: supportSet.has(mesh) && Math.abs(normal.y) >= .65 };
++        entry.faces.push(face); entry.bounds.union(bounds);
++        const min = bounds.min.clone().divideScalar(CELL).floor(), max = bounds.max.clone().divideScalar(CELL).floor();
++        if ((max.x - min.x + 1) * (max.y - min.y + 1) * (max.z - min.z + 1) > 2048) { large.add(face); continue; }
++        for (let x = min.x; x <= max.x; x++) for (let y = min.y; y <= max.y; y++) for (let z = min.z; z <= max.z; z++) {
++          const key = cellKey(x, y, z), bucket = grid.get(key) ?? new Set<Face>(); bucket.add(face); grid.set(key, bucket); entry.cells.add(key);
++        }
++      }
++      cache.set(mesh, entry);
++    }
++  }
++  function query(bounds: THREE.Box3) {
++    const result = new Set<Face>();
++    const min = bounds.min.clone().divideScalar(CELL).floor(), max = bounds.max.clone().divideScalar(CELL).floor();
++    for (let x = min.x; x <= max.x; x++) for (let y = min.y; y <= max.y; y++) for (let z = min.z; z <= max.z; z++) {
++      for (const face of grid.get(cellKey(x, y, z)) ?? []) if (face.bounds.intersectsBox(bounds)) result.add(face);
++    }
++    for (const face of large) if (face.bounds.intersectsBox(bounds)) result.add(face);
++    return result;
++  }
++  function supportAt(x: number, z: number, minY: number, maxY: number, allowSteps = true): number | null {
++    const bounds = new THREE.Box3(new THREE.Vector3(x - SKIN, minY - SKIN, z - SKIN), new THREE.Vector3(x + SKIN, maxY + SKIN, z + SKIN));
++    const ray = new THREE.Ray(new THREE.Vector3(x, maxY + SKIN, z), new THREE.Vector3(0, -1, 0)), hit = new THREE.Vector3();
++    let height: number | null = null;
++    for (const face of query(bounds)) if ((face.support || (allowSteps && face.solid && Math.abs(face.normal.y) >= .65))
++      && ray.intersectTriangle(face.triangle.a, face.triangle.b, face.triangle.c, false, hit)
++      && hit.y >= minY - 1e-5 && hit.y <= maxY + 1e-5) {
++      // Thresholds and raised finish details are real small steps, but cannot bridge missing floor.
++      if (!face.support && supportAt(x, z, hit.y - STEP, hit.y + SKIN, false) === null) continue;
++      height = height === null ? hit.y : Math.max(height, hit.y);
++    }
++    return height;
++  }
++  function collision(feet: THREE.Vector3): Face | null {
++    const low = feet.clone().add(new THREE.Vector3(0, RADIUS, 0)), high = feet.clone().add(new THREE.Vector3(0, HEIGHT - RADIUS, 0));
++    const bounds = new THREE.Box3(new THREE.Vector3(feet.x - RADIUS, feet.y + SKIN, feet.z - RADIUS), new THREE.Vector3(feet.x + RADIUS, feet.y + HEIGHT, feet.z + RADIUS));
++    for (const face of query(bounds)) if (face.solid && capsuleFaceDistanceSq(low, high, face.triangle) < (RADIUS - SKIN) ** 2) return face;
++    return null;
++  }
++  function insideSolid(feet: THREE.Vector3) {
++    const point = feet.clone().add(new THREE.Vector3(0, HEIGHT / 2, 0));
++    const ray = new THREE.Ray(point, new THREE.Vector3(1, .017, .031).normalize()), target = new THREE.Vector3();
++    for (const [mesh, entry] of cache) {
++      if (!entry.faces[0]?.solid || !entry.bounds.containsPoint(point)) continue;
++      const hits: number[] = [];
++      for (const face of entry.faces) if (ray.intersectTriangle(face.triangle.a, face.triangle.b, face.triangle.c, false, target)) {
++        const distance = point.distanceTo(target); if (!hits.some(d => Math.abs(d - distance) < 1e-5)) hits.push(distance);
++      }
++      if (hits.length % 2 === 1) return mesh;
++    }
++    return null;
++  }
++  function footprint(feet: THREE.Vector3) {
++    // A stair tread may support the centre while the heel spans two lower treads; an actual void has no supporting hit.
++    for (let i = 0; i < 8; i++) {
++      const angle = i * Math.PI / 4;
++      if (supportAt(feet.x + Math.cos(angle) * (RADIUS - SKIN), feet.z + Math.sin(angle) * (RADIUS - SKIN), feet.y - STEP * 2.2, feet.y + STEP) === null) return false;
++    }
++    return true;
++  }
++  function trial(from: THREE.Vector3, dx: number, dz: number): { position?: THREE.Vector3; obstacle?: Face } {
++    const x = from.x + dx, z = from.z + dz, floor = supportAt(x, z, from.y - STEP * 2.2, from.y + STEP);
++    if (floor === null) return {};
++    // Lift only onto nearby support, retaining the previous height briefly while a heel clears a descending riser.
++    const heights = new Set([floor]);
++    if (from.y >= floor) heights.add(from.y);
++    for (let i = 0; i < 8; i++) {
++      const angle = i * Math.PI / 4;
++      const height = supportAt(x + Math.cos(angle) * (RADIUS + SKIN), z + Math.sin(angle) * (RADIUS + SKIN), Math.max(floor, from.y - STEP), Math.min(from.y + STEP, floor + STEP));
++      if (height !== null) heights.add(height);
++    }
++    // A narrow sill or grout strip can fall between the footprint rays. Inspect its real
++    // projected triangle under the body instead of widening or deleting that geometry.
++    const stepBounds = new THREE.Box3(new THREE.Vector3(x - RADIUS, from.y - STEP - 1e-5, z - RADIUS), new THREE.Vector3(x + RADIUS, Math.min(from.y + STEP, floor + STEP) + 1e-5, z + RADIUS));
++    for (const face of query(stepBounds)) if ((face.support || face.solid) && Math.abs(face.normal.y) >= .65) {
++      const flat = new THREE.Triangle(face.triangle.a.clone().setY(0), face.triangle.b.clone().setY(0), face.triangle.c.clone().setY(0));
++      const point = new THREE.Vector3(x, 0, z), closest = flat.closestPointToPoint(point, new THREE.Vector3());
++      if (closest.distanceToSquared(point) > RADIUS ** 2) continue;
++      const bary = flat.getBarycoord(closest, new THREE.Vector3());
++      if (!bary) continue;
++      const height = bary.x * face.triangle.a.y + bary.y * face.triangle.b.y + bary.z * face.triangle.c.y;
++      if (height < from.y - STEP - 1e-5 || height > Math.min(from.y + STEP, floor + STEP) + 1e-5) continue;
++      if (!face.support && supportAt(closest.x, closest.z, height - STEP, height + SKIN, false) === null) continue;
++      heights.add(height);
++    }
++    // Narrow treads can put the centre two risers below the trailing heel. Require an intermediate tread;
++    // a single excessive ledge must not acquire the same permission to descend.
++    if (from.y - floor > STEP + 1e-5 && ![...heights].some(h => h < from.y - SKIN && h >= from.y - STEP - 1e-5)) return {};
++    let obstacle: Face | null = null;
++    for (const height of [...heights].sort((a,b) => a-b)) {
++      if (Math.abs(height - from.y) > STEP + 1e-5) continue;
++      const target = new THREE.Vector3(x, height, z), hit = collision(target);
++      if (!hit && footprint(target)) return { position: target };
++      obstacle ??= hit;
++    }
++    return { obstacle: obstacle ?? undefined };
++  }
++  return {
++    validStart(feet) {
++      if (!finite(feet)) return false;
++      refresh(); if (invalid) return false;
++      const floor = supportAt(feet.x, feet.z, feet.y - .05, feet.y + .05);
++      return floor !== null && !collision(feet) && footprint(feet) && !insideSolid(feet);
++    },
++    move(feet, displacement) {
++      const position = feet.clone();
++      if (!finite(feet) || !finite(displacement)) return { position, blocked: true };
++      refresh();
++      if (invalid || supportAt(feet.x, feet.z, feet.y - STEP * 2.2, feet.y + STEP) === null || !footprint(feet) || collision(feet) || insideSolid(feet)) return { position, blocked: true };
++      const distance = Math.hypot(displacement.x, displacement.z), needed = Math.max(1, Math.ceil(distance / SUBSTEP)), steps = Math.min(needed, 512);
++      const dx = displacement.x / needed, dz = displacement.z / needed;
++      let blocked = needed > steps || Math.abs(displacement.y) > 1e-6;
++      for (let i = 0; i < steps; i++) {
++        const full = trial(position, dx, dz);
++        if (full.position) { position.copy(full.position); continue; }
++        blocked = true;
++        if (full.obstacle) {
++          const normal = full.obstacle.normal.clone().setY(0);
++          if (normal.lengthSq() > .01) {
++            normal.normalize(); const into = dx * normal.x + dz * normal.z;
++            const slide = trial(position, dx - into * normal.x, dz - into * normal.z);
++            if (slide.position && slide.position.distanceToSquared(position) > 1e-10) { position.copy(slide.position); continue; }
++          }
++        }
++        const first = Math.abs(dx) >= Math.abs(dz) ? [dx, 0] : [0, dz], second = Math.abs(dx) >= Math.abs(dz) ? [0, dz] : [dx, 0];
++        for (const [sx, sz] of [first, second]) if (Math.abs(sx) + Math.abs(sz) > 1e-8) { const axis = trial(position, sx, sz); if (axis.position) position.copy(axis.position); }
++      }
++      return { position, blocked };
++    },
++  };
++}
+
+diff --git a/src/studio/walkDoors.css b/src/studio/walkDoors.css
+new file mode 100644
+--- /dev/null
++++ b/src/studio/walkDoors.css
+@@ -0,0 +1,69 @@
++.walk-door-prompt {
++  position: absolute;
++  z-index: 12;
++  left: 50%;
++  bottom: 112px;
++  transform: translateX(-50%);
++  width: min(320px, calc(100% - 32px));
++  pointer-events: none;
++  color: var(--color-ink);
++}
++.walk-door-card {
++  display: grid;
++  gap: 8px;
++  padding: 12px;
++  border: 1px solid var(--color-line);
++  border-radius: 12px;
++  background: var(--color-paper);
++  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-ink) 16%, transparent);
++  pointer-events: auto;
++}
++.walk-door-label { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
++.walk-door-card button {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  min-width: 44px;
++  min-height: 44px;
++  padding: 8px 12px;
++  border: 1px solid var(--color-line);
++  border-radius: 8px;
++  color: var(--color-ink);
++  background: var(--color-selected);
++  cursor: pointer;
++}
++.walk-door-card button:disabled { cursor: default; opacity: .7; }
++.walk-door-card button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
++.architect-workspace .walk-door-card button { min-width: 44px; min-height: 44px; }
++.walk-door-card kbd { font: inherit; font-size: 12px; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
++.walk-door-status { color: var(--color-muted); font-size: 12px; line-height: 1.4; }
++.building-walk-overlay,
++.architect-walk-overlay {
++  position: absolute;
++  left: 12px;
++  right: 12px;
++  bottom: 64px;
++  z-index: 12;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 8px;
++  pointer-events: none;
++}
++.architect-walk-overlay { bottom: 88px; }
++.building-walk-overlay > .walk-door-prompt,
++.architect-walk-overlay > .walk-door-prompt {
++  order: 0;
++  position: static;
++  transform: none;
++  width: min(320px, 100%);
++}
++.workbench .source-building .building-walk-overlay > .building-navigation-hint,
++.architect-workspace .architect-walk-overlay > .architect-3d-caption {
++  order: 1;
++  position: static;
++  margin: 0;
++  width: 100%;
++  box-sizing: border-box;
++}

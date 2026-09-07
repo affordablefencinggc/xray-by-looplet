@@ -1,0 +1,12 @@
+# Remote release preparation
+
+At the preparation checkpoint no packaging, transfer, dependency restore, or build had run. Parent SOURCE FREEZE was required before these steps; subsequent execution is recorded under `release-197ab630793e` and `remote-launch-notes.md`. Read-only preflight verified `tonys-test-pc` resolves to DANS1 with 16 logical processors and preview 8090 was unused. Existing 8088/8089 previews remain untouched. Prior 049 cache executable and native-source identity match the prepared worker's expectations.
+
+1. After explicit freeze, run the parent-prepared `package-web.mjs`, then `package-native.mjs`. Web source SHA256 prefix (12 characters) is the isolated run ID.
+2. Run `node proof/growth/2026-09-08-walk-boundaries/remote-orchestrator.mjs transfer <runId>`. This checks source drift and archive digests, creates a new remote incoming directory without overwriting old runs, transfers archives/manifests/scripts, verifies every remote file SHA256, and records exact transfer identity.
+3. Run the same script with `build <runId>` in a persistent execution session. The prepared worker verifies/extracts the source and runs scripts-disabled dependency restore, typecheck, focused tests, web build, then native build sequentially. DANS1 policy applies High priority across the process tree and 16 worker threads. No local full build, application installation, or deployment occurs.
+4. On WEB_READY, run `preview <runId>` in its own persistent execution session. It binds remote loopback 8090 and holds the owning SSH connection with loopback-only local forwarding. Keep this session alive during production QA.
+5. On BUILD_COMPLETE, run `collect <runId>` then `release-verify-artifacts.mjs <runId>`. This captures remote gate logs and completion manifests, independently archived native/sidecar artifacts and complete web output, and verifies manifest source identity, archive SHA256/size/path/list, every extracted file's bytes and digest. Previous extracted artifacts are never overwritten.
+6. `verify-source <runId>` creates a timestamped final source-drift report. Parent owns additional source diff and production/native UI acceptance.
+
+Helper syntax checks passed for both Node scripts and the PowerShell collector. The scripts' execution subcommands require an explicit valid run ID and already-created source manifests. They do not package source automatically. Native launch remains parent-owned through the prepared isolated-profile launcher.

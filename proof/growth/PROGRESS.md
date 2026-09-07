@@ -134,3 +134,38 @@ No full professional checklist item was ticked on partial evidence. Native macOS
 ### Stage 07 publication held after automatic approval review
 
 Navigation source commit `6b55950` is local. Build, 110 tests, final browser/Windows journeys and inspected HTML/PNG evidence passed. Automatic approval review rejected uploading the source to `https://github.com/affordablefencinggc/xray-by-looplet.git`, branch `feat/architect-cad-engine`, because it requires trusted user approval naming this payload and destination. Read-only remote verification still shows `93a94a8`; no Stage 07 upload occurred. Curated evidence is being archived as a separate local commit. Explicit approval for both local commits is the only remaining publication step. This note supersedes earlier wording that publication was underway. Exact rejection and file manifest: `proof/growth/2026-09-08-navigation-release/publication-blocked.md` and `proof/growth/staged-push/navigation-evidence-manifest.json`. No installation, merge or CRM changes.
+
+
+## Active stage: walking boundaries and doors — 8 September 2026
+
+Live task list: [WALK-BOUNDARIES-TODO.md](../../../WALK-BOUNDARIES-TODO.md). Full register: [PROFESSIONAL-A-Z-CHECKLIST.md](../../../PROFESSIONAL-A-Z-CHECKLIST.md).
+
+R-02 remains **partial / in progress**. Collision and door modules have executed geometry proof; 45 focused tests pass. Actual source-model integration verifies thresholds, closed/open passage, stairs and unsupported-edge refusal. Architect browser acceptance passed 104 commands with inspected screenshots. Source browser, frozen production build, Windows-native acceptance and the embedded-image stage report are still in progress. This is not yet a completed release.
+
+- [Exact 15-file source identity](2026-09-08-08-walk-boundaries-source/source-manifest.json), [code diff](2026-09-08-08-walk-boundaries-source/code.diff).
+- [45-test execution](2026-09-08-walk-boundaries/focused-tests-02.log), [actual Redburn integration](2026-09-08-walk-boundaries/source-integration-final.log).
+- [Architect 104-command acceptance, scenarios and inspected visuals](2026-09-08-walk-boundaries/architect-acceptance.md).
+
+Known model limitation: an approximately 0.92 m unsupported connection beyond the top stair is blocked instead of inventing a walking surface. Failed browser attempts remain preserved. Publication of prior local commits remains held by automatic approval review; no new upload has been attempted.
+
+
+## 2026-09-08 - Walkthrough polish development acceptance
+
+A-Z R-02 remains PARTIAL. SC-06 and SC-08 have development acceptance; SC-07/09 remain in progress. Exact title is now "Pick your walkthrough starting point" in both viewers. Clean SVG plans replace crowded start maps, with real world-coordinate placement, unsupported-position refusal, and >=44px Start/Close targets at desktop and both tablet sizes. Body-mounted CC0 reach rig replaces the popup hand; transparent-world ordering fixed after inspected screenshots exposed an invisible arm.
+
+- Before/intermediate: [Stage08 illustrated HTML](2026-09-08-08-walk-boundaries/index.html), [PNG](../../screenshots/growth/2026-09-08-08-walk-boundaries.png). Explicitly NOT ACCEPTED; preserves tablet failures and incomplete native run.
+- After development: [clean plan](../../screenshots/growth/body-arm-dev-07-plan.png), [body reach](../../screenshots/growth/body-arm-dev-07-reach.png), both visually inspected.
+- Exact tests: node --experimental-strip-types --test src/studio/FirstPersonArm.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/walkStartPlacement.test.ts — [50 passed](2026-09-08-walkthrough-polish/focused-tests-final.log). node node_modules/typescript/bin/tsc --noEmit passed.
+- Arm journey command: node scripts/fast-cdp-test.mjs growth-navigation-dev proof/growth/2026-09-08-walkthrough-polish/body-arm-dev-07.json — 25 commands, 24.487 seconds, exit0; [exact runner](runner/2026-09-07T16-13-16-527Z-growth-navigation-dev.json).
+- Picker/layout executed proof: [acceptance](2026-09-08-walk-boundaries/clean-picker-final-development-acceptance.json).
+- [Code diff](2026-09-08-09-walkthrough-polish-source/code.diff), [21-file source identity](2026-09-08-09-walkthrough-polish-source/source-manifest.json), scope 420a03c0d9916921e895bed85e855c5df14dda46443dab8a09fb80e09aa78bcd. [Asset identity](2026-09-08-walkthrough-polish/asset-source-identity.json) and [licence provenance](2026-09-08-walkthrough-polish/asset-provenance.md).
+- Remaining: corrected complete development journey; new Dans1 High/16 build; production Source/Architect/tablet and isolated Windows native; final embedded HTML/PNG stage. No macOS/Linux execution claimed. Publication remains held by the previously recorded automatic approval rejection; no new push attempted.
+
+
+## 2026-09-08 - Walkthrough boundaries and polish accepted within tested scope
+
+Source checkpoint 844e091 on feat/architect-cad-engine. Both pickers say "Pick your walkthrough starting point" and use clean aligned plans. Solid geometry, real stair/threshold traversal, E/button door operation and a body-mounted CC0 reaching rig are implemented. Original Fly, arrival animation and bottom controls remain verified. Dans1 candidate38a64f0b8c2b: five gates and145tests pass; High/16 CPU policy observed;631source files without drift. Production Source158commands, Architect/tablet/reduced-motion/asset recovery330commands and Windows-native183commands pass (671total). All relevant screenshots inspected. Native retained13sheets,2pricebooks,saved view and unchanged backup review verified; isolatedQAapp closed normally. [Stage09 illustrated proof](2026-09-08-09-walkthrough-polish/index.html).
+
+Full A-Z rows remain PARTIAL: wider model/platform coverage is open. The real ~0.92m unsupported Redburn stair connection remains blocked; inferred door styles are presentation approximations. Instruction overlays partly cover the hand in compact views. No physical tablet, macOS/Linux-native, installation or whole-industry certification claimed. Remote publication remains held by the previously recorded automatic approval rejection; no new push attempted.
+
+Exact source/asset identity, code diff, commands, saved scenarios, pass/fail history and remaining work are linked in the Stage09 report. Before: [preserved Stage08](2026-09-08-08-walk-boundaries/index.html). After: [openable HTML](2026-09-08-09-walkthrough-polish/index.html) and [PNG summary](../../screenshots/growth/2026-09-08-09-walkthrough-polish.png).

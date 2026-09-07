@@ -1,0 +1,48 @@
+.walk-door-prompt {
+  --door-reach-duration: 620ms;
+  --door-reach-ease: cubic-bezier(.2, 0, 0, 1);
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  bottom: 112px;
+  transform: translateX(-50%);
+  width: min(320px, calc(100% - 32px));
+  pointer-events: none;
+  color: var(--color-ink);
+}
+.walk-door-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-paper);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-ink) 16%, transparent);
+  pointer-events: auto;
+}
+.walk-door-label { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.walk-door-card button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  color: var(--color-ink);
+  background: var(--color-selected);
+  cursor: pointer;
+}
+.walk-door-card button:disabled { cursor: default; opacity: .7; }
+.walk-door-card button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+.walk-door-card kbd { font: inherit; font-size: 12px; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
+.walk-door-status { color: var(--color-muted); font-size: 12px; line-height: 1.4; }
+.walk-door-arm { position: absolute; width: 200px; height: 150px; right: -24px; bottom: 100%; overflow: visible; filter: drop-shadow(0 3px 4px color-mix(in srgb, var(--color-ink) 20%, transparent)); }
+.walk-door-arm-reach { transform-origin: 100% 100%; animation: walk-door-reach var(--door-reach-duration) var(--door-reach-ease) both; }
+.walk-door-sleeve { fill: var(--color-muted); stroke: var(--color-ink); stroke-width: 2; }
+.walk-door-hand { fill: var(--color-paper); stroke: var(--color-ink); stroke-width: 2; stroke-linejoin: round; }
+.walk-door-hand-line { fill: none; stroke: var(--color-muted); stroke-width: 2; }
+@keyframes walk-door-reach { 0% { opacity: 0; transform: translate(30px, 28px) rotate(12deg); } 35% { opacity: 1; transform: translate(-6px, -4px) rotate(-4deg); } 68% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(22px, 24px) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .walk-door-arm { display: none; } .walk-door-arm-reach { animation: none; } }

@@ -1,0 +1,122 @@
+[
+  [
+    "set",
+    "media",
+    "light",
+    "reduced-motion"
+  ],
+  [
+    "eval",
+    "window.__boundaryRuntimeErrors=[];addEventListener('error',e=>window.__boundaryRuntimeErrors.push({type:'error',message:e.message}));addEventListener('unhandledrejection',e=>window.__boundaryRuntimeErrors.push({type:'rejection',message:String(e.reason)}));'Runtime event monitor installed'"
+  ],
+  [
+    "console",
+    "--clear"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\");window.__boundaryRealCapture??=c.requestPointerLock;c.requestPointerLock=()=>Promise.reject(new DOMException('Isolated QA capture refusal','NotAllowedError'));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-walk-plan')"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),p=new DOMPoint(4700,3000).matrixTransform(s.getScreenCTM());s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\")?.dataset.navigation==='walk'&&document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{window.__boundaryFrame=Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\").dataset.frameCount)>window.__boundaryFrame"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector(\"canvas[aria-label=\\\"Live architectural 3D model\\\"]\"),yaw=Number(c.dataset.navigationYaw),pitch=Number(c.dataset.navigationPitch),dx=(yaw-(-1.5707963267948966))/0.002,dy=pitch/0.002;const r=c.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,button:0,buttons:1,clientX:x,clientY:y,bubbles:true}));c.dispatchEvent(new PointerEvent('pointermove',{pointerId:71,buttons:1,clientX:x+dx,clientY:y+dy,bubbles:true}));c.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,button:0,clientX:x+dx,clientY:y+dy,bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.walk-door-prompt')"
+  ],
+  [
+    "wait",
+    "--fn",
+    "matchMedia('(prefers-reduced-motion: reduce)').matches"
+  ],
+  [
+    "eval",
+    "window.__reducedBefore=document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.cameraPosition;document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}));'E interaction'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkDoorOpen==='true'"
+  ],
+  [
+    "eval",
+    "(()=>{const d=document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset;if(d.walkDoorBusy!=='false'||d.walkArmVisible!=='false'||d.walkDoorProgress!=='1'||d.cameraPosition!==window.__reducedBefore)throw Error('Reduced motion failed '+JSON.stringify({...d}));return {reducedMotion:true,open:d.walkDoorOpen,busy:d.walkDoorBusy,armVisible:d.walkArmVisible,camera:d.cameraPosition}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-architect-reduced-open.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Close door: Door",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkDoorOpen==='false'"
+  ],
+  [
+    "eval",
+    "if(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkArmVisible!=='false'||document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dataset.walkDoorProgress!=='0')throw Error('Reduced close failed');'Reduced close immediate; no arm animation'"
+  ],
+  [
+    "set",
+    "media",
+    "light"
+  ],
+  [
+    "eval",
+    "document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]').dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}))"
+  ],
+  [
+    "errors"
+  ]
+]

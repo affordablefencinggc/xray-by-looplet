@@ -1,0 +1,226 @@
+[
+  [
+    "eval",
+    "document.querySelector('.building-canvas canvas').dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}))"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Walk-through",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.walk-clean-plan')"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-clean-plan').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "wait",
+    "--fn",
+    "innerWidth===1440&&innerHeight===1000"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-desktop-plan-final.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-start-footer').scrollIntoView({block:'center',behavior:'instant'});'Scrolled to walking action'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();return r.top>=0&&r.bottom<innerHeight})()"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();if(r.height<44||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Start action clipped or too small');return {button:r.toJSON(),disabled:b.disabled}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-desktop-action-final.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-clean-plan').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "wait",
+    "--fn",
+    "innerWidth===1024&&innerHeight===768"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-landscape-plan-final.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-start-footer').scrollIntoView({block:'center',behavior:'instant'});'Scrolled to walking action'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();return r.top>=0&&r.bottom<innerHeight})()"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();if(r.height<44||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Start action clipped or too small');return {button:r.toJSON(),disabled:b.disabled}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-landscape-action-final.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "768",
+    "1024"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-clean-plan').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "wait",
+    "--fn",
+    "innerWidth===768&&innerHeight===1024"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-portrait-plan-final.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-start-footer').scrollIntoView({block:'center',behavior:'instant'});'Scrolled to walking action'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();return r.top>=0&&r.bottom<innerHeight})()"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();if(r.height<44||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Start action clipped or too small');return {button:r.toJSON(),disabled:b.disabled}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-portrait-action-final.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-clean-plan').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.walk-clean-plan'),p=new DOMPoint(0,2.1).matrixTransform(s.getScreenCTM());if(p.x<0||p.x>innerWidth||p.y<0||p.y>innerHeight)throw Error('Plan test point not visible '+JSON.stringify(p));s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));return {world:[0,2.1],client:[p.x,p.y]}})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.walk-start-picker').dataset.startReady==='true'"
+  ],
+  [
+    "eval",
+    "window.__retainedStart=document.querySelector('.walk-start-selected').textContent;document.querySelector('.walk-clean-plan').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.walk-clean-plan'),b=s.viewBox.baseVal,p=new DOMPoint(b.x+.2,b.y+.2).matrixTransform(s.getScreenCTM());if(p.y<0||p.y>innerHeight)throw Error('Unsupported test point outside visible plan');s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.walk-start-picker').dataset.startReady==='false'"
+  ],
+  [
+    "eval",
+    "if(document.querySelector('.walk-start-selected').textContent!==window.__retainedStart||!document.querySelector('.walk-start-footer button').disabled||!document.querySelector('.walk-start-picker [role=alert]'))throw Error('Unsupported selection did not preserve previous start and block continuation');'Unsupported point refused with prior start retained'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-start-footer').scrollIntoView({block:'center',behavior:'instant'});'Scrolled to walking action'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();return r.top>=0&&r.bottom<innerHeight})()"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();if(r.height<44||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Start action clipped or too small');return {button:r.toJSON(),disabled:b.disabled}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-unsupported-final.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-clean-plan').scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('.walk-clean-plan'),p=new DOMPoint(0,2.1).matrixTransform(s.getScreenCTM());if(p.x<0||p.x>innerWidth||p.y<0||p.y>innerHeight)throw Error('Plan test point not visible '+JSON.stringify(p));s.dispatchEvent(new MouseEvent('click',{clientX:p.x,clientY:p.y,bubbles:true}));return {world:[0,2.1],client:[p.x,p.y]}})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.walk-start-picker').dataset.startReady==='true'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.walk-start-footer').scrollIntoView({block:'center',behavior:'instant'});'Scrolled to walking action'"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();return r.top>=0&&r.bottom<innerHeight})()"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.walk-start-footer button'),r=b.getBoundingClientRect();if(r.height<44||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Start action clipped or too small');return {button:r.toJSON(),disabled:b.disabled}})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start walking here",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas')?.dataset.navigation==='walk'&&document.querySelector('.building-canvas canvas').dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "(()=>{const p=document.querySelector('.building-canvas canvas').dataset.walkFeet.split(',').map(Number);if(Math.abs(p[0])>.03||Math.abs(p[2]-2.1)>.03)throw Error('Wrong valid start '+p);return {feet:p}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-38a64-source-picker-valid-start-final.png"
+  ],
+  [
+    "errors"
+  ]
+]

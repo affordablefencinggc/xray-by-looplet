@@ -1,0 +1,69 @@
+.walk-door-prompt {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  bottom: 112px;
+  transform: translateX(-50%);
+  width: min(320px, calc(100% - 32px));
+  pointer-events: none;
+  color: var(--color-ink);
+}
+.walk-door-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-paper);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-ink) 16%, transparent);
+  pointer-events: auto;
+}
+.walk-door-label { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.walk-door-card button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  color: var(--color-ink);
+  background: var(--color-selected);
+  cursor: pointer;
+}
+.walk-door-card button:disabled { cursor: default; opacity: .7; }
+.walk-door-card button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+.architect-workspace .walk-door-card button { min-width: 44px; min-height: 44px; }
+.walk-door-card kbd { font: inherit; font-size: 12px; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
+.walk-door-status { color: var(--color-muted); font-size: 12px; line-height: 1.4; }
+.building-walk-overlay,
+.architect-walk-overlay {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 64px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.architect-walk-overlay { bottom: 88px; }
+.building-walk-overlay > .walk-door-prompt,
+.architect-walk-overlay > .walk-door-prompt {
+  order: 0;
+  position: static;
+  transform: none;
+  width: min(320px, 100%);
+}
+.workbench .source-building .building-walk-overlay > .building-navigation-hint,
+.architect-workspace .architect-walk-overlay > .architect-3d-caption {
+  order: 1;
+  position: static;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
