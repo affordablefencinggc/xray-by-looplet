@@ -37,6 +37,7 @@ type ViewOptions = {
 };
 type SceneApi = {
   navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+  captureNavigation: () => Promise<boolean>;
   stopNavigation: () => void;
   options: (value: ViewOptions) => void;
   select: (id: string | null) => void;
@@ -58,6 +59,7 @@ function createBuildingScene(
   onScopeZoom: (zoom: number) => void,
   binding: { documentId: string; sceneId: string; sceneSha256: string },
   onNavigation: (mode: NavigationMode) => void,
+  onCapture: (capture: "locked" | "drag" | null) => void,
 ): SceneApi {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -416,6 +418,7 @@ function createBuildingScene(
     floor: () => model.storeys?.find((s) => s.id === options.level)?.elevation
       ?? model.floorElevations?.[options.level === "upper" ? "upper" : "ground"] ?? bounds.min.y,
     invalidate,
+    onCaptureChange: onCapture,
     onChange(mode) {
       controls.enabled = mode === "orbit";
       if (mode === "orbit") {
@@ -427,6 +430,7 @@ function createBuildingScene(
   });
   return {
     navigate: (mode, start) => navigation!.start(mode, start),
+    captureNavigation: () => navigation!.capture(),
     stopNavigation: () => navigation?.stop(),
     scope(value) {
       scope?.setOptions(value);
@@ -560,6 +564,7 @@ function createBuildingScene(
 export function SourceBuildingViewer() {
   const controlDock = useRef<HTMLDivElement>(null);
   const [navigationMode, setNavigationMode] = useState<NavigationMode>("orbit");
+  const [navigationCapture, setNavigationCapture] = useState<"locked" | "drag" | null>(null);
   const [walkPicker, setWalkPicker] = useState(false);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const [scopeOptions, setScopeOptions] = useState<ModelScopeOptions>({
@@ -716,6 +721,7 @@ export function SourceBuildingViewer() {
         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
         { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
         setNavigationMode,
+        setNavigationCapture,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -989,6 +995,7 @@ export function SourceBuildingViewer() {
                   </button>
                   <button type="button" aria-pressed={navigationMode === "fly"} onClick={() => navigate("fly")}>Fly</button>
                   <button type="button" aria-pressed={navigationMode === "walk"} onClick={() => { api.current?.stopNavigation(); setWalkPicker(true); }}>Walk-through</button>
+                  {navigationMode !== "orbit" && navigationCapture === "drag" && <button type="button" onClick={() => { void api.current?.captureNavigation(); }}>Capture mouse</button>}
                   <button
                     type="button"
                     aria-pressed={options.plan}
@@ -1068,7 +1075,7 @@ export function SourceBuildingViewer() {
                 </button>
               </div>
               {navigationError && <p className="building-navigation-hint" role="alert">{navigationError}</p>}
-              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · mouse look · Shift faster · Esc exit</p>}
+              {navigationMode !== "orbit" && <p className="building-navigation-hint">{navigationMode === "fly" ? "Fly · Space/Ctrl altitude" : "Walk-through · eye height 1.65 m · walls do not block movement"} · WASD move · {navigationCapture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit</p>}
               {walkPicker && <WalkStartDialog model={model} initialFloor={options.level} onClose={() => setWalkPicker(false)} onStart={(_floor, point) => navigate("walk", point)} />}
               {config.id === "caroline" && (
                 <div className="building-svg-export">

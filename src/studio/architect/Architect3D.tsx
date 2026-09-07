@@ -33,6 +33,7 @@ export function Architect3D({
   fitToken: number;
 }) {
   const [mode, setMode] = useState<NavigationMode>("orbit");
+  const [capture, setCapture] = useState<"locked" | "drag" | null>(null);
   const [walkPicker, setWalkPicker] = useState(false);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const host = useRef<HTMLDivElement>(null),
@@ -40,6 +41,7 @@ export function Architect3D({
       update: (p: ArchitectProject, l: string, s: string | null, r: boolean) => void;
       fit: () => void;
       navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
+      capture: () => Promise<boolean>;
       stop: () => void;
     } | null>(null),
     pick = useRef(onSelect);
@@ -104,6 +106,7 @@ export function Architect3D({
     navigation = createFirstPersonNavigation({
       canvas: renderer.domElement, camera, bounds: navigationBounds,
       floor: () => floorElevation, invalidate,
+      onCaptureChange: setCapture,
       onChange(next) {
         controls.enabled = next === "orbit";
         if (next === "orbit") {
@@ -297,7 +300,7 @@ export function Architect3D({
       };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
-    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), stop: () => navigation?.stop() };
+    api.current = { update, fit, navigate: (mode, start) => navigation!.start(mode, start), capture: () => navigation!.capture(), stop: () => navigation?.stop() };
     resize();
     return () => {
       disposed = true;
@@ -330,8 +333,9 @@ export function Architect3D({
       <button aria-pressed={mode === "orbit"} onClick={() => api.current?.stop()}>Orbit</button>
       <button aria-pressed={mode === "fly"} onClick={() => navigate("fly")}>Fly</button>
       <button aria-pressed={mode === "walk"} onClick={() => { api.current?.stop(); setWalkPicker(true); }}>Walk-through</button>
+      {mode !== "orbit" && capture === "drag" && <button onClick={() => { void api.current?.capture(); }}>Capture mouse</button>}
     </div>
-    {mode !== "orbit" && <p className="architect-3d-caption">WASD move · mouse look · Shift faster · Esc exit{mode === "fly" ? " · Space/Ctrl altitude" : " · eye height 1.65 m; walls do not block movement"}</p>}
+    {mode !== "orbit" && <p className="architect-3d-caption">WASD move · {capture === "locked" ? "mouse look" : "drag to look · Capture mouse for free look"} · Shift faster · Esc or Orbit to exit{mode === "fly" ? " · Space/Ctrl altitude" : " · eye height 1.65 m; walls do not block movement"}</p>}
     {navigationError && <p role="alert" className="architect-3d-caption">{navigationError}</p>}
     {walkPicker && <ArchitectWalkStart project={project} initialLevel={levelId} onClose={() => setWalkPicker(false)} onStart={(point) => navigate("walk", point)} />}
   </div>;
