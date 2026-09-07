@@ -209,3 +209,13 @@ User requested: "pause at next safe point and push changes in stages". Source is
 SC-06 closed for tablet browser layouts: development27commands, production99commands and Windows retained-profile24commands passed; inspected HTML/PNG Stage05 available in proof/growth/index.html. Dans1c32e640187e9 passed95tests/typecheck/web/native;613sourcehashes and10artifacts verified. Package tested isolated, not installed. Native macOS/Linux remain blocked by the Windows-only CAD build dependency; actual tablet hardware, full restore and remaining professional requirements remain open. Phone support is excluded.
 
 Evidence publication status: local archive complete, external upload held by automatic approval review pending explicit payload/destination approval. Source/tooling stages9db51ed,0dd730e,f72a839 are pushed. Proof remains available on this PC.
+
+
+### 2026-09-08 / Stage 07 / navigation repair verified
+
+- [x] Navigation SC-01–SC-03 bounded milestone: useful source-model starts, reliable captured/drag controls and tablet navigation guidance verified in dev, production browser and isolated Windows candidate `aa8d81a110ac`. 110 tests; final browser 144+25+23 commands; final Windows 168 commands. Eight report images and PNG inspected. [Proof with exact commands and remaining scope](proof/growth/PROGRESS.md) · [HTML](proof/growth/2026-09-08-07-walkthrough-release/index.html) · [Code diff](proof/growth/2026-09-08-07-navigation-final-source/code.diff).
+- Recovery reference: branch `feat/architect-cad-engine`, baseline `93a94a8`, frozen source `aa8d81a110ac0aeb94a10d18d0bbd7a899737976f04725171773f60268ca8af3`. Full R-02 and related U/R rows stay partial; collision and broader platforms are not certified. No installation/CRM/user-data writes.
+
+### Stage 07 publication held after automatic approval review
+
+Navigation source commit `6b55950` is local. Build, 110 tests, final browser/Windows journeys and inspected HTML/PNG evidence passed. Automatic approval review rejected uploading the source to `https://github.com/affordablefencinggc/xray-by-looplet.git`, branch `feat/architect-cad-engine`, because it requires trusted user approval naming this payload and destination. Read-only remote verification still shows `93a94a8`; no Stage 07 upload occurred. Curated evidence is being archived as a separate local commit. Explicit approval for both local commits is the only remaining publication step. This note supersedes earlier wording that publication was underway. Exact rejection and file manifest: `proof/growth/2026-09-08-navigation-release/publication-blocked.md` and `proof/growth/staged-push/navigation-evidence-manifest.json`. No installation, merge or CRM changes.

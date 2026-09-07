@@ -1,0 +1,112 @@
+{
+  "id": "2026-09-08-07-walkthrough-release",
+  "title": "Stage 07 — Walk-through you can use",
+  "date": "8 September 2026",
+  "platform": "Windows candidate aa8d81a110ac; production browser at laptop and tablet sizes",
+  "summary": "Walk-through now suggests supported, clear room positions and useful headings. Fly and Walk remain usable with drag-to-look when mouse capture is refused, with a fresh-click capture action. Tablet targets and hint clearance are corrected; all five lower model controls remain available. Real camera movement, invalid starts, both Redburn floors and retained project data were exercised. This closes the bounded navigation repair, not the whole A–Z register.",
+  "requirements": [
+    {
+      "id": "R-02",
+      "status": "Pass: controls/start milestone; full ID partial",
+      "change": "Real W/S/A/D displacement at nonzero headings; ground and upper eye heights; capture refusal, drag, retry and Escape. Source and architectural viewers exercised.",
+      "remaining": "Collision, gravity, stairs and full model/industry coverage remain open. Starts are inferred from model geometry."
+    },
+    {
+      "id": "R-01",
+      "status": "Pass: lower-control regression; full ID partial",
+      "change": "Five bottom actions retained. Zoom, front/rear and reset changed the actual camera in browser and Windows journeys.",
+      "remaining": "Broader pan/scale/model/aspect-ratio acceptance remains open."
+    },
+    {
+      "id": "U-02 / U-05",
+      "status": "Pass: navigation guidance; full IDs partial",
+      "change": "Visible movement/exit hints, keyboard controls, chosen heading, capture retry and selected-start contrast. Focus/blur and stale requests covered by controller tests.",
+      "remaining": "Whole-app command palette and accessibility audit remain open."
+    },
+    {
+      "id": "U-06",
+      "status": "Pass: bounded tablet layouts; full ID partial",
+      "change": "1024×768 and 768×1024 target sizes, hit tests, start-dialog scrolling, capture retry and assistant/hint separation executed and visually inspected.",
+      "remaining": "Physical tablets, touch-only locomotion and native macOS/Linux acceptance are unverified; phone QA is excluded."
+    },
+    {
+      "id": "U-09",
+      "status": "Pass: start/capture recovery; full ID partial",
+      "change": "Unsupported starting points refused with previous recommendation retained. Capture refusal keeps navigation usable. New Windows candidate reopens prior job, 13 sheets, two price books, saved view and backup review.",
+      "remaining": "Full project restoration, journaling, staff delivery/auth and other validation workflows remain open."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/nav-windows-final-ground-before.png",
+      "caption": "After: the final Windows candidate opens into a clear lounge/kitchen view. Camera movement and 1.665 m eye height were verified separately in the executed log.",
+      "sha256": "9557fb0121a4db263088b04399e8624fab823979f5c97c1cd45104c2672a7e1e",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-08-walk-retry-active.png",
+      "caption": "Before: the prior candidate entered walk mode at an unhelpful close surface. This failed visual starting point remains preserved.",
+      "sha256": "f0db33b6704dc46db4a918f2812823363c1b143c181706b9946dedbe95d1517d",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/02.png"
+    },
+    {
+      "file": "screenshots/growth/nav-windows-final-upper-before.png",
+      "caption": "Upper floor: a useful starting view at 4.785 m eye height; all four movement directions passed without changing walking height.",
+      "sha256": "2bf047491f2cda75881bdf32447a82748d3d50f72a4a086fa11c3aa14a58dfe5",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/03.png"
+    },
+    {
+      "file": "screenshots/growth/nav-windows-final-ground-picker.png",
+      "caption": "Named recommendations and a direction arrow help choose a clear start. Obstructed/unsupported selections are refused before entry.",
+      "sha256": "683c82652cba15c94e5e4b1524d23f182b7a8b3a1911c3d975df41f119a3eda9",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/04.png"
+    },
+    {
+      "file": "screenshots/growth/nav-built-final-portrait-fallback.png",
+      "caption": "Tablet portrait: capture refusal offers drag-to-look and a retry button. The hint clears the assistant, and the five lower actions remain reachable.",
+      "sha256": "00500e0c7a07760bc298f0e4eaaf49a45c75595ad10efd7f39fc957050394f07",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/05.png"
+    },
+    {
+      "file": "screenshots/growth/nav-built-final-landscape-start.png",
+      "caption": "Tablet landscape: the walking action remains a 44 px target, reachable through normal dialog scrolling.",
+      "sha256": "96f171b9fc3afe25f0d168cbc980b566a3ad4ac55a65ea28fc17aa5ee3581dfb",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/06.png"
+    },
+    {
+      "file": "screenshots/growth/nav-windows-final-retained-backup.png",
+      "caption": "The new executable reopens the prior isolated QA workspace and verifies its existing backup without changing it. This is review/persistence proof, not full restore proof.",
+      "sha256": "1227ee61be057757ab1249b1553b58fc5847bd6863213d5a8468b94ac399e594",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/07.png"
+    },
+    {
+      "file": "screenshots/growth/nav-architect-production-walk-before.png",
+      "caption": "Architectural viewer production check on candidate 049d8ae830ee: real walk/fly, refused capture and retry passed. Its controller and viewer source are unchanged in the final CSS-only candidate.",
+      "sha256": "b601de9311fef27ab7ddb31aeae9dcd6c75d7191ab36694796d43b09906b46b6",
+      "archivedFile": "screenshots/growth/2026-09-08-07-walkthrough-release/08.png"
+    }
+  ],
+  "commands": [
+    "Dans1: dependency restore, npm run typecheck, 110 focused tests, web production build, sequential Tauri/NSIS build — all exit 0, High priority, 16 workers.",
+    "node scripts/fast-cdp-test.mjs growth-navigation-final proof/growth/2026-09-08-navigation-release/nav-built-final-release.json — 144 commands, 20.922 seconds, exit 0; exact report proof/growth/runner/2026-09-07T14-51-01-060Z-growth-navigation-final.json",
+    "node scripts/fast-cdp-test.mjs growth-navigation-final proof/growth/2026-09-08-navigation-release/nav-built-final-tablet.json — 25 commands, 1.201 seconds, exit 0; exact report proof/growth/runner/2026-09-07T14-51-58-852Z-growth-navigation-final.json",
+    "node scripts/fast-cdp-test.mjs growth-navigation-final proof/growth/2026-09-08-navigation-release/nav-built-final-tablet-fallback.json — 23 commands, 0.415 seconds, exit 0; exact report proof/growth/runner/2026-09-07T14-52-00-101Z-growth-navigation-final.json",
+    "node scripts/fast-cdp-test.mjs growth-navigation-native-final proof/growth/2026-09-08-navigation-release/nav-windows-final-release.json --cdp 9266 — 168 commands, 25.492 seconds, exit 0; exact report proof/growth/runner/2026-09-07T14-54-33-781Z-growth-navigation-native-final.json",
+    "Architect production: 175 commands across setup, captured/refused Fly and Walk, rapid re-entry and cleanup; see architect-production-acceptance.md and exact executed scenario copies.",
+    "Screenshots were inspected. Initial failures and superseded builds remain recorded; timing corrections wait for rendered frames/scroll completion, with no arbitrary sleeps."
+  ],
+  "logs": [
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\runner\\2026-09-07T14-51-01-060Z-growth-navigation-final.log",
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\runner\\2026-09-07T14-51-58-852Z-growth-navigation-final.log",
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\runner\\2026-09-07T14-52-00-101Z-growth-navigation-final.log",
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\runner\\2026-09-07T14-54-33-781Z-growth-navigation-native-final.log",
+    "proof/growth/2026-09-08-navigation-release/architect-production-acceptance.md",
+    "proof/growth/2026-09-08-navigation-release/dev-acceptance.md",
+    "proof/growth/2026-09-08-navigation-release/release-aa8d81a110ac/native-completion.json",
+    "proof/growth/2026-09-08-navigation-release/release-aa8d81a110ac/artifacts-verified.json",
+    "proof/growth/2026-09-08-navigation-release/release-aa8d81a110ac/source-drift.json"
+  ],
+  "sourceIdentity": "Baseline commit 93a94a85d9ae829425fc5bde00fbe8ee2d5d5702 on feat/architect-cad-engine. Final web source SHA-256 aa8d81a110ac0aeb94a10d18d0bbd7a899737976f04725171773f60268ca8af3; native source 9e85e6501cbe8e92b7f504ba1b9b41b3be8268059955e065a852a1f032b2f6d7. 516 web + 101 native files verified. EXE d1a525d5b4a0abe323bb50cef803cef9236b8cda1c8e4974df0c90552c85a5d0. Installer 605d372d1b7e374289bd4d4241f72882dcd7251cf3477b3809af1ab14ffff604. Final scoped source snapshot proof/growth/2026-09-08-07-navigation-final-source/ (SHA 6e2ae651e6fc4c9dad6c5710c4c47d1047e37d041c8614925e671ee5ab76ba02). Earlier 527 candidate superseded by tablet target correction; 049 functional-pass candidate superseded only by hint clearance. No installation, merge, CRM edits or normal user-data changes.",
+  "codeDiff": "proof/growth/2026-09-08-07-navigation-final-source/code.diff",
+  "summaryImage": "screenshots/growth/2026-09-08-07-walkthrough-release.png"
+}

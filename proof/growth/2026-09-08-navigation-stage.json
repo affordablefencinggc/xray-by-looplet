@@ -1,0 +1,26 @@
+{
+ "id":"2026-09-08-06-navigation-check",
+ "title":"Stage 06 — Fly and Walk-through check",
+ "date":"8 September 2026",
+ "platform":"Existing Windows candidate c32e640187e9, isolated QA profile; no application source changes",
+ "summary":"Both top navigation buttons are present, enabled and reachable; all five lower navigation controls remain present. Fly entered with mouse capture and exited with Escape. Walk-through opened its floor/start picker, entered on retry and exited with Escape. The chosen walking start produced an unhelpful close surface view, so walk-start visual acceptance remains open. Work remains paused.",
+ "requirements":[
+  {"id":"Fly","status":"Pass — button and mode entry/exit","change":"Real button click acquired mouse capture, activated Fly and returned to Orbit with Escape.","remaining":"This check does not certify every movement or collision scenario."},
+  {"id":"Walk-through","status":"Partial — entry/exit pass, start view open","change":"Picker and start button work. Immediate re-entry after Fly was refused by mouse capture; the displayed retry path succeeded.","remaining":"Improve or verify useful walking start views and rapid re-entry behavior. The captured start view is not accepted as good visual proof of a walkthrough."}
+ ],
+ "images":[
+  {"file":"screenshots/growth/2026-09-08-navigation-buttons.png","caption":"Both requested controls remain in the top settings. The five lower model navigation buttons are also present."},
+  {"file":"screenshots/growth/2026-09-08-fly-active.png","caption":"Fly active, with mouse capture confirmed by the executed assertion; Escape successfully returned to Orbit."},
+  {"file":"screenshots/growth/2026-09-08-walk-retry-active.png","caption":"Walk mode entered on retry, but this selected starting view is visually unhelpful. This is recorded as an open limitation, not a completed walkthrough visual check."}
+ ],
+ "commands":[
+  "node scripts/fast-cdp-test.mjs growth-navigation-check proof/growth/2026-09-08-navigation-buttons.json --cdp 9264 — Fly and button assertions passed; combined run failed waiting for walk capture.",
+  "node scripts/fast-cdp-test.mjs growth-navigation-check proof/growth/2026-09-08-navigation-diagnose.json --cdp 9264 — actual mouse-capture refusal recorded.",
+  "node scripts/fast-cdp-test.mjs growth-navigation-check proof/growth/2026-09-08-walk-retry.json --cdp 9264 — 9 commands, 1.954 seconds, exit 0. Walk entry and Escape exit confirmed.",
+  "All three screenshots inspected. No source edits or new build."
+ ],
+ "logs":["proof/growth/runner/2026-09-07T14-01-39-617Z-growth-navigation-check.log","proof/growth/runner/2026-09-07T14-02-27-892Z-growth-navigation-check.log","proof/growth/runner/2026-09-07T14-02-53-992Z-growth-navigation-check.log"],
+ "sourceIdentity":"Existing verified Windows EXE SHA-256 44271fdc59f7f28636e38b703e2fa0aa508e3fca545915ee7d6bb7663a41f641. Source candidate c32e640187e924fc29e0ed2fa94da565aa2c8e5d7b6c7f0a384cc41a90926c3e. Approved evidence commit 7fb5f6c was successfully pushed. This follow-up report is retained locally.",
+ "codeDiff":"No application code changes in this verification-only follow-up. Prior code evidence remains in Stage 04/05 source snapshots.",
+ "summaryImage":"screenshots/growth/2026-09-08-06-navigation-check.png"
+}

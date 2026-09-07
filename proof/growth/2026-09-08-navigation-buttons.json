@@ -1,0 +1,22 @@
+[
+ ["tab","t1"],
+ ["wait","--fn","!!document.querySelector('[data-hydration-status=ready]')"],
+ ["find","role","button","click","--name","Model","--exact"],
+ ["wait","--fn","document.querySelector('.building-canvas canvas')?.dataset.meshCount==='198'"],
+ ["eval","(()=>{const upper=document.querySelector('[aria-label=\"3D view controls\"]'),lower=document.querySelector('[aria-label=\"Model navigation\"]');for(const name of ['Fly','Walk-through']){const b=[...upper.querySelectorAll('button')].find(b=>b.textContent===name);if(!b||b.disabled)throw Error('Missing/disabled '+name);const r=b.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight||!b.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)))throw Error('Unreachable '+name);}if(lower?.querySelectorAll('button').length!==5)throw Error('Bottom navigation missing');return {Fly:'reachable',WalkThrough:'reachable',bottomControls:5}})()"],
+ ["screenshot","screenshots/growth/2026-09-08-navigation-buttons.png"],
+ ["find","role","button","click","--name","Fly","--exact"],
+ ["wait","--fn","document.querySelector('.building-canvas canvas')?.dataset.navigation==='fly'&&!!document.pointerLockElement"],
+ ["screenshot","screenshots/growth/2026-09-08-fly-active.png"],
+ ["press","Escape"],
+ ["wait","--fn","document.querySelector('.building-canvas canvas')?.dataset.navigation==='orbit'&&!document.pointerLockElement"],
+ ["find","role","button","click","--name","Walk-through","--exact"],
+ ["wait","--fn","!!document.querySelector('.walk-start-picker')"],
+ ["find","role","button","click","--name","Choose walking start on floor plan","--exact"],
+ ["find","role","button","click","--name","Start walking here","--exact"],
+ ["wait","--fn","document.querySelector('.building-canvas canvas')?.dataset.navigation==='walk'&&!!document.pointerLockElement&&document.querySelector('.building-canvas canvas')?.dataset.navigationTransition==='idle'"],
+ ["screenshot","screenshots/growth/2026-09-08-walk-active.png"],
+ ["press","Escape"],
+ ["wait","--fn","document.querySelector('.building-canvas canvas')?.dataset.navigation==='orbit'&&!document.pointerLockElement"],
+ ["errors"]
+]

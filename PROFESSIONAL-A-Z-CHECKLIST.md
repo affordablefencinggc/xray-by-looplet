@@ -385,8 +385,8 @@ Benchmark references: [buildingSMART IDS](https://www.buildingsmart.org/standard
 
 Benchmark references: [Graphisoft Archicad Collaborate](https://www.graphisoft.com/en-us/plans-and-products/archicad-collaborate/), [buildingSMART BCF](https://www.buildingsmart.org/standards/bsi-standards/bim-collaboration-format/), [Bluebeam markups and data](https://www.bluebeam.com/product/markups-and-data/). These references inform the category; each acceptance requirement is X-Ray's own target.
 
-- [ ] **R-01 Orbit, pan, zoom and fit** — Model remains reachable at different scales and aspect ratios. State: not-assessed. Code/proof: pending.
-- [ ] **R-02 Walk and fly navigation** — Movement direction, collision and floor levels match visible controls. State: not-assessed. Code/proof: pending.
+- [ ] **R-01 Orbit, pan, zoom and fit** — Model remains reachable at different scales and aspect ratios. State: partial. Navigation milestone verified 2026-09-08; full row remains open. Code/proof: [Stage07 scoped results, source diff and executed evidence](proof/growth/2026-09-08-07-walkthrough-release/index.html).
+- [ ] **R-02 Walk and fly navigation** — Movement direction, collision and floor levels match visible controls. State: partial. Navigation milestone verified 2026-09-08; full row remains open. Code/proof: [Stage07 scoped results, source diff and executed evidence](proof/growth/2026-09-08-07-walkthrough-release/index.html).
 - [ ] **R-03 Section boxes and clipping** — Clipped geometry and caps reveal intended interior sections. State: not-assessed. Code/proof: pending.
 - [ ] **R-04 Visibility by discipline and phase** — Saved views reproduce selected object sets. State: not-assessed. Code/proof: pending.
 - [ ] **R-05 Source-linked 3D inspection** — Picked object opens matching source evidence and assumptions. State: not-assessed. Code/proof: pending.
@@ -443,14 +443,14 @@ Benchmark references: [RIB CostX](https://www.rib-software.com/en/rib-costx), [B
 Benchmark references: [Bluebeam markups and data](https://www.bluebeam.com/product/markups-and-data/), [Autodesk AutoCAD](https://www.autodesk.com/products/autocad). These references inform the category; each acceptance requirement is X-Ray's own target.
 
 - [ ] **U-01 Role-specific workspace presets** — Architect and estimator get useful tools without separate data copies. State: not-assessed. Code/proof: pending.
-- [ ] **U-02 Search, command palette and shortcuts** — Common commands work from keyboard and show discoverable labels. State: not-assessed. Code/proof: pending.
+- [ ] **U-02 Search, command palette and shortcuts** — Common commands work from keyboard and show discoverable labels. State: partial. Navigation milestone verified 2026-09-08; full row remains open. Code/proof: [Stage07 scoped results, source diff and executed evidence](proof/growth/2026-09-08-07-walkthrough-release/index.html).
 - [ ] **U-03 Resizable panels and saved layouts** — Layout restores on the user's monitor without hiding actions. State: not-assessed. Code/proof: pending.
 - [ ] **U-04 Large plan/model navigation** — Representative heavy fixture meets recorded load and interaction budget. State: not-assessed. Code/proof: pending.
-- [ ] **U-05 Accessible focus, contrast and labels** — Core workflow is usable without pointer or color alone. State: not-assessed. Code/proof: pending.
-- [ ] **U-06 Touch and small-screen field use** — Critical actions remain reachable without horizontal clipping. State: not-assessed. Code/proof: pending.
+- [ ] **U-05 Accessible focus, contrast and labels** — Core workflow is usable without pointer or color alone. State: partial. Navigation milestone verified 2026-09-08; full row remains open. Code/proof: [Stage07 scoped results, source diff and executed evidence](proof/growth/2026-09-08-07-walkthrough-release/index.html).
+- [ ] **U-06 Touch and small-screen field use** — Critical actions remain reachable without horizontal clipping. State: partial. Navigation milestone verified 2026-09-08; full row remains open. Code/proof: [Stage07 scoped results, source diff and executed evidence](proof/growth/2026-09-08-07-walkthrough-release/index.html).
 - [ ] **U-07 Multi-monitor and high-DPI desktop** — Dialogs and text remain visible at tested scaling levels. State: not-assessed. Code/proof: pending.
 - [ ] **U-08 Progress, cancellation and background jobs** — Long operation shows honest status and can be stopped. State: not-assessed. Code/proof: pending.
-- [ ] **U-09 Useful validation and empty states** — User can recover from invalid input without losing edits. State: not-assessed. Code/proof: pending.
+- [ ] **U-09 Useful validation and empty states** — User can recover from invalid input without losing edits. State: partial. Navigation milestone verified 2026-09-08; full row remains open. Code/proof: [Stage07 scoped results, source diff and executed evidence](proof/growth/2026-09-08-07-walkthrough-release/index.html).
 - [ ] **U-10 Bulk operations and multi-selection** — Preview clearly reports affected items before applying changes. State: not-assessed. Code/proof: pending.
 - [ ] **U-11 Per-user preferences and units** — Preference changes do not reinterpret existing geometry. State: not-assessed. Code/proof: pending.
 - [ ] **U-12 Localization and terminology** — Industry-specific terms do not change underlying data meaning. State: not-assessed. Code/proof: pending.
@@ -687,9 +687,9 @@ Latest user device scope: tablets, laptops and desktop PCs across Windows/macOS/
 
 Historical automation failures remain available: viewport CDP EOF after the size applied, a centre check issued before source geometry settled, and an incorrect test details-toggle action. Corrected waits/actions passed without application-source edits or an additional native build.
 
-### Tablet scope checkpoint and pause � 2026-09-07
+### Tablet scope checkpoint and pause � 2026-09-07
 
-- [x] D-14 tablet layout sub-check: saved source view retains original page/centre at1024�768 and768�1024; eight lower controls measure at least44�44 and pass viewport/hit checks. Browser emulation evidence: proof/growth/2026-09-07-05-tablet-controls/index.html. Actual tablet hardware acceptance remains open.
+- [x] D-14 tablet layout sub-check: saved source view retains original page/centre at1024�768 and768�1024; eight lower controls measure at least44�44 and pass viewport/hit checks. Browser emulation evidence: proof/growth/2026-09-07-05-tablet-controls/index.html. Actual tablet hardware acceptance remains open.
 - [ ] Native macOS/Linux: blocked by scripts/build-cad.mjs rejecting non-Windows while required by the native beforeBuildCommand. No platform compatibility claim.
 
 Phones are excluded. Work paused at the user's requested safe point after staged pushes. Earlier full-application requirements remain governed by their actual pass/partial/open status; this does not complete the364-item catalogue.

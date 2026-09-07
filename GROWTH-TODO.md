@@ -22,3 +22,15 @@ Latest user platform scope, 2026-09-07: tablet, laptop and desktop PC on Windows
 Publication checkpoint: source/tooling stages pushed; approximately50MB evidence stage archived locally and awaiting the specific approval requested after automatic approval review blocked its upload. Pause remains in effect.
 
 - [ ] Next-session navigation follow-up: preserve the existing Fly/Walk-through buttons and five lower controls; improve/verify useful walking starts and mouse-capture re-entry. 2026-09-08 button/mode checks and the unresolved start view are recorded in the local Stage06 report. Evidence7fb5f6c is now pushed after explicit approval. Pause remains in effect.
+
+
+### 2026-09-08 / Stage 07 / navigation repair verified
+
+- [x] Requested navigation follow-up completed within its stated controls/start/fallback scope. [Stage07](proof/growth/2026-09-08-07-walkthrough-release/index.html) supersedes the earlier open start-view checkpoint. All five lower controls preserved; tablet targets/hint clearance verified.
+- [ ] Full collision/gravity/stair traversal, unified restore/recovery, staff delivery/auth, reviewed Firecrawl pricing and macOS/Linux native packaging remain dependency-ready or blocked as described in the professional register. No claim that all364requirements are complete.
+
+The user's "proceed" superseded the previous pause. This verified navigation stage is being pushed separately from its evidence; normal installation and user data remain unchanged.
+
+### Stage 07 publication held after automatic approval review
+
+Navigation source commit `6b55950` is local. Build, 110 tests, final browser/Windows journeys and inspected HTML/PNG evidence passed. Automatic approval review rejected uploading the source to `https://github.com/affordablefencinggc/xray-by-looplet.git`, branch `feat/architect-cad-engine`, because it requires trusted user approval naming this payload and destination. Read-only remote verification still shows `93a94a8`; no Stage 07 upload occurred. Curated evidence is being archived as a separate local commit. Explicit approval for both local commits is the only remaining publication step. This note supersedes earlier wording that publication was underway. Exact rejection and file manifest: `proof/growth/2026-09-08-navigation-release/publication-blocked.md` and `proof/growth/staged-push/navigation-evidence-manifest.json`. No installation, merge or CRM changes.

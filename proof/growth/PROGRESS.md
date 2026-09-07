@@ -98,3 +98,39 @@ User explicitly approved the evidence upload ("approved,, dont forget walk throu
 Fly and Walk-through are present, enabled and reachable in the verified Windows package; five lower model controls remain present. Fly entry/mouse capture/Escape exit passed. Walk-through picker and retry entry/Escape exit passed, but immediate re-entry after Fly was refused by mouse capture, and the chosen walking start had an unhelpful close surface view. **Walk start visual quality and rapid re-entry remain open for the next work session.** No application source changes or rebuild were made.
 
 Exact scenarios, screenshots and an HTML/PNG addendum are retained locally at proof/growth/2026-09-08-06-navigation-check/. The follow-up check is not a claim of full navigation/movement acceptance. Work remains paused after this status record; installed app and user workspace are untouched.
+
+
+### 2026-09-08 / Stage 07 / navigation repair verified
+
+User resumed work with "proceed"; earlier pause is superseded. **Pass — bounded navigation/start/recovery milestone**, with the full professional IDs below still partial. [Open illustrated HTML](2026-09-08-07-walkthrough-release/index.html) · [PNG summary](../../screenshots/growth/2026-09-08-07-walkthrough-release.png) · [Exact ten-file source diff](2026-09-08-07-navigation-final-source/code.diff).
+
+| Checklist ID | What changed and executed result | Status and remaining work |
+|---|---|---|
+| R-02 | Supported source-room/slab starts and inferred clear heading; real W/S/A/D signed camera displacement at nonzero yaw; ground 1.665 m and upper 4.785 m eye heights; captured/denied input, drag, retry and Escape. Source and architectural viewers tested. | Bounded milestone PASS; full R-02 PARTIAL. Collision, gravity/stairs and wider model coverage remain open. |
+| R-01 | Five bottom model controls preserved; zoom in/out, front/rear and reset changed the actual camera in final browser and Windows runs. | Bounded regression PASS; wider pan/scale/aspect/model acceptance remains open. |
+| U-02 | WASD, faster movement and exit hints reflect locked/drag state; fresh Capture mouse action provided. | Navigation guidance PASS; whole-app search/command palette/shortcuts remain partial. |
+| U-05 | Selected suggestion contrast fixed; labelled choices, focus and editable-input guards, stale request/dispose tests. | Bounded focus/contrast milestone PASS; full accessibility audit remains open. |
+| U-06 | Model targets and start action at least 44 px; 1024×768 and 768×1024 hit/bounds tests and normal dialog scrolling; navigation hint clears assistant. | Bounded browser layouts PASS; physical tablets/touch-only movement unverified. Phone QA excluded. |
+| U-09 | Unsupported/obstructed starts refused while prior recommendation retained; capture refusal retains usable drag controls. Final executable reopens prior job, 13 sheets, two price books, saved view and backup preflight. | Bounded recovery PASS; full restore/journaling and other validation workflows remain open. |
+
+Before/after: [prior close-surface start](../../screenshots/growth/2026-09-08-walk-retry-active.png) → [final Windows interior](../../screenshots/growth/nav-windows-final-ground-before.png). [Final upper floor](../../screenshots/growth/nav-windows-final-upper-before.png), [tablet hint/buttons](../../screenshots/growth/nav-built-final-portrait-fallback.png), [retained backup](../../screenshots/growth/nav-windows-final-retained-backup.png). Eight embedded images and the PNG report were inspected; all image-load assertions passed.
+
+Exact final executed commands (all exit 0):
+
+- `node scripts/fast-cdp-test.mjs growth-navigation-final proof/growth/2026-09-08-navigation-release/nav-built-final-release.json` — 144 commands, 20.922 s. [Log](runner/2026-09-07T14-51-01-060Z-growth-navigation-final.log).
+- `node scripts/fast-cdp-test.mjs growth-navigation-final proof/growth/2026-09-08-navigation-release/nav-built-final-tablet.json` — 25 commands, 1.201 s. [Log](runner/2026-09-07T14-51-58-852Z-growth-navigation-final.log).
+- `node scripts/fast-cdp-test.mjs growth-navigation-final proof/growth/2026-09-08-navigation-release/nav-built-final-tablet-fallback.json` — 23 commands, 0.415 s; includes actual rectangle-overlap refusal. [Log](runner/2026-09-07T14-52-00-101Z-growth-navigation-final.log).
+- `node scripts/fast-cdp-test.mjs growth-navigation-native-final proof/growth/2026-09-08-navigation-release/nav-windows-final-release.json --cdp 9266` — 168 commands, 25.492 s. [Log](runner/2026-09-07T14-54-33-781Z-growth-navigation-native-final.log).
+- `node scripts/fast-cdp-test.mjs growth-report proof/growth/2026-09-08-navigation-release/render-report.json` — 8 commands; self-contained HTML and PNG render. [Log](runner/2026-09-07T14-55-16-919Z-growth-report.log).
+- [Architect production acceptance](2026-09-08-navigation-release/architect-production-acceptance.md): 175 commands with exact copied scenarios/logs. Candidate049 used identical controller/architect source; final candidate changes only source-viewer tablet hint CSS.
+- Dans1 High/16: typecheck, **110 tests**, web and sequential native build passed. [Exact worker commands and outputs](2026-09-08-navigation-release/README.md). No local full builds were used.
+
+Final candidate `aa8d81a110ac`: source SHA-256 `aa8d81a110ac0aeb94a10d18d0bbd7a899737976f04725171773f60268ca8af3`; native source `9e85e6501cbe8e92b7f504ba1b9b41b3be8268059955e065a852a1f032b2f6d7`. All 617 source hashes and 10 artifact hashes match. EXE `d1a525d5b4a0abe323bb50cef803cef9236b8cda1c8e4974df0c90552c85a5d0`; installer `605d372d1b7e374289bd4d4241f72882dcd7251cf3477b3809af1ab14ffff604`. Scoped source snapshot SHA `6e2ae651e6fc4c9dad6c5710c4c47d1047e37d041c8614925e671ee5ab76ba02`, baseline commit `93a94a8` on `feat/architect-cad-engine`.
+
+Failures are preserved: initial pointer capture/blank walk start; undersized tablet toolbar; assistant overlap found visually despite passing button checks; initial screenshot directory; development reloads; rendered-frame/scroll readiness corrections. Candidate527 is superseded by touch targets; candidate049 passed functional tests but is superseded by final hint clearance. One static movement-image prefix was accidentally reused; only distinct final evidence is accepted. See [development evidence and limits](2026-09-08-navigation-release/dev-acceptance.md).
+
+No full professional checklist item was ticked on partial evidence. Native macOS/Linux remains blocked by the Windows-only CAD build. Full restore, staff delivery/auth, live Firecrawl pricing and wider industry journeys remain open. Installed app, ordinary working data and Looplet CRM were untouched. Application and curated evidence are being published in separate authorized stages; the local push record will contain exact remote equality.
+
+### Stage 07 publication held after automatic approval review
+
+Navigation source commit `6b55950` is local. Build, 110 tests, final browser/Windows journeys and inspected HTML/PNG evidence passed. Automatic approval review rejected uploading the source to `https://github.com/affordablefencinggc/xray-by-looplet.git`, branch `feat/architect-cad-engine`, because it requires trusted user approval naming this payload and destination. Read-only remote verification still shows `93a94a8`; no Stage 07 upload occurred. Curated evidence is being archived as a separate local commit. Explicit approval for both local commits is the only remaining publication step. This note supersedes earlier wording that publication was underway. Exact rejection and file manifest: `proof/growth/2026-09-08-navigation-release/publication-blocked.md` and `proof/growth/staged-push/navigation-evidence-manifest.json`. No installation, merge or CRM changes.
