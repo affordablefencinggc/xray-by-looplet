@@ -1,0 +1,282 @@
+[
+    [
+        "tab",
+        "t1"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027[data-hydration-status=ready]\u0027)"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Sketch",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!![...document.querySelectorAll(\u0027button\u0027)].find(b=\u003eb.textContent.trim()===\u0027Architectural workspace\u0027)"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Architectural workspace",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027.architect-workspace[data-design-id]\u0027)"
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(!document.body.innerText.includes(\u0027Build 71f5b012342b\u0027))throw Error(\u0027Unexpected build\u0027);window.__prodId=document.querySelector(\u0027.architect-workspace\u0027).dataset.designId;window.__prodRead=()=\u003eJSON.parse(localStorage.getItem(\u0027xray:architect:v1:\u0027+encodeURIComponent(window.__prodId)));window.__prodPoint=(x,y)=\u003e{const svg=document.querySelector(\u0027svg[aria-label=\"Editable architectural plan\"]\u0027),r=svg.getBoundingClientRect();if(r.width\u003c100||r.height\u003c100)throw Error(\u0027Plan not visible\u0027);svg.dispatchEvent(new PointerEvent(\u0027pointerdown\u0027,{bubbles:true,button:0,buttons:1,pointerId:1,clientX:r.left+r.width*x,clientY:r.top+r.height*y}));svg.dispatchEvent(new PointerEvent(\u0027pointerup\u0027,{bubbles:true,button:0,buttons:0,pointerId:1,clientX:r.left+r.width*x,clientY:r.top+r.height*y}));};return {id:__prodId}})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const p=__prodRead();if(p\u0026\u0026(p.walls.length||p.lines.length||p.openings.length))throw Error(\u0027Use a fresh isolated release profile; design is not empty\u0027);return {freshFixture:true}})()"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Load demonstration",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "document.querySelector(\u0027.architect-workspace h1\u0027)?.textContent.includes(\u0027Courtyard\u0027)"
+    ],
+    [
+        "eval",
+        "(()=\u003e{window.__prodBase=__prodRead();if(!__prodBase?.walls.length)throw Error(\u0027Demo not saved\u0027);return {revision:__prodBase.revision,walls:__prodBase.walls.length,lines:__prodBase.lines.length}})()"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Line",
+        "--exact"
+    ],
+    [
+        "eval",
+        "(()=\u003e{__prodPoint(0.2,0.16);return true})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{__prodPoint(0.43,0.16);return true})()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "Number(document.querySelector(\u0027.architect-workspace\u0027).dataset.designRevision)\u003e__prodBase.revision"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const p=__prodRead();if(p.lines.length!==__prodBase.lines.length+1)throw Error(\u0027Line not persisted\u0027);if(JSON.stringify(p.walls)!==JSON.stringify(__prodBase.walls))throw Error(\u0027Existing walls changed\u0027);window.__prodAdded=p;return {savedDrawing:true,revision:p.revision}})()"
+    ],
+    [
+        "screenshot",
+        "screenshots/growth/native-final-71f5b012342b-mcp-ui-drawn.png"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Undo design edit",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "Number(document.querySelector(\u0027.architect-workspace\u0027).dataset.designRevision)\u003e__prodAdded.revision"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const p=__prodRead();if(JSON.stringify(p.lines)!==JSON.stringify(__prodBase.lines))throw Error(\u0027Undo failed\u0027);window.__prodUndo=p;return {savedUndo:true,revision:p.revision}})()"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Redo design edit",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "Number(document.querySelector(\u0027.architect-workspace\u0027).dataset.designRevision)\u003e__prodUndo.revision"
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(JSON.stringify(__prodRead().lines)!==JSON.stringify(__prodAdded.lines))throw Error(\u0027Redo failed\u0027);return {redoRestored:true}})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const p=__prodRead();sessionStorage.setItem(\u0027xray.qa.production.mcp.design\u0027,JSON.stringify({id:__prodId,project:p}));return {savedRevision:p.revision,lineCount:p.lines.length,wallCount:p.walls.length}})()"
+    ],
+    [
+        "reload"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027[data-hydration-status=ready]\u0027)"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Sketch",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!![...document.querySelectorAll(\u0027button\u0027)].find(b=\u003eb.textContent.trim()===\u0027Architectural workspace\u0027)"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Architectural workspace",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027.architect-workspace[data-design-id]\u0027)"
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(!document.body.innerText.includes(\u0027Build 71f5b012342b\u0027))throw Error(\u0027Unexpected build\u0027);window.__prodId=document.querySelector(\u0027.architect-workspace\u0027).dataset.designId;window.__prodRead=()=\u003eJSON.parse(localStorage.getItem(\u0027xray:architect:v1:\u0027+encodeURIComponent(window.__prodId)));window.__prodPoint=(x,y)=\u003e{const svg=document.querySelector(\u0027svg[aria-label=\"Editable architectural plan\"]\u0027),r=svg.getBoundingClientRect();if(r.width\u003c100||r.height\u003c100)throw Error(\u0027Plan not visible\u0027);svg.dispatchEvent(new PointerEvent(\u0027pointerdown\u0027,{bubbles:true,button:0,buttons:1,pointerId:1,clientX:r.left+r.width*x,clientY:r.top+r.height*y}));svg.dispatchEvent(new PointerEvent(\u0027pointerup\u0027,{bubbles:true,button:0,buttons:0,pointerId:1,clientX:r.left+r.width*x,clientY:r.top+r.height*y}));};return {id:__prodId}})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const expected=JSON.parse(sessionStorage.getItem(\u0027xray.qa.production.mcp.design\u0027));if(expected.id!==__prodId)throw Error(\u0027Job changed on reopen\u0027);if(JSON.stringify(__prodRead())!==JSON.stringify(expected.project))throw Error(\u0027Saved design differs after reopen\u0027);return {sameJob:true,exactSavedDesign:true,revision:__prodRead().revision}})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{window.__prodBase=__prodRead();return {reopenedRevision:__prodBase.revision}})()"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Line",
+        "--exact"
+    ],
+    [
+        "eval",
+        "(()=\u003e{__prodPoint(0.2,0.24);return true})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{__prodPoint(0.43,0.24);return true})()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "Number(document.querySelector(\u0027.architect-workspace\u0027).dataset.designRevision)\u003e__prodBase.revision"
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(__prodRead().lines.length!==__prodBase.lines.length+1)throw Error(\u0027Post-reopen drawing failed\u0027);window.__prodAdded=__prodRead();return {postReopenEdit:true}})()"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Undo design edit",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "Number(document.querySelector(\u0027.architect-workspace\u0027).dataset.designRevision)\u003e__prodAdded.revision"
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(JSON.stringify(__prodRead().lines)!==JSON.stringify(__prodBase.lines))throw Error(\u0027Post-reopen undo failed\u0027);return {postReopenUndo:true}})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const p=__prodRead();sessionStorage.setItem(\u0027xray.qa.production.mcp.design\u0027,JSON.stringify({id:__prodId,project:p}));return {savedRevision:p.revision,lineCount:p.lines.length,wallCount:p.walls.length}})()"
+    ],
+    [
+        "reload"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027[data-hydration-status=ready]\u0027)"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Sketch",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!![...document.querySelectorAll(\u0027button\u0027)].find(b=\u003eb.textContent.trim()===\u0027Architectural workspace\u0027)"
+    ],
+    [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Architectural workspace",
+        "--exact"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027.architect-workspace[data-design-id]\u0027)"
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(!document.body.innerText.includes(\u0027Build 71f5b012342b\u0027))throw Error(\u0027Unexpected build\u0027);window.__prodId=document.querySelector(\u0027.architect-workspace\u0027).dataset.designId;window.__prodRead=()=\u003eJSON.parse(localStorage.getItem(\u0027xray:architect:v1:\u0027+encodeURIComponent(window.__prodId)));window.__prodPoint=(x,y)=\u003e{const svg=document.querySelector(\u0027svg[aria-label=\"Editable architectural plan\"]\u0027),r=svg.getBoundingClientRect();if(r.width\u003c100||r.height\u003c100)throw Error(\u0027Plan not visible\u0027);svg.dispatchEvent(new PointerEvent(\u0027pointerdown\u0027,{bubbles:true,button:0,buttons:1,pointerId:1,clientX:r.left+r.width*x,clientY:r.top+r.height*y}));svg.dispatchEvent(new PointerEvent(\u0027pointerup\u0027,{bubbles:true,button:0,buttons:0,pointerId:1,clientX:r.left+r.width*x,clientY:r.top+r.height*y}));};return {id:__prodId}})()"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const expected=JSON.parse(sessionStorage.getItem(\u0027xray.qa.production.mcp.design\u0027));if(expected.id!==__prodId)throw Error(\u0027Job changed on reopen\u0027);if(JSON.stringify(__prodRead())!==JSON.stringify(expected.project))throw Error(\u0027Saved design differs after reopen\u0027);return {sameJob:true,exactSavedDesign:true,revision:__prodRead().revision}})()"
+    ],
+    [
+        "screenshot",
+        "screenshots/growth/native-final-71f5b012342b-mcp-ui-reopened.png"
+    ],
+    [
+        "errors"
+    ]
+]

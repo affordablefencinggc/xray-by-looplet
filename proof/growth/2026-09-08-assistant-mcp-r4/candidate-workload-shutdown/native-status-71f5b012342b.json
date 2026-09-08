@@ -1,0 +1,47 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=\"ready\"]') && document.querySelector('[data-xray-build]')?.getAttribute('data-xray-build') === '71f5b012342b'"
+  ],
+  [
+    "eval",
+    "(()=>{if(typeof window.__TAURI_INTERNALS__?.invoke!=='function')throw Error('Native bridge missing');const badge=document.querySelector('[data-xray-build]');if(badge?.getAttribute('data-xray-build')!=='71f5b012342b')throw Error('Wrong native build');const r=badge.getBoundingClientRect();if(r.width<=0||r.height<=0)throw Error('Build badge not visible');return {native:true,build:badge.textContent,viewport:[innerWidth,innerHeight]}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const invoke=window.__TAURI_INTERNALS__.invoke;const status=await invoke('xray_assistant_status');if(status.provider!=='Gemini'||typeof status.configured!=='boolean'||status.available!==status.configured||typeof status.message!=='string')throw Error('Invalid native assistant status');if(Object.keys(status).some(k=>!['provider','model','configured','available','message'].includes(k)))throw Error('Unexpected native status field');const materials=await invoke('xray_material_ai_status');if(status.model!==materials.model)throw Error('Assistant does not reuse material model');window.__nativeAssistantStatus=status;return {assistant:status,materialConfigured:materials.configured}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const invoke=window.__TAURI_INTERNALS__.invoke;const rejected=[];for(const requestJson of ['{}',JSON.stringify({schema:'xray.assistant-request/v1',requestId:'not-a-uuid',contents:[],declarations:[],webSearch:false})]){let didReject=false;try{await invoke('xray_assistant_turn',{requestJson})}catch(error){didReject=true;rejected.push(String(error))}if(!didReject)throw Error('Invalid assistant request accepted')}await invoke('xray_cancel_assistant',{requestId:'06d3f5d7-5e29-4939-a4da-295f84630957'});return {invalidRequestsRejected:rejected.length,messages:rejected,inactiveRequestCancellation:'accepted',paidRequests:0}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-shutdown-workload-assistant-mcp-r4-71f5b012342b-native-workspace.png"
+  ],
+  [
+    "eval",
+    "(()=>{const b=document.querySelector('.live-assistant-launcher');if(!b)throw Error('Assistant launcher missing');if(b.getAttribute('aria-expanded')!=='true')b.click();return {assistantOpened:true}})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.live-assistant-identity')?.textContent.includes('MCP connected') && !!document.querySelector('#live-assistant-prompt')"
+  ],
+  [
+    "eval",
+    "(()=>{const panel=document.querySelector('#live-assistant-panel'),input=document.querySelector('#live-assistant-prompt'),r=panel.getBoundingClientRect();if(r.left<0||r.right>innerWidth+1||r.top<0||r.bottom>innerHeight+1)throw Error('Assistant panel clipped');if(input.disabled)throw Error('Assistant input unexpectedly disabled');const send=panel.querySelector('[aria-label=\"Send assistant message\"]');if(!send?.disabled)throw Error('Empty request send should be disabled');return {panel:[r.x,r.y,r.width,r.height],connection:document.querySelector('.live-assistant-identity').textContent,emptySendDisabled:true,providerRequestSent:false}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-shutdown-workload-assistant-mcp-r4-71f5b012342b-native-assistant-status.png"
+  ],
+  [
+    "errors"
+  ]
+]
