@@ -26,7 +26,7 @@ class MemoryStorage {
   }
 }
 
-describe("fencing job persistence", () => {
+describe("project persistence", () => {
   it("persists a new project identity before separate libraries are saved and reuses it after reopen", () => {
     const storage = new MemoryStorage(), first = createDefaultJob(), second = createDefaultJob();
     assert.notEqual(first.id, second.id);
@@ -68,7 +68,7 @@ describe("fencing job persistence", () => {
 
     const loaded = loadFencingJob(storage);
     assert.equal(loaded.job, null);
-    assert.match(loaded.error ?? "", /unsupported fencing job schema version 99/i);
+    assert.match(loaded.error ?? "", /unsupported project schema version 99/i);
   });
 
   it("loads and migrates the legacy storage key without stranding saved work", () => {
@@ -100,5 +100,23 @@ describe("fencing job persistence", () => {
 
     assert.deepEqual(clearFencingJob(storage), { ok: true, error: null });
     assert.deepEqual(loadFencingJob(storage), { job: null, error: null });
+  });
+
+  it("does not report success when storage silently drops or replaces a write", () => {
+    const job = createDefaultJob();
+    const dropped = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+    assert.equal(saveFencingJob(job, dropped).ok, false);
+    const replaced = { ...dropped, getItem: () => '{"another":"record"}' };
+    assert.match(saveFencingJob(job, replaced).error ?? "", /could not be verified/);
+  });
+
+  it("reports a failed readback and permits an explicit retry without mutating the open job", () => {
+    const backing = new MemoryStorage(), job = createDefaultJob();
+    const original = JSON.stringify(job);
+    const unreadable = { getItem: () => { throw Error("Storage read denied"); }, setItem: backing.setItem.bind(backing), removeItem: backing.removeItem.bind(backing) };
+    assert.equal(saveFencingJob(job, unreadable).ok, false);
+    assert.equal(JSON.stringify(job), original);
+    assert.equal(saveFencingJob(job, backing).ok, true);
+    assert.deepEqual(loadFencingJob(backing).job, job);
   });
 });

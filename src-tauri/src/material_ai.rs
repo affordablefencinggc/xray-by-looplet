@@ -13,6 +13,18 @@ impl Default for MaterialAiState {
     fn default()->Self { Self { inner:Mutex::new(Inner { key:std::env::var("GEMINI_API_KEY").or_else(|_|std::env::var("GOOGLE_API_KEY")).unwrap_or_default(), model:std::env::var("XRAY_AI_MODEL").unwrap_or(DEFAULT_MODEL.into()), active:None,calls:0,day:0 }) } }
 }
 fn valid_model(model:&str)->bool { model.starts_with("gemini-")&&model.len()<110&&model.chars().all(|c|c.is_ascii_alphanumeric()||"-._".contains(c)) }
+// Internal snapshot only: never registered as IPC or serialized to the frontend.
+pub(crate) fn assistant_credentials(state:&MaterialAiState)->Result<(String,String),String>{
+    let inner=state.inner.lock().map_err(|_|"AI state unavailable")?;
+    if inner.key.is_empty()||!valid_assistant_model(&inner.model){return Err("AI provider not configured. Configure Gemini in Settings.".into());}
+    Ok((inner.key.clone(),inner.model.clone()))
+}
+pub(crate) fn assistant_provider_status(state:&MaterialAiState)->Result<Value,String>{
+    let inner=state.inner.lock().map_err(|_|"AI state unavailable")?;
+    let configured=!inner.key.is_empty()&&valid_assistant_model(&inner.model);
+    Ok(json!({"provider":"Gemini","model":inner.model,"configured":configured,"available":configured,"message":if configured {"Gemini configured. Credentials have not been verified. Assistant requests send the conversation and explicitly attached content."}else{"AI provider not configured. Configure Gemini in Settings."}}))
+}
+fn valid_assistant_model(model:&str)->bool { valid_model(model)&&model.strip_prefix("gemini-").is_some_and(|s| !s.is_empty()&&s.len()<=100) }
 fn status(inner:&Inner)->Value { let configured=!inner.key.is_empty()&&valid_model(&inner.model);json!({"provider":"Gemini","model":inner.model,"configured":configured,"available":configured,"message":if configured {"Gemini configured. Configuration alone does not verify credentials. Drawing images are sent only when you start."}else{"AI provider not configured. Configure a provider to interpret a sheet."}}) }
 #[tauri::command]
 pub fn xray_material_ai_status(state:State<'_,MaterialAiState>)->Result<Value,String>{let inner=state.inner.lock().map_err(|_|"AI state unavailable")?;Ok(status(&inner))}
@@ -89,6 +101,15 @@ async fn execute_ai_request(state:State<'_,MaterialAiState>,request_json:String,
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn assistant_snapshot_has_no_material_daily_page_limit(){
+        let state=MaterialAiState{inner:Mutex::new(Inner{key:"private-test-key".into(),model:DEFAULT_MODEL.into(),active:None,calls:20,day:1})};
+        let (key,model)=assistant_credentials(&state).unwrap();assert_eq!(key,"private-test-key");assert_eq!(model,DEFAULT_MODEL);
+        let result=assistant_provider_status(&state).unwrap();assert_eq!(result["configured"],true);assert!(!result.to_string().contains("private-test-key"));assert_eq!(state.inner.lock().unwrap().calls,20);
+    }
+    #[test] fn assistant_rejects_unconfigured_and_endpoint_shaped_models(){
+        let state=MaterialAiState{inner:Mutex::new(Inner{key:String::new(),model:DEFAULT_MODEL.into(),active:None,calls:0,day:0})};assert!(assistant_credentials(&state).is_err());
+        assert!(!valid_assistant_model("gemini-"));assert!(!valid_assistant_model("gemini-x/../../private"));assert!(valid_assistant_model(DEFAULT_MODEL));
+    }
     #[test] fn configuration_never_returns_credentials(){let i=Inner{key:"private-test-key".into(),model:DEFAULT_MODEL.into(),active:None,calls:0,day:0};assert!(!status(&i).to_string().contains("private-test-key"));assert_eq!(status(&i)["available"],true);}
     #[test] fn arbitrary_model_urls_are_rejected(){assert!(!valid_model("https://example.com"));assert!(!valid_model("gemini-test?key=foo"));assert!(valid_model(DEFAULT_MODEL));}
     #[test] fn oversized_and_unbound_requests_fail_before_network(){assert!(check_request(&"x".repeat(12*1024*1024+1)).is_err());assert!(check_request("{}").is_err());}

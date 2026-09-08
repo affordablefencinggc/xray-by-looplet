@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useStudio } from "./store";
+import { useAssistantConnection } from "./assistant/session";
 import {
   captureConsole,
   createDiagnosticBuffer,
@@ -10,11 +11,15 @@ import {
 import "./workspace-shell.css";
 
 const TABS = ["Logs", "Console", "Errors", "Status"] as const;
+const buildId = import.meta.env.VITE_XRAY_BUILD_ID;
+const buildLabel = typeof buildId === "string" && /^[a-f0-9]{12}$/.test(buildId)
+  ? `Build ${buildId}` : import.meta.env.DEV ? "Development" : "Build not identified";
 type Tab = (typeof TABS)[number];
 
 /** Mounted once in the central workspace; session diagnostics never leave this browser. */
 export function WorkspaceDiagnostics() {
   const s = useStudio();
+  const mcp = useAssistantConnection();
   const [expanded, setExpanded] = useState(false),
     [tab, setTab] = useState<Tab>("Status");
   const [drawerHeight, setDrawerHeight] = useState(240);
@@ -83,7 +88,7 @@ export function WorkspaceDiagnostics() {
       "Trace error": state.traceError,
       "Calibration error": state.calibrationError,
       "Quantity persistence error": state.bomPersistenceError,
-      "MCP transport": "Connected (xray-by-looplet / 6 tools · looplet-crm)",
+      "MCP transport": useAssistantConnection.getState().connected ? "Connected to X-Ray workspace" : "Not connected to live assistant",
     });
     let previous = values(useStudio.getState());
     Object.entries(previous).forEach(([key, value]) => {
@@ -281,6 +286,7 @@ export function WorkspaceDiagnostics() {
             </button>
           ))}
         </div>
+        <span className="workspace-build-label" data-xray-build={buildId || "development"} title="Identifies the application build currently running">{buildLabel}</span>
         <button
           type="button"
           className="workspace-diagnostics-toggle"
@@ -329,7 +335,7 @@ export function WorkspaceDiagnostics() {
                 </div>
                 <div>
                   <dt>MCP System</dt>
-                  <dd>Connected · FastMCP (6 tools) · Looplet Remote</dd>
+                  <dd>{mcp.connected ? `Connected · X-Ray workspace · ${mcp.names.length} tools` : mcp.error || "Not connected to live assistant"}</dd>
                 </div>
               </dl>
               {currentErrors.map((error, index) => (

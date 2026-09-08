@@ -120,7 +120,7 @@ export async function validateProjectBackup(input: unknown): Promise<ProjectBack
       if (asset.name !== document.name) throw Error("Original plan name does not match its document.");
       const inspected = await inspectPlanBytes({ name: asset.name, bytes: new Uint8Array(bytes), source: "web" });
       if (inspected.binary.sha256 !== asset.sha256 || asset.sha256 !== document.sha256 ||
-        inspected.binary.mimeType !== asset.mimeType || inspected.revision.pageCount !== document.pageCount)
+        inspected.binary.kind !== document.kind || inspected.binary.mimeType !== asset.mimeType || inspected.revision.pageCount !== document.pageCount)
         throw Error(`Original plan “${asset.name}” failed metadata or SHA-256 verification.`);
     } else {
       const photo = photos.find(p => p.id === asset.id);
@@ -157,28 +157,48 @@ export type BackupCapturePort = {
   currentJob(): FencingJob;
 };
 export async function captureProjectBackup(job: FencingJob, name: string, port: BackupCapturePort): Promise<ProjectBackup> {
-  const jobText = JSON.stringify(job), records = await port.records(job.id, job);
+  const jobText = JSON.stringify(job), capturedJob = fencingJobSchema.parse(JSON.parse(jobText));
+  const records = structuredClone(await port.records(capturedJob.id, capturedJob));
   const assets: BackupAsset[] = [];
   let total = jobText.length + JSON.stringify(records).length;
-  for (const doc of job.documents.filter(d => d.source !== "sample")) {
+  for (const doc of capturedJob.documents.filter(d => d.source !== "sample")) {
     const content = await port.plan(doc.id);
     if (!content) throw Error(`Original plan “${doc.name}” is missing. No backup was saved.`);
+    if (content.documentId !== doc.id || content.kind !== doc.kind || !(content.bytes instanceof ArrayBuffer) || content.sizeBytes !== content.bytes.byteLength)
+      throw Error(`Original plan “${doc.name}” failed metadata or identity verification. No backup was saved.`);
     total += Math.ceil(content.bytes.byteLength / 3) * 4;
     if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
     assets.push({ id: doc.id, kind: "plan", name: content.name, mimeType: content.mimeType,
       sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
   }
-  for (const photo of backupPhotos(job)) {
+  for (const photo of backupPhotos(capturedJob)) {
     const content = await port.photo(photo.id);
     if (!content) throw Error(`Original photo “${photo.name}” is missing. No backup was saved.`);
+    if (content.id !== photo.id) throw Error(`Original photo “${photo.name}” failed identity verification. No backup was saved.`);
     total += Math.ceil(content.bytes.byteLength / 3) * 4;
     if (total > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
     assets.push({ id: photo.id, kind: "photo", name: content.name, mimeType: content.mimeType,
       sha256: content.sha256, bytesBase64: encodeBackupBytes(content.bytes) });
   }
-  const result = await validateProjectBackup({ format: BACKUP_FORMAT, name, job: JSON.parse(jobText),
+  const result = await validateProjectBackup({ format: BACKUP_FORMAT, name, job: capturedJob,
     createdAt: new Date().toISOString(), records, assets });
-  if (JSON.stringify(port.currentJob()) !== jobText || JSON.stringify(await port.records(job.id, job)) !== JSON.stringify(records))
+  // Re-read originals as well as module records: an unchanged job can still refer
+  // to bytes removed or replaced by another window during asynchronous capture.
+  // These checks detect observed races; they are not an exclusive write lease.
+  for (const asset of result.assets) {
+    const content = asset.kind === "plan" ? await port.plan(asset.id) : await port.photo(asset.id);
+    const plan = asset.kind === "plan" ? content as StoredPlanContent | null : null;
+    const photo = asset.kind === "photo" ? content as StoredPhotoContent | null : null;
+    if (!content || !(content.bytes instanceof ArrayBuffer) || content.name !== asset.name ||
+      content.mimeType !== asset.mimeType || content.sha256 !== asset.sha256 ||
+      (plan && (plan.documentId !== asset.id || plan.kind !== capturedJob.documents.find(d => d.id === asset.id)!.kind || plan.sizeBytes !== plan.bytes.byteLength)) ||
+      (photo && photo.id !== asset.id) || await backupDigest(content.bytes) !== asset.sha256)
+      throw Error("Project originals changed while the backup was being prepared. Save again to capture a consistent version.");
+  }
+  const finalRecords = await port.records(capturedJob.id, capturedJob);
+  // Read the live job after the final await, not before it: a late completed
+  // import/edit must not escape the consistency check while records are read.
+  if (JSON.stringify(port.currentJob()) !== jobText || JSON.stringify(finalRecords) !== JSON.stringify(records))
     throw Error("Project changed while the backup was being prepared. Save again to capture a consistent version.");
   if (new Blob([JSON.stringify(result)]).size > MAX_BACKUP_BYTES) throw Error("Backup exceeds the 200 MB package limit.");
   return result;

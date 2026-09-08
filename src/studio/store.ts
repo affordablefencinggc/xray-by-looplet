@@ -18,7 +18,7 @@ import {
   restoreDocumentWorkspace,
   prepareDocumentSelection,
 } from "./documentWorkspaces.ts";
-import { loadOrCreateBrowserProject, saveFencingJob } from "./persistence.ts";
+import { loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
 import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
 import { createBrowserPlanStore } from "./documents.ts";
 import {
@@ -180,6 +180,8 @@ type StudioState = {
   documentError: string | null;
   persistenceError: string | null;
   persistenceHydrated: boolean;
+  persistenceRecoveryBlocked: boolean;
+  lastSavedJobRevision: number | null;
   hydrationStatus: HydrationStatus;
   assetReadiness: RuntimeAssetReadiness;
   quoteReadiness: QuoteReadiness;
@@ -343,6 +345,8 @@ type StudioState = {
   failBomGeneration: (message: string, failedAt?: string) => BomStateTransition;
   reconcileBomRecipeSet: (recipeSet: BomRecipeSet, changedAt?: string) => BomStateEnvelope;
   hydratePersistence: () => Promise<void>;
+  retryProjectLoad: () => Promise<void>;
+  saveCurrentProject: () => JobPersistenceResult;
 };
 
 function uid() {
@@ -798,6 +802,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   documentError: null,
   persistenceError: null,
   persistenceHydrated: false,
+  persistenceRecoveryBlocked: true,
+  lastSavedJobRevision: null,
   hydrationStatus: "idle",
   assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
   quoteReadiness: readiness(initialJob, EMPTY_RUNTIME_ASSET_READINESS, false),
@@ -2184,10 +2190,23 @@ export const useStudio = create<StudioState>((set, get) => ({
     if (next !== state.bomState) set({ bomState: next });
     return next;
   },
+  retryProjectLoad: async () => {
+    if (!get().persistenceRecoveryBlocked || hydrationFlight) return;
+    set({ persistenceHydrated: false });
+    await get().hydratePersistence();
+  },
+  saveCurrentProject: () => {
+    const state = get();
+    if (!state.persistenceHydrated || state.persistenceRecoveryBlocked || state.hydrationStatus !== "ready")
+      return { ok: false, error: "Saved project recovery must finish before saving. Existing records have been preserved." };
+    const result = saveFencingJob(state.job);
+    set({ persistenceError: result.error, ...(result.ok ? { lastSavedJobRevision: state.job.revision } : {}) });
+    return result;
+  },
   hydratePersistence: () => {
     if (get().persistenceHydrated) return Promise.resolve();
     if (hydrationFlight) return hydrationFlight;
-    set({ hydrationStatus: "loading", persistenceError: null });
+    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null });
     hydrationFlight = (async () => {
       await Promise.resolve();
       const staleUrls = get().photoPreviewUrls;
@@ -2207,6 +2226,7 @@ export const useStudio = create<StudioState>((set, get) => ({
           inventoryPersistenceError,
           inventoryRecoveryBlocked: inventoryPersistenceError !== null,
           persistenceError: loaded.error,
+          persistenceRecoveryBlocked: true,
           persistenceHydrated: true,
           hydrationStatus: loaded.error ? "error" : "ready",
           assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
@@ -2353,6 +2373,8 @@ export const useStudio = create<StudioState>((set, get) => ({
         assetReadiness,
         persistenceHydrated: true,
         hydrationStatus: "ready",
+        persistenceRecoveryBlocked: false,
+        lastSavedJobRevision: job.revision,
       });
     })()
       .catch((error) => {
@@ -2360,6 +2382,7 @@ export const useStudio = create<StudioState>((set, get) => ({
           persistenceError: error instanceof Error ? error.message : String(error),
           persistenceHydrated: true,
           hydrationStatus: "error",
+          persistenceRecoveryBlocked: true,
         });
       })
       .finally(() => {
@@ -2394,14 +2417,11 @@ useStudio.subscribe((state, previous) => {
 
 if (typeof window !== "undefined") {
   useStudio.subscribe((state, previous) => {
-    if (state.job === previous.job || !state.persistenceHydrated) return;
-    const result = saveFencingJob(state.job);
-    if (state.persistenceError !== result.error) {
-      useStudio.setState({ persistenceError: result.error });
-    }
+    if (state.job === previous.job || !state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
+    state.saveCurrentProject();
   });
   useStudio.subscribe((state, previous) => {
-    if (!state.persistenceHydrated) return;
+    if (!state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
     if (state.bomState === previous.bomState && previous.persistenceHydrated) return;
     const result = saveBomState(state.bomState);
     const error = result.ok
@@ -2410,7 +2430,7 @@ if (typeof window !== "undefined") {
     if (state.bomPersistenceError !== error) useStudio.setState({ bomPersistenceError: error });
   });
   useStudio.subscribe((state, previous) => {
-    if (!state.persistenceHydrated) return;
+    if (!state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
     if (state.inventoryRecoveryBlocked) return;
     if (state.componentInventory === previous.componentInventory && previous.persistenceHydrated) return;
     state.saveCurrentInventory();

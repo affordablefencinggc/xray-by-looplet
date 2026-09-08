@@ -48,6 +48,7 @@ $env:PATH=$runtime+';'+$env:PATH
 $env:RAYON_NUM_THREADS=[string]$dansWorkers
 $env:CARGO_BUILD_JOBS=[string]$dansWorkers
 $env:VITE_AUTH_ENABLED='false'
+$env:VITE_XRAY_BUILD_ID=$RunId
 $env:npm_config_cache=Join-Path $buildRoot 'npm-cache'
 $env:CARGO_HOME=Join-Path $buildRoot 'toolchain\cargo'
 $env:RUSTUP_HOME=Join-Path $buildRoot 'toolchain\rustup'

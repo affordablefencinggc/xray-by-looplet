@@ -1,5 +1,6 @@
 import { useDesignConfirmation } from "./useDesignConfirmation";
 import { SyncDesignMaterials } from "./SyncDesignMaterials";
+import { prepareArchitectElements, registerArchitectController } from "../assistant/architectBridge.ts";
 import { ArchitectAi } from "./ArchitectAi";
 import { ArchitectSheets } from "./ArchitectSheets";
 import { csv } from "./exchange";
@@ -47,7 +48,7 @@ import {
   type Point,
   type ArchitectProject,
 } from "./model";
-import { loadArchitect, saveArchitect, type ArchitectSession } from "./persistence";
+import { architectKey, loadArchitect, saveArchitect, type ArchitectSession } from "./persistence";
 import {
   snapPoint,
   constrainPoint,
@@ -100,6 +101,13 @@ function download(data: string, name: string, type = "application/json") {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function loadBrowserArchitect(jobId: string): ArchitectSession {
+  try { return loadArchitect(jobId, window.localStorage); }
+  catch (error) {
+    return { value: emptyProject(jobId), raw: null, blocked: true,
+      error: "Saved design storage is unavailable. Editing and autosave are blocked. " + (error instanceof Error ? error.message : String(error)) };
+  }
+}
 export function ArchitectWorkspace() {
   const { confirmDesign, confirmation } = useDesignConfirmation();
   const jobId = useStudio((s) => s.job.id),
@@ -141,7 +149,7 @@ export function ArchitectWorkspace() {
   sessionRef.current = session;
   const p = session.value;
   useEffect(() => {
-    const s = loadArchitect(jobId, localStorage);
+    const s = loadBrowserArchitect(jobId);
     setSession(s);
     setLevelId(s.value.levels[0].id);
     setReady(true);
@@ -169,14 +177,24 @@ export function ArchitectWorkspace() {
       const value = revise(p, draft),
         saved = saveArchitect(session, value, localStorage, recovery);
       if (saved.error) {
+        sessionRef.current = saved;
         setSession(saved);
         throw Error(saved.error);
+      }
+      try {
+        if (window.localStorage.getItem(architectKey(value.id)) !== saved.raw) throw Error("Saved design readback differed.");
+      } catch {
+        const rejected = { ...session, blocked: true, error: "Design save could not be verified. Reload the saved design before editing; the open design has been retained." };
+        sessionRef.current = rejected;
+        setSession(rejected);
+        throw Error(rejected.error);
       }
       if (history) {
         undo.current.push(p);
         if (undo.current.length > 60) undo.current.shift();
         redo.current = [];
       }
+      sessionRef.current = saved;
       setSession(saved);
       setLevelId((current) =>
         value.levels.some((level) => level.id === current) ? current : value.levels[0].id,
@@ -503,6 +521,48 @@ export function ArchitectWorkspace() {
       setError(e instanceof Error ? e.message : String(e));
     }
   }
+  useEffect(() => registerArchitectController({
+    read(args) {
+      const current = sessionRef.current;
+      if (useStudio.getState().job.id !== args.expectedJobId || current.value.id !== args.expectedJobId)
+        throw Error("The active architectural project changed. Read project context again.");
+      return { project: structuredClone(current.value), ready, blocked: current.blocked, error: current.error || error,
+        pendingDraft: !!anchor || points.length > 0 || !!length.trim(), canUndo: undo.current.length > 0 };
+    },
+    draw(args) {
+      const current = sessionRef.current;
+      if (!ready || useStudio.getState().pane !== "sketch" || useStudio.getState().job.id !== args.expectedJobId || current.value.id !== args.expectedJobId)
+        throw Error("Open the current project's Architectural workspace before drawing.");
+      if (current.blocked || current.error || error) throw Error(current.error || error || "Architectural design recovery must finish before drawing.");
+      if (current.value.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before drawing.");
+      if (current.value !== p) throw Error("The design view is updating. Read the design again after it renders.");
+      if (anchor || points.length || length.trim()) throw Error("Finish or cancel the current drawing gesture before applying assistant edits.");
+      const prepared = prepareArchitectElements(current.value, args);
+      if (!commit(prepared.draft)) throw Error(sessionRef.current.error || "The drawing change was not saved. Existing design remains active.");
+      setPanel("draw"); setTool("select"); setSelected(prepared.created.at(-1)?.id ?? null);
+      resetDrawing();
+      const bounds = projectBounds(prepared.draft);
+      setViewBox([bounds.min[0] - 1200, bounds.min[1] - 1200, Math.max(bounds.max[0] - bounds.min[0], 3000) + 2400, Math.max(bounds.max[1] - bounds.min[1], 3000) + 2400]);
+      setFitToken(value => value + 1);
+      return { projectId: sessionRef.current.value.id, designRevision: sessionRef.current.value.revision, saved: true, readbackVerified: true,
+        created: prepared.created, notices: prepared.notices, counts: { walls: sessionRef.current.value.walls.length, openings: sessionRef.current.value.openings.length, lines: sessionRef.current.value.lines.length, roomTags: sessionRef.current.value.roomTags.length } };
+    },
+    undo(args) {
+      const current = sessionRef.current;
+      if (!ready || useStudio.getState().pane !== "sketch" || useStudio.getState().job.id !== args.expectedJobId || current.value.id !== args.expectedJobId)
+        throw Error("Open the current project's Architectural workspace before undoing.");
+      if (current.blocked || current.error || error) throw Error(current.error || error || "Architectural design recovery must finish before undoing.");
+      if (current.value.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before undoing.");
+      if (current.value !== p) throw Error("The design view is updating. Wait for the current revision to render.");
+      if (anchor || points.length || length.trim()) throw Error("Finish or cancel the current drawing gesture before undoing.");
+      if (!undo.current.length) throw Error("No architectural change is available to undo in this session.");
+      historyStep(true);
+      const saved = sessionRef.current;
+      if (saved.error || saved.blocked || saved.value.revision !== args.expectedRevision + 1) throw Error(saved.error || "Undo was not saved.");
+      setPanel("draw");
+      return { projectId: saved.value.id, designRevision: saved.value.revision, undone: true, saved: true, readbackVerified: true };
+    },
+  }));
   if (!ready || !levelId)
     return <div className="architect-loading">Restoring architectural design…</div>;
   return (
@@ -615,7 +675,7 @@ export function ArchitectWorkspace() {
             <>
               <button
                 onClick={() => {
-                  const restored = loadArchitect(jobId, localStorage);
+                  const restored = loadBrowserArchitect(jobId);
                   setSession(restored);
                   setLevelId(restored.value.levels[0].id);
                   setSelected(null);
@@ -1253,7 +1313,7 @@ export function ArchitectWorkspace() {
         </div>
       )}
       {panel === "ai" && <ArchitectAi project={p} levelId={levelId} onChange={commit} />}
-      {panel === "sheets" && <ArchitectSheets project={p} onChange={commit} onError={setError} />}
+      {panel === "sheets" && <ArchitectSheets project={p} onChange={commit} onError={setError} disabled={!ready || session.blocked} />}
       <ArchitectCadExchange
         project={p}
         confirm={confirmDesign}

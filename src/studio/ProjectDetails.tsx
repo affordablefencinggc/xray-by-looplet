@@ -7,6 +7,7 @@ import "./projectDetails.css";
 export function ProjectDetails() {
   const job = useStudio(s => s.job), hydrated = useStudio(s => s.persistenceHydrated);
   const persistenceError = useStudio(s => s.persistenceError);
+  const savedRevision = useStudio(s => s.lastSavedJobRevision);
   const [edit, setEdit] = useState<{ name: string; jobText: string; stored: string | null } | null>(null);
   const [message, setMessage] = useState(""), [error, setError] = useState("");
   function begin() {
@@ -34,7 +35,10 @@ export function ProjectDetails() {
   }
   return <section className="project-details" aria-label="Current project">
     <div><span className="kicker">Current project</span><h2>{job.name}</h2>
-      <p>{hydrated ? `Job revision ${job.revision} · local workspace` : "Restoring project…"}</p></div>
+      <p>{hydrated ? `Job revision ${job.revision} · local workspace` : "Restoring project…"}</p>
+    <p role="status" data-project-record-save={hydrated && !persistenceError && savedRevision === job.revision ? "saved" : "unconfirmed"}>
+      {hydrated && !persistenceError && savedRevision === job.revision ? `Project record saved on this device · revision ${savedRevision}` : "Project record save is not confirmed"}
+    </p></div>
     <button className="pill" disabled={!hydrated || Boolean(persistenceError)} onClick={begin}>Rename project</button>
     {edit && <form onSubmit={e => { e.preventDefault(); save(); }}>
       <label>Project name<input value={edit.name} maxLength={200} onChange={e => setEdit({ ...edit, name: e.target.value })} autoFocus /></label>

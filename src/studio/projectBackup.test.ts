@@ -5,6 +5,7 @@ import { inspectPlanBytes } from "./documents.ts";
 import { importPhotoFile } from "./evidence.ts";
 import { captureDocumentWorkspace, restoreDocumentWorkspace } from "./documentWorkspaces.ts";
 import { demonstration } from "./architect/model.ts";
+import { changeAuthoredSheets, reviewAuthoredSheetArchive } from "./architect/authoredSheetSet.ts";
 import { createSheetLifecycle, changeSheetLifecycle, sheetSourceIdentity } from "./sheetLifecycle.ts";
 import { emptyPriceBookLibrary } from "./pricing/priceBooks.ts";
 import { BACKUP_FORMAT, backupContents, backupDigest, captureProjectBackup, decodeBackupBytes, emptyBackupRecords, parseProjectBackup, validateProjectBackup, type BackupCapturePort } from "./projectBackup.ts";
@@ -55,6 +56,30 @@ describe("portable main workspace backups", () => {
     assert.equal(await backupDigest(decodeBackupBytes(restored.assets.find(a => a.id === photo.record.id)!.bytesBase64)), photo.record.sha256);
     assert.equal(JSON.parse(restored.records.architecture!).walls.length, 5);
   });
+  it("preserves every authored sheet layout, active selection, managed order and archived sheet through capture and parsing", async () => {
+    const { job, port, records } = await fixture();
+    let design = changeAuthoredSheets(demonstration(job.id), { type: "add" });
+    design = changeAuthoredSheets(design, { type: "rename", sheetId: design.sheetSet!.activeId, name: "Structural details" });
+    design = changeAuthoredSheets(design, { type: "duplicate", sheetId: design.sheetSet!.activeId });
+    design = changeAuthoredSheets(design, { type: "move", sheetId: design.sheetSet!.activeId, direction: -1 });
+    design = changeAuthoredSheets(design, { type: "archive", review: reviewAuthoredSheetArchive(design, "legacy-sheet") });
+    const original = JSON.stringify(design);
+    const captured = await captureProjectBackup(job, "Drawing issue", { ...port, records: async () => ({ ...records, architecture: original }) });
+    const parsed = await parseProjectBackup(JSON.stringify(captured));
+    assert.equal(parsed.records.architecture, original);
+    const restored = JSON.parse(parsed.records.architecture!);
+    assert.deepEqual(restored, design);
+    assert.ok(restored.sheetSet);
+    assert.equal(restored.sheetSet.sheets.length, 3);
+    assert.equal(restored.sheetSet.sheets[0].archived, true);
+    assert.equal(restored.sheetSet.sheets[1].name, "Structural details copy");
+    assert.deepEqual(restored.sheet, restored.sheetSet.sheets[1].layout);
+    assert.equal(JSON.stringify(design), original);
+    const invalid = structuredClone(parsed), wrongProjection = JSON.parse(original);
+    wrongProjection.sheet.number = "Not the active layout";
+    invalid.records.architecture = JSON.stringify(wrongProjection);
+    await assert.rejects(validateProjectBackup(invalid), /Active drawing sheet does not match/);
+  });
   it("refuses a missing inactive-plan photo instead of producing an incomplete backup", async () => {
     const { job, port } = await fixture();
     await assert.rejects(captureProjectBackup(job, "Incomplete", { ...port, photo: async () => null }), /Original photo.*missing/);
@@ -74,6 +99,8 @@ describe("portable main workspace backups", () => {
     await assert.rejects(validateProjectBackup(mime), /verification/);
     const page = structuredClone(value); page.job.documents[0].pageCount = 2;
     await assert.rejects(validateProjectBackup(page), /verification/);
+    const kind = structuredClone(value); kind.job.documents[0].kind = "pdf";
+    await assert.rejects(validateProjectBackup(kind), /verification/);
   });
   it("rejects invalid encoding, future formats and unexpected top-level data", async () => {
     const { value } = await fixture();
@@ -96,6 +123,55 @@ describe("portable main workspace backups", () => {
     await assert.rejects(captureProjectBackup(job, "Race", { ...port, currentJob: () => ({ ...job, name: "Changed" }) }), /changed while/);
     let count = 0;
     await assert.rejects(captureProjectBackup(job, "Race", { ...port, records: async () => ++count === 1 ? records : { ...records, architecture: null } }), /changed while/);
+  });
+  it("rejects a job change that completes during the final asynchronous module read", async () => {
+    const { job, port, records } = await fixture();
+    let liveJob = job, reads = 0;
+    await assert.rejects(captureProjectBackup(job, "Late edit", { ...port, currentJob: () => liveJob, records: async () => {
+      if (++reads === 2) { await Promise.resolve(); liveJob = { ...job, name: "Edited while checking records", revision: job.revision + 1 }; }
+      return structuredClone(records);
+    } }), /changed while/);
+    assert.equal(reads, 2);
+    assert.equal(liveJob.name, "Edited while checking records");
+  });
+  it("refuses a removed or silently changed original even when job and module records stay unchanged", async () => {
+    const { job, port, first } = await fixture();
+    for (const change of ["removed", "bytes", "metadata"] as const) {
+      let reads = 0;
+      await assert.rejects(captureProjectBackup(job, "Original race", { ...port, plan: async id => {
+        const content = await port.plan(id);
+        if (id !== first.revision.id || ++reads !== 2 || !content) return content;
+        if (change === "removed") return null;
+        if (change === "metadata") return { ...content, name: "Renamed.svg" };
+        const bytes = content.bytes.slice(0); new Uint8Array(bytes)[0] ^= 1;
+        return { ...content, bytes }; // unchanged declared SHA must not hide modified bytes
+      } }), /originals changed while/);
+      assert.equal(reads, 2);
+    }
+  });
+  it("rechecks inactive-document photo bytes before returning the package", async () => {
+    const { job, port } = await fixture();
+    assert.equal(job.photos.length, 0);
+    let reads = 0;
+    await assert.rejects(captureProjectBackup(job, "Evidence race", { ...port, photo: async id => {
+      const content = await port.photo(id);
+      if (++reads !== 2 || !content) return content;
+      const bytes = content.bytes.slice(0); new Uint8Array(bytes)[0] ^= 1;
+      return { ...content, bytes };
+    } }), /originals changed while/);
+    assert.equal(reads, 2);
+  });
+  it("does not conceal a stored original's wrong identity, kind or byte length", async () => {
+    const { job, port, first } = await fixture();
+    for (const change of [{ documentId: "another-document" }, { kind: "pdf" as const }, { sizeBytes: 1 }]) {
+      await assert.rejects(captureProjectBackup(job, "Bad original", { ...port, plan: async id => {
+        const content = await port.plan(id);
+        return content && id === first.revision.id ? { ...content, ...change } : content;
+      } }), /metadata or identity verification/);
+    }
+    await assert.rejects(captureProjectBackup(job, "Bad evidence", { ...port, photo: async id => {
+      const content = await port.photo(id); return content && { ...content, id: "another-photo" };
+    } }), /identity verification/);
   });
   it("accepts an empty job with clear zero-original coverage and trims its backup label", async () => {
     const job = createDefaultJob();

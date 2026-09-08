@@ -38,7 +38,7 @@ export function loadFencingJob(storage: StorageLike | null = browserStorage()): 
     raw =
       storage.getItem(FENCING_JOB_STORAGE_KEY) ?? storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
   } catch (error) {
-    return { job: null, error: `Could not read the saved fencing job: ${messageOf(error)}` };
+    return { job: null, error: `Could not read the saved project: ${messageOf(error)}` };
   }
   if (raw === null) return { job: null, error: null };
 
@@ -46,25 +46,25 @@ export function loadFencingJob(storage: StorageLike | null = browserStorage()): 
   try {
     candidate = JSON.parse(raw);
   } catch {
-    return { job: null, error: "The saved fencing job is not valid JSON." };
+    return { job: null, error: "The saved project is not valid JSON." };
   }
 
   if (typeof candidate !== "object" || candidate === null) {
-    return { job: null, error: "The saved fencing job is not an object." };
+    return { job: null, error: "The saved project is not an object." };
   }
 
   const version = (candidate as { schemaVersion?: unknown }).schemaVersion;
   if (version !== JOB_SCHEMA_VERSION && version !== LEGACY_JOB_SCHEMA_VERSION) {
     return {
       job: null,
-      error: `Unsupported fencing job schema version ${String(version)}; expected ${JOB_SCHEMA_VERSION}.`,
+      error: `Unsupported project schema version ${String(version)}; expected ${JOB_SCHEMA_VERSION}.`,
     };
   }
 
   try {
     return { job: parseFencingJob(candidate), error: null };
   } catch {
-    return { job: null, error: "The saved fencing job failed validation and was not loaded." };
+    return { job: null, error: "The saved project failed validation and was not loaded." };
   }
 }
 
@@ -76,14 +76,17 @@ export function saveFencingJob(
 
   const parsed = fencingJobSchema.safeParse(job);
   if (!parsed.success) {
-    return { ok: false, error: "The fencing job failed validation and was not saved." };
+    return { ok: false, error: "The project failed validation and was not saved." };
   }
 
   try {
-    storage.setItem(FENCING_JOB_STORAGE_KEY, JSON.stringify(parsed.data));
+    const serialized = JSON.stringify(parsed.data);
+    storage.setItem(FENCING_JOB_STORAGE_KEY, serialized);
+    if (storage.getItem(FENCING_JOB_STORAGE_KEY) !== serialized)
+      return { ok: false, error: "The project save could not be verified. Keep this window open and retry saving; the open work has been retained." };
     return { ok: true, error: null };
   } catch (error) {
-    return { ok: false, error: `Could not save the fencing job: ${messageOf(error)}` };
+    return { ok: false, error: `Could not save the project: ${messageOf(error)}` };
   }
 }
 
@@ -113,7 +116,7 @@ export function clearFencingJob(
     storage.removeItem(LEGACY_FENCING_JOB_STORAGE_KEY);
     return { ok: true, error: null };
   } catch (error) {
-    return { ok: false, error: `Could not clear the fencing job: ${messageOf(error)}` };
+    return { ok: false, error: `Could not clear the project: ${messageOf(error)}` };
   }
 }
 

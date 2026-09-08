@@ -15,6 +15,7 @@ import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
 import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
 import { ProjectBackups } from "./ProjectBackups";
 import { ProjectDetails } from "./ProjectDetails";
+import { ProjectRecoveryNotice, ProjectSaveFailure } from "./ProjectRecoveryNotice";
 import { SheetManager } from "./SheetManager";
 import { useSheetLifecycle } from "./useSheetLifecycle.ts";
 import { PriceBookPanel } from "./pricing/PriceBookPanel";
@@ -84,10 +85,10 @@ function StudioContent() {
   useEffect(() => { invalidateModelViews(s.activePlanBinary?.documentId, s.activePlanBinary?.sha256); }, [s.activePlanBinary?.documentId, s.activePlanBinary?.sha256]);
 
   useEffect(() => {
-    void useStudio.getState().hydratePersistence().then(() => {
-      if (new URLSearchParams(window.location.search).get("pane") === "model") useStudio.getState().setPane("model");
+    void s.hydratePersistence().then(() => {
+      if (new URLSearchParams(window.location.search).get("pane") === "model") s.setPane("model");
     });
-  }, []);
+  }, [s.hydratePersistence, s.setPane]);
 
   useEffect(() => {
     const tab = activePaneTabRef.current, nav = tab?.parentElement;
@@ -101,6 +102,7 @@ function StudioContent() {
   // Global keyboard shortcuts for tool switching and navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (s.persistenceRecoveryBlocked) return;
       if (document.pointerLockElement || document.querySelector("dialog[open]") || shouldIgnoreShortcuts(document.activeElement)) {
         return;
       }
@@ -123,6 +125,7 @@ function StudioContent() {
   }, [s]);
 
   async function openPlan() {
+    if (useStudio.getState().persistenceRecoveryBlocked) return;
     try {
       const imported = await pickAndImportPlan();
       await s.importPlan(imported);
@@ -224,9 +227,9 @@ function StudioContent() {
 
         <section className={`studio-main flex min-w-0 flex-col gap-2.5 ${s.pane === "model" ? "source-model-main" : ""} ${s.lifted ? "overflow-hidden p-0" : "overflow-auto p-3"}`}>
           <div className="workspace-central-content">
-          {!s.persistenceHydrated ? <HydrationState /> : (
+          {!s.persistenceHydrated ? <HydrationState /> : s.persistenceRecoveryBlocked ? <ProjectRecoveryNotice /> : (
             <>
-              {s.persistenceError ? <IntegrityNotice title="Saved work needs attention" message={s.persistenceError} /> : null}
+              <ProjectSaveFailure />
               {s.pane === "overview" && <Overview />}
               {s.pane === "sheets" && <SheetsPane onOpenPlan={() => void openPlan()} />}
               {s.pane === "measure" && <MeasurePane />}
@@ -243,7 +246,7 @@ function StudioContent() {
           <WorkspaceDiagnostics />
         </section>
 
-        {!s.lifted && !sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
+        {!s.persistenceRecoveryBlocked && !s.lifted && !sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
         {settingsOpen && <SettingsRail section={settingsSection} setSection={setSettingsSection} onClose={()=>setSettingsOpen(false)} onOpenPlan={()=>void openPlan()} />}
       </div>
 

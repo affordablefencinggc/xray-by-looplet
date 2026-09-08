@@ -1,5 +1,7 @@
 ﻿import { useRef, useState } from "react";
-import { primitives, type View } from "./drawing";
+import { useEffect } from "react";
+import { type View } from "./drawing";
+import { authoredSheets, changeAuthoredSheets, editActiveSheet, resizeSheetPaper, reviewAuthoredSheetArchive, type AuthoredSheetAction, type AuthoredSheetArchiveReview } from "./authoredSheetSet";
 import { DrawingPrimitives } from "./DrawingPrimitives";
 import { paperSize, sheetViewports, viewportBox, exportDrawingPdf, saveDownload } from "./sheets";
 import { uuid, type ArchitectProject } from "./model";
@@ -8,25 +10,50 @@ export function ArchitectSheets({
   project: p,
   onChange,
   onError,
+  disabled = false,
 }: {
   project: ArchitectProject;
   onChange: (p: ArchitectProject) => boolean;
   onError: (e: string) => void;
+  disabled?: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [newView, setNewView] = useState<View>("plan"),
     [newLevel, setNewLevel] = useState(p.levels[0].id),
+    [review, setReview] = useState<AuthoredSheetArchiveReview | null>(null),
+    [notice, setNotice] = useState(""),
+    [failure, setFailure] = useState(""),
     drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
     svg = useRef<SVGSVGElement>(null),
     [w, h] = paperSize(p),
     vs = sheetViewports(p),
-    v = vs.find((v) => v.id === selected);
+    v = vs.find((v) => v.id === selected),
+    set = authoredSheets(p),
+    active = set.sheets.find(sheet => sheet.id === set.activeId)!,
+    live = set.sheets.filter(sheet => !sheet.archived),
+    archived = set.sheets.filter(sheet => sheet.archived);
+  useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId]);
+  function change(action: AuthoredSheetAction, message: string) {
+    if (disabled) return;
+    setNotice("");
+    setFailure("");
+    try {
+      if (onChange(changeAuthoredSheets(p, action))) {
+        setReview(null); setNotice(message);
+      } else setFailure("Drawing sheet was not saved. Your previous saved sheets are unchanged. Resolve the design storage error, then retry this action.");
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); setFailure(message); onError(message); }
+  }
   function update(fn: (q: ArchitectProject) => void) {
-    const q = structuredClone(p);
-    q.sheet.viewports = structuredClone(vs);
-    fn(q);
-    onChange(q);
+    if (disabled) return;
+    setNotice("");
+    setFailure("");
+    try {
+      const q = structuredClone(p);
+      q.sheet.viewports = structuredClone(vs);
+      fn(q);
+      if (!onChange(editActiveSheet(p, layout => Object.assign(layout, q.sheet)))) setFailure("Drawing sheet changes were not saved. Your previous saved layout is unchanged. Resolve the design storage error, then retry the edit.");
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); setFailure(message); onError(message); }
   }
   function at(e: { clientX: number; clientY: number }) {
     return new DOMPoint(e.clientX, e.clientY).matrixTransform(
@@ -34,7 +61,32 @@ export function ArchitectSheets({
     );
   }
   return (
-    <div className="arch-sheet-layout">
+    <fieldset className="arch-sheet-layout" disabled={disabled}>
+      <section className="arch-sheet-register" aria-label="Authored drawing sheets">
+        <div><h2>Drawing sheets</h2><p>Save independent layouts in this design. Archived sheets remain recoverable after reopening.</p></div>
+        <div className="arch-sheet-actions">
+          <label>Active drawing sheet<select aria-label="Active drawing sheet" value={set.activeId} onChange={event => change({ type: "select", sheetId: event.target.value }, "Active drawing sheet saved.")}>{live.map(sheet => <option key={sheet.id} value={sheet.id}>{sheet.layout.number} · {sheet.name}</option>)}</select></label>
+          <button disabled={set.sheets.length >= 200} onClick={() => change({ type: "add" }, "Drawing sheet added and saved.")}>Add drawing sheet</button>
+          <button disabled={set.sheets.length >= 200} onClick={() => change({ type: "duplicate", sheetId: active.id }, "Independent copy saved with new sheet and viewport identities.")}>Duplicate sheet</button>
+          <button disabled={live.length < 2} title={live.length < 2 ? "Keep one active sheet; add another before archiving." : "Review the layout before archiving"} onClick={() => { try { setReview(reviewAuthoredSheetArchive(p, active.id)); setNotice(""); } catch (error) { onError(String(error)); } }}>Archive sheet</button>
+        </div>
+        <div className="arch-sheet-actions">
+          <button disabled={live[0].id === active.id} onClick={() => change({ type: "move", sheetId: active.id, direction: -1 }, "Sheet order saved.")}>Move sheet earlier</button>
+          <button disabled={live.at(-1)!.id === active.id} onClick={() => change({ type: "move", sheetId: active.id, direction: 1 }, "Sheet order saved.")}>Move sheet later</button>
+          <span>{live.length} active · {archived.length} archived · {set.sheets.length}/200 sheets</span>
+        </div>
+        {notice && <p role="status">{notice}</p>}
+        {failure && <p className="arch-sheet-review" role="alert">{failure}</p>}
+        {review && <div className="arch-sheet-review" role="region" aria-label="Review drawing sheet archive">
+          <h3>Archive {review.name}?</h3><p>{review.viewports} live viewport{review.viewports === 1 ? "" : "s"}, sheet scale, north rotation and layout will be retained in the original sheet position. Shared model geometry, dimensions, quantities and previously exported files stay unchanged.</p>
+          <p>Recover the same sheet from Archived drawing sheets after reopening. Keep at least one active drawing sheet.</p>
+          {review.projectSnapshot !== JSON.stringify(p) && <p role="alert">The design changed after this review. Cancel and review again before archiving.</p>}
+          <div className="arch-sheet-actions"><button disabled={review.projectSnapshot !== JSON.stringify(p)} onClick={() => change({ type: "archive", review }, "Sheet archived and saved. Recover it from Archived drawing sheets.")}>Confirm sheet archive</button><button onClick={() => setReview(null)}>Cancel sheet archive</button></div>
+        </div>}
+        <details className="arch-sheet-archive"><summary>Archived drawing sheets ({archived.length})</summary>
+          {archived.length ? <ol>{archived.map(sheet => <li key={sheet.id}><span><strong>{sheet.layout.number} · {sheet.name}</strong><small>Position {set.sheets.indexOf(sheet) + 1} · {sheet.layout.size} · 1:{sheet.layout.scale} · {Math.max(1, sheet.layout.viewports.length)} viewports retained</small></span><button aria-label={`Recover drawing sheet ${sheet.name}`} onClick={() => change({ type: "recover", sheetId: sheet.id }, "Drawing sheet recovered in its saved position.")}>Recover sheet</button></li>)}</ol> : <p>No archived drawing sheets.</p>}
+        </details>
+      </section>
       <div>
         <div className="arch-button-row">
           <select
@@ -42,8 +94,7 @@ export function ArchitectSheets({
             value={p.sheet.size}
             onChange={(e) =>
               update((q) => {
-                q.sheet.size = e.target.value as "A1" | "A3";
-                q.sheet.viewports = [];
+                Object.assign(q.sheet, resizeSheetPaper(q.sheet, e.target.value as "A1" | "A3"));
               })
             }
           >
@@ -89,7 +140,7 @@ export function ArchitectSheets({
           aria-label="Scaled architectural drawing sheet"
           viewBox={`0 0 ${w} ${h}`}
           onPointerMove={(e) => {
-            if (!drag.current) return;
+            if (disabled || !drag.current) return;
             const pt = at(e),
               d = drag.current;
             const g = svg.current?.querySelector(`[data-viewport="${d.id}"]`);
@@ -99,7 +150,7 @@ export function ArchitectSheets({
             );
           }}
           onPointerUp={(e) => {
-            if (!drag.current) return;
+            if (disabled || !drag.current) return;
             const pt = at(e),
               d = drag.current;
             drag.current = null;
@@ -128,6 +179,7 @@ export function ArchitectSheets({
                 data-viewport={v.id}
                 transform={`translate(${v.x} ${v.y})`}
                 onPointerDown={(e) => {
+                  if (disabled) return;
                   e.stopPropagation();
                   setSelected(v.id);
                   const pt = at(e);
@@ -190,11 +242,12 @@ export function ArchitectSheets({
         </svg>
         <p className="arch-note">
           Drag a viewport to position it. Each viewport prints at its labelled scale; content
-          outside its frame is clipped. Print the PDF at 100%, without fit-to-page.
+          outside its frame is clipped. Changing paper size fits frames to the paper and preserves their scales. Print the PDF at 100%, without fit-to-page.
         </p>
       </div>
       <aside className="arch-inspector">
         <h2>Drawing sheet</h2>
+        <TextField key={active.id} label="Drawing sheet name" value={active.name} onCommit={name => change({ type: "rename", sheetId: active.id, name }, "Drawing sheet name saved.")} />
         <TextField
           label="Sheet number"
           value={p.sheet.number}
@@ -239,7 +292,7 @@ export function ArchitectSheets({
           title="Up to four live viewports per drawing sheet"
           onClick={() =>
             update((q) => {
-              if (q.sheet.viewports.length === 1 && q.sheet.viewports[0].id === "default-plan")
+              if (q.sheet.viewports.length === 1 && q.sheet.viewports[0].width === w - 24 && q.sheet.viewports[0].height === h - 62)
                 q.sheet.viewports[0] = {
                   ...q.sheet.viewports[0],
                   width: (w - 36) / 2,
@@ -302,6 +355,6 @@ export function ArchitectSheets({
           </>
         )}
       </aside>
-    </div>
+    </fieldset>
   );
 }

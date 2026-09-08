@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Box, Download, Expand, Layers, MousePointer2, Pencil, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useStudio } from "./store";
 import { inspectPlanBytes } from "./documents";
 import {
@@ -31,6 +31,9 @@ import {
   saveAppearance,
   type BuildingAppearance,
 } from "./buildingAppearance";
+import { createMagicPencilDraftsman, type DraftsmanStatus } from "./MagicPencilDraftsman";
+import { DraftsmanControlDock } from "./DraftsmanControlDock";
+import { registerDraftsmanController } from "./assistant/draftsmanBridge";
 
 type ViewOptions = {
   wireframe: boolean;
@@ -53,6 +56,19 @@ type SceneApi = {
   png: () => void;
   appearance: (value: BuildingAppearance) => void;
   scope: (value: ModelScopeOptions) => void;
+  startDraftsman: () => void;
+  stopDraftsman: () => void;
+  draftsmanPlay: () => void;
+  draftsmanPause: () => void;
+  draftsmanReplay: () => void;
+  draftsmanSeek: (p: number) => void;
+  draftsmanSpeed: (s: number) => void;
+  draftsmanFinish: () => void;
+  draftsmanToggleOrbit: () => void;
+  draftsmanJumpToStorey: (storey: number | string) => void;
+  draftsmanCaptureBlueprint: (filename?: string) => unknown;
+  draftsmanCapturePlanBook: () => Promise<void>;
+  getDraftsmanStatus: () => DraftsmanStatus | null;
   dispose: () => void;
 };
 const sessionViewOptions = new Map<string, ViewOptions>();
@@ -67,6 +83,7 @@ function createBuildingScene(
   onNavigation: (mode: NavigationMode) => void,
   onCapture: (capture: "locked" | "drag" | null) => void,
   onDoor: (state: WalkDoorState | null) => void,
+  onDraftsmanStatus?: (status: DraftsmanStatus | null) => void,
 ): SceneApi {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -112,6 +129,7 @@ function createBuildingScene(
   let doors: ReturnType<typeof createWalkDoors> | null = null;
   let arm: ReturnType<typeof createFirstPersonArm> | null = null;
   let currentDoorState: WalkDoorState | null = null;
+  let draftsman: ReturnType<typeof createMagicPencilDraftsman> | null = null;
   let disposed = false,
     frame = 0;
   const render = () => {
@@ -119,6 +137,7 @@ function createBuildingScene(
     if (disposed) return;
     const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
     const doorChanging = doors?.tick(navigation?.mode === "walk" && renderer.domElement.dataset.navigationTransition === "idle");
+    const draftsmanChanging = draftsman ? draftsman.tick(performance.now()) : false;
     arm?.tick(navigation?.mode === "walk" ? currentDoorState : null);
     renderer.render(scene, camera);
     scope?.render();
@@ -144,7 +163,7 @@ function createBuildingScene(
         projectionMatrix: camera.projectionMatrix.toArray(),
       },
     });
-    if (changing || doorChanging) invalidate();
+    if (changing || doorChanging || draftsmanChanging) invalidate();
   };
   const invalidate = () => {
     if (!disposed && !frame) frame = requestAnimationFrame(render);
@@ -557,8 +576,86 @@ function createBuildingScene(
       anchor.href = output.toDataURL("image/png");
       anchor.click();
     },
+    startDraftsman() {
+      navigation?.stop();
+      if (!draftsman) {
+        draftsman = createMagicPencilDraftsman({
+          scene,
+          model,
+          meshMap,
+          domElement: renderer.domElement,
+          invalidate,
+          renderBeforeCapture: () => renderer.render(scene, camera),
+          camera,
+          controls,
+          onStatusChange: (status) => {
+            onDraftsmanStatus?.(status);
+          },
+        });
+      }
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) draftsman.seek(0.08);
+      else draftsman.play();
+      invalidate();
+    },
+    stopDraftsman() {
+      if (draftsman) {
+        draftsman.restoreOriginal();
+        draftsman.dispose();
+        draftsman = null;
+      }
+      onDraftsmanStatus?.(null);
+      apply();
+      invalidate();
+    },
+    draftsmanPlay() {
+      draftsman?.play();
+      invalidate();
+    },
+    draftsmanPause() {
+      draftsman?.pause();
+      invalidate();
+    },
+    draftsmanReplay() {
+      draftsman?.replay();
+      invalidate();
+    },
+    draftsmanSeek(p: number) {
+      draftsman?.seek(p);
+      invalidate();
+    },
+    draftsmanSpeed(s: number) {
+      draftsman?.setSpeed(s);
+      invalidate();
+    },
+    draftsmanFinish() {
+      draftsman?.finish();
+      invalidate();
+    },
+    draftsmanToggleOrbit() {
+      draftsman?.toggleCinematicOrbit();
+      invalidate();
+    },
+    draftsmanJumpToStorey(storey: number | string) {
+      draftsman?.jumpToStorey(storey);
+      invalidate();
+    },
+    draftsmanCaptureBlueprint(filename?: string) {
+      return draftsman?.captureBlueprint(filename ?? "architectural-blueprint.png");
+    },
+    async draftsmanCapturePlanBook() {
+      if (!draftsman) throw Error("Open Magic Pencil before exporting model sheets.");
+      const book = draftsman.capturePlanBook();
+      await book.downloadPdf();
+    },
+    getDraftsmanStatus() {
+      return draftsman?.getStatus() ?? null;
+    },
     dispose() {
       disposed = true;
+      if (draftsman) {
+        draftsman.dispose();
+        draftsman = null;
+      }
       navigation?.dispose();
       doors?.dispose();
       arm?.dispose();
@@ -660,6 +757,15 @@ export function SourceBuildingViewer() {
   const [chosen, setChosen] = useState<string>(BUILDING_CATALOG[0].id);
   const config = BUILDING_CATALOG.find((c) => c.id === chosen)!;
   const [verifiedBytes, setVerifiedBytes] = useState<Uint8Array | null>(null);
+  const [draftsmanActive, setDraftsmanActive] = useState(false);
+  const [draftsmanStatus, setDraftsmanStatus] = useState<DraftsmanStatus | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [exportingBook, setExportingBook] = useState(false);
+  useEffect(() => {
+    setPreviewMode(false);
+    setDraftsmanActive(false);
+    setDraftsmanStatus(null);
+  }, [chosen]);
   const [svgAvailable, setSvgAvailable] = useState(false);
   const svgProjection = options.plan
     ? options.level === "upper"
@@ -742,7 +848,7 @@ export function SourceBuildingViewer() {
     };
   }, [model, binary]);
   useEffect(() => {
-    if (!model || !matched || !host.current || !binary || !sceneDigest) return;
+    if (!model || (!matched && !previewMode) || !host.current || !sceneDigest) return;
     try {
       api.current = createBuildingScene(
         host.current,
@@ -750,10 +856,11 @@ export function SourceBuildingViewer() {
         setSelected,
         setError,
         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
-        { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
+        { documentId: binary?.documentId ?? config.id, sceneId: config.id, sceneSha256: sceneDigest },
         setNavigationMode,
         setNavigationCapture,
         setDoorState,
+        (status) => setDraftsmanStatus(status),
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -762,10 +869,142 @@ export function SourceBuildingViewer() {
       api.current?.dispose();
       api.current = null;
     };
-  }, [model, matched, binary?.documentId, sceneDigest, config.id]);
-  useEffect(() => api.current?.options(options), [options, matched]);
-  useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
-  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
+  }, [model, matched, previewMode, binary?.documentId, sceneDigest, config.id]);
+  useEffect(() => api.current?.options(options), [options, matched, previewMode]);
+  useEffect(() => api.current?.appearance(appearance), [appearance, matched, previewMode]);
+  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched, previewMode]);
+
+  useEffect(() => {
+    const unregister = registerDraftsmanController({
+      control: async (input) => {
+        if (!previewMode && !matched) {
+          throw Error("Open the model preview or its matching source before using drawing playback.");
+        }
+        if (!api.current) throw Error("The model viewer is not ready. Wait for it to finish loading.");
+        switch (input.action) {
+          case "play":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            api.current?.draftsmanPlay();
+            break;
+          case "pause":
+            api.current?.draftsmanPause();
+            break;
+          case "replay":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            api.current?.draftsmanReplay();
+            break;
+          case "seek":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            if (input.progress !== undefined) {
+              api.current?.draftsmanSeek(input.progress);
+            }
+            break;
+          case "set_speed":
+            if (input.speed !== undefined) {
+              api.current?.draftsmanSpeed(input.speed);
+            }
+            break;
+          case "finish":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            api.current?.draftsmanFinish();
+            break;
+          case "exit":
+            api.current?.stopDraftsman();
+            setDraftsmanActive(false);
+            break;
+          case "tour":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            api.current?.draftsmanToggleOrbit();
+            break;
+          case "jump_storey":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            if (input.storey !== undefined) {
+              api.current?.draftsmanJumpToStorey(input.storey);
+            }
+            break;
+          case "blueprint":
+            if (!draftsmanActive) {
+              api.current?.startDraftsman();
+              setDraftsmanActive(true);
+            }
+            api.current?.draftsmanCaptureBlueprint(input.filename);
+            break;
+          case "status":
+            break;
+          default:
+            throw Error(`The ${input.action} command is not connected to this viewer yet. No action was performed.`);
+        }
+        return api.current?.getDraftsmanStatus() ?? null;
+      },
+      getStatus: () => api.current?.getDraftsmanStatus() ?? null,
+      isActive: () => api.current?.getDraftsmanStatus() != null,
+      getModelInfo: () => ({
+        id: config.id,
+        title: config.title,
+        meshCount: model?.objects.length ?? 0,
+      }),
+    });
+    return unregister;
+  }, [previewMode, matched, draftsmanActive, config.id, config.title, model?.objects.length]);
+
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('button, [role="button"], [role="tab"], [contenteditable="true"]'))) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      )
+        return;
+      if (draftsmanActive) {
+        if (e.code === "Space") {
+          e.preventDefault();
+          if (draftsmanStatus?.mode === "drawing") {
+            api.current?.draftsmanPause();
+          } else {
+            api.current?.draftsmanPlay();
+          }
+        } else if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          api.current?.draftsmanReplay();
+        } else if (e.key === "s" || e.key === "S") {
+          e.preventDefault();
+          api.current?.draftsmanFinish();
+        } else if (e.key === "t" || e.key === "T") {
+          e.preventDefault();
+          api.current?.draftsmanToggleOrbit();
+        } else if (e.key === "b" || e.key === "B") {
+          e.preventDefault();
+          api.current?.draftsmanCaptureBlueprint("architectural-blueprint.png");
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          api.current?.stopDraftsman();
+          setDraftsmanActive(false);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [draftsmanActive, draftsmanStatus?.mode]);
   function navigate(mode: "fly" | "walk", start?: WalkStart) {
     const next: ViewOptions = { ...options, plan: false, explode: false, level: mode === "walk" ? "all" : options.level };
     api.current?.options(next);
@@ -868,27 +1107,36 @@ export function SourceBuildingViewer() {
       !!model &&
       verifiedBytes === binary?.bytes &&
       model.source.sha256 === binary?.sha256 &&
-      model.source.sha256 === config.sha256;
+      model.source.sha256 === config.sha256,
+    isDisplayable = (ready || previewMode) && !!model;
   useEffect(() => {
     const dock = controlDock.current;
-    if (!ready || !dock) return;
+    if (!isDisplayable || !dock) return;
     const root = document.documentElement;
-    const measure = () => root.style.setProperty("--model-controls-clearance", `${Math.max(34, innerHeight - dock.getBoundingClientRect().top + 8)}px`);
+    const stage = dock.parentElement?.querySelector<HTMLElement>(".building-stage");
+    const toolbar = stage?.querySelector<HTMLElement>(":scope > .building-toolbar");
+    const measure = () => {
+      root.style.setProperty("--model-controls-clearance", `${Math.max(34, innerHeight - dock.getBoundingClientRect().top + 8)}px`);
+      if (stage && toolbar) stage.style.setProperty("--draftsman-top-clearance", `${Math.max(12, toolbar.getBoundingClientRect().bottom - stage.getBoundingClientRect().top + 12)}px`);
+    };
     const observer = new ResizeObserver(measure);
     observer.observe(dock);
     if (dock.parentElement) observer.observe(dock.parentElement);
+    if (stage) observer.observe(stage);
+    if (toolbar) observer.observe(toolbar);
     window.addEventListener("resize", measure);
     measure();
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", measure);
       root.style.removeProperty("--model-controls-clearance");
+      stage?.style.removeProperty("--draftsman-top-clearance");
     };
-  }, [ready]);
+  }, [isDisplayable]);
   return (
     <div
       className="source-building"
-      data-model-status={ready ? "ready" : checking ? "checking" : model ? "unmatched" : "loading"}
+      data-model-status={ready ? "ready" : previewMode ? "preview" : checking ? "checking" : model ? "unmatched" : "loading"}
     >
       <div className="building-workspace">
         <nav className="building-left-nav" aria-label="Source sheets and models">
@@ -987,7 +1235,7 @@ export function SourceBuildingViewer() {
             </div>
           )}
           <div className="building-stage">
-          {ready && (
+          {isDisplayable && (
             <BuildingVisualSettings
               value={appearance}
               onChange={setAppearance}
@@ -996,24 +1244,54 @@ export function SourceBuildingViewer() {
               onScopeChange={setScopeOptions}
             />
           )}
-          {ready ? (
+          {isDisplayable ? (
             <>
               <div className="building-canvas" ref={host} />
               <div className="building-toolbar" role="toolbar" aria-label="3D view controls">
                 <div className="building-tool-group">
                   <button
                     type="button"
-                    aria-pressed={!options.wireframe}
-                    onClick={() => setOptions((o) => ({ ...o, wireframe: false }))}
+                    aria-pressed={!options.wireframe && !draftsmanActive}
+                    onClick={() => {
+                      if (draftsmanActive) {
+                        api.current?.stopDraftsman();
+                        setDraftsmanActive(false);
+                      }
+                      setOptions((o) => ({ ...o, wireframe: false }));
+                    }}
                   >
                     Solid
                   </button>
                   <button
                     type="button"
-                    aria-pressed={options.wireframe}
-                    onClick={() => setOptions((o) => ({ ...o, wireframe: true }))}
+                    aria-pressed={options.wireframe && !draftsmanActive}
+                    onClick={() => {
+                      if (draftsmanActive) {
+                        api.current?.stopDraftsman();
+                        setDraftsmanActive(false);
+                      }
+                      setOptions((o) => ({ ...o, wireframe: true }));
+                    }}
                   >
                     Wireframe
+                  </button>
+                  <button
+                    type="button"
+                    className="magic-pencil-btn"
+                    aria-pressed={draftsmanActive}
+                    title="Animate architectural drafting from ground datum up"
+                    onClick={() => {
+                      if (draftsmanActive) {
+                        api.current?.stopDraftsman();
+                        setDraftsmanActive(false);
+                      } else {
+                        api.current?.startDraftsman();
+                        setDraftsmanActive(true);
+                      }
+                    }}
+                  >
+                    <Pencil size={14} />
+                    Magic Pencil
                   </button>
                 </div>
                 <div className="building-tool-group">
@@ -1141,8 +1419,34 @@ export function SourceBuildingViewer() {
                   : options.plan
                     ? "ORTHOGRAPHIC PLAN"
                     : "PERSPECTIVE"}
-                <span>{model.objects.length} source-linked parts</span>
+                <span>{model.objects.length} {ready ? "source-linked parts" : "preview parts · source unverified"}</span>
               </div>
+              {draftsmanActive && draftsmanStatus && (
+                <DraftsmanControlDock
+                  status={draftsmanStatus}
+                  onPlay={() => api.current?.draftsmanPlay()}
+                  onPause={() => api.current?.draftsmanPause()}
+                  onReplay={() => api.current?.draftsmanReplay()}
+                  onSeek={(p) => api.current?.draftsmanSeek(p)}
+                  onSpeed={(s) => api.current?.draftsmanSpeed(s)}
+                  onFinish={() => api.current?.draftsmanFinish()}
+                  onClose={() => {
+                    api.current?.stopDraftsman();
+                    setDraftsmanActive(false);
+                  }}
+                  onToggleTour={() => api.current?.draftsmanToggleOrbit()}
+                  onJumpStorey={(st) => api.current?.draftsmanJumpToStorey(st)}
+                  onCaptureBlueprint={() => api.current?.draftsmanCaptureBlueprint("architectural-blueprint.png")}
+                  exportingBook={exportingBook}
+                  onCapturePlanBook={async () => {
+                    if (exportingBook || !api.current) return;
+                    setExportingBook(true);
+                    try { await api.current.draftsmanCapturePlanBook(); }
+                    catch (error) { setError(error instanceof Error ? error.message : "Model sheet export failed."); }
+                    finally { setExportingBook(false); }
+                  }}
+                />
+              )}
             </>
           ) : (
             <div className="building-empty">
@@ -1183,20 +1487,32 @@ export function SourceBuildingViewer() {
                     ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
                     : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore its documented walls, openings, roof and rooms.`}
                 </p>
-                <button
-                  type="button"
-                  className="building-primary"
-                  disabled={!model || loading || !hydrated || checking}
-                  onClick={() => void openSource()}
-                >
-                  {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
-                  <Box size={17} />
-                </button>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "6px" }}>
+                  <button
+                    type="button"
+                    className="building-primary"
+                    disabled={!model || loading || !hydrated || checking}
+                    onClick={() => void openSource()}
+                  >
+                    {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
+                    <Box size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="building-preview-cta"
+                    disabled={!model || loading}
+                    onClick={() => setPreviewMode(true)}
+                    title="Inspect 3D wireframe and drafting animation immediately"
+                  >
+                    <Pencil size={15} />
+                    Explore & Draw 3D Model
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
-        {ready && (
+        {isDisplayable && (
               <div ref={controlDock} className="building-toolbar building-control-dock" role="toolbar" aria-label="Model navigation">
                 <div className="building-tool-group" role="group" aria-label="Zoom and standard views">
                   <button type="button" aria-label="Zoom out model" onClick={() => api.current?.zoom(1 / 1.25)}><ZoomOut size={16} /></button>

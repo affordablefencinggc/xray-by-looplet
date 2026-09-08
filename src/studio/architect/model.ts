@@ -1,4 +1,5 @@
 ﻿import { z } from "zod";
+import { sheetLayoutSchema, authoredSheetSetSchema, validateAuthoredSheets } from "./authoredSheetSet.ts";
 export type Point = [number, number];
 const n = z.number().finite().min(-1e6).max(1e6),
   positive = z.number().finite().positive().max(1e6),
@@ -136,31 +137,8 @@ const schema = z
       .max(1000),
     dimensions: z.array(z.object({ ...entity, wallId: id, offset: n }).strict()).max(3000),
     section: z.object({ a: point, b: point }).strict(),
-    sheet: z
-      .object({
-        size: z.enum(["A1", "A3"]),
-        scale: z.enum(["50", "100", "200"]),
-        number: z.string().max(40),
-        northAngle: n,
-        viewports: z
-          .array(
-            z
-              .object({
-                id,
-                view: z.enum(["plan", "north", "south", "east", "west", "section"]),
-                levelId: id,
-                x: n,
-                y: n,
-                width: positive,
-                height: positive,
-                scale: z.enum(["50", "100", "200"]),
-              })
-              .strict(),
-          )
-          .max(12)
-          .default([]),
-      })
-      .strict(),
+    sheet: sheetLayoutSchema,
+    sheetSet: authoredSheetSetSchema.optional(),
     notes: z.string().max(5000),
   })
   .strict();
@@ -308,13 +286,7 @@ export function validateProject(value: unknown): ArchitectProject {
     if (r.edges.every((e) => e.gable))
       throw Error("A roof needs at least one pitched or flat edge.");
   }
-  for (const v of p.sheet.viewports) {
-    if (!levels.has(v.levelId)) throw Error("Sheet viewport refers to a missing level.");
-    if (v.width < 20 || v.height < 20 || v.width > 1000 || v.height > 1000)
-      throw Error("Viewport dimensions must be 20–1000 paper mm.");
-  }
-  if (new Set(p.sheet.viewports.map((v) => v.id)).size !== p.sheet.viewports.length)
-    throw Error("Duplicate viewport identity.");
+  validateAuthoredSheets(p);
   if (distance(p.section.a, p.section.b) < 1) throw Error("Section line must have a direction.");
   return p;
 }

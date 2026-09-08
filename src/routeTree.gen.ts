@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
+import { Route as ApiAssistantAiRouteImport } from './routes/api.assistant-ai'
 import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
 import { Route as ApiVoiceRouteImport } from './routes/api.voice'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiArchitectAiRoute = ApiArchitectAiRouteImport.update({
   id: '/api/architect-ai',
   path: '/api/architect-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAssistantAiRoute = ApiAssistantAiRouteImport.update({
+  id: '/api/assistant-ai',
+  path: '/api/assistant-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMaterialAiRoute = ApiMaterialAiRouteImport.update({
@@ -38,12 +44,14 @@ const ApiVoiceRoute = ApiVoiceRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/architect-ai': typeof ApiArchitectAiRoute
+  '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
   '/api/voice': typeof ApiVoiceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/architect-ai': typeof ApiArchitectAiRoute
+  '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
   '/api/voice': typeof ApiVoiceRoute
 }
@@ -51,20 +59,38 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/architect-ai': typeof ApiArchitectAiRoute
+  '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
   '/api/voice': typeof ApiVoiceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/architect-ai' | '/api/material-ai' | '/api/voice'
+  fullPaths:
+    | '/'
+    | '/api/architect-ai'
+    | '/api/assistant-ai'
+    | '/api/material-ai'
+    | '/api/voice'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/architect-ai' | '/api/material-ai' | '/api/voice'
-  id: '__root__' | '/' | '/api/architect-ai' | '/api/material-ai' | '/api/voice'
+  to:
+    | '/'
+    | '/api/architect-ai'
+    | '/api/assistant-ai'
+    | '/api/material-ai'
+    | '/api/voice'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/architect-ai'
+    | '/api/assistant-ai'
+    | '/api/material-ai'
+    | '/api/voice'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiArchitectAiRoute: typeof ApiArchitectAiRoute
+  ApiAssistantAiRoute: typeof ApiAssistantAiRoute
   ApiMaterialAiRoute: typeof ApiMaterialAiRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
 }
@@ -83,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/api/architect-ai'
       fullPath: '/api/architect-ai'
       preLoaderRoute: typeof ApiArchitectAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/assistant-ai': {
+      id: '/api/assistant-ai'
+      path: '/api/assistant-ai'
+      fullPath: '/api/assistant-ai'
+      preLoaderRoute: typeof ApiAssistantAiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/material-ai': {
@@ -105,6 +138,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiArchitectAiRoute: ApiArchitectAiRoute,
+  ApiAssistantAiRoute: ApiAssistantAiRoute,
   ApiMaterialAiRoute: ApiMaterialAiRoute,
   ApiVoiceRoute: ApiVoiceRoute,
 }

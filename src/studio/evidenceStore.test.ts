@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 import { createHash } from "node:crypto";
+import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
 import {
   createDefaultJob,
   createGateSpecification,
@@ -282,17 +283,20 @@ describe("studio specification and evidence commands", () => {
     const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
     const originalRevoke = URL.revokeObjectURL;
     let reads = 0;
+    const stored = new Map<string, string>();
     const revoked: string[] = [];
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: {
         localStorage: {
-          getItem: () => {
+          getItem: (key: string) => {
             reads += 1;
-            return null;
+            return stored.get(key) ?? null;
           },
-          setItem() {},
-          removeItem() {},
+          // Successful storage must support the production save readback.
+          // Silent write loss is covered by projectRecoveryStore.test.ts.
+          setItem(key: string, value: string) { stored.set(key, value); },
+          removeItem(key: string) { stored.delete(key); },
         },
       },
     });
@@ -310,6 +314,9 @@ describe("studio specification and evidence commands", () => {
       assert.equal(first, second);
       await first;
       assert.equal(useStudio.getState().hydrationStatus, "ready");
+      assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
+      assert.equal(useStudio.getState().persistenceError, null);
+      assert.equal(JSON.parse(stored.get(FENCING_JOB_STORAGE_KEY)!).id, useStudio.getState().job.id);
       assert.deepEqual(revoked, ["blob:stale"]);
       const readsAfterFirst = reads;
       await useStudio.getState().hydratePersistence();

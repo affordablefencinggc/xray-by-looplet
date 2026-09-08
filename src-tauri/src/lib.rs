@@ -2,6 +2,7 @@
 //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
 
 mod material_ai;
+mod assistant_ai;
 mod voice;
 mod cad;
 #[cfg(target_os = "windows")]
@@ -676,6 +677,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(BomInvocationState::production())
         .manage(MaterialAiState::default())
+        .manage(assistant_ai::AssistantAiState::default())
         .manage(cad::CadState::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -693,6 +695,7 @@ pub fn run() {
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 window.state::<BomInvocationState>().cancel_all();
                 window.state::<cad::CadState>().cancel_all();
+                window.state::<assistant_ai::AssistantAiState>().cancel_all();
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -702,6 +705,9 @@ pub fn run() {
             voice::xray_voice_status,
             voice::xray_voice_request,
             xray_material_ai_status,
+            assistant_ai::xray_assistant_status,
+            assistant_ai::xray_assistant_turn,
+            assistant_ai::xray_cancel_assistant,
             xray_configure_material_ai,
             xray_interpret_material_ai,
             xray_propose_architect_ai,
@@ -717,6 +723,7 @@ pub fn run() {
             if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
                 app.state::<BomInvocationState>().cancel_all();
                 app.state::<cad::CadState>().cancel_all();
+                app.state::<assistant_ai::AssistantAiState>().cancel_all();
             }
         });
 }
