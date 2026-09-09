@@ -12,6 +12,8 @@ import { HANDOVER_CONTINUED_PREFIX, applyContextFloor, buildHandover, contextSta
 // [SC-22 context] begin
 import { beginGovernedWork, shortInteraction } from './workPacketRuntime';
 import type { WorkPacket } from './workPacket';
+import { assembleTurn, chooseBase, readCarriedContext } from './contextTurn';
+import { readContextLog, readContextProfile } from './contextLogStore';
 
 /** Shown when the carried profile and digest could not be read, so the loss is visible not silent. */
 export const CONTEXT_CARRIED_UNAVAILABLE = 'Carried context (your saved profile and project digest) could not be read, so this message was sent without it. Your message was still sent.';
@@ -47,10 +49,27 @@ export function useAssistantChat(jobId: string) {
     const initial = useChats.getState().records[jobId] || empty();
     const controller = new AbortController(); controllers.set(jobId, controller);
     const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}` }, ...images.map(image => ({ inlineData: image }))] };
-    const contents = [...shortInteraction(initial.contents), today];
+    // [SC-22 context] begin
+    // Compact the stored transcript by entries, then carry the saved profile and project digest as
+    // one pinned pair at index 0. Both reads are fail-open (readCarriedContext settles rather than
+    // throws) because losing carried context must never stop the user's message from being sent;
+    // the loss is surfaced below instead. shortInteraction still trims what compaction keeps, so
+    // the provider sees the same conversational shape it did before.
+    const chosen = chooseBase(initial.contents);
+    const carried = await readCarriedContext(jobId, { readProfile: readContextProfile, readLog: readContextLog });
+    const assembled = assembleTurn({
+      base: shortInteraction(chosen.contents),
+      carried,
+      carriedCallIds: chosen.compaction.carriedCallIds,
+      today,
+    });
+    const contents = assembled.contents;
+    // [SC-22 context] end
     let governed: Awaited<ReturnType<typeof beginGovernedWork>> | undefined;
     let failure: string | null = null;
-    update(jobId, value => ({ ...value, busy: true, error: null, contents,
+    // A failed carried-context read is reported, never silent: the message was still sent, so this
+    // is a notice rather than an error that would imply nothing happened.
+    update(jobId, value => ({ ...value, busy: true, error: carried.failed ? CONTEXT_CARRIED_UNAVAILABLE : null, contents,
       entries: [...value.entries, { id: crypto.randomUUID(), kind: 'user', text, images }] }));
 
     try {

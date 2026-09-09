@@ -605,3 +605,19 @@ Two judgement calls recorded: whitespace in a downloaded third-party research pa
 No merge, no installation, no verified-build pointer change. LATEST-VERIFIED-BUILD.md remains 8e14ac427997.
 
 Evidence: proof/growth/2026-09-10-source-control/publication-verified.json.
+
+## [SC-22 WIRING] Assistant context system connected to the send path (2026-09-10)
+
+The context system was built and unit-tested on 2026-09-09 but never called: `compactTranscript` and `upsertPinnedPair` had no caller in the application, and `contextTurn.ts` was imported only by its own test. The modules worked; nothing used them.
+
+`useAssistantChat.send()` now composes chooseBase, shortInteraction, readCarriedContext and assembleTurn in that order. A long transcript is compacted by entries and never separates a functionCall from its functionResponse; the saved profile and project digest ride as one pinned pair at index 0, upserted by sentinel so a later turn replaces it rather than appending a second; the record stores the compacted base without today's entry, so compaction persists and the meter reflects what is actually sent. Both reads are fail-open: a storage failure still sends the message and shows CONTEXT_CARRIED_UNAVAILABLE rather than failing silently.
+
+Gates: new suite src/studio/assistant/contextWiring.test.ts 8/8; full focused suite 1,119 tests across 88 suites pass, up from 1,111; `npm test` 999 pass; `tsc --noEmit` exit 0; eslint clean on both changed files. Diff is 23 added lines in the send path plus the new suite.
+
+The tests are mutation-checked rather than assumed. Removing compaction fails 1 of the 8; removing carried context fails 4; restored passes 8. Evidence in proof/growth/2026-09-10-context-wiring/mutation-evidence.md. `shortInteraction` cannot be imported under bare Node because its module reaches into the React store, so it is mirrored in the test and guarded by a drift test that reads the real source and asserts the copy still matches.
+
+Release-gate defect found and fixed while wiring: proof/growth/2026-09-09-az6-release/worker.ps1 hardcoded its focused-test list, which had drifted to 64 suites while the project had 116. Every suite added since that list was written, the whole SC-22 context system among them, would have passed a Dans1 release gate without ever running. The step now derives the list from package.json's test script and throws if it resolves fewer than 100 suites. Verified by running PowerShell directly: the script parses, derives 117 suites including the new one, and every derived path exists.
+
+Development-level proof only. Still open: a live Fast CDP journey showing compaction, the pinned pair carried into a later turn and the unavailable notice under an induced storage failure, then the az6 Dans1 build with production and native runs. No build produced; LATEST-VERIFIED-BUILD.md remains 8e14ac427997.
+
+Evidence: proof/growth/2026-09-10-context-wiring/ (README.md, wiring-tests.log, full-suite.log, mutation-evidence.md).

@@ -225,7 +225,7 @@ Notes: SourceBuildingViewer.tsx and store.ts are another workstream's files; the
 Commit: —
 
 
-## SC-22 — Assistant context system: guardrail brief + shortcut atlases + KYC + rolling compressed log, last 3 user messages kept verbatim (user request 2026-09-09 15:22)  [in progress]
+## SC-22 — Assistant context system: guardrail brief + shortcut atlases + KYC + rolling compressed log, last 3 user messages kept verbatim (user request 2026-09-09 15:22)  [wiring done and tested 2026-09-10; live proof and Dans1 build pending]
 TODO (design): 20-agent workflow wf_c298dccd-d7b maps the manual/parity, turn loop, storage and tool surfaces, then scores three architectures (static-first, runtime-tool, compaction-first) on correctness, token economy, usefulness and buildability. Requirements captured verbatim in the scratchpad brief (A1–A11): a main Markdown brief with strict guardrails, the global prompt, fallback and purpose; the goal loop (understand → ask defining questions → reiterate a short clean summary → complete); when to clear context; call the tools; a routing table at the top ("if you need to do this, use this"); an app atlas (intent → pane → tool → preconditions); a skills atlas with traps and references; a KYC section; and an ongoing feed compressed to topic + one line per turn, indexed so old chats are findable.
 DONE (machine, 2026-09-09 16:40): five modules authored in disjoint files by workflow wf_bb65bdf1-72c, then verified adversarially.
   - src/studio/assistant/context/ — five flat Markdown files, 8,992 bytes total, ASCII only, no sub-folders: README.md (purpose, routing table, how to work, when to clear context, never-do list), app-atlas.md (intent to pane to tools in order with preconditions, plus what is not available through tools), skills-atlas.md (skills by category as headings, plus the traps), budgets.md (8 rounds, 24 tools, 38 entries, 8192 output tokens, 2 images, and what happens at each), user.md (empty KYC template, six slots).
@@ -236,7 +236,31 @@ DONE (machine, 2026-09-09 16:40): five modules authored in disjoint files by wor
   - src/studio/assistant/contextProfile.ts + pinnedContext.ts (+tests, 18 tests) — line-level profile deltas only, wholesale replacement refused across three vectors; slot values sanitised and clipped; the pinned pair is upserted at index 0 by sentinel, never appended twice.
 Machine proof: 72 new tests pass; the full suite is 888 tests, 88 suites, 0 failures (was 816 before this slice); npx tsc --noEmit exit 0. All twelve suites added this session are now in both the npm test script and the az6 Dans1 focused-test gate.
 DONE (2026-09-09 16:50, coordinator): .gitattributes (* text=auto eol=lf, *.md text eol=lf, binary assets excluded) and .prettierignore (src/studio/assistant/context/, contextManual.gen.ts, routeTree.gen.ts, build output and evidence) — the sequencing gap the codegen author flagged as unowned. Verified: npx prettier --file-info reports ignored:true for both the context Markdown and the generated module, and the folder hash is byte-identical after a formatter pass. Without these, npm run format would reflow the Markdown tables and silently break byte parity with the native prompt.
-TODO (wiring and proof): compose the generated brief into ASSISTANT_OPERATING_MANUAL and the Rust SYSTEM_INSTRUCTION with the parity test rewritten; call compactTranscript and upsertPinnedPair from useAssistantChat.send() before the full gate; write log entries at the end of each turn; then a live Fast CDP proof and screenshots.
+DONE (machine, 2026-09-10): wiring closed and proven. The generated brief is composed into
+`ASSISTANT_OPERATING_MANUAL` as `${ASSISTANT_SAFETY_MANUAL} ${ASSISTANT_CONTEXT_BRIEF}` and the Rust side
+composes the same two parts in the same order, asserted by a parity test that checks the composed result
+rather than a source literal (a bare brief would otherwise leave SAFETY_MANUAL a dead constant and still
+pass). `useAssistantChat.send()` now calls chooseBase -> shortInteraction -> readCarriedContext ->
+assembleTurn, so a long transcript is compacted by entries and the saved profile and project digest ride
+as one pinned pair at index 0; the stored base is the compacted array, so compaction persists to the next
+turn and the pair is upserted rather than appended twice. Both reads are fail-open: a storage failure
+still sends the message and surfaces CONTEXT_CARRIED_UNAVAILABLE instead of failing silently. captureTurn
+already wrote one log entry per completed turn.
+New suite `src/studio/assistant/contextWiring.test.ts` (8 tests) covers the composition itself, which no
+existing suite touched. Mutation-checked rather than assumed: removing readCarriedContext fails 4 of the 8
+and removing chooseBase fails 1, so the tests are load-bearing. Full suite 1,119 tests / 88 suites pass
+(was 1,111), `npm test` 999 pass, `tsc --noEmit` exit 0, eslint clean on both changed files.
+
+FIXED while wiring (release gate defect): `proof/growth/2026-09-09-az6-release/worker.ps1` hardcoded its
+focused-test list, which had drifted to 64 suites while the project had 116 — every suite added since the
+list was written, the whole SC-22 context system among them, would have passed a Dans1 release gate
+without ever running. The step now derives the list from `package.json`'s test script and refuses to run
+if it resolves fewer than 100 suites. Verified in PowerShell: the script parses, derives 117 suites
+including the new one, and every derived path exists on disk.
+
+TODO (proof): a live Fast CDP journey showing a long chat compacting, the pinned pair carrying a profile
+and digest into a later turn, and the unavailable notice on an induced storage failure; then the Dans1
+az6 build with production and native runs.
 Depends on: SC-19, SC-20
 Commit: —
 
