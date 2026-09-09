@@ -589,3 +589,19 @@ No row was promoted to verified on tests alone: the tick rule also requires insp
 Two dependencies gate the most rows: no account service is selected (all of category A, much of V and Z), and applying a backup into the workspace is unimplemented (B-09, V-03, Z-07, Z-14).
 
 Evidence: proof/growth/2026-09-10-az-register/ (README.md, assessment-tests.log, register-integrity.log, verify-register.mjs, state-counts.log).
+
+## [SOURCE-CONTROL] Working tree committed and published (2026-09-10)
+
+User approved: add ignore rules, split into logical commits, commit and push to feat/architect-cad-engine.
+
+1,862 uncommitted changes resolved into six commits, 39a50dc..42e14c8, pushed and independently verified: `git ls-remote` returns 42e14c84680c47c3cc9b6840384dd6e1efdb1639 matching local HEAD, working tree clean, 0 ahead and 0 behind. Fast-forward; the remote tip before the push was the same 39a50dc this work was based on, so no other work was disturbed.
+
+Committed 3,906 files. Deliberately excluded and now gitignored: 2,868 release artifact files, about 28.3 GB, being executables, installers, packaged web output and transfer tarballs. These were untracked but NOT gitignored beforehand, so a broad `git add` could have committed them. The digests binding each artifact to its run stay committed, so the evidence remains checkable without the binaries. Verified: zero files in the pushed range match artifact patterns and no blob exceeds 5 MB.
+
+Gates before committing source: 1,111 tests across 88 suites pass, `tsc --noEmit` exit 0, `git diff --check` clean after fixing three trailing blank lines. A secret scan over all 3,137 evidence files for Google, OpenAI-style, Firecrawl, Perplexity, GitHub and PEM key patterns returned zero hits.
+
+Two judgement calls recorded: whitespace in a downloaded third-party research page was preserved because it is byte-exact acquired evidence, and growth-proof .log files were re-included by an explicit ignore negation because the proof standard treats executed output as primary evidence alongside the diff.
+
+No merge, no installation, no verified-build pointer change. LATEST-VERIFIED-BUILD.md remains 8e14ac427997.
+
+Evidence: proof/growth/2026-09-10-source-control/publication-verified.json.
