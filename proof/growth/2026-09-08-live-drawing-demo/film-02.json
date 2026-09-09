@@ -1,0 +1,49 @@
+[
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Wall",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(async()=>{for(const pt of [[1000,1000],[7000,1000],[7000,5000],[1000,5000],[1000,1000]])await demoPoint(...pt);const walls=demoRead().walls.filter(w=>w.levelId===demoLevel);if(walls.length!==4)throw Error(\"Expected four saved walls\");return {walls:walls.length}})()"
+  ],
+  [
+    "press",
+    "Escape"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Door",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(async()=>{await demoPoint(2500,5000);const p=demoRead(),ids=p.walls.filter(w=>w.levelId===demoLevel).map(w=>w.id);if(!p.openings.some(o=>o.kind===\"door\"&&ids.includes(o.wallId)))throw Error(\"Door not saved\");return \"Door cut into wall\"})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Window",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(async()=>{await demoPoint(4500,1000);const p=demoRead(),ids=p.walls.filter(w=>w.levelId===demoLevel).map(w=>w.id);if(!p.openings.some(o=>o.kind===\"window\"&&ids.includes(o.wallId)))throw Error(\"Window not saved\");return \"Window cut into wall\"})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/film-02-walls-openings.png"
+  ]
+]

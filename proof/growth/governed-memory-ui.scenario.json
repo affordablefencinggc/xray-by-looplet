@@ -1,0 +1,50 @@
+[
+  [
+    "eval",
+    "(async()=>{const s=await import('/src/studio/liveAssistantState.ts');s.useLiveAssistant.setState({open:true});return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.assistant-work-packet')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Dock into the right menu",
+    "--exact"
+  ],
+  [
+    "fill",
+    "textarea",
+    "Read the current project context using its tool. Report the project revision and whether governing source revisions and professional issue authority are known. Do not modify the design. Keep your response brief."
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Send assistant message",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.assistant-work-packet')?.dataset.packetState==='review-required'||!!document.querySelector('.live-assistant-error')"
+  ],
+  [
+    "eval",
+    "({packet:document.querySelector('.assistant-work-packet')?.outerHTML,conversation:document.querySelector('[aria-label=\"Assistant conversation\"]')?.innerText})"
+  ],
+  [
+    "screenshot",
+    "screenshots/governed-memory-desktop.png"
+  ],
+  [
+    "errors"
+  ]
+]

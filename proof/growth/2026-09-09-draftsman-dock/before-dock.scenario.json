@@ -1,0 +1,22 @@
+[
+  ["open", "http://127.0.0.1:8080/"],
+  ["set", "viewport", "1280", "800"],
+  ["wait", "--fn", "(document.querySelector('.workbench')||document.querySelector('[data-hydration-status]'))?.dataset.hydrationStatus==='ready'"],
+  ["find", "role", "button", "click", "--name", "Model", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.building-workspace')"],
+  ["find", "role", "button", "click", "--name", "Redburn BR250157", "--exact"],
+  ["wait", "--fn", "document.querySelector('.building-center-column')?.textContent.includes('Redburn')"],
+  ["find", "role", "button", "click", "--name", "Explore & Draw 3D Model", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.building-canvas canvas')"],
+  ["wait", "--fn", "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount) > 2"],
+  ["find", "role", "button", "click", "--name", "Magic Pencil", "--exact"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawMode === 'active'"],
+  ["wait", "--fn", "!!document.querySelector('[data-testid=draftsman-dock]')"],
+  ["eval", "(()=>{const d=document.querySelector('[data-testid=draftsman-dock]');const r=d.getBoundingClientRect();const s=getComputedStyle(d);const small=[...d.querySelectorAll('button,select,input')].map(b=>{const q=b.getBoundingClientRect();return {name:b.getAttribute('aria-label')||b.textContent.trim()||b.className,w:Math.round(q.width),h:Math.round(q.height)}}).filter(x=>x.w<44||x.h<44);return JSON.stringify({label:'BEFORE desktop 1280x800',viewport:[innerWidth,innerHeight],dock:{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height),bottom:Math.round(r.bottom)},rows:{header:Math.round(d.querySelector('.draftsman-header')?.getBoundingClientRect().height||0),adjusters:Math.round(d.querySelector('.draftsman-adjusters-row')?.getBoundingClientRect().height||0),timeline:Math.round(d.querySelector('.draftsman-timeline')?.getBoundingClientRect().height||0),phases:Math.round(d.querySelector('.draftsman-phases')?.getBoundingClientRect().height||0)},controls:d.querySelectorAll('button,select,input').length,under44:small,docScrollWidth:document.documentElement.scrollWidth,position:d.dataset.dockPosition,padding:s.padding})})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-draftsman-dock/before-desktop-1280x800.png"],
+  ["set", "viewport", "1024", "768"],
+  ["wait", "--fn", "innerWidth===1024"],
+  ["eval", "(()=>{const d=document.querySelector('[data-testid=draftsman-dock]');const r=d.getBoundingClientRect();const small=[...d.querySelectorAll('button,select,input')].map(b=>{const q=b.getBoundingClientRect();return {name:b.getAttribute('aria-label')||b.textContent.trim()||b.className,w:Math.round(q.width),h:Math.round(q.height)}}).filter(x=>x.w<44||x.h<44);return JSON.stringify({label:'BEFORE tablet 1024x768',viewport:[innerWidth,innerHeight],dock:{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height),bottom:Math.round(r.bottom)},controls:d.querySelectorAll('button,select,input').length,under44Count:small.length,docScrollWidth:document.documentElement.scrollWidth})})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-draftsman-dock/before-tablet-1024x768.png"],
+  ["errors"]
+]

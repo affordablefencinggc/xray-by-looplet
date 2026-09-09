@@ -1,0 +1,1838 @@
+diff --git a/src/studio/DraftsmanControlDock.tsx b/src/studio/DraftsmanControlDock.tsx
+index 3032a22..260ea77 100644
+--- a/src/studio/DraftsmanControlDock.tsx
++++ b/src/studio/DraftsmanControlDock.tsx
+@@ -1,4 +1,5 @@
+-import { useEffect, useState } from "react";
++import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
++import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
+ import {
+   Play,
+   Pause,
+@@ -11,8 +12,26 @@ import {
+   Sparkles,
+   Camera,
+   Download,
++  Minus,
++  Plus,
++  Maximize2,
++  GripVertical,
++  ChevronUp,
++  ChevronDown,
+ } from "lucide-react";
+ import type { DraftsmanStatus } from "./MagicPencilDraftsman";
++import {
++  clampDockX,
++  dragDockX,
++  presetDockX,
++  readStoredDockX,
++  resolveDockX,
++  stepDockX,
++  writeStoredDockX,
++  type DockBounds,
++  type DockPreset,
++  type DockStorage,
++} from "./draftsmanDockPosition";
+ import "./draftsman.css";
+ 
+ interface DraftsmanControlDockProps {
+@@ -29,6 +48,27 @@ interface DraftsmanControlDockProps {
+   onCaptureBlueprint?: () => void;
+   onCapturePlanBook?: () => void;
+   exportingBook?: boolean;
++  onPencilScale?: (scale: number) => void;
++  onPencilColor?: (color: string) => void;
++  /** Legacy preset callback; the dock is now freely draggable, presets remain as jump targets. */
++  onDockPositionChange?: (position: DockPreset) => void;
++}
++
++const PHASES = [
++  { id: "datum_grid", label: "1. Datum Grid", short: "1 Datum", target: 0.08 },
++  { id: "ascending_wireframe", label: "2. Wireframe Ascend", short: "2 Wireframe", target: 0.4 },
++  { id: "ink_strengthening", label: "3. Technical Ink", short: "3 Ink", target: 0.72 },
++  { id: "material_wash", label: "4. Material Wash", short: "4 Wash", target: 0.9 },
++] as const;
++
++const SPEEDS = [0.5, 1.0, 2.0, 5.0];
++
++function safeStorage(): DockStorage | null {
++  try {
++    return typeof window !== "undefined" ? window.localStorage : null;
++  } catch {
++    return null;
++  }
+ }
+ 
+ export function DraftsmanControlDock({
+@@ -45,9 +85,19 @@ export function DraftsmanControlDock({
+   onCaptureBlueprint,
+   onCapturePlanBook,
+   exportingBook,
++  onPencilScale,
+ }: DraftsmanControlDockProps) {
+   const [localProgress, setLocalProgress] = useState(status.progress);
+   const [isScrubbing, setIsScrubbing] = useState(false);
++  const [toolsOpen, setToolsOpen] = useState(false);
++  const [dockX, setDockX] = useState<number | null>(null);
++  const [dragging, setDragging] = useState(false);
++  const dockRef = useRef<HTMLDivElement>(null);
++  const dockXRef = useRef<number | null>(null);
++  const dragRef = useRef<{ pointerId: number; startClientX: number; startX: number } | null>(null);
++  const presetRef = useRef<DockPreset | null>(null);
++  const currentPreset: DockPreset = status.dockPosition ?? "bottom-left";
++  const currentScale = status.pencilScale ?? 1.0;
+ 
+   useEffect(() => {
+     if (!isScrubbing) {
+@@ -55,129 +105,181 @@ export function DraftsmanControlDock({
+     }
+   }, [status.progress, isScrubbing]);
+ 
++  useEffect(() => {
++    dockXRef.current = dockX;
++  }, [dockX]);
++
++  /** Measure the containing block and the dock itself for clamping. */
++  const measure = useCallback((): DockBounds | null => {
++    const el = dockRef.current;
++    if (!el) return null;
++    const parent = (el.offsetParent as HTMLElement | null) ?? el.parentElement;
++    const containerWidth = parent?.clientWidth ?? (typeof window !== "undefined" ? window.innerWidth : 0);
++    return { containerWidth, dockWidth: el.offsetWidth };
++  }, []);
++
++  const commit = useCallback((x: number, persist: boolean) => {
++    dockXRef.current = x;
++    setDockX(x);
++    if (persist) writeStoredDockX(safeStorage(), x);
++  }, []);
++
++  // Initial placement: stored x (re-clamped) or the legacy preset.
++  useLayoutEffect(() => {
++    const bounds = measure();
++    if (!bounds) return;
++    presetRef.current = currentPreset;
++    commit(resolveDockX(readStoredDockX(safeStorage()), currentPreset, bounds), false);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, []);
++
++  // Re-clamp whenever the stage or window resizes so the dock never leaves the viewport.
++  useEffect(() => {
++    const reclamp = () => {
++      const bounds = measure();
++      const x = dockXRef.current;
++      if (!bounds || x === null) return;
++      const next = clampDockX(x, bounds);
++      if (next !== x) commit(next, false);
++    };
++    window.addEventListener("resize", reclamp);
++    const parent = dockRef.current?.offsetParent;
++    let observer: ResizeObserver | null = null;
++    if (parent && typeof ResizeObserver !== "undefined") {
++      observer = new ResizeObserver(reclamp);
++      observer.observe(parent);
++      if (dockRef.current) observer.observe(dockRef.current);
++    }
++    return () => {
++      window.removeEventListener("resize", reclamp);
++      observer?.disconnect();
++    };
++  }, [measure, commit]);
++
++  // Legacy preset changes (assistant "set_dock_position") still jump the dock.
++  useEffect(() => {
++    if (presetRef.current === null || presetRef.current === currentPreset) return;
++    presetRef.current = currentPreset;
++    const bounds = measure();
++    if (!bounds) return;
++    commit(presetDockX(currentPreset, bounds), true);
++  }, [currentPreset, measure, commit]);
++
++  function onGripPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
++    if (e.button !== 0 && e.pointerType === "mouse") return;
++    const bounds = measure();
++    if (!bounds) return;
++    const startX = dockXRef.current ?? clampDockX(dockRef.current?.offsetLeft ?? 0, bounds);
++    dragRef.current = { pointerId: e.pointerId, startClientX: e.clientX, startX };
++    try {
++      e.currentTarget.setPointerCapture(e.pointerId);
++    } catch {
++      /* pointer capture unsupported */
++    }
++    setDragging(true);
++  }
++
++  function onGripPointerMove(e: ReactPointerEvent<HTMLButtonElement>) {
++    const drag = dragRef.current;
++    if (!drag || drag.pointerId !== e.pointerId) return;
++    const bounds = measure();
++    if (!bounds) return;
++    e.preventDefault();
++    commit(dragDockX(drag.startX, drag.startClientX, e.clientX, bounds), false);
++  }
++
++  function onGripPointerEnd(e: ReactPointerEvent<HTMLButtonElement>) {
++    const drag = dragRef.current;
++    if (!drag || drag.pointerId !== e.pointerId) return;
++    dragRef.current = null;
++    try {
++      e.currentTarget.releasePointerCapture(e.pointerId);
++    } catch {
++      /* already released */
++    }
++    setDragging(false);
++    const x = dockXRef.current;
++    if (x !== null) writeStoredDockX(safeStorage(), x);
++  }
++
++  function onGripKeyDown(e: ReactKeyboardEvent<HTMLButtonElement>) {
++    const bounds = measure();
++    if (!bounds) return;
++    const next = stepDockX(dockXRef.current ?? 0, e.key, bounds);
++    if (next === null) return;
++    e.preventDefault();
++    commit(next, true);
++  }
++
+   const percent = Math.round(localProgress * 100);
++  const phaseIndex = Math.max(0, PHASES.findIndex((p) => p.id === status.phase));
++  const resolvedPhaseIndex = PHASES.some((p) => p.id === status.phase) ? phaseIndex : PHASES.length;
++
++  function stepScale(delta: number) {
++    const next = Math.round(Math.min(2.5, Math.max(0.5, currentScale + delta)) * 100) / 100;
++    onPencilScale?.(next);
++  }
++
++  function cycleSpeed() {
++    const idx = SPEEDS.findIndex((s) => s >= status.speed);
++    const next = SPEEDS[(idx === -1 ? 0 : idx + 1) % SPEEDS.length];
++    onSpeed(next);
++  }
+ 
+-  const phaseIndex =
+-    status.phase === "datum_grid"
+-      ? 0
+-      : status.phase === "ascending_wireframe"
+-        ? 1
+-        : status.phase === "ink_strengthening"
+-          ? 2
+-          : status.phase === "material_wash"
+-            ? 3
+-            : 4;
+-
+-  const phases = [
+-    { id: "datum_grid", label: "1. Datum Grid", target: 0.08 },
+-    { id: "ascending_wireframe", label: "2. Wireframe Ascend", target: 0.40 },
+-    { id: "ink_strengthening", label: "3. Technical Ink", target: 0.72 },
+-    { id: "material_wash", label: "4. Material Wash", target: 0.90 },
+-  ];
+-
+-  const speeds = [0.5, 1.0, 2.0, 5.0];
++  const speedLabel = `${status.speed % 1 === 0 ? status.speed.toFixed(0) : status.speed}x`;
++  const summary = `Magic Pencil · Architectural Draftsman · ${status.activeStoreyLabel} · ${status.activeCategory} · ${status.visibleMeshCount} / ${status.totalMeshCount} parts`;
+ 
+   return (
+     <div
++      ref={dockRef}
+       className="draftsman-control-dock"
+       role="region"
+       aria-label="Magic Pencil drafting controls"
+       data-testid="draftsman-dock"
++      data-dock-position={currentPreset}
++      data-dock-x={dockX ?? ""}
++      data-dock-dragging={dragging ? "true" : undefined}
++      data-dock-tools={toolsOpen ? "open" : "closed"}
++      data-pencil-scale={currentScale.toFixed(2)}
++      data-pencil-color={status.pencilColor ?? "#1877F2"}
+       data-draftsman-phase={status.phase}
+       data-draftsman-state={status.mode}
+       data-draftsman-progress={status.progress.toFixed(2)}
++      style={dockX === null ? undefined : { left: `${dockX}px` }}
+     >
+-      <div className="draftsman-header">
+-        <div className="draftsman-badge">
+-          <Pencil size={13} className="draftsman-badge-icon" />
+-          <span className="draftsman-badge-title">MAGIC PENCIL</span>
+-          <span className="draftsman-badge-sub">ARCHITECTURAL DRAFTSMAN</span>
+-        </div>
+-
+-        <div className="draftsman-readout">
+-          {status.storeys && status.storeys.length > 1 ? (
+-            <div className="draftsman-storey-picker" title="Quick-jump to floor level">
+-              <Layers size={12} className="draftsman-storey-icon" />
+-              <select
+-                className="draftsman-storey-select"
+-                aria-label="Floor level selector"
+-                value={status.activeStoreyLabel}
+-                onChange={(e) => {
+-                  if (e.target.value) onJumpStorey?.(e.target.value);
+-                }}
+-              >
+-                {status.storeys.map((st) => (
+-                  <option key={st.label} value={st.label}>
+-                    {st.label} ({st.elevation >= 0 ? "+" : ""}{st.elevation.toFixed(1)}m)
+-                  </option>
+-                ))}
+-              </select>
+-            </div>
+-          ) : (
+-            <span className="draftsman-storey-badge">
+-              <Layers size={12} />
+-              {status.activeStoreyLabel}
+-            </span>
+-          )}
+-          <span className="draftsman-category-badge">{status.activeCategory}</span>
+-          <span className="draftsman-mesh-count">
+-            {status.visibleMeshCount} / {status.totalMeshCount} parts
++      {/* Row 1: grip · mode chip · play/replay · scrubber · % · speed · finish · close */}
++      <div className="draftsman-row draftsman-row-primary">
++        <button
++          type="button"
++          className="draftsman-grip"
++          aria-label="Move drafting controls"
++          title="Drag left or right · Arrow keys move 16px · Home/End snap to the edges"
++          onPointerDown={onGripPointerDown}
++          onPointerMove={onGripPointerMove}
++          onPointerUp={onGripPointerEnd}
++          onPointerCancel={onGripPointerEnd}
++          onKeyDown={onGripKeyDown}
++        >
++          <span className="draftsman-face draftsman-face-ghost draftsman-face-icon">
++            <GripVertical size={14} />
+           </span>
+-        </div>
++        </button>
+ 
+-        <div className="draftsman-actions">
+-          <button
+-            type="button"
+-            className={`draftsman-tour-btn ${status.cinematicOrbit ? "active" : ""}`}
+-            onClick={onToggleTour}
+-            aria-pressed={status.cinematicOrbit}
+-            title="Toggle smooth 360° cinematic orbit tracking the rising elevation (T)"
+-          >
+-            <Camera size={13} className={status.cinematicOrbit ? "draftsman-pulse-icon" : ""} />
+-            <span>Tour</span>
+-          </button>
+-          <button
+-            type="button"
+-            className="draftsman-blueprint-btn"
+-            onClick={onCaptureBlueprint}
+-            title="Export Prussian Blue architectural blueprint sheet with datum ruler & title block (B)"
+-          >
+-            <Download size={13} />
+-            <span>Blueprint</span>
+-          </button>
+-          {onCapturePlanBook && <button type="button" className="draftsman-blueprint-btn" onClick={onCapturePlanBook} disabled={exportingBook} title="Download five illustrative model projections; not to scale">
+-            <Download size={13} /><span>{exportingBook ? "Preparing PDF…" : "Model sheets PDF"}</span>
+-          </button>}
+-          <button
+-            type="button"
+-            className="draftsman-finish-btn"
+-            onClick={onFinish}
+-            title="Finish drawing to solid (S)"
+-          >
+-            <CheckCircle2 size={13} />
+-            Solid Finish
+-          </button>
+-          <button
+-            type="button"
+-            className="draftsman-close-btn"
+-            onClick={onClose}
+-            aria-label="Close Draftsman mode"
+-            title="Exit Draw mode (Esc)"
+-          >
+-            <X size={14} />
+-          </button>
++        <div className="draftsman-mode-chip" title={summary} data-testid="draftsman-mode-chip">
++          <Pencil size={12} className="draftsman-badge-icon" />
++          <span className="draftsman-mode-chip-title">PENCIL</span>
+         </div>
+-      </div>
+ 
+-      <div className="draftsman-timeline">
+         <button
+           type="button"
+-          className="draftsman-playback-btn primary"
++          className="draftsman-playback-btn"
+           onClick={status.mode === "drawing" ? onPause : onPlay}
+           aria-label={status.mode === "drawing" ? "Pause drawing" : "Play drawing"}
+           title={status.mode === "drawing" ? "Pause (Space)" : "Play (Space)"}
+         >
+-          {status.mode === "drawing" ? <Pause size={15} /> : <Play size={15} />}
++          <span className="draftsman-face draftsman-face-primary draftsman-face-icon">
++            {status.mode === "drawing" ? <Pause size={14} /> : <Play size={14} />}
++          </span>
+         </button>
+ 
+         <button
+@@ -187,19 +289,18 @@ export function DraftsmanControlDock({
+           aria-label="Replay drafting sequence"
+           title="Replay from ground up (R)"
+         >
+-          <RotateCcw size={14} />
++          <span className="draftsman-face draftsman-face-white draftsman-face-icon">
++            <RotateCcw size={13} />
++          </span>
+         </button>
+ 
+         <div className="draftsman-scrubber-wrapper">
+           <div className="draftsman-scrubber-rail">
+-            <div
+-              className="draftsman-scrubber-fill"
+-              style={{ width: `${percent}%` }}
+-            />
+-            {phases.map((p, idx) => (
++            <div className="draftsman-scrubber-fill" style={{ width: `${percent}%` }} />
++            {PHASES.map((p, idx) => (
+               <div
+                 key={p.id}
+-                className={`draftsman-phase-marker ${phaseIndex >= idx ? "passed" : ""}`}
++                className={`draftsman-phase-marker ${resolvedPhaseIndex >= idx ? "passed" : ""}`}
+                 style={{ left: `${p.target * 100}%` }}
+                 title={p.label}
+               />
+@@ -223,42 +324,208 @@ export function DraftsmanControlDock({
+           />
+         </div>
+ 
+-        <span className="draftsman-percent">{percent}%</span>
++        <span className="draftsman-percent" aria-live="off">{percent}%</span>
++
++        <button
++          type="button"
++          className="draftsman-speed-cycle"
++          onClick={cycleSpeed}
++          aria-label={`Drawing speed ${speedLabel}, press for next speed`}
++          title={`Drawing speed ${speedLabel} · click to cycle 0.5x → 1x → 2x → 5x`}
++          data-speed={status.speed}
++        >
++          <span className="draftsman-face draftsman-face-white">
++            <FastForward size={12} />
++            <span>{speedLabel}</span>
++          </span>
++        </button>
++
++        <button
++          type="button"
++          className="draftsman-finish-btn"
++          onClick={onFinish}
++          aria-label="Finish drawing to solid"
++          title="Finish drawing to solid (S)"
++        >
++          <span className="draftsman-face draftsman-face-white draftsman-face-icon draftsman-face-finish">
++            <CheckCircle2 size={14} />
++          </span>
++        </button>
++
++        <button
++          type="button"
++          className="draftsman-close-btn"
++          onClick={onClose}
++          aria-label="Close Draftsman mode"
++          title="Exit Draw mode (Esc)"
++        >
++          <span className="draftsman-face draftsman-face-ghost draftsman-face-icon">
++            <X size={14} />
++          </span>
++        </button>
++      </div>
++
++      {/* Row 2: compact phase tabs + more-tools toggle */}
++      <div className="draftsman-row draftsman-row-phases">
++        <div className="draftsman-tablist" role="tablist" aria-label="Architectural drawing phases">
++          {PHASES.map((p, idx) => {
++            const isActive = resolvedPhaseIndex === idx;
++            const isDone = resolvedPhaseIndex > idx;
++            return (
++              <button
++                key={p.id}
++                type="button"
++                role="tab"
++                aria-selected={isActive}
++                aria-label={p.label}
++                title={p.label}
++                className={`draftsman-phase-tab ${isActive ? "active" : ""} ${isDone ? "done" : ""}`}
++                onClick={() => onSeek(p.target)}
++              >
++                <span className="draftsman-face draftsman-face-tab">
++                  {isActive && <Sparkles size={10} className="draftsman-pill-icon" />}
++                  {p.short}
++                </span>
++              </button>
++            );
++          })}
++        </div>
++        <button
++          type="button"
++          className="draftsman-tools-toggle"
++          aria-expanded={toolsOpen}
++          aria-controls="draftsman-dock-tools"
++          aria-label={toolsOpen ? "Hide drafting tools" : "Show drafting tools"}
++          title={toolsOpen ? "Hide tour, blueprint, sheets and pencil size" : "Tour, blueprint, sheets and pencil size"}
++          onClick={() => setToolsOpen((open) => !open)}
++        >
++          <span className="draftsman-face draftsman-face-ghost draftsman-face-icon">
++            {toolsOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
++          </span>
++        </button>
++      </div>
++
++      {/* Row 3 (collapsible): secondary actions and readout */}
++      {toolsOpen && (
++        <div className="draftsman-row draftsman-row-tools" id="draftsman-dock-tools">
++          {status.storeys && status.storeys.length > 1 ? (
++            <div className="draftsman-storey-picker" title="Quick-jump to floor level">
++              <Layers size={12} className="draftsman-storey-icon" />
++              <select
++                className="draftsman-storey-select"
++                aria-label="Floor level selector"
++                value={status.activeStoreyLabel}
++                onChange={(e) => {
++                  if (e.target.value) onJumpStorey?.(e.target.value);
++                }}
++              >
++                {status.storeys.map((st) => (
++                  <option key={st.label} value={st.label}>
++                    {st.label} ({st.elevation >= 0 ? "+" : ""}{st.elevation.toFixed(1)}m)
++                  </option>
++                ))}
++              </select>
++            </div>
++          ) : (
++            <span className="draftsman-storey-badge">
++              <Layers size={12} />
++              {status.activeStoreyLabel}
++            </span>
++          )}
++          <span className="draftsman-category-badge">{status.activeCategory}</span>
++          <span className="draftsman-mesh-count">
++            {status.visibleMeshCount} / {status.totalMeshCount} parts
++          </span>
++
++          <button
++            type="button"
++            className="draftsman-action-pill"
++            data-testid="magic-pencil-test-btn"
++            onClick={() => {
++              onReplay();
++              onPlay();
++            }}
++            title="Run Magic Pencil 3D drafting animation test"
++          >
++            <span className="draftsman-face draftsman-face-primary">
++              <Pencil size={12} />
++              <span>Pencil Test</span>
++            </span>
++          </button>
++
++          <button
++            type="button"
++            className="draftsman-action-pill"
++            onClick={onToggleTour}
++            aria-pressed={status.cinematicOrbit}
++            title="Toggle smooth 360° cinematic orbit tracking the rising elevation (T)"
++          >
++            <span className={`draftsman-face draftsman-face-white ${status.cinematicOrbit ? "active" : ""}`}>
++              <Camera size={12} className={status.cinematicOrbit ? "draftsman-pulse-icon" : ""} />
++              <span>Tour</span>
++            </span>
++          </button>
++
++          <button
++            type="button"
++            className="draftsman-action-pill"
++            onClick={onCaptureBlueprint}
++            title="Export Prussian Blue architectural blueprint sheet with datum ruler & title block (B)"
++          >
++            <span className="draftsman-face draftsman-face-white">
++              <Download size={12} />
++              <span>Blueprint</span>
++            </span>
++          </button>
+ 
+-        <div className="draftsman-speed-group" role="group" aria-label="Drawing speed">
+-          <FastForward size={12} className="draftsman-speed-icon" />
+-          {speeds.map((s) => (
++          {onCapturePlanBook && (
+             <button
+-              key={s}
+               type="button"
+-              className={`draftsman-speed-btn ${status.speed === s ? "active" : ""}`}
+-              onClick={() => onSpeed(s)}
++              className="draftsman-action-pill"
++              onClick={onCapturePlanBook}
++              disabled={exportingBook}
++              title="Download five illustrative model projections; not to scale"
+             >
+-              {s}x
++              <span className="draftsman-face draftsman-face-white">
++                <Download size={12} />
++                <span>{exportingBook ? "Preparing PDF…" : "Model sheets PDF"}</span>
++              </span>
+             </button>
+-          ))}
+-        </div>
+-      </div>
++          )}
+ 
+-      <div className="draftsman-phases" role="tablist" aria-label="Architectural drawing phases">
+-        {phases.map((p, idx) => {
+-          const isActive = phaseIndex === idx;
+-          const isDone = phaseIndex > idx;
+-          return (
++          <div className="draftsman-adjuster-stepper" role="group" aria-label="Actual 3D pencil size">
++            <span className="draftsman-adjuster-label">
++              <Maximize2 size={11} />
++              <span>Size</span>
++            </span>
+             <button
+-              key={p.id}
+               type="button"
+-              role="tab"
+-              aria-selected={isActive}
+-              className={`draftsman-phase-pill ${isActive ? "active" : ""} ${isDone ? "done" : ""}`}
+-              onClick={() => onSeek(p.target)}
++              className="draftsman-stepper-btn"
++              onClick={() => stepScale(-0.25)}
++              disabled={currentScale <= 0.5}
++              title="Decrease pencil size"
++              aria-label="Decrease pencil size"
+             >
+-              {isActive && <Sparkles size={11} className="draftsman-pill-icon" />}
+-              {p.label}
++              <span className="draftsman-face draftsman-face-white draftsman-face-icon draftsman-face-mini">
++                <Minus size={11} />
++              </span>
+             </button>
+-          );
+-        })}
+-      </div>
++            <span className="draftsman-stepper-value">{currentScale.toFixed(2)}x</span>
++            <button
++              type="button"
++              className="draftsman-stepper-btn"
++              onClick={() => stepScale(0.25)}
++              disabled={currentScale >= 2.5}
++              title="Increase pencil size"
++              aria-label="Increase pencil size"
++            >
++              <span className="draftsman-face draftsman-face-white draftsman-face-icon draftsman-face-mini">
++                <Plus size={11} />
++              </span>
++            </button>
++          </div>
++        </div>
++      )}
+     </div>
+   );
+ }
+diff --git a/src/studio/draftsman.css b/src/studio/draftsman.css
+index 18a2832..32498fc 100644
+--- a/src/studio/draftsman.css
++++ b/src/studio/draftsman.css
+@@ -1,304 +1,268 @@
+ /* Magic Pencil / Draftsman Control Dock Styling */
++/* Compact, draggable dock: dark slate container, white/teal pills, Facebook Blue on the primary play + phase fill. */
++/* Every interactive control is a transparent 44x44 hit area; the visible "face" inside is 28-30px. */
+ 
+ .draftsman-control-dock {
++  --draftsman-hit: 44px;
++  --draftsman-face: 30px;
++  --draftsman-teal: #2dd4bf;
+   position: absolute;
+-  bottom: 20px;
+-  left: 50%;
+-  transform: translateX(-50%);
+-  width: min(840px, calc(100% - 40px));
+-  background: rgba(18, 29, 27, 0.92);
++  bottom: 12px;
++  left: 8px;
++  transform: none;
++  width: min(520px, calc(100% - 16px));
++  box-sizing: border-box;
++  background: rgba(30, 41, 59, 0.95);
+   backdrop-filter: blur(20px);
+   -webkit-backdrop-filter: blur(20px);
+-  border: 1px solid rgba(64, 175, 155, 0.35);
++  border: 1px solid rgba(71, 85, 105, 0.5);
+   box-shadow:
+-    0 12px 36px rgba(0, 0, 0, 0.35),
+-    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
++    0 12px 32px rgba(0, 0, 0, 0.4),
++    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+   border-radius: 12px;
+-  padding: 12px 18px;
++  padding: 2px 6px;
+   display: flex;
+   flex-direction: column;
+-  gap: 10px;
++  gap: 0;
+   z-index: 40;
+   pointer-events: auto;
+-  color: #e2eeea;
++  color: #f1f5f9;
+   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+   animation: draftsman-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
++  max-height: calc(100% - 24px);
++  overflow-x: hidden;
++  overflow-y: auto;
++  overscroll-behavior: contain;
++  user-select: none;
++}
++
++.draftsman-control-dock[data-dock-dragging="true"] {
++  box-shadow:
++    0 16px 40px rgba(0, 0, 0, 0.5),
++    0 0 0 1px rgba(45, 212, 191, 0.55) inset;
+ }
+ 
+ @keyframes draftsman-slide-up {
+   from {
+     opacity: 0;
+-    transform: translate(-50%, 16px);
++    transform: translateY(16px);
+   }
+   to {
+     opacity: 1;
+-    transform: translate(-50%, 0);
++    transform: translateY(0);
+   }
+ }
+ 
+-/* Header */
+-.draftsman-header {
++/* Rows */
++.draftsman-row {
+   display: flex;
+   align-items: center;
+-  justify-content: space-between;
+-  gap: 12px;
+-  flex-wrap: wrap;
++  gap: 2px;
++  min-height: var(--draftsman-hit);
++  min-width: 0;
+ }
+ 
+-.draftsman-badge {
+-  display: flex;
+-  align-items: center;
+-  gap: 6px;
+-  background: rgba(43, 118, 104, 0.25);
+-  border: 1px solid rgba(56, 189, 166, 0.4);
+-  padding: 4px 8px;
+-  border-radius: 6px;
++/* The primary row must never overflow the dock: every fixed control is 44px wide, the scrubber absorbs the rest. */
++.draftsman-row-primary {
++  flex-wrap: nowrap;
+ }
+ 
+-.draftsman-badge-icon {
+-  color: #38bda6;
+-  animation: draftsman-pencil-spin 4s ease-in-out infinite alternate;
+-}
+-
+-@keyframes draftsman-pencil-spin {
+-  0% { transform: rotate(-10deg); }
+-  100% { transform: rotate(15deg); }
++.draftsman-row-phases,
++.draftsman-row-tools {
++  border-top: 1px solid rgba(255, 255, 255, 0.08);
+ }
+ 
+-.draftsman-badge-title {
+-  font-size: 11px;
+-  font-weight: 700;
+-  letter-spacing: 0.08em;
+-  color: #4eedd2;
+-}
+-
+-.draftsman-badge-sub {
+-  font-size: 9px;
+-  font-weight: 500;
+-  letter-spacing: 0.12em;
+-  color: #a3cdc5;
+-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+-  padding-left: 6px;
+-  margin-left: 2px;
+-}
+-
+-.draftsman-readout {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-  font-size: 11px;
+-  margin-left: auto;
++.draftsman-row-tools {
++  flex-wrap: wrap;
++  gap: 2px 4px;
++  padding: 2px 0;
+ }
+ 
+-.draftsman-storey-badge {
+-  display: flex;
++/* Hit areas: every button/select/range in the dock is at least 44x44, transparent, with the face drawn inside. */
++.draftsman-control-dock button {
++  appearance: none;
++  -webkit-appearance: none;
++  background: transparent;
++  border: 0;
++  padding: 0;
++  margin: 0;
++  min-width: var(--draftsman-hit);
++  min-height: var(--draftsman-hit);
++  display: inline-flex;
+   align-items: center;
+-  gap: 5px;
+-  background: rgba(0, 0, 0, 0.3);
+-  padding: 4px 9px;
+-  border-radius: 5px;
+-  color: #d1ebe4;
+-  font-weight: 500;
+-  font-variant-numeric: tabular-nums;
+-  border: 1px solid rgba(255, 255, 255, 0.07);
++  justify-content: center;
++  cursor: pointer;
++  color: inherit;
++  font: inherit;
++  touch-action: manipulation;
++  flex-shrink: 0;
++  outline: none;
+ }
+ 
+-.draftsman-category-badge {
+-  background: rgba(56, 189, 166, 0.15);
+-  color: #5cf1d8;
+-  padding: 4px 8px;
+-  border-radius: 5px;
+-  font-size: 10px;
+-  font-weight: 600;
+-  letter-spacing: 0.04em;
+-  text-transform: uppercase;
++.draftsman-control-dock button:disabled {
++  cursor: not-allowed;
+ }
+ 
+-.draftsman-mesh-count {
+-  font-size: 10px;
+-  color: #8dafa8;
+-  font-variant-numeric: tabular-nums;
++.draftsman-control-dock button:disabled > .draftsman-face {
++  opacity: 0.4;
+ }
+ 
+-.draftsman-actions {
+-  display: flex;
+-  align-items: center;
+-  gap: 6px;
++.draftsman-control-dock button:focus-visible > .draftsman-face {
++  box-shadow:
++    0 0 0 2px rgba(15, 23, 42, 1),
++    0 0 0 4px var(--draftsman-teal);
+ }
+ 
+-.draftsman-finish-btn {
+-  display: flex;
++/* Visible faces */
++.draftsman-face {
++  display: inline-flex;
+   align-items: center;
++  justify-content: center;
+   gap: 5px;
+-  background: linear-gradient(180deg, #2d8272, #1b5b4f);
+-  border: 1px solid #4eedd2;
+-  color: #ffffff;
+-  padding: 5px 10px;
+-  border-radius: 5px;
++  height: var(--draftsman-face);
++  min-width: var(--draftsman-face);
++  padding: 0 9px;
++  border-radius: 8px;
+   font-size: 11px;
+   font-weight: 600;
+-  cursor: pointer;
+-  transition: all 0.15s ease;
++  line-height: 1;
++  white-space: nowrap;
++  box-sizing: border-box;
++  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, transform 0.15s ease;
+ }
+ 
+-.draftsman-finish-btn:hover {
+-  background: linear-gradient(180deg, #379e8b, #216f61);
+-  box-shadow: 0 0 12px rgba(78, 237, 210, 0.4);
++.draftsman-face-icon {
++  padding: 0;
++  width: var(--draftsman-face);
+ }
+ 
+-.draftsman-close-btn {
+-  background: rgba(255, 255, 255, 0.08);
+-  border: 1px solid rgba(255, 255, 255, 0.12);
+-  color: #a3cdc5;
+-  width: 26px;
++.draftsman-face-mini {
+   height: 26px;
+-  border-radius: 5px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  cursor: pointer;
+-  transition: all 0.15s ease;
++  width: 26px;
++  min-width: 26px;
++  border-radius: 6px;
+ }
+ 
+-.draftsman-close-btn:hover {
+-  background: rgba(239, 68, 68, 0.2);
+-  color: #f87171;
+-  border-color: rgba(239, 68, 68, 0.4);
++.draftsman-face-white {
++  background: #ffffff;
++  color: #1e293b;
++  border: 1px solid rgba(226, 232, 240, 0.8);
++  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+ }
+ 
+-/* Storey Picker */
+-.draftsman-storey-picker {
+-  display: flex;
+-  align-items: center;
+-  gap: 5px;
+-  background: rgba(0, 0, 0, 0.4);
+-  padding: 2px 8px;
+-  border-radius: 6px;
+-  border: 1px solid rgba(64, 175, 155, 0.3);
++.draftsman-control-dock button:hover:not(:disabled) > .draftsman-face-white {
++  background: #f8fafc;
++  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
++  transform: translateY(-1px);
+ }
+ 
+-.draftsman-storey-icon {
+-  color: #38bda6;
+-  flex-shrink: 0;
++.draftsman-control-dock button:active:not(:disabled) > .draftsman-face-white {
++  transform: translateY(0);
++  background: #f1f5f9;
+ }
+ 
+-.draftsman-storey-select {
+-  background: transparent;
+-  border: none;
+-  color: #d1ebe4;
+-  font-size: 11px;
+-  font-weight: 500;
+-  font-family: inherit;
+-  outline: none;
+-  cursor: pointer;
+-  padding: 2px 0;
++.draftsman-face-white.active {
++  background: #e2e8f0;
++  color: #0f172a;
++  border-color: #94a3b8;
++  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+ }
+ 
+-.draftsman-storey-select option {
+-  background: #152421;
+-  color: #e2eeea;
++.draftsman-face-finish {
++  color: #0f766e;
+ }
+ 
+-/* Tour & Blueprint Buttons */
+-.draftsman-tour-btn,
+-.draftsman-blueprint-btn {
+-  display: flex;
+-  align-items: center;
+-  gap: 5px;
+-  background: rgba(255, 255, 255, 0.08);
+-  border: 1px solid rgba(255, 255, 255, 0.14);
+-  color: #d1ebe4;
+-  padding: 5px 9px;
+-  border-radius: 5px;
+-  font-size: 11px;
+-  font-weight: 600;
+-  cursor: pointer;
+-  transition: all 0.15s ease;
++.draftsman-control-dock button:hover > .draftsman-face-finish {
++  color: #1877F2;
+ }
+ 
+-.draftsman-tour-btn:hover,
+-.draftsman-blueprint-btn:hover {
+-  background: rgba(255, 255, 255, 0.15);
++.draftsman-face-primary {
++  background: #1877F2;
++  border: 1px solid #1877F2;
+   color: #ffffff;
+-  border-color: rgba(255, 255, 255, 0.25);
++  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.45);
++  font-weight: 700;
+ }
+ 
+-.draftsman-tour-btn.active {
+-  background: linear-gradient(180deg, #1b5b4f, #0d362e);
+-  border-color: #4eedd2;
+-  color: #5cf1d8;
+-  box-shadow: 0 0 10px rgba(78, 237, 210, 0.35);
++.draftsman-control-dock button:hover:not(:disabled) > .draftsman-face-primary {
++  background: #166fe5;
++  box-shadow: 0 0 14px rgba(24, 119, 242, 0.6);
+ }
+ 
+-.draftsman-pulse-icon {
+-  color: #4eedd2;
+-  animation: draftsman-pulse 1.2s infinite ease-in-out;
++.draftsman-face-ghost {
++  background: rgba(255, 255, 255, 0.08);
++  border: 1px solid rgba(255, 255, 255, 0.12);
++  color: #cbd5e1;
+ }
+ 
+-@keyframes draftsman-pulse {
+-  0% { transform: scale(1); opacity: 0.8; }
+-  50% { transform: scale(1.25); opacity: 1; }
+-  100% { transform: scale(1); opacity: 0.8; }
++.draftsman-control-dock button:hover > .draftsman-face-ghost {
++  background: rgba(255, 255, 255, 0.14);
++  color: #ffffff;
+ }
+ 
+-.draftsman-blueprint-btn {
+-  background: rgba(14, 43, 77, 0.45);
+-  border-color: rgba(56, 132, 222, 0.4);
+-  color: #9ac2f3;
++.draftsman-close-btn:hover > .draftsman-face-ghost {
++  background: rgba(239, 68, 68, 0.2);
++  color: #f87171;
++  border-color: rgba(239, 68, 68, 0.4);
+ }
+ 
+-.draftsman-blueprint-btn:hover {
+-  background: rgba(14, 43, 77, 0.75);
+-  border-color: #58a6ff;
+-  color: #ffffff;
+-  box-shadow: 0 0 10px rgba(88, 166, 255, 0.35);
++/* Grip */
++.draftsman-grip {
++  cursor: grab;
++  touch-action: none;
+ }
+ 
+-/* Timeline */
+-.draftsman-timeline {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
++.draftsman-grip:hover > .draftsman-face-ghost,
++.draftsman-control-dock[data-dock-dragging="true"] .draftsman-grip > .draftsman-face-ghost {
++  color: var(--draftsman-teal);
++  border-color: rgba(45, 212, 191, 0.5);
+ }
+ 
+-.draftsman-playback-btn {
+-  background: rgba(255, 255, 255, 0.08);
+-  border: 1px solid rgba(255, 255, 255, 0.14);
+-  color: #ffffff;
+-  width: 32px;
+-  height: 32px;
+-  border-radius: 6px;
+-  display: flex;
++.draftsman-control-dock[data-dock-dragging="true"] .draftsman-grip {
++  cursor: grabbing;
++}
++
++/* Mode chip (non-interactive) */
++.draftsman-mode-chip {
++  display: inline-flex;
+   align-items: center;
+-  justify-content: center;
+-  cursor: pointer;
+-  transition: all 0.15s ease;
++  gap: 5px;
++  height: var(--draftsman-face);
++  padding: 0 8px;
++  margin: 0 2px;
++  background: rgba(15, 23, 42, 0.8);
++  border: 1px solid rgba(255, 255, 255, 0.12);
++  border-radius: 8px;
++  white-space: nowrap;
+   flex-shrink: 0;
+ }
+ 
+-.draftsman-playback-btn:hover {
+-  background: rgba(255, 255, 255, 0.16);
+-  border-color: rgba(255, 255, 255, 0.3);
++.draftsman-badge-icon {
++  color: #1877F2;
++  animation: draftsman-pencil-spin 4s ease-in-out infinite alternate;
+ }
+ 
+-.draftsman-playback-btn.primary {
+-  background: #2a7a6c;
+-  border-color: #5cf1d8;
+-  color: #ffffff;
+-  box-shadow: 0 2px 8px rgba(42, 122, 108, 0.5);
++@keyframes draftsman-pencil-spin {
++  0% { transform: rotate(-10deg); }
++  100% { transform: rotate(15deg); }
+ }
+ 
+-.draftsman-playback-btn.primary:hover {
+-  background: #349282;
+-  box-shadow: 0 0 14px rgba(92, 241, 216, 0.6);
++.draftsman-mode-chip-title {
++  font-size: 10px;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  color: #ffffff;
+ }
+ 
++/* Scrubber: the wrapper is the 44px hit area; the rail is 6px centred inside it. */
+ .draftsman-scrubber-wrapper {
+-  flex: 1;
++  flex: 1 1 96px;
++  min-width: 64px;
+   position: relative;
+-  height: 20px;
++  height: var(--draftsman-hit);
+   display: flex;
+   align-items: center;
++  margin: 0 2px;
+ }
+ 
+ .draftsman-scrubber-rail {
+@@ -306,7 +270,7 @@
+   left: 0;
+   right: 0;
+   height: 6px;
+-  background: rgba(255, 255, 255, 0.1);
++  background: rgba(255, 255, 255, 0.12);
+   border-radius: 3px;
+   overflow: hidden;
+   pointer-events: none;
+@@ -314,7 +278,7 @@
+ 
+ .draftsman-scrubber-fill {
+   height: 100%;
+-  background: linear-gradient(90deg, #2b796b, #4eedd2);
++  background: linear-gradient(90deg, #1877F2, #60a5fa);
+   border-radius: 3px;
+   transition: width 0.05s linear;
+ }
+@@ -329,190 +293,288 @@
+ }
+ 
+ .draftsman-phase-marker.passed {
+-  background: rgba(78, 237, 210, 0.8);
++  background: rgba(96, 165, 250, 0.9);
+ }
+ 
+ .draftsman-scrubber {
+   position: absolute;
++  inset: 0;
+   width: 100%;
+   height: 100%;
++  min-height: var(--draftsman-hit);
+   opacity: 0;
+   cursor: pointer;
+   z-index: 2;
+   margin: 0;
+ }
+ 
++.draftsman-scrubber:focus-visible {
++  opacity: 1;
++  outline: 2px solid var(--draftsman-teal);
++  outline-offset: -2px;
++  border-radius: 8px;
++}
++
+ .draftsman-percent {
+   font-size: 11px;
+   font-weight: 700;
+   font-variant-numeric: tabular-nums;
+-  color: #4eedd2;
+-  min-width: 32px;
++  color: #60a5fa;
++  min-width: 30px;
+   text-align: right;
++  margin-right: 2px;
++  flex-shrink: 0;
++}
++
++.draftsman-speed-cycle > .draftsman-face {
++  min-width: 48px;
++  padding: 0 6px;
++  font-variant-numeric: tabular-nums;
+ }
+ 
+-.draftsman-speed-group {
++.draftsman-speed-cycle svg {
++  color: #64748b;
++}
++
++/* Phase tabs */
++.draftsman-tablist {
+   display: flex;
+   align-items: center;
+-  gap: 3px;
+-  background: rgba(0, 0, 0, 0.35);
+-  padding: 3px 6px;
+-  border-radius: 6px;
+-  border: 1px solid rgba(255, 255, 255, 0.08);
++  flex: 1;
++  min-width: 0;
++  gap: 2px;
+ }
+ 
+-.draftsman-speed-icon {
+-  color: #7ba29b;
+-  margin-right: 2px;
++.draftsman-phase-tab {
++  flex: 1;
++  min-width: 0;
+ }
+ 
+-.draftsman-speed-btn {
+-  background: transparent;
+-  border: 0;
+-  color: #8faea8;
+-  font-size: 11px;
+-  font-weight: 600;
+-  padding: 4px 7px;
+-  min-height: 28px;
+-  border-radius: 4px;
+-  cursor: pointer;
+-  transition: all 0.15s ease;
++.draftsman-face-tab {
++  width: 100%;
++  height: 28px;
++  padding: 0 6px;
++  gap: 4px;
++  background: rgba(255, 255, 255, 0.04);
++  border: 1px solid rgba(255, 255, 255, 0.08);
++  color: #94a3b8;
++  border-radius: 6px;
++  font-size: 10px;
++  font-weight: 500;
++  overflow: hidden;
++  text-overflow: ellipsis;
+ }
+ 
+-.draftsman-speed-btn:hover {
++.draftsman-phase-tab:hover > .draftsman-face-tab {
++  background: rgba(255, 255, 255, 0.09);
+   color: #ffffff;
+-  background: rgba(255, 255, 255, 0.1);
+ }
+ 
+-.draftsman-speed-btn.active {
+-  background: #2b796b;
++.draftsman-phase-tab.active > .draftsman-face-tab {
++  background: rgba(24, 119, 242, 0.2);
++  border-color: #1877F2;
+   color: #ffffff;
++  font-weight: 600;
++  box-shadow: 0 0 10px rgba(24, 119, 242, 0.35);
+ }
+ 
+-/* Phase Pills */
+-.draftsman-phases {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+-  padding-top: 8px;
++.draftsman-phase-tab.done > .draftsman-face-tab {
++  border-color: rgba(45, 212, 191, 0.35);
++  color: #cbd5e1;
+ }
+ 
+-.draftsman-phase-pill {
+-  flex: 1;
+-  display: flex;
++.draftsman-pill-icon {
++  color: #60a5fa;
++}
++
++.draftsman-tools-toggle[aria-expanded="true"] > .draftsman-face-ghost {
++  color: var(--draftsman-teal);
++  border-color: rgba(45, 212, 191, 0.5);
++}
++
++/* Tools strip readout */
++.draftsman-storey-badge {
++  display: inline-flex;
+   align-items: center;
+-  justify-content: center;
+   gap: 5px;
+-  background: rgba(255, 255, 255, 0.04);
++  height: var(--draftsman-face);
++  background: rgba(15, 23, 42, 0.75);
++  padding: 0 9px;
++  border-radius: 8px;
++  color: #f1f5f9;
++  font-size: 11px;
++  font-weight: 500;
++  font-variant-numeric: tabular-nums;
+   border: 1px solid rgba(255, 255, 255, 0.08);
+-  color: #8aa9a2;
+-  padding: 5px 8px;
+-  border-radius: 5px;
++}
++
++.draftsman-category-badge {
++  background: rgba(24, 119, 242, 0.18);
++  color: #60a5fa;
++  padding: 0 8px;
++  height: 24px;
++  display: inline-flex;
++  align-items: center;
++  border-radius: 6px;
++  font-size: 10px;
++  font-weight: 600;
++  letter-spacing: 0.04em;
++  text-transform: uppercase;
++}
++
++.draftsman-mesh-count {
+   font-size: 10px;
++  color: #94a3b8;
++  font-variant-numeric: tabular-nums;
++  margin-right: 4px;
++}
++
++.draftsman-storey-picker {
++  display: inline-flex;
++  align-items: center;
++  gap: 5px;
++  background: rgba(15, 23, 42, 0.85);
++  padding: 0 8px;
++  border-radius: 8px;
++  border: 1px solid rgba(255, 255, 255, 0.1);
++  min-height: var(--draftsman-hit);
++}
++
++.draftsman-storey-icon {
++  color: #60a5fa;
++  flex-shrink: 0;
++}
++
++.draftsman-storey-select {
++  background: transparent;
++  border: none;
++  color: #f1f5f9;
++  font-size: 11px;
+   font-weight: 500;
++  font-family: inherit;
++  outline: none;
+   cursor: pointer;
+-  transition: all 0.2s ease;
+-  white-space: nowrap;
++  min-height: var(--draftsman-hit);
++  min-width: var(--draftsman-hit);
++  padding: 0;
+ }
+ 
+-.draftsman-phase-pill:hover {
+-  background: rgba(255, 255, 255, 0.09);
+-  color: #ffffff;
++.draftsman-storey-select:focus-visible {
++  outline: 2px solid var(--draftsman-teal);
++  outline-offset: -2px;
++  border-radius: 6px;
+ }
+ 
+-.draftsman-phase-pill.active {
+-  background: rgba(56, 189, 166, 0.2);
+-  border-color: #4eedd2;
+-  color: #5cf1d8;
+-  font-weight: 600;
+-  box-shadow: 0 0 10px rgba(78, 237, 210, 0.25);
++.draftsman-storey-select option {
++  background: #1e293b;
++  color: #f1f5f9;
+ }
+ 
+-.draftsman-phase-pill.done {
+-  border-color: rgba(78, 237, 210, 0.3);
+-  color: #b7e3db;
++.draftsman-pulse-icon {
++  color: #1877F2;
++  animation: draftsman-pulse 1.2s infinite ease-in-out;
+ }
+ 
+-.draftsman-pill-icon {
+-  color: #4eedd2;
++@keyframes draftsman-pulse {
++  0% { transform: scale(1); opacity: 0.8; }
++  50% { transform: scale(1.25); opacity: 1; }
++  100% { transform: scale(1); opacity: 0.8; }
++}
++
++/* Pencil size stepper */
++.draftsman-adjuster-stepper {
++  display: inline-flex;
++  align-items: center;
++  gap: 0;
++  background: rgba(15, 23, 42, 0.8);
++  padding: 0 4px 0 8px;
++  border-radius: 8px;
++  border: 1px solid rgba(255, 255, 255, 0.1);
++  min-height: var(--draftsman-hit);
++}
++
++.draftsman-adjuster-label {
++  display: inline-flex;
++  align-items: center;
++  gap: 4px;
++  font-size: 10px;
++  font-weight: 600;
++  color: #94a3b8;
++  text-transform: uppercase;
++  letter-spacing: 0.05em;
++  margin-right: 2px;
++}
++
++.draftsman-stepper-value {
++  font-size: 11px;
++  font-weight: 700;
++  font-variant-numeric: tabular-nums;
++  color: #ffffff;
++  min-width: 36px;
++  text-align: center;
+ }
+ 
+-/* Top Toolbar Magic Pencil Button */
++/* Top Toolbar Magic Pencil Button: Facebook Blue Colouring on Magic Pencil test ONLY */
+ .building-toolbar button.magic-pencil-btn {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+-  background: linear-gradient(180deg, #2a5850, #1b3d37);
+-  border: 1px solid #3ebca6;
++  background: linear-gradient(180deg, #1877F2, #1464cc);
++  border: 1px solid #1877F2;
+   color: #ffffff;
+   font-weight: 600;
+   transition: all 0.15s ease;
++  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.35);
+ }
+ 
+ .building-toolbar button.magic-pencil-btn:hover {
+-  background: linear-gradient(180deg, #356e64, #234d45);
+-  box-shadow: 0 0 10px rgba(62, 188, 166, 0.4);
++  background: linear-gradient(180deg, #2b84f7, #1877F2);
++  box-shadow: 0 0 12px rgba(24, 119, 242, 0.6);
+ }
+ 
+ .building-toolbar button.magic-pencil-btn[aria-pressed="true"] {
+-  background: linear-gradient(180deg, #3ebca6, #227969);
++  background: #1877F2;
+   color: #ffffff;
+-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 14px rgba(62, 188, 166, 0.6);
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 16px rgba(24, 119, 242, 0.7);
++}
++
++/* Tablet stage: keep clear of the stage-bottom control dock and the toolbar clearance. */
++@media (min-width: 641px) and (max-width: 1179px) {
++  .draftsman-control-dock {
++    bottom: 60px;
++    max-height: calc(100% - 60px - var(--draftsman-top-clearance, 120px));
++  }
+ }
+ 
++/* Phone: full-width, phase tabs collapse to numbers, chip storey hidden. */
+ @media (max-width: 640px) {
+   .draftsman-control-dock {
+     bottom: 8px;
++    left: 8px;
+     width: calc(100% - 16px);
+-    padding: 8px 10px;
+-    gap: 8px;
+-    border-radius: 8px;
+-  }
+-  .draftsman-header {
+-    gap: 6px;
+-  }
+-  .draftsman-badge-sub {
+-    display: none;
+-  }
+-  .draftsman-readout {
+-    font-size: 10px;
+-    gap: 4px;
++    border-radius: 10px;
+   }
+   .draftsman-mesh-count {
+     display: none;
+   }
+-  .draftsman-playback-btn,
+-  .draftsman-tour-btn,
+-  .draftsman-blueprint-btn,
+-  .draftsman-finish-btn,
+-  .draftsman-close-btn {
+-    min-height: 44px;
+-    min-width: 44px;
+-  }
+-  .draftsman-storey-picker {
+-    padding: 4px 6px;
+-  }
+-  .draftsman-storey-select {
+-    font-size: 12px;
++  .draftsman-scrubber-wrapper {
++    min-width: 48px;
+   }
+-  .draftsman-timeline {
+-    gap: 6px;
+-  }
+-  .draftsman-speed-group {
+-    display: none;
++  .draftsman-speed-cycle > .draftsman-face {
++    min-width: 44px;
+   }
+-  .draftsman-phases {
++  .draftsman-speed-cycle svg {
+     display: none;
+   }
+ }
+-/* Desktop and tablet controls remain reachable without precision pointing. */
+-.draftsman-control-dock button, .draftsman-control-dock select { min-height: 44px; min-width: 44px; }
+-.draftsman-control-dock { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; }
++
+ @media (prefers-reduced-motion: reduce) {
+-  .draftsman-control-dock, .draftsman-pulse-icon { animation: none; }
+-  .draftsman-control-dock * { transition: none; }
+-}
+-@media (min-width: 641px) and (max-width: 1179px) {
+-  .draftsman-control-dock { bottom: 80px; max-height: calc(100% - 80px - var(--draftsman-top-clearance, 120px)); }
+-}
++  .draftsman-control-dock,
++  .draftsman-pulse-icon,
++  .draftsman-badge-icon {
++    animation: none;
++  }
++  .draftsman-control-dock * {
++    transition: none;
++  }
++}
+diff --git a/src/studio/draftsmanDockPosition.ts b/src/studio/draftsmanDockPosition.ts
+new file mode 100644
+index 0000000..32b6c5d
+--- /dev/null
++++ b/src/studio/draftsmanDockPosition.ts
+@@ -0,0 +1,152 @@
++/**
++ * Pure horizontal-position maths for the Magic Pencil drafting dock.
++ *
++ * The dock sits on the bottom edge of its stage and can be dragged left/right.
++ * Everything here is DOM-free so it can be unit tested with node --test:
++ * clamping to the container, keyboard stepping, preset positions and the
++ * localStorage (de)serialisation with defensive parsing of stored values.
++ */
++
++export const DRAFTSMAN_DOCK_STORAGE_KEY = "xray:draftsman-dock:v1";
++export const DRAFTSMAN_DOCK_EDGE_MARGIN = 8;
++export const DRAFTSMAN_DOCK_KEY_STEP = 16;
++
++export type DockPreset = "bottom-left" | "bottom-center";
++
++export interface DockBounds {
++  /** Width of the containing block the dock is positioned inside (px). */
++  containerWidth: number;
++  /** Rendered width of the dock (px). */
++  dockWidth: number;
++  /** Gap kept between the dock and either edge (px). Defaults to 8. */
++  margin?: number;
++}
++
++export interface DockStorage {
++  getItem(key: string): string | null;
++  setItem(key: string, value: string): void;
++}
++
++function finite(value: unknown): value is number {
++  return typeof value === "number" && Number.isFinite(value);
++}
++
++/** Inclusive [min, max] range the dock's left edge may occupy. */
++export function dockRange(bounds: DockBounds): { min: number; max: number } {
++  const margin = finite(bounds.margin) ? Math.max(0, bounds.margin) : DRAFTSMAN_DOCK_EDGE_MARGIN;
++  const container = finite(bounds.containerWidth) ? bounds.containerWidth : 0;
++  const width = finite(bounds.dockWidth) ? bounds.dockWidth : 0;
++  const min = margin;
++  const max = Math.max(min, Math.round(container - width - margin));
++  return { min, max };
++}
++
++/** Clamp a candidate left edge into the container; non-finite input snaps to the left edge. */
++export function clampDockX(x: number, bounds: DockBounds): number {
++  const { min, max } = dockRange(bounds);
++  if (!finite(x)) return min;
++  return Math.min(max, Math.max(min, Math.round(x)));
++}
++
++/** Left edge for the legacy presets (bottom-left / bottom-center). */
++export function presetDockX(preset: DockPreset, bounds: DockBounds): number {
++  const { min } = dockRange(bounds);
++  if (preset === "bottom-center") {
++    return clampDockX((bounds.containerWidth - bounds.dockWidth) / 2, bounds);
++  }
++  return min;
++}
++
++/** Resolve the initial left edge: a stored value wins (re-clamped), otherwise the preset. */
++export function resolveDockX(stored: number | null, preset: DockPreset, bounds: DockBounds): number {
++  if (stored !== null && finite(stored)) return clampDockX(stored, bounds);
++  return presetDockX(preset, bounds);
++}
++
++/** Left edge during a pointer drag: the dock's start left edge plus the pointer delta, clamped. */
++export function dragDockX(
++  startX: number,
++  pointerStartClientX: number,
++  pointerClientX: number,
++  bounds: DockBounds,
++): number {
++  return clampDockX(startX + (pointerClientX - pointerStartClientX), bounds);
++}
++
++/**
++ * Keyboard handling for the grip. Returns the new left edge, or null when the
++ * key is not a dock-moving key (so the caller leaves the event alone).
++ */
++export function stepDockX(
++  x: number,
++  key: string,
++  bounds: DockBounds,
++  step: number = DRAFTSMAN_DOCK_KEY_STEP,
++): number | null {
++  const { min, max } = dockRange(bounds);
++  const current = clampDockX(x, bounds);
++  switch (key) {
++    case "ArrowLeft":
++      return clampDockX(current - step, bounds);
++    case "ArrowRight":
++      return clampDockX(current + step, bounds);
++    case "Home":
++      return min;
++    case "End":
++      return max;
++    default:
++      return null;
++  }
++}
++
++/** Serialise a left edge for localStorage. */
++export function serializeDockX(x: number): string {
++  return JSON.stringify({ v: 1, x: Math.round(x) });
++}
++
++/**
++ * Parse a stored value. Accepts the v1 JSON envelope or a bare finite number;
++ * anything else (garbage, NaN, Infinity, strings, objects without x) is ignored.
++ */
++export function parseStoredDockX(raw: unknown): number | null {
++  if (typeof raw !== "string" || raw.trim() === "") return null;
++  let parsed: unknown;
++  try {
++    parsed = JSON.parse(raw);
++  } catch {
++    return null;
++  }
++  if (finite(parsed)) return Math.round(parsed);
++  if (parsed && typeof parsed === "object" && finite((parsed as { x?: unknown }).x)) {
++    return Math.round((parsed as { x: number }).x);
++  }
++  return null;
++}
++
++/** Read the persisted left edge; storage failures (private mode, quota, SecurityError) yield null. */
++export function readStoredDockX(
++  storage: DockStorage | null | undefined,
++  key: string = DRAFTSMAN_DOCK_STORAGE_KEY,
++): number | null {
++  if (!storage) return null;
++  try {
++    return parseStoredDockX(storage.getItem(key));
++  } catch {
++    return null;
++  }
++}
++
++/** Persist the left edge; returns false when storage is unavailable or throws. */
++export function writeStoredDockX(
++  storage: DockStorage | null | undefined,
++  x: number,
++  key: string = DRAFTSMAN_DOCK_STORAGE_KEY,
++): boolean {
++  if (!storage || !finite(x)) return false;
++  try {
++    storage.setItem(key, serializeDockX(x));
++    return true;
++  } catch {
++    return false;
++  }
++}
+diff --git a/src/studio/draftsmanDockPosition.test.ts b/src/studio/draftsmanDockPosition.test.ts
+new file mode 100644
+index 0000000..bfa2ca7
+--- /dev/null
++++ b/src/studio/draftsmanDockPosition.test.ts
+@@ -0,0 +1,154 @@
++import { describe, it } from "node:test";
++import assert from "node:assert/strict";
++import {
++  DRAFTSMAN_DOCK_EDGE_MARGIN,
++  DRAFTSMAN_DOCK_KEY_STEP,
++  DRAFTSMAN_DOCK_STORAGE_KEY,
++  clampDockX,
++  dockRange,
++  dragDockX,
++  parseStoredDockX,
++  presetDockX,
++  readStoredDockX,
++  resolveDockX,
++  serializeDockX,
++  stepDockX,
++  writeStoredDockX,
++  type DockStorage,
++} from "./draftsmanDockPosition.ts";
++
++const tablet = { containerWidth: 1024, dockWidth: 520 };
++const desktopStage = { containerWidth: 620, dockWidth: 520 };
++
++function memoryStorage(initial: Record<string, string> = {}) {
++  const map = new Map(Object.entries(initial));
++  const storage: DockStorage = {
++    getItem: (key) => map.get(key) ?? null,
++    setItem: (key, value) => {
++      map.set(key, value);
++    },
++  };
++  return { storage, map };
++}
++
++describe("draftsman dock position", () => {
++  it("clamps at both edges of the container", () => {
++    assert.deepEqual(dockRange(tablet), { min: 8, max: 1024 - 520 - 8 });
++    assert.equal(clampDockX(-500, tablet), DRAFTSMAN_DOCK_EDGE_MARGIN);
++    assert.equal(clampDockX(0, tablet), 8);
++    assert.equal(clampDockX(8, tablet), 8);
++    assert.equal(clampDockX(300, tablet), 300);
++    assert.equal(clampDockX(496, tablet), 496);
++    assert.equal(clampDockX(497, tablet), 496);
++    assert.equal(clampDockX(5000, tablet), 496);
++    assert.equal(clampDockX(123.6, tablet), 124, "rounds to whole pixels");
++  });
++
++  it("never lets a dock wider than its container escape the left margin", () => {
++    const narrow = { containerWidth: 400, dockWidth: 520 };
++    assert.deepEqual(dockRange(narrow), { min: 8, max: 8 });
++    assert.equal(clampDockX(200, narrow), 8);
++    assert.equal(clampDockX(-40, narrow), 8);
++  });
++
++  it("re-clamps a stored position when the container shrinks on resize", () => {
++    const stored = 480;
++    assert.equal(resolveDockX(stored, "bottom-left", tablet), 480);
++    assert.equal(resolveDockX(stored, "bottom-left", desktopStage), 620 - 520 - 8);
++    assert.equal(resolveDockX(stored, "bottom-left", { containerWidth: 1440, dockWidth: 520 }), 480);
++  });
++
++  it("treats non-finite candidates and margins defensively", () => {
++    assert.equal(clampDockX(Number.NaN, tablet), 8);
++    assert.equal(clampDockX(Number.POSITIVE_INFINITY, tablet), 8);
++    assert.equal(clampDockX(100, { containerWidth: Number.NaN, dockWidth: 520 }), 8);
++    assert.deepEqual(dockRange({ ...tablet, margin: -20 }), { min: 0, max: 504 });
++    assert.deepEqual(dockRange({ ...tablet, margin: 20 }), { min: 20, max: 484 });
++  });
++
++  it("uses the legacy presets when nothing is stored", () => {
++    assert.equal(presetDockX("bottom-left", tablet), 8);
++    assert.equal(presetDockX("bottom-center", tablet), 252);
++    assert.equal(resolveDockX(null, "bottom-left", tablet), 8);
++    assert.equal(resolveDockX(null, "bottom-center", tablet), 252);
++    assert.equal(presetDockX("bottom-center", { containerWidth: 400, dockWidth: 520 }), 8);
++  });
++
++  it("drags by the pointer delta and clamps at both ends", () => {
++    assert.equal(dragDockX(8, 100, 400, tablet), 308);
++    assert.equal(dragDockX(308, 400, 1000, tablet), 496, "+600 clamps to the right edge");
++    assert.equal(dragDockX(496, 1000, 100, tablet), 8, "-900 clamps to the left edge");
++    assert.equal(dragDockX(8, 100, 100 - 600, tablet), 8);
++  });
++
++  it("steps with the keyboard: arrows move 16px, Home/End jump, other keys are ignored", () => {
++    assert.equal(DRAFTSMAN_DOCK_KEY_STEP, 16);
++    assert.equal(stepDockX(100, "ArrowRight", tablet), 116);
++    assert.equal(stepDockX(100, "ArrowLeft", tablet), 84);
++    assert.equal(stepDockX(8, "ArrowLeft", tablet), 8, "cannot step past the left edge");
++    assert.equal(stepDockX(490, "ArrowRight", tablet), 496, "cannot step past the right edge");
++    assert.equal(stepDockX(300, "Home", tablet), 8);
++    assert.equal(stepDockX(300, "End", tablet), 496);
++    assert.equal(stepDockX(300, "ArrowUp", tablet), null);
++    assert.equal(stepDockX(300, "Enter", tablet), null);
++    assert.equal(stepDockX(300, "a", tablet), null);
++    assert.equal(stepDockX(9999, "ArrowLeft", tablet), 480, "out-of-range start is clamped before stepping");
++    assert.equal(stepDockX(100, "ArrowRight", tablet, 40), 140, "custom step");
++  });
++
++  it("round-trips through the v1 storage envelope", () => {
++    assert.equal(DRAFTSMAN_DOCK_STORAGE_KEY, "xray:draftsman-dock:v1");
++    assert.equal(serializeDockX(123.4), '{"v":1,"x":123}');
++    assert.equal(parseStoredDockX(serializeDockX(321)), 321);
++    assert.equal(parseStoredDockX("42"), 42, "bare numbers are accepted");
++  });
++
++  it("ignores invalid stored values", () => {
++    for (const raw of [
++      null,
++      undefined,
++      "",
++      "   ",
++      "abc",
++      "NaN",
++      "Infinity",
++      "-Infinity",
++      "{}",
++      "[]",
++      '{"x":"12"}',
++      '{"x":null}',
++      '{"x":"NaN"}',
++      '{"y":12}',
++      "{bad json",
++      "true",
++      '"12"',
++      12 as unknown,
++      { x: 12 } as unknown,
++    ]) {
++      assert.equal(parseStoredDockX(raw), null, `raw=${String(raw)}`);
++    }
++  });
++
++  it("reads and writes localStorage-like stores and swallows failures", () => {
++    const { storage, map } = memoryStorage();
++    assert.equal(readStoredDockX(storage), null);
++    assert.equal(writeStoredDockX(storage, 300), true);
++    assert.equal(map.get(DRAFTSMAN_DOCK_STORAGE_KEY), '{"v":1,"x":300}');
++    assert.equal(readStoredDockX(storage), 300);
++    assert.equal(readStoredDockX(memoryStorage({ [DRAFTSMAN_DOCK_STORAGE_KEY]: "garbage" }).storage), null);
++    assert.equal(readStoredDockX(null), null);
++    assert.equal(readStoredDockX(undefined), null);
++    assert.equal(writeStoredDockX(null, 10), false);
++    assert.equal(writeStoredDockX(storage, Number.NaN), false);
++    const throwing: DockStorage = {
++      getItem: () => {
++        throw new Error("SecurityError");
++      },
++      setItem: () => {
++        throw new Error("QuotaExceededError");
++      },
++    };
++    assert.equal(readStoredDockX(throwing), null);
++    assert.equal(writeStoredDockX(throwing, 10), false);
++  });
++});

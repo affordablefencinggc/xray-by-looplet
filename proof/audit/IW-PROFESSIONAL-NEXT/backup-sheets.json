@@ -1,0 +1,14 @@
+[
+  ["set", "viewport", "1440", "1000"],
+  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
+  ["find", "role", "button", "click", "--name", "Backups", "--exact"],
+  ["wait", "--fn", "document.querySelector('.backup-save-row button')?.disabled===false"],
+  ["fill", ".backup-save-row input", "Coordination issue B — sheet register"],
+  ["find", "role", "button", "click", "--name", "Save project backup", "--exact"],
+  ["wait", "--fn", "document.querySelector('.project-backups [role=status]')?.textContent.includes('saved and verified')"],
+  ["find", "role", "button", "click", "--name", "Inspect", "--exact"],
+  ["wait", "--fn", "document.querySelector('.backup-preview')?.textContent.includes('Source sheet names, order and archive state')"],
+  ["eval", "(async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('xray-workspace-backups-v1');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});const packages=await new Promise((resolve,reject)=>{const r=db.transaction('packages').objectStore('packages').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});db.close();const p=packages.map(JSON.parse).find(p=>p.name==='Coordination issue B — sheet register');if(!p||p.format!=='xray.workspace-backup/v2')throw Error('Missing v2 package');const sheets=JSON.parse(p.records.sheetMetadata);if(!sheets.some(s=>s.pages.some(p=>p.name==='Site and drainage plan')))throw Error('Renamed sheet omitted');if(p.assets[0].sha256!=='b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38')throw Error('Source changed');return {format:p.format,metadataSets:sheets.length,originals:p.assets.length,jobName:p.job.name}})()"],
+  ["screenshot", "screenshots/professional-next/backup-sheet-metadata.png"],
+  ["find", "role", "button", "click", "--name", "Close Project backups", "--exact"]
+]

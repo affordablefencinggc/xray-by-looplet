@@ -1,0 +1,1849 @@
+diff --git a/src/studio/floorConstruction.ts b/src/studio/floorConstruction.ts
+new file mode 100644
+index 0000000..7c950a3
+--- /dev/null
++++ b/src/studio/floorConstruction.ts
+@@ -0,0 +1,315 @@
++import * as THREE from "three";
++
++export const FLOOR_STAGES = [
++  {
++    id: "structure",
++    title: "Concrete structure",
++    detail: "Slab, six reinforced-concrete columns and perimeter beams.",
++  },
++  {
++    id: "framing",
++    title: "Wall framing",
++    detail: "Timber studs, plates and doorway lintels. Open front for inspection.",
++  },
++  {
++    id: "plumbing",
++    title: "Plumbing rough-in",
++    detail: "Hot and cold supplies, waste branches and a service riser.",
++  },
++  {
++    id: "electrical",
++    title: "Electrical rough-in",
++    detail: "Conduit runs, switch boxes, outlets and distribution board.",
++  },
++  {
++    id: "gyprock",
++    title: "Gyprock",
++    detail: "Plasterboard panels leave openings for the kitchen and bathroom.",
++  },
++  {
++    id: "painting",
++    title: "Painting",
++    detail: "Warm ivory wall finish, with a muted sage kitchen feature wall.",
++  },
++  {
++    id: "flooring",
++    title: "Flooring",
++    detail: "Individual oak boards and pale ceramic bathroom tiles.",
++  },
++  {
++    id: "fixtures",
++    title: "Fixtures & fittings",
++    detail: "Kitchen cabinetry, worktop, sink, tap, shower, vanity and sanitaryware.",
++  },
++  {
++    id: "appliances",
++    title: "Appliances & fit-off",
++    detail: "Oven, cooktop, refrigerator, lights and finished outlets.",
++  },
++] as const;
++export type FloorStage = (typeof FLOOR_STAGES)[number]["id"];
++export type FloorPart = {
++  id: string;
++  stage: FloorStage;
++  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
++};
++
++/** Authored illustrative apartment, metres. No source-plan or engineering claims. */
++export function createFloorComponents() {
++  const group = new THREE.Group();
++  const parts: FloorPart[] = [];
++  const materials = new Map<string, THREE.MeshStandardMaterial>();
++  const material = (color: string, metalness = 0, roughness = 0.78) => {
++    const key = `${color}:${metalness}:${roughness}`;
++    if (!materials.has(key))
++      materials.set(key, new THREE.MeshStandardMaterial({ color, metalness, roughness }));
++    return materials.get(key)!;
++  };
++  const add = (
++    id: string,
++    stage: FloorStage,
++    geometry: THREE.BufferGeometry,
++    position: number[],
++    color: string,
++    metalness = 0,
++  ) => {
++    const mesh = new THREE.Mesh(geometry, material(color, metalness));
++    mesh.position.set(position[0], position[1], position[2]);
++    mesh.castShadow = mesh.receiveShadow = true;
++    mesh.name = id;
++    mesh.userData.stage = stage;
++    group.add(mesh);
++    parts.push({ id, stage, mesh });
++    return mesh;
++  };
++  const box = (
++    id: string,
++    stage: FloorStage,
++    x: number,
++    y: number,
++    z: number,
++    w: number,
++    h: number,
++    d: number,
++    color: string,
++    metal = 0,
++  ) => add(id, stage, new THREE.BoxGeometry(w, h, d), [x, y, z], color, metal);
++  const pipe = (
++    id: string,
++    stage: FloorStage,
++    a: number[],
++    b: number[],
++    radius: number,
++    color: string,
++    metal = 0.45,
++  ) => {
++    const from = new THREE.Vector3(...a),
++      to = new THREE.Vector3(...b),
++      delta = to.clone().sub(from);
++    const mesh = add(
++      id,
++      stage,
++      new THREE.CylinderGeometry(radius, radius, delta.length(), 8),
++      from.clone().add(to).multiplyScalar(0.5).toArray(),
++      color,
++      metal,
++    );
++    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
++    return mesh;
++  };
++  box("Concrete floor slab", "structure", 0, -0.16, 0, 12, 0.32, 9, "#aaa89f");
++  for (const x of [-5.65, 0, 5.65])
++    for (const z of [-4.15, 4.15]) {
++      box(`Concrete column ${x},${z}`, "structure", x, 1.65, z, 0.38, 3.3, 0.38, "#b6b4aa");
++      for (const y of [0.85, 1.7, 2.55])
++        box(`Formwork joint ${x},${z},${y}`, "structure", x, y, z, 0.384, 0.012, 0.384, "#8d8b84");
++    }
++  for (const z of [-4.15, 4.15])
++    box(`Concrete beam ${z}`, "structure", 0, 3.15, z, 11.7, 0.32, 0.34, "#aaa89f");
++  for (const x of [-5.65, 5.65])
++    box(`Side beam ${x}`, "structure", x, 3.15, 0, 0.34, 0.32, 8.3, "#aaa89f");
++  // Rear wall and bathroom partition, with a 1m doorway in the partition.
++  for (const [x, z, w] of [
++    [0, -4, 11.3],
++    [3.9, 1, 3.5],
++  ] as number[][]) {
++    box(`Bottom plate ${z}`, "framing", x, 0.065, z, w, 0.09, 0.09, "#b78652");
++    box(`Top plate ${z}`, "framing", x, 2.94, z, w, 0.09, 0.09, "#b78652");
++    for (let s = -w / 2; s <= w / 2; s += 0.56) {
++      if (z === 1 && s < -0.65) continue;
++      box(`Stud ${z}:${s}`, "framing", x + s, 1.5, z, 0.045, 2.85, 0.09, "#c49965");
++      box(`Noggin ${z}:${s}`, "framing", x + s + 0.25, 1.35, z, 0.46, 0.045, 0.09, "#b78652");
++    }
++  }
++  for (const x of [-5.5, 5.5]) {
++    box(`Side bottom plate ${x}`, "framing", x, 0.065, -1.5, 0.09, 0.09, 5, "#b78652");
++    box(`Side top plate ${x}`, "framing", x, 2.94, -1.5, 0.09, 0.09, 5, "#b78652");
++    for (let z = -3.8; z <= 0.7; z += 0.56)
++      box(`Side stud ${x}:${z}`, "framing", x, 1.5, z, 0.09, 2.85, 0.045, "#c49965");
++  }
++  const cold = "#548b9f",
++    hot = "#b86e42",
++    waste = "#555e62";
++  for (const [z, c] of [
++    [-3.72, cold],
++    [-3.55, hot],
++  ] as [number, string][]) {
++    pipe(`Water main ${c}`, "plumbing", [-4.7, 0.22, z], [4.8, 0.22, z], 0.026, c);
++    for (const x of [-3.4, 3.7, 4.7])
++      pipe(`Water branch ${c}:${x}`, "plumbing", [x, 0.22, z], [x, 1.02, z], 0.022, c);
++  }
++  pipe("Waste collector", "plumbing", [-3.4, 0.11, -3.2], [4.85, 0.11, -3.2], 0.065, waste);
++  pipe("Soil stack", "plumbing", [4.85, 0.11, -3.2], [4.85, 3.4, -3.2], 0.075, waste);
++  pipe("WC waste branch", "plumbing", [4.85, 0.11, -3.2], [4.5, 0.11, -0.8], 0.055, waste);
++  pipe("Shower waste branch", "plumbing", [4.4, 0.11, -3.2], [3.2, 0.11, -2.4], 0.045, waste);
++  box("Distribution board", "electrical", -5.35, 1.65, -2.1, 0.16, 0.56, 0.42, "#737a78", 0.3);
++  for (const x of [-4.5, -2.5, 0, 2.5, 4.5]) {
++    pipe(
++      `Cable tray feed ${x}`,
++      "electrical",
++      [-5.2, 2.78, -3.75],
++      [x, 2.78, -3.75],
++      0.019,
++      "#b99039",
++    );
++    pipe(`Outlet conduit ${x}`, "electrical", [x, 2.78, -3.75], [x, 0.48, -3.75], 0.018, "#727c7b");
++    box(`Outlet box ${x}`, "electrical", x, 0.48, -3.69, 0.14, 0.15, 0.055, "#3d575d");
++  }
++  for (const x of [-3, 0, 3]) {
++    pipe(`Lighting conduit ${x}`, "electrical", [x, 2.78, -3.75], [x, 2.78, 1.5], 0.017, "#a88638");
++    pipe(`Pendant feed ${x}`, "electrical", [x, 2.78, 0], [x, 2.25, 0], 0.012, "#474947");
++  }
++  for (let x = -4.8; x < 5.4; x += 1.2) {
++    box(`Rear plasterboard ${x}`, "gyprock", x, 1.5, -3.92, 1.19, 2.9, 0.025, "#d5d2c7");
++    box(
++      `Paint rear ${x}`,
++      "painting",
++      x,
++      1.5,
++      -3.898,
++      1.19,
++      2.9,
++      0.012,
++      x < -1 ? "#8c9b8b" : "#e5ddcc",
++    );
++  }
++  for (const x of [-5.43, 5.43]) {
++    box(`Side plasterboard ${x}`, "gyprock", x, 1.5, -1.5, 0.025, 2.9, 5, "#d5d2c7");
++    box(
++      `Paint side ${x}`,
++      "painting",
++      x + (x < 0 ? 0.022 : -0.022),
++      1.5,
++      -1.5,
++      0.012,
++      2.9,
++      5,
++      "#e5ddcc",
++    );
++  }
++  box("Bathroom plasterboard", "gyprock", 4.15, 1.5, 1.055, 2.5, 2.9, 0.025, "#d5d2c7");
++  box("Bathroom paint", "painting", 4.15, 1.5, 1.078, 2.5, 2.9, 0.012, "#e5ddcc");
++  for (let z = -3.8; z < 4; z += 0.27)
++    for (let x = -5.3; x < 5.2; x += 1.8) {
++      if (x > 1.8 && z < 1) continue;
++      const tone = ["#b78d60", "#c59c6a", "#bd9366", "#cfaa7b"][
++        Math.abs(Math.round(x * 7 + z * 19)) % 4
++      ];
++      box(`Oak board ${x}:${z}`, "flooring", x + 0.81, 0.034, z, 1.78, 0.045, 0.26, tone);
++    }
++  for (let x = 2.5; x < 5.3; x += 0.55)
++    for (let z = -3.65; z < 0.8; z += 0.55)
++      box(`Bath tile ${x}:${z}`, "flooring", x, 0.038, z, 0.542, 0.05, 0.542, "#c8c8bf");
++  for (let x = -4.5; x < 0.5; x += 0.82) {
++    box(`Kitchen cabinet ${x}`, "fixtures", x, 0.48, -3.27, 0.8, 0.91, 1.1, "#9b7450");
++    box(`Cabinet front ${x}`, "fixtures", x, 0.5, -2.703, 0.76, 0.82, 0.035, "#aa835b");
++    box(`Handle ${x}`, "fixtures", x, 0.82, -2.665, 0.28, 0.023, 0.023, "#b9ab83", 0.65);
++  }
++  box("Stone worktop left", "fixtures", -4.12, 0.965, -3.26, 1.6, 0.06, 1.15, "#e6e2d6");
++  box("Stone worktop right", "fixtures", -0.98, 0.965, -3.26, 3, 0.06, 1.15, "#e6e2d6");
++  box("Sink rim", "fixtures", -2.91, 0.965, -3.26, 0.77, 0.065, 1.12, "#aeb6b5", 0.75);
++  box("Sink bowl", "fixtures", -2.91, 1.003, -3.26, 0.57, 0.012, 0.65, "#57696a", 0.65);
++  pipe(
++    "Kitchen tap stem",
++    "fixtures",
++    [-2.91, 0.99, -3.64],
++    [-2.91, 1.3, -3.64],
++    0.025,
++    "#b3bab7",
++    0.85,
++  );
++  pipe(
++    "Kitchen tap spout",
++    "fixtures",
++    [-2.91, 1.3, -3.64],
++    [-2.91, 1.3, -3.3],
++    0.025,
++    "#b3bab7",
++    0.85,
++  );
++  box("Shower tray", "fixtures", 3.05, 0.12, -2.9, 1.22, 0.12, 1.6, "#e5e3db");
++  pipe("Shower rail", "fixtures", [2.52, 0.5, -3.7], [2.52, 2.28, -3.7], 0.022, "#aeb6b5", 0.8);
++  pipe("Shower arm", "fixtures", [2.52, 2.28, -3.7], [2.52, 2.28, -3.4], 0.022, "#aeb6b5", 0.8);
++  box("Rain shower head", "fixtures", 2.52, 2.27, -3.38, 0.22, 0.026, 0.22, "#aeb6b5", 0.8);
++  box("Vanity", "fixtures", 4.78, 0.57, -2.9, 0.85, 0.88, 1.05, "#9b7450");
++  box("Vanity basin", "fixtures", 4.78, 1.04, -2.9, 0.88, 0.08, 1.08, "#efeee6");
++  box("Vanity mirror", "fixtures", 5.38, 1.85, -2.9, 0.015, 0.9, 0.85, "#899ea0", 0.9);
++  const toilet = add(
++    "Toilet bowl",
++    "fixtures",
++    new THREE.SphereGeometry(0.29, 16, 10),
++    [4.45, 0.38, -0.3],
++    "#ecece5",
++  );
++  toilet.scale.set(1, 0.6, 1.4);
++  box("Toilet pedestal", "fixtures", 4.45, 0.18, -0.35, 0.32, 0.36, 0.42, "#ecece5");
++  box("Toilet cistern", "fixtures", 4.45, 0.64, -0.72, 0.54, 0.62, 0.2, "#ecece5");
++  box("Oven", "appliances", -0.4, 0.48, -2.677, 0.7, 0.66, 0.075, "#323b3e", 0.6);
++  box("Oven glass", "appliances", -0.4, 0.42, -2.63, 0.56, 0.4, 0.018, "#142129", 0.25);
++  box("Oven handle", "appliances", -0.4, 0.74, -2.6, 0.54, 0.026, 0.038, "#bdc0b9", 0.8);
++  box("Induction hob", "appliances", -0.4, 1.006, -3.22, 0.68, 0.022, 0.7, "#172326", 0.3);
++  for (const x of [-0.58, -0.22])
++    for (const z of [-3.4, -3.06]) {
++      const ring = add(
++        `Hob ring ${x}:${z}`,
++        "appliances",
++        new THREE.TorusGeometry(0.11, 0.008, 4, 24),
++        [x, 1.022, z],
++        "#8a928f",
++        0.4,
++      );
++      ring.rotation.x = Math.PI / 2;
++    }
++  box("Fridge", "appliances", -4.75, 1.1, -1.95, 0.91, 2.15, 0.86, "#b7bdb7", 0.65);
++  box("Fridge door seam", "appliances", -4.75, 0.72, -1.514, 0.87, 0.014, 0.012, "#596563");
++  box("Fridge handle", "appliances", -4.39, 1.49, -1.49, 0.035, 0.55, 0.04, "#697571", 0.7);
++  for (const x of [-3, 0, 3]) {
++    add(
++      `Pendant shade ${x}`,
++      "appliances",
++      new THREE.ConeGeometry(0.26, 0.24, 24, 1, true),
++      [x, 2.25, 0],
++      "#d4b77b",
++      0.4,
++    );
++    add(
++      `Pendant diffuser ${x}`,
++      "appliances",
++      new THREE.CylinderGeometry(0.22, 0.22, 0.022, 24),
++      [x, 2.13, 0],
++      "#fff0ce",
++    );
++  }
++  for (const x of [-4.5, -2.5, 0, 2.5, 4.5])
++    box(`Outlet face ${x}`, "appliances", x, 0.48, -3.867, 0.15, 0.16, 0.018, "#edece4");
++  group.updateMatrixWorld(true);
++  return {
++    group,
++    parts,
++    dispose() {
++      parts.forEach((p) => p.mesh.geometry.dispose());
++      materials.forEach((m) => m.dispose());
++      group.removeFromParent();
++    },
++  };
++}
+diff --git a/src/studio/floorDrawing.ts b/src/studio/floorDrawing.ts
+new file mode 100644
+index 0000000..3409469
+--- /dev/null
++++ b/src/studio/floorDrawing.ts
+@@ -0,0 +1,228 @@
++import * as THREE from "three";
++import type { FloorPart } from "./floorConstruction";
++
++export const FLOOR_SCRIBBLE_SECONDS = 0.1;
++export type FloorStroke = { a: THREE.Vector3; b: THREE.Vector3; color: THREE.Color; part: number };
++const clamp = (x: number) => Math.max(0, Math.min(1, x));
++
++export function floorStrokes(parts: FloorPart[], shade: boolean): FloorStroke[] {
++  const strokes: FloorStroke[] = [];
++  parts.forEach(({ mesh }, part) => {
++    mesh.updateWorldMatrix(true, false);
++    const color = shade ? mesh.material.color.clone() : new THREE.Color("#3f4540");
++    if (!shade) {
++      const edge = new THREE.EdgesGeometry(mesh.geometry, 30),
++        p = edge.getAttribute("position");
++      for (let i = 0; i < p.count; i += 2)
++        strokes.push({
++          a: new THREE.Vector3().fromBufferAttribute(p, i).applyMatrix4(mesh.matrixWorld),
++          b: new THREE.Vector3().fromBufferAttribute(p, i + 1).applyMatrix4(mesh.matrixWorld),
++          color,
++          part,
++        });
++      edge.dispose();
++      return;
++    }
++    const p = mesh.geometry.getAttribute("position"),
++      idx = mesh.geometry.index;
++    const n = idx?.count ?? p.count;
++    for (let i = 0; i < n; i += 3) {
++      const a = new THREE.Vector3()
++        .fromBufferAttribute(p, idx ? idx.getX(i) : i)
++        .applyMatrix4(mesh.matrixWorld);
++      const b = new THREE.Vector3()
++        .fromBufferAttribute(p, idx ? idx.getX(i + 1) : i + 1)
++        .applyMatrix4(mesh.matrixWorld);
++      const c = new THREE.Vector3()
++        .fromBufferAttribute(p, idx ? idx.getX(i + 2) : i + 2)
++        .applyMatrix4(mesh.matrixWorld);
++      const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize().multiplyScalar(0.002);
++      // Each hatch stays inside its actual surface triangle. Alternating directions
++      // produce the left/right scribble; the persistent geometry is the nib path.
++      for (let row = 0; row < 7; row++) {
++        const t = (row + 0.5) / 7,
++          from = a.clone().lerp(c, t).add(normal),
++          to = b.clone().lerp(c, t).add(normal);
++        strokes.push({ a: row % 2 ? to : from, b: row % 2 ? from : to, color, part });
++      }
++    }
++  });
++  return strokes;
++}
++
++export function floorLanePose(seconds: number, index: number, count: number) {
++  const cycle = 0.173 + ((index * 37) % 89) / 1000;
++  const time = Math.max(0, seconds - ((index * 19) % 97) / 1000);
++  const burst = Math.floor(time / cycle),
++    local = time - burst * cycle;
++  const perBurst = 14;
++  const cursor = Math.min(count, (burst + clamp(local / FLOOR_SCRIBBLE_SECONDS)) * perBurst);
++  return { cursor, contact: local < FLOOR_SCRIBBLE_SECONDS, local, cycle, burst, perBurst };
++}
++
++function vintagePencil(
++  color: THREE.Color,
++  colored: boolean,
++  ownGeo: THREE.BufferGeometry[],
++  ownMat: THREE.Material[],
++) {
++  const group = new THREE.Group();
++  const lacquer = new THREE.MeshStandardMaterial({
++    color: colored ? color : "#d5a12e",
++    roughness: 0.42,
++  });
++  const wood = new THREE.MeshStandardMaterial({ color: "#d5b88a", roughness: 0.92 });
++  const lead = new THREE.MeshStandardMaterial({
++    color: colored ? color : "#333632",
++    roughness: 0.8,
++  });
++  const ferrule = new THREE.MeshStandardMaterial({
++    color: "#a9a28a",
++    metalness: 0.72,
++    roughness: 0.43,
++  });
++  const eraser = new THREE.MeshStandardMaterial({ color: "#bd7a6e", roughness: 1 });
++  ownMat.push(lacquer, wood, lead, ferrule, eraser);
++  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => {
++    ownGeo.push(geo);
++    const mesh = new THREE.Mesh(geo, mat);
++    mesh.position.y = y;
++    group.add(mesh);
++  };
++  const cone = (radius: number, height: number) => {
++    const g = new THREE.ConeGeometry(radius, height, 6);
++    g.rotateZ(Math.PI);
++    return g;
++  };
++  add(cone(0.023, 0.105), lead, 0.0525);
++  add(cone(0.064, 0.24), wood, 0.18);
++  add(new THREE.CylinderGeometry(0.063, 0.063, 0.92, 6), lacquer, 0.76);
++  if (colored) add(new THREE.CylinderGeometry(0.063, 0.063, 0.055, 6), lead, 1.245);
++  else {
++    add(new THREE.CylinderGeometry(0.066, 0.066, 0.14, 12), ferrule, 1.28);
++    for (const y of [1.23, 1.27, 1.31])
++      add(new THREE.TorusGeometry(0.066, 0.003, 4, 12).rotateX(Math.PI / 2), ferrule, y);
++    add(new THREE.CylinderGeometry(0.061, 0.061, 0.12, 12), eraser, 1.41);
++  }
++  return {
++    group,
++    color(c: THREE.Color) {
++      if (colored) {
++        lacquer.color.copy(c);
++        lead.color.copy(c);
++      }
++    },
++  };
++}
++
++/** Reversible persistent stroke buffers, with a pencil nib at each live endpoint. */
++export function createFloorDrawing(strokes: FloorStroke[], colored: boolean) {
++  const group = new THREE.Group();
++  const geometries: THREE.BufferGeometry[] = [],
++    materials: THREE.Material[] = [];
++  const count = colored ? 50 : 5;
++  const lanes = Array.from({ length: count }, (_, i) => {
++    const path = strokes.filter((_, j) => j % count === i);
++    const positions = new Float32Array(path.length * 6),
++      colors = new Float32Array(path.length * 6);
++    path.forEach((s, j) => {
++      s.a.toArray(positions, j * 6);
++      s.b.toArray(positions, j * 6 + 3);
++      s.color.toArray(colors, j * 6);
++      s.color.toArray(colors, j * 6 + 3);
++    });
++    const geo = new THREE.BufferGeometry();
++    geometries.push(geo);
++    geo.setAttribute(
++      "position",
++      new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage),
++    );
++    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
++    geo.setDrawRange(0, 0);
++    const mat = new THREE.LineBasicMaterial({ vertexColors: true });
++    materials.push(mat);
++    const line = new THREE.LineSegments(geo, mat);
++    line.frustumCulled = false;
++    group.add(line);
++    const pencil = vintagePencil(
++      path[0]?.color ?? new THREE.Color("#d5a12e"),
++      colored,
++      geometries,
++      materials,
++    );
++    pencil.group.scale.setScalar(colored ? 0.65 : 1);
++    group.add(pencil.group);
++    const duration = (Math.ceil(path.length / 14) + 1) * (0.173 + ((i * 37) % 89) / 1000) + 0.1;
++    return { path, geo, pencil, duration, previous: -1, drawn: 0, contact: false };
++  });
++  const duration = Math.max(...lanes.map((l) => l.duration));
++  const tip = new THREE.Vector3();
++  return {
++    group,
++    duration,
++    count,
++    update(seconds: number, showPencils = true) {
++      let drawn = 0;
++      const completed = new Map<number, number>();
++      lanes.forEach((lane, i) => {
++        const { path, geo, pencil } = lane,
++          p = geo.getAttribute("position") as THREE.BufferAttribute;
++        const beat = floorLanePose(seconds, i, path.length),
++          whole = Math.floor(beat.cursor),
++          fraction = beat.cursor - whole;
++        if (lane.previous >= 0 && lane.previous < path.length) {
++          const b = path[lane.previous].b;
++          p.setXYZ(lane.previous * 2 + 1, b.x, b.y, b.z);
++        }
++        lane.previous = whole;
++        lane.drawn = whole;
++        lane.contact = beat.contact;
++        geo.setDrawRange(0, whole * 2 + (fraction > 0 ? 2 : 0));
++        for (let j = 0; j < whole; j++)
++          completed.set(path[j].part, (completed.get(path[j].part) ?? 0) + 1);
++        drawn += whole;
++        pencil.group.visible = showPencils && whole < path.length && seconds >= 0;
++        if (!path.length) return;
++        const current = path[Math.min(whole, path.length - 1)];
++        tip.lerpVectors(current.a, current.b, fraction);
++        if (fraction > 0) p.setXYZ(whole * 2 + 1, tip.x, tip.y, tip.z);
++        p.needsUpdate = true;
++        if (!beat.contact && whole < path.length) {
++          const from = path[Math.max(0, whole - 1)].b,
++            to = current.a;
++          const u = clamp((beat.local - 0.1) / (beat.cycle - 0.1)),
++            lift = Math.sin(Math.PI * u);
++          tip.lerpVectors(from, to, u);
++          // Aggressive spatial feints and fizz only while lifted off the surface.
++          tip.x += lift * (0.65 * Math.sin(u * 19 + i) + 0.12 * Math.sin(seconds * 197 + i));
++          tip.z += lift * (0.52 * Math.cos(u * 23 + i * 2) + 0.1 * Math.sin(seconds * 233 + i));
++          tip.y += lift * (0.4 + 0.09 * Math.sin(seconds * 181 + i));
++        }
++        pencil.group.position.copy(tip);
++        pencil.color(current.color);
++        pencil.group.rotation.set(
++          0.09 * Math.sin(seconds * 91 + i),
++          i * 2.4 + seconds,
++          0.12 * Math.sin(seconds * 113 + i),
++        );
++      });
++      return { drawn, total: strokes.length, completed };
++    },
++    poses() {
++      return lanes.map((l) => ({
++        tip: l.pencil.group.position.toArray(),
++        contact: l.contact,
++        drawn: l.drawn,
++        color: (
++          l.pencil.group.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>
++        ).material.color.getHexString(),
++        visible: l.pencil.group.visible,
++      }));
++    },
++    dispose() {
++      group.removeFromParent();
++      geometries.forEach((g) => g.dispose());
++      materials.forEach((m) => m.dispose());
++    },
++  };
++}
+diff --git a/src/studio/floorDrawing.test.ts b/src/studio/floorDrawing.test.ts
+new file mode 100644
+index 0000000..35687bd
+--- /dev/null
++++ b/src/studio/floorDrawing.test.ts
+@@ -0,0 +1,83 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import * as THREE from "three";
++import { createFloorComponents, FLOOR_STAGES } from "./floorConstruction.ts";
++import {
++  createFloorDrawing,
++  floorLanePose,
++  floorStrokes,
++  FLOOR_SCRIBBLE_SECONDS,
++} from "./floorDrawing.ts";
++
++test("one floor contains each requested trade and finite, uniquely named real components", () => {
++  const floor = createFloorComponents();
++  assert.equal(new Set(floor.parts.map((p) => p.id)).size, floor.parts.length);
++  for (const stage of FLOOR_STAGES)
++    assert.ok(
++      floor.parts.some((p) => p.stage === stage.id),
++      stage.id,
++    );
++  for (const part of floor.parts) {
++    part.mesh.geometry.computeBoundingBox();
++    assert.ok(Number.isFinite(part.mesh.geometry.boundingBox!.min.x));
++  }
++  assert.ok(floor.parts.length > 300);
++  floor.dispose();
++});
++test("0.1 second bursts have independent timing and stop exactly at finite queue end", () => {
++  assert.equal(FLOOR_SCRIBBLE_SECONDS, 0.1);
++  assert.equal(
++    new Set(Array.from({ length: 50 }, (_, i) => floorLanePose(0.72, i, 100).cycle)).size,
++    50,
++  );
++  assert.ok(
++    Array.from({ length: 50 }, (_, i) => floorLanePose(0.72, i, 100)).some((p) => p.contact),
++  );
++  assert.ok(
++    Array.from({ length: 50 }, (_, i) => floorLanePose(0.72, i, 100)).some((p) => !p.contact),
++  );
++  for (let i = 0; i < 50; i++) {
++    assert.equal(floorLanePose(100, i, 73).cursor, 73);
++    assert.equal(floorLanePose(0, i, 73).cursor, 0);
++  }
++});
++test("persistent ink endpoint equals the actual pencil nib and replay removes future strokes", () => {
++  const path = Array.from({ length: 100 }, (_, i) => ({
++    a: new THREE.Vector3(i, 0, 0),
++    b: new THREE.Vector3(i, 0, 1),
++    color: new THREE.Color("#9b7450"),
++    part: 0,
++  }));
++  const draw = createFloorDrawing(path, false);
++  draw.update(0.037);
++  const pose = draw.poses()[0],
++    line = draw.group.children[0] as THREE.LineSegments;
++  const positions = line.geometry.getAttribute("position");
++  const endpoint = new THREE.Vector3().fromBufferAttribute(
++    positions,
++    line.geometry.drawRange.count - 1,
++  );
++  assert.ok(endpoint.distanceTo(new THREE.Vector3(...pose.tip)) < 1e-6);
++  assert.equal(pose.contact, true);
++  assert.equal(draw.update(draw.duration).drawn, 100);
++  draw.update(0);
++  assert.equal(line.geometry.drawRange.count, 0);
++  draw.update(0.037);
++  assert.deepEqual(draw.poses()[0].tip, pose.tip);
++  draw.dispose();
++});
++test("fifty coloured nibs use the same material colour as deposited surface hatching", () => {
++  const floor = createFloorComponents(),
++    parts = floor.parts.filter((p) => p.stage === "framing");
++  const strokes = floorStrokes(parts, true),
++    draw = createFloorDrawing(strokes, true);
++  assert.equal(draw.count, 50);
++  draw.update(0.057);
++  for (const p of draw.poses())
++    assert.ok(parts.some((part) => part.mesh.material.color.getHexString() === p.color));
++  const result = draw.update(draw.duration);
++  assert.equal(result.drawn, strokes.length);
++  assert.equal(result.completed.size, parts.length);
++  draw.dispose();
++  floor.dispose();
++});
+diff --git a/src/studio/FloorConstructionStudio.tsx b/src/studio/FloorConstructionStudio.tsx
+new file mode 100644
+index 0000000..65644f2
+--- /dev/null
++++ b/src/studio/FloorConstructionStudio.tsx
+@@ -0,0 +1,576 @@
++import { useEffect, useRef, useState } from "react";
++import { Link } from "@tanstack/react-router";
++import * as THREE from "three";
++import { OrbitControls } from "three/addons/controls/OrbitControls.js";
++import { createFloorComponents, FLOOR_STAGES } from "./floorConstruction";
++import { createFloorDrawing, floorStrokes } from "./floorDrawing";
++import "./floorConstruction.css";
++
++type Status = {
++  time: number;
++  total: number;
++  stage: number;
++  pass: string;
++  drawn: number;
++  strokes: number;
++  pencils: number;
++  parts: number;
++  fps: number;
++  playing: boolean;
++};
++type FloorApi = {
++  seek: (time: number) => void;
++  play: (on: boolean) => void;
++  speed: (value: number) => void;
++  stage: (index: number) => void;
++  expose: (on: boolean) => void;
++  shadows: (on: boolean) => void;
++  background: (color: string) => void;
++  fit: () => void;
++  plan: () => void;
++  capture: () => void;
++  dispose: () => void;
++};
++
++function createStudio(host: HTMLDivElement, onStatus: (s: Status) => void): FloorApi {
++  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
++  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
++  renderer.outputColorSpace = THREE.SRGBColorSpace;
++  renderer.toneMapping = THREE.ACESFilmicToneMapping;
++  renderer.toneMappingExposure = 1.18;
++  renderer.shadowMap.enabled = true;
++  renderer.shadowMap.type = THREE.PCFShadowMap;
++  renderer.domElement.setAttribute("aria-label", "One-floor construction model");
++  host.appendChild(renderer.domElement);
++  const scene = new THREE.Scene();
++  scene.background = new THREE.Color("#e8e5db");
++  const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
++  camera.position.set(14, 13, 17);
++  const controls = new OrbitControls(camera, renderer.domElement);
++  controls.target.set(0, 0.7, 0);
++  controls.enableDamping = true;
++  controls.minDistance = 5;
++  controls.maxDistance = 38;
++  controls.maxPolarAngle = Math.PI * 0.49;
++  const ambient = new THREE.HemisphereLight("#fff7e3", "#7f8789", 2.4);
++  scene.add(ambient);
++  const sun = new THREE.DirectionalLight("#fff1d8", 3.5);
++  sun.position.set(-6, 14, 8);
++  sun.castShadow = true;
++  sun.shadow.mapSize.set(2048, 2048);
++  Object.assign(sun.shadow.camera, {
++    left: -12,
++    right: 12,
++    top: 12,
++    bottom: -12,
++    near: 1,
++    far: 40,
++  });
++  sun.shadow.normalBias = 0.025;
++  scene.add(sun);
++  const fill = new THREE.DirectionalLight("#d8e6ef", 1.1);
++  fill.position.set(8, 6, -8);
++  scene.add(fill);
++  const floor = createFloorComponents();
++  scene.add(floor.group);
++  const floorGeo = new THREE.PlaneGeometry(200, 200),
++    floorMat = new THREE.MeshStandardMaterial({ color: "#dedbd1", roughness: 1 });
++  const ground = new THREE.Mesh(floorGeo, floorMat);
++  ground.rotation.x = -Math.PI / 2;
++  ground.position.y = -0.33;
++  ground.receiveShadow = true;
++  scene.add(ground);
++  const grid = new THREE.GridHelper(16, 32, "#acae9e", "#cbcdc1");
++  grid.position.y = -0.325;
++  scene.add(grid);
++  // Fine deterministic aggregate: real material texture, not a photographic asset.
++  const paper = document.createElement("canvas");
++  paper.width = paper.height = 128;
++  const ctx = paper.getContext("2d")!;
++  const pixels = ctx.createImageData(128, 128);
++  for (let i = 0; i < pixels.data.length; i += 4) {
++    const v = 205 + (((i * 97) ^ ((i >>> 4) * 13)) % 38);
++    pixels.data.set([v, v, v, 255], i);
++  }
++  ctx.putImageData(pixels, 0, 0);
++  const concrete = new THREE.CanvasTexture(paper);
++  concrete.wrapS = concrete.wrapT = THREE.RepeatWrapping;
++  concrete.repeat.set(5, 5);
++  concrete.colorSpace = THREE.SRGBColorSpace;
++  floor.parts
++    .filter((p) => p.id.startsWith("Concrete"))
++    .forEach((p) => {
++      p.mesh.material.map = concrete;
++      p.mesh.material.bumpMap = concrete;
++      p.mesh.material.bumpScale = 0.014;
++    });
++  const stages = FLOOR_STAGES.map((stage) => {
++    const parts = floor.parts.filter((p) => p.stage === stage.id),
++      wire = floorStrokes(parts, false),
++      shade = floorStrokes(parts, true);
++    const duration = (n: number, count: number) =>
++      Math.max(
++        ...Array.from(
++          { length: count },
++          (_, i) =>
++            (Math.ceil(Math.ceil(Math.max(0, n - i) / count) / 14) + 1) *
++              (0.173 + ((i * 37) % 89) / 1000) +
++            0.1,
++        ),
++      );
++    return {
++      parts,
++      wire,
++      shade,
++      wireDuration: duration(wire.length, 5),
++      shadeDuration: duration(shade.length, 50),
++      start: 0,
++      end: 0,
++    };
++  });
++  let total = 0;
++  stages.forEach((s) => {
++    s.start = total;
++    total += s.wireDuration + s.shadeDuration + 0.65;
++    s.end = total;
++  });
++  let time = 0,
++    playing = !matchMedia("(prefers-reduced-motion: reduce)").matches,
++    speed = 1,
++    expose = false,
++    active = -1;
++  let drawing: ReturnType<typeof createFloorDrawing> | null = null,
++    shading: ReturnType<typeof createFloorDrawing> | null = null;
++  let last = performance.now(),
++    lastStatus = 0,
++    frame = 0,
++    disposed = false,
++    fps = 60;
++  function paint(now: number) {
++    frame = 0;
++    if (disposed) return;
++    const delta = Math.min((now - last) / 1000, 0.08);
++    last = now;
++    fps = fps * 0.95 + (1 / Math.max(0.001, delta)) * 0.05;
++    if (playing && !document.hidden) time = Math.min(total, time + delta * speed);
++    const index = Math.min(
++        stages.findIndex((s) => time < s.end) === -1
++          ? stages.length - 1
++          : stages.findIndex((s) => time < s.end),
++        stages.length - 1,
++      ),
++      stage = stages[index];
++    if (index !== active) {
++      drawing?.dispose();
++      shading?.dispose();
++      active = index;
++      drawing = createFloorDrawing(stage.wire, false);
++      shading = createFloorDrawing(stage.shade, true);
++      scene.add(drawing.group, shading.group);
++    }
++    const local = time - stage.start,
++      ink = local < stage.wireDuration,
++      shadeTime = local - stage.wireDuration;
++    drawing!.group.visible = shadeTime < stage.shadeDuration;
++    shading!.group.visible = !ink && shadeTime < stage.shadeDuration;
++    if (!ink) drawing!.update(stage.wireDuration, false);
++    const result = ink
++      ? drawing!.update(local)
++      : shading!.update(shadeTime, shadeTime < stage.shadeDuration);
++    const partTotals = new Map<number, number>();
++    stage.shade.forEach((s) => partTotals.set(s.part, (partTotals.get(s.part) ?? 0) + 1));
++    floor.parts.forEach((p) => {
++      const order = FLOOR_STAGES.findIndex((s) => s.id === p.stage);
++      p.mesh.visible =
++        order < index ||
++        (order === index &&
++          !ink &&
++          (result.completed.get(stage.parts.indexOf(p)) ?? 0) >=
++            (partTotals.get(stage.parts.indexOf(p)) ?? Infinity));
++      if (expose && ["gyprock", "painting", "flooring"].includes(p.stage)) p.mesh.visible = false;
++    });
++    const pass =
++      time >= total
++        ? "Complete"
++        : ink
++          ? "Graphite drawing"
++          : shadeTime < stage.shadeDuration
++            ? "Colour shading"
++            : "Material resolved";
++    const pencilCount = time >= total || pass === "Material resolved" ? 0 : ink ? 5 : 50;
++    Object.assign(renderer.domElement.dataset, {
++      floorReady: "true",
++      floorStage: FLOOR_STAGES[index].id,
++      floorPass: pass,
++      floorTime: String(time),
++      floorTotal: String(total),
++      floorPencils: String(pencilCount),
++      floorStrokes: String(result.drawn),
++      floorStrokeTotal: String(result.total),
++      floorParts: String(floor.parts.filter((p) => p.mesh.visible).length),
++      floorScribbleSeconds: ".1",
++      floorExposed: String(expose),
++    });
++    if (now - lastStatus > 100) {
++      lastStatus = now;
++      onStatus({
++        time,
++        total,
++        stage: index,
++        pass,
++        drawn: result.drawn,
++        strokes: result.total,
++        pencils: pencilCount,
++        parts: floor.parts.filter((p) => p.mesh.visible).length,
++        fps: Math.round(fps),
++        playing: playing && time < total,
++      });
++    }
++    const moving = controls.update();
++    renderer.render(scene, camera);
++    if ((playing && time < total) || moving) invalidate();
++  }
++  function invalidate() {
++    if (!disposed && !frame) frame = requestAnimationFrame(paint);
++  }
++  controls.addEventListener("change", invalidate);
++  let viewportScale = 1;
++  const fitFloor = () => {
++    camera.up.set(0, 1, 0);
++    controls.target.set(0, 0.7, 0);
++    camera.position
++      .set(14, 13, 17)
++      .sub(controls.target)
++      .multiplyScalar(viewportScale)
++      .add(controls.target);
++    controls.maxDistance = Math.max(38, 32 * viewportScale);
++    controls.update();
++  };
++  const resize = new ResizeObserver(() => {
++    const { width, height } = host.getBoundingClientRect();
++    renderer.setSize(width, height);
++    camera.aspect = width / Math.max(height, 1);
++    const nextScale = Math.max(1, 1.3 / camera.aspect);
++    camera.position
++      .sub(controls.target)
++      .multiplyScalar(nextScale / viewportScale)
++      .add(controls.target);
++    viewportScale = nextScale;
++    controls.maxDistance = Math.max(38, 32 * viewportScale);
++    camera.updateProjectionMatrix();
++    controls.update();
++    invalidate();
++  });
++  resize.observe(host);
++  const api: FloorApi = {
++    seek(t) {
++      time = Math.max(0, Math.min(total, t));
++      playing = false;
++      lastStatus = 0;
++    },
++    play(on) {
++      if (on && time >= total) time = 0;
++      playing = on;
++      lastStatus = 0;
++    },
++    speed(v) {
++      speed = v;
++    },
++    stage(i) {
++      time = stages[Math.max(0, Math.min(stages.length - 1, i))].start;
++      playing = true;
++      lastStatus = 0;
++    },
++    expose(on) {
++      expose = on;
++      lastStatus = 0;
++    },
++    shadows(on) {
++      renderer.shadowMap.enabled = on;
++      renderer.domElement.dataset.floorShadows = String(on);
++    },
++    background(color) {
++      scene.background = new THREE.Color(color);
++      floorMat.color.set(color);
++      renderer.domElement.dataset.floorBackground = color;
++    },
++    fit: fitFloor,
++    plan() {
++      camera.position.set(0, 23 * viewportScale, 0.01);
++      controls.target.set(0, 0, 0);
++      controls.update();
++    },
++    capture() {
++      renderer.render(scene, camera);
++      const link = document.createElement("a");
++      link.href = renderer.domElement.toDataURL("image/png");
++      link.download = "one-floor-construction.png";
++      link.click();
++    },
++    dispose() {
++      disposed = true;
++      cancelAnimationFrame(frame);
++      resize.disconnect();
++      controls.dispose();
++      drawing?.dispose();
++      shading?.dispose();
++      floor.dispose();
++      concrete.dispose();
++      floorGeo.dispose();
++      floorMat.dispose();
++      grid.geometry.dispose();
++      (grid.material as THREE.Material).dispose();
++      sun.shadow.map?.dispose();
++      renderer.dispose();
++      renderer.domElement.remove();
++      delete (window as unknown as Record<string, unknown>).__floorStudio;
++    },
++  };
++  for (const [key, fn] of Object.entries(api))
++    if (key !== "dispose") {
++      (api as unknown as Record<string, (...args: unknown[]) => void>)[key] = (...args) => {
++        (fn as (...args: unknown[]) => void)(...args);
++        invalidate();
++      };
++    }
++  (window as unknown as Record<string, unknown>).__floorStudio = {
++    ...api,
++    stages: stages.map((s, i) => ({
++      id: FLOOR_STAGES[i].id,
++      start: s.start,
++      end: s.end,
++      wireDuration: s.wireDuration,
++      shadeDuration: s.shadeDuration,
++      parts: s.parts.length,
++    })),
++    poses: () =>
++      (time - stages[active].start < stages[active].wireDuration ? drawing : shading)?.poses(),
++  };
++  frame = requestAnimationFrame(paint);
++  return api;
++}
++
++export function FloorConstructionStudio() {
++  const host = useRef<HTMLDivElement>(null),
++    api = useRef<FloorApi | null>(null);
++  const [status, setStatus] = useState<Status>({
++    time: 0,
++    total: 1,
++    stage: 0,
++    pass: "Preparing floor",
++    drawn: 0,
++    strokes: 0,
++    pencils: 5,
++    parts: 0,
++    fps: 0,
++    playing: true,
++  });
++  const [playing, setPlaying] = useState(true),
++    [exposed, setExposed] = useState(false),
++    [settings, setSettings] = useState(false),
++    [shadow, setShadow] = useState(true),
++    [background, setBackground] = useState("#e8e5db"),
++    [error, setError] = useState("");
++  useEffect(() => {
++    if (!host.current) return;
++    try {
++      api.current = createStudio(host.current, (s) => {
++        setStatus(s);
++        setPlaying(s.playing);
++      });
++    } catch (e) {
++      setError(e instanceof Error ? e.message : String(e));
++    }
++    return () => {
++      api.current?.dispose();
++      api.current = null;
++    };
++  }, []);
++  const stage = FLOOR_STAGES[status.stage];
++  return (
++    <main className="floor-studio">
++      <header className="floor-header">
++        <Link to="/" aria-label="Back to X-Ray">
++          X-RAY <span>/ MATERIAL STUDIES</span>
++        </Link>
++        <span className="floor-edition">01 / THE APARTMENT</span>
++        <button
++          onClick={() => {
++            api.current?.capture();
++          }}
++        >
++          Export image
++        </button>
++      </header>
++      <div className="floor-workspace">
++        <aside className="floor-story">
++          <p className="floor-kicker">FROM A LINE TO A LIVED-IN SPACE</p>
++          <h1>
++            One floor.
++            <br />
++            Every layer.
++          </h1>
++          <p className="floor-intro">
++            Watch the pencils draw, shade and assemble an apartment, component by component.
++          </p>
++          <nav aria-label="Construction stages">
++            {FLOOR_STAGES.map((s, i) => (
++              <button
++                key={s.id}
++                aria-current={status.stage === i ? "step" : undefined}
++                onClick={() => {
++                  api.current?.stage(i);
++                  setPlaying(true);
++                }}
++              >
++                <span>{String(i + 1).padStart(2, "0")}</span>
++                <strong>{s.title}</strong>
++                <i>{status.stage > i ? "✓" : status.stage === i ? "●" : "·"}</i>
++              </button>
++            ))}
++          </nav>
++          <p className="floor-provenance">
++            ILLUSTRATIVE STUDY · 12 × 9 M<br />
++            An authored apartment cutaway. Construction order is illustrative; this is not a
++            surveyed building or installation plan.
++          </p>
++        </aside>
++        <section className="floor-view" aria-label="Construction studio">
++          <div className="floor-view-heading">
++            <div>
++              <span className="floor-kicker">
++                {String(status.stage + 1).padStart(2, "0")} / {stage.title.toUpperCase()}
++              </span>
++              <h2>{status.pass}</h2>
++            </div>
++            <span className="floor-live">
++              {status.pencils
++                ? `${status.pencils} PENCILS · 0.1 S BURSTS`
++                : "MATERIALS IN PLACE"}
++            </span>
++          </div>
++          <div ref={host} className="floor-canvas" />
++          {error && (
++            <p role="alert" className="floor-error">
++              {error}
++            </p>
++          )}
++          <div className="floor-camera-controls">
++            <button onClick={() => api.current?.fit()}>Fit floor</button>
++            <button onClick={() => api.current?.plan()}>Plan view</button>
++            <button
++              aria-pressed={exposed}
++              onClick={() => {
++                setExposed(!exposed);
++                api.current?.expose(!exposed);
++              }}
++            >
++              Expose services
++            </button>
++            <button aria-expanded={settings} onClick={() => setSettings(!settings)}>
++              Visual settings
++            </button>
++          </div>
++          {settings && (
++            <div className="floor-settings">
++              <label>
++                Backdrop
++                <select
++                  aria-label="Floor backdrop"
++                  value={background}
++                  onChange={(e) => {
++                    setBackground(e.target.value);
++                    api.current?.background(e.target.value);
++                  }}
++                >
++                  <option value="#e8e5db">Warm paper</option>
++                  <option value="#b9c9cb">Blue grey</option>
++                  <option value="#333b3c">Charcoal</option>
++                </select>
++              </label>
++              <label>
++                <input
++                  type="checkbox"
++                  checked={shadow}
++                  onChange={(e) => {
++                    setShadow(e.target.checked);
++                    api.current?.shadows(e.target.checked);
++                  }}
++                />{" "}
++                Cast shadows
++              </label>
++              <button
++                onClick={() => {
++                  setBackground("#e8e5db");
++                  setShadow(true);
++                  api.current?.background("#e8e5db");
++                  api.current?.shadows(true);
++                }}
++              >
++                Reset appearance
++              </button>
++            </div>
++          )}
++          <div className="floor-caption">
++            <p>{stage.detail}</p>
++            <span>{status.parts} components placed · Drag to orbit · Scroll to zoom</span>
++          </div>
++          <div className="floor-playback">
++            <button
++              aria-label={
++                playing && status.time < status.total ? "Pause construction" : "Play construction"
++              }
++              onClick={() => {
++                const next = !(playing && status.time < status.total);
++                setPlaying(next);
++                api.current?.play(next);
++              }}
++            >
++              {playing && status.time < status.total ? "Pause" : "Play"}
++            </button>
++            <button
++              onClick={() => {
++                api.current?.seek(0);
++                api.current?.play(true);
++                setPlaying(true);
++              }}
++            >
++              Replay
++            </button>
++            <input
++              aria-label="Construction progress"
++              type="range"
++              min="0"
++              max={status.total}
++              step=".01"
++              value={status.time}
++              onChange={(e) => {
++                api.current?.seek(Number(e.target.value));
++                setPlaying(false);
++              }}
++            />
++            <span>{Math.round((status.time / status.total) * 100)}%</span>
++            <select
++              aria-label="Construction speed"
++              defaultValue="1"
++              onChange={(e) => api.current?.speed(Number(e.target.value))}
++            >
++              <option value=".5">½×</option>
++              <option value="1">1×</option>
++              <option value="2">2×</option>
++              <option value="4">4×</option>
++            </select>
++            <button
++              onClick={() => {
++                api.current?.seek(status.total);
++                setPlaying(false);
++              }}
++            >
++              Finish
++            </button>
++          </div>
++        </section>
++      </div>
++    </main>
++  );
++}
+diff --git a/src/studio/floorConstruction.css b/src/studio/floorConstruction.css
+new file mode 100644
+index 0000000..324c91c
+--- /dev/null
++++ b/src/studio/floorConstruction.css
+@@ -0,0 +1,378 @@
++.floor-studio {
++  --floor-ink: #24372f;
++  --floor-paper: #f3f1e9;
++  --floor-muted: #69736b;
++  --floor-line: #d4d8cb;
++  min-height: 100dvh;
++  background: var(--floor-paper);
++  color: var(--floor-ink);
++  font-family: Arial, sans-serif;
++}
++.floor-studio button,
++.floor-studio select {
++  font: inherit;
++  color: inherit;
++  cursor: pointer;
++  min-height: 44px;
++  border: 1px solid var(--floor-line);
++  background: var(--floor-paper);
++  border-radius: 4px;
++  padding: 9px 13px;
++}
++.floor-studio button:hover {
++  background: #e0e5d7;
++}
++.floor-studio button:focus-visible,
++.floor-studio a:focus-visible,
++.floor-studio input:focus-visible,
++.floor-studio select:focus-visible {
++  outline: 3px solid #8b6735;
++  outline-offset: 2px;
++}
++.floor-header {
++  height: 76px;
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  padding: 0 30px;
++  border-bottom: 1px solid var(--floor-line);
++  gap: 16px;
++}
++.floor-header a {
++  font-size: 22px;
++  font-weight: 700;
++  color: inherit;
++  text-decoration: none;
++  letter-spacing: 2px;
++}
++.floor-header a span,
++.floor-edition {
++  font-size: 10px;
++  font-weight: 500;
++  letter-spacing: 1.8px;
++}
++.floor-header a span {
++  margin-left: 20px;
++}
++.floor-header button {
++  font-size: 12px;
++}
++.floor-workspace {
++  display: grid;
++  grid-template-columns: 290px minmax(0, 1fr);
++  min-height: calc(100dvh - 76px);
++}
++.floor-story {
++  padding: 30px 24px 18px;
++  border-right: 1px solid var(--floor-line);
++  display: flex;
++  flex-direction: column;
++}
++.floor-kicker {
++  font-size: 9px;
++  letter-spacing: 1.7px;
++  font-weight: 700;
++  line-height: 1.7;
++}
++.floor-story h1 {
++  font-family: Georgia, serif;
++  font-weight: 400;
++  font-size: 46px;
++  line-height: 1.02;
++  letter-spacing: -1.7px;
++  margin: 22px 0 16px;
++}
++.floor-intro {
++  font-size: 12px;
++  line-height: 1.7;
++  color: var(--floor-muted);
++  margin-bottom: 24px;
++}
++.floor-story nav {
++  display: flex;
++  flex-direction: column;
++  gap: 2px;
++}
++.floor-story nav button {
++  display: grid;
++  grid-template-columns: 24px 1fr 12px;
++  align-items: center;
++  text-align: left;
++  border: 0;
++  background: transparent;
++  padding: 10px 8px;
++  font-size: 12px;
++  min-height: 45px;
++}
++.floor-story nav button[aria-current="step"] {
++  background: #dce3d4;
++}
++.floor-story nav strong {
++  font-weight: 500;
++}
++.floor-story nav span {
++  font-size: 10px;
++  color: var(--floor-muted);
++  font-variant-numeric: tabular-nums;
++}
++.floor-story nav i {
++  font-size: 12px;
++  font-style: normal;
++}
++.floor-provenance {
++  margin: 24px 0 0;
++  padding-top: 20px;
++  border-top: 1px solid var(--floor-line);
++  font-size: 10px;
++  line-height: 1.8;
++  color: var(--floor-muted);
++}
++.floor-view {
++  position: relative;
++  min-width: 0;
++  min-height: 730px;
++  height: calc(100dvh - 76px);
++  overflow: hidden;
++  background: #e8e5db;
++}
++.floor-canvas {
++  position: absolute;
++  inset: 0 0 128px;
++}
++.floor-canvas canvas {
++  display: block;
++  width: 100%;
++  height: 100%;
++  touch-action: none;
++}
++.floor-view-heading {
++  position: absolute;
++  left: 26px;
++  right: 26px;
++  top: 24px;
++  z-index: 1;
++  pointer-events: none;
++  display: flex;
++  justify-content: space-between;
++  align-items: start;
++  gap: 16px;
++}
++.floor-view-heading h2 {
++  font-family: Georgia, serif;
++  font-size: 27px;
++  font-weight: 400;
++  margin: 5px 0;
++}
++.floor-live {
++  font-size: 9px;
++  letter-spacing: 1px;
++  background: #f3f1e9d9;
++  border: 1px solid var(--floor-line);
++  padding: 10px;
++  border-radius: 3px;
++}
++.floor-camera-controls {
++  position: absolute;
++  top: 104px;
++  right: 24px;
++  z-index: 2;
++  display: flex;
++  gap: 5px;
++}
++.floor-camera-controls button {
++  font-size: 11px;
++  background: #f3f1e9e8;
++}
++.floor-camera-controls button[aria-pressed="true"] {
++  background: #344b3e;
++  color: #fff;
++}
++.floor-settings {
++  position: absolute;
++  top: 158px;
++  right: 24px;
++  z-index: 3;
++  background: var(--floor-paper);
++  border: 1px solid var(--floor-line);
++  box-shadow: 0 8px 30px #24372f22;
++  padding: 16px;
++  display: grid;
++  gap: 12px;
++  width: 240px;
++  font-size: 12px;
++}
++.floor-settings label {
++  display: flex;
++  gap: 10px;
++  align-items: center;
++  justify-content: space-between;
++}
++.floor-settings select {
++  max-width: 140px;
++}
++.floor-settings input {
++  width: 18px;
++  height: 18px;
++}
++.floor-caption {
++  position: absolute;
++  bottom: 72px;
++  left: 26px;
++  right: 26px;
++  pointer-events: none;
++}
++.floor-caption p {
++  font-size: 12px;
++  margin: 0 0 7px;
++}
++.floor-caption span {
++  font-size: 10px;
++  color: #586057;
++}
++.floor-playback {
++  position: absolute;
++  bottom: 0;
++  left: 0;
++  right: 0;
++  min-height: 60px;
++  background: var(--floor-paper);
++  border-top: 1px solid var(--floor-line);
++  display: flex;
++  align-items: center;
++  gap: 9px;
++  padding: 8px 22px;
++}
++.floor-playback button,
++.floor-playback select {
++  font-size: 12px;
++}
++.floor-playback button:first-child {
++  background: #344b3e;
++  color: white;
++  min-width: 67px;
++}
++.floor-playback input {
++  flex: 1;
++  min-width: 40px;
++  accent-color: #45624b;
++}
++.floor-playback span {
++  font-size: 11px;
++  min-width: 30px;
++  font-variant-numeric: tabular-nums;
++}
++.floor-error {
++  position: absolute;
++  top: 200px;
++  left: 30px;
++  background: #fff;
++  padding: 20px;
++  color: #a32626;
++}
++.floor-lab-launch {
++  color: inherit;
++  font-size: 12px;
++  white-space: nowrap;
++  padding: 10px;
++  border: 1px solid #b4b9af;
++  border-radius: 4px;
++}
++@media (max-width: 1100px) {
++  .floor-workspace {
++    grid-template-columns: 230px minmax(0, 1fr);
++  }
++  .floor-story {
++    padding: 24px 16px;
++  }
++  .floor-story h1 {
++    font-size: 40px;
++  }
++  .floor-header {
++    padding: 0 20px;
++  }
++  .floor-header a span {
++    display: none;
++  }
++  .floor-camera-controls {
++    left: 20px;
++    right: auto;
++    top: 116px;
++    flex-wrap: wrap;
++  }
++  .floor-view-heading {
++    left: 20px;
++    right: 20px;
++  }
++  .floor-live {
++    max-width: 120px;
++    line-height: 1.7;
++  }
++  .floor-playback {
++    gap: 5px;
++    padding: 8px 12px;
++  }
++  .floor-playback button {
++    padding: 8px;
++  }
++  .floor-caption {
++    left: 20px;
++    right: 20px;
++  }
++  .floor-view {
++    min-height: 760px;
++  }
++}
++@media (max-width: 780px) {
++  .floor-workspace {
++    grid-template-columns: 190px minmax(0, 1fr);
++  }
++  .floor-story h1 {
++    font-size: 34px;
++  }
++  .floor-story nav button {
++    font-size: 11px;
++  }
++  .floor-edition {
++    display: none;
++  }
++  .floor-camera-controls {
++    right: 12px;
++    left: 12px;
++    gap: 4px;
++  }
++  .floor-camera-controls button {
++    padding: 7px;
++    font-size: 10px;
++  }
++  .floor-view-heading {
++    left: 12px;
++    right: 12px;
++  }
++  .floor-view-heading h2 {
++    font-size: 22px;
++  }
++  .floor-live {
++    font-size: 8px;
++    max-width: 100px;
++  }
++  .floor-playback {
++    flex-wrap: wrap;
++  }
++  .floor-playback input {
++    min-width: 80px;
++  }
++  .floor-caption {
++    bottom: 116px;
++  }
++  .floor-canvas {
++    bottom: 166px;
++  }
++  .floor-view {
++    min-height: 840px;
++  }
++}
++.floor-view-heading > div {
++  background: #f3f1e9e8;
++  padding: 10px 14px;
++  border-radius: 3px;
++}
+diff --git a/src/routes/floor-lab.tsx b/src/routes/floor-lab.tsx
+new file mode 100644
+index 0000000..d508969
+--- /dev/null
++++ b/src/routes/floor-lab.tsx
+@@ -0,0 +1,4 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { FloorConstructionStudio } from "@/studio/FloorConstructionStudio";
++
++export const Route = createFileRoute("/floor-lab")({ component: FloorConstructionStudio });
+diff --git a/proof/growth/2026-09-08-one-floor/SourceBuildingViewer.tsx.before b/src/studio/SourceBuildingViewer.tsx
+index 531e4e6..7282a30 100644
+--- a/proof/growth/2026-09-08-one-floor/SourceBuildingViewer.tsx.before
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useRef, useState } from "react";
++import { Link } from "@tanstack/react-router";
+ import * as THREE from "three";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+ import { Box, Download, Expand, Layers, MousePointer2, Pencil, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
+@@ -16,6 +17,7 @@ import {
+ import "./sourceBuilding.css";
+ import { createModelScope, type ModelScopeOptions } from "./ModelScope";
+ import { BuildingVisualSettings } from "./BuildingVisualSettings";
++import { createBuildingEnvironment } from "./BuildingEnvironment";
+ import { createFirstPersonNavigation } from "./FirstPersonNavigation";
+ import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
+ import type { NavigationMode } from "./navigationMovement";
+@@ -27,6 +29,7 @@ import { createFirstPersonArm } from "./FirstPersonArm";
+ import { publishModelView } from "./modelViewSnapshot";
+ import {
+   DEFAULT_APPEARANCE,
++  MODEL_PALETTES,
+   loadAppearance,
+   saveAppearance,
+   type BuildingAppearance,
+@@ -106,6 +109,7 @@ function createBuildingScene(
+   renderer.domElement.dataset.meshCount = String(model.objects.length);
+   host.appendChild(renderer.domElement);
+   const scene = new THREE.Scene();
++  const environment = createBuildingEnvironment(scene);
+   scene.background = new THREE.Color("#e5e5df");
+   const bounds = new THREE.Box3(
+       new THREE.Vector3(...model.bounds.min),
+@@ -166,7 +170,7 @@ function createBuildingScene(
+         projectionMatrix: camera.projectionMatrix.toArray(),
+       },
+     });
+-    if (changing || doorChanging || draftsmanChanging) invalidate();
++    if (environment.tick() || changing || doorChanging || draftsmanChanging) invalidate();
+   };
+   const invalidate = () => {
+     if (!disposed && !frame) frame = requestAnimationFrame(render);
+@@ -254,6 +258,7 @@ function createBuildingScene(
+         side: THREE.DoubleSide,
+       });
+       materials.set(key, material);
++      material.userData.sourceAppearance = { color: material.color.clone(), metalness: material.metalness, roughness: material.roughness };
+     }
+     const geometry = new THREE.BufferGeometry();
+     geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
+@@ -483,7 +488,20 @@ function createBuildingScene(
+       invalidate();
+     },
+     appearance(value) {
+-      scene.background = new THREE.Color(value.background);
++      environment.set(value);
++      const palette = MODEL_PALETTES.find(p => p.id === value.modelPalette);
++      for (const material of materials.values()) {
++        const source = material.userData.sourceAppearance;
++        if (value.modelPalette === "source") {
++          material.color.copy(source.color);
++          material.metalness = source.metalness;
++          material.roughness = source.roughness;
++        } else {
++          material.color.set(value.modelColor);
++          material.metalness = palette?.metalness ?? 0;
++          material.roughness = 0.65;
++        }
++      }
+       groundMaterial.color.set(value.background);
+       for (const material of [wireMaterial, clippedWireMaterial]) {
+         material.color.set(value.wire);
+@@ -666,6 +684,7 @@ function createBuildingScene(
+       return draftsman?.getStatus() ?? null;
+     },
+     dispose() {
++      environment.dispose();
+       disposed = true;
+       if (draftsman) {
+         draftsman.dispose();
+@@ -1215,6 +1234,7 @@ export function SourceBuildingViewer() {
+         </nav>
+         <div className="building-center-column">
+           <div className="building-heading">
++            <Link to="/floor-lab" className="floor-lab-launch">One-floor construction studio ↗</Link>
+             <div>
+               <span className="building-eyebrow">
+                 SOURCE RECONSTRUCTION / {config.title.toUpperCase()}
+diff --git a/proof/growth/2026-09-08-one-floor/desktop.tsx.before b/src/desktop.tsx
+index 990664e..bfd2f9c 100644
+--- a/proof/growth/2026-09-08-one-floor/desktop.tsx.before
++++ b/src/desktop.tsx
+@@ -11,6 +11,7 @@ import { PreviewHostBridge } from "./components/preview-host-bridge";
+ import { AuthProvider } from "./lib/auth/provider";
+ import { AppErrorComponent } from "./lib/error-component";
+ import { Studio } from "./studio/Studio";
++import { FloorConstructionStudio } from "./studio/FloorConstructionStudio";
+ import "./styles.css";
+ 
+ // The desktop document owns <html>/<body>; reuse the product and providers
+@@ -29,7 +30,11 @@ const indexRoute = createRoute({
+   component: Studio,
+ });
+ const router = createRouter({
+-  routeTree: rootRoute.addChildren([indexRoute]),
++  routeTree: rootRoute.addChildren([indexRoute, createRoute({
++    getParentRoute: () => rootRoute,
++    path: "/floor-lab",
++    component: FloorConstructionStudio,
++  })]),
+   // Packaged URLs end in index.html. Pane state belongs to Studio, while
+   // the router keeps its normal root route and the preview bridge context.
+   history: createMemoryHistory({ initialEntries: [`/${window.location.search}`] }),
+diff --git a/proof/growth/2026-09-08-one-floor/routeTree.gen.ts.before b/src/routeTree.gen.ts
+index ea3e0ca..7060f4b 100644
+--- a/proof/growth/2026-09-08-one-floor/routeTree.gen.ts.before
++++ b/src/routeTree.gen.ts
+@@ -10,6 +10,7 @@
+ 
+ import { Route as rootRouteImport } from './routes/__root'
+ import { Route as IndexRouteImport } from './routes/index'
++import { Route as FloorLabRouteImport } from './routes/floor-lab'
+ import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
+ import { Route as ApiAssistantAiRouteImport } from './routes/api.assistant-ai'
+ import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
+@@ -20,6 +21,11 @@ const IndexRoute = IndexRouteImport.update({
+   path: '/',
+   getParentRoute: () => rootRouteImport,
+ } as any)
++const FloorLabRoute = FloorLabRouteImport.update({
++  id: '/floor-lab',
++  path: '/floor-lab',
++  getParentRoute: () => rootRouteImport,
++} as any)
+ const ApiArchitectAiRoute = ApiArchitectAiRouteImport.update({
+   id: '/api/architect-ai',
+   path: '/api/architect-ai',
+@@ -43,6 +49,7 @@ const ApiVoiceRoute = ApiVoiceRouteImport.update({
+ 
+ export interface FileRoutesByFullPath {
+   '/': typeof IndexRoute
++  '/floor-lab': typeof FloorLabRoute
+   '/api/architect-ai': typeof ApiArchitectAiRoute
+   '/api/assistant-ai': typeof ApiAssistantAiRoute
+   '/api/material-ai': typeof ApiMaterialAiRoute
+@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
+ }
+ export interface FileRoutesByTo {
+   '/': typeof IndexRoute
++  '/floor-lab': typeof FloorLabRoute
+   '/api/architect-ai': typeof ApiArchitectAiRoute
+   '/api/assistant-ai': typeof ApiAssistantAiRoute
+   '/api/material-ai': typeof ApiMaterialAiRoute
+@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
+ export interface FileRoutesById {
+   __root__: typeof rootRouteImport
+   '/': typeof IndexRoute
++  '/floor-lab': typeof FloorLabRoute
+   '/api/architect-ai': typeof ApiArchitectAiRoute
+   '/api/assistant-ai': typeof ApiAssistantAiRoute
+   '/api/material-ai': typeof ApiMaterialAiRoute
+@@ -67,6 +76,7 @@ export interface FileRouteTypes {
+   fileRoutesByFullPath: FileRoutesByFullPath
+   fullPaths:
+     | '/'
++    | '/floor-lab'
+     | '/api/architect-ai'
+     | '/api/assistant-ai'
+     | '/api/material-ai'
+@@ -74,6 +84,7 @@ export interface FileRouteTypes {
+   fileRoutesByTo: FileRoutesByTo
+   to:
+     | '/'
++    | '/floor-lab'
+     | '/api/architect-ai'
+     | '/api/assistant-ai'
+     | '/api/material-ai'
+@@ -81,6 +92,7 @@ export interface FileRouteTypes {
+   id:
+     | '__root__'
+     | '/'
++    | '/floor-lab'
+     | '/api/architect-ai'
+     | '/api/assistant-ai'
+     | '/api/material-ai'
+@@ -89,6 +101,7 @@ export interface FileRouteTypes {
+ }
+ export interface RootRouteChildren {
+   IndexRoute: typeof IndexRoute
++  FloorLabRoute: typeof FloorLabRoute
+   ApiArchitectAiRoute: typeof ApiArchitectAiRoute
+   ApiAssistantAiRoute: typeof ApiAssistantAiRoute
+   ApiMaterialAiRoute: typeof ApiMaterialAiRoute
+@@ -104,6 +117,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof IndexRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/floor-lab': {
++      id: '/floor-lab'
++      path: '/floor-lab'
++      fullPath: '/floor-lab'
++      preLoaderRoute: typeof FloorLabRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+     '/api/architect-ai': {
+       id: '/api/architect-ai'
+       path: '/api/architect-ai'
+@@ -137,6 +157,7 @@ declare module '@tanstack/react-router' {
+ 
+ const rootRouteChildren: RootRouteChildren = {
+   IndexRoute: IndexRoute,
++  FloorLabRoute: FloorLabRoute,
+   ApiArchitectAiRoute: ApiArchitectAiRoute,
+   ApiAssistantAiRoute: ApiAssistantAiRoute,
+   ApiMaterialAiRoute: ApiMaterialAiRoute,
+diff --git a/proof/growth/2026-09-08-one-floor/package.json.before b/package.json
+index 3bf984d..a1734bc 100644
+--- a/proof/growth/2026-09-08-one-floor/package.json.before
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/lib/assistantAi.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/lib/assistantAi.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",

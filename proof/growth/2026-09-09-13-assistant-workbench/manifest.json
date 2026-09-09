@@ -1,0 +1,48 @@
+{
+  "id": "2026-09-09-13-assistant-workbench",
+  "title": "Stage 13 — the assistant organises sheets, reads takeoff evidence and price books, and captures a verified backup",
+  "date": "9 September 2026",
+  "platform": "Development browser (Vite dev server 127.0.0.1:8091 with the user-authorized Gemini key) · desktop 1280x800 · isolated agent-browser profile · Redburn BR250157 source imported · no build, installation or native run",
+  "summary": "Second batch of assistant tools. The Live assistant can now read and organise the active source drawing's sheet register (rename with discipline, archive, recover — through the same saved sidecar the Sheets pane uses, with the retained evidence counted in every receipt), read calibration, traces, items and readiness blockers per sheet, read the project's price-book library without listing rates, and capture a verified workspace backup exactly as the Backups panel does. Mutations stay behind the per-message edit permission. With the real provider, one plain request performed all of it in eight tool calls; the existing eight-step pause then asked for a continue message, which produced the summary. The Sheets pane updated live and the backup appears in the Backups dialog.",
+  "requirements": [
+    {
+      "id": "Assistant workbench tools (SC-10)",
+      "status": "Partial — development verified",
+      "change": "read_source_sheets, manage_source_sheet, read_takeoff_evidence, read_price_books, capture_project_backup; 65/65 focused tests, typecheck exit 0; real-provider journey with inspected screenshots (proof/growth/2026-09-09-assistant-workbench/README.md).",
+      "remaining": "Dans1 build, production and native runs; trace/calibration editing, price-book import, quotes, exports and backup restore remain unavailable by design; eight-step cap unchanged."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-workbench/desktop-01-sheets-before.png",
+      "caption": "Desktop 1280x800: the imported Redburn set with 13 active sheets before the request.",
+      "sha256": "de5f1f1be11d0f3078054a1b0864e3dc916c33a61a6f8569318ebab164bd7104",
+      "archivedFile": "screenshots/growth/2026-09-09-13-assistant-workbench/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-workbench/desktop-02-after-assistant.png",
+      "caption": "After the request: the Sheets pane shows 12 active and 1 archived sheet with '03 Ground floor plan' renamed live; the assistant's summary reports the rename, the archive, the readiness blockers, the empty price-book library and the verified backup.",
+      "sha256": "638c44a16fd46f5433df1cf1538a71ffed933bfd9899a2ab1d81f205582ad8ef",
+      "archivedFile": "screenshots/growth/2026-09-09-13-assistant-workbench/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-workbench/desktop-03-backups.png",
+      "caption": "Project backups dialog listing 'Assistant checkpoint' — New project revision 2, 1 plan, 0 photos, 8.9 MB — created by the assistant's capture_project_backup call.",
+      "sha256": "bcadf42aeb31c3ca987ed2b2f99a580f214a8092cba5dfe01d1d5b05a8891708",
+      "archivedFile": "screenshots/growth/2026-09-09-13-assistant-workbench/03.png"
+    }
+  ],
+  "commands": [
+    "node --experimental-strip-types --test src/studio/assistant/workbenchTools.test.ts src/studio/assistant/wireframe.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/conversation.test.ts src/studio/sheetLifecycle.test.ts src/studio/pricing/priceBooks.test.ts — tests 65, pass 65, fail 0 (tests.log)",
+    "node node_modules/typescript/bin/tsc --noEmit — exit 0 (typecheck.log)",
+    "node scripts/fast-cdp-test.mjs workbench-desktop proof/growth/2026-09-09-assistant-workbench/desktop.scenario.json — eight tool receipts then the eight-step pause (exit 1 at the final assertion, preserved; runner 2026-09-08T16-30-22-363Z-workbench-desktop)",
+    "node scripts/fast-cdp-test.mjs workbench-desktop proof/growth/2026-09-09-assistant-workbench/continue.scenario.json — exit 0, 14 commands (runner 2026-09-08T16-31-15-911Z-workbench-desktop)",
+    "powershell -File proof/growth/2026-09-09-assistant-workbench/cleanup-dev.ps1 — dev server 8091 PID 70504 stopped (dev-cleanup.json)"
+  ],
+  "logs": [
+    "proof/growth/2026-09-09-assistant-workbench/README.md",
+    "proof/growth/2026-09-09-assistant-workbench/tests.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree). Redburn source SHA-256 b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38 (13 pages). Development milestone; no Dans1 build, installation, commit or publication. Two user-authorized provider messages; no other external calls.",
+  "codeDiff": "proof/growth/2026-09-09-assistant-workbench/code.diff (508 lines)"
+}

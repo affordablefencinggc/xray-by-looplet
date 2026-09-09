@@ -1,0 +1,219 @@
+[
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--load",
+    "networkidle"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Cost",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.price-books')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Collapse left menu",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Collapse right menu",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Import CSV",
+    "--exact"
+  ],
+  [
+    "upload",
+    "input[aria-label='Supplier price CSV']",
+    "C:/Users/danie/repo/xray-by-looplet/proof/audit/IW-PRICE-BOOK/supplier.csv"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.textContent.includes('Match your columns')"
+  ],
+  [
+    "find",
+    "label",
+    "Price book name",
+    "fill",
+    "Multi-industry QA supplier",
+    "--exact"
+  ],
+  [
+    "find",
+    "label",
+    "Supplier",
+    "fill",
+    "QA structural, civil and electrical supplier",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const input=document.querySelector('.price-books input[type=date]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'2026-09-07');input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "label",
+    "Source reference",
+    "fill",
+    "QA fixture — no real supplier quote",
+    "--exact"
+  ],
+  [
+    "select",
+    ".price-fields > label:nth-child(7) select",
+    "exclusive"
+  ],
+  [
+    "find",
+    "label",
+    "Tax percent (optional)",
+    "fill",
+    "10",
+    "--exact"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(1) select",
+    "0"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(2) select",
+    "1"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(3) select",
+    "2"
+  ],
+  [
+    "select",
+    "fieldset label:nth-child(4) select",
+    "3"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('.price-books button')].some(b=>b.textContent==='Review import'&&!b.disabled)"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review import",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-review')?.textContent.includes('Review before saving')"
+  ],
+  [
+    "screenshot",
+    "screenshots/price-book/import-review-desktop.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save reviewed price book",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.textContent.includes('Library (1)')"
+  ],
+  [
+    "find",
+    "text",
+    "Browse 3 rates and source details",
+    "click",
+    "--exact"
+  ],
+  [
+    "click",
+    ".price-book-card tbody tr:first-child button"
+  ],
+  [
+    "find",
+    "label",
+    "Quantity (kg)",
+    "fill",
+    "2",
+    "--exact"
+  ],
+  [
+    "eval",
+    "if(!document.querySelector('.price-amount')?.textContent.includes('AUD 24.69'))throw Error('Incorrect fixed-decimal line amount')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add reviewed priced line",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.textContent.includes('Priced worksheet (1)')"
+  ],
+  [
+    "screenshot",
+    "screenshots/price-book/worksheet-desktop.png"
+  ],
+  [
+    "errors"
+  ],
+  [
+    "eval",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:'));const value=JSON.parse(localStorage.getItem(key));if(value.books.length!==1||value.worksheet.length!==1)throw Error('Library/worksheet not saved');return {key,jobId:value.jobId,books:value.books.length,worksheet:value.worksheet.length};})()"
+  ]
+]

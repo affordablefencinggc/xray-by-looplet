@@ -1,0 +1,67 @@
+{
+  "id": "2026-09-09-15-assistant-unlock",
+  "title": "Stage 15 — the assistant edits designs, calibrates and traces takeoff, approves for a named reviewer, imports price books, exports files and renders a real-life view",
+  "date": "9 September 2026",
+  "platform": "Development browser (Vite dev server 127.0.0.1:8091 with the user-authorized Gemini key) · desktop 1280x800, tablet 1024x768 for the render · isolated agent-browser profile · real providers gemini-3.8-flash (assistant) and gemini-2.5-flash-image (render) · no build, installation or native run",
+  "summary": "Eight new assistant tools close the gap between what the user asks and what the Live assistant can do: editing, moving and removing design entities by ID; two-point calibration, length tracing and review decisions on imported source pages, every one stamped as arriving through the assistant for a named human; CSV price-book import bound to the library revision; DXF/IFC/PDF/register exports with hash receipts; and an AI real-life visualisation of the captured 3D view, shown on the Render pane with provenance. Twenty workflow agents mapped, built and adversarially verified the modules; six verdicts refuted and every major finding was fixed before wiring. Five real-provider journeys on the user's own dev server passed every assertion, including the sentence Daniel had typed into the QA window earlier: 'generate a real life view of this plan'.",
+  "requirements": [
+    {
+      "id": "Assistant unlock (SC-12)",
+      "status": "Done — development verified",
+      "change": "24 tools (8 new), 153/153 tests, typecheck exit 0, adversarial verification with fixes (verifier-fixes.md), five journeys A–E with inspected screenshots (README.md).",
+      "remaining": "Dans1 build + production + native runs (manual parity needs the build); rendering web-only; eight-step cap unchanged; limitations in verifier-fixes.md."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-unlock/a-design-edit-desktop.png",
+      "caption": "A — after one request: two-storey block drawn, roof removed, Wall 1 moved to y = −2000, design renamed 'Unlock test' — 8 walls · 0 openings · 2 levels · Saved · revision 3.",
+      "sha256": "9daf36d90b62bbb83f9e13d8607ff7a3c1601bb4ca9ce1fbba78eda16d0f4767",
+      "archivedFile": "screenshots/growth/2026-09-09-15-assistant-unlock/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-unlock/b-takeoff-desktop.png",
+      "caption": "B — Redburn page 2 calibrated (5 m over 500 page units, locked), traced (Run 01 · 5.00 m) and approved for Daniel Sivyer with the Live-assistant stamp.",
+      "sha256": "b87b60f2d133e168a997bbf0ab508421650846ae4b69802ed988e482aba0e50e",
+      "archivedFile": "screenshots/growth/2026-09-09-15-assistant-unlock/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-unlock/c-price-import-desktop.png",
+      "caption": "C — Cost pane showing the imported book 'Timber Co 2026' with provenance 'Live assistant paste · Quote Q-1234' and three rates.",
+      "sha256": "158738fbb728dd4a76d5d202ae4bce9b5a46cc12568b787ea0b848291c8732d2",
+      "archivedFile": "screenshots/growth/2026-09-09-15-assistant-unlock/03.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-unlock/d-export-desktop.png",
+      "caption": "D — DXF (79,543 bytes) and IFC (10,978 bytes) exported with sha256 receipts for design 'Unlock test'.",
+      "sha256": "585a50b0cfcae9cd3471363f692bab4e06812ffcde6aa01684122ee2ebd0f056",
+      "archivedFile": "screenshots/growth/2026-09-09-15-assistant-unlock/04.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-unlock/e-render-desktop.png",
+      "caption": "E — 'generate a real life view of this plan': the Render pane's Latest AI render card shows the gemini-2.5-flash-image visualisation of the captured Redburn view, labelled as an illustration, not evidence.",
+      "sha256": "10b50c8c55c4c58d7f1933d643c32b6994d5409a98bd3106c3d571274dd9d1bc",
+      "archivedFile": "screenshots/growth/2026-09-09-15-assistant-unlock/05.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-assistant-unlock/e-render-tablet.png",
+      "caption": "E — the same render at tablet 1024x768.",
+      "sha256": "cbb1a73d4e18b42cdc55ba06a92f6a1834b515671c5fd0e3ddf211df96485450",
+      "archivedFile": "screenshots/growth/2026-09-09-15-assistant-unlock/06.png"
+    }
+  ],
+  "commands": [
+    "Workflow wf_c007d1c6-cc1 — 5 understand + 5 implement + 10 verify agents (workflow-impl.json, workflow-verdicts.json)",
+    "node --experimental-strip-types --test src/studio/assistant/*.test.ts src/lib/renderAi.server.test.ts src/studio/architect/architect.test.ts src/studio/sheetLifecycle.test.ts src/studio/pricing/priceBooks.test.ts — tests 153, pass 153, fail 0 (tests.log)",
+    "node node_modules/typescript/bin/tsc --noEmit — exit 0 (typecheck.log)",
+    "bash run-journeys.sh a-design-edit b-takeoff c-price-import — all exit 0 (journeys-1.log)",
+    "bash run-journeys.sh d-export e-render — all exit 0 (journeys-2.log)"
+  ],
+  "logs": [
+    "proof/growth/2026-09-09-assistant-unlock/README.md",
+    "proof/growth/2026-09-09-assistant-unlock/verifier-fixes.md",
+    "proof/growth/2026-09-09-assistant-unlock/tests.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree). Development milestone; no Dans1 build, installation, commit or publication. Ten user-authorized assistant messages and one image-model call; no other external calls. Redburn source SHA-256 b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38.",
+  "codeDiff": "proof/growth/2026-09-09-assistant-unlock/code.diff (3,225 lines) plus the regenerated src/routeTree.gen.ts"
+}

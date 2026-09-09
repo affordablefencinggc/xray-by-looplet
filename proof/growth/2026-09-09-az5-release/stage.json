@@ -1,0 +1,36 @@
+{
+  "id": "2026-09-09-16-az5-release",
+  "title": "Stage 16 — Dans1 build 8e14ac427997: the assistant unlock (design edits, takeoff calibration/trace/review, price-book import, exports, AI real-life view) verified in production and Windows-native; pointer moved",
+  "date": "9 September 2026",
+  "platform": "Frozen Dans1 build (High/16, seven sequential gates, 358 focused tests) · production preview 127.0.0.1:8096 at desktop 1280x800 and tablet 1024x768 · isolated Windows-native executable (WebView2, CDP 9281, not installed) at 2560x1370 · isolated agent-browser profiles · real providers gemini-3.8-flash (text) and gemini-2.5-flash-image (render) with the user-authorized key",
+  "summary": "The tree carrying the eight assistant unlock tools (SC-12) was frozen, built on Dans1 and exercised on the production bundle and on the Windows-native executable. All seven build gates passed; the executable, installer and web artifacts are hash-verified and the served bundle carries the build id. The az4 regressions, the wireframe and the workbench journeys passed on both platforms. The five unlock journeys passed in production: a design edited by ID and renamed, Redburn page 2 calibrated, traced and approved for a named person, a pasted price book imported, DXF and IFC exported with hash receipts, and 'generate a real life view of this plan' delivered as an AI visualisation on the Render pane. Natively the same journeys passed except rendering, which refused with the documented message. The native app closed gracefully, so the verified-build pointer moves to 8e14ac427997.",
+  "requirements": [
+    {"id": "Assistant unlock tools (SC-12)", "status": "Done — production and native verified", "change": "prod-unlock a–e exit 0; native a (verified state), b-r2, c, d exit 0; e refuses natively as designed (qa/runs.md, verification.md).", "remaining": "Rendering stays web-only; the eight-step cap pauses an eight-tool request."},
+    {"id": "Regressions from az3/az4", "status": "Pass on both platforms", "change": "saves, sheets import, hardened layout and guards, wireframe, workbench (own session) all exit 0.", "remaining": "—"},
+    {"id": "Release gate incl. native graceful shutdown", "status": "Pass", "change": "native-cleanup.json: gracefulCloseRequested true, forced false, remaining false; LATEST-VERIFIED-BUILD.md → 8e14ac427997.", "remaining": "—"}
+  ],
+  "images": [
+    {"file": "screenshots/growth/2026-09-09-az5-release/prod-unlock-e-render-desktop.png", "caption": "Production build 8e14ac427997, desktop: 'generate a real life view of this plan' — the Render pane's 'Latest AI render' card shows the photoreal two-storey house produced from the captured 3D view; the assistant replied DONE."},
+    {"file": "screenshots/growth/2026-09-09-az5-release/prod-unlock-a-design-edit-desktop.png", "caption": "Production: the assistant drew a two-storey block, removed its roof, moved the ground-floor wall to y −2000 and renamed the design 'Unlock test' — all by entity ID through edit_architect_elements."},
+    {"file": "screenshots/growth/2026-09-09-az5-release/prod-unlock-b-takeoff-desktop.png", "caption": "Production: Redburn page 2 calibrated from a scale-bar statement, a 5.000 m run traced and approved for Daniel Sivyer with the 'Recorded through the Live assistant' stamp."},
+    {"file": "screenshots/growth/2026-09-09-az5-release/prod-workbench-desktop-02-after-assistant.png", "caption": "Production: the workbench journey re-run in its own session — 12 active sheets with '03 Ground floor plan', 1 archived, and the assistant's backup receipt (9,341,194 bytes)."},
+    {"file": "screenshots/growth/2026-09-09-az5-release/native-unlock-a-design-edit-desktop.png", "caption": "Windows-native executable (not installed): 'Unlock test' after the design-edit journey — 20 walls · 4 levels, hip roof in the live 3D view, Build 8e14ac427997."},
+    {"file": "screenshots/growth/2026-09-09-az5-release/native-unlock-e-render-refused.png", "caption": "Native: the render request captured the Redburn reconstruction and then refused cleanly — 'Rendering is unavailable in this native build; use the web app.'"}
+  ],
+  "commands": [
+    "bash proof/growth/2026-09-09-az5-release/run-pipeline.sh — freeze, transfer, Dans1 build (7 gates exit 0, 358 tests), collect, verify artifacts, build identity (pipeline.log, 12:58–13:04)",
+    "powershell -File start-candidate-preview.ps1 -RunId 8e14ac427997 — candidate preview 8096 with the render route configured",
+    "bash run-production-qa.sh; bash run-production-qa-r2.sh — 19 production scenario runs (qa/runs.md)",
+    "node launch-native.mjs 8e14ac427997; node configure-native.mjs — isolated native app on CDP 9281, provider in memory only",
+    "bash run-native-qa.sh; bash run-native-qa-r2.sh; native-unlock-a-verify-r2 — 21 native scenario runs (qa/runs.md)",
+    "node remote-orchestrator.mjs verify-source 8e14ac427997 — drift [] after QA (13:12)",
+    "powershell -File cleanup-owned.ps1 — native app closed gracefully (forced:false), preview stopped (native-cleanup.json)"
+  ],
+  "logs": [
+    "proof/growth/2026-09-09-az5-release/verification.md",
+    "proof/growth/2026-09-09-az5-release/qa/runs.md",
+    "proof/growth/2026-09-09-az5-release/pipeline.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree, frozen at 12:58 as source archive sha256 8e14ac427997…). Executable SHA-256 aac8c5e5718cd5adf04dac38cfd428d3689bcba2ba3884867e315a872c606ca1; installer SHA-256 7f8f1226b4ca84b3ea1beb48586b5d0c6442cacf7a8ca9c7300ea157d24b3894. Not installed, not committed, not published. User-authorized provider messages only; no other external calls.",
+  "codeDiff": "No code changes in this stage; it builds and verifies the SC-12 diff (proof/growth/2026-09-09-assistant-unlock/code.diff)."
+}

@@ -1,0 +1,153 @@
+[
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Model",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount||0)>2",
+  "--timeout",
+  "60000"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.live-assistant-launcher')"
+ ],
+ [
+  "eval",
+  "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();return 'panel'})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Add to assistant",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "menuitem",
+  "click",
+  "--name",
+  "New chat",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.assistant-permission input')"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();if(!c.checked)throw Error('Permission not enabled');return 'edits allowed'})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "generate a real life view of this plan"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&(!!document.querySelector('.assistant-chat-entry.is-assistant')||!!document.querySelector('.assistant-chat-error'))",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>({paused:[...document.querySelectorAll('.assistant-chat-error')].some(e=>/Paused after eight/.test(e.textContent)),tools:[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,160))}))()"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();return 'edits allowed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{window.__replies=document.querySelectorAll('.assistant-chat-entry.is-assistant').length;return window.__replies})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "If anything from my previous request is still outstanding, continue and finish it; otherwise reply exactly DONE."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&document.querySelectorAll('.assistant-chat-entry.is-assistant').length>window.__replies",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>{const errors=[...document.querySelectorAll('.assistant-chat-error')].map(e=>e.textContent);const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,200));const replies=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(e=>e.textContent.slice(0,1500));return {errors,tools,replies}})()"
+ ],
+ [
+  "eval",
+  "(()=>{const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent);const r=tools.find(t=>t.startsWith('generate_render_visualisation')&&/Tool result/.test(t));if(!r)throw Error('No render receipt; tools: '+tools.map(t=>t.slice(0,80)).join(' | '));if(!/\"rendered\":true/.test(r))throw Error('Render failed: '+r.slice(0,400));const m=r.match(/\"model\":\"([^\"]+)\"/);return {model:m&&m[1],receipt:r.slice(0,700)}})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Render",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[aria-label=\"Latest AI render\"] img')",
+  "--timeout",
+  "30000"
+ ],
+ [
+  "eval",
+  "(()=>{const img=document.querySelector('[aria-label=\"Latest AI render\"] img');return {naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,src:img.src.slice(0,40)}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az5-release/prod-unlock-e-render-desktop.png"
+ ],
+ [
+  "set",
+  "viewport",
+  "1024",
+  "768"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az5-release/prod-unlock-e-render-tablet.png"
+ ],
+ [
+  "errors"
+ ]
+]

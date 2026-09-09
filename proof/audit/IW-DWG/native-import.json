@@ -1,0 +1,85 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!document.querySelector('.arch-exchange button:nth-of-type(2)').disabled"
+  ],
+  [
+    "eval",
+    "window.qaReadDesign = () => JSON.parse(localStorage.getItem('xray:architect:v1:' + encodeURIComponent(document.querySelector('.architect-workspace').dataset.designId))); window.qaBeforeCad = qaReadDesign(); ({walls:qaBeforeCad.walls.length,revision:qaBeforeCad.revision})"
+  ],
+  [
+    "upload",
+    ".arch-exchange input[type=file]",
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\audit\\IW-DWG\\native.dwg"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('Replace the current design?')"
+  ],
+  [
+    "screenshot",
+    "screenshots/dwg/native-import-review.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Cancel change",
+    "--exact"
+  ],
+  [
+    "eval",
+    "if(JSON.stringify(qaReadDesign())!==JSON.stringify(qaBeforeCad)) throw Error('Cancelled import changed the design'); 'Cancelled import preserved design'"
+  ],
+  [
+    "upload",
+    ".arch-exchange input[type=file]",
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\audit\\IW-DWG\\native.dwg"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('Replace the current design?')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Confirm design change",
+    "--exact"
+  ],
+  [
+    "eval",
+    "const p=qaReadDesign(); if(p.walls.length || p.lines.length!==474 || p.circles.length!==9 || p.arcs.length!==3)throw Error('DWG reference geometry mismatch'); ({pass:true,lines:p.lines.length,circles:p.circles.length,arcs:p.arcs.length,walls:p.walls.length})"
+  ],
+  [
+    "screenshot",
+    "screenshots/dwg/native-imported.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Undo design edit",
+    "--exact"
+  ],
+  [
+    "eval",
+    "if(JSON.stringify(qaReadDesign().walls)!==JSON.stringify(qaBeforeCad.walls)) throw Error('Undo did not restore authored walls'); 'DWG import undo restored assemblies'"
+  ],
+  [
+    "errors"
+  ]
+]

@@ -1,0 +1,249 @@
+[
+ [
+  "reload"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sheets",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[aria-label=\"Archive Ground floor plan\"]')"
+ ],
+ [
+  "eval",
+  "var h=[...document.querySelectorAll('h1')].find(h=>h.textContent==='Ground floor plan');if(!h)throw Error('Heading missing');h.scrollIntoView({block:'center'});'Heading scrolled into view: '+h.textContent"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az3-release/native-sheets-B0-renamed-heading.png"
+ ],
+ [
+  "eval",
+  "document.querySelector('.sheet-manager').scrollIntoView({block:'start'});var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));var doc=job.documents.find(d=>d.id===job.activeDocumentId);var key='xray.sheet-lifecycle.v1:'+JSON.stringify([job.id,doc.id,doc.sha256,doc.importedAt,doc.pageCount]);var life=JSON.parse(localStorage.getItem(key));var page=life.pages.find(p=>p.pageIndex===1);if(page.archived)throw Error('Page already archived');var cal=job.calibrations.find(c=>c.sheet===1);if(!cal||!cal.locked)throw Error('Expected a locked calibration on page 2 before archive');if((job.annotations||[]).length!==1||job.annotations[0].sheet!==1)throw Error('Expected exactly one annotation on page 2 before archive');sessionStorage.setItem('az3.key',key);sessionStorage.setItem('az3.order',JSON.stringify(life.pages.map(p=>p.pageIndex)));sessionStorage.setItem('az3.page',JSON.stringify(page));sessionStorage.setItem('az3.slot',String(life.pages.findIndex(p=>p.pageIndex===1)));sessionStorage.setItem('az3.job',JSON.stringify({calibrations:job.calibrations.length,annotations:job.annotations.length,runs:job.runs.length,gates:job.gates.length,annotation:job.annotations[0],scale:{locked:cal.locked,metresPerUnit:cal.metresPerUnit,coordinateSpace:cal.coordinateSpace,selectedCandidateId:cal.selectedCandidateId},sha:doc.sha256}));if(![...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)'))throw Error('Expected Active (13)');'Before archive: order '+sessionStorage.getItem('az3.order')+' slot '+sessionStorage.getItem('az3.slot')+' page '+sessionStorage.getItem('az3.page')+' job '+JSON.stringify({calibrations:job.calibrations.length,annotations:job.annotations.length,runs:job.runs.length,gates:job.gates.length,page2Scale:cal.metresPerUnit,annotation:job.annotations[0].label+' '+job.annotations[0].value.toFixed(3)+' '+job.annotations[0].unit})"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Archive Ground floor plan",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.sheet-archive-review')"
+ ],
+ [
+  "eval",
+  "var review=document.querySelector('.sheet-archive-review');var rows=[...review.querySelectorAll('dl > div')].map(d=>d.querySelector('dt').textContent+'='+d.querySelector('dd').textContent);var expected=['Calibrations retained=1','Measured traces retained=0','Located items retained=0','Annotations retained=1','Linked photos retained=0','Saved views retained=1'];for(var e of expected)if(!rows.includes(e))throw Error('Missing or wrong impact row '+e+' in '+JSON.stringify(rows));if(![...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)'))throw Error('Review mutated before confirm');var life=JSON.parse(localStorage.getItem(sessionStorage.getItem('az3.key')));if(life.pages.find(p=>p.pageIndex===1).archived)throw Error('Storage mutated before confirm');review.scrollIntoView({block:'center'});'Archive review rows: '+JSON.stringify(rows)+'; still Active (13); storage unchanged'"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az3-release/native-sheets-B1-archive-review.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Confirm archive",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (12)')"
+ ],
+ [
+  "eval",
+  "if(document.querySelector('.sheet-manager-list').textContent.includes('Ground floor plan'))throw Error('Archived sheet still in Active list');if(document.querySelector('[aria-label=\"Open source page 2\"]'))throw Error('Archived page still in navigation');var life=JSON.parse(localStorage.getItem(sessionStorage.getItem('az3.key')));var page=life.pages.find(p=>p.pageIndex===1);if(!page.archived)throw Error('Storage not archived');if(JSON.stringify(life.pages.map(p=>p.pageIndex))!==sessionStorage.getItem('az3.order'))throw Error('Archive changed the managed order');if(page.name!=='Ground floor plan'||page.bookmarks.length!==1)throw Error('Archive lost metadata');var before=JSON.parse(sessionStorage.getItem('az3.job'));var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(job.calibrations.length!==before.calibrations||(job.annotations||[]).length!==before.annotations||job.runs.length!==before.runs||job.gates.length!==before.gates)throw Error('Archive changed job counts: '+JSON.stringify({calibrations:job.calibrations.length,annotations:(job.annotations||[]).length,runs:job.runs.length,gates:job.gates.length}));if(JSON.stringify(job.annotations[0])!==JSON.stringify(before.annotation))throw Error('Archive changed the annotation');var cal=job.calibrations.find(c=>c.sheet===1);if(!cal.locked||cal.metresPerUnit!==before.scale.metresPerUnit)throw Error('Archive changed the page 2 scale');var status=document.querySelector('.sheet-manager [role=status]')?.textContent||'';'Archived: Active (12); page 2 absent from Active list and navigation; storage archived=true; order unchanged '+JSON.stringify(life.pages.map(p=>p.pageIndex))+'; job counts unchanged '+JSON.stringify({calibrations:job.calibrations.length,annotations:job.annotations.length,runs:job.runs.length,gates:job.gates.length})+'; page 2 annotation and locked scale byte-identical; status: '+status"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Archived (1)",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelectorAll('.sheet-manager-list>li').length===1&&!!document.querySelector('[aria-label=\"Recover Ground floor plan\"]')"
+ ],
+ [
+  "reload"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sheets",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (12)')"
+ ],
+ [
+  "eval",
+  "var life=JSON.parse(localStorage.getItem(sessionStorage.getItem('az3.key')));if(!life.pages.find(p=>p.pageIndex===1).archived)throw Error('Archive lost on reload');if(document.querySelector('[aria-label=\"Open source page 2\"]'))throw Error('Navigation shows archived page after reload');var pill=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('1 archived'));if(!pill)throw Error('Sidebar archived count missing');var before=JSON.parse(sessionStorage.getItem('az3.job'));var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(job.calibrations.length!==before.calibrations||(job.annotations||[]).length!==before.annotations)throw Error('Job counts changed across reload while archived');if(JSON.stringify(job.annotations[0])!==JSON.stringify(before.annotation))throw Error('Annotation changed across reload while archived');'After reload: still archived; navigation hides page 2; sidebar shows '+pill.textContent+'; job calibrations '+job.calibrations.length+' annotations '+job.annotations.length+' unchanged'"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Archived (1)",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelectorAll('.sheet-manager-list>li').length===1&&!!document.querySelector('[aria-label=\"Recover Ground floor plan\"]')"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az3-release/native-sheets-B2-archived-list-after-reload.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Recover Ground floor plan",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Active (13)",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[aria-label=\"Archive Ground floor plan\"]')"
+ ],
+ [
+  "eval",
+  "var life=JSON.parse(localStorage.getItem(sessionStorage.getItem('az3.key')));var order=JSON.stringify(life.pages.map(p=>p.pageIndex));if(order!==sessionStorage.getItem('az3.order'))throw Error('Order after recover '+order+' differs from before '+sessionStorage.getItem('az3.order'));var slot=life.pages.findIndex(p=>p.pageIndex===1);if(String(slot)!==sessionStorage.getItem('az3.slot'))throw Error('Slot changed: '+slot);var page=life.pages.find(p=>p.pageIndex===1);var before=JSON.parse(sessionStorage.getItem('az3.page'));function canon(v){return Array.isArray(v)?v.map(canon):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canon(v[k])])):v}if(JSON.stringify(canon(page))!==JSON.stringify(canon(before)))throw Error('Recovered page differs: '+JSON.stringify(page)+' vs '+JSON.stringify(before));var rows=[...document.querySelectorAll('.sheet-manager-list>li')].map(li=>li.dataset.originalPage);if(rows[slot]!=='2')throw Error('Active list position wrong: '+JSON.stringify(rows));var nav=document.querySelector('[aria-label=\"Open source page 2\"]');if(!nav||!nav.textContent.includes('Ground floor plan'))throw Error('Navigation missing recovered page');var jb=JSON.parse(sessionStorage.getItem('az3.job'));var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(job.calibrations.length!==jb.calibrations||(job.annotations||[]).length!==jb.annotations)throw Error('Recover changed job counts');if(JSON.stringify(job.annotations[0])!==JSON.stringify(jb.annotation))throw Error('Recover changed the annotation');'Recovered: order '+order+' equals before; slot '+slot+'; page metadata identical (name, discipline, 1 saved view); Active list rows '+JSON.stringify(rows)+'; job calibrations '+job.calibrations.length+' annotations '+job.annotations.length+' identical'"
+ ],
+ [
+  "reload"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sheets",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[aria-label=\"Archive Ground floor plan\"]')&&[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)')"
+ ],
+ [
+  "eval",
+  "var life=JSON.parse(localStorage.getItem(sessionStorage.getItem('az3.key')));if(JSON.stringify(life.pages.map(p=>p.pageIndex))!==sessionStorage.getItem('az3.order'))throw Error('Order lost after reload');var page=life.pages.find(p=>p.pageIndex===1);if(page.archived||page.name!=='Ground floor plan'||page.discipline!=='Architecture'||page.bookmarks.length!==1)throw Error('Recovered metadata lost after reload');var before=JSON.parse(sessionStorage.getItem('az3.job'));var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(job.calibrations.length!==13)throw Error('Calibration records after recover+reload: '+job.calibrations.length);if((job.annotations||[]).length!==before.annotations)throw Error('Annotation count after recover+reload: '+(job.annotations||[]).length);if(JSON.stringify(job.annotations[0])!==JSON.stringify(before.annotation))throw Error('Annotation content changed after recover+reload');var cal=job.calibrations.find(c=>c.sheet===1);if(!cal||cal.locked!==true||cal.metresPerUnit!==before.scale.metresPerUnit||cal.coordinateSpace!=='source-page-v1'||cal.selectedCandidateId!==before.scale.selectedCandidateId)throw Error('Page 2 scale changed after recover+reload: '+JSON.stringify(cal));var doc=job.documents.find(d=>d.id===job.activeDocumentId);if(doc.sha256!==before.sha)throw Error('Source changed');if(job.runs.length!==before.runs||job.gates.length!==before.gates)throw Error('Runs/gates changed');'After recover + reload: page 2 active in slot '+life.pages.findIndex(p=>p.pageIndex===1)+' with name/discipline/1 saved view; job calibrations '+job.calibrations.length+' (page 2 locked at '+cal.metresPerUnit+' m/unit), annotations '+job.annotations.length+' ('+job.annotations[0].label+' '+job.annotations[0].value.toFixed(3)+' '+job.annotations[0].unit+' on sheet '+job.annotations[0].sheet+', byte-identical), runs '+job.runs.length+', gates '+job.gates.length+'; lifecycle revision '+life.revision"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az3-release/native-sheets-B3-after-recover-reload.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "View page 2",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "[...document.querySelectorAll('h1')].some(h=>h.textContent==='Ground floor plan')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sketch",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[aria-label=\"Sketch workspaces\"]')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Source annotations",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.measure-document-preview[data-source-ready=\"true\"] .document-source-page')&&[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Manual layer'&&!b.disabled)"
+ ],
+ [
+  "eval",
+  "var text=document.body.innerText;if(!text.includes('Manual trace'))throw Error('Recovered page does not list the annotation');'Recovered page 2 in the Sketch pane: Manual layer enabled (scale still locked) and the Manual trace annotation is listed'"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az3-release/native-sheets-B4-recovered-page-annotation.png"
+ ],
+ [
+  "errors"
+ ]
+]

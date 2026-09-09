@@ -1,0 +1,102 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "New chat",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(async()=>{const c=document.createElement('canvas');c.width=8;c.height=8;c.getContext('2d').fillRect(0,0,8,8);const b=await new Promise(r=>c.toBlob(r));const dt=new DataTransfer();dt.items.add(new File([b],'pasted-material.png',{type:'image/png'}));document.querySelector('textarea').dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:dt}));return 'Pasted synthetic image';})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.assistant-attachments img').length===1"
+  ],
+  [
+    "eval",
+    "(()=>{const dt=new DataTransfer();dt.items.add(new File(['not-an-image'],'unsupported.svg',{type:'image/svg+xml'}));const input=document.querySelector('.assistant-file-input');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.live-assistant-message')?.textContent.includes('PNG')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelectorAll('.assistant-attachments img').length!==1)throw Error('Rejected upload changed pending images');})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "New chat",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "References & inspiration",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('.live-assistant-body').scrollTop=0;})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/assistant-reference-styles.png"
+  ],
+  [
+    "errors"
+  ]
+]

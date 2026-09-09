@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const base='proof/growth/2026-09-08-ring-overflow';
+let a=JSON.parse(fs.readFileSync(`${base}/local-regression.json`));
+a[0]=['tab','t1'];
+for(const s of a)if(s[0]==='screenshot')s[1]=s[1].replace('local','native');
+fs.writeFileSync(`${base}/native-regression.json`,JSON.stringify(a));
+let motion=JSON.parse(fs.readFileSync(`${base}/local-motion.json`));
+motion=motion.filter(s=>s[0]!=='set'&&s[0]!=='open');
+for(const s of motion)if(s[0]==='screenshot')s[1]=s[1].replace('local','native');
+fs.writeFileSync(`${base}/native-motion.json`,JSON.stringify(motion));
+let prod=JSON.parse(fs.readFileSync(`${base}/production-motion.json`));
+fs.writeFileSync(`${base}/production-resume.json`,JSON.stringify(prod.slice(4)));

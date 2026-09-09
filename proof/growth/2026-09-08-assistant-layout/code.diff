@@ -1,0 +1,2465 @@
+diff --git a/proof/growth/2026-09-08-assistant-layout/LiveAssistant.before.tsx b/src/studio/LiveAssistant.tsx
+index faedcdf..04f7e66 100644
+--- a/proof/growth/2026-09-08-assistant-layout/LiveAssistant.before.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -1,88 +1,199 @@
+-import { useEffect, useRef, useState, type CSSProperties } from "react";
+-import { ArrowUpRight, Bot, ChevronUp, FileSearch, Minus, PlayCircle, RefreshCw, X } from "lucide-react";
++import { useEffect, useRef, useState } from "react";
++import { createPortal } from "react-dom";
++import {
++  ArrowUp,
++  ArrowLeft,
++  ArrowUpRight,
++  Bot,
++  ChevronUp,
++  FileSearch,
++  Minus,
++  PlayCircle,
++  RefreshCw,
++  X,
++  Plus,
++  ImagePlus,
++  Sparkles,
++  CircleHelp,
++  MessageSquarePlus,
++  Settings2,
++  Grip,
++  Maximize2,
++  Images,
++  Mic,
++} from "lucide-react";
+ import { useStudio } from "./store";
+ import { useLiveAssistant } from "./liveAssistantState";
+ import { type MaterialAiStatus } from "./materialAiTransport";
+ import { inspectPlanBytes } from "./documents";
+-import "./liveAssistant.css";
++import "./assistantPanel.css";
+ import { LiveAssistantVoice } from "./LiveAssistantVoice";
+ import { assistantStatus } from "./assistant/transport";
+ import { callAssistantTool, getAssistantMcp, useAssistantConnection } from "./assistant/session";
+ import { useAssistantChat } from "./assistant/useAssistantChat";
+ import { ConversationView } from "./assistant/ConversationView";
+-import type { ChatImage } from "./assistant/conversation";
+-
+-
++import { useAssistantPanel } from "./assistant/useAssistantPanel";
++import {
++  BUILDING_STYLES,
++  REFERENCE_KINDS,
++  referenceMessage,
++  validateReferenceFile,
++  type ReferenceImage,
++  type ReferenceKind,
++} from "./assistant/referenceImages";
+ 
+ export function LiveAssistant() {
+   const { open, draft, guide } = useLiveAssistant();
+-  const binary = useStudio(s => s.activePlanBinary);
+-  const sheet = useStudio(s => s.sheet);
+-  const hydrated = useStudio(s => s.persistenceHydrated);
+-  const pane = useStudio(s => s.pane);
+-  const jobId = useStudio(s => s.job.id);
++  const binary = useStudio((s) => s.activePlanBinary);
++  const sheet = useStudio((s) => s.sheet);
++  const hydrated = useStudio((s) => s.persistenceHydrated);
++  const jobId = useStudio((s) => s.job.id);
+   const chat = useAssistantChat(jobId);
+   const connection = useAssistantConnection();
+-  const [attachments, setAttachments] = useState<ChatImage[]>([]);
+-  const [alignment, setAlignment] = useState<CSSProperties>({});
++  const [attachments, setAttachments] = useState<ReferenceImage[]>([]);
++  const [references, setReferences] = useState<ReferenceImage[]>([]);
++  const [menu, setMenu] = useState(false);
++  const [drawer, setDrawer] = useState<"skills" | "references" | "help" | "settings" | null>(null);
++  const [dragOver, setDragOver] = useState(false);
++  const [readingImages, setReadingImages] = useState(false);
++  const panel = useAssistantPanel();
+   const [status, setStatus] = useState<MaterialAiStatus | null>(null);
+   const [message, setMessage] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [refresh, setRefresh] = useState(0);
+   const input = useRef<HTMLTextAreaElement>(null);
+   const launcher = useRef<HTMLButtonElement>(null);
++  const fileInput = useRef<HTMLInputElement>(null),
++    uploadKind = useRef<ReferenceKind>("Reference"),
++    uploadLibrary = useRef(false),
++    uploadLock = useRef(false),
++    projectRef = useRef(jobId);
++  projectRef.current = jobId;
++  const body = useRef<HTMLDivElement>(null),
++    followMessages = useRef(true),
++    menuRoot = useRef<HTMLDivElement>(null),
++    plusButton = useRef<HTMLButtonElement>(null);
+   useEffect(() => {
+-    const workspace = launcher.current?.closest(".workspace-rails");
+-    if (!workspace) return;
+-    const rails = Array.from(workspace.querySelectorAll<HTMLElement>(".studio-right-rail, .building-inspector, .measure-inspector"));
+-    const measure = () => {
+-      const rail = rails.find(element => element.getBoundingClientRect().width > 0 && getComputedStyle(element).display !== "none");
+-      const rect = rail?.getBoundingClientRect();
+-      setAlignment(rect && rect.width >= 280 && rect.right <= innerWidth + 1
+-        ? { width: rect.width, right: Math.max(0, innerWidth - rect.right) } : {});
++    if (!menu) return;
++    const outside = (e: PointerEvent) => {
++      if (!menuRoot.current?.contains(e.target as Node)) setMenu(false);
+     };
+-    const observer = new ResizeObserver(measure);
+-    rails.forEach(rail => observer.observe(rail));
+-    window.addEventListener("resize", measure);
+-    measure();
+-    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
+-  }, [pane, open]);
++    document.addEventListener("pointerdown", outside);
++    return () => document.removeEventListener("pointerdown", outside);
++  }, [menu]);
++  useEffect(() => {
++    if (body.current && followMessages.current && !drawer)
++      body.current.scrollTop = body.current.scrollHeight;
++  }, [chat.entries, chat.busy, message, drawer]);
+   useEffect(() => {
+     if (!open) return;
+     let active = true;
+     setStatus(null);
+-    assistantStatus().then(value => { if (active) setStatus(value); })
+-      .catch(() => { if (active) setMessage("Connection status is unavailable. Open AI review to check configuration."); });
+-    void getAssistantMcp().catch(error => { if (active) setMessage(error instanceof Error ? error.message : "MCP connection failed."); });
++    assistantStatus()
++      .then((value) => {
++        if (active) setStatus(value);
++      })
++      .catch(() => {
++        if (active)
++          setMessage("Connection status is unavailable. Open AI review to check configuration.");
++      });
++    void getAssistantMcp().catch((error) => {
++      if (active) setMessage(error instanceof Error ? error.message : "MCP connection failed.");
++    });
+     input.current?.focus();
+-    return () => { active = false; };
++    return () => {
++      active = false;
++    };
+   }, [open, refresh]);
+-  useEffect(() => { setAttachments([]); setMessage(""); useLiveAssistant.setState({ draft: "" }); }, [jobId]);
+-  const collapse = () => { useLiveAssistant.setState({ open: false }); launcher.current?.focus(); };
++  useEffect(() => {
++    setAttachments([]);
++    setReferences([]);
++    setMenu(false);
++    setDrawer(null);
++    setDragOver(false);
++    setMessage("");
++    useLiveAssistant.setState({ draft: "" });
++  }, [jobId]);
++  const collapse = () => {
++    setMenu(false);
++    useLiveAssistant.setState({ open: false });
++    launcher.current?.focus();
++  };
+   const capabilities = async () => {
+-    try { const session = await getAssistantMcp(); setMessage(`Connected to X-Ray workspace MCP. ${session.tools.length} tools: ${session.tools.map(tool => tool.name).join(", ")}. These are the tools currently available to this assistant.`); }
+-    catch (error) { setMessage(error instanceof Error ? error.message : "MCP connection failed."); }
++    try {
++      const session = await getAssistantMcp();
++      setMessage(
++        `Connected to X-Ray workspace MCP. ${session.tools.length} tools: ${session.tools.map((tool) => tool.name).join(", ")}. These are the tools currently available to this assistant.`,
++      );
++    } catch (error) {
++      setMessage(error instanceof Error ? error.message : "MCP connection failed.");
++    }
+   };
+   const handleDraftsmanChat = async (rawInput: string) => {
+     const command = rawInput.trim().toLowerCase();
+-    const commands: Record<string, string> = { "/draw": "play", "/draft": "play", "/pencil": "play", "/magic-pencil": "play", "/draftsman": "status", "draftsman status": "status", "pause drafting": "pause", "pause drawing": "pause", "replay drafting": "replay", "/tour": "tour" };
++    const commands: Record<string, string> = {
++      "/draw": "play",
++      "/draft": "play",
++      "/pencil": "play",
++      "/magic-pencil": "play",
++      "/draftsman": "status",
++      "draftsman status": "status",
++      "pause drafting": "pause",
++      "pause drawing": "pause",
++      "replay drafting": "replay",
++      "/tour": "tour",
++      tour: "tour",
++      "draw the tower": "play",
++    };
+     const action = commands[command];
+     if (!action || attachments.length) return false;
+     try {
+-      const result = await callAssistantTool("control_draftsman", { expectedJobId: jobId, action }, new AbortController().signal);
+-      const output = result.content.filter(item => item.type === "text").map(item => item.text || "").join("\n");
+-      chat.postLocalExchange(rawInput, result.isError ? "Drawing action could not be completed. See the tool result." : "Drawing playback command completed. This animates the existing model; it does not create new geometry.", { toolName: "control_draftsman", text: output, failed: !!result.isError });
++      const result = await callAssistantTool(
++        "control_draftsman",
++        { expectedJobId: jobId, action },
++        new AbortController().signal,
++      );
++      const output = result.content
++        .filter((item) => item.type === "text")
++        .map((item) => item.text || "")
++        .join("\n");
++      chat.postLocalExchange(
++        rawInput,
++        result.isError
++          ? "Drawing action could not be completed. See the tool result."
++          : "Drawing playback command completed. This animates the existing model; it does not create new geometry.",
++        { toolName: "control_draftsman", text: output, failed: !!result.isError },
++      );
+     } catch (error) {
+       const output = error instanceof Error ? error.message : "Drawing playback failed.";
+-      chat.postLocalExchange(rawInput, output, { toolName: "control_draftsman", text: output, failed: true });
++      chat.postLocalExchange(rawInput, output, {
++        toolName: "control_draftsman",
++        text: output,
++        failed: true,
++      });
+     }
+     return true;
+   };
+   const sendMessage = async () => {
+-    if (chat.busy) return;
++    if (chat.busy || readingImages) return;
++    followMessages.current = true;
++    setDrawer(null);
++    setMenu(false);
+     const command = draft.trim().toLowerCase().replace(/\s+/g, " ");
+     if (!command && !attachments.length) return;
+-    if (["/mcp", "/capabilities", "/full capabilities", "/ful capabilities", "/mcp full capabilities", "/mcp /full capabilities", "mcp /full capabilities", "mcp /ful capabilities"].includes(command)) {
++    if (
++      !attachments.length &&
++      [
++        "/mcp",
++        "/capabilities",
++        "/full capabilities",
++        "/ful capabilities",
++        "/mcp full capabilities",
++        "/mcp /full capabilities",
++        "mcp /full capabilities",
++        "mcp /ful capabilities",
++      ].includes(command)
++    ) {
+       await capabilities();
+       useLiveAssistant.setState({ draft: "" });
+     } else {
+@@ -94,98 +205,797 @@ export function LiveAssistant() {
+       setMessage("");
+       const sentDraft = draft;
+       try {
+-        const ok = await chat.send(draft.trim() || "Please inspect the attached image.", attachments);
+-        if (ok && useLiveAssistant.getState().draft === sentDraft) { useLiveAssistant.setState({ draft: "" }); setAttachments([]); }
+-      } catch (error) { setMessage(error instanceof Error ? error.message : "Assistant could not start."); }
++        const ok = await chat.send(
++          attachments.length ? referenceMessage(draft, attachments) : draft.trim(),
++          attachments.map(({ mimeType, data }) => ({ mimeType, data })),
++        );
++        if (ok && useLiveAssistant.getState().draft === sentDraft) {
++          useLiveAssistant.setState({ draft: "" });
++          setAttachments([]);
++        }
++      } catch (error) {
++        setMessage(error instanceof Error ? error.message : "Assistant could not start.");
++      }
+     }
+   };
+ 
+-  const attachImages = async (files: FileList | null) => {
++  const attachImages = async (
++    files: FileList | File[] | null,
++    kind: ReferenceKind = "Reference",
++    libraryOnly = false,
++  ) => {
+     if (!files?.length) return;
++    if (uploadLock.current || chat.busy) {
++      setMessage("Wait for the current upload or response, or stop the assistant first.");
++      return;
++    }
++    uploadLock.current = true;
++    setReadingImages(true);
++    const project = jobId;
+     try {
+-      if (files.length + attachments.length > 2) throw Error("Attach up to two images per message.");
+-      const added: ChatImage[] = [];
++      if (!libraryOnly && files.length + attachments.length > 2)
++        throw Error(
++          "Attach up to two images per message. Keep additional inspiration in References.",
++        );
++      if (files.length + references.length > 12)
++        throw Error(
++          "Keep up to twelve reference images per project in this session. Remove a reference to add another.",
++        );
++      const added: ReferenceImage[] = [];
+       for (const file of Array.from(files)) {
+-        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 3 * 1024 * 1024) throw Error("Choose PNG, JPEG or WebP images up to 3 MB each.");
+-        const url = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(Error("Image could not be read.")); reader.readAsDataURL(file); });
+-        const decoded = new Image(); decoded.src = url; await decoded.decode();
+-        if (decoded.naturalWidth * decoded.naturalHeight > 24000000) throw Error("Use an image of at most 24 megapixels.");
+-        added.push({ mimeType: file.type as ChatImage["mimeType"], data: url.split(",")[1] });
++        validateReferenceFile(file);
++        const url = await new Promise<string>((resolve, reject) => {
++          const reader = new FileReader();
++          reader.onload = () => resolve(String(reader.result));
++          reader.onerror = () => reject(Error("Image could not be read."));
++          reader.readAsDataURL(file);
++        });
++        const decoded = new Image();
++        decoded.src = url;
++        await decoded.decode();
++        if (decoded.naturalWidth * decoded.naturalHeight > 24000000)
++          throw Error("Use an image of at most 24 megapixels.");
++        added.push({
++          id: crypto.randomUUID(),
++          name: file.name,
++          kind,
++          mimeType: file.type as ReferenceImage["mimeType"],
++          data: url.split(",")[1],
++        });
+       }
+-      setAttachments(previous => [...previous, ...added]);
+-    } catch (error) { setMessage(error instanceof Error ? error.message : "Image attachment failed."); }
++      if (projectRef.current !== project) return;
++      setReferences((previous) => [...previous, ...added]);
++      if (!libraryOnly) setAttachments((previous) => [...previous, ...added]);
++      setMessage(
++        libraryOnly
++          ? "Added to References. Choose Use in message when ready."
++          : "Images attached. Review them before sending.",
++      );
++    } catch (error) {
++      if (projectRef.current === project)
++        setMessage(error instanceof Error ? error.message : "Image attachment failed.");
++    } finally {
++      uploadLock.current = false;
++      setReadingImages(false);
++    }
++  };
++  const chooseImages = (kind: ReferenceKind = "Reference", libraryOnly = false) => {
++    uploadKind.current = kind;
++    uploadLibrary.current = libraryOnly;
++    setMenu(false);
++    fileInput.current?.click();
++  };
++  const openDrawer = (value: typeof drawer) => {
++    setDrawer(value);
++    setMenu(false);
++    followMessages.current = true;
++  };
++  const usePrompt = (text: string) => {
++    useLiveAssistant.setState({ draft: text });
++    setDrawer(null);
++    setMenu(false);
++    input.current?.focus();
++  };
++  const newChat = () => {
++    if (chat.busy || readingImages) return;
++    chat.clear();
++    setAttachments([]);
++    setMessage("");
++    setMenu(false);
++    setDrawer(null);
++    useLiveAssistant.setState({ draft: "", guide: false });
++    input.current?.focus();
+   };
+   const prepareReview = () => {
+-    if (!binary || binary.kind !== "pdf") { setMessage("Open a PDF drawing to prepare an AI review."); return; }
++    if (!binary || binary.kind !== "pdf") {
++      setMessage("Open a PDF drawing to prepare an AI review.");
++      return;
++    }
+     useLiveAssistant.setState({
+       open: false,
+-      review: { id: crypto.randomUUID(), documentId: binary.documentId, sha256: binary.sha256, page: sheet + 1, focus: draft.trim() },
++      review: {
++        id: crypto.randomUUID(),
++        documentId: binary.documentId,
++        sha256: binary.sha256,
++        page: sheet + 1,
++        focus: draft.trim(),
++      },
+     });
+     useStudio.getState().setPane("components");
+   };
+   const practice = async () => {
+-    setLoading(true); setMessage("");
++    setLoading(true);
++    setMessage("");
+     try {
+       const response = await fetch("/examples/sketch-practice-room.svg");
+       if (!response.ok) throw Error("Practice plan could not be opened.");
+-      const imported = await inspectPlanBytes({ name: "DEMONSTRATION - Sketch practice room.svg", bytes: new Uint8Array(await response.arrayBuffer()), source: "web", takeoff: null });
++      const imported = await inspectPlanBytes({
++        name: "DEMONSTRATION - Sketch practice room.svg",
++        bytes: new Uint8Array(await response.arrayBuffer()),
++        source: "web",
++        takeoff: null,
++      });
+       await useStudio.getState().importPlan(imported);
+       useStudio.getState().setPane("measure");
+       setMessage("Practice plan opened. Enter 6 m, then pick points A and B and lock the scale.");
+-    } catch (error) { setMessage(error instanceof Error ? error.message : "Practice plan could not be opened."); }
+-    finally { setLoading(false); }
++    } catch (error) {
++      setMessage(error instanceof Error ? error.message : "Practice plan could not be opened.");
++    } finally {
++      setLoading(false);
++    }
+   };
+-  return (
+-    <aside className={`live-assistant ${open ? "is-open" : ""}`} style={alignment} aria-label="Live assistant">
+-      {open && <section className="live-assistant-panel" id="live-assistant-panel" role="region" aria-label="Drawing assistant panel"
+-        onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); collapse(); } }}>
+-        <header className="live-assistant-header">
+-          <span className="live-assistant-emblem"><Bot size={25} aria-hidden="true" /></span>
+-          <div className="live-assistant-identity"><strong>Live assistant</strong><span>{connection.connected ? `MCP connected · ${connection.names.length} tools` : "Connecting workspace tools…"}</span><span>{status ? status.available ? `${status.provider} ready` : status.message : "Checking AI connection…"}</span></div>
+-          <button type="button" className="live-assistant-icon" aria-label="Collapse live assistant" onClick={collapse}><Minus size={18} /></button>
+-        </header>
+-        <div className="live-assistant-body">
+-          <div className="live-assistant-context"><FileSearch size={14} aria-hidden="true" /><span>{binary ? `${binary.name} · Sheet ${sheet + 1}` : "No drawing selected"}</span></div>
+-          <ConversationView entries={chat.entries} busy={chat.busy} error={chat.error} />
+-          <LiveAssistantVoice onMessage={setMessage} reply={message || "Tell me what to look for in the drawing. Speak your instructions, review the transcript, then prepare a drawing review. Your drawing is only sent when you choose Send selected sheet to Gemini in AI review."} />
+-          <div className="live-assistant-suggestions" aria-label="Drawing review suggestions">
+-            <button type="button" onClick={capabilities}>MCP / capabilities</button>
+-            <button type="button" onClick={() => void handleDraftsmanChat("draw the tower")}>Magic Pencil: Draw 3D Tower</button>
+-            <button type="button" onClick={() => void handleDraftsmanChat("tour")}>Cinematic Tour</button>
+-            <button type="button" onClick={() => void handleDraftsmanChat("blueprint")}>Blueprint Sheet</button>
+-            <button type="button" onClick={() => void handleDraftsmanChat("draftsman status")}>Draftsman status</button>
+-            <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "List every visible material on this sheet, with its source evidence. Flag unknown quantities and avoid counting repeated views twice." }); input.current?.focus(); }}>All materials</button>
+-            <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "Find missing dimensions, quantities and material specifications on this sheet. Keep unsupported values unresolved." }); input.current?.focus(); }}>Missing details</button>
+-          </div>
+-          <p className="live-assistant-disclosure">Messages, attached images and requested tool results go to the configured AI provider. Web search runs when requested by the assistant. Chat history stays in this app session.</p>
+-          {guide && <section className="live-assistant-guide" aria-label="Sketch walkthrough">
+-            <div><strong>Your first Sketch</strong><button type="button" className="live-assistant-icon" aria-label="Close Sketch guide" onClick={() => useLiveAssistant.setState({ guide: false })}><X size={15}/></button></div>
+-            <ol><li><b>Open the practice plan.</b> A labelled 6 × 4 m room.</li><li><b>Measure → Known distance: 6 m.</b> Pick A and B, then Lock scale.</li><li><b>Sketch → Manual layer.</b> Click A → B → C → D → A.</li><li><b>Commit trace.</b> The outline saves as an annotation. Esc cancels unfinished points.</li></ol>
+-            <button type="button" className="live-assistant-practice" disabled={loading || !hydrated} onClick={practice}>{loading ? "Opening practice plan…" : "Open practice plan"}<ArrowUpRight size={15}/></button>
+-            <p>Demonstration data. Sketch annotations do not create walls, quantities or a 3D model.</p>
+-          </section>}
+-          {message && <p className="live-assistant-message" role="status">{message}</p>}
+-        </div>
+-        <footer className="live-assistant-footer"><button type="button" onClick={() => useLiveAssistant.setState({ guide: !guide })} aria-expanded={guide}><PlayCircle size={16}/>Sketch guide</button><span>{status?.configured ? status.model : "Drawing workspace"}</span><button type="button" className="live-assistant-icon" aria-label="Refresh assistant connection" onClick={() => { setMessage(""); setRefresh(v => v + 1); }}><RefreshCw size={15}/></button></footer>
+-        <form className="live-assistant-composer" onSubmit={event => { event.preventDefault(); sendMessage(); }}>
+-          {!!attachments.length && <div className="assistant-attachments">{attachments.map((image, index) => <div key={index}><img src={`data:${image.mimeType};base64,${image.data}`} alt={`Pending attachment ${index + 1}`} /><button type="button" disabled={chat.busy} aria-label={`Remove attachment ${index + 1}`} onClick={() => setAttachments(previous => previous.filter((_, i) => i !== index))}>Remove</button></div>)}</div>}
+-          <label className="sr-only" htmlFor="live-assistant-prompt">Message live assistant</label>
+-          <textarea ref={input} id="live-assistant-prompt" value={draft} maxLength={1500} rows={3}
+-            placeholder="Ask, draw, search… or type /mcp"
+-            disabled={chat.busy}
+-            onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); sendMessage(); } }}
+-            onChange={event => useLiveAssistant.setState({ draft: event.target.value })} />
+-          <div className="live-assistant-compose-footer">
+-            <label className="assistant-attach-button">Image<input type="file" accept="image/png,image/jpeg,image/webp" multiple disabled={chat.busy} aria-label="Attach images to assistant" onChange={event => { void attachImages(event.target.files); event.target.value = ""; }} /></label>
+-            <button type="button" onClick={chat.clear} disabled={chat.busy || !chat.entries.length}>New chat</button>
+-            {chat.busy ? <button type="button" onClick={chat.stop}>Stop</button> : <button type="submit" aria-label="Send assistant message" disabled={!draft.trim() && !attachments.length}><ArrowUpRight size={18} /><span>Send</span></button>}
++  if (!panel.rect) return null;
++  const rect = panel.rect;
++  const statusLabel = chat.busy
++    ? "Working"
++    : status?.available
++      ? connection.connected
++        ? "Connected"
++        : "Connecting tools"
++      : status
++        ? "Connection needed"
++        : "Connecting";
++  const skills = [
++    {
++      name: "Draft existing model",
++      detail: "Animate the model with Magic Pencil.",
++      prompt: "/draw",
++    },
++    { name: "Cinematic tour", detail: "Orbit the current drafting model.", prompt: "/tour" },
++    {
++      name: "Drafting status",
++      detail: "Read the current model and animation status.",
++      prompt: "/draftsman",
++    },
++    {
++      name: "Find materials",
++      detail: "List visible materials and source evidence.",
++      prompt:
++        "List the visible materials on this drawing with source evidence. Keep unknown quantities unresolved.",
++    },
++    {
++      name: "Check missing details",
++      detail: "Identify gaps without inventing dimensions.",
++      prompt:
++        "Find missing dimensions and material specifications in this drawing. Keep unsupported values unresolved.",
++    },
++    {
++      name: "Compare references",
++      detail: "Compare your attached styles and inspiration.",
++      prompt:
++        "Compare the attached references. Describe their form, materials, facade rhythm and daylight strategy. Suggest a coherent direction for my project; distinguish suggestions from verified drawing facts.",
++    },
++  ];
++  return createPortal(
++    <aside
++      className={`live-assistant ${open ? "is-open" : ""} ${panel.gesturing ? "is-gesturing" : ""}`}
++      style={{ left: rect.x, top: open ? rect.y : rect.y + rect.height + 8, width: rect.width }}
++      aria-label="Live assistant"
++      onDragOver={(event) => {
++        if (event.dataTransfer.types.includes("Files")) {
++          event.preventDefault();
++          event.dataTransfer.dropEffect = "copy";
++          setDragOver(true);
++        }
++      }}
++      onDragLeave={(event) => {
++        if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOver(false);
++      }}
++      onDrop={(event) => {
++        if (!event.dataTransfer.files.length) return;
++        event.preventDefault();
++        event.stopPropagation();
++        setDragOver(false);
++        useLiveAssistant.setState({ open: true });
++        void attachImages(
++          event.dataTransfer.files,
++          drawer === "references" ? "Inspiration" : "Reference",
++          drawer === "references",
++        );
++      }}
++    >
++      <input
++        ref={fileInput}
++        className="assistant-file-input"
++        type="file"
++        accept="image/png,image/jpeg,image/webp"
++        multiple
++        disabled={chat.busy || readingImages}
++        aria-label="Attach images to assistant"
++        onChange={(event) => {
++          void attachImages(event.target.files, uploadKind.current, uploadLibrary.current);
++          event.target.value = "";
++        }}
++      />
++      {open && (
++        <section
++          className="live-assistant-panel"
++          id="live-assistant-panel"
++          style={{ height: rect.height }}
++          role="region"
++          aria-label="Drawing assistant panel"
++          onKeyDown={(event) => {
++            if (event.key === "Escape") {
++              event.preventDefault();
++              event.stopPropagation();
++              if (menu) {
++                setMenu(false);
++                plusButton.current?.focus();
++              } else if (drawer) setDrawer(null);
++              else collapse();
++            }
++          }}
++        >
++          <button
++            type="button"
++            className="assistant-resize-handle"
++            aria-label="Resize live assistant"
++            title="Drag to resize · arrow keys adjust · Home resets"
++            onPointerDown={(e) => panel.pointerDown(e, "resize")}
++            onPointerMove={panel.pointerMove}
++            onPointerUp={panel.pointerUp}
++            onPointerCancel={panel.pointerUp}
++            onLostPointerCapture={panel.pointerUp}
++            onKeyDown={(e) => panel.keyboard(e, "resize")}
++          >
++            <Maximize2 size={12} />
++          </button>
++          <header className="live-assistant-header">
++            <button
++              type="button"
++              className="assistant-move-handle"
++              aria-label="Move live assistant"
++              title="Drag to move · arrow keys move · Home resets"
++              onPointerDown={(e) => panel.pointerDown(e, "move")}
++              onPointerMove={panel.pointerMove}
++              onPointerUp={panel.pointerUp}
++              onPointerCancel={panel.pointerUp}
++              onLostPointerCapture={panel.pointerUp}
++              onKeyDown={(e) => panel.keyboard(e, "move")}
++              onDoubleClick={panel.reset}
++            >
++              <Bot size={19} />
++              <span>
++                <strong>Live assistant</strong>
++                <small>
++                  <i className={status?.available ? "is-ready" : ""} />
++                  {statusLabel}
++                </small>
++              </span>
++              <Grip size={13} className="assistant-drag-grip" />
++            </button>
++            <button
++              type="button"
++              className="live-assistant-icon"
++              aria-label="Assistant settings"
++              aria-expanded={drawer === "settings"}
++              onClick={() => openDrawer(drawer === "settings" ? null : "settings")}
++            >
++              <Settings2 size={16} />
++            </button>
++            <button
++              type="button"
++              className="live-assistant-icon"
++              aria-label="Collapse live assistant"
++              onClick={collapse}
++            >
++              <Minus size={17} />
++            </button>
++          </header>
++          <div
++            className="live-assistant-body"
++            ref={body}
++            onScroll={(event) => {
++              const el = event.currentTarget;
++              followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
++            }}
++          >
++            {drawer && (
++              <div className="assistant-drawer-heading">
++                <button
++                  type="button"
++                  className="live-assistant-icon"
++                  aria-label="Back to conversation"
++                  onClick={() => setDrawer(null)}
++                >
++                  <ArrowLeft size={15} />
++                </button>
++                <strong>
++                  {drawer === "skills"
++                    ? "Skills"
++                    : drawer === "references"
++                      ? "References & inspiration"
++                      : drawer === "help"
++                        ? "Help"
++                        : "Connection & voice"}
++                </strong>
++              </div>
++            )}
++            {!drawer && (
++              <>
++                <div className="live-assistant-context">
++                  <FileSearch size={12} />
++                  <span title={binary?.name}>
++                    {binary ? `${binary.name} · Sheet ${sheet + 1}` : "Your drawing workspace"}
++                  </span>
++                </div>
++                <ConversationView entries={chat.entries} busy={chat.busy} error={chat.error} />
++              </>
++            )}
++            {drawer === "skills" && (
++              <div className="assistant-skill-list">
++                <p>Choose a workflow, review the prompt, then send.</p>
++                {skills.map((skill) => (
++                  <button
++                    type="button"
++                    key={skill.name}
++                    disabled={chat.busy}
++                    onClick={() => usePrompt(skill.prompt)}
++                  >
++                    <Sparkles size={15} />
++                    <span>
++                      <strong>{skill.name}</strong>
++                      <small>{skill.detail}</small>
++                    </span>
++                  </button>
++                ))}
++                <button
++                  type="button"
++                  onClick={() => {
++                    useLiveAssistant.setState({ guide: true });
++                    setDrawer("help");
++                  }}
++                >
++                  <PlayCircle size={15} />
++                  <span>
++                    <strong>Sketch walkthrough</strong>
++                    <small>Learn calibration and tracing with a practice plan.</small>
++                  </span>
++                </button>
++              </div>
++            )}
++            {drawer === "references" && (
++              <div className="assistant-reference-library">
++                <p>
++                  Build a direction with style briefs and your own images. References stay in this
++                  project’s app session, including across New chat.
++                </p>
++                <h3>Building styles</h3>
++                <div className="assistant-style-list">
++                  {BUILDING_STYLES.map((style) => (
++                    <button
++                      key={style.name}
++                      type="button"
++                      disabled={chat.busy}
++                      onClick={() =>
++                        usePrompt(
++                          style.brief +
++                            " Use any attached inspiration as references. Ask for missing project requirements before suggesting a layout.",
++                        )
++                      }
++                    >
++                      {style.name}
++                    </button>
++                  ))}
++                </div>
++                <h3>
++                  Inspiration & materials <span>{references.length}/12</span>
++                </h3>
++                <button
++                  type="button"
++                  className="assistant-reference-upload"
++                  disabled={readingImages || chat.busy}
++                  onClick={() => chooseImages("Inspiration", true)}
++                >
++                  <ImagePlus size={17} />
++                  Add reference images
++                </button>
++                <small>Drop images here, or add PNG, JPEG or WebP files. Up to 3 MB each.</small>
++                <div className="assistant-reference-grid">
++                  {references.map((image) => (
++                    <article key={image.id}>
++                      <img src={`data:${image.mimeType};base64,${image.data}`} alt={image.name} />
++                      <strong title={image.name}>{image.name}</strong>
++                      <select
++                        aria-label={`Reference purpose for ${image.name}`}
++                        value={image.kind}
++                        onChange={(e) => {
++                          const kind = e.target.value as ReferenceKind;
++                          setReferences((previous) =>
++                            previous.map((v) => (v.id === image.id ? { ...v, kind } : v)),
++                          );
++                          setAttachments((previous) =>
++                            previous.map((v) => (v.id === image.id ? { ...v, kind } : v)),
++                          );
++                        }}
++                      >
++                        {REFERENCE_KINDS.map((kind) => (
++                          <option key={kind}>{kind}</option>
++                        ))}
++                      </select>
++                      <div>
++                        <button
++                          type="button"
++                          disabled={
++                            chat.busy ||
++                            attachments.length >= 2 ||
++                            attachments.some((v) => v.id === image.id)
++                          }
++                          onClick={() => {
++                            setAttachments((previous) => [...previous, image]);
++                            setMessage("Reference attached to your next message.");
++                          }}
++                        >
++                          {attachments.some((v) => v.id === image.id)
++                            ? "Attached"
++                            : "Use in message"}
++                        </button>
++                        <button
++                          type="button"
++                          className="live-assistant-icon"
++                          aria-label={`Remove reference ${image.name}`}
++                          disabled={chat.busy}
++                          onClick={() => {
++                            setReferences((previous) => previous.filter((v) => v.id !== image.id));
++                            setAttachments((previous) => previous.filter((v) => v.id !== image.id));
++                          }}
++                        >
++                          <X size={13} />
++                        </button>
++                      </div>
++                    </article>
++                  ))}
++                </div>
++                {!references.length && (
++                  <p className="assistant-reference-empty">
++                    Facade photos, floor-plan details, material palettes, buildings you love—drop
++                    your inspiration here.
++                  </p>
++                )}
++              </div>
++            )}
++            {drawer === "help" && (
++              <div className="assistant-help">
++                <h3>Make the workspace your own</h3>
++                <p>
++                  Drag the header to move the chat. Drag its upper-right corner to resize. Focus
++                  either handle and use arrow keys; Home resets the panel.
++                </p>
++                <h3>Messages & references</h3>
++                <p>
++                  Enter sends. Shift + Enter adds a line. Drop images into the chat to attach them,
++                  or into References to keep them for later. Send up to two images at a time.
++                  Uploading alone does not send them to the AI provider.
++                </p>
++                <h3>Drawing tools</h3>
++                <p>
++                  <code>/draw</code> draws the existing model, <code>/tour</code> starts its orbit,{" "}
++                  <code>/draftsman</code> reads drawing status, and <code>/mcp</code> lists connected
++                  tools. Open a model first. These commands do not generate new building geometry.
++                </p>
++                <button
++                  type="button"
++                  className="assistant-text-action"
++                  onClick={() => useLiveAssistant.setState({ guide: !guide })}
++                >
++                  <PlayCircle size={15} />
++                  Sketch walkthrough
++                </button>
++                <button type="button" className="assistant-text-action" onClick={panel.reset}>
++                  <Maximize2 size={15} />
++                  Reset panel position & size
++                </button>
++                <button
++                  type="button"
++                  className="assistant-text-action"
++                  onClick={() => void capabilities()}
++                >
++                  View connected tools
++                </button>
++              </div>
++            )}
++            {drawer === "settings" && (
++              <div className="assistant-connection-settings">
++                <p>
++                  <strong>AI provider</strong>
++                  <br />
++                  {status
++                    ? status.available
++                      ? `${status.provider} · ${status.model}`
++                      : status.message
++                    : "Checking connection…"}
++                </p>
++                <p>
++                  <strong>Workspace tools</strong>
++                  <br />
++                  {connection.connected
++                    ? `${connection.names.length} tools connected`
++                    : connection.error || "Connecting…"}
++                </p>
++                <button
++                  type="button"
++                  className="assistant-text-action"
++                  onClick={() => {
++                    setMessage("");
++                    setRefresh((v) => v + 1);
++                  }}
++                >
++                  <RefreshCw size={14} />
++                  Refresh connection
++                </button>
++                <LiveAssistantVoice
++                  onMessage={setMessage}
++                  reply={
++                    chat.entries.filter((e) => e.kind === "assistant").at(-1)?.text ||
++                    message ||
++                    "Ask me about your drawing or attach a reference image."
++                  }
++                />
++                <p className="live-assistant-disclosure">
++                  Messages, selected images and requested tool results go to the configured provider
++                  when you send. Chat and references stay in this app session. New chat clears the
++                  conversation, not your project.
++                </p>
++              </div>
++            )}
++            {guide && drawer === "help" && (
++              <section className="live-assistant-guide" aria-label="Sketch walkthrough">
++                <strong>Your first Sketch</strong>
++                <ol>
++                  <li>Open the labelled 6 × 4 m practice plan.</li>
++                  <li>Measure → Known distance: 6 m. Pick A and B, then Lock scale.</li>
++                  <li>Sketch → Manual layer. Click A → B → C → D → A.</li>
++                  <li>Commit trace. Esc cancels unfinished points.</li>
++                </ol>
++                <button
++                  type="button"
++                  className="assistant-text-action"
++                  disabled={loading || !hydrated}
++                  onClick={practice}
++                >
++                  {loading ? "Opening…" : "Open practice plan"}
++                  <ArrowUpRight size={14} />
++                </button>
++                <p>Demonstration annotations do not create walls or verified quantities.</p>
++              </section>
++            )}
++            {message && (
++              <p className="live-assistant-message" role="status">
++                {message}
++              </p>
++            )}
+           </div>
+-          {binary?.kind === "pdf" && <button type="button" className="assistant-review-link" onClick={prepareReview} disabled={!hydrated || chat.busy}>Prepare drawing review</button>}
+-        </form>
+-      </section>}
+-      <button ref={launcher} type="button" className="live-assistant-launcher" aria-expanded={open} aria-controls="live-assistant-panel" onClick={() => useLiveAssistant.setState({ open: !open })}>
+-        <Bot size={17} aria-hidden="true"/><strong>Live assistant</strong><span>Drawing tools</span><ChevronUp size={15} className={open ? "is-flipped" : ""}/>
++          <form
++            className="live-assistant-composer"
++            onSubmit={(event) => {
++              event.preventDefault();
++              void sendMessage();
++            }}
++            onPaste={(event) => {
++              const files = Array.from(event.clipboardData.files).filter((f) =>
++                f.type.startsWith("image/"),
++              );
++              if (files.length) {
++                event.preventDefault();
++                void attachImages(files);
++              }
++            }}
++          >
++            {!!attachments.length && (
++              <div className="assistant-attachments">
++                {attachments.map((image, index) => (
++                  <div key={image.id}>
++                    <img
++                      src={`data:${image.mimeType};base64,${image.data}`}
++                      alt={`Pending attachment ${index + 1}: ${image.name}`}
++                    />
++                    <span title={image.name}>
++                      {image.kind}
++                      <small>{image.name}</small>
++                    </span>
++                    <button
++                      type="button"
++                      className="live-assistant-icon"
++                      disabled={chat.busy}
++                      aria-label={`Remove attachment ${index + 1}`}
++                      onClick={() =>
++                        setAttachments((previous) => previous.filter((v) => v.id !== image.id))
++                      }
++                    >
++                      <X size={12} />
++                    </button>
++                  </div>
++                ))}
++              </div>
++            )}
++            <label className="sr-only" htmlFor="live-assistant-prompt">
++              Message live assistant
++            </label>
++            <textarea
++              ref={input}
++              id="live-assistant-prompt"
++              value={draft}
++              maxLength={1500}
++              rows={2}
++              placeholder="Ask anything about your project…"
++              disabled={chat.busy}
++              onKeyDown={(event) => {
++                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
++                  event.preventDefault();
++                  void sendMessage();
++                }
++              }}
++              onChange={(event) => useLiveAssistant.setState({ draft: event.target.value })}
++            />
++            <div className="live-assistant-compose-footer">
++              <div className="assistant-add-root" ref={menuRoot}>
++                <button
++                  ref={plusButton}
++                  type="button"
++                  className="assistant-composer-button assistant-plus"
++                  aria-label="Add to assistant"
++                  aria-haspopup="menu"
++                  aria-expanded={menu}
++                  onClick={() => setMenu(!menu)}
++                >
++                  <span>
++                    <Plus size={18} />
++                  </span>
++                </button>
++                {menu && (
++                  <div
++                    className="assistant-add-menu"
++                    role="menu"
++                    aria-label="Add to assistant menu"
++                    onKeyDown={(event) => {
++                      if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
++                      event.preventDefault();
++                      const items = Array.from(
++                        event.currentTarget.querySelectorAll<HTMLButtonElement>(
++                          "button:not(:disabled)",
++                        ),
++                      );
++                      const current = items.indexOf(document.activeElement as HTMLButtonElement);
++                      const next =
++                        event.key === "Home"
++                          ? 0
++                          : event.key === "End"
++                            ? items.length - 1
++                            : (current + (event.key === "ArrowUp" ? -1 : 1) + items.length) %
++                              items.length;
++                      items[next]?.focus();
++                    }}
++                  >
++                    <button
++                      type="button"
++                      role="menuitem"
++                      disabled={chat.busy || readingImages}
++                      onClick={() => chooseImages()}
++                    >
++                      <ImagePlus size={16} />
++                      Upload images
++                    </button>
++                    <button type="button" role="menuitem" onClick={() => openDrawer("references")}>
++                      <Images size={16} />
++                      References & inspiration
++                    </button>
++                    <button type="button" role="menuitem" onClick={() => openDrawer("skills")}>
++                      <Sparkles size={16} />
++                      Skills
++                    </button>
++                    <button type="button" role="menuitem" onClick={() => openDrawer("help")}>
++                      <CircleHelp size={16} />
++                      Help
++                    </button>
++                    <button type="button" role="menuitem" onClick={() => openDrawer("settings")}>
++                      <Mic size={16} />
++                      Voice & connection
++                    </button>
++                    {binary?.kind === "pdf" && (
++                      <button
++                        type="button"
++                        role="menuitem"
++                        disabled={!hydrated || chat.busy}
++                        onClick={prepareReview}
++                      >
++                        <FileSearch size={16} />
++                        Prepare drawing review
++                      </button>
++                    )}
++                    <button
++                      type="button"
++                      role="menuitem"
++                      className="assistant-new-chat"
++                      disabled={chat.busy || readingImages}
++                      onClick={newChat}
++                    >
++                      <MessageSquarePlus size={16} />
++                      New chat
++                    </button>
++                  </div>
++                )}
++              </div>
++              <span className="assistant-composer-hint">
++                {readingImages
++                  ? "Reading images…"
++                  : attachments.length
++                    ? `${attachments.length}/2 images`
++                    : "Enter to send"}
++              </span>
++              {chat.busy ? (
++                <button
++                  type="button"
++                  className="assistant-composer-button assistant-send"
++                  aria-label="Stop assistant response"
++                  onClick={chat.stop}
++                >
++                  <span>
++                    <i className="assistant-stop-square" />
++                  </span>
++                </button>
++              ) : (
++                <button
++                  type="submit"
++                  className="assistant-composer-button assistant-send"
++                  aria-label="Send assistant message"
++                  disabled={readingImages || (!draft.trim() && !attachments.length)}
++                >
++                  <span>
++                    <ArrowUp size={17} />
++                  </span>
++                </button>
++              )}
++            </div>
++          </form>
++          <p className="assistant-bottom-note">
++            Review AI suggestions against your source drawings.
++          </p>
++          {dragOver && (
++            <div className="assistant-drop-target">
++              <ImagePlus size={26} />
++              <strong>
++                {drawer === "references"
++                  ? "Drop inspiration into References"
++                  : "Drop images to attach"}
++              </strong>
++              <span>PNG · JPEG · WebP</span>
++            </div>
++          )}
++        </section>
++      )}
++      <button
++        ref={launcher}
++        type="button"
++        className="live-assistant-launcher"
++        aria-expanded={open}
++        aria-controls="live-assistant-panel"
++        onClick={() => useLiveAssistant.setState({ open: !open })}
++      >
++        <Bot size={16} />
++        <strong>Live assistant</strong>
++        <ChevronUp size={14} className={open ? "is-flipped" : ""} />
+       </button>
+-    </aside>
++    </aside>,
++    document.body,
+   );
+ }
+diff --git a/proof/growth/2026-09-08-assistant-layout/package.before.json b/package.json
+index a1734bc..12821b3 100644
+--- a/proof/growth/2026-09-08-assistant-layout/package.before.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/lib/assistantAi.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/lib/assistantAi.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/proof/growth/2026-09-08-assistant-layout/baseline/floorConstruction.ts b/src/studio/floorConstruction.ts
+index 7c950a3..756caba 100644
+--- a/proof/growth/2026-09-08-assistant-layout/baseline/floorConstruction.ts
++++ b/src/studio/floorConstruction.ts
+@@ -1,10 +1,27 @@
+ import * as THREE from "three";
+ 
+ export const FLOOR_STAGES = [
++  {
++    id: "plumbing",
++    title: "Under-slab plumbing",
++    detail: "Water and waste mains below the slab, with risers to fixture positions.",
++  },
++  {
++    id: "electrical",
++    title: "Under-slab electrical",
++    detail: "Supply conduits below the slab and prepared risers to outlet positions.",
++  },
++  {
++    id: "reinforcement",
++    title: "Slab reinforcement",
++    detail:
++      "Two visible reinforcement mats within the future slab. Illustrative layout, not an engineered bar schedule.",
++  },
+   {
+     id: "structure",
+     title: "Concrete structure",
+-    detail: "Slab, six reinforced-concrete columns and perimeter beams.",
++    detail:
++      "Concrete poured around the prepared service penetrations and reinforcement; columns and beams follow.",
+   },
+   {
+     id: "framing",
+@@ -12,34 +29,35 @@ export const FLOOR_STAGES = [
+     detail: "Timber studs, plates and doorway lintels. Open front for inspection.",
+   },
+   {
+-    id: "plumbing",
+-    title: "Plumbing rough-in",
+-    detail: "Hot and cold supplies, waste branches and a service riser.",
++    id: "wall-services",
++    title: "Wall & ceiling services",
++    detail:
++      "Distribution board, outlet boxes and overhead lighting conduits after the framing, before insulation and linings.",
+   },
+   {
+-    id: "electrical",
+-    title: "Electrical rough-in",
+-    detail: "Conduit runs, switch boxes, outlets and distribution board.",
++    id: "insulation",
++    title: "Wall insulation",
++    detail: "Insulation batts fitted between the studs and noggins before the plasterboard.",
+   },
+   {
+     id: "gyprock",
+     title: "Gyprock",
+-    detail: "Plasterboard panels leave openings for the kitchen and bathroom.",
++    detail: "Plasterboard panels over the insulated wall framing.",
+   },
+   {
+     id: "painting",
+     title: "Painting",
+-    detail: "Warm ivory wall finish, with a muted sage kitchen feature wall.",
++    detail: "Warm ivory finish with a sage kitchen feature wall.",
+   },
+   {
+     id: "flooring",
+     title: "Flooring",
+-    detail: "Individual oak boards and pale ceramic bathroom tiles.",
++    detail: "Individual oak boards and ceramic bathroom tiles.",
+   },
+   {
+     id: "fixtures",
+     title: "Fixtures & fittings",
+-    detail: "Kitchen cabinetry, worktop, sink, tap, shower, vanity and sanitaryware.",
++    detail: "Cabinetry, worktop, sink, tap, shower, vanity and sanitaryware.",
+   },
+   {
+     id: "appliances",
+@@ -117,7 +135,33 @@ export function createFloorComponents() {
+     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+     return mesh;
+   };
+-  box("Concrete floor slab", "structure", 0, -0.16, 0, 12, 0.32, 9, "#aaa89f");
++  const penetrations: [number, number, number][] = [
++    ...[-3.72, -3.55].flatMap((z) =>
++      [-3.4, 3.7, 4.7].map((x) => [x, z, 0.05] as [number, number, number]),
++    ),
++    [4.85, -3.2, 0.11],
++    [4.5, -0.8, 0.09],
++    [3.2, -2.4, 0.08],
++    ...[-4.5, -2.5, 0, 2.5, 4.5].map((x) => [x, -3.75, 0.045] as [number, number, number]),
++  ];
++  const slabShape = new THREE.Shape();
++  slabShape.moveTo(-6, -4.5);
++  slabShape.lineTo(6, -4.5);
++  slabShape.lineTo(6, 4.5);
++  slabShape.lineTo(-6, 4.5);
++  slabShape.closePath();
++  for (const [x, z, r] of penetrations) {
++    const hole = new THREE.Path();
++    hole.absarc(x, -z, r, 0, Math.PI * 2, true);
++    slabShape.holes.push(hole);
++  }
++  const slabGeometry = new THREE.ExtrudeGeometry(slabShape, {
++    depth: 0.32,
++    bevelEnabled: false,
++    curveSegments: 8,
++  });
++  slabGeometry.rotateX(-Math.PI / 2);
++  add("Concrete floor slab", "structure", slabGeometry, [0, -0.32, 0], "#aaa89f");
+   for (const x of [-5.65, 0, 5.65])
+     for (const z of [-4.15, 4.15]) {
+       box(`Concrete column ${x},${z}`, "structure", x, 1.65, z, 0.38, 3.3, 0.38, "#b6b4aa");
+@@ -154,30 +198,44 @@ export function createFloorComponents() {
+     [-3.72, cold],
+     [-3.55, hot],
+   ] as [number, string][]) {
+-    pipe(`Water main ${c}`, "plumbing", [-4.7, 0.22, z], [4.8, 0.22, z], 0.026, c);
++    pipe(`Water main ${c}`, "plumbing", [-4.7, -0.52, z], [4.8, -0.52, z], 0.026, c);
+     for (const x of [-3.4, 3.7, 4.7])
+-      pipe(`Water branch ${c}:${x}`, "plumbing", [x, 0.22, z], [x, 1.02, z], 0.022, c);
++      pipe(`Water branch ${c}:${x}`, "plumbing", [x, -0.52, z], [x, 1.02, z], 0.022, c);
+   }
+-  pipe("Waste collector", "plumbing", [-3.4, 0.11, -3.2], [4.85, 0.11, -3.2], 0.065, waste);
+-  pipe("Soil stack", "plumbing", [4.85, 0.11, -3.2], [4.85, 3.4, -3.2], 0.075, waste);
+-  pipe("WC waste branch", "plumbing", [4.85, 0.11, -3.2], [4.5, 0.11, -0.8], 0.055, waste);
+-  pipe("Shower waste branch", "plumbing", [4.4, 0.11, -3.2], [3.2, 0.11, -2.4], 0.045, waste);
+-  box("Distribution board", "electrical", -5.35, 1.65, -2.1, 0.16, 0.56, 0.42, "#737a78", 0.3);
++  pipe("Waste collector", "plumbing", [-3.4, -0.62, -3.2], [4.85, -0.62, -3.2], 0.065, waste);
++  pipe("Soil stack", "plumbing", [4.85, -0.62, -3.2], [4.85, 3.4, -3.2], 0.075, waste);
++  pipe("WC waste branch", "plumbing", [4.85, -0.62, -3.2], [4.5, -0.59, -0.8], 0.055, waste);
++  pipe("Shower waste branch", "plumbing", [4.4, -0.62, -3.2], [3.2, -0.59, -2.4], 0.045, waste);
++  box("Distribution board", "wall-services", -5.35, 1.65, -2.1, 0.16, 0.56, 0.42, "#737a78", 0.3);
+   for (const x of [-4.5, -2.5, 0, 2.5, 4.5]) {
+     pipe(
+-      `Cable tray feed ${x}`,
++      `Under-slab electrical feed ${x}`,
+       "electrical",
+-      [-5.2, 2.78, -3.75],
+-      [x, 2.78, -3.75],
++      [-5.2, -0.43, -3.75],
++      [x, -0.43, -3.75],
+       0.019,
+       "#b99039",
+     );
+-    pipe(`Outlet conduit ${x}`, "electrical", [x, 2.78, -3.75], [x, 0.48, -3.75], 0.018, "#727c7b");
+-    box(`Outlet box ${x}`, "electrical", x, 0.48, -3.69, 0.14, 0.15, 0.055, "#3d575d");
++    pipe(
++      `Outlet conduit ${x}`,
++      "electrical",
++      [x, -0.43, -3.75],
++      [x, 0.48, -3.75],
++      0.018,
++      "#727c7b",
++    );
++    box(`Outlet box ${x}`, "wall-services", x, 0.48, -3.69, 0.14, 0.15, 0.055, "#3d575d");
+   }
+   for (const x of [-3, 0, 3]) {
+-    pipe(`Lighting conduit ${x}`, "electrical", [x, 2.78, -3.75], [x, 2.78, 1.5], 0.017, "#a88638");
+-    pipe(`Pendant feed ${x}`, "electrical", [x, 2.78, 0], [x, 2.25, 0], 0.012, "#474947");
++    pipe(
++      `Lighting conduit ${x}`,
++      "wall-services",
++      [x, 2.78, -3.75],
++      [x, 2.78, 1.5],
++      0.017,
++      "#a88638",
++    );
++    pipe(`Pendant feed ${x}`, "wall-services", [x, 2.78, 0], [x, 2.25, 0], 0.012, "#474947");
+   }
+   for (let x = -4.8; x < 5.4; x += 1.2) {
+     box(`Rear plasterboard ${x}`, "gyprock", x, 1.5, -3.92, 1.19, 2.9, 0.025, "#d5d2c7");
+@@ -302,6 +360,90 @@ export function createFloorComponents() {
+   }
+   for (const x of [-4.5, -2.5, 0, 2.5, 4.5])
+     box(`Outlet face ${x}`, "appliances", x, 0.48, -3.867, 0.15, 0.16, 0.018, "#edece4");
++
++  // Under-slab branches terminate at fixture risers, rather than floating above the pour.
++  pipe("WC waste riser", "plumbing", [4.5, -0.59, -0.8], [4.5, 0.25, -0.8], 0.055, waste);
++  pipe("Shower waste riser", "plumbing", [3.2, -0.59, -2.4], [3.2, 0.13, -2.4], 0.045, waste);
++  const steelRun = (
++    id: string,
++    axis: "x" | "z",
++    level: number,
++    fixed: number,
++    min: number,
++    max: number,
++  ) => {
++    let segments: [number, number][] = [[min, max]];
++    for (const [x, z, r] of penetrations) {
++      const cross = axis === "x" ? z : x,
++        center = axis === "x" ? x : z,
++        clear = r + 0.025;
++      if (Math.abs(fixed - cross) >= clear) continue;
++      const gap = Math.sqrt(clear * clear - (fixed - cross) ** 2);
++      segments = segments.flatMap(([a, b]) =>
++        center + gap <= a || center - gap >= b
++          ? [[a, b]]
++          : (
++              [
++                [a, Math.max(a, center - gap)],
++                [Math.min(b, center + gap), b],
++              ] as [number, number][]
++            ).filter(([lo, hi]) => hi - lo > 0.02),
++      );
++    }
++    segments.forEach(([a, b], i) =>
++      pipe(
++        id + ":" + i,
++        "reinforcement",
++        axis === "x" ? [a, level, fixed] : [fixed, level, a],
++        axis === "x" ? [b, level, fixed] : [fixed, level, b],
++        0.0075,
++        "#6a7072",
++        0.55,
++      ),
++    );
++  };
++  for (const layer of [-0.1, -0.23]) {
++    for (let z = -4.2; z <= 4.2; z += 0.3)
++      steelRun("Slab steel X " + layer + ":" + z, "x", layer, z, -5.7, 5.7);
++    for (let x = -5.7; x <= 5.7; x += 0.3)
++      steelRun("Slab steel Z " + layer + ":" + x, "z", layer - 0.018, x, -4.2, 4.2);
++  }
++  for (const [x, z, w] of [
++    [0, -4, 11.3],
++    [3.9, 1, 3.5],
++  ])
++    for (let a = -w / 2; a + 0.56 <= w / 2; a += 0.56) {
++      if (z === 1 && a < -0.65) continue;
++      for (const [y, h] of [
++        [0.72, 1.19],
++        [2.13, 1.48],
++      ])
++        box(
++          "Wall batt " + z + ":" + a + ":" + y,
++          "insulation",
++          x + a + 0.28,
++          y,
++          z,
++          0.505,
++          h,
++          0.078,
++          "#d5c28c",
++        );
++    }
++  for (const x of [-5.5, 5.5])
++    for (let z = -3.8; z + 0.56 <= 0.7; z += 0.56)
++      box(
++        "Side batt " + x + ":" + z,
++        "insulation",
++        x,
++        1.5,
++        z + 0.28,
++        0.078,
++        2.79,
++        0.505,
++        "#d5c28c",
++      );
++
+   group.updateMatrixWorld(true);
+   return {
+     group,
+diff --git a/proof/growth/2026-09-08-assistant-layout/baseline/FloorConstructionStudio.tsx b/src/studio/FloorConstructionStudio.tsx
+index 65644f2..a01b73d 100644
+--- a/proof/growth/2026-09-08-assistant-layout/baseline/FloorConstructionStudio.tsx
++++ b/src/studio/FloorConstructionStudio.tsx
+@@ -77,11 +77,11 @@ function createStudio(host: HTMLDivElement, onStatus: (s: Status) => void): Floo
+     floorMat = new THREE.MeshStandardMaterial({ color: "#dedbd1", roughness: 1 });
+   const ground = new THREE.Mesh(floorGeo, floorMat);
+   ground.rotation.x = -Math.PI / 2;
+-  ground.position.y = -0.33;
++  ground.position.y = -0.9;
+   ground.receiveShadow = true;
+   scene.add(ground);
+   const grid = new THREE.GridHelper(16, 32, "#acae9e", "#cbcdc1");
+-  grid.position.y = -0.325;
++  grid.position.y = -0.895;
+   scene.add(grid);
+   // Fine deterministic aggregate: real material texture, not a photographic asset.
+   const paper = document.createElement("canvas");
+@@ -187,7 +187,9 @@ function createStudio(host: HTMLDivElement, onStatus: (s: Status) => void): Floo
+           !ink &&
+           (result.completed.get(stage.parts.indexOf(p)) ?? 0) >=
+             (partTotals.get(stage.parts.indexOf(p)) ?? Infinity));
+-      if (expose && ["gyprock", "painting", "flooring"].includes(p.stage)) p.mesh.visible = false;
++      if (expose && p.id === "Concrete floor slab") p.mesh.visible = false;
++      if (expose && ["gyprock", "painting", "flooring", "insulation"].includes(p.stage))
++        p.mesh.visible = false;
+     });
+     const pass =
+       time >= total
+@@ -444,9 +446,7 @@ export function FloorConstructionStudio() {
+               <h2>{status.pass}</h2>
+             </div>
+             <span className="floor-live">
+-              {status.pencils
+-                ? `${status.pencils} PENCILS · 0.1 S BURSTS`
+-                : "MATERIALS IN PLACE"}
++              {status.pencils ? `${status.pencils} PENCILS · 0.1 S BURSTS` : "MATERIALS IN PLACE"}
+             </span>
+           </div>
+           <div ref={host} className="floor-canvas" />
+diff --git a/proof/growth/2026-09-08-assistant-layout/baseline/floorConstruction.css b/src/studio/floorConstruction.css
+index 324c91c..af609ff 100644
+--- a/proof/growth/2026-09-08-assistant-layout/baseline/floorConstruction.css
++++ b/src/studio/floorConstruction.css
+@@ -376,3 +376,35 @@
+   padding: 10px 14px;
+   border-radius: 3px;
+ }
++
++@media (min-width: 781px) and (max-height: 980px) {
++  .floor-story {
++    height: calc(100dvh - 76px);
++    min-height: 640px;
++    padding-top: 18px;
++  }
++  .floor-story h1 {
++    font-size: 34px;
++    margin: 12px 0;
++  }
++  .floor-intro {
++    margin-bottom: 12px;
++    font-size: 11px;
++  }
++  .floor-story nav {
++    min-height: 0;
++    overflow-y: auto;
++    scrollbar-width: thin;
++    flex: 1;
++  }
++  .floor-story nav button {
++    flex-shrink: 0;
++  }
++  .floor-provenance {
++    margin-top: 12px;
++    padding-top: 12px;
++  }
++  .floor-view {
++    min-height: 640px;
++  }
++}
+diff --git a/proof/growth/2026-09-08-assistant-layout/baseline/floorDrawing.test.ts b/src/studio/floorDrawing.test.ts
+index 35687bd..6c30f0c 100644
+--- a/proof/growth/2026-09-08-assistant-layout/baseline/floorDrawing.test.ts
++++ b/src/studio/floorDrawing.test.ts
+@@ -9,6 +9,58 @@ import {
+   FLOOR_SCRIBBLE_SECONDS,
+ } from "./floorDrawing.ts";
+ 
++test("services precede reinforcement and pour; insulation precedes plasterboard", () => {
++  const order = FLOOR_STAGES.map((s) => s.id);
++  assert.ok(order.indexOf("plumbing") < order.indexOf("reinforcement"));
++  assert.ok(order.indexOf("electrical") < order.indexOf("structure"));
++  assert.ok(order.indexOf("reinforcement") < order.indexOf("structure"));
++  assert.ok(order.indexOf("framing") < order.indexOf("insulation"));
++  assert.ok(order.indexOf("insulation") < order.indexOf("gyprock"));
++  const floor = createFloorComponents();
++  const slab = new THREE.Box3().setFromObject(
++    floor.parts.find((p) => p.id === "Concrete floor slab")!.mesh,
++  );
++  for (const part of floor.parts.filter(
++    (p) =>
++      p.id.startsWith("Water main") ||
++      p.id === "Waste collector" ||
++      p.id.startsWith("Under-slab electrical"),
++  )) {
++    const bounds = new THREE.Box3().setFromObject(part.mesh);
++    assert.ok(bounds.max.y < slab.min.y, part.id);
++  }
++  const bars = floor.parts.filter((p) => p.stage === "reinforcement");
++  assert.ok(bars.length > 100);
++  for (const p of bars) assert.ok(slab.containsBox(new THREE.Box3().setFromObject(p.mesh)), p.id);
++  const slabMesh = floor.parts.find((p) => p.id === "Concrete floor slab")!.mesh;
++  for (const [x, z] of [
++    [4.85, -3.2],
++    [4.5, -0.8],
++    [3.2, -2.4],
++    [-3.4, -3.72],
++    [-4.5, -3.75],
++  ]) {
++    const ray = new THREE.Raycaster(new THREE.Vector3(x, 1, z), new THREE.Vector3(0, -1, 0));
++    assert.equal(
++      ray.intersectObject(slabMesh).length,
++      0,
++      "Concrete must leave the service penetration open",
++    );
++    assert.equal(
++      ray.intersectObjects(bars.map((p) => p.mesh)).length,
++      0,
++      "Steel must clear the penetration",
++    );
++  }
++  assert.ok(
++    new THREE.Raycaster(new THREE.Vector3(1, 1, 1), new THREE.Vector3(0, -1, 0)).intersectObject(
++      slabMesh,
++    ).length > 0,
++  );
++  assert.ok(floor.parts.filter((p) => p.stage === "insulation").length > 30);
++  floor.dispose();
++});
++
+ test("one floor contains each requested trade and finite, uniquely named real components", () => {
+   const floor = createFloorComponents();
+   assert.equal(new Set(floor.parts.map((p) => p.id)).size, floor.parts.length);
+diff --git a/src/studio/assistantPanel.css b/src/studio/assistantPanel.css
+new file mode 100644
+index 0000000..98fd3a8
+--- /dev/null
++++ b/src/studio/assistantPanel.css
+@@ -0,0 +1,671 @@
++.live-assistant {
++  --assistant-bg: #1e293b;
++  --assistant-ink: #233044;
++  --assistant-muted: #707b8b;
++  --assistant-line: #e1e5eb;
++  --assistant-soft: #edf0f4;
++  position: fixed;
++  z-index: 80;
++  color: var(--assistant-ink);
++  font-family: Arial, sans-serif;
++  isolation: isolate;
++}
++.live-assistant button,
++.live-assistant select,
++.live-assistant textarea {
++  font-family: inherit;
++  color: inherit;
++}
++.live-assistant button {
++  cursor: pointer;
++}
++.live-assistant button:disabled {
++  opacity: 0.45;
++  cursor: not-allowed;
++}
++.live-assistant button:focus-visible,
++.live-assistant select:focus-visible {
++  outline: 2px solid #758dab;
++  outline-offset: 2px;
++}
++.live-assistant-launcher {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  width: 170px;
++  height: 44px;
++  padding: 0 12px;
++  border: 1px solid #425066;
++  border-radius: 24px;
++  background: var(--assistant-bg);
++  color: #fff !important;
++  box-shadow: 0 4px 14px #14203624;
++}
++.live-assistant-launcher strong {
++  font-size: 11px;
++  font-weight: 600;
++  white-space: nowrap;
++}
++.live-assistant-launcher svg:last-child {
++  margin-left: auto;
++}
++.live-assistant-launcher .is-flipped {
++  transform: rotate(180deg);
++}
++.live-assistant-panel {
++  position: relative;
++  width: 100%;
++  display: flex;
++  flex-direction: column;
++  margin-bottom: 8px;
++  border: 1px solid #b9c2ce;
++  border-radius: 16px;
++  background: #f8f9fb;
++  box-shadow: 0 12px 36px #12203530;
++  overscroll-behavior: contain;
++  min-height: 0;
++}
++.live-assistant-header {
++  display: flex;
++  align-items: center;
++  flex-shrink: 0;
++  height: 56px;
++  padding: 4px 12px 4px 10px;
++  border-bottom: 1px solid var(--assistant-line);
++  border-radius: 15px 15px 0 0;
++  background: var(--assistant-bg);
++  color: white;
++}
++.assistant-move-handle {
++  display: flex;
++  align-items: center;
++  gap: 9px;
++  flex: 1;
++  min-width: 0;
++  height: 44px;
++  border: 0;
++  background: transparent;
++  text-align: left;
++  touch-action: none;
++  cursor: grab !important;
++  padding: 0 4px;
++}
++.assistant-move-handle span {
++  display: grid;
++  gap: 4px;
++  min-width: 0;
++}
++.assistant-move-handle strong {
++  font-size: 12px;
++  font-weight: 600;
++}
++.assistant-move-handle small {
++  font-size: 9px;
++  color: #bac5d2;
++  display: flex;
++  align-items: center;
++  gap: 5px;
++}
++.assistant-move-handle small i {
++  height: 5px;
++  width: 5px;
++  border-radius: 50%;
++  background: #b8a282;
++}
++.assistant-move-handle small i.is-ready {
++  background: #9ebfa9;
++}
++.assistant-drag-grip {
++  margin-left: auto;
++  opacity: 0.4;
++}
++.live-assistant.is-gesturing {
++  user-select: none;
++}
++.live-assistant.is-gesturing .assistant-move-handle {
++  cursor: grabbing !important;
++}
++.live-assistant-icon {
++  display: inline-flex;
++  justify-content: center;
++  align-items: center;
++  width: 36px;
++  height: 44px;
++  flex-shrink: 0;
++  padding: 0;
++  background: transparent;
++  border: 0;
++  border-radius: 8px;
++  color: inherit;
++}
++.live-assistant-icon:hover {
++  background: #8997ac20;
++}
++.assistant-resize-handle {
++  position: absolute;
++  z-index: 4;
++  right: -7px;
++  top: -7px;
++  width: 24px;
++  height: 24px;
++  border: 1px solid #a7b2c1;
++  border-radius: 6px;
++  background: #fff;
++  display: grid;
++  place-items: center;
++  padding: 0;
++  cursor: nesw-resize !important;
++  touch-action: none;
++}
++.live-assistant-body {
++  padding: 12px 14px 2px;
++  overflow: auto;
++  min-height: 0;
++  flex: 1;
++  overscroll-behavior: contain;
++  scrollbar-width: thin;
++  scrollbar-color: #cbd1da transparent;
++}
++.live-assistant-context {
++  display: flex;
++  gap: 5px;
++  align-items: center;
++  font-size: 10px;
++  color: var(--assistant-muted);
++  margin-bottom: 12px;
++}
++.live-assistant-context span {
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++}
++.assistant-conversation {
++  display: flex;
++  flex-direction: column;
++  gap: 15px;
++  padding-bottom: 10px;
++}
++.assistant-welcome {
++  font-size: 13px;
++  line-height: 1.65;
++  color: var(--assistant-muted);
++  padding: 10px 7px;
++}
++.assistant-chat-entry {
++  min-width: 0;
++  font-size: 12px;
++  line-height: 1.6;
++  max-width: 100%;
++  padding: 0 2px;
++}
++.assistant-chat-entry > strong {
++  font-size: 9px;
++  color: var(--assistant-muted);
++  font-weight: 500;
++}
++.assistant-chat-entry.is-user {
++  align-self: flex-end;
++  background: var(--assistant-soft);
++  border-radius: 14px 14px 4px 14px;
++  padding: 8px 11px;
++  max-width: 88%;
++}
++.assistant-chat-entry.is-user > strong {
++  display: none;
++}
++.assistant-chat-entry.is-tool {
++  border-left: 2px solid #c3ccd8;
++  padding: 2px 8px;
++  color: #586679;
++  font-size: 11px;
++}
++.assistant-chat-entry p {
++  margin: 3px 0 0;
++  white-space: pre-wrap;
++  overflow-wrap: anywhere;
++}
++.assistant-chat-entry details summary {
++  min-height: 36px;
++  display: flex;
++  align-items: center;
++  cursor: pointer;
++}
++.assistant-chat-entry details p {
++  max-height: 180px;
++  overflow: auto;
++  font-size: 10px;
++}
++.assistant-chat-entry figure {
++  margin: 7px 0;
++}
++.assistant-chat-entry img {
++  display: block;
++  width: 100%;
++  max-height: 190px;
++  object-fit: contain;
++  border-radius: 8px;
++}
++.assistant-chat-entry figcaption {
++  font-size: 9px;
++  color: var(--assistant-muted);
++}
++.assistant-sources {
++  padding-left: 16px;
++  overflow-wrap: anywhere;
++}
++.assistant-sources a {
++  display: inline-block;
++  min-height: 36px;
++  color: #345479;
++}
++.assistant-chat-error {
++  font-size: 12px;
++  line-height: 1.6;
++  color: #923a37;
++  background: #f7e9e6;
++  padding: 9px;
++  border-radius: 8px;
++  overflow-wrap: anywhere;
++}
++.live-assistant-message {
++  font-size: 11px;
++  line-height: 1.55;
++  padding: 8px 10px;
++  background: var(--assistant-soft);
++  border-radius: 8px;
++  overflow-wrap: anywhere;
++  white-space: pre-wrap;
++}
++.live-assistant .live-assistant-composer {
++  position: relative;
++  flex-shrink: 0;
++  margin: 8px 10px 0;
++  padding: 10px 8px 3px;
++  border: 1px solid #d4dbe4;
++  border-radius: 18px;
++  background: #fff;
++  box-shadow: 0 2px 5px #14203606;
++}
++.live-assistant-composer:focus-within {
++  border-color: #9caabd;
++}
++.live-assistant textarea {
++  display: block;
++  width: 100%;
++  height: 54px;
++  max-height: 110px;
++  min-height: 44px;
++  resize: none;
++  padding: 2px 5px;
++  border: 0;
++  background: transparent;
++  font-size: 12px;
++  line-height: 1.55;
++  outline: none;
++}
++.live-assistant textarea::placeholder {
++  color: #85909e;
++}
++.live-assistant-compose-footer {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 6px;
++  min-height: 44px;
++}
++.assistant-composer-button {
++  width: 44px;
++  height: 44px;
++  display: grid;
++  place-items: center;
++  flex-shrink: 0;
++  border: 0;
++  padding: 0;
++  background: transparent;
++  border-radius: 50%;
++}
++.assistant-composer-button > span {
++  display: grid;
++  place-items: center;
++  width: 29px;
++  height: 29px;
++  border-radius: 50%;
++  background: #edf0f4;
++}
++.assistant-composer-button:hover > span {
++  background: #dce3ec;
++}
++.assistant-send > span {
++  background: var(--assistant-bg);
++  color: #fff;
++}
++.assistant-send:hover > span {
++  background: #35465e;
++}
++.assistant-composer-button:disabled > span {
++  background: #d3d9e1;
++  color: #8a94a1;
++}
++.assistant-composer-hint {
++  font-size: 9px;
++  color: var(--assistant-muted);
++  flex: 1;
++}
++.assistant-stop-square {
++  width: 9px;
++  height: 9px;
++  background: #fff;
++  border-radius: 2px;
++}
++.assistant-bottom-note {
++  font-size: 8px;
++  text-align: center;
++  color: var(--assistant-muted);
++  margin: 6px 10px 8px;
++  flex-shrink: 0;
++}
++.assistant-file-input {
++  display: none;
++}
++.assistant-add-root {
++  position: relative;
++}
++.assistant-add-menu {
++  position: absolute;
++  bottom: 48px;
++  left: 0;
++  width: 244px;
++  max-width: calc(100vw - 60px);
++  max-height: 260px;
++  overflow: auto;
++  z-index: 8;
++  padding: 5px;
++  border: 1px solid var(--assistant-line);
++  border-radius: 13px;
++  background: #fff;
++  box-shadow: 0 8px 25px #17243a24;
++}
++.assistant-add-menu button {
++  display: flex;
++  gap: 10px;
++  align-items: center;
++  width: 100%;
++  min-height: 40px;
++  padding: 8px 10px;
++  border: 0;
++  border-radius: 7px;
++  background: transparent;
++  text-align: left;
++  font-size: 11px;
++}
++.assistant-add-menu button:hover {
++  background: var(--assistant-soft);
++}
++.assistant-add-menu .assistant-new-chat {
++  border-top: 1px solid var(--assistant-line);
++  border-radius: 0 0 7px 7px;
++  margin-top: 4px;
++  padding-top: 12px;
++}
++.assistant-drawer-heading {
++  display: flex;
++  align-items: center;
++  gap: 5px;
++  margin: -8px -6px 4px;
++  font-size: 12px;
++}
++.assistant-drawer-heading > button {
++  width: 30px;
++}
++.assistant-skill-list {
++  display: grid;
++  gap: 4px;
++}
++.assistant-skill-list > p,
++.assistant-reference-library > p,
++.assistant-help p,
++.assistant-connection-settings p {
++  font-size: 11px;
++  line-height: 1.65;
++  color: var(--assistant-muted);
++  margin: 4px 0 10px;
++}
++.assistant-skill-list > button {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  text-align: left;
++  min-height: 53px;
++  border: 1px solid var(--assistant-line);
++  border-radius: 9px;
++  background: #fff;
++  padding: 9px;
++}
++.assistant-skill-list > button:hover {
++  background: var(--assistant-soft);
++}
++.assistant-skill-list span {
++  display: grid;
++  gap: 3px;
++}
++.assistant-skill-list strong {
++  font-size: 11px;
++  font-weight: 600;
++}
++.assistant-skill-list small {
++  font-size: 10px;
++  line-height: 1.5;
++  color: var(--assistant-muted);
++}
++.assistant-reference-library h3,
++.assistant-help h3 {
++  font-size: 11px;
++  margin: 15px 0 8px;
++}
++.assistant-reference-library h3 > span {
++  float: right;
++  font-weight: 400;
++  color: var(--assistant-muted);
++}
++.assistant-style-list {
++  display: grid;
++  grid-template-columns: repeat(2, 1fr);
++  gap: 5px;
++}
++.assistant-style-list button {
++  background: white;
++  border: 1px solid var(--assistant-line);
++  border-radius: 8px;
++  font-size: 11px;
++  min-height: 40px;
++}
++.assistant-style-list button:hover {
++  background: var(--assistant-soft);
++}
++.assistant-reference-upload,
++.assistant-text-action {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 7px;
++  border: 1px solid var(--assistant-line);
++  border-radius: 8px;
++  background: #fff;
++  font-size: 11px;
++  min-height: 40px;
++  padding: 7px 10px;
++}
++.assistant-reference-upload {
++  width: 100%;
++  border-style: dashed;
++}
++.assistant-reference-library > small {
++  display: block;
++  font-size: 9px;
++  color: var(--assistant-muted);
++  line-height: 1.6;
++  margin-top: 7px;
++}
++.assistant-text-action {
++  margin: 6px 0;
++}
++.assistant-reference-grid {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 8px;
++  margin-top: 12px;
++}
++.assistant-reference-grid article {
++  padding: 6px;
++  border: 1px solid var(--assistant-line);
++  background: #fff;
++  border-radius: 8px;
++  min-width: 0;
++}
++.assistant-reference-grid article > img {
++  width: 100%;
++  height: 80px;
++  object-fit: cover;
++  border-radius: 5px;
++}
++.assistant-reference-grid article > strong {
++  display: block;
++  font-size: 9px;
++  overflow: hidden;
++  white-space: nowrap;
++  text-overflow: ellipsis;
++  margin: 5px 0;
++}
++.assistant-reference-grid select {
++  width: 100%;
++  font-size: 9px;
++  min-height: 32px;
++  border: 1px solid var(--assistant-line);
++  border-radius: 5px;
++  background: white;
++}
++.assistant-reference-grid article > div {
++  display: flex;
++  align-items: center;
++  gap: 3px;
++}
++.assistant-reference-grid article > div > button:first-child {
++  font-size: 9px;
++  min-height: 36px;
++  border: 0;
++  background: transparent;
++  padding: 3px;
++  flex: 1;
++}
++.assistant-reference-grid .live-assistant-icon {
++  width: 26px;
++  height: 36px;
++}
++.assistant-reference-empty {
++  border: 1px dashed var(--assistant-line);
++  padding: 14px;
++  border-radius: 8px;
++}
++.assistant-help code {
++  background: var(--assistant-soft);
++  padding: 2px 4px;
++  border-radius: 4px;
++}
++.live-assistant-guide {
++  font-size: 11px;
++  line-height: 1.6;
++}
++.live-assistant-guide ol {
++  padding-left: 18px;
++}
++.live-assistant-guide > p {
++  font-size: 10px;
++  color: var(--assistant-muted);
++}
++.assistant-attachments {
++  display: flex;
++  gap: 6px;
++  overflow-x: auto;
++  padding: 0 4px 5px;
++  max-height: 58px;
++}
++.assistant-attachments > div {
++  display: flex;
++  gap: 5px;
++  align-items: center;
++  min-width: 120px;
++  max-width: 170px;
++  padding: 4px;
++  background: var(--assistant-soft);
++  border-radius: 9px;
++}
++.assistant-attachments img {
++  width: 32px;
++  height: 32px;
++  object-fit: cover;
++  border-radius: 5px;
++}
++.assistant-attachments span {
++  font-size: 9px;
++  min-width: 0;
++  flex: 1;
++}
++.assistant-attachments small {
++  display: block;
++  font-size: 8px;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  max-width: 75px;
++  color: var(--assistant-muted);
++}
++.assistant-attachments .live-assistant-icon {
++  width: 24px;
++  height: 32px;
++}
++.assistant-drop-target {
++  position: absolute;
++  inset: 7px;
++  z-index: 15;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: center;
++  gap: 12px;
++  background: #f8f9fbf5;
++  border: 2px dashed #7d91aa;
++  border-radius: 10px;
++  pointer-events: none;
++  font-size: 13px;
++}
++.assistant-drop-target > span {
++  font-size: 10px;
++  color: var(--assistant-muted);
++}
++.live-assistant-voice {
++  display: grid;
++  gap: 6px;
++  padding: 10px 0;
++}
++.live-assistant-voice > div {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 6px;
++}
++.live-assistant-voice button {
++  display: flex;
++  align-items: center;
++  gap: 5px;
++  min-height: 40px;
++  padding: 6px 9px;
++  border: 1px solid var(--assistant-line);
++  border-radius: 8px;
++  background: #fff;
++  font-size: 10px;
++}
++.live-assistant-voice small,
++.live-assistant-disclosure {
++  font-size: 10px;
++  line-height: 1.55;
++  color: var(--assistant-muted);
++}
+diff --git a/src/studio/assistant/panelGeometry.ts b/src/studio/assistant/panelGeometry.ts
+new file mode 100644
+index 0000000..94adc03
+--- /dev/null
++++ b/src/studio/assistant/panelGeometry.ts
+@@ -0,0 +1,53 @@
++export type AssistantRect = { x: number; y: number; width: number; height: number };
++export type AssistantViewport = { width: number; height: number };
++const MARGIN = 12,
++  LAUNCHER = 52;
++export function fitAssistantRect(rect: AssistantRect, viewport: AssistantViewport): AssistantRect {
++  const width = Math.max(
++    Math.min(300, viewport.width - MARGIN * 2),
++    Math.min(rect.width, viewport.width - MARGIN * 2),
++  );
++  const height = Math.max(
++    Math.min(300, viewport.height - MARGIN * 2 - LAUNCHER),
++    Math.min(rect.height, viewport.height - MARGIN * 2 - LAUNCHER),
++  );
++  return {
++    width,
++    height,
++    x: Math.max(MARGIN, Math.min(rect.x, viewport.width - width - MARGIN)),
++    y: Math.max(MARGIN, Math.min(rect.y, viewport.height - height - LAUNCHER - MARGIN)),
++  };
++}
++export function defaultAssistantRect(viewport: AssistantViewport): AssistantRect {
++  return fitAssistantRect({ x: 16, y: viewport.height - 468, width: 360, height: 400 }, viewport);
++}
++export function changeAssistantRect(
++  rect: AssistantRect,
++  dx: number,
++  dy: number,
++  mode: "move" | "resize",
++  viewport: AssistantViewport,
++) {
++  if (mode === "move")
++    return fitAssistantRect({ ...rect, x: rect.x + dx, y: rect.y + dy }, viewport);
++  const height = Math.max(300, Math.min(rect.height - dy, rect.y + rect.height - MARGIN));
++  return fitAssistantRect(
++    { ...rect, width: rect.width + dx, height, y: rect.y + rect.height - height },
++    viewport,
++  );
++}
++export function readAssistantRect(text: string | null, viewport: AssistantViewport) {
++  try {
++    const value = JSON.parse(text ?? "null");
++    if (
++      !value ||
++      !["x", "y", "width", "height"].every(
++        (k) => typeof value[k] === "number" && Number.isFinite(value[k]),
++      )
++    )
++      return defaultAssistantRect(viewport);
++    return fitAssistantRect(value, viewport);
++  } catch {
++    return defaultAssistantRect(viewport);
++  }
++}
+diff --git a/src/studio/assistant/useAssistantPanel.ts b/src/studio/assistant/useAssistantPanel.ts
+new file mode 100644
+index 0000000..c4c77f2
+--- /dev/null
++++ b/src/studio/assistant/useAssistantPanel.ts
+@@ -0,0 +1,76 @@
++import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
++import {
++  changeAssistantRect,
++  defaultAssistantRect,
++  fitAssistantRect,
++  readAssistantRect,
++  type AssistantRect,
++} from "./panelGeometry";
++const STORAGE = "xray:assistant-panel:v1";
++const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
++export function useAssistantPanel() {
++  const [rect, setRect] = useState<AssistantRect | null>(null),
++    [gesturing, setGesturing] = useState(false);
++  const gesture = useRef<{
++    id: number;
++    x: number;
++    y: number;
++    rect: AssistantRect;
++    mode: "move" | "resize";
++  } | null>(null);
++  useEffect(() => {
++    let saved = null;
++    try {
++      saved = localStorage.getItem(STORAGE);
++    } catch {}
++    setRect(readAssistantRect(saved, viewport()));
++    const resize = () =>
++      setRect((old) =>
++        old ? fitAssistantRect(old, viewport()) : defaultAssistantRect(viewport()),
++      );
++    window.addEventListener("resize", resize);
++    return () => window.removeEventListener("resize", resize);
++  }, []);
++  useEffect(() => {
++    if (rect && !gesturing)
++      try {
++        localStorage.setItem(STORAGE, JSON.stringify(rect));
++      } catch {}
++  }, [rect, gesturing]);
++  const reset = () => setRect(defaultAssistantRect(viewport()));
++  const pointerDown = (event: PointerEvent<HTMLElement>, mode: "move" | "resize") => {
++    if (!rect || event.button !== 0) return;
++    event.preventDefault();
++    event.stopPropagation();
++    event.currentTarget.setPointerCapture(event.pointerId);
++    gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, rect, mode };
++    setGesturing(true);
++  };
++  const pointerMove = (event: PointerEvent<HTMLElement>) => {
++    const g = gesture.current;
++    if (!g || g.id !== event.pointerId) return;
++    setRect(
++      changeAssistantRect(g.rect, event.clientX - g.x, event.clientY - g.y, g.mode, viewport()),
++    );
++  };
++  const pointerUp = () => {
++    gesture.current = null;
++    setGesturing(false);
++  };
++  const keyboard = (event: KeyboardEvent<HTMLElement>, mode: "move" | "resize") => {
++    if (event.key === "Home") {
++      event.preventDefault();
++      reset();
++      return;
++    }
++    const amount = event.shiftKey ? 32 : 12,
++      dx = event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0,
++      dy = event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0;
++    if (dx || dy) {
++      event.preventDefault();
++      event.stopPropagation();
++      setRect((old) => (old ? changeAssistantRect(old, dx, dy, mode, viewport()) : old));
++    }
++  };
++  return { rect, gesturing, reset, pointerDown, pointerMove, pointerUp, keyboard };
++}
+diff --git a/src/studio/assistant/referenceImages.ts b/src/studio/assistant/referenceImages.ts
+new file mode 100644
+index 0000000..8494962
+--- /dev/null
++++ b/src/studio/assistant/referenceImages.ts
+@@ -0,0 +1,59 @@
++import type { ChatImage } from "./conversation";
++export const REFERENCE_KINDS = [
++  "Reference",
++  "Building style",
++  "Inspiration",
++  "Material",
++  "Plan detail",
++] as const;
++export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
++export type ReferenceImage = ChatImage & { id: string; name: string; kind: ReferenceKind };
++export const BUILDING_STYLES = [
++  {
++    name: "Modern",
++    brief:
++      "Explore a modern building with clean volumes, restrained materials, generous glazing and a clear structural rhythm.",
++  },
++  {
++    name: "Mid-century",
++    brief:
++      "Explore a mid-century design with warm timber, expressive roof lines, natural stone and strong indoor-outdoor connections.",
++  },
++  {
++    name: "Brutalist",
++    brief:
++      "Explore a brutalist design with expressed concrete structure, deep reveals, sculptural massing and carefully controlled daylight.",
++  },
++  {
++    name: "Art Deco",
++    brief:
++      "Explore an Art Deco design with stepped forms, vertical emphasis, geometric detailing and a disciplined material palette.",
++  },
++  {
++    name: "Industrial",
++    brief:
++      "Explore an industrial design with exposed structure, brick, steel, honest service detailing and adaptable open spaces.",
++  },
++  {
++    name: "Coastal",
++    brief:
++      "Explore a coastal design with shaded outdoor spaces, light finishes, natural textures and climate-responsive openings.",
++  },
++] as const;
++export function referenceMessage(text: string, images: ReferenceImage[]) {
++  return [
++    text.trim() || "Please inspect the attached images.",
++    ...images.map(
++      (im, i) =>
++        `Image ${i + 1}: ${im.kind} — ${im.name}. Treat this image as reference evidence; do not infer verified dimensions from it.`,
++    ),
++  ].join("\n");
++}
++export function validateReferenceFile(file: { type: string; size: number }) {
++  if (
++    !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
++    file.size > 3 * 1024 * 1024 ||
++    file.size === 0
++  )
++    throw Error("Choose PNG, JPEG or WebP images up to 3 MB each.");
++}
+diff --git a/src/studio/assistant/panelGeometry.test.ts b/src/studio/assistant/panelGeometry.test.ts
+new file mode 100644
+index 0000000..ff18b08
+--- /dev/null
++++ b/src/studio/assistant/panelGeometry.test.ts
+@@ -0,0 +1,43 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import {
++  defaultAssistantRect,
++  changeAssistantRect,
++  readAssistantRect,
++  fitAssistantRect,
++} from "./panelGeometry.ts";
++import { referenceMessage, validateReferenceFile } from "./referenceImages.ts";
++test("compact default sits at bottom left and survives dragging/resizing at viewport edges", () => {
++  const viewport = { width: 1440, height: 900 },
++    rect = defaultAssistantRect(viewport);
++  assert.equal(rect.x, 16);
++  assert.equal(rect.width, 360);
++  assert.equal(rect.height, 400);
++  assert.equal(rect.y + rect.height + 52, 884);
++  for (const mode of ["move", "resize"] as const)
++    for (const d of [-99999, 99999]) {
++      const next = changeAssistantRect(rect, d, d, mode, viewport);
++      assert.ok(next.x >= 12 && next.y >= 12);
++      assert.ok(next.x + next.width <= 1428);
++      assert.ok(next.y + next.height + 52 <= 888);
++    }
++});
++test("persisted layout cannot strand controls after a smaller tablet viewport or malformed storage", () => {
++  const viewport = { width: 1024, height: 768 };
++  for (const text of [null, "bad", "{}", '{"x":null,"y":0,"width":2,"height":4}'])
++    assert.deepEqual(readAssistantRect(text, viewport), defaultAssistantRect(viewport));
++  const next = fitAssistantRect({ x: 2000, y: 2000, width: 1600, height: 1300 }, viewport);
++  assert.ok(next.x + next.width <= 1012);
++  assert.ok(next.y + next.height + 52 <= 756);
++});
++test("reference intent accompanies actual images and unsupported/oversized files fail before reading", () => {
++  assert.match(
++    referenceMessage("Compare these", [
++      { id: "1", name: "Tower.jpg", kind: "Building style", mimeType: "image/jpeg", data: "a" },
++    ]),
++    /Image 1: Building style — Tower.jpg/,
++  );
++  assert.throws(() => validateReferenceFile({ type: "application/pdf", size: 100 }), /PNG/);
++  assert.throws(() => validateReferenceFile({ type: "image/png", size: 4 * 1024 * 1024 }), /3 MB/);
++  validateReferenceFile({ type: "image/png", size: 1024 });
++});

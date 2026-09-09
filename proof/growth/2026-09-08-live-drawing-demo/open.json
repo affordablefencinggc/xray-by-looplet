@@ -1,0 +1,59 @@
+[
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector(\"[data-hydration-status=ready]\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sketch",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Architectural workspace",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector(\".architect-workspace[data-design-id]\")"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.body.innerText.includes(\"Build 71f5b012342b\"))throw Error(\"Wrong build\");const id=document.querySelector(\".architect-workspace\").dataset.designId;const p=JSON.parse(localStorage.getItem(\"xray:architect:v1:\"+encodeURIComponent(id)));if(p&&(p.walls.length||p.lines.length||p.openings.length))throw Error(\"Demo workspace is not empty\");return {id,fresh:true}})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Load demonstration",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\".architect-workspace h1\")?.textContent.includes(\"Courtyard\")"
+  ],
+  [
+    "snapshot",
+    "-i"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-live-drawing-demo.png"
+  ],
+  [
+    "errors"
+  ]
+]

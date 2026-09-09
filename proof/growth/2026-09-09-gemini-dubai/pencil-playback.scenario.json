@@ -1,0 +1,19 @@
+[
+  ["find", "role", "button", "click", "--name", "Replay drafting sequence", "--exact"],
+  ["wait", "--fn", "Number(document.querySelector('canvas[data-draw-mode]')?.dataset.drawProgress)>.2 && Number(document.querySelector('canvas[data-draw-mode]')?.dataset.drawProgress)<.5"],
+  ["find", "role", "button", "click", "--name", "Pause drawing", "--exact"],
+  ["eval", "(() => {const c=document.querySelector('canvas[data-draw-mode]'); if(c.dataset.drawPencilCount!=='5'||c.dataset.meshCount!=='29')throw Error('Wrong pencil or generated mesh count'); const p=document.querySelector('.live-assistant-panel').getBoundingClientRect(),a=document.querySelector('.building-center-column').getBoundingClientRect();if(Math.abs(a.right-p.left)>2||p.width!==400)throw Error('Expanded Model must stay beside 400px chat');return {...c.dataset};})()"],
+  ["screenshot", "screenshots/gemini-dubai-capacity/five-pencils-wireframe.png"],
+  ["find", "role", "button", "click", "--name", "Show drafting tools", "--exact"],
+  ["find", "role", "button", "click", "--name", "Increase pencil size", "--exact"],
+  ["wait", "--fn", "Number(document.querySelector('canvas[data-draw-mode]').dataset.drawPencilScale)>1"],
+  ["find", "role", "button", "click", "--name", "Hide drafting tools", "--exact"],
+  ["find", "role", "button", "click", "--name", "Play drawing", "--exact"],
+  ["wait", "--fn", "Number(document.querySelector('canvas[data-draw-mode]').dataset.drawProgress)>.35"],
+  ["find", "role", "button", "click", "--name", "Finish drawing to solid", "--exact"],
+  ["wait", "--fn", "document.querySelector('canvas[data-draw-mode]').dataset.drawVisibleMeshes==='29'"],
+  ["screenshot", "screenshots/gemini-dubai-capacity/gemini-pavilion-complete.png"],
+  ["hover", "[data-top-row=header]>.top-row-resizer"],
+  ["eval", "if(getComputedStyle(document.querySelector('[data-top-row=header]>.top-row-resizer'),'::after').backgroundColor!=='rgb(0, 0, 0)')throw Error('Hover line must be black')"],
+  ["errors"]
+]

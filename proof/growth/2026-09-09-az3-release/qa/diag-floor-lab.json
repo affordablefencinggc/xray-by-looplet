@@ -1,0 +1,20 @@
+[
+  ["open", "http://127.0.0.1:8096/floor-lab"],
+  ["set", "viewport", "1440", "900"],
+  ["wait", "--fn", "!!document.querySelector('canvas[data-floor-ready=true]')"],
+  ["eval", "(()=>{const ids=window.__floorStudio.stages.map(s=>s.id);return {ids:ids.join(','),expected:'plumbing,electrical,reinforcement,structure,framing,wall-services,insulation,gyprock,painting,flooring,fixtures,appliances',match:ids.join(',')==='plumbing,electrical,reinforcement,structure,framing,wall-services,insulation,gyprock,painting,flooring,fixtures,appliances'}})()"],
+  ["eval", "(()=>{window.__floorStudio.seek(window.__floorStudio.stages[2].end-.01);return 'seek reinforcement end'})()"],
+  ["eval", "(async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);return true;})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-az3-release/production-floor-diag-reinforcement.png"],
+  ["eval", "(()=>{window.__floorStudio.seek(window.__floorStudio.stages[6].end-.01);return 'seek insulation end'})()"],
+  ["eval", "(async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);return true;})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-az3-release/production-floor-diag-insulation.png"],
+  ["find", "role", "button", "click", "--name", "Finish", "--exact"],
+  ["find", "role", "button", "click", "--name", "Expose services", "--exact"],
+  ["eval", "(async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);return true;})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-az3-release/production-floor-diag-services.png"],
+  ["set", "viewport", "1024", "1366"],
+  ["eval", "(async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);return true;})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-az3-release/production-floor-diag-tablet.png"],
+  ["errors"]
+]

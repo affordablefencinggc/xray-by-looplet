@@ -1,0 +1,76 @@
+[
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Crown Wharf A4 tower",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Explore & Draw 3D Model",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('canvas[data-mesh-count]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Magic Pencil",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "typeof window.__magicPencil?.getPencilMotion==='function'"
+  ],
+  [
+    "eval",
+    "(()=>{const d=window.__magicPencil;d.pause();d.seek(0.28);const m=d.getPencilMotion();if(m.count!==5||m.scribbleSeconds!==0.2||!m.visible)throw Error('Pencil ensemble unavailable');return m})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/cinematic-pencils-low.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const d=window.__magicPencil;d.setSpeed(1);d.play();const samples=[];const started=performance.now();await new Promise(resolve=>{function step(){samples.push(d.getPencilMotion());if(performance.now()-started>1300)resolve();else requestAnimationFrame(step)}requestAnimationFrame(step)});d.pause();if(samples.length<10)throw Error('Insufficient motion frames');if(JSON.stringify(samples[0].poses)===JSON.stringify(samples.at(-1).poses))throw Error('Motion frozen');for(const sample of samples)for(const p of sample.poses)if(Math.hypot(p.rotation[0],p.rotation[2])>0.21)throw Error('Pencil tilted too far');window.__pencilMotionProof={frames:samples.length,first:samples[0],last:samples.at(-1)};return window.__pencilMotionProof})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/cinematic-pencils-moving.png"
+  ],
+  [
+    "eval",
+    "window.__magicPencil.seek(0.56)"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/cinematic-pencils-high.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "1366"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/cinematic-pencils-tablet.png"
+  ],
+  [
+    "errors"
+  ]
+]

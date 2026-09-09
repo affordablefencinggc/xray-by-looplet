@@ -1,0 +1,145 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sketch",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Architectural workspace",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Load demonstration",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('5 walls')"
+  ],
+  [
+    "eval",
+    "window.qaKey='xray:architect:v1:'+encodeURIComponent(document.querySelector('.architect-workspace').dataset.designId);window.qaBefore=JSON.parse(localStorage.getItem(qaKey));if(!document.querySelector('.arch-exchange button:nth-of-type(2)').disabled)throw Error('DWG should be native-only');'Web DWG unavailable; DXF enabled'"
+  ],
+  [
+    "upload",
+    ".arch-exchange input[type=file]",
+    "C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\audit\\IW-DWG\\native-roundtrip.dxf"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('Replace the current design?')"
+  ],
+  [
+    "screenshot",
+    "screenshots/dwg/dev-import-review.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Confirm design change",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem(qaKey)).walls.length===0"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Undo design edit",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.architect-workspace')&&document.body.innerText.includes('5 walls')"
+  ],
+  [
+    "eval",
+    "const p=JSON.parse(localStorage.getItem(qaKey));if(JSON.stringify(p.walls)!==JSON.stringify(qaBefore.walls))throw Error('Undo lost walls');if(!p.levels.some(l=>l.id===document.querySelector('[aria-label=\"Design level\"]').value))throw Error('Invalid level after undo');'Import undo restores original walls and a valid level'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Redo design edit",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem(qaKey)).walls.length===0"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Undo design edit",
+    "--exact"
+  ],
+  [
+    "screenshot",
+    "screenshots/dwg/dev-undo-restored.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Proof",
+    "--exact"
+  ],
+  [
+    "click",
+    "details.proof-revisions summary"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('iframe[title=\"Professional A to Z requirements and proof\"]')?.contentDocument?.querySelectorAll('.requirement').length===364"
+  ],
+  [
+    "screenshot",
+    "screenshots/professional-coverage/in-app.png"
+  ],
+  [
+    "errors"
+  ]
+]

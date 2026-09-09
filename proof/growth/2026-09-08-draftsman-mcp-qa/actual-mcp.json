@@ -1,0 +1,88 @@
+[
+  [
+    "eval",
+    "(async()=>{const names=__mcp.tools.map(t=>t.name);if(names.length!==10||!names.includes('web_search')||!names.includes('control_draftsman'))throw Error('Discovery mismatch');const schema=__mcp.tools.find(t=>t.name==='control_draftsman').inputSchema;if(schema.properties.action.enum.some(a=>['blueprint','section_cut','dimensions','plan_book'].includes(a)))throw Error('Unsupported advertised');return {names,schema}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{let rejected=false;try{await __mcpApi.callAssistantTool('unknown_tool',{},new AbortController().signal)}catch(e){rejected=/Unknown/.test(String(e))}if(!rejected)throw Error('Unknown tool succeeded');return {unknownRejected:rejected}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{for(const [name,args] of [['control_draftsman',{expectedJobId:__mcpContext.projectId,action:'play'}],['control_draftsman',{expectedJobId:__mcpContext.projectId,action:'blueprint'}],['read_draftsman_status',{expectedJobId:__mcpContext.projectId}]]){const r=await __mcpApi.callAssistantTool(name,args,new AbortController().signal);if(!r.isError)throw Error('Unmounted/unsupported tool succeeded')}const c=await __callMcp('read_project_context',{});if(c.pane!=='sketch')throw Error('Implicit navigation');return {unmountedStatusAndControlRefused:true,noNavigation:true}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const ctl=new AbortController();ctl.abort();let rejected=false;try{await __mcpApi.callAssistantTool('draw_architect_elements',{expectedJobId:__mcpContext.projectId,expectedRevision:__mcpBefore.project.revision,operations:[{kind:'line',levelId:__mcpBefore.project.levels[0].id,a:[0,0],b:[1000,0]}]},ctl.signal)}catch{rejected=true}if(!rejected)throw Error('Aborted request executed');const p=(await __callMcp('read_architect_design',{expectedJobId:__mcpContext.projectId})).project;if(JSON.stringify(p)!==JSON.stringify(__mcpBefore.project))throw Error('Aborted request changed design');return {abortedBeforeDispatch:true,designUnchanged:true}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const levelId=__mcpBefore.project.levels[0].id;window.__mcpDraw=await __callMcp('draw_architect_elements',{expectedJobId:__mcpContext.projectId,expectedRevision:__mcpBefore.project.revision,operations:[{kind:'wall',ref:'south',levelId,a:[0,0],b:[6000,0]},{kind:'wall',ref:'east',levelId,a:[6000,0],b:[6000,4000]},{kind:'wall',ref:'north',levelId,a:[6000,4000],b:[0,4000]},{kind:'wall',ref:'west',levelId,a:[0,4000],b:[0,0]},{kind:'door',wallRef:'south',offsetMm:2000,widthMm:900,heightMm:2100,tag:'D-QA',hinge:'left',swing:'in'},{kind:'window',wallRef:'east',offsetMm:1000,widthMm:1200,heightMm:1200,sillMm:900,tag:'W-QA',hinge:'left',swing:'in'}]});return __mcpDraw})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.architect-workspace')?.dataset.designRevision)>__mcpBefore.project.revision"
+  ],
+  [
+    "eval",
+    "(async()=>{window.__mcpDrawn=await __callMcp('read_architect_design',{expectedJobId:__mcpContext.projectId});if(__mcpDrawn.project.walls.length!==__mcpBefore.project.walls.length+4||__mcpDrawn.project.openings.length!==__mcpBefore.project.openings.length+2)throw Error('Geometry mismatch');if(JSON.stringify(__mcpDrawn.project.sheet)!==JSON.stringify(__mcpBefore.project.sheet))throw Error('Sheet changed');return {revision:__mcpDrawn.project.revision,walls:__mcpDrawn.project.walls.length,openings:__mcpDrawn.project.openings.length}})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]')?.dataset.projectRevision)===__mcpDrawn.project.revision"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/draftsman-mcp-agent-drawn.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const c=await __callMcp('read_project_context',{});return await __callMcp('save_project',{expectedJobId:c.projectId,expectedRevision:c.projectRevision})})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const r=await __mcpApi.callAssistantTool('draw_architect_elements',{expectedJobId:__mcpContext.projectId,expectedRevision:__mcpBefore.project.revision,operations:[{kind:'line',levelId:__mcpBefore.project.levels[0].id,a:[0,0],b:[1000,0]}]},new AbortController().signal);if(!r.isError)throw Error('Stale revision accepted');return {staleRefused:true}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{return await __callMcp('undo_architect_change',{expectedJobId:__mcpContext.projectId,expectedRevision:__mcpDrawn.project.revision})})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.architect-workspace')?.dataset.designRevision)>__mcpDrawn.project.revision"
+  ],
+  [
+    "eval",
+    "(async()=>{window.__mcpUndo=await __callMcp('read_architect_design',{expectedJobId:__mcpContext.projectId});for(const key of ['walls','openings','lines','roomTags','sheet','sheetSet'])if(JSON.stringify(__mcpUndo.project[key])!==JSON.stringify(__mcpBefore.project[key]))throw Error('Undo did not restore '+key);return {undoVerified:true,revision:__mcpUndo.project.revision}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{sessionStorage.setItem('xray.qa.mcp.expected',JSON.stringify({id:__mcpContext.projectId,project:__mcpUndo.project}));return true})()"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "eval",
+    "(async()=>{window.__mcpApi=await import('/src/studio/assistant/session.ts');window.__mcp=await __mcpApi.getAssistantMcp();window.__callMcp=async(name,args)=>{const r=await __mcpApi.callAssistantTool(name,args,new AbortController().signal);if(r.isError)throw Error(JSON.stringify(r.content));return JSON.parse(r.content[0].text)};window.__mcpExpected=JSON.parse(sessionStorage.getItem('xray.qa.mcp.expected'));const c=await __callMcp('read_project_context',{});if(c.projectId!==__mcpExpected.id)throw Error('Project identity changed');await __callMcp('navigate_workspace',{expectedJobId:c.projectId,pane:'sketch'});return c})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const p=await __callMcp('read_architect_design',{expectedJobId:__mcpExpected.id});if(JSON.stringify(p.project)!==JSON.stringify(__mcpExpected.project))throw Error('Saved undo failed reload');return {savedUndoReloadVerified:true,id:p.project.id,revision:p.project.revision}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/draftsman-mcp-agent-undo-reloaded.png"
+  ],
+  [
+    "errors"
+  ]
+]

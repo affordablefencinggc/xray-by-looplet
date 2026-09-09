@@ -1,0 +1,130 @@
+[
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sketch",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('nav[aria-label=\"Sketch workspaces\"]')"
+ ],
+ [
+  "eval",
+  "(()=>{[...document.querySelectorAll('nav[aria-label=\"Sketch workspaces\"] button')].find(b=>b.textContent.trim()==='Architectural workspace').click();return 'opened'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.architect-workspace[data-design-revision]')"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.live-assistant-launcher')"
+ ],
+ [
+  "eval",
+  "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();return 'panel'})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Add to assistant",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "menuitem",
+  "click",
+  "--name",
+  "New chat",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.assistant-permission input')"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();if(!c.checked)throw Error('Permission not enabled');return 'edits allowed'})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "Export the current architectural design as DXF and as IFC, and give me the sha256 and byte length of each file."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&(!!document.querySelector('.assistant-chat-entry.is-assistant')||!!document.querySelector('.assistant-chat-error'))",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>({paused:[...document.querySelectorAll('.assistant-chat-error')].some(e=>/Paused after eight/.test(e.textContent)),tools:[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,160))}))()"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();return 'edits allowed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{window.__replies=document.querySelectorAll('.assistant-chat-entry.is-assistant').length;return window.__replies})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "If anything from my previous request is still outstanding, continue and finish it; otherwise reply exactly DONE."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&document.querySelectorAll('.assistant-chat-entry.is-assistant').length>window.__replies",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>{const errors=[...document.querySelectorAll('.assistant-chat-error')].map(e=>e.textContent);const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,200));const replies=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(e=>e.textContent.slice(0,1500));return {errors,tools,replies}})()"
+ ],
+ [
+  "eval",
+  "(()=>{const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent);const ex=tools.filter(t=>t.startsWith('export_design_file')&&/Tool result/.test(t)&&/sha256/.test(t));if(ex.length<2)throw Error('Expected 2 export receipts, got '+ex.length);return ex.map(t=>{const f=t.match(/\"format\":\"([a-z-]+)\"/),b=t.match(/\"byteLength\":(\\d+)/),s=t.match(/\"sha256\":\"([a-f0-9]{64})\"/);return {format:f&&f[1],bytes:b&&Number(b[1]),sha256:s&&s[1]}})})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az5-release/prod-unlock-d-export-desktop.png"
+ ],
+ [
+  "errors"
+ ]
+]

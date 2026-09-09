@@ -1,0 +1,13 @@
+[
+  ["open", "http://127.0.0.1:8091/"],
+  ["wait", "--fn", "!!document.querySelector('.workbench') || !!document.body.innerText.length"],
+  ["eval", "({ title: document.title, url: location.href, hydration: document.querySelector('.workbench')?.dataset?.hydrationStatus ?? null })"],
+  ["screenshot", "proof/growth/2026-09-09-assistant-surface/sc22-01-app-loaded.png"],
+  ["eval", "(() => { const b = [...document.querySelectorAll('button,[role=button]')].find(x => /live assistant/i.test(x.getAttribute('aria-label')||'') || /live assistant/i.test(x.textContent||'')); if (!b) throw new Error('live assistant control not found'); b.click(); return { clicked: b.getAttribute('aria-label') || b.textContent.trim().slice(0,60) }; })()"],
+  ["wait", "--fn", "!!document.querySelector('.assistant-context-meter') || !!document.querySelector('.live-assistant-body')"],
+  ["screenshot", "proof/growth/2026-09-09-assistant-surface/sc22-02-assistant-open.png"],
+  ["eval", "(() => { const m = document.querySelector('.assistant-context-meter'); if (!m) throw new Error('context meter absent - SC-20 places it under the chat div'); return { level: m.dataset.level, label: m.textContent.trim(), percent: m.getAttribute('aria-valuenow'), title: (m.getAttribute('title')||'').slice(0,160) }; })()"],
+  ["eval", "(() => { const r = getComputedStyle(document.documentElement); const meter = document.querySelector('.assistant-context-meter').getBoundingClientRect(); return { meterBottomLeft: { x: Math.round(meter.left), y: Math.round(meter.top) }, viewport: { w: innerWidth, h: innerHeight }, inViewport: meter.left >= 0 && meter.right <= innerWidth && meter.bottom <= innerHeight }; })()"],
+  ["errors"],
+  ["console"]
+]

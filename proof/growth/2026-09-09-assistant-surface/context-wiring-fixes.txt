@@ -1,0 +1,87 @@
+SC-22 wiring: seven proven defects fixed, plus four found by the confirmers
+captured 2026-09-09; every block is real executed output.
+
+=== FULL SUITE ===
+ℹ tests 937
+ℹ suites 89
+ℹ pass 937
+ℹ fail 0
+
+=== TYPECHECK ===
+npx tsc --noEmit exit: 0  (no output above = clean)
+
+=== NATIVE: the new parity guard runs in cargo test ===
+test assistant_ai::tests::system_instruction_appends_the_brief_to_the_safety_manual ... ok
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+=== LINT (files this slice touched) ===
+eslint exit: 0  (0 with no output = clean)
+
+=== CONTEXT BRIEF UNCHANGED BY THE NORMALISER FIX ===
+[assistant-context] user.md            482 characters ~121 tokens
+[assistant-context] composed brief: 8951 characters ~2238 tokens (ceiling 12000 characters), ASCII only, no double spaces
+[assistant-context] over the published 1600-token budget by 638 tokens; the cost is paid on all eight rounds and measureContext counts none of it
+[assistant-context] every section survives the transcribed Rust normalisation rule identically (no Rust executed; cargo test proves the crate)
+[assistant-context] native: assistant_ai.rs includes all five sections in the fixed order
+[assistant-context] C:\Users\danie\repo\xray-by-looplet\src\studio\assistant\contextManual.gen.ts is up to date
+
+=== PRE-FIX FAILURE PROOFS ===
+Each regression test below was run against the UNFIXED code by reverting the source change in
+place, capturing the failure, then restoring. A test that passes both ways proves nothing.
+
+--- 1. SC-19 rail bounds, fence removed ---
+ℹ tests 4
+ℹ pass 1
+ℹ fail 3
+  AssertionError [ERR_ASSERTION]: the SC-19 rail bounds fence is missing from assistantPanel.css
+  AssertionError [ERR_ASSERTION]: the SC-19 rail bounds fence is missing from assistantPanel.css
+  AssertionError [ERR_ASSERTION]: the SC-19 rail bounds fence is missing from assistantPanel.css
+
+--- 2. JSON array leak, array guard removed ---
+✖ a failed tool returning a JSON ARRAY leaks nothing either (0.8511ms)
+ℹ tests 15
+ℹ pass 14
+ℹ fail 1
+✖ a failed tool returning a JSON ARRAY leaks nothing either (0.8511ms)
+
+--- 3. U+000B at a line boundary, built-in .trim() restored ---
+✖ a vertical tab survives normalisation and is refused, as it does in Rust (1.167ms)
+ℹ tests 9
+ℹ pass 8
+ℹ fail 1
+✖ a vertical tab survives normalisation and is refused, as it does in Rust (1.167ms)
+
+--- 4. gate test under mutation (shouldPin forced false) ---
+The earlier version of this test passed under this mutation, which is why it was rewritten.
+✖ no turn the gate admits can overshoot the content cap once it is assembled (0.244ms)
+ℹ tests 24
+ℹ pass 13
+ℹ fail 11
+✖ no turn the gate admits can overshoot the content cap once it is assembled (0.244ms)
+
+=== FINAL STATE (after the SC-19 seam cascade fix) ===
+ℹ tests 938
+ℹ suites 89
+ℹ pass 938
+ℹ fail 0
+
+--- 5. SC-19 seam, cascade fence removed (must FAIL) ---
+The seam was first declared INSIDE the bounds block, where the later launcher rule
+(border-left: 0, equal specificity, declared after) silently overrode it.
+ℹ tests 5
+ℹ pass 4
+ℹ fail 1
+  AssertionError [ERR_ASSERTION]: the SC-19 rail seam fence is missing
+restored:
+ℹ tests 5
+ℹ pass 5
+ℹ fail 0
+
+=== LIVE BROWSER PROOF: NOT OBTAINED ===
+agent-browser could not attach across six attempts, timing out on the CDP read even for
+about:blank, while the dev server on 127.0.0.1:8091 answered in 11 ms throughout.
+111 chrome processes were found on the machine; none were owned by this session, and the
+guardrails forbid killing processes this session does not own, so they were left alone.
+Sessions this session did create were closed with 'agent-browser close --all'.
+The SC-19 rail bounds fix is therefore covered by a stylesheet regression test, not a
+screenshot, and the wired send path has still never been exercised in a browser.

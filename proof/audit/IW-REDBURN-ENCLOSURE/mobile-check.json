@@ -1,0 +1,15 @@
+[
+ ["tab","t1"], ["find","role","button","click","--name","Model","--exact"], ["wait","--fn","!!document.querySelector('.building-control-dock')"],
+ ["set","viewport","390","844"],
+ ["find","role","button","click","--name","Front","--exact"],
+ ["eval","var dock=document.querySelector('.building-control-dock'),r=dock.getBoundingClientRect(),a=document.querySelector('.live-assistant').getBoundingClientRect();if(r.bottom>innerHeight||r.left<0||r.right>innerWidth||a.bottom>r.top)throw Error('Controls outside viewport or covered');for(const e of dock.querySelectorAll('button,select'))if(e.getBoundingClientRect().height<44)throw Error('Touch control too small');if(document.documentElement.scrollWidth>innerWidth)throw Error('Page overflow');'Mobile dock fits, 44px targets, assistant above controls'"],
+ ["screenshot","screenshots/redburn-enclosure/dev-mobile.png"],
+ ["find","role","button","click","--name","Roof on","--exact"],
+ ["find","role","button","click","--name","Roof off","--exact"],
+ ["screenshot","screenshots/redburn-enclosure/dev-mobile-scrolled.png"],
+ ["set","viewport","1280","720"],
+ ["find","role","button","click","--name","Front","--exact"],
+ ["eval","var r=document.querySelector('.building-control-dock').getBoundingClientRect(),a=document.querySelector('.live-assistant').getBoundingClientRect();if(r.bottom>innerHeight||a.bottom>r.top)throw Error('Short desktop controls covered');'Short desktop dock fits'"],
+ ["screenshot","screenshots/redburn-enclosure/dev-short-desktop.png"],
+ ["errors"]
+]

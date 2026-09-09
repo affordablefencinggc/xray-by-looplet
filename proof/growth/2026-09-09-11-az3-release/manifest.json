@@ -1,0 +1,106 @@
+{
+  "id": "2026-09-09-11-az3-release",
+  "title": "Stage 11 — Dans1 build 5dfc922f097f: production and Windows-native QA of wave 3, promotion held on native shutdown",
+  "date": "9 September 2026",
+  "platform": "Frozen Dans1 build (High/16, seven sequential gates) · production preview 127.0.0.1:8096 at desktop 1280x800 / 1440x900 and tablet 1024x768 · isolated Windows-native executable (WebView2, CDP 9281, not installed) at 2560x1370 · isolated agent-browser profiles",
+  "summary": "The wave-3 tree (protected project saves, source-sheet lifecycle, bounded supplier-search contract, hardened live assistant) was frozen, built on Dans1 and exercised on the production bundle and on the Windows-native executable. All seven build gates passed (287 focused tests); the executable and 214 web artifacts are hash-verified and the served bundle carries the build ID. Production journeys for saves, sheets and pricing passed on desktop and tablet; the hardened assistant layout and guardrails passed; one user-authorized image message was answered by the real provider. Native journeys passed for saves, sheets, pricing (correct 'unavailable in this build' state with an unchanged seeded price book), the live image reply and the hardened assistant scenario. Two older assistant-layout scenarios are stale for this build and were superseded without editing any assertion; the native two-tab stale notice cannot be driven through CDP in WebView2 and is recorded as a platform limitation. After the extended QA workload the native app did not close gracefully within 5 s and was force-stopped, so the verified-build pointer is unchanged; this repeats the open shutdown issue from 8 September.",
+  "requirements": [
+    {
+      "id": "B-12 / B-13 / B-02",
+      "status": "Partial — verified on the production bundle and Windows-native build",
+      "change": "Rename guard, injected newer-revision stale notice with reload/download, quota failure + retry proven on preview 8096 (desktop, tablet, two tabs) and natively (same-window injected path). Runner logs and inspected screenshots in qa/production-saves.md and qa/native-all.md.",
+      "remaining": "Native cross-window notice (WebView2 CDP tab limitation), per-module records, Web Lock lease, installation."
+    },
+    {
+      "id": "D-02 / D-04 / D-05",
+      "status": "Partial — verified on the production bundle and Windows-native build",
+      "change": "Redburn import (198 parts), rename across reload, page-2 annotation, archive review listing calibration/annotation/saved view, recover restoring the annotation byte-identically, archived row — all exit 0 on production and native.",
+      "remaining": "Whole-source removal, SHA-bound construction takeoff registers, authored architectural sheets, installation."
+    },
+    {
+      "id": "P-01 / P-02 / P-09 / P-10",
+      "status": "Partial; live credential dependency-blocked",
+      "change": "Production: not-configured state with HTTP 503 and an unchanged seeded price book. Native: 'Supplier research service unavailable in this build.' plus a typed failure box with 'Existing price books are unchanged'; price book byte-identical.",
+      "remaining": "Live Firecrawl search, native transport, durable budget, P-03..P-08."
+    },
+    {
+      "id": "Live assistant (hardened layout, guardrails, live image)",
+      "status": "Passed on production and native for this build",
+      "change": "Bottom-right default, edits off by default, guardrails page, + menu skills, permission toggle; one red-square image message answered 'The test image is solid red.' by the real provider on both platforms.",
+      "remaining": "Older assistant-layout scenarios stale (superseded); wider assistant requirements (SC-08) open."
+    },
+    {
+      "id": "Release promotion",
+      "status": "HELD — native graceful shutdown failed",
+      "change": "CloseMainWindow accepted, process alive after 5 000 ms, force-stopped with identity checks (native-cleanup.json). Same open issue as the 8 September extended-QA sessions; startup-only baselines close normally.",
+      "remaining": "Shutdown diagnosis; LATEST-VERIFIED-BUILD.md stays at 38a64f0b8c2b; no installation, commit, push or publication."
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/assistant-hardened-production-desktop.png",
+      "caption": "Production 1440x900: Sheets pane with the hardened Live assistant panel bottom-right, drawing edits unchecked, status strip Build 5dfc922f097f.",
+      "sha256": "091a3e1cab0dccf1848d6f75312083e61396575b04f889e2522ccb654fa26cca",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/assistant-hardened-native.png",
+      "caption": "Windows-native 2560x1370: the same hardened panel placement and defaults on the isolated executable of the same build.",
+      "sha256": "43c222df0f06009cce0f720cdffbc41c4ac3d02800c29aa2c31479ca3540e144",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/assistant-hardened-native-guardrails.png",
+      "caption": "Windows-native: Connection & voice / Skills and guardrails view opened from the panel's settings control.",
+      "sha256": "8638fff7ca68e921418b6ab7a3a979b595b8f644439ef4c425e22c730c2e2754",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/03.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/native-assistant-live-image-reply.png",
+      "caption": "Windows-native: Model pane with the Redburn reconstruction; the attached red test square and the real provider's reply 'The test image is solid red.'",
+      "sha256": "b9782240636ac2328a2e68857228513c2d25bbbe99a5662dca404bb876be8283",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/04.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/native-saves-v2-s1-03-stale-notice.png",
+      "caption": "Windows-native: after an injected newer revision the project pauses saving and offers Reload latest revision or download of the unsaved revision (B-13).",
+      "sha256": "219b003f50d1be3b3bd808e7617747d73a7ad8dd3b6b9d4b4ce4cc53e2cfa74f",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/05.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/native-sheets-B1-archive-review.png",
+      "caption": "Windows-native: 'Archive Ground floor plan?' review listing 1 calibration, 1 annotation and 1 saved view retained before confirming (D-04).",
+      "sha256": "5c91cfe88b24aa23a5a64870b583a666da5746c0730d884ff33c80fe0ba3be97",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/06.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az3-release/native-pricing-v2-desktop-not-configured-failure.png",
+      "caption": "Windows-native: Cost pane with the 'unavailable in this build' status and, after one click, the typed failure box stating existing price books are unchanged; the seeded price book is intact (P-09/P-10).",
+      "sha256": "030b2234ec266ff1b242eb2768a7204c7af1ed2054862a74cf2645d9fdbe912e",
+      "archivedFile": "screenshots/growth/2026-09-09-11-az3-release/07.png"
+    }
+  ],
+  "commands": [
+    "Dans1 worker.ps1 (High priority, 16 workers): dependencies 11.3 s, typecheck 8.6 s, focused-tests 2.8 s (287 pass / 0 fail), web-build 4.5 s, native-build 151.3 s, native-assistant-tests 14.1 s, native-material-tests 4.8 s — all exit 0 (release-5dfc922f097f/results.json)",
+    "sha256sum release-5dfc922f097f/artifacts/src-tauri/target/release/xray-by-looplet.exe = 2ff012d231570bcbc4e4263334712326e1565acc3f1f1190cdaa99a8711b3b69 (matches artifact-manifest.json, native-completion.json, qa-launch.json)",
+    "web-artifact-manifest.json recomputed against release-5dfc922f097f/web-artifacts: 214/214 match",
+    "node remote-orchestrator.mjs verify-source 5dfc922f097f — drift only in src/studio/DraftsmanControlDock.tsx and src/studio/draftsman.css (post-freeze dock slice, not in this build)",
+    "node scripts/fast-cdp-test.mjs az3rel-prod-* <scenario> against http://127.0.0.1:8096/ — saves, sheets, pricing, hardened layout, hardened guards, live image: exit 0 (qa/production-*.md)",
+    "node scripts/fast-cdp-test.mjs az3rel-native-all <scenario> --cdp 9281 — saves-1, saves-3, sheets 0/a/a2/b/d, pricing-a, live-image, native-hardened: exit 0; native-assistant, native-floor-pointer: stale (exit 1, superseded); native-saves-2-two-tabs: platform limitation (qa/native-all.md)",
+    "node configure-native.mjs — Gemini configuration injected into the QA process memory only (native-configuration.json, no secret)",
+    "powershell -File cleanup-owned.ps1 — native app 75176: graceful close requested, not exited in 5 s, forced; preview 56200 stopped (native-cleanup.json)",
+    "agent-browser session list — az3rel-native-all closed; only the other chat's sessions remain"
+  ],
+  "logs": [
+    "proof/growth/2026-09-09-az3-release/qa/native-all.md",
+    "proof/growth/2026-09-09-az3-release/qa/production-saves.md",
+    "proof/growth/2026-09-09-az3-release/qa/production-sheets.md",
+    "proof/growth/2026-09-09-az3-release/qa/production-pricing.md",
+    "proof/growth/2026-09-09-az3-release/qa/production-assistant-hardened.md",
+    "proof/growth/2026-09-09-az3-release/verification.md",
+    "proof/growth/2026-09-09-az3-release/native-cleanup.json",
+    "proof/growth/2026-09-09-az3-release/owned-processes.md"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree). Frozen snapshot 5dfc922f097f: source.tar SHA-256 5dfc922f097f18e5e43a4ab539dc65d48849584191b60e9696d45da8cef25dff, native-source.tar 6c59a78ab80133d9e5bb6adeb3dfa812ea826c7f4cdc5750dd271c435e03aaab (transfer/*.json, artifacts-verified.json). Installer SHA-256 9839cdef77344116ade614e83b215bbeb4899497ca3bee34e1cc09b309d18f6a. Not installed, not committed, not pushed, not promoted. No Burj Khalifa research, model or quantity claim.",
+  "codeDiff": "proof/growth/2026-09-08-az3-wave/code.diff (wave-3 source scope; the build contains the tree as frozen on 2026-09-09 01:00)"
+}

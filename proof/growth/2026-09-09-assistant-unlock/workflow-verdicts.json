@@ -1,0 +1,524 @@
+[
+  {
+    "v": {
+      "refuted": false,
+      "confidence": 0.85,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.test.ts",
+          "line": 140,
+          "severity": "minor",
+          "summary": "Vacuous assertion: `failing` recorder is created but never passed to exportDesign, so `failing.calls.length === 0` proves nothing about the throwing-download path.",
+          "evidence": "Read lines 140-142: the inline `{ download: () => { throw ... } }` object is what exportDesign receives; `failing.download` is never invoked by anything, so the final assert is always true.",
+          "fix": "Drop `failing` and instead assert the rejection message plus that no receipt is produced, e.g. wrap in `let receipt; try { receipt = await exportDesign(...) } catch {}` and `assert.equal(receipt, undefined)`, or make the throwing handler record its call and assert it was called exactly once."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.test.ts",
+          "line": 7,
+          "severity": "minor",
+          "summary": "`browserDownload` (the only code path the real UI wiring will hit) has no test; its DOM guard is unverified by the suite.",
+          "evidence": "grep of the test file shows browserDownload is not imported. My scratch probe confirmed it throws 'Downloading an export requires a browser.' under Node, so a one-line test is cheap.",
+          "fix": "Add `await assert.rejects(async () => browserDownload(\"a\", new Uint8Array([1]), \"x\"), /requires a browser/)` (or assert.throws) so the fail-closed guard is covered."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 141,
+          "severity": "minor",
+          "summary": "`...detail` is spread after the fixed receipt fields projectId/expectedRevision/format/fileName/mimeType/bytes/byteLength/sha256/deterministic, so any future per-format detail key with one of those names would silently overwrite the verified value.",
+          "evidence": "Read lines 139-144; current detail keys (levels, units, note, schema, sheetId, sheetName, sheetNumber, paper, scale, viewports, pageCount, quantityRows, importedAsEvidence, materialRegisterSynced, documentId, sourceName, sourceSha256, lifecycleRevision, sheets, archived) do not collide today (confirmed via Object.keys in the probe), so this is hardening only.",
+          "fix": "Spread `...detail` first in the object literal (or nest it under a `detail` key) so the fixed, hash-bearing fields always win."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 14,
+          "severity": "minor",
+          "summary": "One `expectedRevision` field means the authored design revision for dxf/ifc/drawing-pdf/material-pdf but the project record revision for sheet-register; an assistant that just read project context will be rejected on design formats (and vice versa). Fail-closed, but a usability trap.",
+          "evidence": "Lines 124 and 131 bind job.revision and project.revision respectively; architectBridge.ts line 50 uses design revision for architect tools while appTools checkProject uses job.revision, so both conventions exist and the tool straddles them.",
+          "fix": "Either split into two tools (export_design_file bound to design revision; export_sheet_register bound to project revision) or add `expectedDesignRevision` alongside `expectedRevision` and require exactly the one that applies, so the wiring never has to explain the dual meaning."
+        }
+      ],
+      "verifiedBy": "Ran: node --experimental-strip-types --test src/studio/assistant/exportTools.test.ts (tests 8 / pass 8 / fail 0 / exit 0); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js on both files (exit 0, no output); git status --short (both files untracked, nothing else). Ran a scratchpad probe test that showed material-pdf and dxf sha256 stable across a 1.5 s gap, drawing-pdf sha differing across 1.1 s, sha256Hex correct on a byteOffset view, browserDownload throwing under Node, sheetId 'legacy-sheet' working on a project without sheetSet, and no detail/fixed-field key collisions. Read exportTools.ts, exportTools.test.ts, architect/sheets.ts (exportDrawingPdf, exportMaterialSnapshotPdf with setCreationDate/setModificationDate epoch, saveDownload, sheetViewports), architect/exchange.ts (exportDxf: body hash only, no timestamp), architect/ifc.ts (FILE_NAME carries new Date().toISOString()), architect/authoredSheetSet.ts (changeAuthoredSheets select/archived errors, structuredClone so mounted project untouched), architect/model.ts (revision schema, demonstration), sheetLifecycle.ts, UI call sites ArchitectCadExchange.tsx / ArchitectSheets.tsx / SyncDesignMaterials.tsx / SheetManager.tsx (file names and mime types match), assistant/workbenchTools.ts describeSourceSheets (identical identity logic), assistant/architectBridge.ts (design-revision binding convention, ArchitectController type) and ArchitectWorkspace.tsx read() (returns project/ready/blocked/error/pendingDraft as the wiring sketch assumes). No files edited; no git operations run."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.7,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 275,
+          "severity": "major",
+          "summary": "rename-design lets the assistant silently strip the only sample marker on demonstration geometry (the ' / demonstration' name label), so demo walls/openings/roofs continue into schedules, BOM and exports looking like a real client design.",
+          "evidence": "grep across src/studio shows the demonstration fixture is marked solely by model.ts:427 `p.name = \"Courtyard studio / demonstration\"` and the workspace's 'Replace this design with the labelled demonstration?' confirm (ArchitectWorkspace.tsx:640); the project schema (model.ts:56-145) has no sample flag. Probe script: `prepareArchitectEdits(demonstration(...), {operations:[{kind:'rename-design', name:'...'}]})` succeeds with no notice; test 'rename-design changes only the design header' (architectEdits.test.ts:166-178) renames the demo to 'Courtyard studio' and asserts success, i.e. the firewall bypass is the tested behaviour.",
+          "fix": "In the rename-design branch, if `draft.name` matches /demonstration/i and the new name does not, either throw ('This design is the labelled demonstration; keep the demonstration label or load/restore a real design first.') or force-preserve the ' / demonstration' suffix and push a notice. Add a test asserting the label survives an assistant rename."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 182,
+          "severity": "minor",
+          "summary": "An entity edited and then removed in the same batch is reported in both `changed` and `removed`; the workspace receipt then emits `changed: [{kind:'wall', id, revision: null}]` for an entity that no longer exists.",
+          "evidence": "Probe: operations [{set-wall id:W name:'X'},{remove id:W}] returned changed=[{wall W}] and removed=[{wall W},{opening},{dimension}]. ArchitectWorkspace.tsx:561-576 maps changed via revisionOf() which returns null for the removed id. No test covers this combination.",
+          "fix": "Before `return` in prepareArchitectEdits, filter `changed` to ids not present in `removed` (`changed.filter(c => !removed.some(r => r.id === c.id))`) and add a test for set-then-remove asserting changed is empty for that id."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 275,
+          "severity": "minor",
+          "summary": "rename-design overwrites human-authored `notes` (5000 chars), `address` and `designRevision` label wholesale with no prior value in the receipt or notices, violating append-only-where-possible / no-silent-destructive-action.",
+          "evidence": "Lines 275-278: `Object.assign(draft, patch)` with no capture of previous values; receipt (ArchitectWorkspace.tsx:575-577) carries only `changed:[{kind:'design'}]`. Probe with `{kind:'rename-design', designRevision:'7'}` silently replaced the human revision label 'A'. Note the same field name `designRevision` means a string label here but the numeric project revision in the receipt (`designRevision: saved.revision`), inviting LLM confusion.",
+          "fix": "Push a notice recording the previous values (`Design name changed from \"X\" to \"Y\"`, etc.), make `notes` append (or require an explicit `replaceNotes: true`), and rename the op field to `revisionLabel` so it cannot be confused with the numeric `designRevision` in receipts."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 195,
+          "severity": "minor",
+          "summary": "A no-op edit (fields set to their current values) passes requireChange, bumps the project revision, consumes an undo step and is reported as `changed`, so an assistant can churn revisions without any real change.",
+          "evidence": "Probe: `{kind:'set-level', id:L, name:<current name>}` returned changed=[{level L}] and revise() would increment project.revision; requireChange only checks key presence (line 195), not value difference.",
+          "fix": "After applying each patch compare `JSON.stringify(before)` vs after; if identical, either throw `${what} did not change anything.` or omit it from `changed` and, if the whole batch is a no-op, throw before commit."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 200,
+          "severity": "minor",
+          "summary": "Level occupancy check ignores sheet viewports that reference the level; removal of an empty level still used by a viewport fails closed only via the generic validator message 'Sheet viewport refers to a missing level.', not the documented occupant message.",
+          "evidence": "Lines 200-201 count only ENTITY_LISTS items with levelId; authoredSheetSet.ts:78 throws for viewport.levelId not in levels during validateProject at line 281. The wiring plan promises 'Level <id> still hosts N entities' for blocked removals.",
+          "fix": "Include `authoredSheets(draft)` viewport references in the occupant count (or a separate check) with a message such as 'Level <id> is still shown by N sheet viewport(s). Re-target them before removing the level.'; add a test."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/architect/ArchitectWorkspace.tsx",
+          "line": 576,
+          "severity": "minor",
+          "summary": "Receipt contract claims `changed[].revision` is read from the saved design, but levels have no revision so the receipt emits `revision: null` for `kind:'level'` entries; the wiring plan documents it as an integer.",
+          "evidence": "revisionOf() (lines 561-568) only scans revisioned lists; levels (model.ts:63-68) carry no revision. Probe confirmed set-level yields changed=[{kind:'level'}] which maps to null. Workspace edit() has no unit test (implementer acknowledged).",
+          "fix": "Document `revision: number | null` (null for levels) in the tool description/JSON mirror, or omit the key for levels; add a jsdom/controller-level test for edit() covering a level change and the guard sequence."
+        }
+      ],
+      "verifiedBy": "Read architectBridge.ts (full), architectEdits.test.ts (full), ArchitectWorkspace.tsx lines 95-240 and 520-600 plus `git diff HEAD` of the workspace, model.ts schema/validateProject/revise (lines 1-145, 195-345, 389-425), authoredSheetSet.ts validateAuthoredSheets. Ran: `node --experimental-strip-types --test src/studio/assistant/architectEdits.test.ts` -> 13 pass / 0 fail, exit 0; architect.test.ts 21/21, appTools.test.ts 16/16, wireframe.test.ts 6/6 (all exit 0); `node node_modules/typescript/bin/tsc --noEmit` -> 0 'error TS' lines in the current tree (the two other-agent errors the implementer reported are no longer present); `node node_modules/eslint/bin/eslint.js` on the three files -> 0 errors, 8 pre-existing unused-import warnings in ArchitectWorkspace.tsx, exit 0. Wrote and ran a scratchpad probe test (probe.test.ts) against demonstration() exercising set-then-remove, level removal, rename-design designRevision, set-roof points/gable rebuild, opening overlap/fit, move-wall a-shift, empty name, no-op set-level, self-crossing slab, template removed earlier in batch, grid removal; outputs quoted in issues. grep for 'demonstration' across src/studio to confirm the sample label is name-only. No files edited."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.86,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/renderTool.ts",
+          "line": 191,
+          "severity": "major",
+          "summary": "Store placeholder defaults for renderMaterials are sent to the model as 'user notes' the user never wrote, including the literal hint text 'Optional finish, weather or presentation direction'.",
+          "evidence": "src/studio/store.ts:862-870 initialises renderMaterials with boilerplate ('Standing-seam metal - warm white', 'Light cream masonry and restrained natural ac' (truncated), direction: 'Optional finish, weather or presentation direction'). renderTool.ts:191-200 copies state.renderMaterials verbatim and joins the store direction with args.direction. I ran a scratch node --test that fed those store defaults through requestRender with direction 'add a hedge'; renderAiPrompt produced: Appearance directions (user notes ...): Roof: \"Standing-seam metal - warm white\" ... Additional: \"Optional finish, weather or presentation direction add a hedge\". Every fresh project therefore sends invented material/finish notes framed as the user's wishes, contradicting the 'user notes' label and the no-invented-inputs convention.",
+          "fix": "In renderTool.ts (store.ts is off-limits) treat values equal to the known store defaults as empty before building materials (export a RENDER_MATERIAL_PLACEHOLDERS set and filter `materials[key] === placeholder ? '' : value`), or drop the store copy and take materials only from explicit tool arguments; add a test asserting that untouched defaults produce a prompt with no 'Appearance directions' section."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/renderTool.ts",
+          "line": 190,
+          "severity": "major",
+          "summary": "Request/receipt camera and the prompt's projection come from the manually recorded camera brief (recordedModelView), not the live camera at capture time, so the receipt can claim a camera that does not match the captured pixels.",
+          "evidence": "renderTool.ts:170 defaults recordedView to recordedModelView; :190 builds view.camera from it and renderAiPrompt (:78) writes `${request.view.camera?.projection} camera` into the prompt. modelViewSnapshot.ts:42-48: `recorded` is a frozen copy taken when the user pressed Record camera; `latest` is republished every frame by SourceBuildingViewer.tsx:158. Scratch run: recorded snapshot orthographic/[0,50,0] while the capture is of the live viewer -> sent view.camera = {\"projection\":\"orthographic\",\"position\":[0,50,0],...} and prompt says '(source-building, orthographic camera)'. Concrete failure: record camera in plan (orthographic) mode, orbit to perspective, ask the assistant to render -> prompt tells Gemini it is an orthographic capture and LatestRender/receipt store the plan camera as the capture camera.",
+          "fix": "Bind the camera to the capture: use latestModelView() (matched by documentId/sourceSha256) as the default recordedView dep, or read it immediately before/after port.capture and set camera null when it does not match; keep the recorded brief only as an explicit, separately labelled field. Add a test where recorded and latest differ and assert the sent camera equals the live one."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/RenderStudio.tsx",
+          "line": 97,
+          "severity": "minor",
+          "summary": "The 'AI render discarded from session memory.' status is never visible when no camera brief is recorded, because Discard sets latestRender to null and the span is gated on `captured || latestRender !== null`.",
+          "evidence": "RenderStudio.tsx:97 renders the status only when `statusMsg && (captured || latestRender !== null)`; :137 and :145 call clearLatestRender() then setStatusMsg(...). With no recorded camera (captured null) the message is set and immediately hidden.",
+          "fix": "Gate the status span on statusMsg alone (or clear statusMsg where it becomes stale), e.g. `{statusMsg && <span role=\"status\">...}`."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/renderTool.test.ts",
+          "line": 146,
+          "severity": "minor",
+          "summary": "Test title claims requestRender rejects mismatched project and request digest, but only id and image-hash mismatches are exercised; requestRender never checks requestDigest itself.",
+          "evidence": "renderTool.test.ts:146-152 tampers only `id` and `sourceImageSha256`. renderTool.ts:203 compares id, projectId and sourceImageSha256; the digest check lives only in requestRenderAi (:101), which the fixture transport bypasses.",
+          "fix": "Add tamper cases for projectId (and, if the digest is meant to be enforced independently of transport, compute and compare it in requestRender too), or rename the test to what it verifies."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/renderTool.ts",
+          "line": 192,
+          "severity": "minor",
+          "summary": "Store-derived fields that fail the request schema (material >300 chars, tab in a text input, control char in plan filename) surface as 'Invalid tool arguments: materials.roof: ...' even though the model supplied none of them.",
+          "evidence": "store.ts:919-926 setRenderMaterial has no length/character limit; RenderStudio BriefField is a plain text input. renderTool.ts:192 calls renderAiRequestSchema.parse on store values; the ZodError is reported by renderTool()/createAppTools.tool as 'Invalid tool arguments'. Fails closed but misdirects the assistant to retry with different args.",
+          "fix": "safeParse the assembled request and throw a plain Error naming the Render pane field (e.g. 'Render brief field roof exceeds 300 characters; shorten it on the Render pane'), or clamp/sanitise store values before parsing."
+        }
+      ],
+      "verifiedBy": "Read all seven module files in full plus src/studio/assistant/appTools.ts (captureCanvasImage, tool wrapper, AppToolPort), src/lib/assistantAi.server.ts helpers, src/lib/materialAi.server.ts materialAiStatus, src/studio/assistant/contract.ts (assistantPartSchema, ASSISTANT_LIMITS), src/studio/modelViewSnapshot.ts, src/studio/store.ts (renderMaterials type/defaults/setter, activePlanBinary, sheet), src/studio/SourceBuildingViewer.tsx camera publishing, src/studio/architect/Architect3D.tsx dataset.projectRevision, src/studio/documentContract.ts PlanBinary, conversation.ts image handling, git diff of RenderStudio.tsx and routeTree.gen.ts. Ran: node --experimental-strip-types --test src/lib/renderAi.server.test.ts src/studio/assistant/renderTool.test.ts -> tests 20, pass 20, fail 0, exit 0; eslint on the six files -> exit 0, no output; tsc --noEmit -> exit 0, no errors (the takeoffTools.ts errors the implementer cited are no longer present). Wrote and ran a scratch node --test in the scratchpad feeding the store's default renderMaterials and a stale orthographic recorded camera through requestRender; observed the prompt containing all placeholder defaults and 'Additional: \\\"Optional finish, weather or presentation direction add a hedge\\\"' and view.camera = the recorded orthographic camera. Scratch file deleted; no repo files edited."
+    }
+  },
+  {
+    "v": {
+      "refuted": false,
+      "confidence": 0.82,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 101,
+          "severity": "minor",
+          "summary": "Receipt and stored provenance pair a user-supplied fileName with a SHA-256 of re-encoded UTF-8 text, not of that file's bytes, and nothing in the receipt scope says so",
+          "evidence": "Line 76-78 hash `new TextEncoder().encode(args.csvText)`; the panel (PriceBookPanel.tsx:69-71) hashes the raw file ArrayBuffer and TextDecoder strips a BOM before the text reaches a caller, so for a BOM-prefixed or non-UTF-8 file the revision's source.sha256/sizeBytes will not match the actual file named in source.fileName. The exported CSVs (priceRevisionCsv/pricedWorksheetCsv) print that sha as 'Source SHA-256'. The implementer lists this as a limitation, but the receipt scope string (line 103) and the proposed tool description do not disclose it.",
+          "fix": "Append to the scope string (and to the proposed tool description) a sentence such as: 'sha256/sizeBytes are of the UTF-8 text supplied to this tool, not of a file on disk; use the Cost pane to import a file when its own hash must be recorded.' Optionally reject a fileName that does not end in .csv/.tsv so the provenance cannot masquerade as an XLSX or other file."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 82,
+          "severity": "minor",
+          "summary": "Mapping-level preview errors are reported with the 'these lines are corrected' wording and no hint that the header row is wrong",
+          "evidence": "Probe: a CSV with two preamble lines and no headerRow (or headerRow: 2) fails with 'Import blocked until these lines are corrected (1 issue; first 1 shown): Map each field to a different column. No rates have been saved.' because suggestPriceMapping collapses onto a single-column header; previewPriceRows returns mapping errors without a 'Line N:' prefix (priceBooks.ts:168-170).",
+          "fix": "When no error starts with 'Line ', use a different message, e.g. 'Column mapping could not be resolved (headers: ...). Check headerRow/delimiter or supply mapping. No rates have been saved.' so the assistant can self-correct with headerRow instead of retrying blindly."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 109,
+          "severity": "minor",
+          "summary": "importPriceBookFromStorage throws synchronously with a raw, unprefixed ZodError when expectedJobId is missing, despite its Promise return type",
+          "evidence": "Probe: `importPriceBookFromStorage(store, { csvText, metadata, bookName })` threw ZodError('Invalid input: expected string, received undefined') synchronously at priceImportTool.ts:109:63, so `assert.rejects(...)` never received a promise; every other input error is flattened as 'Price import input: ...'.",
+          "fix": "Make the function `async` and wrap the pre-parse in `flatten(\"Price import input\", ...)`, or parse the full priceImportInputSchema once up front and pass the parsed args through."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.test.ts",
+          "line": 84,
+          "severity": "minor",
+          "summary": "No test covers the headerRow input, preservation of existing priced worksheet lines, or a save that throws",
+          "evidence": "grep of the test file: `headerRow:` is never passed as input (only asserted on the receipt); addPricedLine/worksheet is never exercised although the receipt scope claims 'priced worksheet lines are unchanged'; no test passes a `save` that throws. My probe confirmed all three behave correctly (headerRow: 3 selects the header at line 3; worksheet length stays 1 after a second revision; store size stays 0 after a throwing save), so this is a coverage gap, not a defect.",
+          "fix": "Add three assertions: import with headerRow: 3 over a two-line preamble and expect receipt.headerRow === 3; seed a priced line via addPricedLine/persistPriceBooks, append a revision by bookId and assert library.worksheet is unchanged; pass `save: () => { throw Error('disk full') }` and assert store.map.size === 0."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 98,
+          "severity": "minor",
+          "summary": "readbackVerified is always true even when no readback dependency was supplied",
+          "evidence": "Line 98 only consults storage when deps.readback is defined; a caller passing `{ save }` alone still receives `readbackVerified: true` on the strength of the session returned by save (which persistPriceBooks builds from the string it wrote, not from a re-read). browserPriceImportDeps and importPriceBookFromStorage do supply readback, so the wired paths are fine.",
+          "fix": "Make `readback` required in PriceImportDeps (browserPriceImportDeps and importPriceBookFromStorage already provide it), or set `readbackVerified: deps.readback !== undefined` and type it as boolean."
+        }
+      ],
+      "verifiedBy": "Read priceImportTool.ts and priceImportTool.test.ts in full (both untracked, so no git diff), plus src/studio/pricing/priceBooks.ts (model, persistPriceBooks race/readback checks, parsePriceCsv, previewPriceRows, suggestPriceMapping), PriceBookPanel.tsx chooseFile/prepareReview/state defaults, and appTools.ts port shape (storage?, priceBooks?, read_price_books, sheetChanged). Ran: `node --experimental-strip-types --test src/studio/assistant/priceImportTool.test.ts` -> 8 pass, 0 fail, exit 0; `node node_modules/eslint/bin/eslint.js` on both files -> exit 0; `node node_modules/typescript/bin/tsc --noEmit` -> exit 0 with no output (the implementer's reported exportTools.test.ts TS2790 error is no longer present). Wrote and ran a 12-case scratchpad probe (headerRow preamble, BOM text, priced worksheet preservation, duplicate names, 29/30/31/40 error caps, bad uuid, blank name, throwing save, 5001 rows, tax variants, readback tamper, multiline quoted field): 11 behaved as the receipt claims and 1 exposed the synchronous raw ZodError in importPriceBookFromStorage. zod version 4.5.4 confirmed. Did not exercise browserPriceImportDeps/savePriceBooks (require navigator.locks and localStorage) and did not edit any repo file."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.82,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 24,
+          "severity": "major",
+          "summary": "Model-chosen fileName plus a SHA-256 of model-emitted text is recorded as file provenance indistinguishable from a Cost-pane file import (evidence-authority / provenance laundering).",
+          "evidence": "Ran a probe (scratchpad/probe2.mts) via importPriceBookFromStorage with fileName \"Timber Co Quote Q-1234.xlsx\": accepted, stored as source.kind \"csv\" with that fileName, and priceRevisionCsv (priceBooks.ts:241) exported it as \"Source file\" + \"Source SHA-256\" in exactly the columns a picked file gets. Schema line 24 only checks length 1..255; nothing in the stored record, receipt or exports marks that the bytes came through the assistant rather than a user-chosen file (the panel hashes candidate.arrayBuffer() of a real File, PriceBookPanel.tsx:68-71). The only guard is prose in the proposed tool description, which is not enforced.",
+          "fix": "Do not let the model name the source. Derive fileName inside importPriceBook, e.g. `assistant-pasted-${sha256.slice(0,12)}.${delimiter === \"\\t\" ? \"tsv\" : \"csv\"}`, and remove fileName from priceImportInputSchema (or, at minimum, reject /\\.(xlsx|xls|xlsm)$/i and require /\\.(csv|tsv|txt)$/i). State in the receipt scope that the rates were supplied as text through the assistant and were not read from a file. Longer term add `origin: \"assistant\"` to the source schema in priceBooks.ts so exports can show it."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 17,
+          "severity": "major",
+          "summary": "No library-revision binding: the input has no expectedLibraryRevision even though read_price_books returns one, so a retry after an ambiguous outcome silently creates duplicate books/revisions.",
+          "evidence": "priceImportInputSchema (lines 17-29) accepts only expectedJobId; probe confirmed `expectedLibraryRevision` is rejected by .strict(). describePriceBooks (workbenchTools.ts:85) exposes libraryRevision and the house style binds every mutation with expectedRevision (appTools.ts `bound`, backupSchema). Probe: two identical import calls (same bookName \"Timber Co\", same sha) both succeeded with created:true, leaving two books with the same name and identical rows (libraryRevision 1 then 2). Lines 96-98 can throw AFTER persistPriceBooks has written the revision (readback mismatch), and the operating manual tells the model to re-read then act, so a duplicate is the expected outcome of the prescribed recovery path. appendPriceBookRevision does not dedupe names either.",
+          "fix": "Add `expectedLibraryRevision: z.number().int().nonnegative()` (required) to priceImportInputSchema and, right after the blocked/jobId checks (line 74), `if (session.value.revision !== args.expectedLibraryRevision) throw Error(`The price book library is at revision ${session.value.revision}, not ${args.expectedLibraryRevision}. Read the price books again before importing.`)`. Echo the value in the receipt, add it to the wiring JSON schema (`{ type: \"integer\", minimum: 0 }`) and to the tool description (\"Requires libraryRevision from read_price_books\"). Add a test proving a stale expectedLibraryRevision writes nothing."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/priceImportTool.ts",
+          "line": 65,
+          "severity": "minor",
+          "summary": "flatten() strips Zod issue paths, so the assistant receives 'Price import input: Invalid input: expected string, received undefined' with no field name, whereas the appTools tool() wrapper would have reported the path.",
+          "evidence": "Probe output with supplier missing and effectiveDate numeric: tool error was \"Price import input: Invalid input: expected string, received undefined Invalid input: expected string, received number\"; the same ZodError formatted by appTools.ts:134 reads \"Invalid tool arguments: metadata.supplier: ...; metadata.effectiveDate: ...\". Because flatten (line 65) rethrows a plain Error, the wrapper's path-aware branch never runs, inviting the model to guess at which field failed.",
+          "fix": "Let the input parse throw its ZodError unwrapped (drop flatten on line 72), or format issues as `${issue.path.join(\".\") || \"input\"}: ${issue.message}` inside flatten for the input step. Update the test on line 108-117 to assert the field path appears."
+        }
+      ],
+      "verifiedBy": "Read priceImportTool.ts, priceImportTool.test.ts, pricing/priceBooks.ts (full), PriceBookPanel.tsx lines 55-100 and its import/reload grep, appTools.ts lines 1-80 and 225-300 (port, tool() ZodError formatting, read_price_books, checkProject), workbenchTools.ts describePriceBooks, skills.ts VIEW/EDIT sets, conversation.ts tool-result handling, domain.ts sample job. Executed: `node --experimental-strip-types --test src/studio/assistant/priceImportTool.test.ts` -> 8 pass / 0 fail, exit 0; `node node_modules/eslint/bin/eslint.js` on both files -> exit 0, no output; `node node_modules/typescript/bin/tsc --noEmit` -> exit 0 with no diagnostics (the implementer's claimed pre-existing exportTools.test.ts TS2790 error is no longer present). Wrote and ran a scratchpad probe script (probe2.mts, outside the repo) demonstrating: xlsx-named fileName accepted and exported as Source file; two identical imports create two same-named books (libraryRevision 1 then 2, both created:true); expectedLibraryRevision rejected by the strict schema; flatten() error text vs appTools path-formatted text. No files in the repo were edited; no git state commands, servers or network calls."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.72,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 143,
+          "severity": "major",
+          "summary": "The receipt hardcodes the claim 'File offered by the browser download; nothing was uploaded or sent anywhere' for ANY injected download handler, so the module asserts a delivery route it cannot see.",
+          "evidence": "Probe test: exportDesign({project}, {...format:'dxf'}, { download: async () => {} }) returned scope='File offered by the browser download; nothing was uploaded or sent anywhere.' and downloaded=true. The wiring plan explicitly proposes an AppToolPort.download for headless/MCP callers, which would make the receipt's scope statement (the text the LLM relays to the user) false whenever that port writes to disk or forwards bytes. EXPORT_SCOPE is only true for browserDownload.",
+          "fix": "Make the delivery route part of the handler's contract instead of a module constant: `download?(name, bytes, mimeType): { delivered: string } | Promise<{ delivered: string }>` and set `scope` from the returned `delivered` string; have browserDownload return { delivered: EXPORT_SCOPE }. Alternatively require deps.scope alongside deps.download and throw if download is supplied without scope. Add a test that a custom handler's description is what appears in the receipt."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 140,
+          "severity": "major",
+          "summary": "The receipt carries no design identity beyond projectId/revision, so exports of the bundled demonstration design (including the material-pdf titled 'AUTHORED DESIGN / QUANTITY EVIDENCE') are indistinguishable in the transcript from exports of the user's authored design.",
+          "evidence": "Probe test on demonstration('x'): dxf receipt keys are projectId,expectedRevision,format,fileName,mimeType,bytes,byteLength,sha256,deterministic,levels,units,note,downloaded,savedToDiskVerified,readbackVerified,scope; no designName/designRevision. p.name is 'Courtyard studio / demonstration' (model.ts:427) and ArchitectWorkspace.tsx:648 shows the UI warns 'Demonstration design loaded · not your PDF', but the assistant receipt gives the LLM nothing to relay. sheets.ts:203-236 stamps the material PDF as 'QUANTITY EVIDENCE'. The sheet-register path has a sample firewall (sheetSourceIdentity -> throws on source==='sample'); the design formats have none.",
+          "fix": "Add designName: project.name, designRevision: project.designRevision and address to the receipt for all design formats, and add a note when project.name matches the demonstration label (e.g. `demonstration: project.name === DEMONSTRATION_NAME` exported from model.ts next to demonstration()) so the assistant must state that the file is the labelled demonstration, not the user's design. Test with demonstration('x') that the flag is true and with emptyProject that it is false."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 128,
+          "severity": "minor",
+          "summary": "Fail-closed on design readiness lives entirely outside the module: exportDesign accepts a bare ArchitectProject and never sees ready/blocked/error/pendingDraft, so a mis-wired caller can export a blocked or recovering design.",
+          "evidence": "Probe test: exportDesign({ project }, ...) with no readiness fields exported 39257 bytes. ArchitectWorkspace.tsx:524-531 controller.read returns { project, ready, blocked, error, pendingDraft }; appTools.ts:150 already reads pendingDraft for navigation. The module's only guards are id/revision (lines 130-131); the ready/blocked/pendingDraft checks exist only in the coordinator's wiring sketch.",
+          "fix": "Change ExportSources.project to accept the controller read result shape `{ project, ready, blocked, error, pendingDraft? }` (or a separate `design` field) and throw inside exportDesign when !ready || blocked || error || pendingDraft, mirroring draw() in ArchitectWorkspace.tsx:536-540. Add tests for each rejected state."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 141,
+          "severity": "minor",
+          "summary": "Per-format detail is spread after the identity/hash fields, so any future detail key named sha256, byteLength, fileName, format or projectId silently overrides the verified value in the receipt.",
+          "evidence": "Line 141: `bytes, byteLength: bytes.byteLength, sha256, deterministic, ...detail,` — detail is Record<string, unknown> assembled per format; only downloaded/savedToDiskVerified/readbackVerified/scope are placed after the spread. No collision exists today (checked all detail keys), but the shape invites one.",
+          "fix": "Spread detail first (`...detail,` before projectId) or nest it as `detail: {...}` so identity and hash fields can never be shadowed; add an assertion in tests that receipt.sha256 equals sha256Hex(receipt.bytes) after any detail is applied (already partially done for dxf)."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.test.ts",
+          "line": 140,
+          "severity": "minor",
+          "summary": "The failing-download test creates a `failing` recorder that is never wired to the call, so `assert.equal(failing.calls.length, 0)` is vacuous and the test does not prove the receipt is withheld.",
+          "evidence": "Lines 140-142: `const failing = recorder(); await assert.rejects(exportDesign(..., { download: () => { throw Error('blocked by the browser'); } }), ...); assert.equal(failing.calls.length, 0);` — the throwing handler is an inline lambda, not failing.download.",
+          "fix": "Drop the unused recorder or wrap it: `const failing = recorder(); const download = (n,b,m) => { failing.download(n,b,m); throw Error('blocked by the browser'); }` and assert `failing.calls.length === 1` plus that no receipt value was produced (e.g. capture the promise result in a variable that stays undefined)."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/exportTools.ts",
+          "line": 81,
+          "severity": "minor",
+          "summary": "The proposed tool description says every format is exported 'exactly as the Sketch/Sheets export buttons do', but material-pdf has no UI export button; in the UI that PDF exists only inside the Sync flow, which imports it as plan evidence and syncs the register.",
+          "evidence": "SyncDesignMaterials.tsx:43-58 is the only UI caller of exportMaterialSnapshotPdf and it always calls inspectPlanBytes -> importPlan -> syncDesignMaterials. The module's material-pdf branch (lines 81-84) is a new download-only route with no UI equivalent; the wiring plan's tool description would mislead the LLM about parity.",
+          "fix": "Reword the tool description and the receipt note to state that material-pdf is an assistant-only download of the same snapshot the Sync control would save, with no UI button equivalent, and that the user must use 'Sync to project material register' to make it evidence."
+        }
+      ],
+      "verifiedBy": "Executed: node --experimental-strip-types --test src/studio/assistant/exportTools.test.ts (tests 8, pass 8, fail 0, exit 0, 375 ms); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js on exportTools.ts and exportTools.test.ts (exit 0, no output); a scratchpad probe test file (4 tests, all pass) that confirmed browserDownload throws without a DOM, that a custom download handler still yields the hardcoded browser scope string, that receipts carry no design name for the demonstration design, and that a bare project with no readiness fields exports. Read: exportTools.ts, exportTools.test.ts, workbenchTools.ts, architectBridge.ts, architect/exchange.ts (exportDxf, no timestamps), architect/ifc.ts (FILE_NAME timestamp), architect/sheets.ts (exportDrawingPdf, saveDownload, exportMaterialSnapshotPdf with epoch dates), architect/authoredSheetSet.ts (finish() does not bump revision; select/archived guards), sheetLifecycle.ts (sheetSourceIdentity sample firewall), ArchitectWorkspace.tsx controller read/draw and demonstration button, ArchitectCadExchange.tsx, ArchitectSheets.tsx, SyncDesignMaterials.tsx, SheetManager.tsx exportRegister filename, appTools.ts port surface and objectSchema signature, model.ts demonstration()/revise(). No files in the repo were edited; git status confirms only the two untracked module files."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.7,
+      "issues": [
+        {
+          "file": "src/studio/assistant/renderTool.ts",
+          "line": 212,
+          "severity": "major",
+          "summary": "The receipt returns the full generated image (up to 10 MiB base64) as a tool image part; conversation.ts echoes every tool image into the assistant history as bare inlineData, so each render is re-sent to the text model on every later turn and two or three renders (or one render plus a capture_workspace_image) push the 12 MiB assistant request over its limit, failing every subsequent turn for that project until the user clears the chat.",
+          "evidence": "renderTool.ts:212 pushes { type: 'image', data: result.image.data }. src/studio/assistant/conversation.ts:63-70 collects tool images and does toolImages.forEach(image => results.push({ inlineData: image })); useAssistantChat.ts:25/35 rebuilds contents from the full stored history with no pruning; contract.ts:4/60 caps the whole assistant request at 12 MiB (ASSISTANT_LIMITS.requestBytes); RENDER_AI_LIMITS.outputImageChars = 10 MiB (renderTool.ts:21). No test covers the round-trip size. Recovery exists only via useAssistantChat clear() (line 74). The generated image also lands in the model's context as an unlabelled photoreal picture, with only the functionResponse text carrying the not-evidence scope.",
+          "fix": "Do not return the raw render as a tool image part: the render is already displayed on the Render pane and the receipt carries renderId, imageSha256, width/height and requestDigest. Either omit the image part entirely, or return a small downscaled thumbnail (e.g. <=256 px, well under 200 KB) and add a receipt field stating the full image lives on the Render pane. Add a test asserting the receipt image part is absent or bounded."
+        },
+        {
+          "file": "src/studio/assistant/renderTool.ts",
+          "line": 190,
+          "severity": "minor",
+          "summary": "The request/receipt camera is taken from recordedModelView() (the camera the user pressed 'Record camera' on earlier), not the camera that produced the captured pixels, so view.camera in the bound request and receipt can describe a different projection/position than the image sent to the provider and the prompt may say 'perspective camera' for an orthographic capture.",
+          "evidence": "renderTool.ts:170 defaults recordedView to recordedModelView; modelViewSnapshot.ts:43-48 shows recorded is a user-pinned snapshot while latestModelView() is the live scene camera. renderAiPrompt (line 78) inserts request.view.camera?.projection into the prompt; the receipt returns view including camera position/target/zoom.",
+          "fix": "Source the camera from latestModelView() matched to the same documentId/sourceSha256 (or from capture metadata), or drop position/target/zoom and state in the receipt that the camera is the recorded brief camera, not the capture camera."
+        },
+        {
+          "file": "src/studio/assistant/renderTool.ts",
+          "line": 188,
+          "severity": "minor",
+          "summary": "For source-building captures the render's source identity silently falls back to state.activePlanBinary.sha256 when the canvas metadata carries no sourceSha256, binding a render to a plan the canvas was not proven to display; and documentId is always taken from the active plan binary even when the canvas sha differs from it, producing a mismatched (documentId, sourceSha256) pair in the bound request and receipt.",
+          "evidence": "renderTool.ts:186-188: documentId = binary?.documentId ?? null; sourceSha256 = meta.sourceSha256 ?? binary?.sha256 ?? null. captureCanvasImage (appTools.ts:126) reports source.dataset.sourceSha256 ?? null; SourceBuildingViewer.tsx:108 sets it from model.source.sha256, which can be a catalog scene (sourceBuilding.ts BUILDING_CATALOG, including the Ruffles sample sha) rather than the active plan. No test exercises a capture whose sha differs from activePlanBinary.sha256.",
+          "fix": "Fail closed: for view === 'source-building' require meta.sourceSha256 and throw if absent; set documentId only when binary.sha256 === meta.sourceSha256, otherwise null. Add a test for the mismatch case."
+        },
+        {
+          "file": "src/studio/assistant/renderTool.ts",
+          "line": 207,
+          "severity": "minor",
+          "summary": "The receipt and LatestRender carry no sample/source-class flag, so a render of the sample reconstruction (Ruffles, sample:true) or of a project whose active document has source === 'sample' is reported to the assistant and shown on the Render pane with a bare source sha, indistinguishable from a verified-plan render.",
+          "evidence": "renderTool.ts:207-213 receipt fields; latestRenderFromResult (116-122) has no sample field. AppState exposes job.documents and job.activeDocumentId (appTools.ts:14-15) and store.ts:386/961/2377 gate on document.source === 'sample'; sourceBuilding.ts:32-36 marks the Ruffles catalog entry sample:true. RenderStudio.tsx:125 prints only `source <sha12>`.",
+          "fix": "Resolve the active document's source class from state.job.documents (and/or match meta.sourceSha256 against BUILDING_CATALOG sample entries) and stamp sourceClass:'sample'|'verified'|'none' into the request brief, the LatestRender and the receipt; render it as a visible label in RenderStudio."
+        },
+        {
+          "file": "src/studio/assistant/renderTool.ts",
+          "line": 210,
+          "severity": "minor",
+          "summary": "promptUsed in the receipt is truncated to 600 characters, but the fixed disclaimer plus viewer sentence already occupy ~540 characters, so the appearance directions actually sent to the provider (including the LLM-supplied `direction`) are almost always cut off and the assistant cannot verify what was sent.",
+          "evidence": "Ran node --experimental-strip-types: RENDER_AI_DISCLAIMER.length = 423, a prompt with one direction = 780 chars; the 600-char slice ends at '...user notes about the wanted look, not fac'.",
+          "fix": "Return the appearance-direction segment separately (e.g. directionsUsed, bounded by RENDER_AI_LIMITS.directionChars + material fields) and truncate only the fixed preamble, or raise the receipt cap to RENDER_AI_LIMITS.promptChars since the prompt is already bounded to 8000 chars."
+        },
+        {
+          "file": "src/studio/assistant/renderTool.ts",
+          "line": 171,
+          "severity": "minor",
+          "summary": "In the wired path no abort signal reaches requestRender (AppTool.execute takes only args and deps.signal is never supplied by createAppTools), so pressing Stop during a render cannot cancel the up-to-120 s provider call and the result is still written to session memory after the user stopped the assistant.",
+          "evidence": "appTools.ts:11 AppTool.execute(args: unknown); conversation.ts:57 passes options.signal to options.call but the app-tool wrapper has no parameter for it; renderTool.ts:171 falls back to a fresh AbortController signal; setLatestRender at line 206 runs regardless.",
+          "fix": "When the coordinator wires the tool, thread the conversation signal into deps.signal (extend the call path or accept a second execute argument) and make requestRender skip setLatestRender when signal.aborted after transport."
+        }
+      ],
+      "verifiedBy": "Read in full: src/studio/assistant/renderTool.ts, src/lib/renderAi.server.ts, src/routes/api.render-ai.ts, both test files, src/studio/RenderStudio.tsx and its git diff, the routeTree.gen.ts diff; cross-read appTools.ts (AppTool/AppToolPort types, captureCanvasImage), conversation.ts (tool image echo), useAssistantChat.ts, session.ts, contract.ts (ASSISTANT_LIMITS, assistantPartSchema), assistantAi.server.ts, materialAi.server.ts, modelViewSnapshot.ts, sourceBuilding.ts catalog, SourceBuildingViewer.tsx:95-112, Architect3D.tsx:280-295, store.ts renderMaterials/sample lines, skills.ts VIEW_TOOLS. Ran: `node --experimental-strip-types --test src/lib/renderAi.server.test.ts src/studio/assistant/renderTool.test.ts` -> tests 20, pass 20, fail 0, exit 0. `node node_modules/typescript/bin/tsc --noEmit` -> no output, exit 0 (the implementer's takeoffTools.ts errors no longer reproduce). `node node_modules/eslint/bin/eslint.js` on the six files -> no output, exit 0. `git status --short` confirms the five new files are untracked and RenderStudio.tsx/routeTree.gen.ts are modified. Measured prompt lengths with a strip-types one-liner (disclaimer 423 chars, sample prompt 780 chars). No servers started, no git mutations, no live provider calls."
+    }
+  },
+  {
+    "v": {
+      "refuted": false,
+      "confidence": 0.8,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 182,
+          "severity": "minor",
+          "summary": "An entity edited then removed in the same batch appears in both `changed` and `removed`; the workspace receipt then reports it as changed with `revision: null`.",
+          "evidence": "Probe P1: operations [{set-wall id W name X},{remove id W}] returned changed=[{wall,W}] and removed=[{wall,W},{dimension,...}]. ArchitectWorkspace.tsx edit() maps changed via revisionOf(), which returns null for a removed id.",
+          "fix": "In the `remove` branch delete the id from `touched` and filter it out of `changed` (also for cascaded opening/dimension ids), so a removed entity is only ever reported under `removed`."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 227,
+          "severity": "minor",
+          "summary": "A no-op edit (e.g. move-wall to the wall's current a/b) is still committed: it bumps the project revision, consumes an undo step, and the receipt lists the wall as `changed` although its saved entity revision is unchanged.",
+          "evidence": "Probe P3: move-wall with a/b equal to current coordinates -> changed=[{wall,id}], notices=[], revise() gave wall revision 1 -> 1 while project revision went 1 -> 2. Same applies to set-roof with gableEdges:[] on a roof with no gables (probe P2, roof revision stayed 1).",
+          "fix": "After the loop, compare JSON.stringify(entity) before/after per touched id (or after commit, drop entries whose saved revision equals the pre-commit revision) and either throw \"No operation changed the design.\" or report them under `unchanged` instead of `changed`."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 200,
+          "severity": "minor",
+          "summary": "Level-removal occupant check ignores sheet viewports, so a level referenced only by a viewport is refused with a validator message instead of the documented \"still hosts N entities\" message.",
+          "evidence": "Probe P6b: added level 'upper' with no entities but a sheet.viewports entry levelId:'upper'; remove threw \"Sheet viewport refers to a missing level.\" (fails closed, but the tool description says a level can be removed when empty).",
+          "fix": "Count viewports across `authoredSheets(draft)` (or `draft.sheet.viewports` plus `draft.sheetSet`) whose levelId matches and include them in the occupant error, e.g. \"Level X still hosts N entities and M sheet viewports.\""
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectBridge.ts",
+          "line": 160,
+          "severity": "minor",
+          "summary": "Suggested tool description says the tool can \"re-host\" openings, but set-opening has no wallId field and the strict schema rejects one; the assistant will be led into a guaranteed failure.",
+          "evidence": "architectEditOperationSchema set-opening variant fields: offsetMm, widthMm, heightMm, sillMm, tag, hinge, swing only (strict). Implementer notes confirm re-hosting is unsupported.",
+          "fix": "Coordinator should drop \"re-host\" from the edit_architect_elements description (or add an optional `wallId` to set-opening and validate the target wall exists, which the validator's fit check already covers)."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/architect/ArchitectWorkspace.tsx",
+          "line": 565,
+          "severity": "minor",
+          "summary": "Receipt `changed[].revision` is null for levels (levels carry no revision), but the wiring-plan receipt shape documents revision as always present.",
+          "evidence": "revisionOf() only scans the ten revisioned lists and the design id; set-level entries therefore serialise as {kind:'level', id, revision:null}.",
+          "fix": "Document `revision: integer | null` in the coordinator's receipt mirror, or omit the key for levels."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/architectEdits.test.ts",
+          "line": 180,
+          "severity": "minor",
+          "summary": "No test covers edit-then-remove in one batch, no-op edits, removal of non-wall entities (slab/roof/grid/roomTag/dimension) or a top-level unknown key on the batch.",
+          "evidence": "Read the 13 tests; probes P1, P3, P11 exercised these paths manually and passed but nothing pins the receipt shape for them.",
+          "fix": "Add assertions for those cases (in particular that a removed id never appears in `changed`, and that architectEditSchema rejects an extra top-level key)."
+        }
+      ],
+      "verifiedBy": "Read git diff of ArchitectWorkspace.tsx and full architectBridge.ts, architectEdits.test.ts, model.ts (schema, validateProject, revise, demonstration), persistence.ts validateProject usage, authoredSheetSet.ts validator, workspace commit()/undo(). Ran: node --experimental-strip-types --test src/studio/assistant/architectEdits.test.ts (13 pass, 0 fail, exit 0); node node_modules/typescript/bin/tsc --noEmit (exit 0, 0 errors); eslint on the three module files (exit 0, 0 errors, 8 pre-existing warnings); 13 scratchpad probe tests against prepareArchitectEdits + revise (edit-then-remove, gableEdges [], no-op move, template-only set-wall, wrong-kind ids, sheet viewport blocking level removal, remove-then-edit, move a-end with door, shrink roof outline, whitespace name, remove of grid/roomTag/dimension/slab/roof, revision-bump isolation). Grepped wireframe.test.ts, workbenchStructure.ts, appTools.test.ts, skills.ts, appTools.ts to confirm wiring-plan claims. zod 4.5.4."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.82,
+      "issues": [
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 137,
+          "severity": "major",
+          "summary": "calibrateSheet silently unlocks and overwrites an existing locked calibration on the same sheet; the receipt reports readbackVerified:true with no notice and no before-state.",
+          "evidence": "Ran a probe against the real useStudio store (temporary test file, deleted afterwards): calibrateSheet(sheet 0, lock:true) then calibrateSheet(sheet 0, lock:false, different points/10 m). Output: receipt {locked:false, readbackVerified:true, metresPerUnit:0.04, candidates:1}; store calibrations[0].locked went true -> false and points changed from [{100,100},{400,500}] to [{0,0},{0,250}], candidates ['manual-sheet-0'] (the previous manual candidate was replaced because the id is fixed at `manual-sheet-<n>`). requireImportedPage (lines 68-75) only checks sample/pageCount/busy pane; store.ts upsertManualCalibrationCandidate (1061-1109) unlocks via unlockedCalibrationWithCandidates and assertCalibrationCanChange only refuses when geometry exists. The receipt has projectRevision.before but no calibrationBefore, so the LLM cannot tell it destroyed a verified lock.",
+          "fix": "Before any store action read `findCalibration(initial.job, args.sheet)`; if it is locked, or already holds a candidate with id `manual-sheet-<n>`, throw (e.g. \"Sheet N already has a locked calibration (candidate X). Unlock it in the Measure pane or pass replaceExisting:true.\") unless an explicit `replaceExisting: true` input is present. In every case add `calibrationBefore: calibrationSummary(previous)` and a `notices` entry when a previous lock/candidate was replaced, and include it in readbackVerified reasoning."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 233,
+          "severity": "major",
+          "summary": "reviewTakeoffItem has no sample firewall: it approves a run on the bundled sample source and returns lengthM with readbackVerified:true and a scope string that never mentions sample.",
+          "evidence": "Probe on the real store with createDefaultJob (doc-sample) plus one run: reviewTakeoffItem(... decision:'approve', actor:'Nobody Real') returned {sourceKind:'sample', status:{before:'draft',after:'approved'}, decidedBy:'Nobody Real', lengthM:12.5, readbackVerified:true, scope:'A review decision records who decided and when; ...'}. Only calibrateSheet/traceRun call requireImportedPage (line 70); reviewTakeoffItem (225-248) and removeTrace (251-269) do not. removeTrace on the sample happened to be refused by the store ('Sheet 0 requires a locked calibration.'), which is a tracing precondition, not a sample check.",
+          "fix": "In reviewTakeoffItem and removeTrace, resolve the active document and `if (!document || document.source === 'sample') throw Error(SAMPLE_SOURCE_REFUSAL)` (or, if sample review must stay possible, return lengthM/removedLengthM as null and add `notices:[SAMPLE_SOURCE_REFUSAL]` plus `evidence:false` when sourceKind === 'sample'). Add the sample case to the test suite."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 47,
+          "severity": "major",
+          "summary": "The LLM supplies the review `actor` as free text, so an assistant-made approval is recorded in review.decidedBy and revision history exactly like a human clicking Approve.",
+          "evidence": "Schema line 47 `actor: actorName` (any 1-120 char string); line 233 passes it straight to approveRun/rejectRun/approveGate/rejectGate; evidenceCommands.ts:421-430 stores decidedBy = actor.trim() with no route marker; Studio.tsx:1554 is the human path where the reviewer types their own name. Probe output: decidedBy:'Nobody Real'. Nothing in the record or the receipt distinguishes an assistant-mediated decision from a human one, which undermines 'evidence authority' for approvals.",
+          "fix": "Take the reviewer identity from the port instead of the model (add e.g. `reviewer: string | null` to TakeoffState sourced from the Review pane's actor field / session, refuse when empty) and drop `actor` from the schema; if a model-supplied actor must remain, record the route: pass `note: \"[assistant on behalf of <actor>] <note>\"` (or decidedBy `${actor} (via assistant)`), mirror it in the receipt (`route:'assistant'`), and adjust the readbackVerified comparison accordingly."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 122,
+          "severity": "major",
+          "summary": "Assistant-authored calibration provenance and trace vertices enter the project record indistinguishably from human-picked evidence; provenance text the model invents is rendered as evidence in the Calibration panel.",
+          "evidence": "Line 122 stores `{ method, evidence }` verbatim from model input; CalibrationPanel.tsx:193-197 renders candidate.provenance.method/evidence as the calibration's evidence. traceRun (184-198) drives addPoint/commitPending with model-supplied coordinates the model cannot see (no page-image tool exists; the calibrate scope at line 165 admits the store does not check points lie on the page), and commitPending records the same 'Created Run NN.' history entry as a hand trace (store.ts:1401-1470). The calibrate receipt does not even echo the provenance that was recorded.",
+          "fix": "Mark the route in the record: write `method: \\`Assistant: ${args.provenance.method}\\`` (the provenance schema has no route field) and include `provenance` in the calibrate receipt; in traceRun add a notices entry 'Vertices were supplied by the assistant, not picked on the drawing' and set `authoredBy:'assistant'` in the receipt so the coordinator's tool description/manual guidance can require user-dictated coordinates; ask the coordinator to add an assistant marker to the revision summary if a store action is added later."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 44,
+          "severity": "minor",
+          "summary": "traceRun accepts `label` but never applies it, inviting the model to report a run under a name the record does not carry.",
+          "evidence": "Line 44 schema accepts label; line 179 only pushes a notice; test at takeoffTools.test.ts:245-246 confirms the store label stays 'Run 01' while requestedLabel is 'Boundary'.",
+          "fix": "Remove `label` from traceRunSchema (and from the JSON inputSchema in the wiring plan) until a rename store action exists; keep `label` in the receipt as the store-assigned name only."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 104,
+          "severity": "minor",
+          "summary": "Receipts report saved:false without the reason, so a stale-write/CAS block (persistenceRecoveryBlocked) is invisible to the assistant.",
+          "evidence": "Line 104 derives `saved` from lastSavedJobRevision/persistenceError; receipts (164, 219, 245, 266) expose only the boolean. store.ts:2213-2218 sets persistenceError and persistenceRecoveryBlocked on a stale save; the appTools read_project_context convention exposes saveError and savedProjectRevision.",
+          "fix": "Add `saveError: state.persistenceError`, `savedProjectRevision: state.lastSavedJobRevision` and `recoveryBlocked: state.persistenceRecoveryBlocked` to every receipt."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 72,
+          "severity": "minor",
+          "summary": "Archived sheets (manage_source_sheet) are not refused; the assistant can calibrate or trace on a page the user removed from active navigation.",
+          "evidence": "requireImportedPage checks only `sheet >= pageCount`; archived state lives in the sheet-lifecycle sidecar read by workbenchTools.ts describeSourceSheets (line 20) and is not part of TakeoffState.",
+          "fix": "Have the coordinator pass the sidecar storage into the port (as appTools does for read_source_sheets) and refuse `archived` pages in requireImportedPage, or at minimum add a notice that archived state was not checked."
+        },
+        {
+          "file": "src/studio/assistant/takeoffTools.ts",
+          "line": 273,
+          "severity": "minor",
+          "summary": "mergeSpecification forces constructionEnabled:true whenever a construction patch is present, overriding an explicit constructionEnabled:false in the same patch.",
+          "evidence": "Line 273 spreads `...rest` (which may contain constructionEnabled:false) and then `{ constructionEnabled: true, construction: ... }` when `construction` is given; the contradictory input is silently resolved rather than rejected.",
+          "fix": "Reject the contradictory combination in the schema (`.refine(p => !(p.construction && p.constructionEnabled === false))`) or only set constructionEnabled:true when patch.constructionEnabled is undefined."
+        }
+      ],
+      "verifiedBy": "Read src/studio/assistant/takeoffTools.ts and takeoffTools.test.ts in full; read the real store bodies in src/studio/store.ts (usesImportedSource/hasLegacySourceEvidence/assertSourceCoordinateAuthority 383-420, assertCalibrationCanChange 639, setSheet 935-990, startCalibrationCapture/addCalibrationPoint 1023-1060, upsertManualCalibrationCandidate/lockCurrentCalibration 1061-1206, addPoint/commitPending 1368-1494, removeRun 1694-1730, updateRunSpecification/approve/reject 1925-2020, autosave subscriptions 2440-2470), calibration.ts reconcileCalibrationCandidates/lockCalibration/rankCandidates, evidenceCommands.ts review-run/review-gate/decision/appendJobRevision, domain.ts createDefaultJob/getJobBlockers, appTools.ts in full, skills.ts EDIT_TOOLS line 64, Studio.tsx:1554, CalibrationPanel.tsx:193-197. Executed: `node --experimental-strip-types --test src/studio/assistant/takeoffTools.test.ts` -> tests 10, pass 10, fail 0, exit 0; `node node_modules/typescript/bin/tsc --noEmit` -> exit 0; `node node_modules/eslint/bin/eslint.js src/studio/assistant/takeoffTools.ts src/studio/assistant/takeoffTools.test.ts` -> exit 0, no output. Wrote and ran a temporary probe test (src/studio/assistant/__probe_takeoff.test.ts, deleted immediately after; git status confirmed no residue) against the real useStudio store: PROBE A confirmed silent unlock/overwrite of a locked calibration with readbackVerified:true; PROBE B showed lock:true correctly lands on the manual candidate when a declared candidate agrees (no issue); PROBE C confirmed review on a sample-source run succeeds with lengthM 12.5 and readbackVerified:true (removeTrace on sample was refused by the store's locked-calibration precondition, not a sample check); PROBE D confirmed a refused traceRun leaves sheet/selection untouched. No files in the repo were edited; no git write commands, servers or provider calls."
+    }
+  },
+  {
+    "v": {
+      "refuted": true,
+      "confidence": 0.72,
+      "issues": [
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/takeoffTools.ts",
+          "line": 116,
+          "severity": "major",
+          "summary": "calibrate_source_sheet and review_takeoff_item contradict the byte-identical ASSISTANT_OPERATING_MANUAL, which orders the model never to change calibration or evidence approval",
+          "evidence": "grep -c \"change calibration, source classes, hashes or evidence approval\" src-tauri/src/assistant_ai.rs src/studio/assistant/skills.ts -> 1 and 1. The manual (skills.ts:48) reads: \"Do not perform destructive bulk changes, issue or send quotes, publish, contact third parties or change calibration, source classes, hashes or evidence approval.\" calibrateSheet (lines 116-167) records/locks calibration and reviewTakeoffItem (lines 225-248) approves/rejects runs and gates. The wiring plan adds both to EDIT_TOOLS, so the model would receive tools its system prompt forbids it to use; the manual cannot be edited per the ground rules.",
+          "fix": "Coordinator decision before wiring: either wire only trace_takeoff_run and remove_takeoff_trace now and hold calibrate_source_sheet / review_takeoff_item until the manual is changed in BOTH skills.ts and assistant_ai.rs in one coordinated release, or gate those two behind a separate explicit user permission and a manual sentence that permits calibration/approval changes when that permission is granted. The module itself needs no code change for this; it is a shipping/wiring conflict."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/takeoffTools.ts",
+          "line": 154,
+          "severity": "minor",
+          "summary": "readbackVerified expectation ignores calibration.transform, so a correctly locked calibration on a non-identity transform is reported as unverified",
+          "evidence": "Scratch probe A against the real useStudio store (createUnverifiedCalibration(0, {a:2,b:0,c:0,d:2,e:0,f:0}) on an imported doc, then calibrateSheet with 5 m over hypot(300,400)): receipt locked=true, metresPerUnit=0.02 (correct: store divides by document-space distance 250 via canvasPointToDocument, calibration.ts:213-221), readbackVerified=false, calibrationError=null. expectedMetresPerUnit at line 154 is knownM / hypot(page delta) = 0.01, so nearlyEqual fails. All current writers use the identity transform, but persisted/backup calibrations carry any invertible transform (calibrationSchema.transform).",
+          "fix": "Compute the expectation the way the store does: `const t = calibration.transform; const d = pointDistance(canvasPointToDocument(p0, t), canvasPointToDocument(p1, t)); expectedMetresPerUnit = expectedKnownM / d;` (import canvasPointToDocument from ../calibration.ts), or compare candidate.metresPerUnit against createTwoPointCalibrationCandidate({...same input, transform: calibration.transform}).metresPerUnit. Add a test with a non-identity transform asserting readbackVerified === true."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/takeoffTools.ts",
+          "line": 140,
+          "severity": "minor",
+          "summary": "lock:false on an already-locked sheet silently unlocks it and the receipt reports readbackVerified:true with no notice of the lost lock",
+          "evidence": "Scratch probe B (real store): calibrateSheet(lock:true) -> locked=true; then calibrateSheet(lock:false, knownDistance 6 m) on the same sheet (no geometry) -> receipt locked=false, readbackVerified=true, store calibration.locked=false, and the receipt has no notices field. The store's upsertManualCalibrationCandidate always produces an unlocked calibration (store.ts:1088-1101, unlockedCalibrationWithCandidates sets locked:false); the tool only asserts calibration.locked === args.lock (line 157), so the readback 'verifies' the unlock. The only guard is calibrationHasGeometry, so any measured-free locked sheet can be silently downgraded to unlocked, which reintroduces the 'Confirm and lock the drawing scale' blocker.",
+          "fix": "Read the sheet's calibration from `initial` before acting; if it is locked and args.lock is false, either refuse (`Sheet N is locked; pass lock:true or unlock it in the Measure pane first.`) or proceed and add `previouslyLocked: true` plus a notices[] entry to the receipt. Add a test covering the locked -> lock:false path."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/takeoffTools.ts",
+          "line": 273,
+          "severity": "minor",
+          "summary": "mergeSpecification overrides an explicit constructionEnabled:false when a construction patch is present, and the readback cannot catch it because it compares against the tool's own merge",
+          "evidence": "Scratch probe C (real store): traceRun with specification { constructionEnabled:false, construction:{ trade:'Fencing' } } -> stored run.specification.constructionEnabled === true, receipt readbackVerified=true, missingSpecification ['quantity source reference']. Line 273 spreads `...rest` (which contains constructionEnabled:false) and then `...(construction ? { constructionEnabled: true, ... } : {})`, so the caller's explicit value is discarded; line 215's canonical() comparison is against the same merged object so it passes.",
+          "fix": "Only force constructionEnabled when the patch did not set it: `constructionEnabled: patch.constructionEnabled ?? true`, or refuse the contradictory combination with a clear error (`constructionEnabled:false cannot be combined with a construction patch`). Add a schema-level refine or a test for the combination."
+        },
+        {
+          "file": "C:/Users/danie/repo/xray-by-looplet/src/studio/assistant/takeoffTools.ts",
+          "line": 165,
+          "severity": "minor",
+          "summary": "calibrateSheet clears the Measure pane's trace undo/redo history (store side effect) but the receipt scope does not say so, while removeTrace's scope promises undo remains available",
+          "evidence": "Scratch probe D (real store): calibrate sheet 0, trace one run (traceUndoStack.length 1), then calibrateSheet on sheet 1 -> traceUndoStack.length 0. store.ts:1097-1099 and 1195-1197 set traceUndoStack: [] / traceRedoStack: [] on every candidate upsert and lock. The calibrate receipt's scope string (line 165) is silent; the removeTrace scope (line 267) says 'Undo remains available in the Measure pane', which becomes false the moment the assistant calibrates any sheet afterwards.",
+          "fix": "Append to the calibrate scope (or a notices[] entry): 'Recording or locking a calibration clears the Measure pane's trace undo/redo history for the whole project.' Optionally soften the removeTrace scope to 'Undo remains available in the Measure pane until the next calibration change.'"
+        }
+      ],
+      "verifiedBy": "Ran: `node --experimental-strip-types --test src/studio/assistant/takeoffTools.test.ts` -> tests 10, pass 10, fail 0, exit 0 (906 ms in my run); `node node_modules/typescript/bin/tsc --noEmit` -> exit 0, no output; `node node_modules/eslint/bin/eslint.js src/studio/assistant/takeoffTools.ts src/studio/assistant/takeoffTools.test.ts` -> exit 0, no output; `git status --porcelain` on the two files -> both `??` (new, untracked); neighbouring suites workbenchTools.test.ts + appTools.test.ts + calibrationStore.test.ts + tracingStore.test.ts -> tests 40, pass 40, fail 0, exit 0. Wrote and ran a scratch node:test file in the scratchpad (file:// imports) driving the real useStudio store through calibrateSheet/traceRun: probes A (non-identity transform -> locked true, metresPerUnit 0.02, readbackVerified false), B (lock:false silently unlocks a locked sheet, readbackVerified true), C (constructionEnabled:false overridden to true), D (calibrate wipes traceUndoStack 1 -> 0), E (off-page ±5e6 points accepted, lengthM 141421 m, readbackVerified true; acknowledged limitation, not reported), F (sticky photoError cleared on successful spec update). Read: takeoffTools.ts and takeoffTools.test.ts in full; store.ts setSheet, startCalibrationCapture, addCalibrationPoint, upsertManualCalibrationCandidate, lockCurrentCalibration, addPoint, commitPending, removeRun, updateRunSpecification, approve/reject run/gate, saveCurrentProject, the window-guarded autosave subscription (synchronous on job change), and the authority helpers (usesImportedSource, hasLegacySourceEvidence, assertSourceCoordinateAuthority, assertTraceChangeAuthority, calibrationHasGeometry, assertCalibrationCanChange); evidenceCommands.ts update-run-specification, review-run/gate, requireRun/requireGate, decision(), requiredRevision; calibration.ts schema, createTwoPointCalibrationCandidate (uses canvasPointToDocument with transform), reconcile/lock; tracing.ts calculateRunLengths/createEditableRun/migrateTraceState; domain.ts runSpecificationSchema, createNewRunSpecification, missing*Fields, getJobBlockers; appTools.ts checkProject strings and read_takeoff_evidence; skills.ts VIEW_TOOLS/EDIT_TOOLS and the operating manual sentence, confirmed byte-present in src-tauri/src/assistant_ai.rs via grep; IsoCanvas.tsx addPoint call path (overlay mode passes source page units) and Studio.tsx MeasureInspector's own upsertManualCalibrationCandidate call (coordinateSpace source-page-v1, same candidate id convention). Confirmed zod ^4.4.0 (so runSpecificationSchema.shape on a refined object is valid). No files edited, no git write commands, no servers, no provider calls."
+    }
+  }
+]

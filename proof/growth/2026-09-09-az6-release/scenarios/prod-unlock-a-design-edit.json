@@ -1,0 +1,158 @@
+[
+ [
+  "open",
+  "http://127.0.0.1:8096/",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "set",
+  "viewport",
+  "1280",
+  "800"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sketch",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('nav[aria-label=\"Sketch workspaces\"]')"
+ ],
+ [
+  "eval",
+  "(()=>{[...document.querySelectorAll('nav[aria-label=\"Sketch workspaces\"] button')].find(b=>b.textContent.trim()==='Architectural workspace').click();return 'opened'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.architect-workspace[data-design-revision]')"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.live-assistant-launcher')"
+ ],
+ [
+  "eval",
+  "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();return 'panel'})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Add to assistant",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "menuitem",
+  "click",
+  "--name",
+  "New chat",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.assistant-permission input')"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();if(!c.checked)throw Error('Permission not enabled');return 'edits allowed'})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "Draw a two-storey building 10 m by 8 m with a hip roof on the existing ground level (storeys 3000 mm). Then, using edit_architect_elements: remove the roof, move the ground-floor wall that runs from (0,0) to (10000,0) so it runs from (0,-2000) to (10000,-2000), and rename the design to \"Unlock test\". Finally tell me the wall, roof and level counts."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&(!!document.querySelector('.assistant-chat-entry.is-assistant')||!!document.querySelector('.assistant-chat-error'))",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>({paused:[...document.querySelectorAll('.assistant-chat-error')].some(e=>/Paused after eight/.test(e.textContent)),tools:[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,160))}))()"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();return 'edits allowed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{window.__replies=document.querySelectorAll('.assistant-chat-entry.is-assistant').length;return window.__replies})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "If anything from my previous request is still outstanding, continue and finish it; otherwise reply exactly DONE."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&document.querySelectorAll('.assistant-chat-entry.is-assistant').length>window.__replies",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>{const errors=[...document.querySelectorAll('.assistant-chat-error')].map(e=>e.textContent);const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,200));const replies=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(e=>e.textContent.slice(0,1500));return {errors,tools,replies}})()"
+ ],
+ [
+  "eval",
+  "(()=>{const w=document.querySelector('.architect-workspace');const d=JSON.parse(localStorage.getItem('xray:architect:v1:'+encodeURIComponent(w.dataset.designId)));const moved=d.walls.find(x=>x.a[1]===-2000&&x.b[1]===-2000);if(d.name!=='Unlock test')throw Error('Name not changed: '+d.name);if(d.roofs.length!==0)throw Error('Roof still present');if(d.walls.length<8)throw Error('Expected >=8 walls, got '+d.walls.length);if(!moved)throw Error('Wall not moved');return {name:d.name,revision:d.revision,walls:d.walls.length,roofs:d.roofs.length,levels:d.levels.length,movedWall:[moved.a,moved.b]}})()"
+ ],
+ [
+  "eval",
+  "(()=>{const all=[...document.querySelectorAll('.architect-workspace label')].find(l=>/All levels in 3D/.test(l.textContent))?.querySelector('input');if(all&&!all.checked)all.click();return 'all levels'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "Number(document.querySelector('canvas[aria-label=\"Live architectural 3D model\"]')?.dataset.frameCount||0)>2"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az6-release/prod-unlock-a-design-edit-desktop.png"
+ ],
+ [
+  "errors"
+ ]
+]

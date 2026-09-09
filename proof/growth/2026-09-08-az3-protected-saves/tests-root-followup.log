@@ -1,0 +1,63 @@
+▶ fencing job domain
+  ✔ round-trips the versioned default job (12.4448ms)
+  ✔ fails closed for unknown schema versions (1.2891ms)
+  ✔ requires v2 entity revisions and a resolvable active document (4.6182ms)
+  ✔ requires review attribution and exact gate placement (2.3967ms)
+  ✔ rejects malformed geometry and negative quantities (0.7156ms)
+  ✔ rejects duplicate calibrations for the same sheet (0.2655ms)
+  ✔ rejects duplicate trace IDs, broken gate associations and inconsistent enriched lengths (0.4115ms)
+  ✔ reports explicit quote-readiness blockers (2.2765ms)
+  ✔ migrates version 1 records into the complete evidence contract (1.6366ms)
+  ✔ validates corner, post, photo-link and revision topology (1.5525ms)
+  ✔ reports complete gate and legacy-photo evidence blockers (0.2228ms)
+✔ fencing job domain (29.8559ms)
+▶ project persistence
+  ✔ persists a new project identity before separate libraries are saved and reuses it after reopen (10.5785ms)
+  ✔ never initializes over corrupt work and reports unavailable project storage (0.8375ms)
+  ✔ saves and loads a validated job (1.0458ms)
+  ✔ refuses a stale write when storage holds bytes the writer never saw and leaves them untouched (0.3882ms)
+  ✔ accepts a write whose expectedRaw matches the stored bytes and returns the bytes it wrote (2.711ms)
+  ✔ treats an empty slot as the expected state for a first write, and a filled slot as stale for it (0.3669ms)
+  ✔ still fails on a readback mismatch when the compare-and-swap check passed (0.2044ms)
+  ✔ reports a read failure during the compare-and-swap check instead of writing blind (0.417ms)
+  ✔ fails closed when stored JSON is corrupt (0.14ms)
+  ✔ fails closed for an unknown schema version (0.1934ms)
+  ✔ loads and migrates the legacy storage key without stranding saved work (0.4879ms)
+  ✔ does not overwrite storage with an invalid job (0.6593ms)
+  ✔ clears the saved job (0.1985ms)
+  ✔ does not report success when storage silently drops or replaces a write (0.2667ms)
+  ✔ reports a failed readback and permits an explicit retry without mutating the open job (0.3403ms)
+✔ project persistence (20.6878ms)
+▶ portable main workspace backups
+  ✔ keeps v1 packages readable and version-binds new sheet and pricing records (34.1205ms)
+  ✔ round-trips source-bound sheet organisation and job-bound pricing without accepting mismatched records (9.0875ms)
+  ✔ round-trips two source documents, inactive-plan photo evidence and the full architectural design (4.5495ms)
+  ✔ preserves every authored sheet layout, active selection, managed order and archived sheet through capture and parsing (10.331ms)
+  ✔ refuses a missing inactive-plan photo instead of producing an incomplete backup (2.5217ms)
+  ✔ rejects missing plans, duplicate assets and unreferenced assets (5.0075ms)
+  ✔ rejects modified source bytes, mismatched MIME types and page counts (4.4171ms)
+  ✔ rejects invalid encoding, future formats and unexpected top-level data (2.7148ms)
+  ✔ rejects another project's design and corrupt saved modules (3.8633ms)
+  ✔ rejects changes to the job or another saved module during capture (6.4024ms)
+  ✔ rejects a job change that completes during the final asynchronous module read (2.3739ms)
+  ✔ refuses a removed or silently changed original even when job and module records stay unchanged (2.8969ms)
+  ✔ rechecks inactive-document photo bytes before returning the package (2.1062ms)
+  ✔ does not conceal a stored original's wrong identity, kind or byte length (3.0864ms)
+  ✔ accepts an empty job with clear zero-original coverage and trims its backup label (0.578ms)
+✔ portable main workspace backups (95.9129ms)
+✔ failed hydration preserves the original through edits, error clearing and explicit save: {unreadable (4.408ms)
+✔ failed hydration preserves the original through edits, error clearing and explicit save: {"schemaVersion":9 (0.6094ms)
+✔ read failure remains blocked, then retry restores the original identity before allowing saves (10.8205ms)
+✔ quota and silent-write failures retain the in-memory edit, explicit retry persists it across reopen (5.6047ms)
+✔ a stale window's autosave is refused, the newer stored revision survives and reload adopts it (7.4976ms)
+✔ a storage event from another window marks the project stale, blocks autosave and reload clears it (7.1231ms)
+✔ a failed reload after a stale event shows the load-failure notice, not the newer-revision heading (7.0828ms)
+✔ storage events before hydration or after our own write are ignored (6.6084ms)
+ℹ tests 49
+ℹ suites 3
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 379.2191

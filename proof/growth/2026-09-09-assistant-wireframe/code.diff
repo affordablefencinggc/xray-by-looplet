@@ -1,0 +1,534 @@
+diff --git a/src/studio/assistant/appTools.test.ts b/src/studio/assistant/appTools.test.ts
+index 41fda35..5ea59fc 100644
+--- a/src/studio/assistant/appTools.test.ts
++++ b/src/studio/assistant/appTools.test.ts
+@@ -26,12 +26,13 @@ function fixture() {
+ }
+ const message = (result: Awaited<ReturnType<ReturnType<typeof fixture>["execute"]>>) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
+ 
+-test("nine SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
++test("eleven SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
+   const f = fixture();
+   assert.deepEqual(f.tools.map(tool => tool.name), [
+     "read_project_context", "navigate_workspace", "read_architect_design",
+     "draw_architect_elements", "undo_architect_change", "capture_workspace_image",
+-    "save_project", "control_draftsman", "read_draftsman_status"
++    "save_project", "control_draftsman", "read_draftsman_status",
++    "read_workbench_structure", "read_source_building"
+   ]);
+   for (const tool of f.tools) { assert.equal(tool.inputSchema.type, "object"); assert.equal(tool.inputSchema.additionalProperties, false); }
+   f.state.hydrationStatus = "error"; f.state.persistenceRecoveryBlocked = true;
+diff --git a/src/studio/assistant/appTools.ts b/src/studio/assistant/appTools.ts
+index 8bd4d48..5770a8e 100644
+--- a/src/studio/assistant/appTools.ts
++++ b/src/studio/assistant/appTools.ts
+@@ -3,6 +3,7 @@ import type { FencingJob } from "../domain.ts";
+ import type { Pane } from "../store.ts";
+ import { architectDrawSchema, architectReadSchema, architectRevisionSchema, hasArchitectController, requestArchitectTool } from "./architectBridge.ts";
+ import { draftsmanControlSchema, draftsmanMcpActions, draftsmanMcpSchema, hasDraftsmanController, requestDraftsmanTool, type DraftsmanAction } from "./draftsmanBridge.ts";
++import { WORKBENCH_STRUCTURE, loadCatalogScene, sourceBuildingQuerySchema, summariseSourceBuilding, type SourceBuildingQuery } from "./workbenchStructure.ts";
+ 
+ export type AppToolResult = { content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; isError?: boolean };
+ export type AppTool = { name: string; description: string; inputSchema: { type: "object"; [key: string]: unknown }; execute(args: unknown): Promise<AppToolResult> };
+@@ -22,6 +23,7 @@ export type AppToolPort = {
+   openArchitectWorkspace?(expectedJobId: string): Promise<void>;
+   draftsman?(action: DraftsmanAction, args?: unknown): Promise<unknown>;
+   draftsmanAvailable?(): boolean;
++  sourceBuilding?(query: SourceBuildingQuery): Promise<unknown>;
+ };
+ const idSchema = z.string().min(1).max(100);
+ const emptySchema = z.object({}).strict();
+@@ -34,13 +36,23 @@ const point = { type: "array", items: num, minItems: 2, maxItems: 2 };
+ const bound = { expectedJobId: id, expectedRevision: { type: "integer", minimum: 1 } };
+ const ref = { type: "string", minLength: 1, maxLength: 80 };
+ const opening = { ref, wallRef: id, offsetMm: num, widthMm: positive, heightMm: positive, tag: { type: "string", minLength: 1, maxLength: 30 }, hinge: { enum: ["left", "right"] }, swing: { enum: ["in", "out"] } };
++const name = { type: "string", minLength: 1, maxLength: 120 };
++const polygon = { type: "array", items: point, minItems: 3, maxItems: 200 };
++const pitchDeg = { type: "number", minimum: 0, maximum: 89.9 }, eavesMm = { type: "number", minimum: 0, maximum: 3000 };
++const gableEdges = { type: "array", items: { type: "integer", minimum: 0, maximum: 199 }, maxItems: 200 };
+ const operations = {
+   type: "array", minItems: 1, maxItems: 25, items: { oneOf: [
+-    objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, name: { type: "string", minLength: 1, maxLength: 120 }, templateWallId: id }, ["kind", "levelId", "a", "b"]),
++    objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, name, templateWallId: id }, ["kind", "levelId", "a", "b"]),
+     objectSchema({ kind: { const: "door" }, ...opening }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "tag", "hinge", "swing"]),
+     objectSchema({ kind: { const: "window" }, ...opening, sillMm: { type: "number", minimum: 0, maximum: 1e6 } }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "sillMm", "tag", "hinge", "swing"]),
+     objectSchema({ kind: { const: "line" }, ref, levelId: id, a: point, b: point }, ["kind", "levelId", "a", "b"]),
+     objectSchema({ kind: { const: "room" }, ref, levelId: id, point, name: { type: "string", minLength: 1, maxLength: 100 } }, ["kind", "levelId", "point", "name"]),
++    objectSchema({ kind: { const: "level" }, ref, name: { type: "string", minLength: 1, maxLength: 100 }, elevationMm: num, heightMm: positive }, ["kind", "name", "elevationMm", "heightMm"]),
++    objectSchema({ kind: { const: "slab" }, ref, levelId: id, points: polygon, thicknessMm: positive, offsetMm: num, name, material: { type: "string", maxLength: 100 } }, ["kind", "levelId", "points", "thicknessMm"]),
++    objectSchema({ kind: { const: "roof" }, ref, levelId: id, points: polygon, offsetMm: num, eavesMm, pitchDeg, gableEdges, name }, ["kind", "levelId", "points"]),
++    objectSchema({ kind: { const: "footprint" }, levelId: id, points: polygon, heightMm: positive, name, templateWallId: id }, ["kind", "levelId", "points"]),
++    objectSchema({ kind: { const: "extrude" }, points: polygon, storeys: { type: "integer", minimum: 1, maximum: 100 }, storeyHeightMm: positive, baseLevelId: id, levelNamePrefix: { type: "string", minLength: 1, maxLength: 60 }, slabs: { type: "boolean" },
++      roof: { oneOf: [{ const: false }, objectSchema({ pitchDeg, eavesMm, gableEdges }, [])] } }, ["kind", "points", "storeys"]),
+   ] },
+ };
+ 
+@@ -142,7 +154,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       const args = architectReadSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("read", args));
+     }),
+-    tool("draw_architect_elements", "Append 1–25 validated walls, hosted doors/windows, reference lines or room labels to the active design in millimetres. wallRef may refer to an existing wall ID or an earlier wall operation ref. The whole batch validates and saves once; existing geometry and sheets remain intact. No deletions. Unspecified wall assembly uses the unpriced default and is reported for review.", objectSchema({ ...bound, operations }), async input => {
++    tool("draw_architect_elements", "Append 1–25 validated operations to the active design in millimetres: walls, hosted doors/windows, reference lines, room labels, new levels (storeys), slabs, roofs, a footprint (closed wall loop on one level) or an extrude (footprint repeated over N storeys with new levels, optional slabs and a top roof) — this is how a multi-storey wireframe is drawn; it renders in the workspace's live 3D model. wallRef/levelId may refer to an existing ID or an earlier operation ref. The whole batch validates and saves once; existing geometry and sheets remain intact. No deletions or moves. Unspecified wall assembly uses the unpriced default and is reported for review.", objectSchema({ ...bound, operations }), async input => {
+       const args = architectDrawSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("draw", args));
+     }),
+@@ -185,9 +197,25 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       checkProject(await port.getState(), args.expectedJobId);
+       return text(result);
+     }),
++    tool("read_workbench_structure", "Read X-Ray's data model: units, panes, architectural entities and the wireframe operations draw_architect_elements accepts, the source-building reconstruction schema and catalog, evidence states, the sample firewall and what is NOT available through tools. Static reference; no project data is read.", objectSchema({}), async args => {
++      emptySchema.parse(args);
++      return text(WORKBENCH_STRUCTURE);
++    }),
++    tool("read_source_building", "Read a catalogued source-building reconstruction (Model viewer scene) as a part summary in metres: identity, category, storey, evidence state, bounds and source pages per part, filtered by storey and category. Meshes are omitted. Read-only; sample buildings stay labelled sample.", objectSchema({ expectedJobId: id, building: { enum: WORKBENCH_STRUCTURE.sourceBuilding.catalog.map(item => item.id) }, floor: { type: "string", minLength: 1, maxLength: 80 }, category: { enum: [...WORKBENCH_STRUCTURE.sourceBuilding.partCategories] }, limit: { type: "integer", minimum: 1, maximum: 200 } }, ["expectedJobId", "building"]), async input => {
++      const args = sourceBuildingQuerySchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
++      if (!port.sourceBuilding) throw Error("Source building reading is unavailable in this session.");
++      const result = await port.sourceBuilding(args);
++      checkProject(await port.getState(), args.expectedJobId);
++      return text(result);
++    }),
+   ];
+ }
+ 
++export async function readCatalogSourceBuilding(query: SourceBuildingQuery): Promise<unknown> {
++  const { expectedJobId: _job, ...rest } = query;
++  return summariseSourceBuilding(await loadCatalogScene(rest.building), rest);
++}
++
+ export const appTools: AppTool[] = createAppTools({
+   getState: async () => (await import("../store.ts")).useStudio.getState(),
+   architect: requestArchitectTool,
+@@ -196,6 +224,6 @@ export const appTools: AppTool[] = createAppTools({
+   openArchitectWorkspace,
+   draftsman: requestDraftsmanTool,
+   draftsmanAvailable: hasDraftsmanController,
+-
++  sourceBuilding: readCatalogSourceBuilding,
+ });
+ 
+diff --git a/src/studio/assistant/architectBridge.ts b/src/studio/assistant/architectBridge.ts
+index 75dec35..ea3ad61 100644
+--- a/src/studio/assistant/architectBridge.ts
++++ b/src/studio/assistant/architectBridge.ts
+@@ -1,21 +1,38 @@
+ import { z } from "zod";
+-import { defaultLayers, newWall, validateProject, type ArchitectProject } from "../architect/model.ts";
++import { defaultLayers, newWall, validateProject, type ArchitectProject, type Point } from "../architect/model.ts";
+ 
+ const id = z.string().min(1).max(100);
+ const coordinate = z.number().finite().min(-1e6).max(1e6);
+ const point = z.tuple([coordinate, coordinate]);
+ const positive = z.number().finite().positive().max(1e6);
+ const reference = { ref: z.string().min(1).max(80).optional() };
++const name = z.string().trim().min(1).max(120);
++const polygon = z.array(point).min(3).max(200);
+ const opening = {
+   ...reference, wallRef: id, offsetMm: coordinate, widthMm: positive, heightMm: positive,
+   tag: z.string().trim().min(1).max(30), hinge: z.enum(["left", "right"]), swing: z.enum(["in", "out"]),
+ };
++const pitch = z.number().min(0).max(89.9);
++const eaves = z.number().min(0).max(3000);
++const gableEdges = z.array(z.number().int().nonnegative().max(199)).max(200);
+ export const architectOperationSchema = z.discriminatedUnion("kind", [
+-  z.object({ kind: z.literal("wall"), ...reference, levelId: id, a: point, b: point, heightMm: positive.optional(), name: z.string().trim().min(1).max(120).optional(), templateWallId: id.optional() }).strict(),
++  z.object({ kind: z.literal("wall"), ...reference, levelId: id, a: point, b: point, heightMm: positive.optional(), name: name.optional(), templateWallId: id.optional() }).strict(),
+   z.object({ kind: z.literal("door"), ...opening }).strict(),
+   z.object({ kind: z.literal("window"), ...opening, sillMm: z.number().finite().nonnegative().max(1e6) }).strict(),
+   z.object({ kind: z.literal("line"), ...reference, levelId: id, a: point, b: point }).strict(),
+   z.object({ kind: z.literal("room"), ...reference, levelId: id, point, name: z.string().trim().min(1).max(100) }).strict(),
++  /** A new storey. Later operations in the same batch may use its ref as their levelId. */
++  z.object({ kind: z.literal("level"), ...reference, name: z.string().trim().min(1).max(100), elevationMm: coordinate, heightMm: positive }).strict(),
++  z.object({ kind: z.literal("slab"), ...reference, levelId: id, points: polygon, thicknessMm: positive, offsetMm: coordinate.optional(), name: name.optional(), material: z.string().trim().max(100).optional() }).strict(),
++  z.object({ kind: z.literal("roof"), ...reference, levelId: id, points: polygon, offsetMm: coordinate.optional(), eavesMm: eaves.optional(), pitchDeg: pitch.optional(), gableEdges: gableEdges.optional(), name: name.optional() }).strict(),
++  /** Closed wall loop around a polygon on one level; one wall per edge. */
++  z.object({ kind: z.literal("footprint"), levelId: id, points: polygon, heightMm: positive.optional(), name: name.optional(), templateWallId: id.optional() }).strict(),
++  /** Repeat a footprint over N storeys: new levels stacked on the base, walls on every storey, optional slabs and a top roof. */
++  z.object({
++    kind: z.literal("extrude"), points: polygon, storeys: z.number().int().min(1).max(100), storeyHeightMm: positive.optional(),
++    baseLevelId: id.optional(), levelNamePrefix: z.string().trim().min(1).max(60).optional(), slabs: z.boolean().optional(),
++    roof: z.union([z.literal(false), z.object({ pitchDeg: pitch.optional(), eavesMm: eaves.optional(), gableEdges: gableEdges.optional() }).strict()]).optional(),
++  }).strict(),
+ ]);
+ export const architectReadSchema = z.object({ expectedJobId: id }).strict();
+ export const architectRevisionSchema = z.object({ expectedJobId: id, expectedRevision: z.number().int().positive() }).strict();
+@@ -24,6 +41,8 @@ export type ArchitectDrawInput = z.infer<typeof architectDrawSchema>;
+ export type ArchitectRevisionInput = z.infer<typeof architectRevisionSchema>;
+ export type ArchitectCreatedElement = { ref?: string; kind: string; id: string };
+ 
++const DEFAULT_STOREY_MM = 3000, DEFAULT_EAVES_MM = 450, DEFAULT_PITCH_DEG = 22.5;
++
+ /** Append-only draft: no persistence or UI mutation occurs until the entire batch validates. */
+ export function prepareArchitectElements(project: ArchitectProject, input: unknown, makeId: () => string = () => crypto.randomUUID()) {
+   const args = architectDrawSchema.parse(input);
+@@ -31,30 +50,98 @@ export function prepareArchitectElements(project: ArchitectProject, input: unkno
+   if (project.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before drawing.");
+   const draft = structuredClone(validateProject(project));
+   const refs = new Map<string, string>(), created: ArchitectCreatedElement[] = [], notices: string[] = [];
++  const level = (levelRef: string) => {
++    const levelId = refs.get(levelRef) ?? levelRef;
++    const found = draft.levels.find(item => item.id === levelId);
++    if (!found) throw Error("Choose an existing design level or an earlier level operation reference.");
++    return found;
++  };
++  const wallLayers = (templateWallId?: string) => {
++    const template = templateWallId ? draft.walls.find(wall => wall.id === templateWallId) : null;
++    if (templateWallId && !template) throw Error("Wall assembly template was not found.");
++    return { template, layers: (template ? structuredClone(template.layers) : defaultLayers()).map(layer => ({ ...layer, id: makeId() })) };
++  };
++  const addWall = (levelId: string, a: Point, b: Point, options: { heightMm?: number; name?: string; templateWallId?: string }) => {
++    const { template, layers } = wallLayers(options.templateWallId);
++    const wall = newWall(draft, levelId, a, b, layers);
++    wall.id = makeId();
++    if (options.name) wall.name = options.name;
++    if (options.heightMm !== undefined) wall.height = options.heightMm;
++    draft.walls.push(wall);
++    if (!template) notices.push(`Wall ${wall.id} uses the existing unpriced default assembly. Review its layers and dimensions.`);
++    return wall;
++  };
++  const addLevel = (levelName: string, elevation: number, height: number) => {
++    const entry = { id: makeId(), name: levelName, elevation, height };
++    draft.levels.push(entry);
++    return entry;
++  };
++  const addSlab = (levelId: string, points: Point[], thickness: number, offset: number, slabName: string, material: string) => {
++    const slab = { id: makeId(), revision: 1, levelId, name: slabName, points: structuredClone(points), thickness, offset, material };
++    draft.slabs.push(slab);
++    return slab;
++  };
++  const addRoof = (levelId: string, points: Point[], offset: number, eavesMm: number, pitchDeg: number, gables: number[], roofName: string) => {
++    if (gables.some(index => index >= points.length)) throw Error("Gable edge index exceeds the roof outline.");
++    const roof = { id: makeId(), revision: 1, levelId, name: roofName, points: structuredClone(points), offset, eaves: eavesMm,
++      fasciaHeight: 140, fasciaThickness: 20, gutterEnabled: true, gutterWidth: 125, gutterDepth: 90, gutterThickness: 1.2,
++      edges: points.map((_, index) => ({ pitch: pitchDeg, gable: gables.includes(index) })) };
++    draft.roofs.push(roof);
++    return roof;
++  };
++  const footprintWalls = (levelId: string, points: Point[], options: { heightMm?: number; name?: string; templateWallId?: string }) =>
++    points.map((a, index) => addWall(levelId, a, points[(index + 1) % points.length], { ...options, name: options.name ? `${options.name} ${index + 1}` : undefined }));
+   for (const operation of args.operations) {
+-    if (operation.ref && refs.has(operation.ref)) throw Error("Operation references must be unique within a batch.");
+-    const entityId = makeId();
+-    if ("levelId" in operation && !draft.levels.some(level => level.id === operation.levelId)) throw Error("Choose an existing design level.");
++    if ("ref" in operation && operation.ref && refs.has(operation.ref)) throw Error("Operation references must be unique within a batch.");
++    const kind: string = operation.kind;
++    let entityId: string;
+     if (operation.kind === "wall") {
+-      const template = operation.templateWallId ? draft.walls.find(wall => wall.id === operation.templateWallId) : null;
+-      if (operation.templateWallId && !template) throw Error("Wall assembly template was not found.");
+-      const layers = (template ? structuredClone(template.layers) : defaultLayers()).map(layer => ({ ...layer, id: makeId() }));
+-      const wall = newWall(draft, operation.levelId, operation.a, operation.b, layers);
+-      wall.id = entityId;
+-      if (operation.name) wall.name = operation.name;
+-      if (operation.heightMm !== undefined) wall.height = operation.heightMm;
+-      draft.walls.push(wall);
+-      if (!template) notices.push(`Wall ${entityId} uses the existing unpriced default assembly. Review its layers and dimensions.`);
++      entityId = addWall(level(operation.levelId).id, operation.a, operation.b, operation).id;
+     } else if (operation.kind === "door" || operation.kind === "window") {
+       const wallId = refs.get(operation.wallRef) ?? operation.wallRef;
+       if (!draft.walls.some(wall => wall.id === wallId)) throw Error("Opening needs an existing wall ID or an earlier wall operation reference.");
++      entityId = makeId();
+       draft.openings.push({ id: entityId, revision: 1, kind: operation.kind, wallId, tag: operation.tag,
+         offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm,
+         sill: operation.kind === "window" ? operation.sillMm : 0, hinge: operation.hinge, swing: operation.swing });
+-    } else if (operation.kind === "line") draft.lines.push({ id: entityId, revision: 1, levelId: operation.levelId, a: operation.a, b: operation.b });
+-    else draft.roomTags.push({ id: entityId, revision: 1, levelId: operation.levelId, point: operation.point, name: operation.name });
+-    if (operation.ref) refs.set(operation.ref, entityId);
+-    created.push({ ...(operation.ref ? { ref: operation.ref } : {}), kind: operation.kind, id: entityId });
++    } else if (operation.kind === "line") {
++      entityId = makeId();
++      draft.lines.push({ id: entityId, revision: 1, levelId: level(operation.levelId).id, a: operation.a, b: operation.b });
++    } else if (operation.kind === "room") {
++      entityId = makeId();
++      draft.roomTags.push({ id: entityId, revision: 1, levelId: level(operation.levelId).id, point: operation.point, name: operation.name });
++    } else if (operation.kind === "level") {
++      entityId = addLevel(operation.name, operation.elevationMm, operation.heightMm).id;
++    } else if (operation.kind === "slab") {
++      const host = level(operation.levelId);
++      entityId = addSlab(host.id, operation.points, operation.thicknessMm, operation.offsetMm ?? 0, operation.name ?? `${host.name} slab`, operation.material ?? "Concrete").id;
++    } else if (operation.kind === "roof") {
++      const host = level(operation.levelId);
++      entityId = addRoof(host.id, operation.points, operation.offsetMm ?? host.height, operation.eavesMm ?? DEFAULT_EAVES_MM, operation.pitchDeg ?? DEFAULT_PITCH_DEG, operation.gableEdges ?? [], operation.name ?? `${host.name} roof`).id;
++    } else if (operation.kind === "footprint") {
++      const walls = footprintWalls(level(operation.levelId).id, operation.points, operation);
++      for (const wall of walls) created.push({ kind: "wall", id: wall.id });
++      continue;
++    } else {
++      const height = operation.storeyHeightMm ?? DEFAULT_STOREY_MM, prefix = operation.levelNamePrefix ?? "Level";
++      const base = operation.baseLevelId ? level(operation.baseLevelId) : null;
++      const start = base ? base.elevation : Math.max(...draft.levels.map(item => item.elevation + item.height));
++      const levels = Array.from({ length: operation.storeys }, (_, index) =>
++        index === 0 && base ? base : addLevel(`${prefix} ${draft.levels.length + 1}`, start + index * height, height));
++      for (const [index, storey] of levels.entries()) {
++        if (storey !== base) created.push({ kind: "level", id: storey.id });
++        for (const wall of footprintWalls(storey.id, operation.points, { heightMm: storey === base ? undefined : height })) created.push({ kind: "wall", id: wall.id });
++        if (operation.slabs) created.push({ kind: "slab", id: addSlab(storey.id, operation.points, 150, 0, `${storey.name} slab`, "Concrete").id });
++        if (index === levels.length - 1 && operation.roof !== false) {
++          const roof = operation.roof || {};
++          created.push({ kind: "roof", id: addRoof(storey.id, operation.points, storey.height, roof.eavesMm ?? DEFAULT_EAVES_MM, roof.pitchDeg ?? DEFAULT_PITCH_DEG, roof.gableEdges ?? [], `${storey.name} roof`).id });
++        }
++      }
++      notices.push(`Extruded ${operation.storeys} storey(s) of ${operation.points.length} walls at ${height} mm; storey heights and assemblies are design assumptions for review.`);
++      continue;
++    }
++    if ("ref" in operation && operation.ref) refs.set(operation.ref, entityId);
++    created.push({ ...("ref" in operation && operation.ref ? { ref: operation.ref } : {}), kind, id: entityId });
+   }
+   return { draft: validateProject(draft), created, notices };
+ }
+diff --git a/src/studio/assistant/wireframe.test.ts b/src/studio/assistant/wireframe.test.ts
+new file mode 100644
+index 0000000..c559425
+--- /dev/null
++++ b/src/studio/assistant/wireframe.test.ts
+@@ -0,0 +1,152 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob } from "../domain.ts";
++import type { Pane } from "../store.ts";
++import { emptyProject, revise, area } from "../architect/model.ts";
++import { createAppTools, type AppToolPort } from "./appTools.ts";
++import { prepareArchitectElements } from "./architectBridge.ts";
++import { assistantToolAllowed } from "./skills.ts";
++import { WORKBENCH_STRUCTURE, loadCatalogScene, sourceBuildingQuerySchema, summariseSourceBuilding } from "./workbenchStructure.ts";
++
++const rect = (w: number, d: number): [number, number][] => [[0, 0], [w, 0], [w, d], [0, d]];
++const draw = (project: ReturnType<typeof emptyProject>, operations: unknown[]) =>
++  prepareArchitectElements(project, { expectedJobId: project.id, expectedRevision: project.revision, operations });
++
++test("level, footprint, slab and roof operations produce validated storey geometry with resolvable refs", () => {
++  const p = emptyProject("wire"), before = JSON.stringify(p);
++  const result = draw(p, [
++    { kind: "level", ref: "first", name: "First floor", elevationMm: 3000, heightMm: 2700 },
++    { kind: "footprint", levelId: "first", points: rect(20000, 12000), name: "First floor wall" },
++    { kind: "slab", ref: "deck", levelId: "first", points: rect(20000, 12000), thicknessMm: 200 },
++    { kind: "roof", ref: "top", levelId: "first", points: rect(20000, 12000), pitchDeg: 25, gableEdges: [1, 3] },
++    { kind: "room", levelId: "first", point: [10000, 6000], name: "OPEN PLAN" },
++  ]);
++  assert.equal(JSON.stringify(p), before);
++  assert.equal(result.draft.levels.length, 2);
++  const level = result.draft.levels[1];
++  assert.equal(level.name, "First floor"); assert.equal(level.elevation, 3000);
++  assert.equal(result.draft.walls.length, 4);
++  assert.ok(result.draft.walls.every(wall => wall.levelId === level.id && wall.height === 2700));
++  assert.deepEqual(result.draft.walls.map(wall => wall.name), ["First floor wall 1", "First floor wall 2", "First floor wall 3", "First floor wall 4"]);
++  assert.equal(result.draft.slabs[0].levelId, level.id); assert.equal(result.draft.slabs[0].thickness, 200); assert.equal(area(result.draft.slabs[0].points), 240e6);
++  const roof = result.draft.roofs[0];
++  assert.equal(roof.offset, 2700); assert.equal(roof.eaves, 450);
++  assert.deepEqual(roof.edges.map(edge => edge.gable), [false, true, false, true]);
++  assert.ok(roof.edges.every(edge => edge.pitch === 25));
++  assert.equal(result.draft.roomTags[0].levelId, level.id);
++  assert.deepEqual(result.created.map(row => row.kind), ["level", "wall", "wall", "wall", "wall", "slab", "roof", "room"]);
++  assert.equal(result.created.find(row => row.ref === "top")!.id, roof.id);
++  assert.equal(result.notices.length, 4);
++  assert.equal(revise(p, result.draft).revision, p.revision + 1);
++});
++
++test("extrude draws a three-storey 20 m by 12 m wireframe: new levels, walls per storey, slabs and one top roof", () => {
++  const p = emptyProject("wire"), ground = p.levels[0];
++  const result = draw(p, [{ kind: "extrude", points: rect(20000, 12000), storeys: 3, storeyHeightMm: 3200, baseLevelId: ground.id, slabs: true, roof: { pitchDeg: 20, eavesMm: 600 } }]);
++  assert.equal(result.draft.levels.length, 3);
++  assert.deepEqual(result.draft.levels.map(level => level.elevation), [0, 3200, 6400]);
++  assert.deepEqual(result.draft.levels.slice(1).map(level => level.name), ["Level 2", "Level 3"]);
++  assert.equal(result.draft.walls.length, 12);
++  for (const level of result.draft.levels) assert.equal(result.draft.walls.filter(wall => wall.levelId === level.id).length, 4);
++  assert.ok(result.draft.walls.filter(wall => wall.levelId !== ground.id).every(wall => wall.height === 3200));
++  assert.equal(result.draft.slabs.length, 3);
++  assert.equal(result.draft.roofs.length, 1);
++  assert.equal(result.draft.roofs[0].levelId, result.draft.levels[2].id); assert.equal(result.draft.roofs[0].offset, 3200); assert.equal(result.draft.roofs[0].eaves, 600);
++  assert.equal(result.created.filter(row => row.kind === "level").length, 2);
++  assert.equal(result.created.filter(row => row.kind === "wall").length, 12);
++  assert.match(result.notices.at(-1)!, /Extruded 3 storey/);
++  const stacked = draw(p, [{ kind: "extrude", points: rect(8000, 8000), storeys: 2, roof: false }]);
++  assert.deepEqual(stacked.draft.levels.slice(1).map(level => level.elevation), [2700, 5700]);
++  assert.equal(stacked.draft.roofs.length, 0); assert.equal(stacked.draft.slabs.length, 0); assert.equal(stacked.draft.walls.length, 8);
++});
++
++test("wireframe operations reject bad geometry and unknown levels without touching the project", () => {
++  const p = emptyProject("wire"), before = JSON.stringify(p), levelId = p.levels[0].id;
++  assert.throws(() => draw(p, [{ kind: "footprint", levelId: "missing", points: rect(5000, 5000) }]), /existing design level/);
++  assert.throws(() => draw(p, [{ kind: "slab", levelId, points: [[0, 0], [8000, 0], [8000, 5000], [2000, -1000], [0, 5000]], thicknessMm: 150 }]), /crosses itself/);
++  assert.throws(() => draw(p, [{ kind: "roof", levelId, points: [[0, 0], [8000, 0], [8000, 6000], [4000, 2000], [0, 6000]] }]), /convex/);
++  assert.throws(() => draw(p, [{ kind: "roof", levelId, points: rect(5000, 5000), gableEdges: [0, 1, 2, 3] }]), /pitched or flat edge/);
++  assert.throws(() => draw(p, [{ kind: "roof", levelId, points: rect(5000, 5000), gableEdges: [7] }]), /exceeds the roof outline/);
++  assert.throws(() => draw(p, [{ kind: "extrude", points: rect(5000, 5000), storeys: 0 }]));
++  assert.throws(() => draw(p, [{ kind: "level", ref: "a", name: "A", elevationMm: 0, heightMm: 3000 }, { kind: "level", ref: "a", name: "B", elevationMm: 3000, heightMm: 3000 }]), /unique/);
++  assert.throws(() => draw(p, [{ kind: "wall", levelId, a: [0, 0], b: [0, 0] }]), /1 mm/);
++  assert.equal(JSON.stringify(p), before);
++});
++
++function fixture() {
++  const job = createDefaultJob();
++  const state = { job, pane: "model" as Pane, sheet: 0, hydrationStatus: "ready", persistenceHydrated: true, persistenceRecoveryBlocked: false, persistenceError: null as string | null, lastSavedJobRevision: job.revision as number | null,
++    setPane(pane: Pane) { state.pane = pane; }, saveCurrentProject() { return { ok: true, error: null as string | null }; } };
++  const queries: unknown[] = [];
++  const port: AppToolPort = {
++    getState: () => state, architect: async () => ({}), architectAvailable: () => false, capture: async () => ({ content: [] }),
++    sourceBuilding: async query => { queries.push(query); return { building: query.building, parts: [] }; },
++  };
++  const tools = createAppTools(port);
++  return { state, port, queries, tools, execute: (name: string, args: unknown) => tools.find(tool => tool.name === name)!.execute(args) };
++}
++const message = (result: { content: Array<{ type: string; text?: string }> }) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
++
++test("structure tool is a static, permission-free reference that lists wireframe operations and what is not available", async () => {
++  const f = fixture();
++  const value = JSON.parse(message(await f.execute("read_workbench_structure", {})));
++  assert.equal(value.units.architecturalDesign, "mm"); assert.equal(value.units.sourceBuilding, "m");
++  assert.ok(value.architecturalDesign.wireframeOperations.draw_architect_elements.some((op: string) => op.startsWith("extrude")));
++  assert.ok(value.notAvailableThroughTools.some((item: string) => /deleting/.test(item)));
++  assert.deepEqual(value.evidence.states, ["traced", "dimensioned", "inferred"]);
++  assert.ok(value.sourceBuilding.catalog.find((item: { id: string }) => item.id === "ruffles").sample);
++  assert.equal((await f.execute("read_workbench_structure", { extra: 1 })).isError, true);
++  assert.equal(assistantToolAllowed("read_workbench_structure", false), true);
++  assert.equal(assistantToolAllowed("read_source_building", false), true);
++  assert.equal(assistantToolAllowed("draw_architect_elements", false), false);
++  const draw = f.tools.find(tool => tool.name === "draw_architect_elements")!;
++  const kinds = (draw.inputSchema.properties as { operations: { items: { oneOf: Array<{ properties: { kind: { const: string } } }> } } }).operations.items.oneOf.map(item => item.properties.kind.const);
++  assert.deepEqual(kinds, ["wall", "door", "window", "line", "room", "level", "slab", "roof", "footprint", "extrude"]);
++  assert.match(draw.description, /multi-storey wireframe/);
++});
++
++test("source building tool validates its query, binds to the project and forwards to the reader", async () => {
++  const f = fixture(), id = f.state.job.id;
++  assert.equal((await f.execute("read_source_building", { expectedJobId: id, building: "not-in-catalog" })).isError, true);
++  assert.equal((await f.execute("read_source_building", { expectedJobId: "other", building: "redburn" })).isError, true);
++  assert.equal(f.queries.length, 0);
++  const result = await f.execute("read_source_building", { expectedJobId: id, building: "redburn", floor: "ground", category: "wall", limit: 5 });
++  assert.equal(result.isError, undefined); assert.deepEqual(f.queries[0], { expectedJobId: id, building: "redburn", floor: "ground", category: "wall", limit: 5 });
++  f.port.sourceBuilding = async () => { f.state.job = createDefaultJob(); return { leaked: true }; };
++  assert.equal((await f.execute("read_source_building", { expectedJobId: id, building: "redburn" })).isError, true);
++  delete f.port.sourceBuilding;
++  assert.match(message(await f.execute("read_source_building", { expectedJobId: f.state.job.id, building: "redburn" })), /unavailable/);
++});
++
++const scene = {
++  schema: "xray.source-building/v1", source: { name: "fixture.pdf", sha256: "a".repeat(64), pageCount: 2 }, units: "m", coordinateSystem: "x east, y up, z south",
++  bounds: { min: [0, 0, 0], max: [10, 7, 8] }, floorElevations: { ground: 0, upper: 3 },
++  materials: { brick: { color: "#aa5533" } },
++  objects: [
++    { level: "ground", id: "w1", category: "wall", label: "North wall", positions: [0, 0, 0, 10, 0, 0, 10, 3, 0], indices: [0, 1, 2], material: "brick", sourceRefs: [{ page: 1, region: [0, 0, 10, 10], evidenceState: "traced", note: "" }], evidenceState: "traced" },
++    { level: "upper", id: "w2", category: "wall", label: "Upper wall", positions: [0, 3, 0, 10, 3, 0, 10, 6, 0], indices: [0, 1, 2], material: "brick", sourceRefs: [{ page: 2, region: [0, 0, 10, 10], evidenceState: "inferred", note: "" }], evidenceState: "inferred" },
++    { level: "roof", id: "r1", category: "roof", label: "Roof", positions: [0, 6, 0, 10, 6, 0, 5, 7, 4], indices: [0, 1, 2], material: "brick", sourceRefs: [{ page: 1, region: [0, 0, 10, 10], evidenceState: "dimensioned", note: "" }], evidenceState: "dimensioned" },
++  ],
++  assumptions: ["Fixture only"],
++  sourceSheets: [{ page: 1, title: "Plan", image: "/models/fixture/source-page-1.png", width: 100, height: 100, role: "plan" }, { page: 2, title: "Upper", image: "/models/fixture/source-page-2.png", width: 100, height: 100, role: "plan" }],
++  summary: { wallRuns: 2, openings: 0, roofFaces: 1, objects: 3, visibleNamedRooms: 0, method: "fixture", status: "sample" },
++};
++
++test("source building summary filters by storey and category, omits meshes and keeps evidence states per part", async () => {
++  let fetched = 0;
++  const fetcher = (async () => { fetched++; return new Response(JSON.stringify(scene), { status: 200 }); }) as unknown as typeof fetch;
++  const loaded = await loadCatalogScene("ruffles", fetcher);
++  assert.equal(await loadCatalogScene("ruffles", fetcher), loaded); assert.equal(fetched, 1);
++  const all = summariseSourceBuilding(loaded, { building: "ruffles" });
++  assert.equal(all.sample, true); assert.equal(all.units, "m"); assert.equal(all.matched, 3); assert.deepEqual(all.evidence, { traced: 1, dimensioned: 1, inferred: 1 });
++  assert.deepEqual(all.parts.map(part => part.id), ["w1", "w2", "r1"]);
++  assert.ok(all.parts.every(part => !("positions" in part) && !("indices" in part)));
++  assert.deepEqual(all.parts[0].boundsM, { min: [0, 0, 0], max: [10, 3, 0] }); assert.deepEqual(all.parts[1].sourcePages, [2]);
++  const ground = summariseSourceBuilding(loaded, { building: "ruffles", floor: "ground", category: "wall" });
++  assert.deepEqual(ground.parts.map(part => part.id), ["w1"]); assert.equal(ground.matched, 1);
++  const limited = summariseSourceBuilding(loaded, { building: "ruffles", limit: 1 });
++  assert.equal(limited.returned, 1); assert.equal(limited.matched, 3);
++  assert.throws(() => summariseSourceBuilding(loaded, { building: "ruffles", floor: "penthouse" }), /Unknown storey/);
++  assert.throws(() => sourceBuildingQuerySchema.parse({ expectedJobId: "j", building: "ruffles", limit: 0 }));
++  assert.equal(WORKBENCH_STRUCTURE.sourceBuilding.catalog.length, 4);
++});
+diff --git a/src/studio/assistant/workbenchStructure.ts b/src/studio/assistant/workbenchStructure.ts
+new file mode 100644
+index 0000000..e69b6a5
+--- /dev/null
++++ b/src/studio/assistant/workbenchStructure.ts
+@@ -0,0 +1,93 @@
++import { z } from "zod";
++import { BUILDING_CATALOG, buildingPartOnFloor, parseSourceBuilding, type SourceBuilding } from "../sourceBuilding.ts";
++
++/** Static description of X-Ray's data model so the assistant can reason about what it may draw or read. Nothing here is project data. */
++export const WORKBENCH_STRUCTURE = {
++  units: { architecturalDesign: "mm", sourceBuilding: "m", sourceSheets: "PDF page pixels" },
++  panes: ["overview", "sheets", "measure", "sketch", "components", "model", "render", "review", "cost", "proof"],
++  architecturalDesign: {
++    schema: "xray.architect/v1",
++    description: "Authored design owned by Sketch → Architectural workspace. Every entity has a stable id and revision; the project revision increments on each saved change.",
++    entities: {
++      level: "storey with elevation (mm) and height (mm); walls, slabs, roofs, lines and room tags belong to exactly one level",
++      wall: "segment a→b on a level with height and 1–12 layers (assembly); openings are hosted on walls by offset along the wall",
++      opening: "door or window hosted on a wall: offset, width, height, sill (doors sill 0), unique tag",
++      slab: "closed polygon (3–200 points) on a level with thickness, vertical offset and material",
++      roof: "closed convex polygon on a level with per-edge pitch or gable flags, eaves, fascia and gutter dimensions; offset is height above the level",
++      line: "reference line", room: "room label point", circle: "reference circle", arc: "reference arc", grid: "grid axis", dimension: "wall dimension string",
++    },
++    wireframeOperations: {
++      draw_architect_elements: ["wall", "door", "window", "line", "room", "level", "slab", "roof", "footprint (closed wall loop on one level)", "extrude (footprint repeated over N storeys with new levels, optional slabs and top roof)"],
++      renderedBy: "Architectural workspace plan view and its live 3D model (Live 3D, all levels in 3D); capture_workspace_image target 'architect' returns its pixels",
++      limits: "≤25 operations per batch, ≤100 levels, ≤3000 walls, convex roof zones, no deletions or moves through tools",
++    },
++  },
++  sourceBuilding: {
++    schema: "xray.source-building/v1",
++    description: "Read-only reconstruction of a source drawing set shown in Model. Parts carry evidenceState traced | dimensioned | inferred and source page references; sample buildings are labelled sample and never become verified evidence.",
++    catalog: BUILDING_CATALOG.map(item => ({ id: item.id, title: item.title, sample: item.sample, sourceSha256: item.sha256 })),
++    partCategories: ["wall", "room", "roof", "roof-trim", "slab", "column", "window", "door", "fixture", "solar", "skylight", "trim", "fence", "stair"],
++  },
++  evidence: {
++    states: ["traced", "dimensioned", "inferred"],
++    verifiedTakeoffRequires: "matching source SHA-256 identity and valid ground-truth two-point calibration; counts, lengths, areas and volumes stay separate",
++    sampleFirewall: "sample, inferred and unverified data stay visibly separate from verified source measurements; never promote sample data to verified results",
++  },
++  notAvailableThroughTools: [
++    "deleting or moving existing design entities", "changing calibration, source identity, hashes or evidence approval",
++    "issuing quotes or price approvals", "publishing, exporting files or contacting third parties", "drawing directly into the Model viewer (it renders source reconstructions; authored geometry lives in the Architectural workspace)",
++  ],
++} as const;
++
++export const sourceBuildingQuerySchema = z.object({
++  expectedJobId: z.string().min(1).max(100),
++  building: z.enum(BUILDING_CATALOG.map(item => item.id) as [string, ...string[]]),
++  floor: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).optional(),
++  category: z.enum(["wall", "room", "roof", "roof-trim", "slab", "column", "window", "door", "fixture", "solar", "skylight", "trim", "fence", "stair"]).optional(),
++  limit: z.number().int().min(1).max(200).optional(),
++}).strict();
++export type SourceBuildingQuery = z.infer<typeof sourceBuildingQuerySchema>;
++
++const scenes = new Map<string, Promise<SourceBuilding>>();
++/** Loads the catalogued scene JSON once (browser fetch); the viewer component is not touched. */
++export function loadCatalogScene(building: string, fetcher: typeof fetch = fetch): Promise<SourceBuilding> {
++  const entry = BUILDING_CATALOG.find(item => item.id === building);
++  if (!entry) throw Error("Unknown source building.");
++  let pending = scenes.get(building);
++  if (!pending) {
++    pending = fetcher(entry.sceneUrl).then(async response => {
++      if (!response.ok) throw Error(`Source building scene could not be loaded (${response.status}).`);
++      return parseSourceBuilding(await response.json());
++    });
++    pending.catch(() => scenes.delete(building));
++    scenes.set(building, pending);
++  }
++  return pending;
++}
++
++/** Summarises parts without their triangle meshes: identity, category, storey, evidence state, bounds in metres and source pages. */
++export function summariseSourceBuilding(scene: SourceBuilding, query: Omit<SourceBuildingQuery, "expectedJobId">, catalogEntry = BUILDING_CATALOG.find(item => item.id === query.building)) {
++  const floor = query.floor ?? "all";
++  if (floor !== "all" && floor !== "ground" && floor !== "upper" && !scene.storeys?.some(item => item.id === floor)) throw Error("Unknown storey for this building.");
++  const matches = scene.objects.filter(part => buildingPartOnFloor(part, floor) && (!query.category || part.category === query.category));
++  const limit = query.limit ?? 50;
++  const parts = matches.slice(0, limit).map(part => {
++    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
++    for (let index = 0; index < part.positions.length; index++) {
++      const axis = index % 3, value = part.positions[index];
++      if (value < min[axis]) min[axis] = value;
++      if (value > max[axis]) max[axis] = value;
++    }
++    return { id: part.id, category: part.category, label: part.label, storey: part.storey ?? part.level ?? null, material: part.material, evidenceState: part.evidenceState,
++      boundsM: { min, max }, triangles: part.indices.length / 3, sourcePages: [...new Set(part.sourceRefs.map(ref => ref.page))], note: part.note ?? null };
++  });
++  const evidence = { traced: 0, dimensioned: 0, inferred: 0 };
++  for (const part of matches) evidence[part.evidenceState]++;
++  return {
++    building: query.building, title: catalogEntry?.title ?? scene.source.name, sample: catalogEntry?.sample ?? true, sourceSha256: scene.source.sha256, units: scene.units,
++    boundsM: scene.bounds, storeys: scene.storeys ?? (scene.floorElevations ? [{ id: "ground", label: "Ground", elevation: scene.floorElevations.ground }, { id: "upper", label: "Upper", elevation: scene.floorElevations.upper }] : []),
++    floor, category: query.category ?? "all", matched: matches.length, returned: parts.length, evidence, parts,
++    summary: scene.summary, assumptions: scene.assumptions.slice(0, 10),
++    scope: "Read-only reconstruction summary in metres; meshes omitted. Evidence states are per part; sample buildings are not verified evidence.",
++  };
++}

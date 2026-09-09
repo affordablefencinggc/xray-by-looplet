@@ -1,0 +1,146 @@
+[
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Cost",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.live-assistant-launcher')"
+ ],
+ [
+  "eval",
+  "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();return 'panel'})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Add to assistant",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "menuitem",
+  "click",
+  "--name",
+  "New chat",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.assistant-permission input')"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();if(!c.checked)throw Error('Permission not enabled');return 'edits allowed'})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "Import this CSV as a new price book named \"Timber Co 2026\". Supplier: Timber Co. Currency AUD. Tax basis exclusive, 10%. Effective date 2026-09-01. Source reference: Quote Q-1234.\nStock code,Description,Unit,Rate\nP100,Treated pine post 100x100,each,18.50\nR75,Rail 75x50,m,4.20\nPAL,Paling 100x12,each,1.15"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&(!!document.querySelector('.assistant-chat-entry.is-assistant')||!!document.querySelector('.assistant-chat-error'))",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>({paused:[...document.querySelectorAll('.assistant-chat-error')].some(e=>/Paused after eight/.test(e.textContent)),tools:[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,160))}))()"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();return 'edits allowed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{window.__replies=document.querySelectorAll('.assistant-chat-entry.is-assistant').length;return window.__replies})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "If anything from my previous request is still outstanding, continue and finish it; otherwise reply exactly DONE."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&document.querySelectorAll('.assistant-chat-entry.is-assistant').length>window.__replies",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>{const errors=[...document.querySelectorAll('.assistant-chat-error')].map(e=>e.textContent);const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,200));const replies=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(e=>e.textContent.slice(0,1500));return {errors,tools,replies}})()"
+ ],
+ [
+  "eval",
+  "(()=>{const job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));const lib=JSON.parse(localStorage.getItem('xray:price-books:v1:'+encodeURIComponent(job.id)));const book=lib.books.find(b=>b.name==='Timber Co 2026');if(!book)throw Error('Book missing: '+JSON.stringify(lib.books.map(b=>b.name)));const rev=book.revisions[0];if(rev.rows.length!==3)throw Error('rows '+rev.rows.length);if(!/^Live assistant paste/.test(rev.metadata.sourceReference))throw Error('sourceReference '+rev.metadata.sourceReference);return {libraryRevision:lib.revision,book:book.name,rows:rev.rows.map(r=>[r.stockCode,r.rate]),sourceReference:rev.metadata.sourceReference,fileName:rev.source.fileName}})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sheets",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Cost",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "/Timber Co 2026/.test(document.body.textContent)",
+  "--timeout",
+  "30000"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az6-release/prod-unlock-c-price-import-desktop.png"
+ ],
+ [
+  "errors"
+ ]
+]

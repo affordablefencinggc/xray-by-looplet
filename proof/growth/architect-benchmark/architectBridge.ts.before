@@ -1,0 +1,313 @@
+import { z } from "zod";
+import { defaultLayers, newWall, validateProject, type ArchitectProject, type Point } from "../architect/model.ts";
+
+const id = z.string().min(1).max(100);
+const coordinate = z.number().finite().min(-1e6).max(1e6);
+const point = z.tuple([coordinate, coordinate]);
+const positive = z.number().finite().positive().max(1e6);
+const reference = { ref: z.string().min(1).max(80).optional() };
+const name = z.string().trim().min(1).max(120);
+const polygon = z.array(point).min(3).max(200);
+const opening = {
+  ...reference, wallRef: id, offsetMm: coordinate, widthMm: positive, heightMm: positive,
+  tag: z.string().trim().min(1).max(30), hinge: z.enum(["left", "right"]), swing: z.enum(["in", "out"]),
+};
+const pitch = z.number().min(0).max(89.9);
+const eaves = z.number().min(0).max(3000);
+const gableEdges = z.array(z.number().int().nonnegative().max(199)).max(200);
+export const architectOperationSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("wall"), ...reference, levelId: id, a: point, b: point, heightMm: positive.optional(), name: name.optional(), templateWallId: id.optional() }).strict(),
+  z.object({ kind: z.literal("door"), ...opening }).strict(),
+  z.object({ kind: z.literal("window"), ...opening, sillMm: z.number().finite().nonnegative().max(1e6) }).strict(),
+  z.object({ kind: z.literal("line"), ...reference, levelId: id, a: point, b: point }).strict(),
+  z.object({ kind: z.literal("room"), ...reference, levelId: id, point, name: z.string().trim().min(1).max(100) }).strict(),
+  /** A new storey. Later operations in the same batch may use its ref as their levelId. */
+  z.object({ kind: z.literal("level"), ...reference, name: z.string().trim().min(1).max(100), elevationMm: coordinate, heightMm: positive }).strict(),
+  z.object({ kind: z.literal("slab"), ...reference, levelId: id, points: polygon, thicknessMm: positive, offsetMm: coordinate.optional(), name: name.optional(), material: z.string().trim().max(100).optional() }).strict(),
+  z.object({ kind: z.literal("roof"), ...reference, levelId: id, points: polygon, offsetMm: coordinate.optional(), eavesMm: eaves.optional(), pitchDeg: pitch.optional(), gableEdges: gableEdges.optional(), name: name.optional() }).strict(),
+  /** Closed wall loop around a polygon on one level; one wall per edge. */
+  z.object({ kind: z.literal("footprint"), levelId: id, points: polygon, heightMm: positive.optional(), name: name.optional(), templateWallId: id.optional() }).strict(),
+  /** Repeat a footprint over N storeys: new levels stacked on the base, walls on every storey, optional slabs and a top roof. */
+  z.object({
+    kind: z.literal("extrude"), points: polygon, storeys: z.number().int().min(1).max(100), storeyHeightMm: positive.optional(),
+    baseLevelId: id.optional(), levelNamePrefix: z.string().trim().min(1).max(60).optional(), slabs: z.boolean().optional(),
+    roof: z.union([z.literal(false), z.object({ pitchDeg: pitch.optional(), eavesMm: eaves.optional(), gableEdges: gableEdges.optional() }).strict()]).optional(),
+  }).strict(),
+]);
+export const architectReadSchema = z.object({ expectedJobId: id }).strict();
+export const architectRevisionSchema = z.object({ expectedJobId: id, expectedRevision: z.number().int().positive() }).strict();
+export const architectDrawSchema = architectRevisionSchema.extend({ operations: z.array(architectOperationSchema).min(1).max(200) }).strict();
+export type ArchitectDrawInput = z.infer<typeof architectDrawSchema>;
+export type ArchitectRevisionInput = z.infer<typeof architectRevisionSchema>;
+export type ArchitectCreatedElement = { ref?: string; kind: string; id: string };
+
+const DEFAULT_STOREY_MM = 3000, DEFAULT_EAVES_MM = 450, DEFAULT_PITCH_DEG = 22.5;
+
+/** Append-only draft: no persistence or UI mutation occurs until the entire batch validates. */
+export function prepareArchitectElements(project: ArchitectProject, input: unknown, makeId: () => string = () => crypto.randomUUID()) {
+  const args = architectDrawSchema.parse(input);
+  if (project.id !== args.expectedJobId) throw Error("The active project changed. Read project context again.");
+  if (project.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before drawing.");
+  const draft = structuredClone(validateProject(project));
+  const refs = new Map<string, string>(), created: ArchitectCreatedElement[] = [], notices: string[] = [];
+  const level = (levelRef: string) => {
+    const levelId = refs.get(levelRef) ?? levelRef;
+    const found = draft.levels.find(item => item.id === levelId);
+    if (!found) throw Error("Choose an existing design level or an earlier level operation reference.");
+    return found;
+  };
+  const wallLayers = (templateWallId?: string) => {
+    const template = templateWallId ? draft.walls.find(wall => wall.id === templateWallId) : null;
+    if (templateWallId && !template) throw Error("Wall assembly template was not found.");
+    return { template, layers: (template ? structuredClone(template.layers) : defaultLayers()).map(layer => ({ ...layer, id: makeId() })) };
+  };
+  const addWall = (levelId: string, a: Point, b: Point, options: { heightMm?: number; name?: string; templateWallId?: string }) => {
+    const { template, layers } = wallLayers(options.templateWallId);
+    const wall = newWall(draft, levelId, a, b, layers);
+    wall.id = makeId();
+    if (options.name) wall.name = options.name;
+    if (options.heightMm !== undefined) wall.height = options.heightMm;
+    draft.walls.push(wall);
+    if (!template) notices.push(`Wall ${wall.id} uses the existing unpriced default assembly. Review its layers and dimensions.`);
+    return wall;
+  };
+  const addLevel = (levelName: string, elevation: number, height: number) => {
+    const entry = { id: makeId(), name: levelName, elevation, height };
+    draft.levels.push(entry);
+    return entry;
+  };
+  const addSlab = (levelId: string, points: Point[], thickness: number, offset: number, slabName: string, material: string) => {
+    const slab = { id: makeId(), revision: 1, levelId, name: slabName, points: structuredClone(points), thickness, offset, material };
+    draft.slabs.push(slab);
+    return slab;
+  };
+  const addRoof = (levelId: string, points: Point[], offset: number, eavesMm: number, pitchDeg: number, gables: number[], roofName: string) => {
+    if (gables.some(index => index >= points.length)) throw Error("Gable edge index exceeds the roof outline.");
+    const roof = { id: makeId(), revision: 1, levelId, name: roofName, points: structuredClone(points), offset, eaves: eavesMm,
+      fasciaHeight: 140, fasciaThickness: 20, gutterEnabled: true, gutterWidth: 125, gutterDepth: 90, gutterThickness: 1.2,
+      edges: points.map((_, index) => ({ pitch: pitchDeg, gable: gables.includes(index) })) };
+    draft.roofs.push(roof);
+    return roof;
+  };
+  const footprintWalls = (levelId: string, points: Point[], options: { heightMm?: number; name?: string; templateWallId?: string }) =>
+    points.map((a, index) => addWall(levelId, a, points[(index + 1) % points.length], { ...options, name: options.name ? `${options.name} ${index + 1}` : undefined }));
+  for (const operation of args.operations) {
+    if ("ref" in operation && operation.ref && refs.has(operation.ref)) throw Error("Operation references must be unique within a batch.");
+    const kind: string = operation.kind;
+    let entityId: string;
+    if (operation.kind === "wall") {
+      entityId = addWall(level(operation.levelId).id, operation.a, operation.b, operation).id;
+    } else if (operation.kind === "door" || operation.kind === "window") {
+      const wallId = refs.get(operation.wallRef) ?? operation.wallRef;
+      if (!draft.walls.some(wall => wall.id === wallId)) throw Error("Opening needs an existing wall ID or an earlier wall operation reference.");
+      entityId = makeId();
+      draft.openings.push({ id: entityId, revision: 1, kind: operation.kind, wallId, tag: operation.tag,
+        offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm,
+        sill: operation.kind === "window" ? operation.sillMm : 0, hinge: operation.hinge, swing: operation.swing });
+    } else if (operation.kind === "line") {
+      entityId = makeId();
+      draft.lines.push({ id: entityId, revision: 1, levelId: level(operation.levelId).id, a: operation.a, b: operation.b });
+    } else if (operation.kind === "room") {
+      entityId = makeId();
+      draft.roomTags.push({ id: entityId, revision: 1, levelId: level(operation.levelId).id, point: operation.point, name: operation.name });
+    } else if (operation.kind === "level") {
+      entityId = addLevel(operation.name, operation.elevationMm, operation.heightMm).id;
+    } else if (operation.kind === "slab") {
+      const host = level(operation.levelId);
+      entityId = addSlab(host.id, operation.points, operation.thicknessMm, operation.offsetMm ?? 0, operation.name ?? `${host.name} slab`, operation.material ?? "Concrete").id;
+    } else if (operation.kind === "roof") {
+      const host = level(operation.levelId);
+      entityId = addRoof(host.id, operation.points, operation.offsetMm ?? host.height, operation.eavesMm ?? DEFAULT_EAVES_MM, operation.pitchDeg ?? DEFAULT_PITCH_DEG, operation.gableEdges ?? [], operation.name ?? `${host.name} roof`).id;
+    } else if (operation.kind === "footprint") {
+      const walls = footprintWalls(level(operation.levelId).id, operation.points, operation);
+      for (const wall of walls) created.push({ kind: "wall", id: wall.id });
+      continue;
+    } else {
+      const height = operation.storeyHeightMm ?? DEFAULT_STOREY_MM, prefix = operation.levelNamePrefix ?? "Level";
+      const base = operation.baseLevelId ? level(operation.baseLevelId) : null;
+      const start = base ? base.elevation : Math.max(...draft.levels.map(item => item.elevation + item.height));
+      const levels = Array.from({ length: operation.storeys }, (_, index) =>
+        index === 0 && base ? base : addLevel(`${prefix} ${draft.levels.length + 1}`, start + index * height, height));
+      for (const [index, storey] of levels.entries()) {
+        if (storey !== base) created.push({ kind: "level", id: storey.id });
+        for (const wall of footprintWalls(storey.id, operation.points, { heightMm: storey === base ? undefined : height })) created.push({ kind: "wall", id: wall.id });
+        if (operation.slabs) created.push({ kind: "slab", id: addSlab(storey.id, operation.points, 150, 0, `${storey.name} slab`, "Concrete").id });
+        if (index === levels.length - 1 && operation.roof !== false) {
+          const roof = operation.roof || {};
+          created.push({ kind: "roof", id: addRoof(storey.id, operation.points, storey.height, roof.eavesMm ?? DEFAULT_EAVES_MM, roof.pitchDeg ?? DEFAULT_PITCH_DEG, roof.gableEdges ?? [], `${storey.name} roof`).id });
+        }
+      }
+      notices.push(`Extruded ${operation.storeys} storey(s) of ${operation.points.length} walls at ${height} mm; storey heights and assemblies are design assumptions for review.`);
+      continue;
+    }
+    if ("ref" in operation && operation.ref) refs.set(operation.ref, entityId);
+    created.push({ ...("ref" in operation && operation.ref ? { ref: operation.ref } : {}), kind, id: entityId });
+  }
+  return { draft: validateProject(draft), created, notices };
+}
+
+const levelName = z.string().trim().min(1).max(100);
+const nonnegative = z.number().finite().nonnegative().max(1e6);
+/** Edits to existing entities; every operation names the stable ID it changes. Removing is explicit, never bulk. */
+export const architectEditOperationSchema = z.discriminatedUnion("kind", [
+  /** Removes one entity by ID. Removing a wall also removes its hosted openings and dimensions; a level must be empty first. */
+  z.object({ kind: z.literal("remove"), id }).strict(),
+  z.object({ kind: z.literal("move-wall"), id, a: point.optional(), b: point.optional() }).strict(),
+  z.object({ kind: z.literal("set-wall"), id, name: name.optional(), heightMm: positive.optional(), templateWallId: id.optional() }).strict(),
+  z.object({ kind: z.literal("set-level"), id, name: levelName.optional(), elevationMm: coordinate.optional(), heightMm: positive.optional() }).strict(),
+  z.object({ kind: z.literal("set-slab"), id, name: name.optional(), thicknessMm: positive.optional(), offsetMm: coordinate.optional(), material: z.string().trim().max(100).optional(), points: polygon.optional() }).strict(),
+  z.object({ kind: z.literal("set-roof"), id, name: name.optional(), offsetMm: coordinate.optional(), eavesMm: eaves.optional(), pitchDeg: pitch.optional(), gableEdges: gableEdges.optional(), points: polygon.optional() }).strict(),
+  z.object({ kind: z.literal("set-opening"), id, offsetMm: coordinate.optional(), widthMm: positive.optional(), heightMm: positive.optional(), sillMm: nonnegative.optional(),
+    tag: z.string().trim().min(1).max(30).optional(), hinge: z.enum(["left", "right"]).optional(), swing: z.enum(["in", "out"]).optional() }).strict(),
+  z.object({ kind: z.literal("rename-design"), name: z.string().trim().min(1).max(200).optional(), address: z.string().trim().max(500).optional(),
+    designRevision: z.string().trim().max(40).optional(), notes: z.string().max(5000).optional() }).strict(),
+]);
+export const architectEditSchema = architectRevisionSchema.extend({ operations: z.array(architectEditOperationSchema).min(1).max(200) }).strict();
+export type ArchitectEditInput = z.infer<typeof architectEditSchema>;
+export type ArchitectEditedElement = { kind: string; id: string };
+
+const ENTITY_LISTS = ["walls", "openings", "slabs", "roofs", "lines", "circles", "arcs", "grids", "roomTags", "dimensions"] as const;
+const ENTITY_KIND: Record<(typeof ENTITY_LISTS)[number], string> = {
+  walls: "wall", openings: "opening", slabs: "slab", roofs: "roof", lines: "line", circles: "circle", arcs: "arc", grids: "grid", roomTags: "roomTag", dimensions: "dimension",
+};
+
+/** Edits a clone in place so entity key order (and therefore revise() change detection) is preserved; validates once at the end. */
+export function prepareArchitectEdits(project: ArchitectProject, input: unknown, makeId: () => string = () => crypto.randomUUID()) {
+  const args = architectEditSchema.parse(input);
+  if (project.id !== args.expectedJobId) throw Error("The active project changed. Read project context again.");
+  if (project.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before editing.");
+  const draft = structuredClone(validateProject(project));
+  const changed: ArchitectEditedElement[] = [], removed: ArchitectEditedElement[] = [], notices: string[] = [];
+  const touched = new Set<string>();
+  const change = (kind: string, entityId: string) => {
+    if (touched.has(entityId)) return;
+    touched.add(entityId);
+    changed.push({ kind, id: entityId });
+  };
+  const missing = (entityId: string) => Error(`Entity ${entityId} was not found in the design.`);
+  const find = <K extends (typeof ENTITY_LISTS)[number]>(key: K, entityId: string, label: string): ArchitectProject[K][number] => {
+    const found = draft[key].find(item => item.id === entityId);
+    if (!found) throw draft.levels.some(item => item.id === entityId) || ENTITY_LISTS.some(other => draft[other].some(item => item.id === entityId))
+      ? Error(`Entity ${entityId} is not a ${label}.`) : missing(entityId);
+    return found;
+  };
+  const defined = <T extends object>(fields: T) => Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as Partial<T>;
+  const requireChange = (patch: object, what: string) => { if (!Object.keys(patch).length) throw Error(`${what} needs at least one field to change.`); };
+  for (const operation of args.operations) {
+    if (operation.kind === "remove") {
+      const levelIndex = draft.levels.findIndex(item => item.id === operation.id);
+      if (levelIndex >= 0) {
+        const occupants = ENTITY_LISTS.reduce((count, key) => count + draft[key].filter(item => "levelId" in item && item.levelId === operation.id).length, 0);
+        if (occupants) throw Error(`Level ${operation.id} still hosts ${occupants} entit${occupants === 1 ? "y" : "ies"}. Remove or move them before removing the level.`);
+        if (draft.levels.length === 1) throw Error("The design needs at least one level.");
+        draft.levels.splice(levelIndex, 1);
+        removed.push({ kind: "level", id: operation.id });
+        continue;
+      }
+      const key = ENTITY_LISTS.find(list => draft[list].some(item => item.id === operation.id));
+      if (!key) throw missing(operation.id);
+      removed.push({ kind: ENTITY_KIND[key], id: operation.id });
+      if (key === "walls") {
+        const openings = draft.openings.filter(item => item.wallId === operation.id), dimensions = draft.dimensions.filter(item => item.wallId === operation.id);
+        for (const item of openings) removed.push({ kind: "opening", id: item.id });
+        for (const item of dimensions) removed.push({ kind: "dimension", id: item.id });
+        draft.openings = draft.openings.filter(item => item.wallId !== operation.id);
+        draft.dimensions = draft.dimensions.filter(item => item.wallId !== operation.id);
+        if (openings.length || dimensions.length)
+          notices.push(`Removing wall ${operation.id} also removed ${openings.length} hosted opening(s) and ${dimensions.length} dimension(s).`);
+      }
+      (draft[key] as { id: string }[]) = (draft[key] as { id: string }[]).filter(item => item.id !== operation.id);
+    } else if (operation.kind === "move-wall") {
+      const patch = defined({ a: operation.a, b: operation.b });
+      requireChange(patch, "Moving a wall");
+      const wall = find("walls", operation.id, "wall");
+      Object.assign(wall, structuredClone(patch));
+      if (draft.openings.some(item => item.wallId === wall.id))
+        notices.push(`Wall ${wall.id} moved; hosted opening offsets are measured from its start point and were kept.`);
+      change("wall", wall.id);
+    } else if (operation.kind === "set-wall") {
+      const patch = defined({ name: operation.name, height: operation.heightMm });
+      requireChange({ ...patch, ...(operation.templateWallId ? { templateWallId: operation.templateWallId } : {}) }, "Changing a wall");
+      const wall = find("walls", operation.id, "wall");
+      if (operation.templateWallId) {
+        if (operation.templateWallId === wall.id) throw Error("A wall cannot use itself as its assembly template.");
+        const template = draft.walls.find(item => item.id === operation.templateWallId);
+        if (!template) throw Error("Wall assembly template was not found.");
+        wall.layers = structuredClone(template.layers).map(layer => ({ ...layer, id: makeId() }));
+        notices.push(`Wall ${wall.id} now uses the assembly of wall ${template.id}; its thickness follows that assembly.`);
+      }
+      Object.assign(wall, patch);
+      change("wall", wall.id);
+    } else if (operation.kind === "set-level") {
+      const patch = defined({ name: operation.name, elevation: operation.elevationMm, height: operation.heightMm });
+      requireChange(patch, "Changing a level");
+      const level = draft.levels.find(item => item.id === operation.id);
+      if (!level) throw missing(operation.id);
+      Object.assign(level, patch);
+      if (patch.height !== undefined) notices.push(`Level ${level.id} height changed; existing walls keep their own heights.`);
+      change("level", level.id);
+    } else if (operation.kind === "set-slab") {
+      const patch = defined({ name: operation.name, thickness: operation.thicknessMm, offset: operation.offsetMm, material: operation.material, points: operation.points });
+      requireChange(patch, "Changing a slab");
+      const slab = find("slabs", operation.id, "slab");
+      Object.assign(slab, structuredClone(patch));
+      change("slab", slab.id);
+    } else if (operation.kind === "set-roof") {
+      const patch = defined({ name: operation.name, offset: operation.offsetMm, eaves: operation.eavesMm, points: operation.points });
+      requireChange({ ...patch, ...defined({ pitchDeg: operation.pitchDeg, gableEdges: operation.gableEdges }) }, "Changing a roof");
+      const roof = find("roofs", operation.id, "roof");
+      Object.assign(roof, structuredClone(patch));
+      if (operation.points)
+        roof.edges = operation.points.map((_, index) => roof.edges[index] ? { ...roof.edges[index] } : { pitch: DEFAULT_PITCH_DEG, gable: false });
+      if (operation.pitchDeg !== undefined) for (const edge of roof.edges) edge.pitch = operation.pitchDeg;
+      if (operation.gableEdges) {
+        if (operation.gableEdges.some(index => index >= roof.points.length)) throw Error("Gable edge index exceeds the roof outline.");
+        roof.edges.forEach((edge, index) => { edge.gable = operation.gableEdges!.includes(index); });
+      }
+      change("roof", roof.id);
+    } else if (operation.kind === "set-opening") {
+      const patch = defined({ offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm, sill: operation.sillMm, tag: operation.tag, hinge: operation.hinge, swing: operation.swing });
+      requireChange(patch, "Changing an opening");
+      const opening = find("openings", operation.id, "opening");
+      Object.assign(opening, patch);
+      change("opening", opening.id);
+    } else {
+      const patch = defined({ name: operation.name, address: operation.address, designRevision: operation.designRevision, notes: operation.notes });
+      requireChange(patch, "Renaming the design");
+      // The demonstration marker is the only thing that keeps sample geometry visibly unverified; renaming never strips it.
+      if (patch.name !== undefined && /demonstration/i.test(draft.name) && !/demonstration/i.test(patch.name)) { patch.name = `${patch.name} / demonstration`; notices.push("The design name keeps its demonstration marker because it contains sample geometry."); }
+      for (const key of Object.keys(patch) as Array<keyof typeof patch>) notices.push(`Design ${key} changed from ${JSON.stringify(draft[key])} to ${JSON.stringify(patch[key])}.`);
+      Object.assign(draft, patch);
+      change("design", draft.id);
+    }
+  }
+  return { draft: validateProject(draft), changed, removed, notices };
+}
+
+export type ArchitectController = {
+  read(args: z.infer<typeof architectReadSchema>): unknown | Promise<unknown>;
+  draw(args: ArchitectDrawInput): unknown | Promise<unknown>;
+  undo(args: ArchitectRevisionInput): unknown | Promise<unknown>;
+  /** Optional so older fixtures still register; requestArchitectTool fails closed when absent. */
+  edit?(args: ArchitectEditInput): unknown | Promise<unknown>;
+};
+let active: { token: symbol; controller: ArchitectController } | null = null;
+export const hasArchitectController = () => active !== null;
+/** The mounted drafting UI owns registration, its save function and its existing undo stack. */
+export function registerArchitectController(controller: ArchitectController): () => void {
+  const token = Symbol("architect-controller");
+  active = { token, controller };
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("xray:architect-controller-ready"));
+  return () => { if (active?.token === token) active = null; };
+}
+export async function requestArchitectTool(action: "read" | "draw" | "undo" | "edit", input: unknown): Promise<unknown> {
+  const current = active;
+  if (!current) throw Error("Open Sketch → Architectural workspace before using this design tool.");
+  if (action === "read") return current.controller.read(architectReadSchema.parse(input));
+  if (action === "draw") return current.controller.draw(architectDrawSchema.parse(input));
+  if (action === "edit") {
+    if (!current.controller.edit) throw Error("The mounted Architectural workspace does not support edits.");
+    return current.controller.edit(architectEditSchema.parse(input));
+  }
+  return current.controller.undo(architectRevisionSchema.parse(input));
+}

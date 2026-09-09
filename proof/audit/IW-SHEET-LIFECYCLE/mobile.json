@@ -1,0 +1,13 @@
+[
+ ["reload"],
+ ["wait","--fn","!!document.querySelector('[data-hydration-status=ready]')"],
+ ["find","role","button","click","--name","Sheets","--exact"],
+ ["wait","--fn","document.querySelector('.sheet-manager-list>li strong')?.textContent==='Site and drainage plan'"],
+ ["eval","if(document.querySelectorAll('.sheet-manager-list>li').length!==13)throw Error('Page recovery lost after full reload');if(!document.querySelector('.source-metadata').textContent.includes('b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38'))throw Error('Original SHA changed');'Persistent name/order/recovery and original SHA verified after full reload'"],
+ ["set","viewport","390","844"],
+ ["fill",".sheet-manager input[type=search]","drainage"],
+ ["wait","--fn","document.querySelectorAll('.sheet-manager-list>li').length===1"],
+ ["eval","document.querySelector('.sheet-manager').scrollIntoView({block:'start'});if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal page overflow');for(const b of document.querySelectorAll('.sheet-manager button'))if(b.getBoundingClientRect().height<44)throw Error('Small touch target '+b.textContent);if(!document.querySelector('[aria-label=\"Move Site and drainage plan down\"]').disabled)throw Error('Reorder enabled in filtered list');'Mobile touch sizes and filtered ordering guard passed'"],
+ ["screenshot","screenshots/sheet-lifecycle/mobile.png"],
+ ["errors"]
+]

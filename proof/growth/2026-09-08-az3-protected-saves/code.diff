@@ -1,0 +1,668 @@
+diff --git a/src/studio/ProjectRecoveryNotice.tsx b/src/studio/ProjectRecoveryNotice.tsx
+index 3cea348..9c360eb 100644
+--- a/src/studio/ProjectRecoveryNotice.tsx
++++ b/src/studio/ProjectRecoveryNotice.tsx
+@@ -3,22 +3,49 @@ import { useStudio } from "./store";
+ import { FENCING_JOB_STORAGE_KEY, LEGACY_FENCING_JOB_STORAGE_KEY } from "./persistence";
+ import "./projectDetails.css";
+ 
+-/** A failed load never becomes permission to replace the unreadable project. */
++function downloadText(text: string, filename: string, type: string) {
++  const url = URL.createObjectURL(new Blob([text], { type }));
++  const link = document.createElement("a");
++  link.href = url; link.download = filename;
++  document.body.append(link); link.click(); link.remove();
++  setTimeout(() => URL.revokeObjectURL(url), 30000);
++}
++
++/**
++ * A failed load never becomes permission to replace the unreadable project, and a stale window
++ * never becomes permission to overwrite a newer revision saved by another window.
++ */
+ export function ProjectRecoveryNotice() {
+   const error = useStudio(s => s.persistenceError);
++  const stale = useStudio(s => s.projectWriteStale);
+   const [downloadError, setDownloadError] = useState("");
+   function downloadRecord() {
+     try {
+       const raw = localStorage.getItem(FENCING_JOB_STORAGE_KEY) ?? localStorage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
+       if (raw === null) throw Error("No saved project record is available to download.");
+-      const url = URL.createObjectURL(new Blob([raw], { type: "text/plain;charset=utf-8" }));
+-      const link = document.createElement("a");
+-      link.href = url; link.download = "xray-saved-project-record.txt";
+-      document.body.append(link); link.click(); link.remove();
+-      setTimeout(() => URL.revokeObjectURL(url), 30000);
++      downloadText(raw, "xray-saved-project-record.txt", "text/plain;charset=utf-8");
+       setDownloadError("");
+     } catch (failure) { setDownloadError(failure instanceof Error ? failure.message : "The saved record could not be read."); }
+   }
++  function downloadUnsavedRevision() {
++    try {
++      const job = useStudio.getState().job;
++      downloadText(JSON.stringify(job, null, 2), `xray-unsaved-project-revision-${job.revision}.json`, "application/json;charset=utf-8");
++      setDownloadError("");
++    } catch (failure) { setDownloadError(failure instanceof Error ? failure.message : "The unsaved revision could not be prepared."); }
++  }
++  if (stale) {
++    return <section className="project-details" aria-label="Project recovery" data-project-recovery="stale">
++      <div><span className="kicker">Newer revision exists</span><h2>A newer revision of this project was saved by another window</h2>
++        <p role="alert">{error ?? "Another window saved a newer revision of this project."}</p>
++        <p>Saving from this window is paused so the newer revision is not overwritten. Reload the latest revision to continue working, or download this window's unsaved revision first so nothing is lost.</p></div>
++      <button className="pill" onClick={() => void useStudio.getState().retryProjectLoad()}>Reload latest revision</button>
++      <button className="pill" onClick={downloadUnsavedRevision}>Download unsaved revision from this window</button>
++      <button className="pill" onClick={downloadRecord}>Download saved project record</button>
++      <small>Reloading replaces this window's unsaved changes with the newer saved revision. The unsaved-revision download is the project data held in this window; it is not a complete backup of drawings and photos.</small>
++      {downloadError && <p role="alert">{downloadError}</p>}
++    </section>;
++  }
+   return <section className="project-details" aria-label="Project recovery" data-project-recovery="blocked">
+     <div><span className="kicker">Saved work needs attention</span><h2>Your saved project has been preserved</h2>
+       <p role="alert">{error ?? "Project storage could not be restored safely."}</p>
+diff --git a/src/studio/persistence.test.ts b/src/studio/persistence.test.ts
+index 40a6acd..29ccf24 100644
+--- a/src/studio/persistence.test.ts
++++ b/src/studio/persistence.test.ts
+@@ -46,10 +46,75 @@ describe("project persistence", () => {
+     const job = createDefaultJob("2026-09-04T00:00:00.000Z");
+     job.name = "Boundary replacement";
+ 
+-    assert.deepEqual(saveFencingJob(job, storage), { ok: true, error: null });
++    const saved = saveFencingJob(job, storage);
++    assert.deepEqual(saved, { ok: true, error: null, raw: storage.getItem(FENCING_JOB_STORAGE_KEY) });
+     const loaded = loadFencingJob(storage);
+     assert.equal(loaded.error, null);
+     assert.deepEqual(loaded.job, job);
++    assert.equal(loaded.raw, saved.raw, "the load reports the exact bytes it parsed");
++  });
++
++  it("refuses a stale write when storage holds bytes the writer never saw and leaves them untouched", () => {
++    const storage = new MemoryStorage();
++    const mine = createDefaultJob("2026-09-04T00:00:00.000Z");
++    const first = saveFencingJob(mine, storage);
++    const expectedRaw = first.raw ?? null;
++    assert.equal(expectedRaw, storage.getItem(FENCING_JOB_STORAGE_KEY));
++
++    // Another window saved a newer revision that this writer has not loaded.
++    const other = { ...mine, name: "Other window revision", revision: mine.revision + 1 };
++    const foreign = JSON.stringify(other);
++    storage.setItem(FENCING_JOB_STORAGE_KEY, foreign);
++
++    const attempt = saveFencingJob({ ...mine, name: "Stale window edit", revision: mine.revision + 1 }, storage, { expectedRaw });
++    assert.equal(attempt.ok, false);
++    assert.equal(attempt.stale, true);
++    assert.match(attempt.error ?? "", /newer revision .* another window/i);
++    assert.match(attempt.error ?? "", /reload/i);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), foreign, "the newer bytes are byte-identical after the refused write");
++  });
++
++  it("accepts a write whose expectedRaw matches the stored bytes and returns the bytes it wrote", () => {
++    const storage = new MemoryStorage();
++    const job = createDefaultJob("2026-09-04T00:00:00.000Z");
++    const first = saveFencingJob(job, storage);
++    const next = { ...job, name: "Same window edit", revision: job.revision + 1 };
++    const saved = saveFencingJob(next, storage, { expectedRaw: first.raw ?? null });
++    assert.equal(saved.ok, true);
++    assert.equal(saved.stale, undefined);
++    assert.equal(saved.raw, storage.getItem(FENCING_JOB_STORAGE_KEY));
++    assert.equal(loadFencingJob(storage).raw, saved.raw);
++    // Tracking the returned bytes keeps the next write valid.
++    assert.equal(saveFencingJob({ ...next, revision: next.revision + 1 }, storage, { expectedRaw: saved.raw ?? null }).ok, true);
++  });
++
++  it("treats an empty slot as the expected state for a first write, and a filled slot as stale for it", () => {
++    const storage = new MemoryStorage();
++    const job = createDefaultJob("2026-09-04T00:00:00.000Z");
++    assert.equal(saveFencingJob(job, storage, { expectedRaw: null }).ok, true);
++    const stored = storage.getItem(FENCING_JOB_STORAGE_KEY);
++    const second = saveFencingJob(createDefaultJob("2026-09-04T00:00:00.000Z"), storage, { expectedRaw: null });
++    assert.equal(second.ok, false);
++    assert.equal(second.stale, true);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), stored);
++  });
++
++  it("still fails on a readback mismatch when the compare-and-swap check passed", () => {
++    const job = createDefaultJob();
++    const replaced = { getItem: () => '{"another":"record"}', setItem: () => {}, removeItem: () => {} };
++    const saved = saveFencingJob(job, replaced, { expectedRaw: '{"another":"record"}' });
++    assert.equal(saved.ok, false);
++    assert.equal(saved.stale, undefined);
++    assert.match(saved.error ?? "", /could not be verified/);
++  });
++
++  it("reports a read failure during the compare-and-swap check instead of writing blind", () => {
++    const backing = new MemoryStorage();
++    const unreadable = { getItem: () => { throw Error("Storage read denied"); }, setItem: backing.setItem.bind(backing), removeItem: backing.removeItem.bind(backing) };
++    const saved = saveFencingJob(createDefaultJob(), unreadable, { expectedRaw: null });
++    assert.equal(saved.ok, false);
++    assert.match(saved.error ?? "", /before saving.*Storage read denied/);
++    assert.equal(backing.getItem(FENCING_JOB_STORAGE_KEY), null, "nothing was written");
+   });
+ 
+   it("fails closed when stored JSON is corrupt", () => {
+@@ -80,6 +145,17 @@ describe("project persistence", () => {
+     assert.equal(loaded.error, null);
+     assert.equal(loaded.job?.schemaVersion, 2);
+     assert.equal(loaded.job?.name, legacy.name);
++    assert.equal(loaded.raw, JSON.stringify(legacy), "the legacy bytes are reported as the loaded raw");
++
++    // A writer that loaded the legacy record may save with those bytes as its expectation.
++    const saved = saveFencingJob({ ...loaded.job!, name: "Migrated edit", revision: loaded.job!.revision + 1 }, storage, { expectedRaw: loaded.raw });
++    assert.equal(saved.ok, true);
++    assert.equal(storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY), JSON.stringify(legacy), "legacy bytes stay intact");
++    assert.equal(JSON.parse(storage.getItem(FENCING_JOB_STORAGE_KEY)!).name, "Migrated edit");
++    // Once the v2 record exists, the legacy bytes are no longer the expected state.
++    const stale = saveFencingJob(loaded.job!, storage, { expectedRaw: loaded.raw });
++    assert.equal(stale.stale, true);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), saved.raw);
+   });
+ 
+   it("does not overwrite storage with an invalid job", () => {
+@@ -99,7 +175,7 @@ describe("project persistence", () => {
+     saveFencingJob(createDefaultJob(), storage);
+ 
+     assert.deepEqual(clearFencingJob(storage), { ok: true, error: null });
+-    assert.deepEqual(loadFencingJob(storage), { job: null, error: null });
++    assert.deepEqual(loadFencingJob(storage), { job: null, error: null, raw: null });
+   });
+ 
+   it("does not report success when storage silently drops or replaces a write", () => {
+diff --git a/src/studio/persistence.ts b/src/studio/persistence.ts
+index ddf1376..457638f 100644
+--- a/src/studio/persistence.ts
++++ b/src/studio/persistence.ts
+@@ -12,13 +12,31 @@ export const LEGACY_FENCING_JOB_STORAGE_KEY = "xray:fencing-job:v1";
+ export type JobLoadResult = {
+   job: FencingJob | null;
+   error: string | null;
++  /** The exact stored text this result was parsed from; null when nothing was stored. */
++  raw: string | null;
+ };
+ 
+ export type JobPersistenceResult = {
+   ok: boolean;
+   error: string | null;
++  /** True when the write was refused because storage no longer holds the bytes the writer expected. */
++  stale?: boolean;
++  /** The serialized bytes written on success, so the caller can track the stored revision. */
++  raw?: string | null;
+ };
+ 
++export type JobSaveOptions = {
++  /**
++   * Compare-and-swap guard: the exact bytes the caller last loaded or wrote (null for an empty slot).
++   * When provided and storage now holds different bytes, the write is refused so a stale
++   * window cannot silently overwrite a newer revision. Omit to skip the guard.
++   */
++  expectedRaw?: string | null;
++};
++
++export const STALE_PROJECT_WRITE_MESSAGE =
++  "A newer revision of this project was saved by another window. This window's change was not written so the newer revision is preserved. Reload the latest revision to continue, or download this window's unsaved revision first.";
++
+ type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+ 
+ function browserStorage(): StorageLike | null {
+@@ -30,27 +48,31 @@ function browserStorage(): StorageLike | null {
+   }
+ }
+ 
++/** The stored project text a load would parse: the v2 record, else the legacy record. */
++function readStoredJobText(storage: StorageLike): string | null {
++  return storage.getItem(FENCING_JOB_STORAGE_KEY) ?? storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
++}
++
+ export function loadFencingJob(storage: StorageLike | null = browserStorage()): JobLoadResult {
+-  if (!storage) return { job: null, error: null };
++  if (!storage) return { job: null, error: null, raw: null };
+ 
+   let raw: string | null;
+   try {
+-    raw =
+-      storage.getItem(FENCING_JOB_STORAGE_KEY) ?? storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
++    raw = readStoredJobText(storage);
+   } catch (error) {
+-    return { job: null, error: `Could not read the saved project: ${messageOf(error)}` };
++    return { job: null, error: `Could not read the saved project: ${messageOf(error)}`, raw: null };
+   }
+-  if (raw === null) return { job: null, error: null };
++  if (raw === null) return { job: null, error: null, raw: null };
+ 
+   let candidate: unknown;
+   try {
+     candidate = JSON.parse(raw);
+   } catch {
+-    return { job: null, error: "The saved project is not valid JSON." };
++    return { job: null, error: "The saved project is not valid JSON.", raw };
+   }
+ 
+   if (typeof candidate !== "object" || candidate === null) {
+-    return { job: null, error: "The saved project is not an object." };
++    return { job: null, error: "The saved project is not an object.", raw };
+   }
+ 
+   const version = (candidate as { schemaVersion?: unknown }).schemaVersion;
+@@ -58,19 +80,21 @@ export function loadFencingJob(storage: StorageLike | null = browserStorage()):
+     return {
+       job: null,
+       error: `Unsupported project schema version ${String(version)}; expected ${JOB_SCHEMA_VERSION}.`,
++      raw,
+     };
+   }
+ 
+   try {
+-    return { job: parseFencingJob(candidate), error: null };
++    return { job: parseFencingJob(candidate), error: null, raw };
+   } catch {
+-    return { job: null, error: "The saved project failed validation and was not loaded." };
++    return { job: null, error: "The saved project failed validation and was not loaded.", raw };
+   }
+ }
+ 
+ export function saveFencingJob(
+   job: FencingJob,
+   storage: StorageLike | null = browserStorage(),
++  options: JobSaveOptions = {},
+ ): JobPersistenceResult {
+   if (!storage) return { ok: false, error: "Browser storage is unavailable." };
+ 
+@@ -79,12 +103,23 @@ export function saveFencingJob(
+     return { ok: false, error: "The project failed validation and was not saved." };
+   }
+ 
++  if (options.expectedRaw !== undefined) {
++    // Compare-and-swap immediately before the write: never replace bytes this writer has not seen.
++    let current: string | null;
++    try {
++      current = readStoredJobText(storage);
++    } catch (error) {
++      return { ok: false, error: `Could not read the saved project before saving: ${messageOf(error)}` };
++    }
++    if (current !== options.expectedRaw) return { ok: false, stale: true, error: STALE_PROJECT_WRITE_MESSAGE };
++  }
++
+   try {
+     const serialized = JSON.stringify(parsed.data);
+     storage.setItem(FENCING_JOB_STORAGE_KEY, serialized);
+     if (storage.getItem(FENCING_JOB_STORAGE_KEY) !== serialized)
+       return { ok: false, error: "The project save could not be verified. Keep this window open and retry saving; the open work has been retained." };
+-    return { ok: true, error: null };
++    return { ok: true, error: null, raw: serialized };
+   } catch (error) {
+     return { ok: false, error: `Could not save the project: ${messageOf(error)}` };
+   }
+@@ -94,8 +129,9 @@ export function saveFencingJob(
+ export function loadOrCreateProject(fallback: FencingJob, storage: StorageLike | null = browserStorage()): JobLoadResult {
+   const loaded = loadFencingJob(storage);
+   if (loaded.job || loaded.error) return loaded;
+-  const saved = saveFencingJob(fallback, storage);
+-  if (!saved.ok) return { job: null, error: saved.error };
++  // The slot must still be empty at write time; a window that initialised first keeps its record.
++  const saved = saveFencingJob(fallback, storage, { expectedRaw: null });
++  if (!saved.ok && !saved.stale) return { job: null, error: saved.error, raw: null };
+   return loadFencingJob(storage);
+ }
+ 
+diff --git a/src/studio/projectRecoveryStore.test.ts b/src/studio/projectRecoveryStore.test.ts
+index e123e7e..e3d415a 100644
+--- a/src/studio/projectRecoveryStore.test.ts
++++ b/src/studio/projectRecoveryStore.test.ts
+@@ -15,8 +15,23 @@ const storage = {
+   },
+   removeItem(key: string) { data.delete(key); },
+ };
+-Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: storage } });
++const windowListeners: Record<string, ((event: unknown) => void)[]> = {};
++const fakeWindow = {
++  localStorage: storage,
++  addEventListener(type: string, listener: (event: unknown) => void) { (windowListeners[type] ??= []).push(listener); },
++};
++Object.defineProperty(globalThis, "window", { configurable: true, value: fakeWindow });
+ const { useStudio, resetStudioHydrationForTests } = await import("./store.ts");
++/** Simulate the browser's cross-window 'storage' event: another window already wrote the bytes. */
++function otherWindowWrites(key: string, newValue: string | null) {
++  const oldValue = data.get(key) ?? null;
++  if (newValue === null) data.delete(key); else data.set(key, newValue);
++  for (const listener of windowListeners.storage ?? []) listener({ key, newValue, oldValue, storageArea: storage });
++}
++function foreignRevisionOf(raw: string, name: string) {
++  const parsed = JSON.parse(raw);
++  return JSON.stringify({ ...parsed, name, revision: parsed.revision + 1 });
++}
+ beforeEach(() => {
+   resetStudioHydrationForTests(); useStudio.setState(useStudio.getInitialState(), true);
+   data.clear(); denyRead = false; denyWrite = false; dropWrite = false; writes = 0;
+@@ -55,19 +70,110 @@ test("read failure remains blocked, then retry restores the original identity be
+ test("quota and silent-write failures retain the in-memory edit, explicit retry persists it across reopen", async () => {
+   await useStudio.getState().hydratePersistence();
+   const before = data.get(FENCING_JOB_STORAGE_KEY), savedRevision = useStudio.getState().lastSavedJobRevision;
++  assert.equal(useStudio.getState().lastSavedJobRaw, before, "hydration tracks the bytes it loaded");
+   denyWrite = true;
+   useStudio.getState().updateJobName("Unsaved design revision");
+-  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), before);
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), before, "stored bytes are byte-identical during the quota failure");
+   assert.equal(useStudio.getState().job.name, "Unsaved design revision");
+   assert.equal(useStudio.getState().lastSavedJobRevision, savedRevision);
++  assert.equal(useStudio.getState().lastSavedJobRaw, before);
++  assert.equal(useStudio.getState().projectWriteStale, false, "a quota failure is not a stale write");
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false, "retry remains available");
+   assert.match(useStudio.getState().persistenceError ?? "", /Quota/);
+   denyWrite = false; dropWrite = true;
+   assert.equal(useStudio.getState().saveCurrentProject().ok, false);
+   assert.match(useStudio.getState().persistenceError ?? "", /verified/);
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), before, "stored bytes are byte-identical during the silent-write failure");
++  assert.equal(useStudio.getState().lastSavedJobRaw, before);
+   dropWrite = false;
+   assert.equal(useStudio.getState().saveCurrentProject().ok, true);
+   assert.equal(useStudio.getState().persistenceError, null);
++  assert.equal(useStudio.getState().lastSavedJobRaw, data.get(FENCING_JOB_STORAGE_KEY));
++  assert.equal(useStudio.getState().lastSavedJobRevision, useStudio.getState().job.revision);
+   useStudio.setState(useStudio.getInitialState(), true);
+   await useStudio.getState().hydratePersistence();
+   assert.equal(useStudio.getState().job.name, "Unsaved design revision");
+ });
++
++test("a stale window's autosave is refused, the newer stored revision survives and reload adopts it", async () => {
++  await useStudio.getState().hydratePersistence();
++  const mine = useStudio.getState().lastSavedJobRaw!;
++  assert.equal(mine, data.get(FENCING_JOB_STORAGE_KEY));
++  // Same-window simulation of another window's write: no storage event fires, only the bytes change.
++  const foreign = foreignRevisionOf(mine, "Other window revision");
++  data.set(FENCING_JOB_STORAGE_KEY, foreign);
++  const writesBefore = writes;
++
++  useStudio.getState().updateJobName("Losing window edit");
++  const state = useStudio.getState();
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), foreign, "the newer revision is byte-identical after the refused autosave");
++  assert.equal(writes, writesBefore, "no write reached storage");
++  assert.equal(state.projectWriteStale, true);
++  assert.equal(state.persistenceRecoveryBlocked, true, "autosave stops silently retrying");
++  assert.match(state.persistenceError ?? "", /newer revision .* another window/i);
++  assert.equal(state.job.name, "Losing window edit", "the in-memory revision is retained for download");
++  assert.equal(state.lastSavedJobRaw, mine, "tracking never adopts bytes it did not write");
++  assert.notEqual(state.lastSavedJobRevision, state.job.revision);
++
++  useStudio.getState().updateJobName("Second losing edit");
++  assert.equal(writes, writesBefore, "further edits do not write while stale");
++  assert.equal(useStudio.getState().saveCurrentProject().ok, false, "explicit save is refused while stale");
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), foreign);
++
++  await useStudio.getState().retryProjectLoad();
++  const reloaded = useStudio.getState();
++  assert.equal(reloaded.projectWriteStale, false);
++  assert.equal(reloaded.persistenceRecoveryBlocked, false);
++  assert.equal(reloaded.persistenceError, null);
++  assert.equal(reloaded.job.name, "Other window revision", "reload adopts the newer revision");
++  assert.equal(reloaded.lastSavedJobRaw, foreign);
++  assert.equal(reloaded.lastSavedJobRevision, JSON.parse(foreign).revision);
++
++  useStudio.getState().updateJobName("Edit after adopting the newer revision");
++  assert.equal(JSON.parse(data.get(FENCING_JOB_STORAGE_KEY)!).name, "Edit after adopting the newer revision");
++  assert.equal(useStudio.getState().lastSavedJobRaw, data.get(FENCING_JOB_STORAGE_KEY));
++  assert.equal(useStudio.getState().persistenceError, null);
++});
++
++test("a storage event from another window marks the project stale, blocks autosave and reload clears it", async () => {
++  await useStudio.getState().hydratePersistence();
++  const mine = useStudio.getState().lastSavedJobRaw!;
++  const writesBefore = writes;
++
++  // Unrelated keys and echoes of our own bytes never trip the guard.
++  otherWindowWrites("xray:something-else", "{}");
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, mine);
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
++
++  const foreign = foreignRevisionOf(mine, "Second window name");
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, foreign);
++  const state = useStudio.getState();
++  assert.equal(state.projectWriteStale, true);
++  assert.equal(state.persistenceRecoveryBlocked, true);
++  assert.match(state.persistenceError ?? "", /another window saved a newer revision/i);
++
++  useStudio.getState().updateJobName("Edit in the stale window");
++  assert.equal(writes, writesBefore, "autosave is blocked after the storage event");
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), foreign, "the other window's bytes survive untouched");
++  assert.equal(useStudio.getState().job.name, "Edit in the stale window", "the in-memory edit is retained");
++
++  await useStudio.getState().retryProjectLoad();
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
++  assert.equal(useStudio.getState().job.name, "Second window name");
++  assert.equal(useStudio.getState().lastSavedJobRaw, foreign);
++});
++
++test("storage events before hydration or after our own write are ignored", async () => {
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, JSON.stringify({ ...createDefaultJob(), name: "Pre-hydration write" }));
++  assert.equal(useStudio.getState().projectWriteStale, false, "nothing is stale before the project was loaded");
++  await useStudio.getState().hydratePersistence();
++  assert.equal(useStudio.getState().job.name, "Pre-hydration write");
++  useStudio.getState().updateJobName("Own write");
++  const own = useStudio.getState().lastSavedJobRaw!;
++  assert.equal(JSON.parse(own).name, "Own write");
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, own);
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
++});
+diff --git a/src/studio/store.ts b/src/studio/store.ts
+index 586e3b4..0363b57 100644
+--- a/src/studio/store.ts
++++ b/src/studio/store.ts
+@@ -18,7 +18,7 @@ import {
+   restoreDocumentWorkspace,
+   prepareDocumentSelection,
+ } from "./documentWorkspaces.ts";
+-import { loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
++import { FENCING_JOB_STORAGE_KEY, loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
+ import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
+ import { createBrowserPlanStore } from "./documents.ts";
+ import {
+@@ -182,6 +182,10 @@ type StudioState = {
+   persistenceHydrated: boolean;
+   persistenceRecoveryBlocked: boolean;
+   lastSavedJobRevision: number | null;
++  /** Exact bytes this window last loaded or wrote to the main job record; the compare-and-swap expectation. */
++  lastSavedJobRaw: string | null;
++  /** True once storage holds a newer revision this window never loaded; writes stay refused until reload. */
++  projectWriteStale: boolean;
+   hydrationStatus: HydrationStatus;
+   assetReadiness: RuntimeAssetReadiness;
+   quoteReadiness: QuoteReadiness;
+@@ -347,6 +351,8 @@ type StudioState = {
+   hydratePersistence: () => Promise<void>;
+   retryProjectLoad: () => Promise<void>;
+   saveCurrentProject: () => JobPersistenceResult;
++  /** Another window changed the stored main job record; returns true when this window became stale. */
++  noteExternalProjectWrite: (newValue: string | null) => boolean;
+ };
+ 
+ function uid() {
+@@ -804,6 +810,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+   persistenceHydrated: false,
+   persistenceRecoveryBlocked: true,
+   lastSavedJobRevision: null,
++  lastSavedJobRaw: null,
++  projectWriteStale: false,
+   hydrationStatus: "idle",
+   assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
+   quoteReadiness: readiness(initialJob, EMPTY_RUNTIME_ASSET_READINESS, false),
+@@ -2199,14 +2207,34 @@ export const useStudio = create<StudioState>((set, get) => ({
+     const state = get();
+     if (!state.persistenceHydrated || state.persistenceRecoveryBlocked || state.hydrationStatus !== "ready")
+       return { ok: false, error: "Saved project recovery must finish before saving. Existing records have been preserved." };
+-    const result = saveFencingJob(state.job);
+-    set({ persistenceError: result.error, ...(result.ok ? { lastSavedJobRevision: state.job.revision } : {}) });
++    // Compare-and-swap against the bytes this window last loaded or wrote (null for a slot it created).
++    const result = saveFencingJob(state.job, undefined, { expectedRaw: state.lastSavedJobRaw });
++    if (result.ok) {
++      set({ persistenceError: null, lastSavedJobRevision: state.job.revision, lastSavedJobRaw: result.raw ?? null });
++    } else if (result.stale) {
++      // Stop autosave retries: the in-memory revision is kept for download, storage keeps the newer one.
++      set({ persistenceError: result.error, projectWriteStale: true, persistenceRecoveryBlocked: true });
++    } else {
++      set({ persistenceError: result.error });
++    }
+     return result;
+   },
++  noteExternalProjectWrite: (newValue) => {
++    const state = get();
++    if (!state.persistenceHydrated || state.hydrationStatus !== "ready" || state.persistenceRecoveryBlocked) return false;
++    if (newValue === state.lastSavedJobRaw) return false;
++    set({
++      projectWriteStale: true,
++      persistenceRecoveryBlocked: true,
++      persistenceError:
++        "Another window saved a newer revision of this project. Saving from this window is paused so the newer revision is not overwritten. Reload the latest revision to continue, or download this window's unsaved revision first.",
++    });
++    return true;
++  },
+   hydratePersistence: () => {
+     if (get().persistenceHydrated) return Promise.resolve();
+     if (hydrationFlight) return hydrationFlight;
+-    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null });
++    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null, lastSavedJobRaw: null });
+     hydrationFlight = (async () => {
+       await Promise.resolve();
+       const staleUrls = get().photoPreviewUrls;
+@@ -2375,6 +2403,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+         hydrationStatus: "ready",
+         persistenceRecoveryBlocked: false,
+         lastSavedJobRevision: job.revision,
++        lastSavedJobRaw: loaded.raw,
++        projectWriteStale: false,
+       });
+     })()
+       .catch((error) => {
+@@ -2420,6 +2450,15 @@ if (typeof window !== "undefined") {
+     if (state.job === previous.job || !state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
+     state.saveCurrentProject();
+   });
++  // Cross-window detection: 'storage' fires only in other windows, so same-window writes rely on the
++  // compare-and-swap inside saveCurrentProject instead.
++  if (typeof window.addEventListener === "function") {
++    window.addEventListener("storage", (event: StorageEvent) => {
++      if (event.key !== FENCING_JOB_STORAGE_KEY) return;
++      if (event.storageArea && event.storageArea !== window.localStorage) return;
++      useStudio.getState().noteExternalProjectWrite(event.newValue);
++    });
++  }
+   useStudio.subscribe((state, previous) => {
+     if (!state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
+     if (state.bomState === previous.bomState && previous.persistenceHydrated) return;
+diff --git a/proof/growth/2026-09-08-az3-protected-saves/scenario-1-same-window-stale.json b/proof/growth/2026-09-08-az3-protected-saves/scenario-1-same-window-stale.json
+new file mode 100644
+index 0000000..7649aaf
+--- /dev/null
++++ b/proof/growth/2026-09-08-az3-protected-saves/scenario-1-same-window-stale.json
+@@ -0,0 +1,32 @@
++[
++  ["open", "http://127.0.0.1:8080/"],
++  ["set", "viewport", "1280", "800"],
++  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=\"ready\"]')"],
++  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('[aria-label=\"Current project\"] h2') && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["eval", "(()=>{const raw=localStorage.getItem('xray:fencing-job:v2');if(!raw)throw Error('No stored job');sessionStorage.setItem('az3:original',raw);return {name:JSON.parse(raw).name,revision:JSON.parse(raw).revision,bytes:raw.length}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s1-01-before-desktop.png"],
++  ["find", "role", "button", "click", "--name", "Rename project", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('.project-details input')"],
++  ["fill", ".project-details input", "Rename attempt in stale window"],
++  ["eval", "(()=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));j.name='Other window revision';j.revision+=1;const raw=JSON.stringify(j);localStorage.setItem('xray:fencing-job:v2',raw);sessionStorage.setItem('az3:foreign',raw);if(localStorage.getItem('xray:fencing-job:v2')!==raw)throw Error('Foreign write did not land');return {foreignRevision:j.revision,bytes:raw.length}})()"],
++  ["find", "role", "button", "click", "--name", "Save project name", "--exact"],
++  ["wait", "--fn", "[...document.querySelectorAll('[aria-label=\"Current project\"] [role=alert]')].some(p=>/changed while you edited/i.test(p.textContent))"],
++  ["eval", "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),foreign=sessionStorage.getItem('az3:foreign');if(stored!==foreign)throw Error('Rename overwrote the foreign revision');const h2=document.querySelector('[aria-label=\"Current project\"] h2').textContent;if(h2==='Rename attempt in stale window')throw Error('Rename applied despite newer stored revision');if(document.querySelector('[data-project-recovery]'))throw Error('Unexpected recovery notice at rename-guard stage');return {renameGuard:'refused-before-store-write',storedEqualsForeign:true,visibleName:h2}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s1-02-rename-guard-desktop.png"],
++  ["find", "role", "button", "click", "--name", "Cancel name edit", "--exact"],
++  ["find", "role", "button", "click", "--name", "Components", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('input[placeholder=\"Add trade or specification note\"]')"],
++  ["fill", "input[placeholder=\"Add trade or specification note\"]", "Stale window note"],
++  ["find", "role", "button", "click", "--name", "Add note", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('[data-project-recovery=\"stale\"]')"],
++  ["eval", "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),foreign=sessionStorage.getItem('az3:foreign');if(stored!==foreign)throw Error('Autosave overwrote the foreign revision: stored bytes differ');const root=document.querySelector('[data-project-recovery=\"stale\"]');const alert=root.querySelector('[role=alert]').textContent;if(!/newer revision/i.test(alert)||!/another window/i.test(alert))throw Error('Stale message missing: '+alert);const names=[...root.querySelectorAll('button')].map(b=>b.textContent);for(const n of ['Reload latest revision','Download unsaved revision from this window','Download saved project record'])if(!names.includes(n))throw Error('Missing button '+n);const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,width:Math.round(r.width),height:Math.round(r.height)}});if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');return {storedEqualsForeign:true,storedBytes:stored.length,alert,buttons:rs,viewport:[innerWidth,innerHeight]}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s1-03-stale-notice-desktop.png"],
++  ["find", "role", "button", "click", "--name", "Reload latest revision", "--exact"],
++  ["wait", "--fn", "!document.querySelector('[data-project-recovery]') && !!document.querySelector('[data-hydration-status=\"ready\"]')"],
++  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
++  ["wait", "--fn", "document.querySelector('[aria-label=\"Current project\"] h2')?.textContent==='Other window revision' && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["eval", "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),foreign=sessionStorage.getItem('az3:foreign');if(stored!==foreign)throw Error('Reload changed the stored bytes');const status=document.querySelector('[data-project-record-save=saved]').textContent;const rev=JSON.parse(stored).revision;if(!status.includes('revision '+rev))throw Error('Saved status does not show adopted revision: '+status);return {visibleName:document.querySelector('[aria-label=\"Current project\"] h2').textContent,status,storedEqualsForeign:true}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s1-04-reloaded-desktop.png"],
++  ["errors"]
++]
+diff --git a/proof/growth/2026-09-08-az3-protected-saves/scenario-2-two-tabs-storage-event.json b/proof/growth/2026-09-08-az3-protected-saves/scenario-2-two-tabs-storage-event.json
+new file mode 100644
+index 0000000..fac0e82
+--- /dev/null
++++ b/proof/growth/2026-09-08-az3-protected-saves/scenario-2-two-tabs-storage-event.json
+@@ -0,0 +1,30 @@
++[
++  ["open", "http://127.0.0.1:8080/"],
++  ["set", "viewport", "1280", "800"],
++  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=\"ready\"]')"],
++  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('[aria-label=\"Current project\"] h2') && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["eval", "(()=>{const raw=localStorage.getItem('xray:fencing-job:v2');sessionStorage.setItem('az3:t1-loaded',raw);return {t1Name:JSON.parse(raw).name,t1Revision:JSON.parse(raw).revision}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s2-01-t1-before-desktop.png"],
++  ["tab", "new", "http://127.0.0.1:8080/"],
++  ["set", "viewport", "1280", "800"],
++  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=\"ready\"]')"],
++  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('[aria-label=\"Current project\"] h2') && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["find", "role", "button", "click", "--name", "Rename project", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('.project-details input')"],
++  ["fill", ".project-details input", "Second window name"],
++  ["find", "role", "button", "click", "--name", "Save project name", "--exact"],
++  ["wait", "--fn", "document.querySelector('[aria-label=\"Current project\"] h2')?.textContent==='Second window name' && !!document.querySelector('[data-project-record-save=saved]') && [...document.querySelectorAll('[aria-label=\"Current project\"] [role=status]')].some(p=>/Project name saved/.test(p.textContent))"],
++  ["eval", "(()=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(j.name!=='Second window name')throw Error('t2 rename not stored');return {t2StoredName:j.name,t2Revision:j.revision,status:document.querySelector('[data-project-record-save=saved]').textContent}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s2-02-t2-renamed-desktop.png"],
++  ["tab", "t1"],
++  ["wait", "--fn", "!!document.querySelector('[data-project-recovery=\"stale\"]')"],
++  ["eval", "(()=>{const root=document.querySelector('[data-project-recovery=\"stale\"]');const alert=root.querySelector('[role=alert]').textContent;if(!/another window saved a newer revision/i.test(alert))throw Error('Storage-event message missing: '+alert);const stored=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(stored.name!=='Second window name')throw Error('t1 storage does not hold t2 revision');if(document.querySelector('[aria-label=\"Current project\"]'))throw Error('Editing UI still mounted while stale');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,width:Math.round(r.width),height:Math.round(r.height)}});if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');return {alert,storedName:stored.name,storedRevision:stored.revision,buttons:rs}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s2-03-t1-stale-desktop.png"],
++  ["find", "role", "button", "click", "--name", "Reload latest revision", "--exact"],
++  ["wait", "--fn", "!document.querySelector('[data-project-recovery]') && document.querySelector('[aria-label=\"Current project\"] h2')?.textContent==='Second window name' && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["eval", "(()=>{const stored=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));const status=document.querySelector('[data-project-record-save=saved]').textContent;if(!status.includes('revision '+stored.revision))throw Error('Status revision mismatch: '+status);return {t1VisibleName:document.querySelector('[aria-label=\"Current project\"] h2').textContent,status}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s2-04-t1-reloaded-desktop.png"],
++  ["errors"]
++]
+diff --git a/proof/growth/2026-09-08-az3-protected-saves/scenario-3-quota-tablet.json b/proof/growth/2026-09-08-az3-protected-saves/scenario-3-quota-tablet.json
+new file mode 100644
+index 0000000..7a134f0
+--- /dev/null
++++ b/proof/growth/2026-09-08-az3-protected-saves/scenario-3-quota-tablet.json
+@@ -0,0 +1,24 @@
++[
++  ["open", "http://127.0.0.1:8080/"],
++  ["set", "viewport", "1024", "768"],
++  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=\"ready\"]')"],
++  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('[aria-label=\"Current project\"] h2') && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["eval", "(()=>{const raw=localStorage.getItem('xray:fencing-job:v2');if(!raw)throw Error('No stored job');sessionStorage.setItem('az3:before',raw);return {name:JSON.parse(raw).name,revision:JSON.parse(raw).revision,bytes:raw.length}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s3-01-before-tablet.png"],
++  ["find", "role", "button", "click", "--name", "Rename project", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('.project-details input')"],
++  ["fill", ".project-details input", "Quota retry name"],
++  ["eval", "window.__az3Set=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(this===localStorage&&k==='xray:fencing-job:v2')throw new DOMException('Injected quota failure','QuotaExceededError');return window.__az3Set.call(this,k,v)};'quota-injected'"],
++  ["find", "role", "button", "click", "--name", "Save project name", "--exact"],
++  ["wait", "--fn", "!!document.querySelector('[data-project-save=unsaved]')"],
++  ["eval", "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),before=sessionStorage.getItem('az3:before');if(stored!==before)throw Error('Stored bytes changed during the quota failure');const h2=document.querySelector('[aria-label=\"Current project\"] h2').textContent;if(h2!=='Quota retry name')throw Error('In-memory edit lost: '+h2);if(document.querySelector('[data-project-record-save=saved]'))throw Error('False saved claim');const unconfirmed=document.querySelector('[data-project-record-save=unconfirmed]');if(!unconfirmed||!/not confirmed/i.test(unconfirmed.textContent))throw Error('Unconfirmed status missing');const root=document.querySelector('[data-project-save=unsaved]');const alert=root.querySelector('[role=alert]').textContent;if(!/quota/i.test(alert))throw Error('Quota message missing: '+alert);if(document.querySelector('[data-project-recovery]'))throw Error('Quota failure must not be reported as stale');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,width:Math.round(r.width),height:Math.round(r.height)}});if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');return {storedEqualsBefore:true,visibleName:h2,alert,buttons:rs,viewport:[innerWidth,innerHeight]}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s3-02-quota-unsaved-tablet.png"],
++  ["eval", "Storage.prototype.setItem=window.__az3Set;delete window.__az3Set;'quota-restored'"],
++  ["find", "role", "button", "click", "--name", "Retry saving project", "--exact"],
++  ["wait", "--fn", "!document.querySelector('[data-project-save=unsaved]') && !!document.querySelector('[data-project-record-save=saved]')"],
++  ["find", "role", "button", "click", "--name", "Cancel name edit", "--exact"],
++  ["eval", "(()=>{const stored=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(stored.name!=='Quota retry name')throw Error('Retry did not persist the edit');const status=document.querySelector('[data-project-record-save=saved]').textContent;if(!status.includes('revision '+stored.revision))throw Error('Saved status revision mismatch: '+status);const before=JSON.parse(sessionStorage.getItem('az3:before'));if(stored.revision<=before.revision)throw Error('Revision did not advance');return {storedName:stored.name,storedRevision:stored.revision,previousRevision:before.revision,status}})()"],
++  ["screenshot", "screenshots/growth/2026-09-08-az3-protected-saves/s3-03-quota-recovered-tablet.png"],
++  ["errors"]
++]
+diff --git a/proof/growth/2026-09-08-az3-protected-saves/diagnose-open.json b/proof/growth/2026-09-08-az3-protected-saves/diagnose-open.json
+new file mode 100644
+index 0000000..6d995fa
+--- /dev/null
++++ b/proof/growth/2026-09-08-az3-protected-saves/diagnose-open.json
+@@ -0,0 +1,8 @@
++[
++  ["open", "http://127.0.0.1:8080/"],
++  ["eval", "({url:location.href,title:document.title,hydration:document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')??null,ready:document.readyState})"],
++  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=\"ready\"]')"],
++  ["eval", "({hydration:document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status'),panes:[...document.querySelectorAll('nav[aria-label=\"Panes\"] button')].map(b=>b.textContent)})"],
++  ["console"],
++  ["errors"]
++]

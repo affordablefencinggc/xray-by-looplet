@@ -1,0 +1,105 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "set",
+    "viewport",
+    "1280",
+    "800"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+  ],
+  [
+    "eval",
+    "var job = JSON.parse(localStorage.getItem('xray:fencing-job:v2') || 'null'); if (!job || typeof job.id !== 'string' || !job.id) throw Error('no hydrated project record at xray:fencing-job:v2'); var key = 'xray:price-books:v1:' + encodeURIComponent(job.id); var previous = localStorage.getItem(key); var seed = \"{\\\"schema\\\":\\\"xray.price-books/v1\\\",\\\"jobId\\\":\\\"__JOB_ID__\\\",\\\"revision\\\":1,\\\"books\\\":[{\\\"id\\\":\\\"__BOOK_ID__\\\",\\\"name\\\":\\\"Seeded QA price book\\\",\\\"archived\\\":false,\\\"revisions\\\":[{\\\"metadata\\\":{\\\"supplier\\\":\\\"Seeded Timber Supplies\\\",\\\"currency\\\":\\\"AUD\\\",\\\"amountDecimals\\\":2,\\\"taxBasis\\\":\\\"exclusive\\\",\\\"taxPercent\\\":10,\\\"effectiveDate\\\":\\\"2026-09-01\\\",\\\"sourceReference\\\":\\\"QA seed fixture proof/growth/2026-09-08-az3-pricing-research/seed-price-book.fixture.json\\\"},\\\"source\\\":{\\\"fileName\\\":\\\"seed-price-sheet.csv\\\",\\\"sha256\\\":\\\"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\\\",\\\"sizeBytes\\\":128,\\\"delimiter\\\":\\\",\\\",\\\"kind\\\":\\\"csv\\\",\\\"headerRow\\\":1,\\\"headers\\\":[\\\"Stock code\\\",\\\"Description\\\",\\\"Unit\\\",\\\"Rate\\\"],\\\"mapping\\\":{\\\"stockCode\\\":0,\\\"description\\\":1,\\\"unit\\\":2,\\\"rate\\\":3}},\\\"rows\\\":[{\\\"sourceLine\\\":2,\\\"stockCode\\\":\\\"MGP10-90x45-4800\\\",\\\"description\\\":\\\"90x45 MGP10 treated pine 4.8 m\\\",\\\"unit\\\":\\\"length\\\",\\\"rate\\\":21.85},{\\\"sourceLine\\\":3,\\\"stockCode\\\":\\\"MGP10-70x35-4800\\\",\\\"description\\\":\\\"70x35 MGP10 treated pine 4.8 m\\\",\\\"unit\\\":\\\"length\\\",\\\"rate\\\":12.4}],\\\"revision\\\":1,\\\"importedAt\\\":\\\"2026-09-08T12:00:00.000Z\\\"}]}],\\\"worksheet\\\":[]}\"; var library = JSON.parse(seed); library.jobId = job.id; library.books[0].id = crypto.randomUUID(); var raw = JSON.stringify(library); localStorage.setItem(key, raw); if (localStorage.getItem(key) !== raw) throw Error('seed write could not be verified'); window.__seedKey = key; window.__seedBookId = library.books[0].id; 'seeded ' + key + ' (' + raw.length + ' chars, books=' + library.books.length + ', rows=' + library.books[0].revisions[0].rows.length + '); previous record: ' + (previous === null ? 'none' : previous.length + ' chars replaced')"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+  ],
+  [
+    "eval",
+    "var job = JSON.parse(localStorage.getItem('xray:fencing-job:v2')); var key = 'xray:price-books:v1:' + encodeURIComponent(job.id); var raw = localStorage.getItem(key); if (raw === null) throw Error('seeded price book record missing after reload at ' + key); if (document.querySelector('section[aria-label=\"Supplier product research\"]')) throw Error('research section must not exist before the Cost pane opens'); window.__fetchLog = []; var original = window.fetch; window.fetch = function (input, init) { var url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input); if (url.includes('/api/pricing-research')) window.__fetchLog.push({ method: ((init && init.method) || (input instanceof Request ? input.method : 'GET')).toUpperCase(), url, signal: init && init.signal }); return original.apply(this, arguments); }; window.__fetchSummary = () => window.__fetchLog.map(e => e.method + ' ' + e.url + (e.signal && e.signal.aborted ? ' (aborted by StrictMode dev double-mount cleanup)' : ' (sent)')); 'after reload: project ' + job.id + ' has price book record ' + key + ' (' + raw.length + ' chars); fetch instrumented before Cost pane; log=' + JSON.stringify(window.__fetchSummary())"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Cost",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('section[aria-label=\"Supplier product research\"]')?.dataset.researchStatus === 'not-configured'"
+  ],
+  [
+    "eval",
+    "var live = window.__fetchLog.filter(e => !(e.signal && e.signal.aborted)); if (live.length !== 1 || live[0].method !== 'GET' || window.__fetchLog.some(e => e.method === 'POST')) throw Error('expected exactly one sent status GET and no POST before any search, saw ' + JSON.stringify(window.__fetchSummary())); var section = document.querySelector('section[aria-label=\"Supplier product research\"]'); if (section.dataset.researchState !== 'idle') throw Error('state ' + section.dataset.researchState); var search = [...section.querySelectorAll('button')].find(b => b.textContent.includes('Search supplier products')); if (!search || !search.disabled) throw Error('Search button must be disabled while the query is empty'); var status = section.querySelector('[data-research-status-message]').textContent; if (!status.includes('not configured') || !status.includes('FIRECRAWL_API_KEY')) throw Error('status text: ' + status); if (document.querySelector('.price-books > p.price-notice[role=\"alert\"]')) throw Error('price book library reported a load error: ' + document.querySelector('.price-books > p.price-notice[role=\"alert\"]').textContent); window.__libraryBefore = [...document.querySelectorAll('.price-tabs button')].map(b => b.textContent).join('|'); if (!window.__libraryBefore.startsWith('Library (1)')) throw Error('library tab must show the seeded book: ' + window.__libraryBefore); var card = document.querySelector('.price-books .price-book-card h3'); if (!card || card.textContent !== 'Seeded QA price book') throw Error('seeded book card not rendered: ' + (card && card.textContent)); window.__cardBefore = card.closest('.price-book-card').textContent; window.__pbBefore = JSON.stringify(Object.keys(localStorage).filter(k => k.startsWith('xray:price-books:')).sort().map(k => [k, localStorage.getItem(k)])); var entries = JSON.parse(window.__pbBefore); if (entries.length < 1) throw Error('price book snapshot is empty; retention comparison would be vacuous'); var stored = JSON.parse(entries[0][1]); if (stored.books.length !== 1 || stored.books[0].revisions[0].rows.length !== 2) throw Error('stored record shape unexpected'); card.scrollIntoView({ block: 'start' }); 'pricing-research fetches=' + JSON.stringify(window.__fetchSummary()) + '; state=' + section.dataset.researchState + '; price-book keys=' + entries.length + ' (' + entries[0][0] + ', ' + entries[0][1].length + ' chars, books=' + stored.books.length + ', rows=' + stored.books[0].revisions[0].rows.length + '); tabs=' + window.__libraryBefore + '; card=' + card.textContent"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-az3-pricing-research/v2-desktop-seeded-library.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('section[aria-label=\"Supplier product research\"]').scrollIntoView({ block: 'start' }); 'research section scrolled into view'"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-az3-pricing-research/v2-desktop-not-configured.png"
+  ],
+  [
+    "fill",
+    "#pricing-research-query",
+    "90x45 MGP10 treated pine"
+  ],
+  [
+    "eval",
+    "var search = [...document.querySelectorAll('section[aria-label=\"Supplier product research\"] button')].find(b => b.textContent.includes('Search supplier products')); if (search.disabled) throw Error('Search button should enable once the query is filled'); 'search enabled for query: ' + document.querySelector('#pricing-research-query').value"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Search supplier products",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-failure-code=\"not-configured\"]')?.dataset.failureHttp === '503'"
+  ],
+  [
+    "eval",
+    "var section = document.querySelector('section[aria-label=\"Supplier product research\"]'); var after = JSON.stringify(Object.keys(localStorage).filter(k => k.startsWith('xray:price-books:')).sort().map(k => [k, localStorage.getItem(k)])); var beforeEntries = JSON.parse(window.__pbBefore); if (beforeEntries.length < 1) throw Error('before snapshot empty'); if (after !== window.__pbBefore) throw Error('price book localStorage changed during research'); var stored = JSON.parse(JSON.parse(after)[0][1]); if (stored.books[0].name !== 'Seeded QA price book' || stored.books[0].revisions[0].rows.length !== 2 || stored.books[0].revisions[0].rows[0].rate !== 21.85) throw Error('seeded record content changed'); var tabs = [...document.querySelectorAll('.price-tabs button')].map(b => b.textContent).join('|'); if (tabs !== window.__libraryBefore) throw Error('price book library tabs changed: ' + tabs); var card = document.querySelector('.price-books .price-book-card'); if (!card || card.textContent !== window.__cardBefore) throw Error('seeded book card changed after the failed search'); var posts = window.__fetchLog.filter(e => e.method === 'POST'); var live = window.__fetchLog.filter(e => !(e.signal && e.signal.aborted)); if (posts.length !== 1 || live.length !== 2 || live[0].method !== 'GET' || live[1].method !== 'POST') throw Error('expected one sent status GET plus exactly one search POST, saw ' + JSON.stringify(window.__fetchSummary())); if (section.dataset.researchState !== 'failure') throw Error('state ' + section.dataset.researchState); var failure = section.querySelector('[data-failure-code=\"not-configured\"]'); if (failure.getAttribute('role') !== 'alert') throw Error('failure must be role=alert'); var text = failure.textContent; if (!text.includes('HTTP 503') || !text.includes('FIRECRAWL_API_KEY') || !text.includes('Existing price books are unchanged')) throw Error('failure text: ' + text); var retry = [...failure.querySelectorAll('button')].find(b => b.textContent.includes('Try again')); if (!retry || retry.disabled) throw Error('Try again must be available for an explicit retry'); if (section.querySelector('a[target=\"_blank\"]')) throw Error('no links may render on failure'); failure.scrollIntoView({ block: 'center' }); 'failure rendered (' + failure.dataset.failureCode + ', HTTP ' + failure.dataset.failureHttp + '); price-book keys=' + beforeEntries.length + ' before and ' + JSON.parse(after).length + ' after, raw bytes identical (' + after.length + ' chars snapshot), seeded book name/rows/rate intact, library tabs and card text identical; fetches=' + JSON.stringify(window.__fetchSummary()) + '; text=' + text.slice(0, 160)"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-az3-pricing-research/v2-desktop-not-configured-failure.png"
+  ],
+  [
+    "eval",
+    "var section = document.querySelector('section[aria-label=\"Supplier product research\"]'); var job = JSON.parse(localStorage.getItem('xray:fencing-job:v2')); var key = 'xray:price-books:v1:' + encodeURIComponent(job.id); var raw = localStorage.getItem(key); var library = JSON.parse(raw); var card = document.querySelector('.price-books .price-book-card'); card.scrollIntoView({ block: 'start' }); 'post-failure: ' + key + ' still holds ' + raw.length + ' chars, revision ' + library.revision + ', ' + library.books.length + ' book(s), worksheet ' + library.worksheet.length + '; card heading ' + card.querySelector('h3').textContent + '; research state ' + section.dataset.researchState"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-az3-pricing-research/v2-desktop-seeded-library-after-failure.png"
+  ],
+  [
+    "errors"
+  ]
+]

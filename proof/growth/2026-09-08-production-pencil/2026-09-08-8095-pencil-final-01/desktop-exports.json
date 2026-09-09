@@ -1,0 +1,173 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8095/"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "900"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.body.textContent.includes('Build 71f5b012342b'))throw Error('Wrong production artifact');return {build:'71f5b012342b',origin:location.origin};})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Model",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.building-workspace')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Crown Wharf A4 tower",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-center-column')?.textContent.includes('Crown Wharf') && Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Explore & Draw')&&!b.disabled)"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Explore & Draw 3D Model",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount)>2"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Magic Pencil",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-testid=draftsman-dock]') && !!window.__magicPencil"
+  ],
+  [
+    "eval",
+    "(()=>{const pause=Array.from(document.querySelectorAll('button')).find(b=>b.getAttribute('aria-label')==='Pause drawing');if(pause)pause.click();if(window.__magicPencil.getStatus().cinematicOrbit)window.__magicPencil.toggleCinematicOrbit();return window.__magicPencil.getStatus();})()"
+  ],
+  [
+    "eval",
+    "(()=>{if(window.__productionPencil)throw Error('Proof monitor already installed');const state=window.__productionPencil={tag:\"2026-09-08-8095-pencil-final-01\",downloads:[],errors:[],originalClick:HTMLAnchorElement.prototype.click};state.onError=e=>state.errors.push(String(e.message||e.reason));addEventListener('error',state.onError);addEventListener('unhandledrejection',state.onError);HTMLAnchorElement.prototype.click=function(){if(this.download&&/\\.(png|pdf)$/i.test(this.download)){const ext=this.download.split('.').pop().toLowerCase();const filename=state.tag+'-'+String(state.downloads.length+1).padStart(2,'0')+'.'+ext;state.downloads.push({filename,originalName:this.download,requestedAt:new Date().toISOString()});this.download=filename;}return state.originalClick.call(this);};return {tag:state.tag,origin:location.origin,sourceSha256:document.querySelector('.building-canvas canvas').dataset.sourceSha256};})()"
+  ],
+  [
+    "find",
+    "role",
+    "tab",
+    "click",
+    "--name",
+    "2. Wireframe Ascend",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.building-canvas canvas').dataset.drawPhase==='ascending_wireframe'"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-8095-pencil-final-01-production-wireframe.png"
+  ],
+  [
+    "eval",
+    "(()=>{const s=window.__productionPencil,c=document.querySelector('.building-canvas canvas'),buttons=Array.from(document.querySelectorAll('[data-testid=draftsman-dock] button'));const finish=buttons.find(b=>b.textContent.trim()==='Solid Finish'),png=buttons.find(b=>b.textContent.trim()==='Blueprint');if(!finish||!png)throw Error('Export actions absent');const before=Number(c.dataset.frameCount);finish.click();png.click();s.rapid={before,after:Number(c.dataset.frameCount),phase:c.dataset.drawPhase,visible:c.dataset.drawVisibleMeshes,total:c.dataset.drawTotalMeshes};if(s.rapid.after!==before)throw Error('Rapid test unexpectedly yielded to a frame');if(s.rapid.phase!=='complete')throw Error('Solid Finish was not applied');if(s.rapid.visible!==s.rapid.total)throw Error('Finish leaves meshes hidden');if(s.downloads.length!==1||!s.downloads[0].filename.endsWith('.png'))throw Error('Rapid PNG not requested');return s.rapid;})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.building-canvas canvas').dataset.frameCount)>window.__productionPencil.rapid.after"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-8095-pencil-final-01-production-solid-after-rapid-export.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Blueprint",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__productionPencil.downloads.length===2"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Model sheets PDF",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__productionPencil.downloads.length===3 && !Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Preparing PDF'))"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-8095-pencil-final-01-production-pdf-requested.png"
+  ],
+  [
+    "eval",
+    "(()=>{const s=window.__productionPencil;if(!s)return 'No monitor';HTMLAnchorElement.prototype.click=s.originalClick;removeEventListener('error',s.onError);removeEventListener('unhandledrejection',s.onError);if(s.errors.length)throw Error(JSON.stringify(s.errors));return {downloads:s.downloads,rapid:s.rapid,errors:s.errors};})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Close Draftsman mode",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!document.querySelector('[data-testid=draftsman-dock]') && !window.__magicPencil"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/2026-09-08-8095-pencil-final-01-production-restored.png"
+  ],
+  [
+    "errors"
+  ]
+]

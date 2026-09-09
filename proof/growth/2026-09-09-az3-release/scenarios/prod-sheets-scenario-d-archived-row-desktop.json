@@ -1,0 +1,21 @@
+[
+ ["set","viewport","1280","800"],
+ ["open","http://127.0.0.1:8096/"],
+ ["wait","--fn","!!document.querySelector('[data-hydration-status=\"ready\"]')"],
+ ["find","role","button","click","--name","Sheets","--exact"],
+ ["wait","--fn","!!document.querySelector('[aria-label=\"Archive Ground floor plan\"]')&&[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)')"],
+ ["eval","var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));var doc=job.documents.find(d=>d.id===job.activeDocumentId);var key='xray.sheet-lifecycle.v1:'+JSON.stringify([job.id,doc.id,doc.sha256,doc.importedAt,doc.pageCount]);sessionStorage.setItem('az3.key',key);var life=JSON.parse(localStorage.getItem(key));sessionStorage.setItem('az3.order',JSON.stringify(life.pages.map(p=>p.pageIndex)));'Before: order '+sessionStorage.getItem('az3.order')"],
+ ["find","role","button","click","--name","Archive Ground floor plan","--exact"],
+ ["wait","--fn","!!document.querySelector('.sheet-archive-review')"],
+ ["eval","document.querySelector('.sheet-archive-review').scrollIntoView({block:'center'});'Review scrolled clear of the floating assistant dock'"],
+ ["find","role","button","click","--name","Confirm archive","--exact"],
+ ["wait","--fn","[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (12)')"],
+ ["find","role","button","click","--name","Archived (1)","--exact"],
+ ["wait","--fn","document.querySelectorAll('.sheet-manager-list>li').length===1&&!!document.querySelector('[aria-label=\"Recover Ground floor plan\"]')"],
+ ["eval","var row=document.querySelector('.sheet-manager-list>li');row.scrollIntoView({block:'center'});var r=document.querySelector('[aria-label=\"Recover Ground floor plan\"]').getBoundingClientRect();if(r.width<44||r.height<44)throw Error('Recover small');if(!row.textContent.includes('Original page 2')||!row.textContent.includes('1 saved views'))throw Error('Archived row text: '+row.textContent);'Archived row visible: '+row.textContent.trim().replace(/\\s+/g,' ')+' | Recover '+Math.round(r.width)+'x'+Math.round(r.height)"],
+ ["screenshot","screenshots/growth/2026-09-09-az3-release/prod-sheets-D1-archived-row-desktop.png"],
+ ["find","role","button","click","--name","Recover Ground floor plan","--exact"],
+ ["wait","--fn","[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)')"],
+ ["eval","var life=JSON.parse(localStorage.getItem(sessionStorage.getItem('az3.key')));if(JSON.stringify(life.pages.map(p=>p.pageIndex))!==sessionStorage.getItem('az3.order'))throw Error('Order changed');var page=life.pages.find(p=>p.pageIndex===1);if(page.archived||page.name!=='Ground floor plan'||page.bookmarks.length!==1)throw Error('Recover lost metadata');if(!document.querySelector('[aria-label=\"Open source page 2\"]'))throw Error('Navigation missing page 2');'Recovered again: order '+JSON.stringify(life.pages.map(p=>p.pageIndex))+' revision '+life.revision"],
+ ["errors"]
+]

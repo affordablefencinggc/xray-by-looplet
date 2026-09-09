@@ -1,0 +1,134 @@
+[
+ [
+  "open",
+  "http://127.0.0.1:8091/",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "set",
+  "viewport",
+  "1280",
+  "800"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sketch",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('nav[aria-label=\"Sketch workspaces\"]')"
+ ],
+ [
+  "eval",
+  "(()=>{[...document.querySelectorAll('nav[aria-label=\"Sketch workspaces\"] button')].find(b=>b.textContent.trim()==='Architectural workspace').click();return 'opened'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.architect-workspace[data-design-revision]')"
+ ],
+ [
+  "eval",
+  "(()=>{window.confirm=()=>true;return 'confirm auto-accepted'})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Load demonstration",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelectorAll('.architect-plan [data-entity-id]').length>4"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-assistant-surface/desktop-visual-01-before.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Assistant mode",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.documentElement.getAttribute('data-assistant-rail')==='true'&&!!document.querySelector('.live-assistant-panel')"
+ ],
+ [
+  "eval",
+  "(()=>{document.querySelector('.arch-inspector,.studio-right-rail,.building-inspector,.measure-inspector').scrollIntoView({block:'start'});return 'scrolled the workspace so the right-hand menu is on screen'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('.live-assistant').getBoundingClientRect().height>=Math.min(innerHeight-40,Math.max(document.querySelector('.arch-inspector,.studio-right-rail,.building-inspector,.measure-inspector').getBoundingClientRect().height,300))-4",
+  "--timeout",
+  "10000"
+ ],
+ [
+  "eval",
+  "(()=>{const a=document.querySelector('.live-assistant').getBoundingClientRect();const railEl=[...document.querySelectorAll('.arch-inspector,.studio-right-rail,.building-inspector,.measure-inspector')].find(e=>e.getBoundingClientRect().height>0);const rail=railEl.getBoundingClientRect();const launcher=document.querySelector('.live-assistant-launcher');const out={railClass:railEl.className,panel:{l:Math.round(a.left),t:Math.round(a.top),w:Math.round(a.width),h:Math.round(a.height)},rail:{l:Math.round(rail.left),t:Math.round(rail.top),w:Math.round(rail.width),h:Math.round(rail.height)},launcherHidden:getComputedStyle(launcher).display==='none',railHidden:getComputedStyle(railEl).visibility==='hidden',pressed:document.querySelector('.rail-assistant-toggle')?.getAttribute('aria-pressed'),composerVisible:!!document.querySelector('#live-assistant-prompt')&&document.querySelector('#live-assistant-prompt').getBoundingClientRect().bottom<=innerHeight};const visTop=Math.max(rail.top,0),visBottom=Math.min(rail.bottom,innerHeight);out.visible={t:Math.round(visTop),h:Math.round(visBottom-visTop)};if(a.left>rail.left+4||Math.abs(a.top-visTop)>4||Math.abs(a.height-(visBottom-visTop))>4||Math.abs(a.right-innerWidth)>2||a.width<320)throw Error('Docked panel does not cover the visible rail: '+JSON.stringify(out));if(!out.launcherHidden||!out.railHidden||!out.composerVisible)throw Error('Rail mode state wrong: '+JSON.stringify(out));return out})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-assistant-surface/desktop-visual-02-rail-mode.png"
+ ],
+ [
+  "eval",
+  "(()=>{const d=JSON.parse(localStorage.getItem('xray:architect:v1:'+encodeURIComponent(document.querySelector('.architect-workspace').dataset.designId)));const wallIds=new Set(d.walls.map(w=>w.id));const el=[...document.querySelectorAll('.architect-plan [data-entity-id]')].find(e=>wallIds.has(e.getAttribute('data-entity-id'))&&e.getBoundingClientRect().width>20);if(!el)throw Error('No wall primitive on the plan');const r=el.getBoundingClientRect();window.__refId=el.getAttribute('data-entity-id');el.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2,button:2}));return window.__refId})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('.canvas-context-menu[role=menu]')?.dataset.state==='ready'",
+  "--timeout",
+  "15000"
+ ],
+ [
+  "eval",
+  "(()=>{const m=document.querySelector('.canvas-context-menu');const items=[...m.querySelectorAll('.canvas-context-item')].map(b=>b.dataset.item+':'+b.textContent.trim()+(b.disabled?' (disabled)':''));const small=[...m.querySelectorAll('.canvas-context-item')].filter(b=>b.getBoundingClientRect().height<44).length;const r=m.getBoundingClientRect();if(r.right>innerWidth||r.bottom>innerHeight||r.left<0||r.top<0)throw Error('Menu outside viewport');if(small)throw Error(small+' menu items under 44 px');if(!items.some(i=>i.startsWith('reference:')))throw Error('No reference item');return {target:m.dataset.target,items,focused:document.activeElement?.className}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-assistant-surface/desktop-visual-03-context-menu.png"
+ ],
+ [
+  "eval",
+  "(()=>{const i=document.querySelector(\".canvas-context-item[data-item=reference]\");i.click();return \"reference clicked\"})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "(document.querySelector(\"#live-assistant-prompt\")?.value||\"\").includes(\"[Reference · wall id \")"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-assistant-surface/desktop-visual-04-reference-in-draft.png"
+ ],
+ [
+  "errors"
+ ]
+]

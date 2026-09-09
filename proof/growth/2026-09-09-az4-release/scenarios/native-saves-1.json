@@ -1,0 +1,166 @@
+[
+ [
+  "reload"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sheets",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[aria-label=\"Current project\"] h2') && !!document.querySelector('[data-project-record-save=saved]')"
+ ],
+ [
+  "eval",
+  "(()=>{const raw=localStorage.getItem('xray:fencing-job:v2');if(!raw)throw Error('No stored job');sessionStorage.setItem('az3:original',raw);return {name:JSON.parse(raw).name,revision:JSON.parse(raw).revision,bytes:raw.length}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az4-release/native-saves-v2-s1-01-before.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Rename project",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.project-details input')"
+ ],
+ [
+  "fill",
+  ".project-details input",
+  "Rename attempt in stale window"
+ ],
+ [
+  "eval",
+  "(()=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));j.name='Other window revision';j.revision+=1;const raw=JSON.stringify(j);localStorage.setItem('xray:fencing-job:v2',raw);sessionStorage.setItem('az3:foreign',raw);if(localStorage.getItem('xray:fencing-job:v2')!==raw)throw Error('Foreign write did not land');return {foreignRevision:j.revision,bytes:raw.length}})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Save project name",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "[...document.querySelectorAll('[aria-label=\"Current project\"] [role=alert]')].some(p=>/changed while you edited/i.test(p.textContent))"
+ ],
+ [
+  "eval",
+  "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),foreign=sessionStorage.getItem('az3:foreign');if(stored!==foreign)throw Error('Rename overwrote the foreign revision');const h2=document.querySelector('[aria-label=\"Current project\"] h2').textContent;if(h2==='Rename attempt in stale window')throw Error('Rename applied despite newer stored revision');if(document.querySelector('[data-project-recovery]'))throw Error('Unexpected recovery notice at rename-guard stage');return {renameGuard:'refused-before-store-write',storedEqualsForeign:true,visibleName:h2}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az4-release/native-saves-v2-s1-02-rename-guard.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Cancel name edit",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Components",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('input[placeholder=\"Add trade or specification note\"]')"
+ ],
+ [
+  "fill",
+  "input[placeholder=\"Add trade or specification note\"]",
+  "Stale window note"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Add note",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-project-recovery=\"stale\"]')"
+ ],
+ [
+  "eval",
+  "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),foreign=sessionStorage.getItem('az3:foreign');if(stored!==foreign)throw Error('Autosave overwrote the foreign revision: stored bytes differ');const root=document.querySelector('[data-project-recovery=\"stale\"]');const alert=root.querySelector('[role=alert]').textContent;if(!/newer revision/i.test(alert)||!/another window/i.test(alert))throw Error('Stale message missing: '+alert);const names=[...root.querySelectorAll('button')].map(b=>b.textContent);for(const n of ['Reload latest revision','Download unsaved revision from this window','Download saved project record'])if(!names.includes(n))throw Error('Missing button '+n);const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,width:Math.round(r.width),height:Math.round(r.height)}});if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');return {storedEqualsForeign:true,storedBytes:stored.length,alert,buttons:rs,viewport:[innerWidth,innerHeight]}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az4-release/native-saves-v2-s1-03-stale-notice.png"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Reload latest revision",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[data-project-recovery]') && !!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sheets",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('[aria-label=\"Current project\"] h2')?.textContent==='Other window revision' && !!document.querySelector('[data-project-record-save=saved]')"
+ ],
+ [
+  "eval",
+  "(()=>{const stored=localStorage.getItem('xray:fencing-job:v2'),foreign=sessionStorage.getItem('az3:foreign');if(stored!==foreign)throw Error('Reload changed the stored bytes');const status=document.querySelector('[data-project-record-save=saved]').textContent;const rev=JSON.parse(stored).revision;if(!status.includes('revision '+rev))throw Error('Saved status does not show adopted revision: '+status);return {visibleName:document.querySelector('[aria-label=\"Current project\"] h2').textContent,status,storedEqualsForeign:true}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-az4-release/native-saves-v2-s1-04-reloaded.png"
+ ],
+ [
+  "errors"
+ ]
+]

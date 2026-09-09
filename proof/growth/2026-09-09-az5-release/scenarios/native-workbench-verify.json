@@ -1,0 +1,12 @@
+[
+  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
+  ["wait", "--fn", "[...document.querySelectorAll('.sheet-manager-list>li')].some(li=>/Level 1 plan/.test(li.textContent))&&document.querySelectorAll('.sheet-manager-list>li').length===12"],
+  ["eval", "(()=>({active:document.querySelectorAll('.sheet-manager-list>li').length,names:[...document.querySelectorAll('.sheet-manager-list>li')].map(li=>li.textContent.trim().slice(0,24))}))()"],
+  ["screenshot", "screenshots/growth/2026-09-09-az5-release/native-workbench-desktop-02-after-assistant.png"],
+  ["eval", "(async()=>{const req=indexedDB.open('xray-workspace-backups-v1');const db=await new Promise((res,rej)=>{req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error)});const store=db.transaction('summaries','readonly').objectStore('summaries');const all=await new Promise((res,rej)=>{const r=store.getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});db.close();const hit=all.find(x=>x&&x.name==='Assistant checkpoint');if(!hit)throw Error('Backup not found among '+all.length);return {backups:all.length,found:{name:hit.name,jobId:hit.jobId,jobRevision:hit.jobRevision,plans:hit.plans,sha256:hit.sha256,sizeBytes:hit.sizeBytes}}})()"],
+  ["find", "role", "button", "click", "--name", "Backups", "--exact"],
+  ["wait", "--fn", "/Assistant checkpoint/.test(document.body.textContent)"],
+  ["screenshot", "screenshots/growth/2026-09-09-az5-release/native-workbench-desktop-03-backups.png"],
+  ["find", "role", "button", "click", "--name", "Close Project backups", "--exact"],
+  ["errors"]
+]

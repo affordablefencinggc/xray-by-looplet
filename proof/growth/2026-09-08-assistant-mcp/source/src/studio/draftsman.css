@@ -1,0 +1,518 @@
+/* Magic Pencil / Draftsman Control Dock Styling */
+
+.draftsman-control-dock {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(840px, calc(100% - 40px));
+  background: rgba(18, 29, 27, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(64, 175, 155, 0.35);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 40;
+  pointer-events: auto;
+  color: #e2eeea;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  animation: draftsman-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes draftsman-slide-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Header */
+.draftsman-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.draftsman-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(43, 118, 104, 0.25);
+  border: 1px solid rgba(56, 189, 166, 0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.draftsman-badge-icon {
+  color: #38bda6;
+  animation: draftsman-pencil-spin 4s ease-in-out infinite alternate;
+}
+
+@keyframes draftsman-pencil-spin {
+  0% { transform: rotate(-10deg); }
+  100% { transform: rotate(15deg); }
+}
+
+.draftsman-badge-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #4eedd2;
+}
+
+.draftsman-badge-sub {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: #a3cdc5;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 6px;
+  margin-left: 2px;
+}
+
+.draftsman-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.draftsman-storey-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 9px;
+  border-radius: 5px;
+  color: #d1ebe4;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.draftsman-category-badge {
+  background: rgba(56, 189, 166, 0.15);
+  color: #5cf1d8;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.draftsman-mesh-count {
+  font-size: 10px;
+  color: #8dafa8;
+  font-variant-numeric: tabular-nums;
+}
+
+.draftsman-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.draftsman-finish-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #2d8272, #1b5b4f);
+  border: 1px solid #4eedd2;
+  color: #ffffff;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.draftsman-finish-btn:hover {
+  background: linear-gradient(180deg, #379e8b, #216f61);
+  box-shadow: 0 0 12px rgba(78, 237, 210, 0.4);
+}
+
+.draftsman-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #a3cdc5;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.draftsman-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Storey Picker */
+.draftsman-storey-picker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(64, 175, 155, 0.3);
+}
+
+.draftsman-storey-icon {
+  color: #38bda6;
+  flex-shrink: 0;
+}
+
+.draftsman-storey-select {
+  background: transparent;
+  border: none;
+  color: #d1ebe4;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.draftsman-storey-select option {
+  background: #152421;
+  color: #e2eeea;
+}
+
+/* Tour & Blueprint Buttons */
+.draftsman-tour-btn,
+.draftsman-blueprint-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #d1ebe4;
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.draftsman-tour-btn:hover,
+.draftsman-blueprint-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.draftsman-tour-btn.active {
+  background: linear-gradient(180deg, #1b5b4f, #0d362e);
+  border-color: #4eedd2;
+  color: #5cf1d8;
+  box-shadow: 0 0 10px rgba(78, 237, 210, 0.35);
+}
+
+.draftsman-pulse-icon {
+  color: #4eedd2;
+  animation: draftsman-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes draftsman-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.draftsman-blueprint-btn {
+  background: rgba(14, 43, 77, 0.45);
+  border-color: rgba(56, 132, 222, 0.4);
+  color: #9ac2f3;
+}
+
+.draftsman-blueprint-btn:hover {
+  background: rgba(14, 43, 77, 0.75);
+  border-color: #58a6ff;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(88, 166, 255, 0.35);
+}
+
+/* Timeline */
+.draftsman-timeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.draftsman-playback-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.draftsman-playback-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.draftsman-playback-btn.primary {
+  background: #2a7a6c;
+  border-color: #5cf1d8;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(42, 122, 108, 0.5);
+}
+
+.draftsman-playback-btn.primary:hover {
+  background: #349282;
+  box-shadow: 0 0 14px rgba(92, 241, 216, 0.6);
+}
+
+.draftsman-scrubber-wrapper {
+  flex: 1;
+  position: relative;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.draftsman-scrubber-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.draftsman-scrubber-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2b796b, #4eedd2);
+  border-radius: 3px;
+  transition: width 0.05s linear;
+}
+
+.draftsman-phase-marker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.draftsman-phase-marker.passed {
+  background: rgba(78, 237, 210, 0.8);
+}
+
+.draftsman-scrubber {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  margin: 0;
+}
+
+.draftsman-percent {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #4eedd2;
+  min-width: 32px;
+  text-align: right;
+}
+
+.draftsman-speed-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.draftsman-speed-icon {
+  color: #7ba29b;
+  margin-right: 2px;
+}
+
+.draftsman-speed-btn {
+  background: transparent;
+  border: 0;
+  color: #8faea8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 7px;
+  min-height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.draftsman-speed-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.draftsman-speed-btn.active {
+  background: #2b796b;
+  color: #ffffff;
+}
+
+/* Phase Pills */
+.draftsman-phases {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 8px;
+}
+
+.draftsman-phase-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #8aa9a2;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.draftsman-phase-pill:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.draftsman-phase-pill.active {
+  background: rgba(56, 189, 166, 0.2);
+  border-color: #4eedd2;
+  color: #5cf1d8;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(78, 237, 210, 0.25);
+}
+
+.draftsman-phase-pill.done {
+  border-color: rgba(78, 237, 210, 0.3);
+  color: #b7e3db;
+}
+
+.draftsman-pill-icon {
+  color: #4eedd2;
+}
+
+/* Top Toolbar Magic Pencil Button */
+.building-toolbar button.magic-pencil-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #2a5850, #1b3d37);
+  border: 1px solid #3ebca6;
+  color: #ffffff;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.building-toolbar button.magic-pencil-btn:hover {
+  background: linear-gradient(180deg, #356e64, #234d45);
+  box-shadow: 0 0 10px rgba(62, 188, 166, 0.4);
+}
+
+.building-toolbar button.magic-pencil-btn[aria-pressed="true"] {
+  background: linear-gradient(180deg, #3ebca6, #227969);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 14px rgba(62, 188, 166, 0.6);
+}
+
+@media (max-width: 640px) {
+  .draftsman-control-dock {
+    bottom: 8px;
+    width: calc(100% - 16px);
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 8px;
+  }
+  .draftsman-header {
+    gap: 6px;
+  }
+  .draftsman-badge-sub {
+    display: none;
+  }
+  .draftsman-readout {
+    font-size: 10px;
+    gap: 4px;
+  }
+  .draftsman-mesh-count {
+    display: none;
+  }
+  .draftsman-playback-btn,
+  .draftsman-tour-btn,
+  .draftsman-blueprint-btn,
+  .draftsman-finish-btn,
+  .draftsman-close-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .draftsman-storey-picker {
+    padding: 4px 6px;
+  }
+  .draftsman-storey-select {
+    font-size: 12px;
+  }
+  .draftsman-timeline {
+    gap: 6px;
+  }
+  .draftsman-speed-group {
+    display: none;
+  }
+  .draftsman-phases {
+    display: none;
+  }
+}
+/* Desktop and tablet controls remain reachable without precision pointing. */
+.draftsman-control-dock button, .draftsman-control-dock select { min-height: 44px; min-width: 44px; }
+.draftsman-control-dock { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; }
+@media (prefers-reduced-motion: reduce) {
+  .draftsman-control-dock, .draftsman-pulse-icon { animation: none; }
+  .draftsman-control-dock * { transition: none; }
+}
+@media (min-width: 641px) and (max-width: 1179px) {
+  .draftsman-control-dock { bottom: 80px; max-height: calc(100% - 92px); }
+}

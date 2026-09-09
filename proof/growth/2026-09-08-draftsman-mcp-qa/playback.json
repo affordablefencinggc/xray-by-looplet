@@ -1,0 +1,64 @@
+[
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Explore & Draw 3D Model",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount)>0"
+  ],
+  [
+    "eval",
+    "(async()=>{return await __callMcp('read_draftsman_status',{expectedJobId:__mcpExpected.id})})()"
+  ],
+  [
+    "eval",
+    "(async()=>{return await __callMcp('control_draftsman',{expectedJobId:__mcpExpected.id,action:'play'})})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.draftsman-dock')"
+  ],
+  [
+    "eval",
+    "(async()=>{return await __callMcp('control_draftsman',{expectedJobId:__mcpExpected.id,action:'pause'})})()"
+  ],
+  [
+    "eval",
+    "(async()=>{return await __callMcp('control_draftsman',{expectedJobId:__mcpExpected.id,action:'seek',progress:0.45})})()"
+  ],
+  [
+    "snapshot"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/draftsman-mcp-agent-paused.png"
+  ],
+  [
+    "eval",
+    "(async()=>{return await __callMcp('control_draftsman',{expectedJobId:__mcpExpected.id,action:'exit'})})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!document.querySelector('.draftsman-dock')"
+  ],
+  [
+    "eval",
+    "(async()=>{const r=await __callMcp('read_draftsman_status',{expectedJobId:__mcpExpected.id});if(r.active)throw Error('Exit still active');return {exitVerified:true,result:r}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/draftsman-mcp-agent-exited.png"
+  ],
+  [
+    "errors"
+  ]
+]

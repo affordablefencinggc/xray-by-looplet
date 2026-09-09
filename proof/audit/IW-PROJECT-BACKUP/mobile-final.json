@@ -1,0 +1,12 @@
+[
+ ["tab","t1"], ["set","viewport","390","844"], ["open","http://localhost:8080/"],
+ ["wait","--fn","!!document.querySelector('[data-hydration-status=ready]')"],
+ ["find","role","button","click","--name","Backups","--exact"],
+ ["wait","--fn","document.querySelectorAll('.backup-item').length===2"],
+ ["eval","var dialog=document.querySelector('dialog');dialog.scrollTop=0;if(dialog.getBoundingClientRect().height<100)throw Error('Dialog hidden');if(dialog.scrollWidth>dialog.clientWidth+1)throw Error('Mobile overflow');if([...document.querySelectorAll('.project-backups button')].some(b=>b.getBoundingClientRect().height<43))throw Error('Small mobile target');({pass:true,viewport:[innerWidth,innerHeight],dialogWidth:dialog.clientWidth,controlsAtLeast44px:true})"],
+ ["screenshot","screenshots/project-backup/dev-mobile.png"],
+ ["set","viewport","1280","900"],
+ ["eval","document.querySelector('dialog').scrollTop=0; if(document.querySelector('dialog').getBoundingClientRect().height<100)throw Error('Dialog lost on resize'); 'Dialog remains visible across viewport resize'"],
+ ["screenshot","screenshots/project-backup/dev-library.png"],
+ ["errors"]
+]

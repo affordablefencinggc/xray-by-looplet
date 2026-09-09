@@ -1,0 +1,36 @@
+{
+  "id": "2026-09-08-10-az3-wave",
+  "title": "Stage 10 — protected project saves, source-sheet lifecycle acceptance and a bounded supplier-search contract",
+  "date": "8 September 2026",
+  "platform": "Development browser (Vite dev server) · desktop 1280x800 and tablet 1024x768 · isolated agent-browser profiles · no build, installation or native run",
+  "summary": "Three parallel slices, each adversarially verified by three independent refuters with one repair round. The main project record now refuses stale writes, pauses when another window saves a newer revision and survives quota failures with retry (B-12, B-13, B-02 partial). Source-sheet rename, archive review and recover were exercised against the 13-page Redburn drawing with a locked scale and a real annotation, and the review now lists saved views (D-02, D-04, D-05 partial, verified in development). A server-only, credential-gated Firecrawl v2 search contract with strict response validation and truthful failure states was added to the Cost pane; no live request was made (P-01 dependency-blocked; P-02, P-09, P-10 partial). Full A–Z rows stay open; this is development proof only.",
+  "requirements": [
+    {"id": "B-12 / B-13 / B-02", "status": "Partial — main project record verified in development", "change": "Compare-and-swap on the saved bytes, cross-window storage-event stale detection, reload/download recovery notice, quota retry. 49 focused tests; same-window, two-tab and tablet Fast CDP scenarios; three verifiers not refuted; two minor findings fixed with a new test.", "remaining": "Per-module records (BOM, inventory, architecture, price books, sheet metadata), Web Lock lease, production/native build."},
+    {"id": "D-02 / D-04 / D-05", "status": "Partial — verified in development for source sheets", "change": "Rename keeps evidence references; archive review lists calibrations, traces, items, annotations, linked photos and saved views; recover restores slot, locked scale and annotation byte-identically after reload. 37 focused tests; desktop and tablet screenshots; repair round added executed evidence assertions.", "remaining": "Whole-source removal, SHA-bound construction takeoff registers, authored architectural sheets, production/native build."},
+    {"id": "P-01 / P-02 / P-09 / P-10", "status": "Partial; live credential dependency-blocked", "change": "Shared Zod contract, server adapter with fixed endpoint, caps, single-flight and strict documented-shape validation, same-origin route, Cost-pane panel with truthful states; seeded price book byte-identical across a failed search. 27 tests; no live Firecrawl request.", "remaining": "Real credentialed search with recorded usage, native transport, durable budget reservation, scrape/proposal/rate application (P-03..P-08)."}
+  ],
+  "images": [
+    {"file": "screenshots/growth/2026-09-08-az3-protected-saves/v2-s2-03-t1-stale-desktop.png", "caption": "Desktop: after another tab saved a newer revision, this tab pauses saving and offers Reload latest revision or a download of its unsaved revision."},
+    {"file": "screenshots/growth/2026-09-08-az3-protected-saves/s3-02-quota-unsaved-tablet.png", "caption": "Tablet 1024x768: an injected quota failure leaves the stored bytes untouched and shows a retry that later succeeds."},
+    {"file": "screenshots/growth/2026-09-08-az3-sheets/B1-archive-review-desktop.png", "caption": "Desktop: archive review for the renamed page 2 lists retained calibrations, annotations and saved views before anything changes."},
+    {"file": "screenshots/growth/2026-09-08-az3-sheets/B4-recovered-page-annotation-desktop.png", "caption": "Desktop: the recovered page 2 still carries its locked scale and the manual trace annotation in the Sketch pane after reload."},
+    {"file": "screenshots/growth/2026-09-08-az3-sheets/C1-archive-review-tablet.png", "caption": "Tablet 1024x768: the same review with 44 px controls and no horizontal overflow."},
+    {"file": "screenshots/growth/2026-09-08-az3-pricing-research/v2-desktop-not-configured-failure.png", "caption": "Desktop: the supplier research panel reports the not-configured provider truthfully after one explicit click; the seeded price book is unchanged and no link is invented."},
+    {"file": "screenshots/growth/2026-09-08-az3-pricing-research/tablet-not-configured.png", "caption": "Tablet 1024x768: the research section fits the Cost pane with the search disabled until a query exists."}
+  ],
+  "commands": [
+    "node --experimental-strip-types --test <16 focused files> — 160 passed, 0 failed (proof/growth/2026-09-08-az3-wave/tests-integrated-final.log)",
+    "node node_modules/typescript/bin/tsc --noEmit — exit 0 (typecheck-integrated-final.log)",
+    "git diff --check on the nine modified tracked files — clean",
+    "Fast CDP: 3 protected-saves scenarios + 2 re-runs, 6 sheet scenarios (repair round), 2 pricing scenarios + seeded repair + re-run — all final runs exit 0 with a trailing errors opcode; failed attempts retained in proof/growth/runner/",
+    "Workflow wf_4b733072-22f: 3 implementers, 9 verifiers, 2 repairs, 6 re-verifiers, 1 critic (21 agents, 0 errors)"
+  ],
+  "logs": [
+    "proof/growth/2026-09-08-az3-protected-saves/README.md",
+    "proof/growth/2026-09-08-az3-sheets/README.md",
+    "proof/growth/2026-09-08-az3-pricing-research/README.md",
+    "proof/growth/2026-09-08-az3-wave/critic.json"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree). Wave scope SHA-256 9c8de47f0960214f16c376b2e565c2a7a581f800e0e9087c90db589b61bef347 over 16 files (proof/growth/2026-09-08-az3-wave/source-manifest.json). Development milestone; no Dans1 build, installation, commit or publication. No Burj Khalifa research, model or quantity claim.",
+  "codeDiff": "proof/growth/2026-09-08-az3-wave/code.diff"
+}

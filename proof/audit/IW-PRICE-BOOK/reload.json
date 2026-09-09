@@ -1,0 +1,19 @@
+[
+ ["errors","--clear"],
+ ["eval","window.__pricingReloadMarker=true"],
+ ["reload"],
+ ["wait","--load","networkidle"],
+ ["wait","--fn","window.__pricingReloadMarker!==true&&document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"],
+ ["find","role","button","click","--name","Cost","--exact"],
+ ["wait","--fn","document.querySelector('.price-books')?.textContent.includes('Library (1)')"],
+ ["find","role","button","click","--name","Collapse left menu","--exact"],
+ ["find","role","button","click","--name","Collapse right menu","--exact"],
+ ["find","role","button","click","--name","Priced worksheet (1)","--exact"],
+ ["eval","if(!document.querySelector('.price-books')?.textContent.includes('AUD 24.69'))throw Error('Applied worksheet did not persist after reload')"],
+ ["eval","(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:'));const value=JSON.parse(localStorage.getItem(key));if(value.books.length!==1||value.worksheet.length!==1)throw Error('Saved library changed');return {jobId:value.jobId,books:value.books.length,worksheet:value.worksheet.length};})()"],
+ ["set","viewport","390","844"],
+ ["screenshot","screenshots/price-book/worksheet-mobile.png"],
+ ["eval","if(document.documentElement.scrollWidth>innerWidth)throw Error('Mobile page has horizontal overflow');for(const b of document.querySelectorAll('.price-books button'))if(b.getBoundingClientRect().height<44)throw Error('Price button below 44px');'Mobile layout and touch targets pass'"],
+ ["errors"],
+ ["console"]
+]

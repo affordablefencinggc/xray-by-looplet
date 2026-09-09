@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import { emptyProject, newWall } from '../../../src/studio/architect/model.ts';
+const base='proof/growth/2026-09-08-ring-overflow';
+const p=emptyProject('ring-regression');
+const points=[[-20.168,236.349],[9047.201,236.349],[-26.676,236.349],[-26.676,6286.036],[8940.314,6286.036],[9063.77,236.349],[9047.201,236.349]];
+const ids=['27883449','4cb51d97','075cbeb5','bfff72ba','9d64b742','24baa342'];
+p.walls=ids.map((id,i)=>({...newWall(p,p.levels[0].id,points[i],points[i+1]),id}));
+const fixture=JSON.stringify(p);
+const setup=[['open','http://127.0.0.1:8080/'],['wait','--fn',"!!document.querySelector('[data-hydration-status=ready]')"],['eval',`(()=>{const job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(!job?.id)throw Error('No test project');const fixture=${fixture};fixture.id=job.id;const key='xray:architect:v1:'+encodeURIComponent(job.id);if(localStorage.getItem(key))throw Error('Existing drawing preserved; use isolated QA profile');localStorage.setItem(key,JSON.stringify(fixture));return {walls:fixture.walls.length}})()`],['find','role','button','click','--name','Sketch','--exact'],['find','text','click','Architectural workspace','--exact'],['snapshot'],['screenshot','screenshots/growth/ring-overflow-local.png'],['errors']];
+fs.writeFileSync(`${base}/local-regression.json`,JSON.stringify(setup,null,2));
+const motion=JSON.parse(fs.readFileSync('proof/growth/2026-09-08-cinematic-pencils/production-scenario.json','utf8'));
+motion[0][1]='http://127.0.0.1:8080/';
+motion[2][2]="!!document.querySelector('[data-hydration-status=ready]')";
+motion.splice(5,0,['wait','--fn',"document.querySelector('.building-preview-cta')?.disabled===false && document.querySelector('.building-scene-picker')?.selectedOptions[0]?.textContent==='Crown Wharf A4 tower'"]);
+for(const step of motion)if(step[0]==='screenshot')step[1]=step[1].replace('cinematic-pencils-production','pencil-fizz-local');
+fs.writeFileSync(`${base}/local-motion.json`,JSON.stringify(motion,null,2));

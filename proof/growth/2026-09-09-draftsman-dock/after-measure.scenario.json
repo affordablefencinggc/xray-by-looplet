@@ -1,0 +1,121 @@
+[
+ [
+  "open",
+  "http://127.0.0.1:8090/"
+ ],
+ [
+  "set",
+  "viewport",
+  "1280",
+  "800"
+ ],
+ [
+  "wait",
+  "--fn",
+  "(document.querySelector('.workbench')||document.querySelector('[data-hydration-status]'))?.dataset.hydrationStatus==='ready'"
+ ],
+ [
+  "eval",
+  "localStorage.removeItem('xray:draftsman-dock:v1'); 'cleared'"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Model",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.building-workspace')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Redburn BR250157",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('.building-center-column')?.textContent.includes('Redburn')"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Explore & Draw 3D Model",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.building-canvas canvas')"
+ ],
+ [
+  "wait",
+  "--fn",
+  "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount) > 2"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Magic Pencil",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('.building-canvas canvas')?.dataset.drawMode === 'active'"
+ ],
+ [
+  "wait",
+  "--fn",
+  "(document.querySelector('[data-testid=draftsman-dock]')?.dataset.dockX||'')!==''"
+ ],
+ [
+  "eval",
+  "(()=>{const d=document.querySelector('[data-testid=draftsman-dock]');const r=d.getBoundingClientRect();const st=d.offsetParent.getBoundingClientRect();const g=d.querySelector('[aria-label=\"Move drafting controls\"]').getBoundingClientRect();return JSON.stringify({label:\"AFTER desktop 1280x800 measure\",viewport:[innerWidth,innerHeight],stage:{left:Math.round(st.left),width:Math.round(st.width),top:Math.round(st.top),height:Math.round(st.height)},dock:{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height),bottom:Math.round(r.bottom)},dockX:d.dataset.dockX,grip:{cx:Math.round(g.left+g.width/2),cy:Math.round(g.top+g.height/2),w:Math.round(g.width),h:Math.round(g.height)},controls:d.querySelectorAll('button,select,input').length})})()"
+ ],
+ [
+  "eval",
+  "(()=>{const d=document.querySelector(\"[data-testid=draftsman-dock]\");const r=d.getBoundingClientRect();const st=d.offsetParent;const sr=st.getBoundingClientRect();const bad=[];const els=[...d.querySelectorAll(\"button,select,input\")];for(const b of els){const q=b.getBoundingClientRect();const n=b.getAttribute(\"aria-label\")||b.textContent.trim();if(q.width<44||q.height<44)bad.push({name:n,w:Math.round(q.width),h:Math.round(q.height)});if(q.left<0||q.right>innerWidth||q.top<0||q.bottom>innerHeight)bad.push({clippedByViewport:n});if(q.left<r.left-0.5||q.right>r.right+0.5||q.top<r.top-0.5||q.bottom>r.bottom+0.5)bad.push({clippedByDock:n,right:Math.round(q.right),dockRight:Math.round(r.right)})}if(bad.length)throw Error(\"hit-area/clip failures: \"+JSON.stringify(bad));if(r.left<0||r.right>innerWidth||r.bottom>innerHeight)throw Error(\"dock clipped\");if(d.scrollWidth>d.clientWidth+1)throw Error(\"dock internal horizontal overflow \"+d.scrollWidth+\">\"+d.clientWidth);if(document.documentElement.scrollWidth>innerWidth)throw Error(\"page horizontal overflow\");if(st.scrollWidth>st.clientWidth)throw Error(\"stage horizontal overflow\");const faces=[...d.querySelectorAll(\".draftsman-face\")].map(f=>Math.round(f.getBoundingClientRect().height));const scrub=d.querySelector(\".draftsman-scrubber-wrapper\").getBoundingClientRect();return JSON.stringify({label:\"AFTER desktop 1280x800 invariants\",viewport:[innerWidth,innerHeight],stage:{left:Math.round(sr.left),width:Math.round(sr.width)},dock:{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height),bottom:Math.round(r.bottom)},rows:[...d.querySelectorAll(\".draftsman-row\")].map(x=>Math.round(x.getBoundingClientRect().height)),dockX:d.dataset.dockX,tools:d.dataset.dockTools,controls:els.length,minHit:Math.min(...els.map(b=>Math.min(b.getBoundingClientRect().width,b.getBoundingClientRect().height))),faceHeights:[Math.min(...faces),Math.max(...faces)],scrubberWidth:Math.round(scrub.width),dockScroll:[d.scrollWidth,d.clientWidth],docScrollWidth:document.documentElement.scrollWidth,stored:localStorage.getItem(\"xray:draftsman-dock:v1\")})})()"
+ ],
+ [
+  "set",
+  "viewport",
+  "1024",
+  "768"
+ ],
+ [
+  "wait",
+  "--fn",
+  "innerWidth===1024"
+ ],
+ [
+  "eval",
+  "(()=>{const d=document.querySelector('[data-testid=draftsman-dock]');const r=d.getBoundingClientRect();const st=d.offsetParent.getBoundingClientRect();const g=d.querySelector('[aria-label=\"Move drafting controls\"]').getBoundingClientRect();return JSON.stringify({label:\"AFTER tablet 1024x768 measure\",viewport:[innerWidth,innerHeight],stage:{left:Math.round(st.left),width:Math.round(st.width),top:Math.round(st.top),height:Math.round(st.height)},dock:{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height),bottom:Math.round(r.bottom)},dockX:d.dataset.dockX,grip:{cx:Math.round(g.left+g.width/2),cy:Math.round(g.top+g.height/2),w:Math.round(g.width),h:Math.round(g.height)},controls:d.querySelectorAll('button,select,input').length})})()"
+ ],
+ [
+  "eval",
+  "(()=>{const d=document.querySelector(\"[data-testid=draftsman-dock]\");const r=d.getBoundingClientRect();const st=d.offsetParent;const sr=st.getBoundingClientRect();const bad=[];const els=[...d.querySelectorAll(\"button,select,input\")];for(const b of els){const q=b.getBoundingClientRect();const n=b.getAttribute(\"aria-label\")||b.textContent.trim();if(q.width<44||q.height<44)bad.push({name:n,w:Math.round(q.width),h:Math.round(q.height)});if(q.left<0||q.right>innerWidth||q.top<0||q.bottom>innerHeight)bad.push({clippedByViewport:n});if(q.left<r.left-0.5||q.right>r.right+0.5||q.top<r.top-0.5||q.bottom>r.bottom+0.5)bad.push({clippedByDock:n,right:Math.round(q.right),dockRight:Math.round(r.right)})}if(bad.length)throw Error(\"hit-area/clip failures: \"+JSON.stringify(bad));if(r.left<0||r.right>innerWidth||r.bottom>innerHeight)throw Error(\"dock clipped\");if(d.scrollWidth>d.clientWidth+1)throw Error(\"dock internal horizontal overflow \"+d.scrollWidth+\">\"+d.clientWidth);if(document.documentElement.scrollWidth>innerWidth)throw Error(\"page horizontal overflow\");if(st.scrollWidth>st.clientWidth)throw Error(\"stage horizontal overflow\");const faces=[...d.querySelectorAll(\".draftsman-face\")].map(f=>Math.round(f.getBoundingClientRect().height));const scrub=d.querySelector(\".draftsman-scrubber-wrapper\").getBoundingClientRect();return JSON.stringify({label:\"AFTER tablet 1024x768 invariants\",viewport:[innerWidth,innerHeight],stage:{left:Math.round(sr.left),width:Math.round(sr.width)},dock:{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height),bottom:Math.round(r.bottom)},rows:[...d.querySelectorAll(\".draftsman-row\")].map(x=>Math.round(x.getBoundingClientRect().height)),dockX:d.dataset.dockX,tools:d.dataset.dockTools,controls:els.length,minHit:Math.min(...els.map(b=>Math.min(b.getBoundingClientRect().width,b.getBoundingClientRect().height))),faceHeights:[Math.min(...faces),Math.max(...faces)],scrubberWidth:Math.round(scrub.width),dockScroll:[d.scrollWidth,d.clientWidth],docScrollWidth:document.documentElement.scrollWidth,stored:localStorage.getItem(\"xray:draftsman-dock:v1\")})})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-draftsman-dock/after-measure-tablet-1024x768.png"
+ ],
+ [
+  "errors"
+ ]
+]

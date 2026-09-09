@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const dir = 'proof/growth/architect-benchmark/';
+const after = JSON.parse(fs.readFileSync('proof/growth/runner/2026-09-09T13-29-24-279Z-architect-benchmark.log', 'utf8'));
+const before = JSON.parse(fs.readFileSync(dir + 'stage2-before.json', 'utf8'));
+assert.deepEqual(after.design, before.design);
+assert.equal(after.report.passed, 25);
+assert.equal(after.report.total, 25);
+fs.writeFileSync(dir + 'stage2-reloaded.json', JSON.stringify(after, null, 2));
+fs.writeFileSync(dir + 'reload-proof.json', JSON.stringify({geometryPreserved: true, revision: after.design.revision, checks: after.report.passed}, null, 2));
+const journal = `(async()=>{const {listWorkPackets,readWorkEvents,verifyWorkJournal}=await import('/src/studio/assistant/workPacketStore.ts');const packets=await listWorkPackets('job-1b0c3d86-4ecf-4be8-9297-cd9f74c616a3');const results=await Promise.all(packets.map(async p=>({id:p.id,valid:await verifyWorkJournal(p,await readWorkEvents(p.id))})));if(results.some(r=>!r.valid))throw Error('Journal validation failed');return results})()`;
+const layout = `(()=>{const panel=document.querySelector('[aria-label="Drawing assistant panel"]');const r=panel.getBoundingClientRect();if(r.right>innerWidth+1||r.bottom>innerHeight+1||r.left<0)throw Error('Assistant escaped viewport');if(document.documentElement.scrollWidth>innerWidth+1)throw Error('Horizontal overflow');return {viewport:[innerWidth,innerHeight],panel:{x:r.x,y:r.y,width:r.width,height:r.height},canvas:!!document.querySelector('canvas[data-scene-sha256]')}})()`;
+fs.writeFileSync(dir + 'final-visual.json', JSON.stringify([
+ ['find','role','button','click','--name','Front','--exact'],
+ ['eval',journal],['eval',layout],
+ ['screenshot','screenshots/architect-benchmark-solid.png'],
+ ['fill','#live-assistant-prompt','Keep this draft'],
+ ['eval',`(()=>{const t=document.querySelector('#live-assistant-prompt');const d=new DataTransfer();d.setData('text/plain','x'.repeat(100001));const e=new ClipboardEvent('paste',{clipboardData:d,bubbles:true,cancelable:true});t.dispatchEvent(e);if(!e.defaultPrevented||t.value!=='Keep this draft')throw Error('Oversize paste lost draft');return {prevented:e.defaultPrevented,draft:t.value,maxLength:t.maxLength}})()`],
+ ['wait','--fn',`document.body.innerText.includes('This message exceeds 100,000 characters')`],
+ ['fill','#live-assistant-prompt',''],
+ ['set','viewport','1024','768'],['eval',layout],
+ ['screenshot','screenshots/architect-benchmark-tablet.png'],
+ ['errors']
+ ],null,2));
+console.log({geometryPreserved:true,checks:after.report.passed});

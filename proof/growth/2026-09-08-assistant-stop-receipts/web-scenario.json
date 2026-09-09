@@ -1,0 +1,16 @@
+[
+  ["open", "http://127.0.0.1:8096/"],
+  ["set", "viewport", "1440", "1000"],
+  ["wait", "--fn", "document.querySelector('[data-hydration-status=ready]') && document.querySelector('[data-xray-build]')?.getAttribute('data-xray-build')==='591a4b8b5452'"],
+  ["eval", "(()=>{const b=document.querySelector('.live-assistant-launcher');if(b.getAttribute('aria-expanded')!=='true')b.click()})()"],
+  ["wait", "--fn", "document.querySelector('.live-assistant-identity')?.textContent.includes('MCP connected')"],
+  ["fill", "#live-assistant-prompt", "/mcp"],
+  ["press", "Enter"],
+  ["wait", "--fn", "document.body.innerText.includes('Connected to X-Ray workspace MCP.')"],
+  ["eval", "(()=>{const panel=document.querySelector('#live-assistant-panel'),r=panel.getBoundingClientRect();if(r.left<0||r.right>innerWidth+1||r.top<0||r.bottom>innerHeight+1)throw Error('Panel clipped');return {build:document.querySelector('[data-xray-build]').getAttribute('data-xray-build'),connection:document.querySelector('.live-assistant-identity').textContent}})()"],
+  ["screenshot", "screenshots/growth/assistant-stop-receipts-desktop.png"],
+  ["set", "viewport", "1024", "1366"],
+  ["eval", "(()=>{const r=document.querySelector('#live-assistant-panel').getBoundingClientRect();if(r.left<0||r.right>innerWidth+1||r.top<0||r.bottom>innerHeight+1)throw Error('Tablet panel clipped');if(document.documentElement.scrollWidth>innerWidth+1)throw Error('Horizontal overflow');return {tablet:true,connection:document.querySelector('.live-assistant-identity').textContent}})()"],
+  ["screenshot", "screenshots/growth/assistant-stop-receipts-tablet.png"],
+  ["errors"]
+]

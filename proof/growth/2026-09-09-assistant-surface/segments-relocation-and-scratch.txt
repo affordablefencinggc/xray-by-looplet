@@ -1,0 +1,71 @@
+SC-24 housekeeping proof - segments relocation + scratch clean
+captured 2026-09-09 by execution; every block below is real command output.
+
+=== 1. public/segments no longer exists in the repo ===
+ls: cannot access 'public/segments': No such file or directory
+
+=== 2. no segments asset dir anywhere in the repo ===
+(this proof file itself is the only name match, which is expected)
+./proof/growth/2026-09-09-assistant-surface/segments-relocation-and-scratch.txt
+-- category dir check (glass-balconies), no output = gone:
+
+=== 3. destination is outside git, all 84 PNGs intact ===
+/c/Users/danie/repo/xray-assets/segments
+png count: 84
+size: 16M
+manifest bytes: 31114
+source zip preserved: 7946566
+git toplevel at destination (expect: not a git repository):
+fatal: not a git repository (or any of the parent directories): .git
+
+=== 4. no source reference to the old path ===
+grep exit 1 = no matches = passing
+
+=== 5. git status of public/ carries no segments entry ===
+?? public/images/promo/house-hyperrealistic-photo.jpg
+?? public/images/promo/house-render-elite.jpg
+?? public/models/designed/
+
+=== 6. scratchpad top level after clean ===
+Before: 18M across 92 entries. Removed: extracted segment images (7.8M),
+three Rust prototype trees with node_modules (8.4M), the compiled parity
+binary and its .pdb (1.4M), and ~40 already-applied one-shot patch scripts.
+Evidence retained under _keep/. Entries dated 16:58 or later are live
+probe files from the verifier agents still running, not leftovers.
+total 1528
+drwxr-xr-x 1 danie 197609       0 Sep  9 17:00 .
+drwxr-xr-x 1 danie 197609       0 Sep  9 13:06 ..
+drwxr-xr-x 1 danie 197609       0 Sep  9 16:57 _keep
+-rw-r--r-- 1 danie 197609    2009 Sep  9 17:00 ctx0.md
+-rw-r--r-- 1 danie 197609    3622 Sep  9 17:00 ctx1.md
+-rw-r--r-- 1 danie 197609    1830 Sep  9 17:00 ctx2.md
+-rw-r--r-- 1 danie 197609    1033 Sep  9 17:00 ctx3.md
+-rw-r--r-- 1 danie 197609     498 Sep  9 17:00 ctx4.md
+-rw-r--r-- 1 danie 197609    1087 Sep  9 17:00 extract.mjs
+-rw-r--r-- 1 danie 197609   11598 Sep  9 17:00 js-manual.txt
+-rw-r--r-- 1 danie 197609    1438 Sep  9 16:59 parity.mjs
+-rw-r--r-- 1 danie 197609    1079 Sep  9 16:59 parity2.mjs
+drwxr-xr-x 1 danie 197609       0 Sep  9 16:58 paritycheck
+drwxr-xr-x 1 danie 197609       0 Sep  9 17:00 probe
+-rw-r--r-- 1 danie 197609    1336 Sep  9 16:58 probe1.test.ts
+-rw-r--r-- 1 danie 197609     938 Sep  9 16:58 probe2.mjs
+-rw-r--r-- 1 danie 197609    2752 Sep  9 16:59 probe3.mjs
+-rw-r--r-- 1 danie 197609     844 Sep  9 16:59 probe4.mjs
+-rw-r--r-- 1 danie 197609     714 Sep  9 16:59 probe5.mjs
+-rw-r--r-- 1 danie 197609    1172 Sep  9 17:00 probe6.mjs
+-rw-r--r-- 1 danie 197609     681 Sep  9 17:00 probe7.mjs
+-rwxr-xr-x 1 danie 197609  149504 Sep  9 17:00 rp.exe
+-rw-r--r-- 1 danie 197609 1282048 Sep  9 17:00 rp.pdb
+-rw-r--r-- 1 danie 197609     638 Sep  9 17:00 rp.rs
+-rw-r--r-- 1 danie 197609   11598 Sep  9 17:00 rust-manual.txt
+-rw-r--r-- 1 danie 197609    1291 Sep  9 17:00 rustparity.rs
+-rw-r--r-- 1 danie 197609    2646 Sep  9 17:00 safety.txt
+-- retained evidence:
+total 96
+drwxr-xr-x 1 danie 197609     0 Sep  9 16:57 .
+drwxr-xr-x 1 danie 197609     0 Sep  9 17:00 ..
+-rw-r--r-- 1 danie 197609 17495 Sep  9 15:47 context-map.html
+-rw-r--r-- 1 danie 197609  7076 Sep  9 15:33 context-system-requirements.md
+-rw-r--r-- 1 danie 197609  5329 Sep  9 16:53 parity.rs
+-rw-r--r-- 1 danie 197609  8951 Sep  9 16:31 rust-brief.txt
+-rw-r--r-- 1 danie 197609  8529 Sep  9 14:09 sc18-phase2-brief.md

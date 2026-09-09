@@ -1,0 +1,57 @@
+// SC-19 reply rendering + chrome (and a look at the SC-18 projects UI): one real-provider message on 8091.
+const fs = require("fs"), path = require("path");
+const S = path.join(__dirname, "scenarios");
+const shots = "screenshots/growth/2026-09-09-assistant-surface";
+const hydrated = ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'", "--timeout", "120000"];
+const replyDone = (timeout = "300000") => ["wait", "--fn", "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&document.querySelectorAll('.assistant-chat-entry.is-assistant').length>(window.__replies||0)", "--timeout", timeout];
+const countReplies = ["eval", "(()=>{window.__replies=document.querySelectorAll('.assistant-chat-entry.is-assistant').length;return window.__replies})()"];
+const setDraft = text => ["eval", `(()=>{const ta=document.querySelector('#live-assistant-prompt');const set=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;set.call(ta,${JSON.stringify(text)});ta.dispatchEvent(new Event('input',{bubbles:true}));return ta.value.length})()`];
+const send = ["find", "role", "button", "click", "--name", "Send assistant message", "--exact"];
+function scenario(viewport, tag) {
+  const [w, h] = viewport;
+  return [
+    ["open", "http://127.0.0.1:8091/", "--timeout", "120000"],
+    ["set", "viewport", String(w), String(h)],
+    hydrated,
+    ["find", "role", "button", "click", "--name", "Sketch", "--exact"],
+    ["wait", "--fn", "!!document.querySelector('nav[aria-label=\"Sketch workspaces\"]')"],
+    ["eval", "(()=>{[...document.querySelectorAll('nav[aria-label=\"Sketch workspaces\"] button')].find(b=>b.textContent.trim()==='Architectural workspace').click();return 'opened'})()"],
+    ["wait", "--fn", "!!document.querySelector('.architect-workspace[data-design-revision]')"],
+    ["eval", "(()=>{window.confirm=()=>true;return 'confirm auto-accepted'})()"],
+    ["find", "role", "button", "click", "--name", "Load demonstration", "--exact"],
+    ["wait", "--fn", "document.querySelectorAll('.architect-plan [data-entity-id]').length>4"],
+    // collapsed launcher = bottom rail with the connection light
+    ["wait", "--fn", "!!document.querySelector('.live-assistant-launcher .assistant-status-light')", "--timeout", "20000"],
+    ["eval", "(()=>{const a=document.querySelector('.live-assistant').getBoundingClientRect();const l=document.querySelector('.live-assistant-launcher').getBoundingClientRect();const light=document.querySelector('.assistant-status-light');const out={bar:{l:Math.round(a.left),r:Math.round(innerWidth-a.right),b:Math.round(innerHeight-a.bottom),h:Math.round(l.height)},light:light.className,lightLabel:light.getAttribute('aria-label')};if(a.left>2||innerWidth-a.right>2)throw Error('Launcher is not edge to edge: '+JSON.stringify(out));if(l.height>46)throw Error('Launcher not thinner: '+JSON.stringify(out));return out})()"],
+    ["screenshot", `${shots}/${tag}-render-01-bottom-rail.png`],
+    ["eval", "(()=>{document.querySelector('.live-assistant-launcher').click();return 'opened panel'})()"],
+    ["wait", "--fn", "!!document.querySelector('#live-assistant-prompt')"],
+    ["eval", "(()=>({corners:document.querySelectorAll('.assistant-corner').length,oldHandle:!!document.querySelector('.assistant-resize-handle'),dock:document.querySelector('.assistant-dock-toggle')?.getAttribute('aria-label'),meterBottomLeft:(()=>{const m=document.querySelector('.assistant-context-meter').getBoundingClientRect();const p=document.querySelector('.live-assistant-panel').getBoundingClientRect();const c=document.querySelector('#live-assistant-prompt').getBoundingClientRect();return {belowComposer:m.top>=c.bottom-1,leftAligned:m.left-p.left<24,meter:document.querySelector('.assistant-context-meter').textContent}})(),strip:!!document.querySelector('.assistant-project-strip'),footer:!!document.querySelector('.assistant-footer')}))()"],
+    ["screenshot", `${shots}/${tag}-render-02-panel-chrome.png`],
+    setDraft("Give me a short overview of what you can do for this design: use headings with a bulleted list under each, mention the design's wall IDs where relevant, and add a mind map (in a ```mindmap fenced block) of the workspace panes. Do not change anything."),
+    countReplies,
+    send,
+    replyDone(),
+    ["eval", "(()=>{const reply=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].at(-1);const r=reply.querySelector('.assistant-reply');const headings=r.querySelectorAll('h3.assistant-heading,h4.assistant-heading').length;const lists=r.querySelectorAll('ul,ol').length;const mind=r.querySelectorAll('.assistant-mindmap svg').length;const chips=r.querySelectorAll('.assistant-id-chip').length;const replies=r.querySelectorAll('.assistant-block-reply').length;const icons=r.querySelectorAll('.assistant-heading svg').length;const visible=[...r.querySelectorAll('p,li,h3,h4')].map(e=>e.textContent).join(' ');const raw=/(^|\\s)#{1,6}\\s|\\*\\*/.test(visible);const codeShown=[...r.querySelectorAll('pre')].some(p=>!p.hidden&&!p.closest('.assistant-mindmap-source'));const tools=[...document.querySelectorAll('.assistant-tool-row')].map(t=>t.querySelector('.assistant-tool-title').textContent+' · '+t.querySelector('.assistant-tool-summary').textContent);const jsonShown=tools.some(t=>/[{}]|\\[\\{/.test(t)||t.includes(String.fromCharCode(34)+':'));if(headings<2)throw Error('Fewer than two headings rendered: '+headings);if(raw)throw Error('Raw markdown markers still visible');if(codeShown)throw Error('Code displayed');if(jsonShown)throw Error('Tool rows show JSON: '+tools.join(' | '));return {headings,icons,lists,mind,chips,replies,tools,pills:document.querySelectorAll('.assistant-pill').length}})()"],
+    ["screenshot", `${shots}/${tag}-render-03-formatted-reply.png`],
+    ["eval", "(()=>{const b=[...document.querySelectorAll('.assistant-reply .assistant-block-reply')][1]||document.querySelector('.assistant-reply .assistant-block-reply');b.click();return 'reply clicked'})()"],
+    ["wait", "--fn", "(document.querySelector('#live-assistant-prompt')?.value||'').startsWith('> ')", "--timeout", "5000"],
+    ["eval", "(()=>({draft:document.querySelector('#live-assistant-prompt').value.slice(0,200)}))()"],
+    ["eval", "(()=>{const chip=document.querySelector('.assistant-reply .assistant-id-chip');if(!chip)return 'no chip in reply';chip.click();return 'chip clicked'})()"],
+    ["wait", "--fn", "(document.querySelector('#live-assistant-prompt')?.value||'').includes('[Reference · ')||!document.querySelector('.assistant-reply .assistant-id-chip')", "--timeout", "10000"],
+    ["eval", "(()=>({draft:document.querySelector('#live-assistant-prompt').value.slice(0,400)}))()"],
+    ["screenshot", `${shots}/${tag}-render-04-reply-and-reference-in-draft.png`],
+    // SC-18: Projects in the + menu
+    ["find", "role", "button", "click", "--name", "Add to assistant", "--exact"],
+    ["wait", "--fn", "!!document.querySelector('.assistant-projects-item')", "--timeout", "5000"],
+    ["screenshot", `${shots}/${tag}-render-05-plus-menu.png`],
+    ["find", "role", "menuitem", "click", "--name", "Projects", "--exact"],
+    ["wait", "--fn", "!!document.querySelector('.assistant-project-drawer')", "--timeout", "5000"],
+    ["eval", "(()=>({rows:document.querySelectorAll('.assistant-project-list > li').length,newButton:!!document.querySelector('.assistant-project-new'),current:document.querySelector('.assistant-project-list .is-current')?.textContent.slice(0,80)}))()"],
+    ["screenshot", `${shots}/${tag}-render-06-projects-drawer.png`],
+    ["errors"],
+  ];
+}
+fs.writeFileSync(path.join(S, "render-desktop.json"), JSON.stringify(scenario([1280, 800], "desktop"), null, 1));
+fs.writeFileSync(path.join(S, "render-tablet.json"), JSON.stringify(scenario([1024, 768], "tablet"), null, 1));
+console.log("render scenarios written");

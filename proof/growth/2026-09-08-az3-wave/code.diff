@@ -1,0 +1,1807 @@
+diff --git a/src/studio/ProjectRecoveryNotice.tsx b/src/studio/ProjectRecoveryNotice.tsx
+index 3cea348..2b59d8b 100644
+--- a/src/studio/ProjectRecoveryNotice.tsx
++++ b/src/studio/ProjectRecoveryNotice.tsx
+@@ -3,22 +3,48 @@ import { useStudio } from "./store";
+ import { FENCING_JOB_STORAGE_KEY, LEGACY_FENCING_JOB_STORAGE_KEY } from "./persistence";
+ import "./projectDetails.css";
+ 
+-/** A failed load never becomes permission to replace the unreadable project. */
++function downloadText(text: string, filename: string, type: string) {
++  const url = URL.createObjectURL(new Blob([text], { type }));
++  const link = document.createElement("a");
++  link.href = url; link.download = filename;
++  document.body.append(link); link.click(); link.remove();
++  setTimeout(() => URL.revokeObjectURL(url), 30000);
++}
++
++/**
++ * A failed load never becomes permission to replace the unreadable project, and a stale window
++ * never becomes permission to overwrite a newer revision saved by another window.
++ */
+ export function ProjectRecoveryNotice() {
+   const error = useStudio(s => s.persistenceError);
++  const stale = useStudio(s => s.projectWriteStale);
+   const [downloadError, setDownloadError] = useState("");
+   function downloadRecord() {
+     try {
+       const raw = localStorage.getItem(FENCING_JOB_STORAGE_KEY) ?? localStorage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
+       if (raw === null) throw Error("No saved project record is available to download.");
+-      const url = URL.createObjectURL(new Blob([raw], { type: "text/plain;charset=utf-8" }));
+-      const link = document.createElement("a");
+-      link.href = url; link.download = "xray-saved-project-record.txt";
+-      document.body.append(link); link.click(); link.remove();
+-      setTimeout(() => URL.revokeObjectURL(url), 30000);
++      downloadText(raw, "xray-saved-project-record.txt", "text/plain;charset=utf-8");
+       setDownloadError("");
+     } catch (failure) { setDownloadError(failure instanceof Error ? failure.message : "The saved record could not be read."); }
+   }
++  function downloadUnsavedRevision() {
++    try {
++      const job = useStudio.getState().job;
++      downloadText(JSON.stringify(job, null, 2), `xray-unsaved-project-revision-${job.revision}.json`, "application/json;charset=utf-8");
++      setDownloadError("");
++    } catch (failure) { setDownloadError(failure instanceof Error ? failure.message : "The unsaved revision could not be prepared."); }
++  }
++  if (stale) {
++    return <section className="project-details" aria-label="Project recovery" data-project-recovery="stale">
++      <div><span className="kicker">Newer revision exists</span><h2>A newer revision of this project was saved by another window</h2>
++        <p role="alert">{error ?? "Another window saved a newer revision of this project. Saving from this window is paused so the newer revision is not overwritten."}</p></div>
++      <button className="pill" onClick={() => void useStudio.getState().retryProjectLoad()}>Reload latest revision</button>
++      <button className="pill" onClick={downloadUnsavedRevision}>Download unsaved revision from this window</button>
++      <button className="pill" onClick={downloadRecord}>Download saved project record</button>
++      <small>Reloading replaces this window's unsaved changes with the newer saved revision. The unsaved-revision download is the project data held in this window; it is not a complete backup of drawings and photos.</small>
++      {downloadError && <p role="alert">{downloadError}</p>}
++    </section>;
++  }
+   return <section className="project-details" aria-label="Project recovery" data-project-recovery="blocked">
+     <div><span className="kicker">Saved work needs attention</span><h2>Your saved project has been preserved</h2>
+       <p role="alert">{error ?? "Project storage could not be restored safely."}</p>
+diff --git a/src/studio/SheetManager.tsx b/src/studio/SheetManager.tsx
+index 0bea3d6..a5c70f0 100644
+--- a/src/studio/SheetManager.tsx
++++ b/src/studio/SheetManager.tsx
+@@ -53,7 +53,7 @@ export function SheetManager() {
+     if (!identity) return;
+     try {
+       const live = useStudio.getState().job;
+-      setArchiveReview({ key: sourceKey, pageIndex, job: live, impact: sheetArchiveImpact(live, identity, pageIndex) }); setRenaming(null); setError("");
++      setArchiveReview({ key: sourceKey, pageIndex, job: live, impact: sheetArchiveImpact(live, identity, pageIndex, current ?? undefined) }); setRenaming(null); setError("");
+     } catch (failure) { setError(errorText(failure)); }
+   }
+   async function selectSource(documentId: string) {
+@@ -92,7 +92,7 @@ export function SheetManager() {
+         <div className="sheet-manager-title"><strong>{page.name}</strong><span>Original page {page.pageIndex + 1}{sheet === page.pageIndex ? " · Viewing" : ""}{page.bookmarks?.length?` · ${page.bookmarks.length} saved views`:""}</span></div>
+         {archiveReview?.key === sourceKey && archiveReview.pageIndex === page.pageIndex ? <div className="sheet-archive-review" role="region" aria-label={`Review archive ${page.name}`}>
+           <strong>Archive {page.name}?</strong><p>This removes original page {page.pageIndex + 1} from active sheet navigation. The original drawing and all saved work stay intact. Recover it at any time from Archived.</p>
+-          <dl><div><dt>Calibrations retained</dt><dd>{archiveReview.impact.calibrations}</dd></div><div><dt>Measured traces retained</dt><dd>{archiveReview.impact.traces}</dd></div><div><dt>Located items retained</dt><dd>{archiveReview.impact.items}</dd></div><div><dt>Annotations retained</dt><dd>{archiveReview.impact.annotations}</dd></div><div><dt>Linked photos retained</dt><dd>{archiveReview.impact.linkedPhotos}</dd></div></dl>
++          <dl><div><dt>Calibrations retained</dt><dd>{archiveReview.impact.calibrations}</dd></div><div><dt>Measured traces retained</dt><dd>{archiveReview.impact.traces}</dd></div><div><dt>Located items retained</dt><dd>{archiveReview.impact.items}</dd></div><div><dt>Annotations retained</dt><dd>{archiveReview.impact.annotations}</dd></div><div><dt>Linked photos retained</dt><dd>{archiveReview.impact.linkedPhotos}</dd></div><div><dt>Saved views retained</dt><dd>{archiveReview.impact.savedViews}</dd></div></dl>
+           <p>Estimates and evidence totals are unchanged. Unlinked document photos are also preserved.</p><div className="sheet-manager-actions"><button className="pill" disabled={busy} onClick={() => void mutate({type:"archive",pageIndex:page.pageIndex})}>Confirm archive</button><button className="pill" disabled={busy} onClick={() => setArchiveReview(null)}>Cancel</button></div>
+         </div> : renaming === page.pageIndex ? <form className="sheet-manager-rename" onSubmit={e => { e.preventDefault(); void mutate({ type: "rename", pageIndex: page.pageIndex, name, discipline }); }}><label>Sheet name<input autoFocus value={name} onChange={e => setName(e.target.value)} maxLength={120} disabled={busy} /></label><label>Discipline<input list="sheet-discipline-suggestions" value={discipline} onChange={e=>setDiscipline(e.target.value)} maxLength={80} placeholder="Architecture, civil, electrical…" disabled={busy}/></label><datalist id="sheet-discipline-suggestions">{[...new Set(["Architecture","Civil","Electrical","Fire services","Hydraulics","Landscape","Mechanical","Structural",...disciplines.filter(d=>d!=="Ungrouped")])].map(d=><option key={d} value={d}/>)}</datalist><button className="pill" type="submit" disabled={busy || !name.trim()}>Save name</button><button className="pill" type="button" disabled={busy} onClick={() => setRenaming(null)}>Cancel</button></form> : <div className="sheet-manager-actions">
+           <button className="pill" disabled={busy || !hydrated} onClick={() => useStudio.getState().setSheet(page.pageIndex)}>View page {page.pageIndex + 1}</button>
+diff --git a/src/studio/persistence.test.ts b/src/studio/persistence.test.ts
+index 40a6acd..29ccf24 100644
+--- a/src/studio/persistence.test.ts
++++ b/src/studio/persistence.test.ts
+@@ -46,10 +46,75 @@ describe("project persistence", () => {
+     const job = createDefaultJob("2026-09-04T00:00:00.000Z");
+     job.name = "Boundary replacement";
+ 
+-    assert.deepEqual(saveFencingJob(job, storage), { ok: true, error: null });
++    const saved = saveFencingJob(job, storage);
++    assert.deepEqual(saved, { ok: true, error: null, raw: storage.getItem(FENCING_JOB_STORAGE_KEY) });
+     const loaded = loadFencingJob(storage);
+     assert.equal(loaded.error, null);
+     assert.deepEqual(loaded.job, job);
++    assert.equal(loaded.raw, saved.raw, "the load reports the exact bytes it parsed");
++  });
++
++  it("refuses a stale write when storage holds bytes the writer never saw and leaves them untouched", () => {
++    const storage = new MemoryStorage();
++    const mine = createDefaultJob("2026-09-04T00:00:00.000Z");
++    const first = saveFencingJob(mine, storage);
++    const expectedRaw = first.raw ?? null;
++    assert.equal(expectedRaw, storage.getItem(FENCING_JOB_STORAGE_KEY));
++
++    // Another window saved a newer revision that this writer has not loaded.
++    const other = { ...mine, name: "Other window revision", revision: mine.revision + 1 };
++    const foreign = JSON.stringify(other);
++    storage.setItem(FENCING_JOB_STORAGE_KEY, foreign);
++
++    const attempt = saveFencingJob({ ...mine, name: "Stale window edit", revision: mine.revision + 1 }, storage, { expectedRaw });
++    assert.equal(attempt.ok, false);
++    assert.equal(attempt.stale, true);
++    assert.match(attempt.error ?? "", /newer revision .* another window/i);
++    assert.match(attempt.error ?? "", /reload/i);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), foreign, "the newer bytes are byte-identical after the refused write");
++  });
++
++  it("accepts a write whose expectedRaw matches the stored bytes and returns the bytes it wrote", () => {
++    const storage = new MemoryStorage();
++    const job = createDefaultJob("2026-09-04T00:00:00.000Z");
++    const first = saveFencingJob(job, storage);
++    const next = { ...job, name: "Same window edit", revision: job.revision + 1 };
++    const saved = saveFencingJob(next, storage, { expectedRaw: first.raw ?? null });
++    assert.equal(saved.ok, true);
++    assert.equal(saved.stale, undefined);
++    assert.equal(saved.raw, storage.getItem(FENCING_JOB_STORAGE_KEY));
++    assert.equal(loadFencingJob(storage).raw, saved.raw);
++    // Tracking the returned bytes keeps the next write valid.
++    assert.equal(saveFencingJob({ ...next, revision: next.revision + 1 }, storage, { expectedRaw: saved.raw ?? null }).ok, true);
++  });
++
++  it("treats an empty slot as the expected state for a first write, and a filled slot as stale for it", () => {
++    const storage = new MemoryStorage();
++    const job = createDefaultJob("2026-09-04T00:00:00.000Z");
++    assert.equal(saveFencingJob(job, storage, { expectedRaw: null }).ok, true);
++    const stored = storage.getItem(FENCING_JOB_STORAGE_KEY);
++    const second = saveFencingJob(createDefaultJob("2026-09-04T00:00:00.000Z"), storage, { expectedRaw: null });
++    assert.equal(second.ok, false);
++    assert.equal(second.stale, true);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), stored);
++  });
++
++  it("still fails on a readback mismatch when the compare-and-swap check passed", () => {
++    const job = createDefaultJob();
++    const replaced = { getItem: () => '{"another":"record"}', setItem: () => {}, removeItem: () => {} };
++    const saved = saveFencingJob(job, replaced, { expectedRaw: '{"another":"record"}' });
++    assert.equal(saved.ok, false);
++    assert.equal(saved.stale, undefined);
++    assert.match(saved.error ?? "", /could not be verified/);
++  });
++
++  it("reports a read failure during the compare-and-swap check instead of writing blind", () => {
++    const backing = new MemoryStorage();
++    const unreadable = { getItem: () => { throw Error("Storage read denied"); }, setItem: backing.setItem.bind(backing), removeItem: backing.removeItem.bind(backing) };
++    const saved = saveFencingJob(createDefaultJob(), unreadable, { expectedRaw: null });
++    assert.equal(saved.ok, false);
++    assert.match(saved.error ?? "", /before saving.*Storage read denied/);
++    assert.equal(backing.getItem(FENCING_JOB_STORAGE_KEY), null, "nothing was written");
+   });
+ 
+   it("fails closed when stored JSON is corrupt", () => {
+@@ -80,6 +145,17 @@ describe("project persistence", () => {
+     assert.equal(loaded.error, null);
+     assert.equal(loaded.job?.schemaVersion, 2);
+     assert.equal(loaded.job?.name, legacy.name);
++    assert.equal(loaded.raw, JSON.stringify(legacy), "the legacy bytes are reported as the loaded raw");
++
++    // A writer that loaded the legacy record may save with those bytes as its expectation.
++    const saved = saveFencingJob({ ...loaded.job!, name: "Migrated edit", revision: loaded.job!.revision + 1 }, storage, { expectedRaw: loaded.raw });
++    assert.equal(saved.ok, true);
++    assert.equal(storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY), JSON.stringify(legacy), "legacy bytes stay intact");
++    assert.equal(JSON.parse(storage.getItem(FENCING_JOB_STORAGE_KEY)!).name, "Migrated edit");
++    // Once the v2 record exists, the legacy bytes are no longer the expected state.
++    const stale = saveFencingJob(loaded.job!, storage, { expectedRaw: loaded.raw });
++    assert.equal(stale.stale, true);
++    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), saved.raw);
+   });
+ 
+   it("does not overwrite storage with an invalid job", () => {
+@@ -99,7 +175,7 @@ describe("project persistence", () => {
+     saveFencingJob(createDefaultJob(), storage);
+ 
+     assert.deepEqual(clearFencingJob(storage), { ok: true, error: null });
+-    assert.deepEqual(loadFencingJob(storage), { job: null, error: null });
++    assert.deepEqual(loadFencingJob(storage), { job: null, error: null, raw: null });
+   });
+ 
+   it("does not report success when storage silently drops or replaces a write", () => {
+diff --git a/src/studio/persistence.ts b/src/studio/persistence.ts
+index ddf1376..457638f 100644
+--- a/src/studio/persistence.ts
++++ b/src/studio/persistence.ts
+@@ -12,13 +12,31 @@ export const LEGACY_FENCING_JOB_STORAGE_KEY = "xray:fencing-job:v1";
+ export type JobLoadResult = {
+   job: FencingJob | null;
+   error: string | null;
++  /** The exact stored text this result was parsed from; null when nothing was stored. */
++  raw: string | null;
+ };
+ 
+ export type JobPersistenceResult = {
+   ok: boolean;
+   error: string | null;
++  /** True when the write was refused because storage no longer holds the bytes the writer expected. */
++  stale?: boolean;
++  /** The serialized bytes written on success, so the caller can track the stored revision. */
++  raw?: string | null;
+ };
+ 
++export type JobSaveOptions = {
++  /**
++   * Compare-and-swap guard: the exact bytes the caller last loaded or wrote (null for an empty slot).
++   * When provided and storage now holds different bytes, the write is refused so a stale
++   * window cannot silently overwrite a newer revision. Omit to skip the guard.
++   */
++  expectedRaw?: string | null;
++};
++
++export const STALE_PROJECT_WRITE_MESSAGE =
++  "A newer revision of this project was saved by another window. This window's change was not written so the newer revision is preserved. Reload the latest revision to continue, or download this window's unsaved revision first.";
++
+ type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+ 
+ function browserStorage(): StorageLike | null {
+@@ -30,27 +48,31 @@ function browserStorage(): StorageLike | null {
+   }
+ }
+ 
++/** The stored project text a load would parse: the v2 record, else the legacy record. */
++function readStoredJobText(storage: StorageLike): string | null {
++  return storage.getItem(FENCING_JOB_STORAGE_KEY) ?? storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
++}
++
+ export function loadFencingJob(storage: StorageLike | null = browserStorage()): JobLoadResult {
+-  if (!storage) return { job: null, error: null };
++  if (!storage) return { job: null, error: null, raw: null };
+ 
+   let raw: string | null;
+   try {
+-    raw =
+-      storage.getItem(FENCING_JOB_STORAGE_KEY) ?? storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY);
++    raw = readStoredJobText(storage);
+   } catch (error) {
+-    return { job: null, error: `Could not read the saved project: ${messageOf(error)}` };
++    return { job: null, error: `Could not read the saved project: ${messageOf(error)}`, raw: null };
+   }
+-  if (raw === null) return { job: null, error: null };
++  if (raw === null) return { job: null, error: null, raw: null };
+ 
+   let candidate: unknown;
+   try {
+     candidate = JSON.parse(raw);
+   } catch {
+-    return { job: null, error: "The saved project is not valid JSON." };
++    return { job: null, error: "The saved project is not valid JSON.", raw };
+   }
+ 
+   if (typeof candidate !== "object" || candidate === null) {
+-    return { job: null, error: "The saved project is not an object." };
++    return { job: null, error: "The saved project is not an object.", raw };
+   }
+ 
+   const version = (candidate as { schemaVersion?: unknown }).schemaVersion;
+@@ -58,19 +80,21 @@ export function loadFencingJob(storage: StorageLike | null = browserStorage()):
+     return {
+       job: null,
+       error: `Unsupported project schema version ${String(version)}; expected ${JOB_SCHEMA_VERSION}.`,
++      raw,
+     };
+   }
+ 
+   try {
+-    return { job: parseFencingJob(candidate), error: null };
++    return { job: parseFencingJob(candidate), error: null, raw };
+   } catch {
+-    return { job: null, error: "The saved project failed validation and was not loaded." };
++    return { job: null, error: "The saved project failed validation and was not loaded.", raw };
+   }
+ }
+ 
+ export function saveFencingJob(
+   job: FencingJob,
+   storage: StorageLike | null = browserStorage(),
++  options: JobSaveOptions = {},
+ ): JobPersistenceResult {
+   if (!storage) return { ok: false, error: "Browser storage is unavailable." };
+ 
+@@ -79,12 +103,23 @@ export function saveFencingJob(
+     return { ok: false, error: "The project failed validation and was not saved." };
+   }
+ 
++  if (options.expectedRaw !== undefined) {
++    // Compare-and-swap immediately before the write: never replace bytes this writer has not seen.
++    let current: string | null;
++    try {
++      current = readStoredJobText(storage);
++    } catch (error) {
++      return { ok: false, error: `Could not read the saved project before saving: ${messageOf(error)}` };
++    }
++    if (current !== options.expectedRaw) return { ok: false, stale: true, error: STALE_PROJECT_WRITE_MESSAGE };
++  }
++
+   try {
+     const serialized = JSON.stringify(parsed.data);
+     storage.setItem(FENCING_JOB_STORAGE_KEY, serialized);
+     if (storage.getItem(FENCING_JOB_STORAGE_KEY) !== serialized)
+       return { ok: false, error: "The project save could not be verified. Keep this window open and retry saving; the open work has been retained." };
+-    return { ok: true, error: null };
++    return { ok: true, error: null, raw: serialized };
+   } catch (error) {
+     return { ok: false, error: `Could not save the project: ${messageOf(error)}` };
+   }
+@@ -94,8 +129,9 @@ export function saveFencingJob(
+ export function loadOrCreateProject(fallback: FencingJob, storage: StorageLike | null = browserStorage()): JobLoadResult {
+   const loaded = loadFencingJob(storage);
+   if (loaded.job || loaded.error) return loaded;
+-  const saved = saveFencingJob(fallback, storage);
+-  if (!saved.ok) return { job: null, error: saved.error };
++  // The slot must still be empty at write time; a window that initialised first keeps its record.
++  const saved = saveFencingJob(fallback, storage, { expectedRaw: null });
++  if (!saved.ok && !saved.stale) return { job: null, error: saved.error, raw: null };
+   return loadFencingJob(storage);
+ }
+ 
+diff --git a/src/studio/pricing/PriceBookPanel.tsx b/src/studio/pricing/PriceBookPanel.tsx
+index 091f8bf..daf036e 100644
+--- a/src/studio/pricing/PriceBookPanel.tsx
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -7,6 +7,7 @@ import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, p
+ import "./priceBooks.css";
+ import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
+ import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
++import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
+ 
+ type SourceFile = { fileName: string; sizeBytes: number; sha256: string } & ({ kind: "csv"; text: string } | { kind: "xlsx"; workbook: PriceWorkbook });
+ type RateSelection = { bookId: string; revision: number; sourceLine: number };
+@@ -156,6 +157,7 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+       {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
+       {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}<details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details></article>; })}
+     </>}
++    <PricingResearchPanel projectId={jobId} />
+   </section>;
+ }
+ 
+diff --git a/src/studio/projectRecoveryStore.test.ts b/src/studio/projectRecoveryStore.test.ts
+index e123e7e..5570b14 100644
+--- a/src/studio/projectRecoveryStore.test.ts
++++ b/src/studio/projectRecoveryStore.test.ts
+@@ -15,8 +15,23 @@ const storage = {
+   },
+   removeItem(key: string) { data.delete(key); },
+ };
+-Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: storage } });
++const windowListeners: Record<string, ((event: unknown) => void)[]> = {};
++const fakeWindow = {
++  localStorage: storage,
++  addEventListener(type: string, listener: (event: unknown) => void) { (windowListeners[type] ??= []).push(listener); },
++};
++Object.defineProperty(globalThis, "window", { configurable: true, value: fakeWindow });
+ const { useStudio, resetStudioHydrationForTests } = await import("./store.ts");
++/** Simulate the browser's cross-window 'storage' event: another window already wrote the bytes. */
++function otherWindowWrites(key: string, newValue: string | null) {
++  const oldValue = data.get(key) ?? null;
++  if (newValue === null) data.delete(key); else data.set(key, newValue);
++  for (const listener of windowListeners.storage ?? []) listener({ key, newValue, oldValue, storageArea: storage });
++}
++function foreignRevisionOf(raw: string, name: string) {
++  const parsed = JSON.parse(raw);
++  return JSON.stringify({ ...parsed, name, revision: parsed.revision + 1 });
++}
+ beforeEach(() => {
+   resetStudioHydrationForTests(); useStudio.setState(useStudio.getInitialState(), true);
+   data.clear(); denyRead = false; denyWrite = false; dropWrite = false; writes = 0;
+@@ -55,19 +70,139 @@ test("read failure remains blocked, then retry restores the original identity be
+ test("quota and silent-write failures retain the in-memory edit, explicit retry persists it across reopen", async () => {
+   await useStudio.getState().hydratePersistence();
+   const before = data.get(FENCING_JOB_STORAGE_KEY), savedRevision = useStudio.getState().lastSavedJobRevision;
++  assert.equal(useStudio.getState().lastSavedJobRaw, before, "hydration tracks the bytes it loaded");
+   denyWrite = true;
+   useStudio.getState().updateJobName("Unsaved design revision");
+-  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), before);
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), before, "stored bytes are byte-identical during the quota failure");
+   assert.equal(useStudio.getState().job.name, "Unsaved design revision");
+   assert.equal(useStudio.getState().lastSavedJobRevision, savedRevision);
++  assert.equal(useStudio.getState().lastSavedJobRaw, before);
++  assert.equal(useStudio.getState().projectWriteStale, false, "a quota failure is not a stale write");
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false, "retry remains available");
+   assert.match(useStudio.getState().persistenceError ?? "", /Quota/);
+   denyWrite = false; dropWrite = true;
+   assert.equal(useStudio.getState().saveCurrentProject().ok, false);
+   assert.match(useStudio.getState().persistenceError ?? "", /verified/);
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), before, "stored bytes are byte-identical during the silent-write failure");
++  assert.equal(useStudio.getState().lastSavedJobRaw, before);
+   dropWrite = false;
+   assert.equal(useStudio.getState().saveCurrentProject().ok, true);
+   assert.equal(useStudio.getState().persistenceError, null);
++  assert.equal(useStudio.getState().lastSavedJobRaw, data.get(FENCING_JOB_STORAGE_KEY));
++  assert.equal(useStudio.getState().lastSavedJobRevision, useStudio.getState().job.revision);
+   useStudio.setState(useStudio.getInitialState(), true);
+   await useStudio.getState().hydratePersistence();
+   assert.equal(useStudio.getState().job.name, "Unsaved design revision");
+ });
++
++test("a stale window's autosave is refused, the newer stored revision survives and reload adopts it", async () => {
++  await useStudio.getState().hydratePersistence();
++  const mine = useStudio.getState().lastSavedJobRaw!;
++  assert.equal(mine, data.get(FENCING_JOB_STORAGE_KEY));
++  // Same-window simulation of another window's write: no storage event fires, only the bytes change.
++  const foreign = foreignRevisionOf(mine, "Other window revision");
++  data.set(FENCING_JOB_STORAGE_KEY, foreign);
++  const writesBefore = writes;
++
++  useStudio.getState().updateJobName("Losing window edit");
++  const state = useStudio.getState();
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), foreign, "the newer revision is byte-identical after the refused autosave");
++  assert.equal(writes, writesBefore, "no write reached storage");
++  assert.equal(state.projectWriteStale, true);
++  assert.equal(state.persistenceRecoveryBlocked, true, "autosave stops silently retrying");
++  assert.match(state.persistenceError ?? "", /newer revision .* another window/i);
++  assert.equal(state.job.name, "Losing window edit", "the in-memory revision is retained for download");
++  assert.equal(state.lastSavedJobRaw, mine, "tracking never adopts bytes it did not write");
++  assert.notEqual(state.lastSavedJobRevision, state.job.revision);
++
++  useStudio.getState().updateJobName("Second losing edit");
++  assert.equal(writes, writesBefore, "further edits do not write while stale");
++  assert.equal(useStudio.getState().saveCurrentProject().ok, false, "explicit save is refused while stale");
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), foreign);
++
++  await useStudio.getState().retryProjectLoad();
++  const reloaded = useStudio.getState();
++  assert.equal(reloaded.projectWriteStale, false);
++  assert.equal(reloaded.persistenceRecoveryBlocked, false);
++  assert.equal(reloaded.persistenceError, null);
++  assert.equal(reloaded.job.name, "Other window revision", "reload adopts the newer revision");
++  assert.equal(reloaded.lastSavedJobRaw, foreign);
++  assert.equal(reloaded.lastSavedJobRevision, JSON.parse(foreign).revision);
++
++  useStudio.getState().updateJobName("Edit after adopting the newer revision");
++  assert.equal(JSON.parse(data.get(FENCING_JOB_STORAGE_KEY)!).name, "Edit after adopting the newer revision");
++  assert.equal(useStudio.getState().lastSavedJobRaw, data.get(FENCING_JOB_STORAGE_KEY));
++  assert.equal(useStudio.getState().persistenceError, null);
++});
++
++test("a storage event from another window marks the project stale, blocks autosave and reload clears it", async () => {
++  await useStudio.getState().hydratePersistence();
++  const mine = useStudio.getState().lastSavedJobRaw!;
++  const writesBefore = writes;
++
++  // Unrelated keys and echoes of our own bytes never trip the guard.
++  otherWindowWrites("xray:something-else", "{}");
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, mine);
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
++
++  const foreign = foreignRevisionOf(mine, "Second window name");
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, foreign);
++  const state = useStudio.getState();
++  assert.equal(state.projectWriteStale, true);
++  assert.equal(state.persistenceRecoveryBlocked, true);
++  assert.match(state.persistenceError ?? "", /another window saved a newer revision/i);
++
++  useStudio.getState().updateJobName("Edit in the stale window");
++  assert.equal(writes, writesBefore, "autosave is blocked after the storage event");
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), foreign, "the other window's bytes survive untouched");
++  assert.equal(useStudio.getState().job.name, "Edit in the stale window", "the in-memory edit is retained");
++
++  await useStudio.getState().retryProjectLoad();
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
++  assert.equal(useStudio.getState().job.name, "Second window name");
++  assert.equal(useStudio.getState().lastSavedJobRaw, foreign);
++});
++
++test("a failed reload after a stale event shows the load-failure notice, not the newer-revision heading", async () => {
++  await useStudio.getState().hydratePersistence();
++  const mine = useStudio.getState().lastSavedJobRaw!;
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, foreignRevisionOf(mine, "Second window name"));
++  assert.equal(useStudio.getState().projectWriteStale, true);
++
++  // The newer bytes become unreadable before this window reloads them.
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, "{unreadable");
++  await useStudio.getState().retryProjectLoad();
++  const state = useStudio.getState();
++  assert.equal(state.projectWriteStale, false, "a load failure is not presented as a stale-writer condition");
++  assert.equal(state.persistenceRecoveryBlocked, true, "editing stays paused so the unreadable record is preserved");
++  assert.match(state.persistenceError ?? "", /not valid JSON/);
++  assert.equal(data.get(FENCING_JOB_STORAGE_KEY), "{unreadable", "the unreadable bytes are untouched");
++
++  // A read error on reload behaves the same way.
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, mine);
++  await useStudio.getState().retryProjectLoad();
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, foreignRevisionOf(mine, "Third window name"));
++  assert.equal(useStudio.getState().projectWriteStale, true);
++  denyRead = true;
++  await useStudio.getState().retryProjectLoad();
++  denyRead = false;
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, true);
++  assert.match(useStudio.getState().persistenceError ?? "", /Storage unavailable/);
++});
++
++test("storage events before hydration or after our own write are ignored", async () => {
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, JSON.stringify({ ...createDefaultJob(), name: "Pre-hydration write" }));
++  assert.equal(useStudio.getState().projectWriteStale, false, "nothing is stale before the project was loaded");
++  await useStudio.getState().hydratePersistence();
++  assert.equal(useStudio.getState().job.name, "Pre-hydration write");
++  useStudio.getState().updateJobName("Own write");
++  const own = useStudio.getState().lastSavedJobRaw!;
++  assert.equal(JSON.parse(own).name, "Own write");
++  otherWindowWrites(FENCING_JOB_STORAGE_KEY, own);
++  assert.equal(useStudio.getState().projectWriteStale, false);
++  assert.equal(useStudio.getState().persistenceRecoveryBlocked, false);
++});
+diff --git a/src/studio/sheetLifecycle.test.ts b/src/studio/sheetLifecycle.test.ts
+index e712f3c..89abe19 100644
+--- a/src/studio/sheetLifecycle.test.ts
++++ b/src/studio/sheetLifecycle.test.ts
+@@ -47,10 +47,83 @@ describe("source sheet organisation", () => {
+       photos: [{id:"p1",runIds:["r1"],gateIds:["i1"]},{id:"p2",runIds:["r2"],gateIds:[]},{id:"p3",runIds:[],gateIds:[]}],
+       annotations: [{sheet:0,documentId:identity.documentId},{sheet:1,documentId:identity.documentId},{sheet:0,documentId:"other"}] };
+     const before = structuredClone(input);
+-    assert.deepEqual(sheetArchiveImpact(input, identity, 0), {calibrations:1,traces:1,items:1,annotations:1,linkedPhotos:1});
++    assert.deepEqual(sheetArchiveImpact(input, identity, 0), {calibrations:1,traces:1,items:1,annotations:1,linkedPhotos:1,savedViews:0});
+     assert.deepEqual(input, before);
+     assert.throws(() => sheetArchiveImpact({...input,activeDocumentId:"other"}, identity, 0), /source drawing changed/);
+   });
++  it("D-04: archive review counts the saved views stored on the reviewed page only and refuses a lifecycle from another source", () => {
++    const { job, identity } = fixture();
++    const input = { ...job, activeDocumentId: identity.documentId, calibrations: [], runs: [], gates: [], photos: [], annotations: [] };
++    let value = createSheetLifecycle(identity);
++    const views = [captureSheetBookmark("Junction", 2, {x:15,y:22}, {width:500,height:400}), captureSheetBookmark("Stair", 3, {x:0,y:0}, {width:500,height:400}), captureSheetBookmark("Roof", 1, {x:5,y:5}, {width:500,height:400})];
++    value = changeSheetLifecycle(value, {type:"bookmark",pageIndex:1,bookmark:views[0]});
++    value = changeSheetLifecycle(value, {type:"bookmark",pageIndex:1,bookmark:views[1]});
++    value = changeSheetLifecycle(value, {type:"bookmark",pageIndex:0,bookmark:views[2]});
++    assert.equal(sheetArchiveImpact(input, identity, 1, value).savedViews, 2);
++    assert.equal(sheetArchiveImpact(input, identity, 0, value).savedViews, 1);
++    assert.equal(sheetArchiveImpact(input, identity, 2, value).savedViews, 0);
++    assert.equal(sheetArchiveImpact(input, identity, 1).savedViews, 0);
++    const foreign = createSheetLifecycle({ ...identity, sha256: "b".repeat(64) });
++    assert.throws(() => sheetArchiveImpact(input, identity, 1, foreign), /source drawing changed/);
++  });
++  it("D-02: rename changes only the page label and discipline; page-keyed evidence and saved views are untouched", () => {
++    const { job, identity, storage } = fixture();
++    const evidence = { ...job, activeDocumentId: identity.documentId,
++      calibrations: [{sheet:1}], runs: [{id:"r1",sheet:1,photoIds:["p1"]}], gates: [{id:"i1",sheet:1,photoIds:[]}],
++      photos: [{id:"p1",runIds:["r1"],gateIds:[]}], annotations: [{sheet:1,documentId:identity.documentId},{sheet:1,documentId:identity.documentId}] };
++    const view = captureSheetBookmark("Entry", 2, {x:15,y:22}, {width:500,height:400});
++    const before = saveSheetLifecycle(saveSheetLifecycle(createSheetLifecycle(identity), {type:"bookmark",pageIndex:1,bookmark:view}, storage), {type:"discipline",pageIndex:2,discipline:"Civil"}, storage);
++    const evidenceBefore = structuredClone(evidence), impactBefore = sheetArchiveImpact(evidence, identity, 1, before);
++    const after = saveSheetLifecycle(before, {type:"rename",pageIndex:1,name:"Ground floor plan",discipline:"Architecture"}, storage);
++    assert.deepEqual(after.pages.map(p=>p.pageIndex), before.pages.map(p=>p.pageIndex));
++    assert.deepEqual(after.pages[1], { ...before.pages[1], name: "Ground floor plan", discipline: "Architecture" });
++    assert.deepEqual(after.pages[1].bookmarks, [view]);
++    assert.deepEqual(after.pages.filter((_,i)=>i!==1), before.pages.filter((_,i)=>i!==1));
++    assert.deepEqual(after.identity, identity);
++    assert.deepEqual(evidence, evidenceBefore);
++    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, after), impactBefore);
++    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, after), {calibrations:1,traces:1,items:1,annotations:2,linkedPhotos:1,savedViews:1});
++    assert.equal(readSheetLifecycle(identity, storage).pages[1].name, "Ground floor plan");
++    assert.equal(JSON.parse(exportSheetRegister(after, "Plan.pdf")).sheets[1].originalPage, 2);
++  });
++  it("D-05: a recovered middle page keeps its managed slot, metadata, saved views and page-keyed evidence (scale, annotations, traces, items) after neighbours moved, and the export reflects the same order", () => {
++    const { job, identity, storage, map } = fixture();
++    const evidence = { ...job, activeDocumentId: identity.documentId,
++      calibrations: [{sheet:1},{sheet:0}], runs: [{id:"r1",sheet:1,photoIds:["p1"]}], gates: [{id:"i1",sheet:1,photoIds:[]}],
++      photos: [{id:"p1",runIds:["r1"],gateIds:[]}], annotations: [{sheet:1,documentId:identity.documentId},{sheet:1,documentId:identity.documentId},{sheet:0,documentId:identity.documentId}] };
++    const evidenceBefore = structuredClone(evidence);
++    const view = captureSheetBookmark("Detail", 4, {x:10,y:10}, {width:500,height:400});
++    let value = saveSheetLifecycle(createSheetLifecycle(identity), {type:"rename",pageIndex:1,name:"Ground floor plan",discipline:"Architecture"}, storage);
++    value = saveSheetLifecycle(value, {type:"bookmark",pageIndex:1,bookmark:view}, storage);
++    const impactBefore = sheetArchiveImpact(evidence, identity, 1, value);
++    assert.deepEqual(impactBefore, {calibrations:1,traces:1,items:1,annotations:2,linkedPhotos:1,savedViews:1});
++    const orderBefore = value.pages.map(p=>p.pageIndex), slotBefore = orderBefore.indexOf(1), storedKeysBefore = [...map.keys()];
++    value = saveSheetLifecycle(value, {type:"archive",pageIndex:1}, storage);
++    assert.deepEqual(value.pages.map(p=>p.pageIndex), orderBefore, "archive keeps the managed slot");
++    assert.deepEqual(evidence, evidenceBefore, "archive leaves the job evidence untouched");
++    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, value), impactBefore, "archived page still owns the same scale, traces, items, annotations, photos and saved view");
++    assert.throws(() => changeSheetLifecycle(value, {type:"move",pageIndex:1,direction:1}), /Recover/);
++    value = saveSheetLifecycle(value, {type:"move",pageIndex:2,direction:-1}, storage);
++    value = saveSheetLifecycle(value, {type:"move",pageIndex:3,direction:-1}, storage);
++    assert.deepEqual(value.pages.map(p=>p.pageIndex), [2,1,3,0]);
++    assert.equal(value.pages[1].archived, true);
++    value = saveSheetLifecycle(value, {type:"recover",pageIndex:1}, storage);
++    assert.equal(value.pages.findIndex(p=>p.pageIndex===1), slotBefore);
++    assert.deepEqual(value.pages[slotBefore], { pageIndex:1, name:"Ground floor plan", discipline:"Architecture", archived:false, bookmarks:[view] });
++    assert.deepEqual(value.pages.map(p=>p.pageIndex), [2,1,3,0]);
++    assert.deepEqual(value.pages.filter(p=>!p.archived).map(p=>p.pageIndex), [2,1,3,0]);
++    assert.deepEqual(evidence, evidenceBefore, "recover leaves the job evidence untouched");
++    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, value), impactBefore, "recovered page owns the same scale, traces, items, annotations, photos and saved view");
++    assert.deepEqual(sheetArchiveImpact(evidence, identity, 0, value), {calibrations:1,traces:0,items:0,annotations:1,linkedPhotos:0,savedViews:0}, "neighbouring page evidence unchanged");
++    assert.deepEqual([...map.keys()], storedKeysBefore, "only the lifecycle sidecar key was written; no job record key was touched");
++    const persisted = readSheetLifecycle(identity, storage);
++    assert.deepEqual(persisted, value);
++    const exported = JSON.parse(exportSheetRegister(persisted, "Plan.pdf"));
++    assert.deepEqual(exported.sheets.map((s:{originalPage:number})=>s.originalPage), [3,2,4,1]);
++    assert.deepEqual(exported.sheets.map((s:{archived:boolean})=>s.archived), [false,false,false,false]);
++    assert.equal(exported.sheets[1].name, "Ground floor plan");
++    assert.equal(exported.sheets[1].bookmarks[0].name, "Detail");
++  });
+   it("accepts valid source timestamps with a timezone offset", () => {
+     const { job } = fixture();
+     job.documents[0].importedAt = "2026-09-07T10:00:00+10:00";
+diff --git a/src/studio/sheetLifecycle.ts b/src/studio/sheetLifecycle.ts
+index d3d179e..f6c4cc5 100644
+--- a/src/studio/sheetLifecycle.ts
++++ b/src/studio/sheetLifecycle.ts
+@@ -100,23 +100,25 @@ export function saveSheetLifecycle(previous: SheetLifecycle, action: SheetAction
+   return next;
+ }
+ type JobSources = Pick<FencingJob, "id" | "documents">;
+-/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. */
++/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. Saved views come from the page's lifecycle value when supplied. */
+ export function sheetArchiveImpact(job: Pick<FencingJob, "id" | "documents" | "activeDocumentId"> & {
+   calibrations: Pick<FencingJob["calibrations"][number], "sheet">[];
+   runs: Pick<FencingJob["runs"][number], "id" | "sheet" | "photoIds">[];
+   gates: Pick<FencingJob["gates"][number], "id" | "sheet" | "photoIds">[];
+   photos: Pick<FencingJob["photos"][number], "id" | "runIds" | "gateIds">[];
+   annotations?: { sheet: number; documentId: string }[];
+-}, identity: SheetSourceIdentity, pageIndex: number) {
++}, identity: SheetSourceIdentity, pageIndex: number, lifecycle?: Pick<SheetLifecycle, "identity" | "pages">) {
+   const document = job.documents.find(d => d.id === job.activeDocumentId);
+   const actual = document && sheetSourceIdentity(job.id, document);
+   if (!actual || sheetLifecycleStorageKey(actual) !== sheetLifecycleStorageKey(identity) || pageIndex < 0 || pageIndex >= identity.pageCount) throw Error("The source drawing changed. Review the sheet again before archiving.");
++  if (lifecycle && sheetLifecycleStorageKey(lifecycle.identity) !== sheetLifecycleStorageKey(identity)) throw Error("The source drawing changed. Review the sheet again before archiving.");
++  const savedViews = lifecycle?.pages.find(p => p.pageIndex === pageIndex)?.bookmarks?.length ?? 0;
+   const runs = job.runs.filter(r => r.sheet === pageIndex), items = job.gates.filter(g => g.sheet === pageIndex);
+   const runIds = new Set(runs.map(r => r.id)), itemIds = new Set(items.map(g => g.id));
+   const photoIds = new Set([...runs, ...items].flatMap(row => row.photoIds));
+   const photos = job.photos.filter(photo => photoIds.has(photo.id) || photo.runIds.some(id => runIds.has(id)) || photo.gateIds.some(id => itemIds.has(id)));
+   return { calibrations: job.calibrations.filter(c => c.sheet === pageIndex).length, traces: runs.length, items: items.length,
+-    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length };
++    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length, savedViews };
+ }
+ /** Capture every saved source sidecar, including inactive documents, for a portable backup. */
+ export function readJobSheetMetadata(job: JobSources, storage: Pick<Storage, "getItem">): string | null {
+diff --git a/src/studio/store.ts b/src/studio/store.ts
+index 586e3b4..a4dec4c 100644
+--- a/src/studio/store.ts
++++ b/src/studio/store.ts
+@@ -18,7 +18,7 @@ import {
+   restoreDocumentWorkspace,
+   prepareDocumentSelection,
+ } from "./documentWorkspaces.ts";
+-import { loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
++import { FENCING_JOB_STORAGE_KEY, loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
+ import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
+ import { createBrowserPlanStore } from "./documents.ts";
+ import {
+@@ -182,6 +182,10 @@ type StudioState = {
+   persistenceHydrated: boolean;
+   persistenceRecoveryBlocked: boolean;
+   lastSavedJobRevision: number | null;
++  /** Exact bytes this window last loaded or wrote to the main job record; the compare-and-swap expectation. */
++  lastSavedJobRaw: string | null;
++  /** True once storage holds a newer revision this window never loaded; writes stay refused until reload. */
++  projectWriteStale: boolean;
+   hydrationStatus: HydrationStatus;
+   assetReadiness: RuntimeAssetReadiness;
+   quoteReadiness: QuoteReadiness;
+@@ -347,6 +351,8 @@ type StudioState = {
+   hydratePersistence: () => Promise<void>;
+   retryProjectLoad: () => Promise<void>;
+   saveCurrentProject: () => JobPersistenceResult;
++  /** Another window changed the stored main job record; returns true when this window became stale. */
++  noteExternalProjectWrite: (newValue: string | null) => boolean;
+ };
+ 
+ function uid() {
+@@ -804,6 +810,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+   persistenceHydrated: false,
+   persistenceRecoveryBlocked: true,
+   lastSavedJobRevision: null,
++  lastSavedJobRaw: null,
++  projectWriteStale: false,
+   hydrationStatus: "idle",
+   assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
+   quoteReadiness: readiness(initialJob, EMPTY_RUNTIME_ASSET_READINESS, false),
+@@ -2199,14 +2207,34 @@ export const useStudio = create<StudioState>((set, get) => ({
+     const state = get();
+     if (!state.persistenceHydrated || state.persistenceRecoveryBlocked || state.hydrationStatus !== "ready")
+       return { ok: false, error: "Saved project recovery must finish before saving. Existing records have been preserved." };
+-    const result = saveFencingJob(state.job);
+-    set({ persistenceError: result.error, ...(result.ok ? { lastSavedJobRevision: state.job.revision } : {}) });
++    // Compare-and-swap against the bytes this window last loaded or wrote (null for a slot it created).
++    const result = saveFencingJob(state.job, undefined, { expectedRaw: state.lastSavedJobRaw });
++    if (result.ok) {
++      set({ persistenceError: null, lastSavedJobRevision: state.job.revision, lastSavedJobRaw: result.raw ?? null });
++    } else if (result.stale) {
++      // Stop autosave retries: the in-memory revision is kept for download, storage keeps the newer one.
++      set({ persistenceError: result.error, projectWriteStale: true, persistenceRecoveryBlocked: true });
++    } else {
++      set({ persistenceError: result.error });
++    }
+     return result;
+   },
++  noteExternalProjectWrite: (newValue) => {
++    const state = get();
++    if (!state.persistenceHydrated || state.hydrationStatus !== "ready" || state.persistenceRecoveryBlocked) return false;
++    if (newValue === state.lastSavedJobRaw) return false;
++    set({
++      projectWriteStale: true,
++      persistenceRecoveryBlocked: true,
++      persistenceError:
++        "Another window saved a newer revision of this project. Saving from this window is paused so the newer revision is not overwritten. Reload the latest revision to continue, or download this window's unsaved revision first.",
++    });
++    return true;
++  },
+   hydratePersistence: () => {
+     if (get().persistenceHydrated) return Promise.resolve();
+     if (hydrationFlight) return hydrationFlight;
+-    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null });
++    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null, lastSavedJobRaw: null });
+     hydrationFlight = (async () => {
+       await Promise.resolve();
+       const staleUrls = get().photoPreviewUrls;
+@@ -2230,6 +2258,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+           persistenceHydrated: true,
+           hydrationStatus: loaded.error ? "error" : "ready",
+           assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
++          // A failed reload is a load problem, not a stale-writer condition: show the preservation notice.
++          projectWriteStale: false,
+         });
+         return;
+       }
+@@ -2375,6 +2405,8 @@ export const useStudio = create<StudioState>((set, get) => ({
+         hydrationStatus: "ready",
+         persistenceRecoveryBlocked: false,
+         lastSavedJobRevision: job.revision,
++        lastSavedJobRaw: loaded.raw,
++        projectWriteStale: false,
+       });
+     })()
+       .catch((error) => {
+@@ -2383,6 +2415,7 @@ export const useStudio = create<StudioState>((set, get) => ({
+           persistenceHydrated: true,
+           hydrationStatus: "error",
+           persistenceRecoveryBlocked: true,
++          projectWriteStale: false,
+         });
+       })
+       .finally(() => {
+@@ -2420,6 +2453,15 @@ if (typeof window !== "undefined") {
+     if (state.job === previous.job || !state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
+     state.saveCurrentProject();
+   });
++  // Cross-window detection: 'storage' fires only in other windows, so same-window writes rely on the
++  // compare-and-swap inside saveCurrentProject instead.
++  if (typeof window.addEventListener === "function") {
++    window.addEventListener("storage", (event: StorageEvent) => {
++      if (event.key !== FENCING_JOB_STORAGE_KEY) return;
++      if (event.storageArea && event.storageArea !== window.localStorage) return;
++      useStudio.getState().noteExternalProjectWrite(event.newValue);
++    });
++  }
+   useStudio.subscribe((state, previous) => {
+     if (!state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
+     if (state.bomState === previous.bomState && previous.persistenceHydrated) return;
+diff --git a/src/studio/pricing/pricingResearch.ts b/src/studio/pricing/pricingResearch.ts
+new file mode 100644
+index 0000000..bac1d92
+--- /dev/null
++++ b/src/studio/pricing/pricingResearch.ts
+@@ -0,0 +1,157 @@
++import { z } from "zod";
++
++/**
++ * Shared, browser-safe contract for bounded supplier product research.
++ * Search collects candidate source links only; nothing here changes a rate.
++ */
++export const PRICING_RESEARCH_VERSION = "xray.pricing-research/v1";
++export const PRICING_RESEARCH_MAX_RESULTS = 5;
++export const PRICING_RESEARCH_MAX_DOMAINS = 3;
++
++const HOSTNAME_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
++const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
++
++/** A registrable supplier hostname: lower-case DNS labels, at least one dot, no IP literal. */
++export function isSupplierHostname(value: string): boolean {
++  if (value.length < 3 || value.length > 253 || IPV4.test(value) || value.includes(":")) return false;
++  const labels = value.split(".");
++  if (labels.length < 2 || labels.at(-1) === "localhost" || labels.at(-1) === "local") return false;
++  return labels.every((label) => HOSTNAME_LABEL.test(label));
++}
++
++function ipv4Issue(host: string): string | null {
++  const match = IPV4.exec(host);
++  if (!match) return null;
++  const [a, b] = match.slice(1).map(Number);
++  if (match.slice(1).some((part) => Number(part) > 255)) return "malformed IPv4 address";
++  if (a === 127) return "loopback IPv4 address";
++  if (a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) return "private IPv4 address";
++  if (a === 169 && b === 254) return "link-local IPv4 address";
++  if (a === 0 || (a === 100 && b >= 64 && b <= 127) || a >= 224) return "reserved IPv4 address";
++  return "IP-literal host";
++}
++
++function ipv6Issue(host: string): string | null {
++  if (!host.startsWith("[") || !host.endsWith("]")) return null;
++  const address = host.slice(1, -1).toLowerCase();
++  if (address === "::1") return "loopback IPv6 address";
++  if (address === "::") return "unspecified IPv6 address";
++  if (/^fe[89ab]/.test(address)) return "link-local IPv6 address";
++  if (/^f[cd]/.test(address)) return "private IPv6 address";
++  const mapped = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(address);
++  if (mapped) return ipv4Issue(mapped[1]) ?? "IP-literal host";
++  // The URL parser serialises IPv4-mapped addresses in hex (::ffff:a00:1); map them back before classifying.
++  const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(address);
++  if (mappedHex) {
++    const [high, low] = [parseInt(mappedHex[1], 16), parseInt(mappedHex[2], 16)];
++    return ipv4Issue(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`) ?? "IP-literal host";
++  }
++  return "IP-literal host";
++}
++
++/** Returns null when the URL is a public HTTPS supplier page, otherwise the reason it is refused. */
++export function publicHttpsUrlIssue(value: string): string | null {
++  let url: URL;
++  try { url = new URL(value); } catch { return "not a valid URL"; }
++  if (url.protocol !== "https:") return "only https URLs are accepted";
++  if (url.username || url.password) return "embedded credentials are not accepted";
++  if (url.port) return "only the default HTTPS port is accepted";
++  const host = url.hostname;
++  const issue = ipv6Issue(host) ?? ipv4Issue(host);
++  if (issue) return issue;
++  if (!isSupplierHostname(host)) return "not a public supplier hostname";
++  return null;
++}
++
++export const isPublicHttpsUrl = (value: string) => publicHttpsUrlIssue(value) === null;
++
++const supplierHostnameSchema = z.string().trim().toLowerCase().max(253)
++  .refine(isSupplierHostname, "Enter a public supplier hostname such as www.bunnings.com.au");
++
++export const pricingResearchRequestSchema = z.object({
++  schema: z.literal(PRICING_RESEARCH_VERSION).default(PRICING_RESEARCH_VERSION),
++  query: z.string().trim().min(1, "Enter a search query.").max(200, "Query must be 200 characters or fewer."),
++  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Country must be an ISO-3166 alpha-2 code.").default("AU"),
++  location: z.string().trim().max(120).optional(),
++  includeDomains: z.array(supplierHostnameSchema).max(PRICING_RESEARCH_MAX_DOMAINS).optional(),
++  excludeDomains: z.array(supplierHostnameSchema).max(PRICING_RESEARCH_MAX_DOMAINS).optional(),
++  limit: z.number().int().min(1).max(PRICING_RESEARCH_MAX_RESULTS).default(PRICING_RESEARCH_MAX_RESULTS),
++  projectId: z.string().trim().min(1).max(200),
++  requestId: z.string().trim().min(1).max(100),
++}).strict().refine((r) => !(r.includeDomains?.length && r.excludeDomains?.length), {
++  message: "includeDomains and excludeDomains cannot be combined.",
++  path: ["excludeDomains"],
++});
++export type PricingResearchRequest = z.infer<typeof pricingResearchRequestSchema>;
++export type PricingResearchRequestInput = z.input<typeof pricingResearchRequestSchema>;
++
++export const supplierCandidateSchema = z.object({
++  url: z.string().max(2048).refine(isPublicHttpsUrl, "Candidate URL must be a public HTTPS address."),
++  title: z.string().max(300).optional(),
++  description: z.string().max(1000).optional(),
++}).strict();
++export type SupplierCandidate = z.infer<typeof supplierCandidateSchema>;
++
++const isoTimestamp = z.string().datetime({ offset: true });
++
++export const pricingResearchResultSchema = z.object({
++  schema: z.literal(PRICING_RESEARCH_VERSION).default(PRICING_RESEARCH_VERSION),
++  requestId: z.string().min(1).max(100),
++  query: z.string().min(1).max(200),
++  country: z.string().regex(/^[A-Z]{2}$/),
++  location: z.string().max(120).optional(),
++  /** The include-only supplier domains the search was restricted to, echoed so a result names its supplier filter. */
++  includeDomains: z.array(supplierHostnameSchema).max(PRICING_RESEARCH_MAX_DOMAINS).optional(),
++  startedAt: isoTimestamp,
++  finishedAt: isoTimestamp,
++  provider: z.literal("firecrawl"),
++  endpoint: z.literal("search"),
++  candidates: z.array(supplierCandidateSchema).max(PRICING_RESEARCH_MAX_RESULTS),
++  /** null means the provider did not report usage; it is never inferred. */
++  creditsUsed: z.number().nonnegative().nullable(),
++  nominalCreditEstimate: z.number().nonnegative(),
++  providerJobId: z.string().max(200).optional(),
++  warning: z.string().max(1000).optional(),
++}).strict();
++export type PricingResearchResult = z.infer<typeof pricingResearchResultSchema>;
++
++export const PRICING_RESEARCH_FAILURE_CODES = [
++  "not-configured", "disabled", "unauthorized", "payment-required", "rate-limited", "timeout",
++  "cancelled", "invalid-response", "too-large", "upstream-error", "busy", "invalid-request",
++] as const;
++export const pricingResearchFailureSchema = z.object({
++  schema: z.literal(PRICING_RESEARCH_VERSION).default(PRICING_RESEARCH_VERSION),
++  requestId: z.string().max(100),
++  code: z.enum(PRICING_RESEARCH_FAILURE_CODES),
++  message: z.string().min(1).max(600),
++  retryable: z.boolean(),
++  startedAt: isoTimestamp,
++  finishedAt: isoTimestamp,
++}).strict();
++export type PricingResearchFailure = z.infer<typeof pricingResearchFailureSchema>;
++export type PricingResearchFailureCode = PricingResearchFailure["code"];
++
++/**
++ * Nominal search cost from the public Firecrawl guide: two credits per started ten results.
++ * This is a documented estimate for display, not a provider-enforced maximum.
++ */
++export function estimateSearchCredits(limit: number): number {
++  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw RangeError("Result limit must be an integer from 1 to 100.");
++  return 2 * Math.ceil(limit / 10);
++}
++
++export type PricingResearchSummary = {
++  query: string; country: string; location: string | null; supplier: string | null; timestamp: string; count: number;
++  creditsReported: string; nominalCreditEstimate: number; headline: string;
++};
++/** Pure display summary: what was searched, where, for which supplier filter, when and how many links came back. */
++export function summarisePricingResearch(result: PricingResearchResult): PricingResearchSummary {
++  const count = result.candidates.length;
++  const creditsReported = result.creditsUsed === null ? "not reported" : `${result.creditsUsed}`;
++  const supplier = result.includeDomains?.length ? result.includeDomains.join(", ") : null;
++  return {
++    query: result.query, country: result.country, location: result.location ?? null, supplier, timestamp: result.finishedAt, count,
++    creditsReported, nominalCreditEstimate: result.nominalCreditEstimate,
++    headline: `${count} source link${count === 1 ? "" : "s"} for "${result.query}" · ${result.country}${result.location ? ` · ${result.location}` : ""}${supplier ? ` · ${supplier}` : ""} · ${result.finishedAt}`,
++  };
++}
+diff --git a/src/studio/pricing/pricingResearch.test.ts b/src/studio/pricing/pricingResearch.test.ts
+new file mode 100644
+index 0000000..4862d3c
+--- /dev/null
++++ b/src/studio/pricing/pricingResearch.test.ts
+@@ -0,0 +1,145 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import {
++  PRICING_RESEARCH_VERSION,
++  estimateSearchCredits,
++  isPublicHttpsUrl,
++  publicHttpsUrlIssue,
++  pricingResearchFailureSchema,
++  pricingResearchRequestSchema,
++  pricingResearchResultSchema,
++  summarisePricingResearch,
++  supplierCandidateSchema,
++} from "./pricingResearch.ts";
++
++const base = { query: "90x45 MGP10 treated pine", projectId: "QA", requestId: "req-1" };
++
++test("request schema applies defaults, trims and bounds every field", () => {
++  const parsed = pricingResearchRequestSchema.parse({ ...base, query: "  90x45 MGP10  " });
++  assert.equal(parsed.schema, PRICING_RESEARCH_VERSION);
++  assert.equal(parsed.query, "90x45 MGP10");
++  assert.equal(parsed.country, "AU");
++  assert.equal(parsed.limit, 5);
++  assert.equal(parsed.location, undefined);
++  assert.equal(pricingResearchRequestSchema.parse({ ...base, country: "nz" }).country, "NZ");
++  assert.equal(pricingResearchRequestSchema.parse({ ...base, includeDomains: [" WWW.Bunnings.com.au "] }).includeDomains?.[0], "www.bunnings.com.au");
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, query: "   " }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, query: "x".repeat(201) }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, country: "AUS" }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, location: "x".repeat(121) }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, limit: 0 }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, limit: 6 }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, limit: 2.5 }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, includeDomains: ["a.com", "b.com", "c.com", "d.com"] }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, includeDomains: ["localhost"] }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, includeDomains: ["10.0.0.1"] }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, projectId: "" }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, requestId: "" }));
++  assert.throws(() => pricingResearchRequestSchema.parse({ ...base, headers: { "X-Evil": "1" } }), /unrecognized|Unrecognized/i);
++});
++
++test("include and exclude domain filters are mutually exclusive", () => {
++  assert.doesNotThrow(() => pricingResearchRequestSchema.parse({ ...base, includeDomains: ["www.bunnings.com.au"] }));
++  assert.doesNotThrow(() => pricingResearchRequestSchema.parse({ ...base, excludeDomains: ["www.example.com"] }));
++  assert.doesNotThrow(() => pricingResearchRequestSchema.parse({ ...base, includeDomains: [], excludeDomains: ["www.example.com"] }));
++  assert.throws(
++    () => pricingResearchRequestSchema.parse({ ...base, includeDomains: ["www.bunnings.com.au"], excludeDomains: ["www.example.com"] }),
++    /cannot be combined/,
++  );
++});
++
++test("public HTTPS validator rejects unsafe hosts, schemes, credentials and ports", () => {
++  assert.equal(isPublicHttpsUrl("https://www.bunnings.com.au/product"), true);
++  assert.equal(isPublicHttpsUrl("https://www.bunnings.com.au:443/product?x=1#frag"), true);
++  for (const [url, reason] of [
++    ["http://www.bunnings.com.au/product", /https/],
++    ["https://user:pw@www.bunnings.com.au/product", /credentials/],
++    ["https://user@www.bunnings.com.au/product", /credentials/],
++    ["https://127.0.0.1/product", /loopback/],
++    ["https://10.0.0.1/product", /private/],
++    ["https://172.20.1.1/product", /private/],
++    ["https://192.168.1.1/product", /private/],
++    ["https://169.254.1.1/product", /link-local/],
++    ["https://[::1]/product", /loopback/],
++    ["https://[fe80::1]/product", /link-local/],
++    ["https://[fd00::1]/product", /private/],
++    ["https://[::ffff:10.0.0.1]/product", /private/],
++    ["https://[2001:db8::1]/product", /IP-literal/],
++    ["https://8.8.8.8/product", /IP-literal/],
++    ["https://localhost/product", /hostname/],
++    ["https://intranet/product", /hostname/],
++    ["https://box.localhost/product", /hostname/],
++    ["https://host:8443/product", /port/],
++    ["https://www.bunnings.com.au:8443/product", /port/],
++    ["ftp://www.bunnings.com.au/product", /https/],
++    ["javascript:alert(1)", /https/],
++    ["not a url", /valid URL/],
++  ] as const) {
++    const issue = publicHttpsUrlIssue(url);
++    assert.notEqual(issue, null, url);
++    assert.match(issue ?? "", reason, url);
++    assert.equal(isPublicHttpsUrl(url), false, url);
++  }
++  assert.doesNotThrow(() => supplierCandidateSchema.parse({ url: "https://www.bunnings.com.au/product", title: "t", description: "d" }));
++  assert.throws(() => supplierCandidateSchema.parse({ url: "http://www.bunnings.com.au/product" }));
++  assert.throws(() => supplierCandidateSchema.parse({ url: "https://www.bunnings.com.au/product", title: "t".repeat(301) }));
++  assert.throws(() => supplierCandidateSchema.parse({ url: "https://www.bunnings.com.au/product", description: "d".repeat(1001) }));
++});
++
++test("credit estimate is two per started ten results and refuses nonsense limits", () => {
++  for (const limit of [1, 2, 3, 4, 5]) assert.equal(estimateSearchCredits(limit), 2);
++  assert.equal(estimateSearchCredits(10), 2);
++  assert.equal(estimateSearchCredits(11), 4);
++  assert.throws(() => estimateSearchCredits(0), RangeError);
++  assert.throws(() => estimateSearchCredits(1.5), RangeError);
++  assert.throws(() => estimateSearchCredits(101), RangeError);
++});
++
++test("result and failure schemas bound candidates and enumerate failure codes", () => {
++  const timestamps = { startedAt: "2026-09-08T01:02:03.000Z", finishedAt: "2026-09-08T01:02:05.000Z" };
++  const candidate = { url: "https://www.bunnings.com.au/product" };
++  const result = pricingResearchResultSchema.parse({
++    requestId: "req-1", query: "pine", country: "AU", provider: "firecrawl", endpoint: "search",
++    candidates: [candidate], creditsUsed: null, nominalCreditEstimate: 2, ...timestamps,
++  });
++  assert.equal(result.schema, PRICING_RESEARCH_VERSION);
++  assert.equal(result.creditsUsed, null);
++  assert.throws(() => pricingResearchResultSchema.parse({ ...result, candidates: Array(6).fill(candidate) }));
++  assert.throws(() => pricingResearchResultSchema.parse({ ...result, provider: "other" }));
++  assert.throws(() => pricingResearchResultSchema.parse({ ...result, startedAt: "yesterday" }));
++  const failure = pricingResearchFailureSchema.parse({ requestId: "req-1", code: "rate-limited", message: "Slow down.", retryable: true, ...timestamps });
++  assert.equal(failure.code, "rate-limited");
++  assert.throws(() => pricingResearchFailureSchema.parse({ ...failure, code: "mystery" }));
++  assert.throws(() => pricingResearchFailureSchema.parse({ ...failure, message: "" }));
++});
++
++test("display summary reports query, country, timestamp, count and reported credits", () => {
++  const timestamps = { startedAt: "2026-09-08T01:02:03.000Z", finishedAt: "2026-09-08T01:02:05.000Z" };
++  const result = pricingResearchResultSchema.parse({
++    requestId: "req-1", query: "pine", country: "NZ", location: "Auckland", provider: "firecrawl", endpoint: "search",
++    candidates: [{ url: "https://www.bunnings.co.nz/a" }, { url: "https://www.bunnings.co.nz/b" }],
++    creditsUsed: null, nominalCreditEstimate: 2, ...timestamps,
++  });
++  const summary = summarisePricingResearch(result);
++  assert.deepEqual(summary, {
++    query: "pine", country: "NZ", location: "Auckland", supplier: null, timestamp: "2026-09-08T01:02:05.000Z", count: 2,
++    creditsReported: "not reported", nominalCreditEstimate: 2,
++    headline: '2 source links for "pine" · NZ · Auckland · 2026-09-08T01:02:05.000Z',
++  });
++  const single = summarisePricingResearch({ ...result, location: undefined, candidates: result.candidates.slice(0, 1), creditsUsed: 2 });
++  assert.equal(single.creditsReported, "2");
++  assert.equal(single.location, null);
++  assert.equal(single.headline, '1 source link for "pine" · NZ · 2026-09-08T01:02:05.000Z');
++});
++
++test("display summary names the supplier filter when the result carries include-only domains", () => {
++  const base = {
++    requestId: "req-9", query: "treated pine", country: "AU", startedAt: "2026-09-08T13:00:00.000Z", finishedAt: "2026-09-08T13:00:02.000Z",
++    provider: "firecrawl" as const, endpoint: "search" as const, candidates: [], creditsUsed: null, nominalCreditEstimate: 2,
++  };
++  const filtered = pricingResearchResultSchema.parse({ ...base, includeDomains: ["www.bunnings.com.au"] });
++  assert.equal(summarisePricingResearch(filtered).supplier, "www.bunnings.com.au");
++  assert.match(summarisePricingResearch(filtered).headline, /www\.bunnings\.com\.au/);
++  assert.equal(summarisePricingResearch(pricingResearchResultSchema.parse(base)).supplier, null);
++  assert.throws(() => pricingResearchResultSchema.parse({ ...base, includeDomains: ["127.0.0.1"] }), "an IP literal is not a supplier hostname");
++});
+diff --git a/src/lib/pricingResearch.server.ts b/src/lib/pricingResearch.server.ts
+new file mode 100644
+index 0000000..1a6823a
+--- /dev/null
++++ b/src/lib/pricingResearch.server.ts
+@@ -0,0 +1,234 @@
++import { z } from "zod";
++import {
++  estimateSearchCredits,
++  publicHttpsUrlIssue,
++  pricingResearchFailureSchema,
++  pricingResearchRequestSchema,
++  pricingResearchResultSchema,
++  type PricingResearchFailure,
++  type PricingResearchFailureCode,
++  type PricingResearchResult,
++  type SupplierCandidate,
++} from "../studio/pricing/pricingResearch.ts";
++
++/** Fixed upstream. The client never chooses the endpoint, headers or provider options. */
++export const FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search";
++const PROVIDER_TIMEOUT_MS = 30000;
++const REQUEST_TIMEOUT_MS = 35000;
++const MAX_RESPONSE_BYTES = 1024 * 1024;
++
++type Environment = Record<string, string | undefined>;
++
++export function pricingResearchStatus(env: Environment = process.env) {
++  const configured = Boolean(env.FIRECRAWL_API_KEY);
++  const enabled = env.XRAY_PRICING_RESEARCH_WEB_ENABLED === "true";
++  return {
++    provider: "Firecrawl",
++    configured,
++    available: configured && enabled,
++    message: !configured
++      ? "Supplier research provider not configured. Set FIRECRAWL_API_KEY and XRAY_PRICING_RESEARCH_WEB_ENABLED=true on the server to enable bounded searches."
++      : !enabled
++        ? "Supplier research is configured but web access is disabled by the operator."
++        : "Firecrawl configured. A bounded search (web sources only, at most 5 links) is sent only when you start it.",
++  };
++}
++
++/** Same-origin rule shared with the material AI route: CSRF protection only, not user identity. */
++export function allowPricingResearchRequest(request: Request) {
++  const site = request.headers.get("sec-fetch-site");
++  if (site && site !== "same-origin" && site !== "none") return false;
++  const origin = request.headers.get("origin");
++  return !origin || origin === new URL(request.url).origin;
++}
++
++/** Typed failure the route converts to JSON. Messages are static and never carry the key or provider bodies. */
++export class PricingResearchError extends Error {
++  readonly failure: PricingResearchFailure;
++  constructor(failure: PricingResearchFailure) {
++    super(failure.message);
++    this.name = "PricingResearchError";
++    this.failure = failure;
++  }
++}
++
++export function failureHttpStatus(code: PricingResearchFailureCode): number {
++  switch (code) {
++    case "invalid-request": return 400;
++    case "busy": return 409;
++    case "too-large": return 502;
++    case "not-configured":
++    case "disabled": return 503;
++    default: return 502;
++  }
++}
++
++const FAILURE_TEXT: Record<Exclude<PricingResearchFailureCode, "not-configured" | "disabled" | "invalid-request">, [string, boolean]> = {
++  unauthorized: ["The supplier research provider rejected the server credential (HTTP 401). No search ran.", false],
++  "payment-required": ["The supplier research provider reports no remaining credit (HTTP 402). No search ran.", false],
++  "rate-limited": ["The supplier research provider is rate limiting this account (HTTP 429). Existing data is unchanged; try again later.", true],
++  timeout: ["The supplier research request timed out before the provider answered. Provider billing for the attempt is unknown.", true],
++  cancelled: ["Search cancelled. Any late provider response is discarded; provider billing for the attempt is unknown.", true],
++  "invalid-response": ["The supplier research provider returned data that does not match the documented search response. No links were kept.", false],
++  "too-large": ["The supplier research response exceeded the 1 MiB safety limit and was discarded.", false],
++  "upstream-error": ["The supplier research provider failed to answer the search. No links were kept.", true],
++  busy: ["A supplier search is already running on this server. Wait for it to finish before starting another.", true],
++};
++
++let running = false;
++
++function fail(requestId: string, code: PricingResearchFailureCode, startedAt: string, message?: string, retryable?: boolean): PricingResearchError {
++  const text = code in FAILURE_TEXT ? FAILURE_TEXT[code as keyof typeof FAILURE_TEXT] : null;
++  return new PricingResearchError(pricingResearchFailureSchema.parse({
++    requestId, code,
++    message: (message ?? text?.[0] ?? "Supplier research failed.").slice(0, 600),
++    retryable: retryable ?? text?.[1] ?? false,
++    startedAt, finishedAt: new Date().toISOString(),
++  }));
++}
++
++/**
++ * Documented Firecrawl v2 REST search response. Unknown extra fields are tolerated; the shape is not:
++ * `success` and `data` are required so an empty object, an error body or a bare `{ success: true }`
++ * cannot be presented as a search that found nothing.
++ */
++const firecrawlSearchResponseSchema = z.object({
++  success: z.boolean(),
++  data: z.object({
++    web: z.array(z.object({ url: z.string(), title: z.string().nullish(), description: z.string().nullish() }).loose()).optional(),
++  }).loose().optional(),
++  id: z.string().optional(),
++  warning: z.string().nullish(),
++  creditsUsed: z.number().nullish(),
++}).loose();
++
++function neverSettlesGuard(signal: AbortSignal): Promise<never> {
++  return new Promise((_, reject) => {
++    if (signal.aborted) reject(signal.reason);
++    else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
++  });
++}
++
++async function readBounded(response: Response, signal: AbortSignal): Promise<string> {
++  const declared = Number(response.headers.get("content-length"));
++  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
++    await response.body?.cancel().catch(() => undefined);
++    throw new RangeError("too-large");
++  }
++  const reader = response.body?.getReader();
++  if (!reader) throw new SyntaxError("empty");
++  const decoder = new TextDecoder();
++  let bytes = 0, text = "";
++  while (true) {
++    const chunk = await Promise.race([reader.read(), neverSettlesGuard(signal)]);
++    if (chunk.done) break;
++    bytes += chunk.value.length;
++    if (bytes > MAX_RESPONSE_BYTES) {
++      await reader.cancel().catch(() => undefined);
++      throw new RangeError("too-large");
++    }
++    text += decoder.decode(chunk.value, { stream: true });
++  }
++  return text + decoder.decode();
++}
++
++export async function searchSupplierProducts(
++  rawJson: string,
++  options: { env?: Environment; fetcher?: typeof fetch; signal?: AbortSignal; timeoutMs?: number } = {},
++): Promise<PricingResearchResult> {
++  const startedAt = new Date().toISOString();
++  const env = options.env ?? process.env;
++  let requestId = "";
++  let parsedJson: unknown;
++  try { parsedJson = JSON.parse(rawJson); } catch { throw fail(requestId, "invalid-request", startedAt, "Supplier research request is not valid JSON."); }
++  if (parsedJson && typeof parsedJson === "object" && typeof (parsedJson as { requestId?: unknown }).requestId === "string")
++    requestId = String((parsedJson as { requestId: string }).requestId).slice(0, 100);
++  const parsed = pricingResearchRequestSchema.safeParse(parsedJson);
++  if (!parsed.success) {
++    const issue = parsed.error.issues[0];
++    throw fail(requestId, "invalid-request", startedAt, `Supplier research request rejected: ${issue ? `${issue.path.join(".") || "request"}: ${issue.message}` : "invalid shape"}.`);
++  }
++  const request = parsed.data;
++  requestId = request.requestId;
++  const status = pricingResearchStatus(env);
++  if (!status.configured) throw fail(requestId, "not-configured", startedAt, status.message);
++  if (!status.available) throw fail(requestId, "disabled", startedAt, status.message);
++  if (options.signal?.aborted) throw fail(requestId, "cancelled", startedAt);
++  if (running) throw fail(requestId, "busy", startedAt);
++  running = true;
++  try {
++    const timeout = AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS);
++    const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
++    const classifyAbort = () => options.signal?.aborted ? "cancelled" : "timeout";
++    const body: Record<string, unknown> = {
++      query: request.query, sources: ["web"], limit: request.limit, country: request.country,
++      ...(request.location ? { location: request.location } : {}),
++      ...(request.includeDomains?.length ? { includeDomains: request.includeDomains } : {}),
++      ...(request.excludeDomains?.length ? { excludeDomains: request.excludeDomains } : {}),
++      timeout: PROVIDER_TIMEOUT_MS,
++    };
++    let response: Response;
++    try {
++      response = await Promise.race([
++        (options.fetcher ?? fetch)(FIRECRAWL_SEARCH_URL, {
++          method: "POST", redirect: "error", signal,
++          headers: { Authorization: `Bearer ${env.FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
++          body: JSON.stringify(body),
++        }),
++        neverSettlesGuard(signal),
++      ]);
++    } catch {
++      if (signal.aborted) throw fail(requestId, classifyAbort(), startedAt);
++      throw fail(requestId, "upstream-error", startedAt);
++    }
++    if (!response.ok) {
++      await response.body?.cancel().catch(() => undefined);
++      const code: PricingResearchFailureCode =
++        response.status === 401 ? "unauthorized" : response.status === 402 ? "payment-required" : response.status === 429 ? "rate-limited" : "upstream-error";
++      if (code === "upstream-error" && response.status < 500)
++        throw fail(requestId, code, startedAt, `The supplier research provider rejected the search (HTTP ${response.status}). No links were kept.`, false);
++      throw fail(requestId, code, startedAt, code === "upstream-error" ? `The supplier research provider failed to answer the search (HTTP ${response.status}). No links were kept.` : undefined);
++    }
++    let text: string;
++    try { text = await readBounded(response, signal); } catch (error) {
++      if (signal.aborted) throw fail(requestId, classifyAbort(), startedAt);
++      throw fail(requestId, error instanceof RangeError ? "too-large" : "invalid-response", startedAt);
++    }
++    let payload: z.infer<typeof firecrawlSearchResponseSchema>;
++    try { payload = firecrawlSearchResponseSchema.parse(JSON.parse(text)); } catch { throw fail(requestId, "invalid-response", startedAt); }
++    if (payload.success === false) throw fail(requestId, "upstream-error", startedAt, "The supplier research provider reported an unsuccessful search. No links were kept.", false);
++    // A successful answer must carry the documented data object; a bare { success: true } is not an empty search.
++    if (!payload.data) throw fail(requestId, "invalid-response", startedAt);
++    const candidates: SupplierCandidate[] = [];
++    const seen = new Set<string>();
++    let dropped = 0, duplicates = 0;
++    for (const hit of payload.data.web ?? []) {
++      if (candidates.length >= request.limit) break;
++      if (publicHttpsUrlIssue(hit.url) !== null || hit.url.length > 2048) { dropped++; continue; }
++      if (seen.has(hit.url)) { duplicates++; continue; }
++      seen.add(hit.url);
++      const title = hit.title?.trim().slice(0, 300), description = hit.description?.trim().slice(0, 1000);
++      candidates.push({ url: hit.url, ...(title ? { title } : {}), ...(description ? { description } : {}) });
++    }
++    const warnings = [
++      dropped ? `${dropped} result link${dropped === 1 ? " was" : "s were"} dropped because ${dropped === 1 ? "it is" : "they are"} not public HTTPS URLs.` : "",
++      duplicates ? `${duplicates} duplicate link${duplicates === 1 ? " was" : "s were"} collapsed.` : "",
++      payload.warning?.trim() ? `Provider warning: ${payload.warning.trim()}` : "",
++    ].filter(Boolean).join(" ").slice(0, 1000);
++    const finishedAt = new Date().toISOString();
++    const result = pricingResearchResultSchema.safeParse({
++      requestId, query: request.query, country: request.country,
++      ...(request.location ? { location: request.location } : {}),
++      ...(request.includeDomains?.length ? { includeDomains: request.includeDomains } : {}),
++      startedAt, finishedAt, provider: "firecrawl", endpoint: "search", candidates,
++      creditsUsed: typeof payload.creditsUsed === "number" && payload.creditsUsed >= 0 ? payload.creditsUsed : null,
++      nominalCreditEstimate: estimateSearchCredits(request.limit),
++      ...(payload.id ? { providerJobId: payload.id.slice(0, 200) } : {}),
++      ...(warnings ? { warning: warnings } : {}),
++    });
++    if (!result.success) throw fail(requestId, "invalid-response", startedAt);
++    return result.data;
++  } finally {
++    running = false;
++  }
++}
+diff --git a/src/lib/pricingResearch.server.test.ts b/src/lib/pricingResearch.server.test.ts
+new file mode 100644
+index 0000000..7016147
+--- /dev/null
++++ b/src/lib/pricingResearch.server.test.ts
+@@ -0,0 +1,254 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import {
++  FIRECRAWL_SEARCH_URL,
++  PricingResearchError,
++  allowPricingResearchRequest,
++  failureHttpStatus,
++  pricingResearchStatus,
++  searchSupplierProducts,
++} from "./pricingResearch.server.ts";
++
++const KEY = "fc-unit-test-credential-not-live-0123456789";
++const env = { FIRECRAWL_API_KEY: KEY, XRAY_PRICING_RESEARCH_WEB_ENABLED: "true" };
++const request = { query: "90x45 MGP10 treated pine", country: "AU", limit: 3, projectId: "QA", requestId: "req-1", includeDomains: ["www.bunnings.com.au"] };
++const raw = JSON.stringify(request);
++const web = [
++  { url: "https://www.bunnings.com.au/1", title: "Pine 1", description: "Treated pine 90x45" },
++  { url: "http://www.bunnings.com.au/insecure", title: "Insecure" },
++  { url: "https://10.0.0.1/private", title: "Private" },
++  { url: "https://www.bunnings.com.au/2", title: "Pine 2", description: null },
++  { url: "https://www.bunnings.com.au/3", title: "Pine 3" },
++  { url: "https://www.bunnings.com.au/4", title: "Pine 4" },
++  { url: "https://www.bunnings.com.au/5", title: "Pine 5" },
++];
++const documented = (extra: Record<string, unknown> = {}) =>
++  Response.json({ success: true, data: { web }, id: "job-123", warning: "provider note", creditsUsed: 2, ...extra });
++
++async function failure(promise: Promise<unknown>) {
++  try { await promise; } catch (error) {
++    assert.ok(error instanceof PricingResearchError, `expected PricingResearchError, got ${String(error)}`);
++    assert.equal(JSON.stringify(error.failure).includes(KEY), false, "failure must not leak the key");
++    assert.equal(error.message.includes(KEY), false, "message must not leak the key");
++    return error.failure;
++  }
++  assert.fail("expected the search to fail");
++}
++
++test("status never exposes the key and requires explicit operator enable", () => {
++  assert.deepEqual(pricingResearchStatus({}), {
++    provider: "Firecrawl", configured: false, available: false,
++    message: "Supplier research provider not configured. Set FIRECRAWL_API_KEY and XRAY_PRICING_RESEARCH_WEB_ENABLED=true on the server to enable bounded searches.",
++  });
++  assert.equal(pricingResearchStatus({ FIRECRAWL_API_KEY: KEY }).configured, true);
++  assert.equal(pricingResearchStatus({ FIRECRAWL_API_KEY: KEY }).available, false);
++  assert.match(pricingResearchStatus({ FIRECRAWL_API_KEY: KEY }).message, /disabled by the operator/);
++  assert.equal(pricingResearchStatus(env).available, true);
++  assert.equal(JSON.stringify(pricingResearchStatus(env)).includes(KEY), false);
++  assert.equal(pricingResearchStatus({ ...env, XRAY_PRICING_RESEARCH_WEB_ENABLED: "yes" }).available, false);
++});
++
++test("not-configured and disabled refuse before any network request", async () => {
++  let called = 0;
++  const fetcher: typeof fetch = async () => { called++; return documented(); };
++  const missing = await failure(searchSupplierProducts(raw, { env: {}, fetcher }));
++  assert.equal(missing.code, "not-configured");
++  assert.equal(missing.retryable, false);
++  assert.equal(failureHttpStatus(missing.code), 503);
++  const disabled = await failure(searchSupplierProducts(raw, { env: { FIRECRAWL_API_KEY: KEY }, fetcher }));
++  assert.equal(disabled.code, "disabled");
++  assert.equal(failureHttpStatus(disabled.code), 503);
++  assert.equal(called, 0);
++});
++
++test("invalid JSON and schema violations are invalid-request failures without a network call", async () => {
++  let called = 0;
++  const fetcher: typeof fetch = async () => { called++; return documented(); };
++  assert.equal((await failure(searchSupplierProducts("{not json", { env, fetcher }))).code, "invalid-request");
++  const bad = await failure(searchSupplierProducts(JSON.stringify({ ...request, limit: 50 }), { env, fetcher }));
++  assert.equal(bad.code, "invalid-request");
++  assert.equal(failureHttpStatus(bad.code), 400);
++  const both = await failure(searchSupplierProducts(JSON.stringify({ ...request, excludeDomains: ["www.example.com"] }), { env, fetcher }));
++  assert.match(both.message, /cannot be combined/);
++  assert.equal(called, 0);
++});
++
++test("success posts the documented body to the fixed endpoint and maps the documented response", async () => {
++  let seenUrl = "", seenInit: RequestInit | undefined;
++  const result = await searchSupplierProducts(raw, {
++    env,
++    fetcher: async (url, init) => { seenUrl = String(url); seenInit = init; return documented(); },
++  });
++  assert.equal(seenUrl, FIRECRAWL_SEARCH_URL);
++  assert.equal(seenUrl, "https://api.firecrawl.dev/v2/search");
++  assert.equal(seenInit?.method, "POST");
++  assert.equal(seenInit?.redirect, "error");
++  const headers = new Headers(seenInit?.headers);
++  assert.equal(headers.get("authorization"), `Bearer ${KEY}`);
++  assert.equal(headers.get("content-type"), "application/json");
++  assert.deepEqual(JSON.parse(String(seenInit?.body)), {
++    query: request.query, sources: ["web"], limit: 3, country: "AU", includeDomains: ["www.bunnings.com.au"], timeout: 30000,
++  });
++  assert.equal(result.provider, "firecrawl");
++  assert.equal(result.endpoint, "search");
++  assert.equal(result.requestId, "req-1");
++  assert.equal(result.query, request.query);
++  assert.equal(result.country, "AU");
++  assert.equal(result.candidates.length, 3, "capped at the requested limit");
++  assert.deepEqual(result.candidates.map((c) => c.url), ["https://www.bunnings.com.au/1", "https://www.bunnings.com.au/2", "https://www.bunnings.com.au/3"]);
++  assert.deepEqual(result.candidates[0], { url: "https://www.bunnings.com.au/1", title: "Pine 1", description: "Treated pine 90x45" });
++  assert.equal(result.candidates[1].description, undefined);
++  assert.equal(result.creditsUsed, 2);
++  assert.equal(result.nominalCreditEstimate, 2);
++  assert.equal(result.providerJobId, "job-123");
++  assert.match(result.warning ?? "", /provider note/);
++  assert.match(result.warning ?? "", /2 result links? were dropped/);
++  assert.ok(Date.parse(result.startedAt) <= Date.parse(result.finishedAt));
++  assert.equal(JSON.stringify(result).includes(KEY), false);
++});
++
++test("missing optional provider fields stay unknown and location/exclude filters pass through", async () => {
++  let body: Record<string, unknown> = {};
++  const result = await searchSupplierProducts(
++    JSON.stringify({ ...request, includeDomains: undefined, excludeDomains: ["www.example.com"], location: "Brisbane, Queensland" }),
++    { env, fetcher: async (_, init) => { body = JSON.parse(String(init?.body)); return Response.json({ success: true, data: { web: [web[0]] } }); } },
++  );
++  assert.deepEqual(body, { query: request.query, sources: ["web"], limit: 3, country: "AU", location: "Brisbane, Queensland", excludeDomains: ["www.example.com"], timeout: 30000 });
++  assert.equal(result.creditsUsed, null);
++  assert.equal(result.providerJobId, undefined);
++  assert.equal(result.warning, undefined);
++  assert.equal(result.location, "Brisbane, Queensland");
++  assert.equal(result.candidates.length, 1);
++  const empty = await searchSupplierProducts(raw, { env, fetcher: async () => Response.json({ success: true, data: {} }) });
++  assert.equal(empty.candidates.length, 0);
++});
++
++test("provider HTTP statuses map to typed failures with the documented retryability", async () => {
++  const cases: Array<[number, string, boolean, number]> = [
++    [401, "unauthorized", false, 502],
++    [402, "payment-required", false, 502],
++    [429, "rate-limited", true, 502],
++    [500, "upstream-error", true, 502],
++    [503, "upstream-error", true, 502],
++    [418, "upstream-error", false, 502],
++  ];
++  for (const [status, code, retryable, http] of cases) {
++    const f = await failure(searchSupplierProducts(raw, {
++      env, fetcher: async () => new Response(`private provider details ${KEY}`, { status }),
++    }));
++    assert.equal(f.code, code, `HTTP ${status}`);
++    assert.equal(f.retryable, retryable, `HTTP ${status}`);
++    assert.equal(failureHttpStatus(f.code), http);
++    assert.equal(f.message.includes("private provider details"), false, "response body must not be echoed");
++  }
++  const unsuccessful = await failure(searchSupplierProducts(raw, { env, fetcher: async () => Response.json({ success: false, error: "nope" }) }));
++  assert.equal(unsuccessful.code, "upstream-error");
++});
++
++test("timeout fires for a fetcher that never settles and releases the single-flight slot", async () => {
++  const f = await failure(searchSupplierProducts(raw, { env, timeoutMs: 20, fetcher: () => new Promise(() => {}) }));
++  assert.equal(f.code, "timeout");
++  assert.equal(f.retryable, true);
++  const ok = await searchSupplierProducts(raw, { env, fetcher: async () => documented() });
++  assert.equal(ok.candidates.length, 3);
++});
++
++test("abort via the request signal reports cancelled and never retries", async () => {
++  const controller = new AbortController();
++  let calls = 0;
++  const pending = searchSupplierProducts(raw, {
++    env, signal: controller.signal,
++    fetcher: async (_, init) => { calls++; return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason))); },
++  });
++  controller.abort();
++  const f = await failure(pending);
++  assert.equal(f.code, "cancelled");
++  assert.equal(f.retryable, true);
++  assert.equal(calls, 1);
++  const already = await failure(searchSupplierProducts(raw, { env, signal: AbortSignal.abort(), fetcher: async () => { calls++; return documented(); } }));
++  assert.equal(already.code, "cancelled");
++  assert.equal(calls, 1, "an already-aborted request never reaches the provider");
++});
++
++test("oversized responses are refused by content-length and by streamed size", async () => {
++  const declared = await failure(searchSupplierProducts(raw, {
++    env, fetcher: async () => new Response("{}", { status: 200, headers: { "content-length": String(1024 * 1024 + 1) } }),
++  }));
++  assert.equal(declared.code, "too-large");
++  const chunk = new Uint8Array(256 * 1024).fill(32);
++  const stream = new ReadableStream<Uint8Array>({
++    start(controller) { for (let i = 0; i < 5; i++) controller.enqueue(chunk); controller.close(); },
++  });
++  const streamed = await failure(searchSupplierProducts(raw, { env, fetcher: async () => new Response(stream, { status: 200 }) }));
++  assert.equal(streamed.code, "too-large");
++  assert.equal(streamed.retryable, false);
++});
++
++test("malformed JSON and undocumented shapes are invalid-response failures", async () => {
++  const malformed = await failure(searchSupplierProducts(raw, { env, fetcher: async () => new Response("<html>not json</html>", { status: 200 }) }));
++  assert.equal(malformed.code, "invalid-response");
++  assert.equal(malformed.message.includes("<html>"), false);
++  const shape = await failure(searchSupplierProducts(raw, { env, fetcher: async () => Response.json({ success: true, data: { web: "not-an-array" } }) }));
++  assert.equal(shape.code, "invalid-response");
++  const legacy = await failure(searchSupplierProducts(raw, { env, fetcher: async () => Response.json({ success: true, data: [{ url: "https://www.bunnings.com.au/1" }] }) }));
++  assert.equal(legacy.code, "invalid-response", "older flat-array SDK shape is not the documented v2 REST shape");
++  const missingBody = await failure(searchSupplierProducts(raw, { env, fetcher: async () => new Response(null, { status: 200 }) }));
++  assert.equal(missingBody.code, "invalid-response");
++  // Bodies that carry neither the documented `success` nor `data` fields are not "a search that found nothing".
++  for (const body of [{}, { error: "quota" }, { success: true }, { data: { web: [] } }]) {
++    let calls = 0;
++    const undocumented = await failure(searchSupplierProducts(raw, { env, fetcher: async () => { calls++; return Response.json(body); } }));
++    assert.equal(undocumented.code, "invalid-response", `undocumented body ${JSON.stringify(body)} must not become an empty success`);
++    assert.equal(calls, 1);
++  }
++  const emptySearch = await searchSupplierProducts(raw, { env, fetcher: async () => Response.json({ success: true, data: {} }) });
++  assert.deepEqual(emptySearch.candidates, [], "the documented shape with no web hits is a genuine empty search");
++});
++
++test("duplicate provider links collapse to one candidate and the supplier filter is echoed in the result", async () => {
++  const twice = [
++    { url: "https://www.bunnings.com.au/1", title: "Pine 1" },
++    { url: "https://www.bunnings.com.au/1", title: "Pine 1 again" },
++    { url: "https://www.bunnings.com.au/2", title: "Pine 2" },
++  ];
++  const result = await searchSupplierProducts(raw, { env, fetcher: async () => Response.json({ success: true, data: { web: twice } }) });
++  assert.deepEqual(result.candidates.map((c) => c.url), ["https://www.bunnings.com.au/1", "https://www.bunnings.com.au/2"]);
++  assert.match(result.warning ?? "", /1 duplicate link was collapsed/);
++  assert.deepEqual(result.includeDomains, ["www.bunnings.com.au"], "the include-only supplier domain is echoed for display");
++  const open = await searchSupplierProducts(JSON.stringify({ ...request, includeDomains: undefined }), { env, fetcher: async () => Response.json({ success: true, data: { web: twice.slice(2) } }) });
++  assert.equal(open.includeDomains, undefined, "no supplier filter means no echoed domain");
++});
++
++test("a second search while one is in flight is refused as busy and the slot is released afterwards", async () => {
++  let release!: () => void;
++  const gate = new Promise<void>((r) => (release = r));
++  let started!: () => void;
++  const ready = new Promise<void>((r) => (started = r));
++  const first = searchSupplierProducts(raw, { env, fetcher: async () => { started(); await gate; return documented(); } });
++  await ready;
++  let calls = 0;
++  const busy = await failure(searchSupplierProducts(raw, { env, fetcher: async () => { calls++; return documented(); } }));
++  assert.equal(busy.code, "busy");
++  assert.equal(busy.retryable, true);
++  assert.equal(failureHttpStatus(busy.code), 409);
++  assert.equal(calls, 0);
++  release();
++  assert.equal((await first).candidates.length, 3);
++  assert.equal((await searchSupplierProducts(raw, { env, fetcher: async () => documented() })).candidates.length, 3);
++});
++
++test("network failures are upstream errors whose messages never include the key or provider internals", async () => {
++  const f = await failure(searchSupplierProducts(raw, { env, fetcher: async () => { throw new TypeError(`fetch failed ${KEY}`); } }));
++  assert.equal(f.code, "upstream-error");
++  assert.equal(f.retryable, true);
++  assert.equal(f.message.includes("fetch failed"), false);
++});
++
++test("cross-site browser requests are rejected and same-origin requests allowed", () => {
++  const url = "https://app.invalid/api/pricing-research";
++  assert.equal(allowPricingResearchRequest(new Request(url, { headers: { origin: "https://other.invalid" } })), false);
++  assert.equal(allowPricingResearchRequest(new Request(url, { headers: { "sec-fetch-site": "cross-site", origin: "https://app.invalid" } })), false);
++  assert.equal(allowPricingResearchRequest(new Request(url, { headers: { origin: "https://app.invalid", "sec-fetch-site": "same-origin" } })), true);
++  assert.equal(allowPricingResearchRequest(new Request(url, { headers: { "sec-fetch-site": "none" } })), true);
++  assert.equal(allowPricingResearchRequest(new Request(url)), true);
++});
+diff --git a/src/routes/api.pricing-research.ts b/src/routes/api.pricing-research.ts
+new file mode 100644
+index 0000000..27e5c86
+--- /dev/null
++++ b/src/routes/api.pricing-research.ts
+@@ -0,0 +1,54 @@
++import { createFileRoute } from "@tanstack/react-router";
++
++const NO_STORE = { "Cache-Control": "no-store" };
++const MAX_BODY_BYTES = 64 * 1024;
++
++function failureJson(code: string, message: string, status: number, retryable = false, requestId = "") {
++  const now = new Date().toISOString();
++  return Response.json(
++    { failure: { schema: "xray.pricing-research/v1", requestId, code, message, retryable, startedAt: now, finishedAt: now } },
++    { status, headers: NO_STORE },
++  );
++}
++
++export const Route = createFileRoute("/api/pricing-research")({
++  server: {
++    handlers: {
++      GET: async () => {
++        const { pricingResearchStatus } = await import("../lib/pricingResearch.server");
++        return Response.json(pricingResearchStatus(), { headers: NO_STORE });
++      },
++      POST: async ({ request }) => {
++        const { allowPricingResearchRequest, searchSupplierProducts, PricingResearchError, failureHttpStatus } =
++          await import("../lib/pricingResearch.server");
++        if (!allowPricingResearchRequest(request))
++          return failureJson("invalid-request", "Cross-site supplier research requests are not allowed.", 403);
++        if (!request.headers.get("content-type")?.startsWith("application/json"))
++          return failureJson("invalid-request", "Expected an application/json supplier research request.", 415);
++        const reader = request.body?.getReader();
++        if (!reader) return failureJson("invalid-request", "Empty supplier research request.", 400);
++        let size = 0, raw = "";
++        const decoder = new TextDecoder();
++        try {
++          while (true) {
++            const chunk = await reader.read();
++            if (chunk.done) break;
++            size += chunk.value.length;
++            if (size > MAX_BODY_BYTES) {
++              await reader.cancel();
++              return failureJson("too-large", "Supplier research request exceeds the 64 KiB limit.", 413);
++            }
++            raw += decoder.decode(chunk.value, { stream: true });
++          }
++          raw += decoder.decode();
++          const result = await searchSupplierProducts(raw, { signal: request.signal });
++          return Response.json({ result }, { status: 200, headers: NO_STORE });
++        } catch (error) {
++          if (error instanceof PricingResearchError)
++            return Response.json({ failure: error.failure }, { status: failureHttpStatus(error.failure.code), headers: NO_STORE });
++          return failureJson("upstream-error", "Supplier research failed before a provider answer was recorded. No links were kept.", 502, true);
++        }
++      },
++    },
++  },
++});
+diff --git a/src/studio/pricing/PricingResearchPanel.tsx b/src/studio/pricing/PricingResearchPanel.tsx
+new file mode 100644
+index 0000000..7919130
+--- /dev/null
++++ b/src/studio/pricing/PricingResearchPanel.tsx
+@@ -0,0 +1,149 @@
++import { useEffect, useRef, useState } from "react";
++import { Search, X } from "lucide-react";
++import {
++  PRICING_RESEARCH_MAX_RESULTS,
++  PRICING_RESEARCH_VERSION,
++  estimateSearchCredits,
++  isSupplierHostname,
++  pricingResearchFailureSchema,
++  pricingResearchResultSchema,
++  summarisePricingResearch,
++  type PricingResearchFailure,
++  type PricingResearchRequestInput,
++  type PricingResearchResult,
++} from "./pricingResearch.ts";
++import "./pricingResearch.css";
++
++const ROUTE = "/api/pricing-research";
++const COUNTRIES: Array<[string, string]> = [["AU", "Australia"], ["NZ", "New Zealand"], ["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"]];
++const UNAVAILABLE = "Supplier research service unavailable in this build.";
++
++type ProviderStatus = { provider: string; configured: boolean; available: boolean; message: string };
++type StatusState = { phase: "loading" } | { phase: "ready"; status: ProviderStatus } | { phase: "unavailable"; message: string };
++type RunState =
++  | { phase: "idle" }
++  | { phase: "running"; startedAt: string }
++  | { phase: "result"; result: PricingResearchResult }
++  | { phase: "failure"; failure: PricingResearchFailure; httpStatus: number | null };
++
++const FAILURE_LABEL: Record<PricingResearchFailure["code"], string> = {
++  "not-configured": "Provider not configured", disabled: "Disabled by the operator", unauthorized: "Credential rejected",
++  "payment-required": "No provider credit", "rate-limited": "Rate limited", timeout: "Timed out", cancelled: "Cancelled",
++  "invalid-response": "Invalid provider response", "too-large": "Response too large", "upstream-error": "Provider error",
++  busy: "Another search is running", "invalid-request": "Request rejected",
++};
++
++function newRequestId() {
++  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
++}
++const statusOf = (state: StatusState) =>
++  state.phase === "loading" ? "loading" : state.phase === "unavailable" ? "unavailable" : state.status.available ? "available" : state.status.configured ? "disabled" : "not-configured";
++const timestamp = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : `${date.toLocaleString()} (${iso})`; };
++
++/**
++ * Bounded, user-initiated supplier link search. Collects evidence links only:
++ * nothing here is stored, and no price book rate or project cost changes.
++ */
++export function PricingResearchPanel({ projectId }: { projectId: string }) {
++  const [status, setStatus] = useState<StatusState>({ phase: "loading" });
++  const [run, setRun] = useState<RunState>({ phase: "idle" });
++  const [query, setQuery] = useState(""), [country, setCountry] = useState("AU"), [domain, setDomain] = useState(""), [limit, setLimit] = useState(PRICING_RESEARCH_MAX_RESULTS);
++  const [formError, setFormError] = useState("");
++  const controller = useRef<AbortController | null>(null);
++  useEffect(() => {
++    // Only the provider status is read on mount; a search starts from the button alone.
++    const probe = new AbortController();
++    fetch(ROUTE, { method: "GET", cache: "no-store", signal: probe.signal })
++      .then(async (response) => {
++        if (!response.ok) throw Error(`HTTP ${response.status}`);
++        const json = (await response.json()) as Partial<ProviderStatus>;
++        if (typeof json.configured !== "boolean" || typeof json.available !== "boolean" || typeof json.message !== "string") throw Error("shape");
++        setStatus({ phase: "ready", status: { provider: String(json.provider ?? "Firecrawl"), configured: json.configured, available: json.available, message: json.message } });
++      })
++      .catch(() => { if (!probe.signal.aborted) setStatus({ phase: "unavailable", message: UNAVAILABLE }); });
++    return () => { probe.abort(); controller.current?.abort(); };
++  }, []);
++
++  async function startSearch() {
++    if (run.phase === "running" || !query.trim()) return;
++    const hostname = domain.trim().toLowerCase();
++    if (hostname && !isSupplierHostname(hostname)) { setFormError("Enter one public supplier hostname, for example www.bunnings.com.au, or leave it blank."); return; }
++    setFormError("");
++    const requestId = newRequestId(), startedAt = new Date().toISOString();
++    const body: PricingResearchRequestInput = {
++      schema: PRICING_RESEARCH_VERSION, query: query.trim().slice(0, 200), country, limit, projectId, requestId,
++      ...(hostname ? { includeDomains: [hostname] } : {}),
++    };
++    const abort = new AbortController();
++    controller.current?.abort();
++    controller.current = abort;
++    setRun({ phase: "running", startedAt });
++    const finish = (next: RunState) => { if (controller.current === abort) { controller.current = null; setRun(next); } };
++    const failed = (code: PricingResearchFailure["code"], message: string, retryable: boolean, httpStatus: number | null) =>
++      finish({ phase: "failure", httpStatus, failure: { schema: PRICING_RESEARCH_VERSION, requestId, code, message, retryable, startedAt, finishedAt: new Date().toISOString() } });
++    try {
++      const response = await fetch(ROUTE, {
++        method: "POST", cache: "no-store", signal: abort.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
++      });
++      let json: { result?: unknown; failure?: unknown } = {};
++      try { json = await response.json(); } catch { /* handled below as invalid-response */ }
++      if (json.failure) {
++        const failure = pricingResearchFailureSchema.safeParse(json.failure);
++        if (failure.success) return finish({ phase: "failure", failure: failure.data, httpStatus: response.status });
++      }
++      if (response.ok && json.result) {
++        const result = pricingResearchResultSchema.safeParse(json.result);
++        if (result.success && result.data.requestId === requestId) return finish({ phase: "result", result: result.data });
++      }
++      failed("invalid-response", `The supplier research service answered with an unexpected response (HTTP ${response.status}). No links were kept.`, false, response.status);
++    } catch {
++      if (abort.signal.aborted) failed("cancelled", "Search cancelled. Any late response is discarded; provider billing for the attempt is unknown.", true, null);
++      else failed("upstream-error", UNAVAILABLE, true, null);
++    }
++  }
++  function cancelSearch() {
++    controller.current?.abort();
++  }
++
++  const providerState = statusOf(status);
++  const running = run.phase === "running";
++  const statusMessage = status.phase === "loading" ? "Checking supplier research availability…" : status.phase === "unavailable" ? status.message : status.status.message;
++  const summary = run.phase === "result" ? summarisePricingResearch(run.result) : null;
++  return <section className="pricing-research" aria-label="Supplier product research" data-research-status={providerState} data-research-state={run.phase}>
++    <header><div><h2>Supplier product research</h2><p>Search the web for supplier product pages to use as pricing evidence. Results are links only: nothing is saved and no rate or project cost changes.</p></div></header>
++    <p className="price-notice pricing-research-status" role="status" data-research-status-message>{status.phase === "ready" ? `${status.status.provider}: ` : ""}{statusMessage}</p>
++    <form className="pricing-research-form" onSubmit={(event) => { event.preventDefault(); void startSearch(); }}>
++      <div className="price-fields">
++        <label className="price-wide">Product query<input id="pricing-research-query" name="query" maxLength={200} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="90x45 MGP10 treated pine" autoComplete="off" /></label>
++        <label>Country<select name="country" value={country} onChange={(e) => setCountry(e.target.value)}>{COUNTRIES.map(([code, name]) => <option key={code} value={code}>{name} ({code})</option>)}</select></label>
++        <label>Max results<select name="limit" value={limit} onChange={(e) => setLimit(Number(e.target.value))}>{Array.from({ length: PRICING_RESEARCH_MAX_RESULTS }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
++        <label className="price-wide">Supplier domain (optional, include only)<input name="domain" maxLength={253} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="www.bunnings.com.au" autoComplete="off" inputMode="url" /></label>
++      </div>
++      {formError && <p className="price-notice" role="alert">{formError}</p>}
++      <p className="price-help">Nominal cost {estimateSearchCredits(limit)} provider credits for up to {limit} web link{limit === 1 ? "" : "s"} (documented estimate, not a provider maximum). Reported usage is shown with each result.</p>
++      <div className="price-actions">
++        <button type="submit" className="pill primary" disabled={running || !query.trim()}><Search size={16} />Search supplier products</button>
++        {running && <button type="button" className="pill" onClick={cancelSearch}><X size={16} />Cancel search</button>}
++      </div>
++    </form>
++    {running && <p className="price-notice" role="status">Searching {country} for “{query.trim()}”… started {timestamp(run.startedAt)}.</p>}
++    {run.phase === "failure" && <div className="price-notice pricing-research-failure" role="alert" data-failure-code={run.failure.code} data-failure-http={run.httpStatus ?? ""}>
++      <strong>{FAILURE_LABEL[run.failure.code]} ({run.failure.code}{run.httpStatus ? `, HTTP ${run.httpStatus}` : ""})</strong>
++      <p>{run.failure.message}</p>
++      <p className="price-help">Request {run.failure.requestId || "not sent"} · finished {timestamp(run.failure.finishedAt)} · {run.failure.retryable ? "You may try again; nothing retries automatically." : "Retrying will not help until the cause is fixed."} Existing price books are unchanged.</p>
++      <div className="price-actions"><button type="button" className="pill" disabled={!query.trim()} onClick={() => void startSearch()}>Try again</button></div>
++    </div>}
++    {run.phase === "result" && summary && <div className="price-review pricing-research-result" role="status" data-candidate-count={summary.count}>
++      <h3>{summary.headline}</h3>
++      <p className="price-help">Country {summary.country}{summary.location ? ` · ${summary.location}` : ""} · supplier filter {summary.supplier ?? "none (any supplier)"} · searched {timestamp(summary.timestamp)} · request {run.result.requestId}{run.result.providerJobId ? ` · provider job ${run.result.providerJobId}` : ""}</p>
++      <p className="price-help">Nominal credit estimate {summary.nominalCreditEstimate} · reported credits {summary.creditsReported}.</p>
++      {run.result.warning && <p role="status">{run.result.warning}</p>}
++      {summary.count === 0 ? <p>No public supplier links were returned for this query.</p> : <ol className="pricing-research-links">{run.result.candidates.map((candidate, index) => <li key={`${index}-${candidate.url}`}>
++        <a href={candidate.url} target="_blank" rel="noopener noreferrer">{candidate.title || candidate.url}</a>
++        <span className="pricing-research-url">{candidate.url}</span>
++        {candidate.description && <p className="price-help">{candidate.description}</p>}
++      </li>)}</ol>}
++      <p className="price-help">Research collects evidence links only. Open a link to read the supplier page yourself; importing a reviewed rate stays a separate, explicit price book step. No rate has changed.</p>
++    </div>}
++  </section>;
++}
+diff --git a/src/studio/pricing/pricingResearch.css b/src/studio/pricing/pricingResearch.css
+new file mode 100644
+index 0000000..902e744
+--- /dev/null
++++ b/src/studio/pricing/pricingResearch.css
+@@ -0,0 +1,13 @@
++/* Supplier product research section, mounted at the end of the price books panel and reusing its field, pill and notice conventions. */
++.pricing-research { display: grid; gap: var(--price-gap, 16px); padding-top: var(--price-gap, 16px); border-top: 1px solid var(--color-line); min-width: 0; }
++.pricing-research header { display: flex; flex-wrap: wrap; gap: var(--price-gap, 16px); align-items: start; justify-content: space-between; }
++.pricing-research-form { display: grid; gap: var(--price-small-gap, 8px); min-width: 0; }
++.pricing-research button { min-height: 44px; min-width: 44px; }
++.pricing-research-status { font-size: 13px; }
++.pricing-research-failure strong { display: block; }
++.pricing-research-links { display: grid; gap: var(--price-small-gap, 8px); padding-left: 24px; list-style: decimal; }
++.pricing-research-links li { min-width: 0; overflow-wrap: anywhere; }
++.pricing-research-links a { display: inline-block; min-height: 44px; align-content: center; font-weight: 600; text-decoration: underline; color: var(--color-ink); }
++.pricing-research-links a:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
++.pricing-research-url { display: block; font-size: 12px; color: var(--color-muted); overflow-wrap: anywhere; }
++@media (max-width: 600px) { .pricing-research-links { padding-left: 20px; } }

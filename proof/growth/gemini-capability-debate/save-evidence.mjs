@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const dir='proof/growth/gemini-capability-debate/';
+const raw=fs.readFileSync('proof/growth/runner/2026-09-09T14-11-41-185Z-gemini-capability-debate.log','utf8');
+const end=raw.lastIndexOf('\n}');
+const data=JSON.parse(raw.slice(raw.indexOf('{'),end+2));
+assert.ok(data.journals.every(Boolean));
+assert.equal(data.design.walls.length,0);
+assert.equal(data.design.slabs.length,0);
+const edits=data.events.flat().filter(e=>e.kind==='tool-intent'&&['draw_architect_elements','edit_architect_elements','undo_architect_change','save_project'].includes(e.payload?.tool));
+assert.equal(edits.length,0);
+fs.writeFileSync(dir+'conversation-evidence.json',JSON.stringify(data,null,2));
+console.log({journals:data.journals.length,allValid:true,geometryEdits:edits.length});

@@ -1,0 +1,55 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "eval",
+    "document.querySelector('.price-book-card tbody tr:first-child button').scrollIntoView({block:'center'})"
+  ],
+  [
+    "click",
+    ".price-book-card tbody tr:first-child button"
+  ],
+  [
+    "find",
+    "label",
+    "Quantity (kg)",
+    "fill",
+    "2",
+    "--exact"
+  ],
+  [
+    "eval",
+    "if(!document.querySelector('.price-amount')?.textContent.includes('AUD 24.69'))throw Error('Incorrect fixed-decimal line amount')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add reviewed priced line",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.price-books')?.textContent.includes('Priced worksheet (1)')"
+  ],
+  [
+    "screenshot",
+    "screenshots/professional-next/native-pricing-worksheet-desktop.png"
+  ],
+  [
+    "errors"
+  ],
+  [
+    "eval",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:'));const value=JSON.parse(localStorage.getItem(key));if(value.books.length!==1||value.worksheet.length!==1)throw Error('Library/worksheet not saved');return {key,jobId:value.jobId,books:value.books.length,worksheet:value.worksheet.length};})()"
+  ],
+  [
+    "eval",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:price-books:v1:'));const value=JSON.parse(localStorage.getItem(key));sessionStorage.setItem('qa-pricing-before-reload-job',value.jobId);return value.jobId;})()"
+  ]
+]

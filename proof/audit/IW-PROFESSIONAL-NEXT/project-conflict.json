@@ -1,0 +1,17 @@
+[
+  ["reload"],
+  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=ready]')"],
+  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
+  ["eval", "(()=>{window.__qaPriorJob=localStorage.getItem('xray:fencing-job:v2');const j=JSON.parse(window.__qaPriorJob);j.name='Newer QA window revision';j.revision+=1;window.__qaNewerJob=JSON.stringify(j);localStorage.setItem('xray:fencing-job:v2',window.__qaNewerJob)})()"],
+  ["find", "role", "button", "click", "--name", "Rename project", "--exact"],
+  ["eval", "(()=>{if(!document.querySelector('.project-details [role=alert]')?.textContent.includes('different project revision'))throw Error('Stale rename was not blocked');if(document.querySelector('.project-details input'))throw Error('Stale editor opened');if(localStorage.getItem('xray:fencing-job:v2')!==window.__qaNewerJob)throw Error('Newer work overwritten')})()"],
+  ["screenshot", "screenshots/professional-next/project-conflict.png"],
+  ["eval", "localStorage.setItem('xray:fencing-job:v2',window.__qaPriorJob)"],
+  ["reload"],
+  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=ready]')"],
+  ["set", "viewport", "390", "844"],
+  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
+  ["screenshot", "screenshots/professional-next/project-mobile.png"],
+  ["eval", "(()=>{if(document.documentElement.scrollWidth>innerWidth)throw Error('Mobile overflow');const b=document.querySelector('.project-details button').getBoundingClientRect();if(b.height<44)throw Error('Small touch target')})()"],
+  ["errors"]
+]

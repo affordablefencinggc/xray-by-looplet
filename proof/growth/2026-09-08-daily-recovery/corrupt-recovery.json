@@ -1,0 +1,126 @@
+[
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-project-record-save=saved]')"
+  ],
+  [
+    "eval",
+    "(()=>{const raw=localStorage.getItem('xray:fencing-job:v2');if(!raw)throw Error('Missing fixture');sessionStorage.setItem('daily-recovery-original',raw);sessionStorage.setItem('daily-recovery-corrupt',\"{\\\"schemaVersion\\\":2,\\\"name\\\":\\\"Preserve me — recovery test\\\",\\r\\nBROKEN\");sessionStorage.setItem('daily-recovery-sidecars',JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k!=='xray:fencing-job:v2'))));localStorage.setItem('xray:fencing-job:v2',\"{\\\"schemaVersion\\\":2,\\\"name\\\":\\\"Preserve me — recovery test\\\",\\r\\nBROKEN\");return {originalBytes:new TextEncoder().encode(raw).length,corruptBytes:new TextEncoder().encode(\"{\\\"schemaVersion\\\":2,\\\"name\\\":\\\"Preserve me — recovery test\\\",\\r\\nBROKEN\").length}})()"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-project-recovery=blocked]')"
+  ],
+  [
+    "eval",
+    "(()=>{if(localStorage.getItem('xray:fencing-job:v2')!==sessionStorage.getItem('daily-recovery-corrupt'))throw Error('Corrupt record overwritten');if(document.querySelector('[data-project-record-save]'))throw Error('Normal pane mounted during recovery');const old=JSON.parse(sessionStorage.getItem('daily-recovery-sidecars'));for(const [k,v]of Object.entries(old))if(localStorage.getItem(k)!==v)throw Error('Sidecar changed '+k);return {preserved:true}})()"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "eval",
+    "document.querySelector(\"[data-project-recovery=blocked]\").scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const root=document.querySelector(\"[data-project-recovery=blocked]\");if(!root)throw Error('Missing notice');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,x:r.x,y:r.y,width:r.width,height:r.height}});return {viewport:[innerWidth,innerHeight],buttons:rs}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-blocked-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "document.querySelector(\"[data-project-recovery=blocked]\").scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const root=document.querySelector(\"[data-project-recovery=blocked]\");if(!root)throw Error('Missing notice');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,x:r.x,y:r.y,width:r.width,height:r.height}});return {viewport:[innerWidth,innerHeight],buttons:rs}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-blocked-landscape.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "768",
+    "1024"
+  ],
+  [
+    "eval",
+    "document.querySelector(\"[data-project-recovery=blocked]\").scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const root=document.querySelector(\"[data-project-recovery=blocked]\");if(!root)throw Error('Missing notice');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,x:r.x,y:r.y,width:r.width,height:r.height}});return {viewport:[innerWidth,innerHeight],buttons:rs}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-blocked-portrait.png"
+  ],
+  [
+    "download",
+    "[data-project-recovery=blocked] button:nth-of-type(2)",
+    "proof/growth/2026-09-08-daily-recovery/downloaded-corrupt-record.txt"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Retry loading saved project",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-project-recovery=blocked]')"
+  ],
+  [
+    "eval",
+    "if(localStorage.getItem('xray:fencing-job:v2')!==sessionStorage.getItem('daily-recovery-corrupt'))throw Error('Retry damaged corrupt record')"
+  ],
+  [
+    "eval",
+    "localStorage.setItem('xray:fencing-job:v2',sessionStorage.getItem('daily-recovery-original'))"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Retry loading saved project",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-project-record-save=saved]')"
+  ],
+  [
+    "eval",
+    "if(localStorage.getItem('xray:fencing-job:v2')!==sessionStorage.getItem('daily-recovery-original'))throw Error('Recovery altered original record')"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-valid-restored.png"
+  ]
+]

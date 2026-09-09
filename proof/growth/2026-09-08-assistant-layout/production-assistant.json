@@ -1,0 +1,325 @@
+[
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "900"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();'Open panel'})()"
+  ],
+  [
+    "focus",
+    "[aria-label=\"Move live assistant\"]"
+  ],
+  [
+    "press",
+    "Home"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('.live-assistant').getBoundingClientRect();if(r.left!==16||Math.abs(r.bottom-(innerHeight-16))>1)throw Error('Default placement');'Bottom-left placement verified'})()"
+  ],
+  [
+    "focus",
+    "[aria-label=\"Move live assistant\"]"
+  ],
+  [
+    "press",
+    "ArrowRight"
+  ],
+  [
+    "press",
+    "ArrowUp"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('.live-assistant').getBoundingClientRect();if(r.left!==28)throw Error('Move');'Keyboard movement verified'})()"
+  ],
+  [
+    "focus",
+    "[aria-label=\"Resize live assistant\"]"
+  ],
+  [
+    "press",
+    "ArrowRight"
+  ],
+  [
+    "press",
+    "ArrowUp"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('.live-assistant-panel').getBoundingClientRect();if(r.width!==372||r.height!==412)throw Error('Resize');'Keyboard resize verified'})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "Skills",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Draft existing model Animate the model with Magic Pencil.",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('textarea').value!=='/draw')throw Error('Skill prompt');'Skill prompt verified'})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "References & inspiration",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Mid-century",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.querySelector('textarea').value.includes('mid-century'))throw Error('Style prompt');'Style brief verified'})()"
+  ],
+  [
+    "fill",
+    "#live-assistant-prompt",
+    ""
+  ],
+  [
+    "eval",
+    "(async()=>{const c=document.createElement('canvas');c.width=32;c.height=32;const ctx=c.getContext('2d');ctx.fillStyle='#ba7d45';ctx.fillRect(0,0,32,32);const blob=await new Promise(r=>c.toBlob(r,'image/png'));const dt=new DataTransfer();dt.items.add(new File([blob],'synthetic-brick.png',{type:'image/png'}));document.querySelector('.live-assistant').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt}));return 'Dropped synthetic image';})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.assistant-attachments img').length===1"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "References & inspiration",
+    "--exact"
+  ],
+  [
+    "select",
+    "select[aria-label=\"Reference purpose for synthetic-brick.png\"]",
+    "Material"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.querySelector('.assistant-attachments').textContent.includes('Material'))throw Error('Purpose synchronization');'Reference purpose verified'})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-assistant-reference-library.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "New chat",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.assistant-attachments')||document.querySelector('textarea').value)throw Error('New chat');'New chat clears pending content'})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "References & inspiration",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelectorAll('.assistant-reference-grid article').length!==1)throw Error('Reference retention');'References retained across New chat'})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Use in message",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Back to conversation",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Remove attachment 1",
+    "--exact"
+  ],
+  [
+    "fill",
+    "#live-assistant-prompt",
+    "/draftsman"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Send assistant message",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.assistant-chat-entry').length>=2"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-assistant-conversation.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add to assistant",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "menuitem",
+    "click",
+    "--name",
+    "Help",
+    "--exact"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-assistant-help.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Back to conversation",
+    "--exact"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "1366"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('.live-assistant').getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.bottom>innerHeight)throw Error('Tablet bounds');'Tablet bounds verified'})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/production-assistant-tablet.png"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "(()=>{const r=JSON.parse(localStorage.getItem('xray:assistant-panel:v1'));if(r.width!==372)throw Error('Layout persistence');'Saved layout survives reload'})()"
+  ],
+  [
+    "errors"
+  ]
+]

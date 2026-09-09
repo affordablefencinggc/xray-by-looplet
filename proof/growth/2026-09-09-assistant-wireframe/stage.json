@@ -1,0 +1,35 @@
+{
+  "id": "2026-09-09-12-assistant-wireframe",
+  "title": "Stage 12 — the assistant draws a multi-storey wireframe from a plain request, and the repo skills become harness guardrails",
+  "date": "9 September 2026",
+  "platform": "Development browser (Vite dev server 127.0.0.1:8091 with the user-authorized Gemini key) · desktop 1280x800 and tablet 1024x768 · isolated agent-browser profile · no build, installation or native run",
+  "summary": "The Live assistant can now turn 'draw me a 3-storey 20 m by 12 m wireframe' into real design geometry: draw_architect_elements accepts level, slab, roof, footprint and extrude operations (append-only, validated, stable IDs) and two new read tools explain X-Ray's data model and the source-building reconstruction so the model can reason about the structure before drawing. With the real provider, one message produced three levels, twelve walls, three slabs and a hip roof at 20000 × 12000 mm, saved and restored after reload; a second message added a storey and undid it through the undo tool. Separately, the repository's ledger, X-Ray engine and Fast CDP skills are now enforced by Claude Code hooks that apply to any selected model: whole-tree staging is denied, git history mutations and process kills are gated, the verified-build pointer is guarded, and a completion claim without proof is blocked.",
+  "requirements": [
+    {"id": "Assistant wireframe drawing (SC-08)", "status": "Partial — development verified", "change": "Five new architect operations, two read tools, 56/56 focused tests, typecheck exit 0; real-provider journeys on desktop and tablet with inspected screenshots (proof/growth/2026-09-09-assistant-wireframe/README.md).", "remaining": "Dans1 build, production preview and Windows-native runs; wider tool surface (source trace, measure/calibrate, sheet and price-book actions, backup capture)."},
+    {"id": "Skills as guardrails for any model (SC-09)", "status": "Done", "change": ".claude/settings.json SessionStart/PreToolUse/Stop hooks calling scripts/guardrails/hook.mjs; pipe tests 2 deny / 3 ask / 1 block; hook observed firing live (proof/growth/2026-09-09-guardrails/README.md).", "remaining": "Stop check is heuristic; .claude/skills duplicates of .agents/skills not deduplicated."}
+  ],
+  "images": [
+    {"file": "screenshots/growth/2026-09-09-assistant-wireframe/desktop-01-before.png", "caption": "Desktop 1280x800: fresh Architectural workspace before the request — 0 walls · 0 openings · 1 level."},
+    {"file": "screenshots/growth/2026-09-09-assistant-wireframe/desktop-02-wireframe-3d.png", "caption": "Desktop: after one assistant message the live 3D view shows the three-storey hip-roofed block; the strip reads 12 walls · 0 openings · 3 levels · Saved · revision 2 and the assistant lists the levels it created."},
+    {"file": "screenshots/growth/2026-09-09-assistant-wireframe/desktop-03-after-reload.png", "caption": "Desktop: after a page reload the design is restored — 12 walls · 3 levels."},
+    {"file": "screenshots/growth/2026-09-09-assistant-wireframe/tablet-01-wireframe-3d.png", "caption": "Tablet 1024x768: the same design with all levels in 3D before the second request."},
+    {"file": "screenshots/growth/2026-09-09-assistant-wireframe/tablet-02-after-add-and-undo.png", "caption": "Tablet: the assistant added a fourth storey and undid it through undo_architect_change — Saved · revision 4, final level count 3."}
+  ],
+  "commands": [
+    "node --experimental-strip-types --test src/studio/assistant/wireframe.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/conversation.test.ts src/studio/architect/architect.test.ts — tests 56, pass 56, fail 0 (tests.log)",
+    "node node_modules/typescript/bin/tsc --noEmit — exit 0 (typecheck.log)",
+    "node node_modules/eslint/bin/eslint.js <touched files> — new files clean; one pre-existing error at appTools.ts:73 (eslint.log)",
+    "node scripts/fast-cdp-test.mjs wireframe-desktop proof/growth/2026-09-09-assistant-wireframe/desktop.scenario.json — exit 0, 37 commands (runner 2026-09-08T16-00-00-400Z-wireframe-desktop)",
+    "node scripts/fast-cdp-test.mjs wireframe-desktop proof/growth/2026-09-09-assistant-wireframe/tablet.scenario.json — exit 0, 23 commands (runner 2026-09-08T16-01-23-451Z-wireframe-desktop)",
+    "bash proof/growth/2026-09-09-guardrails/pipe-tests.sh — 2 deny, 3 ask, 1 Stop block, allow cases {} (pipe-tests.log)",
+    "powershell -File proof/growth/2026-09-09-assistant-wireframe/cleanup-dev.ps1 — dev server 8091 PID 44140 stopped (dev-cleanup.json)"
+  ],
+  "logs": [
+    "proof/growth/2026-09-09-assistant-wireframe/README.md",
+    "proof/growth/2026-09-09-assistant-wireframe/tests.log",
+    "proof/growth/2026-09-09-guardrails/README.md",
+    "proof/growth/2026-09-09-guardrails/pipe-tests.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree). Development milestone; no Dans1 build, installation, commit or publication. Two user-authorized provider messages; no other external calls. No Burj Khalifa research, model or quantity claim.",
+  "codeDiff": "proof/growth/2026-09-09-assistant-wireframe/code.diff (534 lines) plus .claude/settings.json and scripts/guardrails/hook.mjs (new)"
+}

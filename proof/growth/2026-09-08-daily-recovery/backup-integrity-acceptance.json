@@ -1,0 +1,22 @@
+{
+  "scope": "Backup capture consistency and original identity validation; authored-sheet backup round-trip. Full editing-workspace restore remains unavailable.",
+  "sourceFrozen": true,
+  "files": [
+    { "path": "src/studio/projectBackup.ts", "sha256": "c19a46fd531ae0cb508a31a2660b85427327eddf8ea625718a116b840c556704" },
+    { "path": "src/studio/projectBackup.test.ts", "sha256": "fb8422d61b8dbc7660ca0048a93230bf447ff32a627ad85017afcd2d589b038b" }
+  ],
+  "tests": {
+    "command": "node --experimental-strip-types --test src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts",
+    "log": "proof/growth/2026-09-08-daily-recovery/backup-integrity-final-tests.log",
+    "passed": 29,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "typecheck": { "command": "npm.cmd run typecheck", "log": "proof/growth/2026-09-08-daily-recovery/backup-integrity-typecheck-03.log", "exitCode": 0 },
+  "diffCheck": "git diff --check passed for both owned source files",
+  "limitations": [
+    "Read consistency checks observe races; they do not acquire an exclusive write lease.",
+    "No new UI, production or native acceptance is claimed by this module test record.",
+    "No format/schema change and no working project/original/profile data writes."
+  ]
+}

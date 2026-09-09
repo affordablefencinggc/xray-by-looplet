@@ -1,0 +1,49 @@
+$ curl -s -i http://127.0.0.1:8080/api/pricing-research
+HTTP/1.1 200 
+Vary: Origin
+cache-control: no-store
+content-type: application/json
+Date: Tue, 08 Sep 2026 12:45:41 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"provider":"Firecrawl","configured":false,"available":false,"message":"Supplier research provider not configured. Set FIRECRAWL_API_KEY and XRAY_PRICING_RESEARCH_WEB_ENABLED=true on the server to enable bounded searches."}
+
+$ curl -s -i -X POST -H "Content-Type: application/json" -H "Origin: http://127.0.0.1:8080" -H "Sec-Fetch-Site: same-origin" --data {...valid request...} http://127.0.0.1:8080/api/pricing-research
+HTTP/1.1 503 
+Access-Control-Allow-Origin: http://127.0.0.1:8080
+Vary: Origin
+cache-control: no-store
+content-type: application/json
+Date: Tue, 08 Sep 2026 12:45:41 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"failure":{"schema":"xray.pricing-research/v1","requestId":"curl-1","code":"not-configured","message":"Supplier research provider not configured. Set FIRECRAWL_API_KEY and XRAY_PRICING_RESEARCH_WEB_ENABLED=true on the server to enable bounded searches.","retryable":false,"startedAt":"2026-09-08T12:45:41.470Z","finishedAt":"2026-09-08T12:45:41.471Z"}}
+
+$ curl cross-site POST (Origin: https://other.invalid)
+HTTP/1.1 403 
+Vary: Origin
+cache-control: no-store
+content-type: application/json
+Date: Tue, 08 Sep 2026 12:45:41 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"failure":{"schema":"xray.pricing-research/v1","requestId":"","code":"invalid-request","message":"Cross-site supplier research requests are not allowed.","retryable":false,"startedAt":"2026-09-08T12:45:41.506Z","finishedAt":"2026-09-08T12:45:41.506Z"}}
+
+$ curl same-origin POST with invalid body (limit 50)
+HTTP/1.1 400 
+Access-Control-Allow-Origin: http://127.0.0.1:8080
+Vary: Origin
+cache-control: no-store
+content-type: application/json
+Date: Tue, 08 Sep 2026 12:45:41 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"failure":{"schema":"xray.pricing-research/v1","requestId":"curl-3","code":"invalid-request","message":"Supplier research request rejected: limit: Too big: expected number to be <=5.","retryable":false,"startedAt":"2026-09-08T12:45:41.543Z","finishedAt":"2026-09-08T12:45:41.544Z"}}

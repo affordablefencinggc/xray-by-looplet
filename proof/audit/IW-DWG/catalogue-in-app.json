@@ -1,0 +1,49 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Proof",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('details.proof-revisions summary')"
+  ],
+  [
+    "click",
+    "details.proof-revisions summary"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('iframe')?.contentDocument?.querySelectorAll('.requirement').length===364"
+  ],
+  [
+    "eval",
+    "var w=document.querySelector('.proof-workspace');var i=w.querySelector('iframe');if(i.getBoundingClientRect().right>w.getBoundingClientRect().right+1)throw Error('Report exceeds workspace');if(w.scrollWidth>w.clientWidth+1)throw Error('Proof content overflows');({workspaceWidth:w.clientWidth,reportWidth:i.clientWidth,overflow:false})"
+  ],
+  [
+    "screenshot",
+    "screenshots/professional-coverage/in-app.png"
+  ],
+  [
+    "errors"
+  ]
+]

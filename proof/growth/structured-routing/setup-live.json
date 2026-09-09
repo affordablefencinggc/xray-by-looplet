@@ -1,0 +1,6 @@
+[
+  [
+    "eval",
+    "(async()=>{const {useStudio}=await import('/src/studio/store.ts');const {switchProject}=await import('/src/studio/assistant/projectSwitch.ts');const {saveFencingJob}=await import('/src/studio/persistence.ts');const {createDefaultJob}=await import('/src/studio/domain.ts');const result=await switchProject(null,{store:useStudio,storage:localStorage,saveJob:(job,options)=>saveFencingJob(job,undefined,options),busy:false,createJobText:()=>JSON.stringify({...createDefaultJob(),name:'WR-01 Gemini routed pavilion'})});if(!result.ok)throw Error(JSON.stringify(result));return {projectId:useStudio.getState().job.id}})()"
+  ]
+]

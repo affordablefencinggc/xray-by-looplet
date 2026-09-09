@@ -1,0 +1,508 @@
+diff --git a/src/studio/assistant/appTools.test.ts b/src/studio/assistant/appTools.test.ts
+index 41fda35..34c0f58 100644
+--- a/src/studio/assistant/appTools.test.ts
++++ b/src/studio/assistant/appTools.test.ts
+@@ -26,12 +26,14 @@ function fixture() {
+ }
+ const message = (result: Awaited<ReturnType<ReturnType<typeof fixture>["execute"]>>) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
+ 
+-test("nine SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
++test("sixteen SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
+   const f = fixture();
+   assert.deepEqual(f.tools.map(tool => tool.name), [
+     "read_project_context", "navigate_workspace", "read_architect_design",
+     "draw_architect_elements", "undo_architect_change", "capture_workspace_image",
+-    "save_project", "control_draftsman", "read_draftsman_status"
++    "save_project", "control_draftsman", "read_draftsman_status",
++    "read_workbench_structure", "read_source_building",
++    "read_source_sheets", "manage_source_sheet", "read_takeoff_evidence", "read_price_books", "capture_project_backup"
+   ]);
+   for (const tool of f.tools) { assert.equal(tool.inputSchema.type, "object"); assert.equal(tool.inputSchema.additionalProperties, false); }
+   f.state.hydrationStatus = "error"; f.state.persistenceRecoveryBlocked = true;
+diff --git a/src/studio/assistant/appTools.ts b/src/studio/assistant/appTools.ts
+index 8bd4d48..6097037 100644
+--- a/src/studio/assistant/appTools.ts
++++ b/src/studio/assistant/appTools.ts
+@@ -3,12 +3,16 @@ import type { FencingJob } from "../domain.ts";
+ import type { Pane } from "../store.ts";
+ import { architectDrawSchema, architectReadSchema, architectRevisionSchema, hasArchitectController, requestArchitectTool } from "./architectBridge.ts";
+ import { draftsmanControlSchema, draftsmanMcpActions, draftsmanMcpSchema, hasDraftsmanController, requestDraftsmanTool, type DraftsmanAction } from "./draftsmanBridge.ts";
++import { WORKBENCH_STRUCTURE, loadCatalogScene, sourceBuildingQuerySchema, summariseSourceBuilding, type SourceBuildingQuery } from "./workbenchStructure.ts";
++import { applySheetAction, backupSchema, describePriceBooks, describeSourceSheets, describeTakeoffEvidence, sheetActionSchema, sheetReadSchema, takeoffReadSchema } from "./workbenchTools.ts";
++import { readBrowserPriceBooks, type PriceBookSession } from "../pricing/priceBooks.ts";
++import type { BackupSummary } from "../projectBackupStorage.ts";
+ 
+ export type AppToolResult = { content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; isError?: boolean };
+ export type AppTool = { name: string; description: string; inputSchema: { type: "object"; [key: string]: unknown }; execute(args: unknown): Promise<AppToolResult> };
+ export const APP_PANES = ["overview", "sheets", "measure", "sketch", "components", "model", "render", "review", "cost", "proof"] as const;
+ type AppState = {
+-  job: Pick<FencingJob, "id" | "name" | "revision" | "documents" | "activeDocumentId" | "annotations" | "runs" | "gates">;
++  job: Pick<FencingJob, "id" | "name" | "revision" | "documents" | "activeDocumentId" | "annotations" | "runs" | "gates" | "calibrations" | "photos">;
+   pane: Pane; sheet: number; hydrationStatus: string; persistenceHydrated: boolean; persistenceRecoveryBlocked: boolean;
+   persistenceError: string | null; lastSavedJobRevision: number | null;
+   pending?: unknown[]; calibrationCapture?: { points: unknown[] } | null;
+@@ -22,6 +26,12 @@ export type AppToolPort = {
+   openArchitectWorkspace?(expectedJobId: string): Promise<void>;
+   draftsman?(action: DraftsmanAction, args?: unknown): Promise<unknown>;
+   draftsmanAvailable?(): boolean;
++  sourceBuilding?(query: SourceBuildingQuery): Promise<unknown>;
++  /** Saved sidecar storage shared with the Sheets pane (browser localStorage). */
++  storage?: Pick<Storage, "getItem" | "setItem">;
++  sheetChanged?(storageKey: string): void;
++  priceBooks?(jobId: string): PriceBookSession;
++  backup?(name: string): Promise<BackupSummary>;
+ };
+ const idSchema = z.string().min(1).max(100);
+ const emptySchema = z.object({}).strict();
+@@ -34,13 +44,23 @@ const point = { type: "array", items: num, minItems: 2, maxItems: 2 };
+ const bound = { expectedJobId: id, expectedRevision: { type: "integer", minimum: 1 } };
+ const ref = { type: "string", minLength: 1, maxLength: 80 };
+ const opening = { ref, wallRef: id, offsetMm: num, widthMm: positive, heightMm: positive, tag: { type: "string", minLength: 1, maxLength: 30 }, hinge: { enum: ["left", "right"] }, swing: { enum: ["in", "out"] } };
++const name = { type: "string", minLength: 1, maxLength: 120 };
++const polygon = { type: "array", items: point, minItems: 3, maxItems: 200 };
++const pitchDeg = { type: "number", minimum: 0, maximum: 89.9 }, eavesMm = { type: "number", minimum: 0, maximum: 3000 };
++const gableEdges = { type: "array", items: { type: "integer", minimum: 0, maximum: 199 }, maxItems: 200 };
+ const operations = {
+   type: "array", minItems: 1, maxItems: 25, items: { oneOf: [
+-    objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, name: { type: "string", minLength: 1, maxLength: 120 }, templateWallId: id }, ["kind", "levelId", "a", "b"]),
++    objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, name, templateWallId: id }, ["kind", "levelId", "a", "b"]),
+     objectSchema({ kind: { const: "door" }, ...opening }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "tag", "hinge", "swing"]),
+     objectSchema({ kind: { const: "window" }, ...opening, sillMm: { type: "number", minimum: 0, maximum: 1e6 } }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "sillMm", "tag", "hinge", "swing"]),
+     objectSchema({ kind: { const: "line" }, ref, levelId: id, a: point, b: point }, ["kind", "levelId", "a", "b"]),
+     objectSchema({ kind: { const: "room" }, ref, levelId: id, point, name: { type: "string", minLength: 1, maxLength: 100 } }, ["kind", "levelId", "point", "name"]),
++    objectSchema({ kind: { const: "level" }, ref, name: { type: "string", minLength: 1, maxLength: 100 }, elevationMm: num, heightMm: positive }, ["kind", "name", "elevationMm", "heightMm"]),
++    objectSchema({ kind: { const: "slab" }, ref, levelId: id, points: polygon, thicknessMm: positive, offsetMm: num, name, material: { type: "string", maxLength: 100 } }, ["kind", "levelId", "points", "thicknessMm"]),
++    objectSchema({ kind: { const: "roof" }, ref, levelId: id, points: polygon, offsetMm: num, eavesMm, pitchDeg, gableEdges, name }, ["kind", "levelId", "points"]),
++    objectSchema({ kind: { const: "footprint" }, levelId: id, points: polygon, heightMm: positive, name, templateWallId: id }, ["kind", "levelId", "points"]),
++    objectSchema({ kind: { const: "extrude" }, points: polygon, storeys: { type: "integer", minimum: 1, maximum: 100 }, storeyHeightMm: positive, baseLevelId: id, levelNamePrefix: { type: "string", minLength: 1, maxLength: 60 }, slabs: { type: "boolean" },
++      roof: { oneOf: [{ const: false }, objectSchema({ pitchDeg, eavesMm, gableEdges }, [])] } }, ["kind", "points", "storeys"]),
+   ] },
+ };
+ 
+@@ -142,7 +162,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       const args = architectReadSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("read", args));
+     }),
+-    tool("draw_architect_elements", "Append 1–25 validated walls, hosted doors/windows, reference lines or room labels to the active design in millimetres. wallRef may refer to an existing wall ID or an earlier wall operation ref. The whole batch validates and saves once; existing geometry and sheets remain intact. No deletions. Unspecified wall assembly uses the unpriced default and is reported for review.", objectSchema({ ...bound, operations }), async input => {
++    tool("draw_architect_elements", "Append 1–25 validated operations to the active design in millimetres: walls, hosted doors/windows, reference lines, room labels, new levels (storeys), slabs, roofs, a footprint (closed wall loop on one level) or an extrude (footprint repeated over N storeys with new levels, optional slabs and a top roof) — this is how a multi-storey wireframe is drawn; it renders in the workspace's live 3D model. wallRef/levelId may refer to an existing ID or an earlier operation ref. The whole batch validates and saves once; existing geometry and sheets remain intact. No deletions or moves. Unspecified wall assembly uses the unpriced default and is reported for review.", objectSchema({ ...bound, operations }), async input => {
+       const args = architectDrawSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("draw", args));
+     }),
+@@ -185,9 +205,69 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       checkProject(await port.getState(), args.expectedJobId);
+       return text(result);
+     }),
++    tool("read_workbench_structure", "Read X-Ray's data model: units, panes, architectural entities and the wireframe operations draw_architect_elements accepts, the source-building reconstruction schema and catalog, evidence states, the sample firewall and what is NOT available through tools. Static reference; no project data is read.", objectSchema({}), async args => {
++      emptySchema.parse(args);
++      return text(WORKBENCH_STRUCTURE);
++    }),
++    tool("read_source_building", "Read a catalogued source-building reconstruction (Model viewer scene) as a part summary in metres: identity, category, storey, evidence state, bounds and source pages per part, filtered by storey and category. Meshes are omitted. Read-only; sample buildings stay labelled sample.", objectSchema({ expectedJobId: id, building: { enum: WORKBENCH_STRUCTURE.sourceBuilding.catalog.map(item => item.id) }, floor: { type: "string", minLength: 1, maxLength: 80 }, category: { enum: [...WORKBENCH_STRUCTURE.sourceBuilding.partCategories] }, limit: { type: "integer", minimum: 1, maximum: 200 } }, ["expectedJobId", "building"]), async input => {
++      const args = sourceBuildingQuerySchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
++      if (!port.sourceBuilding) throw Error("Source building reading is unavailable in this session.");
++      const result = await port.sourceBuilding(args);
++      checkProject(await port.getState(), args.expectedJobId);
++      return text(result);
++    }),
++    tool("read_source_sheets", "Read the active source drawing's sheet register: each original page with its name, discipline, archived state, saved views and the calibrations, traces, items, annotations and photos it carries. Sample sources are reported as not organisable.", objectSchema({ expectedJobId: id }), async input => {
++      const args = sheetReadSchema.parse(input), state = await port.getState(); checkProject(state, args.expectedJobId);
++      if (!port.storage) throw Error("Sheet organisation storage is unavailable in this session.");
++      return text(describeSourceSheets(state.job as Parameters<typeof describeSourceSheets>[0], port.storage));
++    }),
++    tool("manage_source_sheet", "Rename (with optional discipline), archive or recover one sheet of the active source drawing. Original page numbers, drawing bytes, calibrations, traces and annotations are retained; archiving only removes the page from active navigation and is reversible with recover. Read the sheets first for documentId and pageIndex.", objectSchema({ expectedJobId: id, documentId: id, action: { enum: ["rename", "archive", "recover"] }, pageIndex: { type: "integer", minimum: 0, maximum: 9999 }, name: { type: "string", minLength: 1, maxLength: 120 }, discipline: { type: "string", minLength: 1, maxLength: 80 } }, ["expectedJobId", "documentId", "action", "pageIndex"]), async input => {
++      const args = sheetActionSchema.parse(input), state = await port.getState(); checkProject(state, args.expectedJobId);
++      if (!port.storage) throw Error("Sheet organisation storage is unavailable in this session.");
++      const result = applySheetAction(state.job as Parameters<typeof applySheetAction>[0], args, port.storage);
++      port.sheetChanged?.(result.storageKey);
++      checkProject(await port.getState(), args.expectedJobId);
++      const { storageKey: _key, ...rest } = result;
++      return text(rest);
++    }),
++    tool("read_takeoff_evidence", "Read calibration state, measured traces (with lengths, review status and missing specification fields), located items and readiness blockers per source sheet from the live project record. Optional sheet index narrows the result. Read-only; no quantities are invented.", objectSchema({ expectedJobId: id, sheet: { type: "integer", minimum: 0, maximum: 9999 } }, ["expectedJobId"]), async input => {
++      const args = takeoffReadSchema.parse(input), state = await port.getState(); checkProject(state, args.expectedJobId);
++      return text(describeTakeoffEvidence(state.job as FencingJob, args.sheet));
++    }),
++    tool("read_price_books", "Read this project's imported price books: names, archived state, revisions with row counts and supplier metadata, and the number of priced worksheet lines. Rate rows are not listed; nothing is a quote.", objectSchema({ expectedJobId: id }), async input => {
++      const args = sheetReadSchema.parse(input), state = await port.getState(); checkProject(state, args.expectedJobId);
++      if (!port.priceBooks) throw Error("Price book storage is unavailable in this session.");
++      const session = port.priceBooks(state.job.id);
++      return text(describePriceBooks(session.value, session.blocked, session.error));
++    }),
++    tool("capture_project_backup", "Capture and verify a complete workspace backup on this device (project record, saved sidecars, original plans and photos) under the given name, exactly as the Backups panel does. Requires the current project revision. Does not download or send the file anywhere.", objectSchema({ ...bound, name: { type: "string", minLength: 1, maxLength: 120 } }), async input => {
++      const args = backupSchema.parse(input), state = await port.getState(); checkProject(state, args.expectedJobId, args.expectedRevision);
++      if (!port.backup) throw Error("Backups are unavailable in this session.");
++      const summary = await port.backup(args.name);
++      checkProject(await port.getState(), args.expectedJobId, args.expectedRevision);
++      if (summary.jobId !== args.expectedJobId || summary.jobRevision !== args.expectedRevision) throw Error("The stored backup does not match the expected project revision.");
++      return text({ saved: true, verified: true, backupId: summary.id, name: summary.name, storedAt: summary.storedAt, sha256: summary.sha256, sizeBytes: summary.sizeBytes, plans: summary.plans, photos: summary.photos, records: summary.records, scope: "Stored in this browser's backup database. Download it from Backups to keep a copy outside the app." });
++    }),
+   ];
+ }
+ 
++export async function captureBrowserBackup(name: string): Promise<BackupSummary> {
++  const [{ useStudio }, { captureProjectBackup }, { readBackupRecords, storeProjectBackup }, { createBrowserPlanStore }, { createBrowserPhotoStore }] = await Promise.all([
++    import("../store.ts"), import("../projectBackup.ts"), import("../projectBackupStorage.ts"), import("../documents.ts"), import("../evidence.ts"),
++  ]);
++  const state = useStudio.getState();
++  if (!state.persistenceHydrated || state.hydrationStatus !== "ready") throw Error("Wait for the workspace to finish restoring before saving a backup.");
++  if (state.persistenceError || state.bomPersistenceError || state.inventoryPersistenceError) throw Error("Resolve the workspace's save errors before creating a backup, so no working data is omitted.");
++  const plans = createBrowserPlanStore(), photos = createBrowserPhotoStore();
++  const value = await captureProjectBackup(state.job, name, { records: readBackupRecords, plan: id => plans.get(id), photo: id => photos.get(id), currentJob: () => useStudio.getState().job });
++  return storeProjectBackup(value);
++}
++
++export async function readCatalogSourceBuilding(query: SourceBuildingQuery): Promise<unknown> {
++  const { expectedJobId: _job, ...rest } = query;
++  return summariseSourceBuilding(await loadCatalogScene(rest.building), rest);
++}
++
+ export const appTools: AppTool[] = createAppTools({
+   getState: async () => (await import("../store.ts")).useStudio.getState(),
+   architect: requestArchitectTool,
+@@ -196,6 +276,10 @@ export const appTools: AppTool[] = createAppTools({
+   openArchitectWorkspace,
+   draftsman: requestDraftsmanTool,
+   draftsmanAvailable: hasDraftsmanController,
+-
++  sourceBuilding: readCatalogSourceBuilding,
++  storage: typeof localStorage === "undefined" ? undefined : localStorage,
++  sheetChanged: key => { void import("../useSheetLifecycle.ts").then(module => module.notifySheetLifecycleChanged(key)); },
++  priceBooks: jobId => readBrowserPriceBooks(jobId),
++  backup: captureBrowserBackup,
+ });
+ 
+diff --git a/src/studio/assistant/workbenchStructure.ts b/src/studio/assistant/workbenchStructure.ts
+new file mode 100644
+index 0000000..7d8e3a4
+--- /dev/null
++++ b/src/studio/assistant/workbenchStructure.ts
+@@ -0,0 +1,98 @@
++import { z } from "zod";
++import { BUILDING_CATALOG, buildingPartOnFloor, parseSourceBuilding, type SourceBuilding } from "../sourceBuilding.ts";
++
++/** Static description of X-Ray's data model so the assistant can reason about what it may draw or read. Nothing here is project data. */
++export const WORKBENCH_STRUCTURE = {
++  units: { architecturalDesign: "mm", sourceBuilding: "m", sourceSheets: "PDF page pixels" },
++  panes: ["overview", "sheets", "measure", "sketch", "components", "model", "render", "review", "cost", "proof"],
++  architecturalDesign: {
++    schema: "xray.architect/v1",
++    description: "Authored design owned by Sketch → Architectural workspace. Every entity has a stable id and revision; the project revision increments on each saved change.",
++    entities: {
++      level: "storey with elevation (mm) and height (mm); walls, slabs, roofs, lines and room tags belong to exactly one level",
++      wall: "segment a→b on a level with height and 1–12 layers (assembly); openings are hosted on walls by offset along the wall",
++      opening: "door or window hosted on a wall: offset, width, height, sill (doors sill 0), unique tag",
++      slab: "closed polygon (3–200 points) on a level with thickness, vertical offset and material",
++      roof: "closed convex polygon on a level with per-edge pitch or gable flags, eaves, fascia and gutter dimensions; offset is height above the level",
++      line: "reference line", room: "room label point", circle: "reference circle", arc: "reference arc", grid: "grid axis", dimension: "wall dimension string",
++    },
++    wireframeOperations: {
++      draw_architect_elements: ["wall", "door", "window", "line", "room", "level", "slab", "roof", "footprint (closed wall loop on one level)", "extrude (footprint repeated over N storeys with new levels, optional slabs and top roof)"],
++      renderedBy: "Architectural workspace plan view and its live 3D model (Live 3D, all levels in 3D); capture_workspace_image target 'architect' returns its pixels",
++      limits: "≤25 operations per batch, ≤100 levels, ≤3000 walls, convex roof zones, no deletions or moves through tools",
++    },
++  },
++  sourceBuilding: {
++    schema: "xray.source-building/v1",
++    description: "Read-only reconstruction of a source drawing set shown in Model. Parts carry evidenceState traced | dimensioned | inferred and source page references; sample buildings are labelled sample and never become verified evidence.",
++    catalog: BUILDING_CATALOG.map(item => ({ id: item.id, title: item.title, sample: item.sample, sourceSha256: item.sha256 })),
++    partCategories: ["wall", "room", "roof", "roof-trim", "slab", "column", "window", "door", "fixture", "solar", "skylight", "trim", "fence", "stair"],
++  },
++  evidence: {
++    states: ["traced", "dimensioned", "inferred"],
++    verifiedTakeoffRequires: "matching source SHA-256 identity and valid ground-truth two-point calibration; counts, lengths, areas and volumes stay separate",
++    sampleFirewall: "sample, inferred and unverified data stay visibly separate from verified source measurements; never promote sample data to verified results",
++  },
++  workbenchTools: {
++    read: ["read_project_context", "read_architect_design", "read_workbench_structure", "read_source_building", "read_source_sheets", "read_takeoff_evidence", "read_price_books", "read_draftsman_status"],
++    editWithPermission: ["draw_architect_elements", "undo_architect_change", "save_project", "manage_source_sheet (rename/archive/recover a source sheet)", "capture_project_backup"],
++  },
++  notAvailableThroughTools: [
++    "deleting or moving existing design entities", "creating or editing measured traces, located items, calibration, source identity, hashes or evidence approval",
++    "importing price books, issuing quotes or price approvals", "publishing, exporting or downloading files, contacting third parties", "restoring or deleting backups",
++    "drawing directly into the Model viewer (it renders source reconstructions; authored geometry lives in the Architectural workspace)",
++  ],
++} as const;
++
++export const sourceBuildingQuerySchema = z.object({
++  expectedJobId: z.string().min(1).max(100),
++  building: z.enum(BUILDING_CATALOG.map(item => item.id) as [string, ...string[]]),
++  floor: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).optional(),
++  category: z.enum(["wall", "room", "roof", "roof-trim", "slab", "column", "window", "door", "fixture", "solar", "skylight", "trim", "fence", "stair"]).optional(),
++  limit: z.number().int().min(1).max(200).optional(),
++}).strict();
++export type SourceBuildingQuery = z.infer<typeof sourceBuildingQuerySchema>;
++
++const scenes = new Map<string, Promise<SourceBuilding>>();
++/** Loads the catalogued scene JSON once (browser fetch); the viewer component is not touched. */
++export function loadCatalogScene(building: string, fetcher: typeof fetch = fetch): Promise<SourceBuilding> {
++  const entry = BUILDING_CATALOG.find(item => item.id === building);
++  if (!entry) throw Error("Unknown source building.");
++  let pending = scenes.get(building);
++  if (!pending) {
++    pending = fetcher(entry.sceneUrl).then(async response => {
++      if (!response.ok) throw Error(`Source building scene could not be loaded (${response.status}).`);
++      return parseSourceBuilding(await response.json());
++    });
++    pending.catch(() => scenes.delete(building));
++    scenes.set(building, pending);
++  }
++  return pending;
++}
++
++/** Summarises parts without their triangle meshes: identity, category, storey, evidence state, bounds in metres and source pages. */
++export function summariseSourceBuilding(scene: SourceBuilding, query: Omit<SourceBuildingQuery, "expectedJobId">, catalogEntry = BUILDING_CATALOG.find(item => item.id === query.building)) {
++  const floor = query.floor ?? "all";
++  if (floor !== "all" && floor !== "ground" && floor !== "upper" && !scene.storeys?.some(item => item.id === floor)) throw Error("Unknown storey for this building.");
++  const matches = scene.objects.filter(part => buildingPartOnFloor(part, floor) && (!query.category || part.category === query.category));
++  const limit = query.limit ?? 50;
++  const parts = matches.slice(0, limit).map(part => {
++    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
++    for (let index = 0; index < part.positions.length; index++) {
++      const axis = index % 3, value = part.positions[index];
++      if (value < min[axis]) min[axis] = value;
++      if (value > max[axis]) max[axis] = value;
++    }
++    return { id: part.id, category: part.category, label: part.label, storey: part.storey ?? part.level ?? null, material: part.material, evidenceState: part.evidenceState,
++      boundsM: { min, max }, triangles: part.indices.length / 3, sourcePages: [...new Set(part.sourceRefs.map(ref => ref.page))], note: part.note ?? null };
++  });
++  const evidence = { traced: 0, dimensioned: 0, inferred: 0 };
++  for (const part of matches) evidence[part.evidenceState]++;
++  return {
++    building: query.building, title: catalogEntry?.title ?? scene.source.name, sample: catalogEntry?.sample ?? true, sourceSha256: scene.source.sha256, units: scene.units,
++    boundsM: scene.bounds, storeys: scene.storeys ?? (scene.floorElevations ? [{ id: "ground", label: "Ground", elevation: scene.floorElevations.ground }, { id: "upper", label: "Upper", elevation: scene.floorElevations.upper }] : []),
++    floor, category: query.category ?? "all", matched: matches.length, returned: parts.length, evidence, parts,
++    summary: scene.summary, assumptions: scene.assumptions.slice(0, 10),
++    scope: "Read-only reconstruction summary in metres; meshes omitted. Evidence states are per part; sample buildings are not verified evidence.",
++  };
++}
+diff --git a/src/studio/assistant/workbenchTools.test.ts b/src/studio/assistant/workbenchTools.test.ts
+new file mode 100644
+index 0000000..0fde0de
+--- /dev/null
++++ b/src/studio/assistant/workbenchTools.test.ts
+@@ -0,0 +1,130 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob, type FencingJob } from "../domain.ts";
++import type { Pane } from "../store.ts";
++import { readSheetLifecycle, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetStorage } from "../sheetLifecycle.ts";
++import { appendPriceBookRevision, emptyPriceBookLibrary, priceImportSchema } from "../pricing/priceBooks.ts";
++import { createAppTools, type AppToolPort } from "./appTools.ts";
++import { applySheetAction, describePriceBooks, describeSourceSheets, describeTakeoffEvidence } from "./workbenchTools.ts";
++import { assistantToolAllowed } from "./skills.ts";
++
++function storage(): SheetStorage & { map: Map<string, string> } {
++  const map = new Map<string, string>();
++  return { map, getItem: key => map.get(key) ?? null, setItem: (key, value) => { map.set(key, value); } };
++}
++function importedJob(): FencingJob {
++  const job = createDefaultJob();
++  job.documents = [{ id: "plan-1", name: "Architectural.pdf", kind: "pdf", source: "web", importedAt: "2026-09-07T00:00:00.000Z", sha256: "b".repeat(64), pageCount: 4 }];
++  job.activeDocumentId = "plan-1";
++  return job;
++}
++
++test("sample sources are reported as not organisable; imported sources list pages with evidence counts", () => {
++  const sample = createDefaultJob(), store = storage();
++  const none = describeSourceSheets(sample, store);
++  assert.equal(none.available, false); assert.match((none as { reason: string }).reason, /sample/);
++  const job = importedJob();
++  job.calibrations = [{ sheet: 1, coordinateSpace: "source-page-v1", metresPerUnit: 0.01, source: "manual", confidence: 1, locked: true, knownDistanceM: 5, points: null, transform: { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }, inputDistance: null, candidates: [], selectedCandidateId: null, conflict: null } as unknown as FencingJob["calibrations"][number]];
++  const value = describeSourceSheets(job, store);
++  assert.equal(value.available, true);
++  if (!value.available) return;
++  assert.equal(value.pageCount, 4); assert.equal(value.documentId, "plan-1"); assert.equal(value.sourceSha256, "b".repeat(64));
++  assert.deepEqual(value.pages.map(page => page.originalPage), [1, 2, 3, 4]);
++  assert.equal(value.pages[1].evidence.calibrations, 1); assert.equal(value.pages[0].evidence.calibrations, 0);
++  assert.ok(value.pages.every(page => !page.archived && page.name.startsWith("Sheet")));
++});
++
++test("sheet actions rename, archive and recover through the shared sidecar with identity and state checks", () => {
++  const job = importedJob(), store = storage(), identity = sheetSourceIdentity(job.id, job.documents[0])!;
++  const renamed = applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "rename", pageIndex: 1, name: "Ground floor plan", discipline: "Architecture" }, store);
++  assert.equal(renamed.after.name, "Ground floor plan"); assert.equal(renamed.after.discipline, "Architecture"); assert.equal(renamed.before.name, "Sheet 2");
++  assert.equal(renamed.storageKey, sheetLifecycleStorageKey(identity)); assert.equal(renamed.lifecycleRevision, 1);
++  const saved = readSheetLifecycle(identity, store);
++  assert.equal(saved.pages.find(page => page.pageIndex === 1)!.name, "Ground floor plan");
++  const archived = applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "archive", pageIndex: 2 }, store);
++  assert.equal(archived.after.archived, true); assert.deepEqual(archived.retained, { calibrations: 0, traces: 0, items: 0, annotations: 0, linkedPhotos: 0, savedViews: 0 });
++  assert.throws(() => applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "archive", pageIndex: 2 }, store), /already archived/);
++  const recovered = applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "recover", pageIndex: 2 }, store);
++  assert.equal(recovered.after.archived, false); assert.equal(recovered.lifecycleRevision, 3);
++  assert.throws(() => applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "recover", pageIndex: 2 }, store), /not archived/);
++  assert.throws(() => applySheetAction(job, { expectedJobId: job.id, documentId: "plan-9", action: "archive", pageIndex: 0 }, store), /changed/);
++  assert.throws(() => applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "archive", pageIndex: 4 }, store), /not part of this source/);
++  assert.throws(() => applySheetAction(job, { expectedJobId: job.id, documentId: "plan-1", action: "rename", pageIndex: 0 }, store), /name/);
++  assert.throws(() => applySheetAction(createDefaultJob(), { expectedJobId: "x", documentId: "doc-sample", action: "archive", pageIndex: 0 }, store), /Sample/);
++  assert.equal(readSheetLifecycle(identity, store).pages.find(page => page.pageIndex === 1)!.name, "Ground floor plan");
++});
++
++test("takeoff evidence lists calibration, traces, items and blockers per sheet without inventing quantities", () => {
++  const job = createDefaultJob();
++  const value = describeTakeoffEvidence(job);
++  assert.equal(value.projectId, job.id); assert.ok(Array.isArray(value.blockers)); assert.ok(value.blockers.length > 0);
++  assert.equal(value.sheets.length, job.calibrations.length + job.runs.length + job.gates.length === 0 ? 0 : value.sheets.length);
++  const single = describeTakeoffEvidence(job, 0);
++  assert.equal(single.sheets.length, 1); assert.equal(single.sheets[0].originalPage, 1);
++  assert.ok(single.sheets[0].calibration === null || typeof single.sheets[0].calibration.locked === "boolean");
++  assert.ok(single.sheets[0].traces.every(trace => typeof trace.lengthM === "number" && Array.isArray(trace.missingSpecification)));
++  assert.match(value.scope, /not a quote|Nothing here is a quote/);
++});
++
++test("price book summary reports books, revisions and worksheet lines but no rate rows", () => {
++  const source = priceImportSchema.parse({ metadata: { supplier: "QA supplier", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-07", sourceReference: "QA fixture" },
++    source: { fileName: "rates.csv", sha256: "c".repeat(64), sizeBytes: 100, delimiter: ",", headers: ["Code", "Description", "Unit", "Rate"], mapping: { stockCode: 0, description: 1, unit: 2, rate: 3 } },
++    rows: [{ sourceLine: 2, stockCode: "P-1", description: "Post", unit: "each", rate: 12.5 }] });
++  const library = appendPriceBookRevision(emptyPriceBookLibrary("job-one"), source, "Structural supplier", null, () => "11111111-1111-4111-8111-111111111111", "2026-09-08T00:00:00.000Z");
++  const value = describePriceBooks(library, false, null);
++  assert.equal(value.books.length, 1); assert.equal(value.books[0].revisions[0].rows, 1); assert.equal(value.books[0].revisions[0].metadata.supplier, "QA supplier");
++  assert.equal(value.worksheetLines, 0); assert.ok(!JSON.stringify(value).includes("\"Post\""));
++});
++
++function fixture() {
++  const job = importedJob();
++  const store = storage();
++  const state = { job, pane: "sheets" as Pane, sheet: 0, hydrationStatus: "ready", persistenceHydrated: true, persistenceRecoveryBlocked: false, persistenceError: null as string | null, lastSavedJobRevision: job.revision as number | null,
++    setPane(pane: Pane) { state.pane = pane; }, saveCurrentProject() { return { ok: true, error: null as string | null }; } };
++  const notified: string[] = []; let backups = 0;
++  const port: AppToolPort = {
++    getState: () => state, architect: async () => ({}), architectAvailable: () => false, capture: async () => ({ content: [] }),
++    storage: store, sheetChanged: key => notified.push(key), priceBooks: jobId => ({ value: emptyPriceBookLibrary(jobId), raw: null, blocked: false, error: null }),
++    backup: async name => { backups++; return { id: "22222222-2222-4222-8222-222222222222", name, createdAt: "2026-09-09T00:00:00.000Z", storedAt: "2026-09-09T00:00:00.000Z", archived: false, revision: 1, sha256: "d".repeat(64), sizeBytes: 100, jobName: job.name, jobId: job.id, jobRevision: job.revision, plans: 1, photos: 0, records: ["architecture"] }; },
++  };
++  const tools = createAppTools(port);
++  return { state, port, store, notified, tools, get backups() { return backups; }, execute: (name: string, args: unknown) => tools.find(tool => tool.name === name)!.execute(args) };
++}
++const message = (result: { content: Array<{ type: string; text?: string }> }) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
++
++test("sheet tools bind to the project, notify the Sheets pane and fail closed without storage", async () => {
++  const f = fixture(), id = f.state.job.id;
++  const list = JSON.parse(message(await f.execute("read_source_sheets", { expectedJobId: id })));
++  assert.equal(list.available, true); assert.equal(list.pages.length, 4);
++  assert.equal((await f.execute("read_source_sheets", { expectedJobId: "other" })).isError, true);
++  const result = await f.execute("manage_source_sheet", { expectedJobId: id, documentId: "plan-1", action: "rename", pageIndex: 0, name: "Cover" });
++  assert.equal(result.isError, undefined); const value = JSON.parse(message(result));
++  assert.equal(value.after.name, "Cover"); assert.equal("storageKey" in value, false); assert.equal(f.notified.length, 1);
++  assert.equal((await f.execute("manage_source_sheet", { expectedJobId: id, documentId: "plan-1", action: "delete", pageIndex: 0 })).isError, true);
++  f.state.persistenceRecoveryBlocked = true;
++  assert.equal((await f.execute("manage_source_sheet", { expectedJobId: id, documentId: "plan-1", action: "archive", pageIndex: 0 })).isError, true);
++  f.state.persistenceRecoveryBlocked = false; delete f.port.storage;
++  assert.match(message(await f.execute("read_source_sheets", { expectedJobId: id })), /unavailable/);
++  assert.equal(f.notified.length, 1);
++  assert.equal(assistantToolAllowed("manage_source_sheet", false), false); assert.equal(assistantToolAllowed("manage_source_sheet", true), true);
++  assert.equal(assistantToolAllowed("read_source_sheets", false), true);
++});
++
++test("takeoff, price book and backup tools bind to the project and verify the backup identity", async () => {
++  const f = fixture(), id = f.state.job.id;
++  const takeoff = JSON.parse(message(await f.execute("read_takeoff_evidence", { expectedJobId: id, sheet: 0 })));
++  assert.equal(takeoff.projectId, id); assert.equal(takeoff.sheets[0].sheet, 0);
++  assert.equal((await f.execute("read_takeoff_evidence", { expectedJobId: id, sheet: -1 })).isError, true);
++  const books = JSON.parse(message(await f.execute("read_price_books", { expectedJobId: id })));
++  assert.deepEqual(books.books, []); assert.equal(books.blocked, false);
++  assert.equal(assistantToolAllowed("read_takeoff_evidence", false), true); assert.equal(assistantToolAllowed("read_price_books", false), true);
++  assert.equal(assistantToolAllowed("capture_project_backup", false), false); assert.equal(assistantToolAllowed("capture_project_backup", true), true);
++  const args = { expectedJobId: id, expectedRevision: f.state.job.revision, name: "Assistant checkpoint" };
++  assert.equal((await f.execute("capture_project_backup", { ...args, expectedRevision: args.expectedRevision + 1 })).isError, true); assert.equal(f.backups, 0);
++  const saved = JSON.parse(message(await f.execute("capture_project_backup", args)));
++  assert.equal(saved.saved, true); assert.equal(saved.name, "Assistant checkpoint"); assert.equal(f.backups, 1);
++  f.port.backup = async () => ({ id: "33333333-3333-4333-8333-333333333333", name: "x", createdAt: "2026-09-09T00:00:00.000Z", storedAt: "2026-09-09T00:00:00.000Z", archived: false, revision: 1, sha256: "e".repeat(64), sizeBytes: 1, jobName: "", jobId: "other", jobRevision: 1, plans: 0, photos: 0, records: [] });
++  assert.match(message(await f.execute("capture_project_backup", args)), /does not match/);
++  delete f.port.backup;
++  assert.match(message(await f.execute("capture_project_backup", args)), /unavailable/);
++});
+diff --git a/src/studio/assistant/workbenchTools.ts b/src/studio/assistant/workbenchTools.ts
+new file mode 100644
+index 0000000..bf34a7a
+--- /dev/null
++++ b/src/studio/assistant/workbenchTools.ts
+@@ -0,0 +1,90 @@
++import { z } from "zod";
++import { getJobBlockers, missingRunSpecificationFields, type FencingJob } from "../domain.ts";
++import { readSheetLifecycle, saveSheetLifecycle, sheetArchiveImpact, sheetLifecycleStorageKey, sheetSourceIdentity, type SheetLifecycle, type SheetStorage } from "../sheetLifecycle.ts";
++import type { PriceBookLibrary } from "../pricing/priceBooks.ts";
++
++const id = z.string().min(1).max(100);
++export const sheetReadSchema = z.object({ expectedJobId: id }).strict();
++export const sheetActionSchema = z.object({
++  expectedJobId: id, documentId: id, action: z.enum(["rename", "archive", "recover"]), pageIndex: z.number().int().nonnegative().max(9999),
++  name: z.string().trim().min(1).max(120).optional(), discipline: z.string().trim().min(1).max(80).optional(),
++}).strict();
++export type SheetActionInput = z.infer<typeof sheetActionSchema>;
++export const takeoffReadSchema = z.object({ expectedJobId: id, sheet: z.number().int().nonnegative().max(9999).optional() }).strict();
++export const backupSchema = z.object({ expectedJobId: id, expectedRevision: z.number().int().positive(), name: z.string().trim().min(1).max(120) }).strict();
++
++type SheetJob = Parameters<typeof sheetArchiveImpact>[0] & { annotations?: { sheet: number; documentId: string }[] };
++
++function pageSummary(job: SheetJob, lifecycle: SheetLifecycle) {
++  return lifecycle.pages.map(page => ({
++    pageIndex: page.pageIndex, originalPage: page.pageIndex + 1, name: page.name, discipline: page.discipline ?? null, archived: page.archived,
++    savedViews: page.bookmarks?.length ?? 0,
++    evidence: (() => { const impact = sheetArchiveImpact(job, lifecycle.identity, page.pageIndex, lifecycle); return { calibrations: impact.calibrations, traces: impact.traces, items: impact.items, annotations: impact.annotations, linkedPhotos: impact.linkedPhotos }; })(),
++  }));
++}
++
++/** Sheet register of the active source drawing, read from the same saved sidecar the Sheets pane uses. */
++export function describeSourceSheets(job: SheetJob, storage: Pick<Storage, "getItem">) {
++  const document = job.documents.find(doc => doc.id === job.activeDocumentId);
++  if (!document) return { available: false as const, reason: "No source drawing is open." };
++  const identity = sheetSourceIdentity(job.id, document);
++  if (!identity) return { available: false as const, reason: document.source === "sample" ? "The active source is the bundled sample; sample sheets are not organised or renamed." : "The active source has no verified identity yet." };
++  const lifecycle = readSheetLifecycle(identity, storage);
++  return { available: true as const, documentId: document.id, sourceName: document.name, sourceSha256: identity.sha256, pageCount: identity.pageCount, lifecycleRevision: lifecycle.revision,
++    pages: pageSummary(job, lifecycle), scope: "Names, disciplines and archive state only; original page numbers, drawing bytes, calibrations, traces and annotations are never changed by sheet organisation." };
++}
++
++/** Rename, archive or recover one sheet through the same saved sidecar as the Sheets pane; the whole change validates before it is written. */
++export function applySheetAction(job: SheetJob, input: SheetActionInput, storage: SheetStorage) {
++  const document = job.documents.find(doc => doc.id === job.activeDocumentId);
++  if (!document || document.id !== input.documentId) throw Error("The active source drawing changed. Read the sheets again before editing.");
++  const identity = sheetSourceIdentity(job.id, document);
++  if (!identity) throw Error("Sample or unverified sources cannot be organised.");
++  if (input.pageIndex >= identity.pageCount) throw Error("That page is not part of this source.");
++  const current = readSheetLifecycle(identity, storage);
++  const page = current.pages.find(item => item.pageIndex === input.pageIndex)!;
++  const impact = sheetArchiveImpact(job, identity, input.pageIndex, current);
++  let next: SheetLifecycle;
++  if (input.action === "rename") {
++    if (!input.name) throw Error("Give the sheet a name.");
++    next = saveSheetLifecycle(current, { type: "rename", pageIndex: input.pageIndex, name: input.name, ...(input.discipline ? { discipline: input.discipline } : {}) }, storage);
++  } else {
++    if (input.action === "archive" && page.archived) throw Error("That sheet is already archived.");
++    if (input.action === "recover" && !page.archived) throw Error("That sheet is not archived.");
++    next = saveSheetLifecycle(current, { type: input.action, pageIndex: input.pageIndex }, storage);
++  }
++  const after = next.pages.find(item => item.pageIndex === input.pageIndex)!;
++  return { documentId: document.id, storageKey: sheetLifecycleStorageKey(identity), action: input.action, pageIndex: input.pageIndex, originalPage: input.pageIndex + 1,
++    before: { name: page.name, discipline: page.discipline ?? null, archived: page.archived }, after: { name: after.name, discipline: after.discipline ?? null, archived: after.archived },
++    retained: impact, lifecycleRevision: next.revision, saved: true, readbackVerified: true };
++}
++
++/** Calibration, traces, located items and readiness blockers per sheet, read from the live project record. */
++export function describeTakeoffEvidence(job: FencingJob, sheet?: number) {
++  const document = job.documents.find(doc => doc.id === job.activeDocumentId);
++  const sheets = sheet === undefined ? [...new Set([...job.calibrations.map(c => c.sheet), ...job.runs.map(r => r.sheet), ...job.gates.map(g => g.sheet)])].sort((a, b) => a - b) : [sheet];
++  return {
++    projectId: job.id, projectRevision: job.revision, activeDocument: document ? { id: document.id, name: document.name, source: document.source, sha256: document.sha256 ?? null, pageCount: document.pageCount ?? null } : null,
++    sheets: sheets.map(index => {
++      const calibration = job.calibrations.find(c => c.sheet === index);
++      return {
++        sheet: index, originalPage: index + 1,
++        calibration: calibration ? { locked: calibration.locked, source: calibration.source, confidence: calibration.confidence, coordinateSpace: calibration.coordinateSpace ?? "legacy-procedural-v0", metresPerUnit: calibration.metresPerUnit, knownDistanceM: calibration.knownDistanceM, candidates: calibration.candidates.length, conflict: calibration.conflict !== null } : null,
++        traces: job.runs.filter(r => r.sheet === index).map(run => ({ id: run.id, revision: run.revision, label: run.label, vertices: run.points.length, lengthM: run.lengthM, netLengthM: run.netLengthM ?? null, review: run.review.status, missingSpecification: missingRunSpecificationFields(run.specification), photos: run.photoIds.length })),
++        items: job.gates.filter(g => g.sheet === index).map(gate => ({ id: gate.id, revision: gate.revision, label: gate.label, onTraceId: gate.runId, review: gate.review.status, photos: gate.photoIds.length })),
++      };
++    }),
++    blockers: getJobBlockers(job),
++    scope: "Lengths are only verified when the sheet's calibration is locked with source-page coordinates and the source identity matches; counts, lengths, areas and volumes stay separate. Nothing here is a quote.",
++  };
++}
++
++/** Price-book library summary: books, revisions and worksheet lines, without every rate row. */
++export function describePriceBooks(library: PriceBookLibrary, blocked: boolean, error: string | null) {
++  return {
++    jobId: library.jobId, libraryRevision: library.revision, blocked, error,
++    books: library.books.map(book => ({ id: book.id, name: book.name, archived: book.archived, revisions: book.revisions.map(revision => ({ revision: revision.revision, importedAt: revision.importedAt, rows: revision.rows.length, metadata: revision.metadata })) })),
++    worksheetLines: library.worksheet.length,
++    scope: "Imported supplier rates and their revisions; quantities are entered by the user and quotes need separate approval. Rate rows are not listed here.",
++  };
++}

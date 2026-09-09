@@ -1,0 +1,110 @@
+== run id 5dfc922f097f (attempt 2) 2026-09-09T01:01:28+10:00
+== transfer 2026-09-09T01:01:28+10:00
+$ErrorActionPreference = 'Stop'
+if ($env:COMPUTERNAME -ne 'DANS1') { throw 'Dedicated resource policy is restricted to Dans1.' }
+$dansMachine = Get-CimInstance Win32_ComputerSystem
+$dansWorkers = [int]$dansMachine.NumberOfLogicalProcessors
+if ($dansWorkers -lt 1) { throw 'Cannot determine CPU capacity.' }
+if (-not ('DansBuildPriorityJob' -as [type])) {
+Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class DansBuildPriorityJob {
+  [StructLayout(LayoutKind.Sequential)] struct Limits {
+    public long ProcessTime, JobTime;
+    public uint Flags;
+    public UIntPtr MinimumWorkingSet, MaximumWorkingSet;
+    public uint ActiveProcesses;
+    public UIntPtr Affinity;
+    public uint PriorityClass, SchedulingClass;
+  }
+  [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr CreateJobObject(IntPtr attrs, string name);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetInformationJobObject(IntPtr job, int info, ref Limits limits, uint size);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+  [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+  public static IntPtr Handle;
+  public static void Apply() {
+    if (Handle != IntPtr.Zero) return;
+    var job = CreateJobObject(IntPtr.Zero, null);
+    if (job == IntPtr.Zero) throw new Win32Exception();
+    // HIGH_PRIORITY_CLASS for this worker and descendants; no kill-on-close.
+    var limits = new Limits { Flags = 0x20, PriorityClass = 0x80 };
+    if (!SetInformationJobObject(job, 2, ref limits, (uint)Marshal.SizeOf(typeof(Limits)))) throw new Win32Exception();
+    if (!AssignProcessToJobObject(job, GetCurrentProcess())) throw new Win32Exception();
+    Handle = job;
+  }
+}
+'@
+}
+[DansBuildPriorityJob]::Apply()
+[Diagnostics.Process]::GetCurrentProcess().PriorityClass = 'High'
+$env:XRAY_BUILD_PROFILE = 'dedicated'
+$env:RAYON_NUM_THREADS = [string]$dansWorkers
+$env:CARGO_BUILD_JOBS = [string]$dansWorkers
+$env:CMAKE_BUILD_PARALLEL_LEVEL = [string]$dansWorkers
+$env:UV_THREADPOOL_SIZE = [string]$dansWorkers
+$dansResourcePolicy = [pscustomobject]@{
+  computer = $env:COMPUTERNAME
+  priority = [Diagnostics.Process]::GetCurrentProcess().PriorityClass.ToString()
+  logicalProcessors = $dansWorkers
+  rayonWorkers = $dansWorkers
+  cargoJobs = $dansWorkers
+  memoryGiB = [math]::Round($dansMachine.TotalPhysicalMemory / 1GB, 1)
+  profile = $env:XRAY_BUILD_PROFILE
+  localAssistance = 'Only if needed; cap background build workers to at most 20% aggregate CPU before launching.'
+  updatedAt = [DateTime]::UtcNow.ToString('o')
+}
+$dansResourcePolicy | ConvertTo-Json | Set-Content -LiteralPath 'C:\Users\danie\XRayBuilds\resource-policy.json' -Encoding UTF8
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+#< CLIXML
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+All transferred archives, manifests, and worker scripts verified
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+{"at":"2026-09-08T15:02:07.914Z","runId":"5dfc922f097f","incoming":"C:/Users/danie/XRayBuilds/incoming/5dfc922f097f","sourceSha256":"5dfc922f097f18e5e43a4ab539dc65d48849584191b60e9696d45da8cef25dff","runtimeSha256":"8e87b113f36b78dbd615e00cbd64cbdcef3376d2c0280e5a347c969505105e64","nativeSourceSha256":"6c59a78ab80133d9e5bb6adeb3dfa812ea826c7f4cdc5750dd271c435e03aaab","workerSha256":"93358ff66595df543861d3e48d1c72dbd624e24cd74f7447be4c17416d408689","files":[{"path":"proof/growth/2026-09-09-az3-release/transfer/source.tar","sha256":"5dfc922f097f18e5e43a4ab539dc65d48849584191b60e9696d45da8cef25dff","bytes":315227648},{"path":"proof/growth/2026-09-09-az3-release/transfer/node-runtime.tar","sha256":"8e87b113f36b78dbd615e00cbd64cbdcef3376d2c0280e5a347c969505105e64","bytes":107847680},{"path":"proof/growth/2026-09-09-az3-release/transfer/native-source.tar","sha256":"6c59a78ab80133d9e5bb6adeb3dfa812ea826c7f4cdc5750dd271c435e03aaab","bytes":11336192},{"path":"proof/growth/2026-09-09-az3-release/transfer/source-manifest.json","sha256":"0e5d660d864729e9cd74f72bcfce20ad76dc5b12370c2869838df64309584944","bytes":86654},{"path":"proof/growth/2026-09-09-az3-release/transfer/native-manifest.json","sha256":"59682bc9b37f3696581a4c34a459c1707585ed11b8e13d490714332de37f8927","bytes":15265},{"path":"proof/growth/2026-09-09-az3-release/worker.ps1","sha256":"93358ff66595df543861d3e48d1c72dbd624e24cd74f7447be4c17416d408689","bytes":10811},{"path":"proof/growth/2026-09-09-az3-release/start-preview.ps1","sha256":"18041c8cac56cf37673663c2cfda611f0cca26fcd97d31c2320e29d805cfeba1","bytes":2002},{"path":"proof/growth/2026-09-09-az3-release/remote-collect-artifacts.ps1","sha256":"f586dab51ce941ae397460884f9d192894e571d7a055844cb9dcc3a21a0714d7","bytes":3907}]}
+== build 2026-09-09T01:02:08+10:00
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+Verified 586 web and 102 native files. Node: v24.20.0
+{"step":"dependencies","exitCode":0,"seconds":11.316194699999999,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+{"step":"typecheck","exitCode":0,"seconds":8.5913308999999991,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+{"step":"focused-tests","exitCode":0,"seconds":2.8118852,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+{"step":"web-build","exitCode":0,"seconds":4.4879194,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+WEB_READY: production output available for browser QA; native build follows sequentially.
+
+ Log File : C:\Users\danie\XRayBuilds\runs\5dfc922f097f\cargo-cache-copy.log
+{"step":"native-build","exitCode":0,"seconds":151.3029616,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+{"step":"native-assistant-tests","exitCode":0,"seconds":14.1157778,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+{"step":"native-material-tests","exitCode":0,"seconds":4.7597996999999994,"priority":"High","rayonWorkers":16,"cargoJobs":16}
+BUILD_COMPLETE: web and NSIS artifacts verified; no deployment or installation performed.
+== collect 2026-09-09T01:05:42+10:00
+{"path":"C:\\Users\\danie\\XRayBuilds\\runs\\5dfc922f097f\\native-artifacts.tar","sha256":"85427a0812e4291f8d935494b4ee3a2829dd9cf6c3de299ec7264b6280cba13c","bytes":537393664}
+{"path":"C:\\Users\\danie\\XRayBuilds\\runs\\5dfc922f097f\\web-artifacts.tar","sha256":"d1478a6f866766ef5ee7509d11620a00c2ba6439ea8bf45b071668d0aef673be","bytes":324350464}
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+== verify artifacts 2026-09-09T01:07:00+10:00
+{"at":"2026-09-08T15:07:12.182Z","runId":"5dfc922f097f","status":"pass","sourceSha256":"5dfc922f097f18e5e43a4ab539dc65d48849584191b60e9696d45da8cef25dff","nativeSourceSha256":"6c59a78ab80133d9e5bb6adeb3dfa812ea826c7f4cdc5750dd271c435e03aaab","archives":[{"archive":"native-artifacts.tar","sha256":"85427a0812e4291f8d935494b4ee3a2829dd9cf6c3de299ec7264b6280cba13c","files":10,"destination":"C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-09-az3-release\\release-5dfc922f097f\\artifacts"},{"archive":"web-artifacts.tar","sha256":"d1478a6f866766ef5ee7509d11620a00c2ba6439ea8bf45b071668d0aef673be","files":214,"destination":"C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-09-az3-release\\release-5dfc922f097f\\web-artifacts"}],"installed":false,"launched":false}
+== build identity 2026-09-09T01:07:12+10:00
+{"at":"2026-09-08T15:07:12.664Z","runId":"5dfc922f097f","status":"pass","buildIdInjected":"5dfc922f097f","buildIdPresentInWebAssets":["routes-D7GyD1F7.js"],"sourceSha256":"5dfc922f097f18e5e43a4ab539dc65d48849584191b60e9696d45da8cef25dff","nativeSourceSha256":"6c59a78ab80133d9e5bb6adeb3dfa812ea826c7f4cdc5750dd271c435e03aaab","gates":[{"step":"dependencies","exitCode":0,"seconds":11.316194699999999,"priority":"High","rayonWorkers":16,"cargoJobs":16},{"step":"typecheck","exitCode":0,"seconds":8.591330899999999,"priority":"High","rayonWorkers":16,"cargoJobs":16},{"step":"focused-tests","exitCode":0,"seconds":2.8118852,"priority":"High","rayonWorkers":16,"cargoJobs":16},{"step":"web-build","exitCode":0,"seconds":4.4879194,"priority":"High","rayonWorkers":16,"cargoJobs":16},{"step":"native-build","exitCode":0,"seconds":151.3029616,"priority":"High","rayonWorkers":16,"cargoJobs":16},{"step":"native-assistant-tests","exitCode":0,"seconds":14.1157778,"priority":"High","rayonWorkers":16,"cargoJobs":16},{"step":"native-material-tests","exitCode":0,"seconds":4.759799699999999,"priority":"High","rayonWorkers":16,"cargoJobs":16}],"webAssetsMatchedToBuildCompletion":16,"nativeArtifactsMatchedToBuildCompletion":2,"runtimeArmAssetsMatchedToFreeze":2}
+== PIPELINE_COMPLETE 2026-09-09T01:07:12+10:00
+pipeline exit=0

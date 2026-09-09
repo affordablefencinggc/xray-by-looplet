@@ -1,0 +1,46 @@
+## pipe tests 2026-09-08T15:52:16Z
+
+$ {"tool_name":"Bash","tool_input":{"command":"git add -A"}} | node scripts/guardrails/hook.mjs pre-tool
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Blocked by X-Ray guardrails: \"git add -A/.\" stages the shared tree. Stage explicit paths (ledger skill)."}}  [exit 0]
+
+$ {"tool_name":"Bash","tool_input":{"command":"git add ."}} | node scripts/guardrails/hook.mjs pre-tool
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Blocked by X-Ray guardrails: \"git add -A/.\" stages the shared tree. Stage explicit paths (ledger skill)."}}  [exit 0]
+
+$ {"tool_name":"Bash","tool_input":{"command":"git add src/studio/store.ts"}} | node scripts/guardrails/hook.mjs pre-tool
+{}  [exit 0]
+
+$ {"tool_name":"Bash","tool_input":{"command":"git commit -m x"}} | node scripts/guardrails/hook.mjs pre-tool
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"X-Ray guardrails: git history/worktree mutation needs Daniel's named checkpoint. Add \"# checkpoint: <name>\" to the command after he names it."}}  [exit 0]
+
+$ {"tool_name":"Bash","tool_input":{"command":"git commit -m x # checkpoint: az3-release"}} | node scripts/guardrails/hook.mjs pre-tool
+{}  [exit 0]
+
+$ {"tool_name":"PowerShell","tool_input":{"command":"Stop-Process -Id 1234"}} | node scripts/guardrails/hook.mjs pre-tool
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"X-Ray guardrails: process termination must go through an identity-checked cleanup script (e.g. proof/growth/<stage>/cleanup-owned.ps1); never kill processes you do not own."}}  [exit 0]
+
+$ {"tool_name":"PowerShell","tool_input":{"command":"powershell -File proof/growth/2026-09-09-az3-release/cleanup-owned.ps1"}} | node scripts/guardrails/hook.mjs pre-tool
+{}  [exit 0]
+
+$ {"tool_name":"Bash","tool_input":{"command":"ls"}} | node scripts/guardrails/hook.mjs pre-tool
+{}  [exit 0]
+
+$ {"tool_name":"Edit","tool_input":{"file_path":"C:/x/LATEST-VERIFIED-BUILD.md"}} | node scripts/guardrails/hook.mjs pre-tool
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"X-Ray guardrails: LATEST-VERIFIED-BUILD.md changes only after every gate including native graceful shutdown passed. Confirm the shutdown evidence path before proceeding."}}  [exit 0]
+
+$ {} | node scripts/guardrails/hook.mjs session-start
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"X-Ray guardrails (harness-enforced, apply to every model):\n- Never `git add -A`, `git add .` or `git add --all`; stage explicit paths only (ledger skill).\n- No commit, push, merge, reset --hard, checkout --, stash or worktree unless Daniel names the checkpoint; the command must carry `# checkpoint: <name>`.\n- Never kill a process you do not own; stop owned processes only through an identity-checked cleanup script (AGENTS.project.md 10-minute rule).\n- Nothing is done without a code diff plus executed/inspected proof (runner report + screenshot under proof/growth or screenshots/growth).\n- LATEST-VERIFIED-BUILD.md changes only after every gate including native shutdown passes.\nRepo skills to read before building: .agents/skills/ledger/SKILL.md, .agents/skills/xray-engine/SKILL.md, .agents/skills/fast-cdp-testing/SKILL.md. Ledger: AZ-WAVE3-LEDGER.md; proof ledger: walkthrough.md."}}  [exit 0]
+
+$ {"transcript_path":"C:/Users/danie/repo/xray-by-looplet/.temp/guardrail-transcript-noproof.jsonl"} | node scripts/guardrails/hook.mjs stop
+{"decision":"block","reason":"X-Ray proof standard: the reply claims completion but cites no proof (runner report, screenshot path or executed test output). Add the evidence paths or mark the item open/blocked."}  [exit 0]
+
+$ {"transcript_path":"C:/Users/danie/repo/xray-by-looplet/.temp/guardrail-transcript-proof.jsonl"} | node scripts/guardrails/hook.mjs stop
+{}  [exit 0]
+
+$ {"transcript_path":"C:/Users/danie/repo/xray-by-looplet/.temp/guardrail-transcript-noproof.jsonl","stop_hook_active":true} | node scripts/guardrails/hook.mjs stop
+{}  [exit 0]
+
+## settings schema check (node; jq is not installed here)
+PreToolUse: node "$CLAUDE_PROJECT_DIR/scripts/guardrails/hook.mjs" pre-tool
+SessionStart: node "$CLAUDE_PROJECT_DIR/scripts/guardrails/hook.mjs" session-start
+Stop: node "$CLAUDE_PROJECT_DIR/scripts/guardrails/hook.mjs" stop
+  [exit 0]

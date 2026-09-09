@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
+const binary='.temp/npm/_npx/8e62322f9a68a26a/node_modules/agent-browser/bin/agent-browser-win32-x64.exe';
+const result=spawnSync(binary,['--session','cinematic-pencils-production','--json','eval','window.__pencilVideo'],{encoding:'utf8',windowsHide:true,maxBuffer:25000000,timeout:30000});
+if(result.status!==0)throw Error('Video retrieval failed');
+const payload=JSON.parse(result.stdout);
+const value=payload.data?.result ?? payload.data;
+if(typeof value!=='string'||!value.startsWith('data:video/webm'))throw Error('Unexpected video result shape: '+Object.keys(payload.data||{}).join(','));
+const bytes=Buffer.from(value.slice(value.indexOf(',')+1),'base64');
+const file='proof/growth/2026-09-08-cinematic-pencils/cinematic-pencils.webm';
+fs.writeFileSync(file,bytes);
+console.log(JSON.stringify({file,bytes:bytes.length,source:'actual production WebGL canvas, 30 fps capture, live playback'}));

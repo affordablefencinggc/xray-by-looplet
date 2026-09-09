@@ -1,0 +1,20 @@
+[
+  ["set", "viewport", "1440", "1000"],
+  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=ready]')"],
+  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
+  ["find", "role", "button", "click", "--name", "Rename project", "--exact"],
+  ["fill", ".project-details input", "QA – Redburn tender package"],
+  ["find", "role", "button", "click", "--name", "Save project name", "--exact"],
+  ["wait", "--fn", "document.querySelector('.project-details [role=status]')?.textContent.includes('saved on this device')"],
+  ["eval", "(()=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(j.name!=='QA – Redburn tender package')throw Error('Name not persisted');return {name:j.name,revision:j.revision}})()"],
+  ["screenshot", "screenshots/professional-next/project-name.png"],
+  ["find", "role", "button", "click", "--name", "Backups", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.project-backups input:not([type])') || !!document.querySelector('.backup-save-row input')"],
+  ["eval", "(()=>{const n=document.querySelector('.backup-save-row input').value;if(!n.includes('QA – Redburn tender package'))throw Error('Backup defaults stale');return n})()"],
+  ["find", "role", "button", "click", "--name", "Close Project backups", "--exact"],
+  ["reload"],
+  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=ready]')"],
+  ["find", "role", "button", "click", "--name", "Sheets", "--exact"],
+  ["eval", "(()=>{if(document.querySelector('.project-details h2')?.textContent!=='QA – Redburn tender package')throw Error('Name lost on reload')})()"],
+  ["errors"]
+]

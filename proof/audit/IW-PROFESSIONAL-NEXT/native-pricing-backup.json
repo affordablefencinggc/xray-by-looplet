@@ -1,0 +1,70 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Backups",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('.project-backups button')].some(b=>b.textContent.includes('Save project backup')&&!b.disabled)"
+  ],
+  [
+    "find",
+    "label",
+    "Backup name",
+    "fill",
+    "Production pricing QA backup",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save project backup",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.project-backups')?.textContent.includes('saved and verified on this device')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Inspect",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.backup-preview')?.textContent.includes('Supplier price books and priced worksheet')"
+  ],
+  [
+    "screenshot",
+    "screenshots/professional-next/native-pricing-backup-v2.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('xray-workspace-backups-v1');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)});try{const payloads=await new Promise((resolve,reject)=>{const tx=db.transaction(['packages'],'readonly');const request=tx.objectStore('packages').getAll();request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)});const backup=payloads.map(raw=>JSON.parse(raw)).find(b=>b.name==='Production pricing QA backup');if(!backup||backup.format!=='xray.workspace-backup/v2')throw Error('Missing backup v2 package');const prices=JSON.parse(backup.records.priceBooks);if(prices.jobId!==backup.job.id||prices.jobId!==sessionStorage.getItem('qa-pricing-before-reload-job'))throw Error('Backup price/project identity differs');if(prices.books.length!==1||prices.worksheet.length!==1)throw Error('Backup omitted pricing');const line=prices.worksheet[0],book=prices.books.find(b=>b.id===line.bookId),revision=book.revisions.find(r=>r.revision===line.bookRevision),row=revision.rows.find(r=>r.sourceLine===line.sourceLine);if(line.bookRevision!==1||line.quantity!=='2'||row.rate!==12.345||row.unit!=='kg'||revision.metadata.currency!=='AUD'||revision.metadata.taxBasis!=='exclusive'||revision.metadata.taxPercent!==10||revision.source.sha256!=='fb337a2df3de29c5ca5705fec38a4112934ef5794bbeb472c6d355008f675c52')throw Error('Applied rate provenance changed in backup');return {format:backup.format,jobId:backup.job.id,books:prices.books.length,worksheet:prices.worksheet.length,bookRevision:line.bookRevision,quantity:line.quantity,rate:row.rate,unit:row.unit,currency:revision.metadata.currency,taxBasis:revision.metadata.taxBasis,sha256:revision.source.sha256};}finally{db.close()}})()"
+  ],
+  [
+    "errors"
+  ],
+  [
+    "console"
+  ]
+]

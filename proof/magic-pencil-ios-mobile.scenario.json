@@ -1,0 +1,22 @@
+[
+  ["open", "http://127.0.0.1:8080/"],
+  ["set", "viewport", "390", "844"],
+  ["wait", "--fn", "document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"],
+  ["find", "role", "button", "click", "--name", "Model", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.building-workspace')"],
+  ["find", "role", "button", "click", "--name", "Crown Wharf A4 tower", "--exact"],
+  ["wait", "--fn", "document.querySelector('.building-center-column')?.textContent.includes('Crown Wharf')"],
+  ["find", "role", "button", "click", "--name", "Explore & Draw 3D Model", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.building-canvas canvas')"],
+  ["wait", "--fn", "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount) > 2"],
+  ["find", "role", "button", "click", "--name", "Magic Pencil", "--exact"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawMode === 'active'"],
+  ["eval", "window.__magicPencil.seek(0.42)"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawPhase === 'ascending_wireframe'"],
+  ["screenshot", "proof/draftsman/ios-mobile-phase2-wireframe.png"],
+  ["eval", "window.__magicPencil.seek(0.92)"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawPhase === 'material_wash'"],
+  ["screenshot", "proof/draftsman/ios-mobile-phase4-material-wash.png"],
+  ["eval", "for(const btn of document.querySelectorAll('.draftsman-control-dock button')) { const r = btn.getBoundingClientRect(); if (r.width > 0 && r.height > 0 && r.height < 24) throw Error('Button too small: ' + btn.textContent); } 'Touch targets verified'"],
+  ["errors"]
+]

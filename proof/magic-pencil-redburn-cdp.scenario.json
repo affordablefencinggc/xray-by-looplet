@@ -1,0 +1,21 @@
+[
+  ["open", "http://127.0.0.1:8080/"],
+  ["set", "viewport", "1440", "900"],
+  ["wait", "--fn", "document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"],
+  ["find", "role", "button", "click", "--name", "Model", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.building-workspace')"],
+  ["find", "role", "button", "click", "--name", "Redburn BR250157", "--exact"],
+  ["wait", "--fn", "document.querySelector('.building-center-column')?.textContent.includes('Redburn')"],
+  ["find", "role", "button", "click", "--name", "Explore & Draw 3D Model", "--exact"],
+  ["wait", "--fn", "!!document.querySelector('.building-canvas canvas')"],
+  ["wait", "--fn", "Number(document.querySelector('.building-canvas canvas')?.dataset.frameCount) > 2"],
+  ["find", "role", "button", "click", "--name", "Magic Pencil", "--exact"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawMode === 'active'"],
+  ["eval", "window.__magicPencil.seek(0.50)"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawPhase === 'ascending_wireframe'"],
+  ["screenshot", "proof/draftsman/redburn-wireframe-ascent.png"],
+  ["eval", "window.__magicPencil.seek(0.92)"],
+  ["wait", "--fn", "document.querySelector('.building-canvas canvas')?.dataset.drawPhase === 'material_wash'"],
+  ["screenshot", "proof/draftsman/redburn-material-wash.png"],
+  ["errors"]
+]

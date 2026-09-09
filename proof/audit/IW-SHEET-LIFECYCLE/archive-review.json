@@ -1,0 +1,21 @@
+[
+ ["set","viewport","1440","1000"],
+ ["fill",".sheet-manager input[type=search]",""],
+ ["find","role","button","click","--name","Archive Site and drainage plan","--exact"],
+ ["wait","--fn","!!document.querySelector('.sheet-archive-review')"],
+ ["eval","if(!document.querySelector('.sheet-archive-review').textContent.includes('Linked photos retained'))throw Error('No retained evidence review');if(![...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (13)'))throw Error('Review archived before confirmation');'Archive impact visible without mutation'"],
+ ["screenshot","screenshots/sheet-lifecycle/archive-review.png"],
+ ["click",".sheet-archive-review button:last-child"],
+ ["eval","if(document.querySelector('.sheet-archive-review'))throw Error('Cancel did not dismiss review');if(!document.querySelector('[aria-label=\"Open source page 2\"]'))throw Error('Cancel hid active source page');'Archive cancel preserved active page'"],
+ ["find","role","button","click","--name","Archive Site and drainage plan","--exact"],
+ ["find","role","button","click","--name","Confirm archive","--exact"],
+ ["wait","--fn","[...document.querySelectorAll('.sheet-manager button')].some(b=>b.textContent==='Active (12)')"],
+ ["eval","if(document.querySelector('[aria-label=\"Open source page 2\"]'))throw Error('Sidebar failed to hide archived page');if(!document.querySelector('.source-metadata').textContent.includes('b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38'))throw Error('Original source changed');'Confirmed archive updated sidebar; original source hash preserved'"],
+ ["find","role","button","click","--name","Archived (1)","--exact"],
+ ["find","role","button","click","--name","Recover Site and drainage plan","--exact"],
+ ["wait","--fn","!!document.querySelector('[aria-label=\"Open source page 2\"]')"],
+ ["find","role","button","click","--name","Active (13)","--exact"],
+ ["eval","var first=document.querySelector('[aria-label^=\"Open source page\"]');if(first?.getAttribute('aria-label')!=='Open source page 2'||!first.textContent.includes('Site and drainage plan'))throw Error('Sidebar did not adopt managed name/order');'Same-window sidebar names/order and recovery passed'"],
+ ["screenshot","screenshots/sheet-lifecycle/desktop-final.png"],
+ ["errors"]
+]

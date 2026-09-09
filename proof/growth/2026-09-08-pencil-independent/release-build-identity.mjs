@@ -1,0 +1,17 @@
+﻿import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createHash} from 'node:crypto';
+const id=process.argv[2];assert(/^[a-f0-9]{12}$/.test(id??''));const base=`proof/growth/2026-09-08-pencil-independent/release-${id}`;const read=p=>JSON.parse(fs.readFileSync(`${base}/${p}`,'utf8').replace(/^\uFEFF/,''));const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const transfer=read('transfer-record.json'),web=read('completion.json'),native=read('native-completion.json'),verification=read('artifacts-verified.json');
+for(const record of [web,native,verification]){assert.equal(record.sourceSha256,transfer.sourceSha256);assert.equal(record.nativeSourceSha256,transfer.nativeSourceSha256);}
+assert.equal(web.buildEnvironment.VITE_XRAY_BUILD_ID,id);assert.equal(native.buildEnvironment.VITE_XRAY_BUILD_ID,id);
+const expected=['dependencies','typecheck','focused-tests','web-build','native-build','native-assistant-tests','native-material-tests'];assert.deepEqual(native.results.map(r=>r.step),expected);for(const gate of native.results){assert.equal(gate.exitCode,0);assert.equal(gate.priority,'High');assert.equal(gate.rayonWorkers,16);assert.equal(gate.cargoJobs,16);}
+for(const entry of web.artifacts){const target=path.join(base,'web-artifacts','.vercel/output/static/assets',entry.name);assert.equal(fs.statSync(target).size,entry.bytes);assert.equal(hash(target),entry.sha256,'Web artifact changed since build completion: '+entry.name);}
+for(const entry of native.artifacts){const relative=entry.path.split(/[/\\]source[/\\]/)[1];assert(relative);const target=path.join(base,'artifacts',relative);assert.equal(fs.statSync(target).size,entry.bytes);assert.equal(hash(target),entry.sha256);}
+const sourceManifest=JSON.parse(fs.readFileSync('proof/growth/2026-09-08-pencil-independent/transfer/source-manifest.json','utf8'));
+const runtimeAssets=sourceManifest.entries.filter(entry=>entry.path.startsWith('public/assets/walkthrough/'));
+assert(runtimeAssets.length>=2,'Missing walkthrough runtime assets in current source manifest');
+for(const entry of runtimeAssets){const target=path.join(base,'web-artifacts','.vercel/output/static',entry.path.slice('public/'.length));assert.equal(hash(target),entry.sha256,'Runtime arm asset differs from frozen source');}
+const buildIdAssets=web.artifacts.filter(entry=>entry.name.endsWith('.js')&&fs.readFileSync(path.join(base,'web-artifacts','.vercel/output/static/assets',entry.name),'utf8').includes(id));
+assert(buildIdAssets.length>0,'Frozen build ID absent from production JavaScript; visible badge still needs UI verification');
+const result={at:new Date().toISOString(),runId:id,status:'pass',buildIdInjected:id,buildIdPresentInWebAssets:buildIdAssets.map(entry=>entry.name),sourceSha256:transfer.sourceSha256,nativeSourceSha256:transfer.nativeSourceSha256,gates:native.results,webAssetsMatchedToBuildCompletion:web.artifacts.length,nativeArtifactsMatchedToBuildCompletion:native.artifacts.length,runtimeArmAssetsMatchedToFreeze:runtimeAssets.length};fs.writeFileSync(`${base}/build-identity-verified.json`,JSON.stringify(result,null,2),{flag:'wx'});console.log(JSON.stringify(result));
+
+

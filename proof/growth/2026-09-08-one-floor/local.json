@@ -1,0 +1,14 @@
+[
+  ["set","viewport","1600","1100"],
+  ["wait","--fn","!!document.querySelector('canvas[data-floor-ready=true]')"],
+  ["eval","window.__floorStudio.seek(.037); 'Seeking real graphite stroke'"],
+  ["wait","--fn","document.querySelector('canvas')?.dataset.floorTime === '0.037'"],
+  ["screenshot","screenshots/growth/one-floor-wire.png"],
+  ["eval","const s=window.__floorStudio.stages[0];window.__floorStudio.seek(s.start+s.wireDuration+1.15);"],
+  ["wait","--fn","document.querySelector('canvas')?.dataset.floorPass === 'Colour shading'"],
+  ["screenshot","screenshots/growth/one-floor-shading.png"],
+  ["find","role","button","click","--name","Finish","--exact"],
+  ["wait","--fn","document.querySelector('canvas')?.dataset.floorPass === 'Complete'"],
+  ["screenshot","screenshots/growth/one-floor-complete.png"],
+  ["errors"]
+]

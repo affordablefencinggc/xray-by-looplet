@@ -1,0 +1,12 @@
+[
+ ["eval","window.__originalCreate=URL.createObjectURL;URL.createObjectURL=function(blob){window.__recordBlob=blob;return window.__originalCreate.call(this,blob)}"],
+ ["find","role","button","click","--name","Download saved project record","--exact"],
+ ["eval","(async()=>{URL.createObjectURL=window.__originalCreate;delete window.__originalCreate;const text=await window.__recordBlob.text();if(text!==sessionStorage.getItem('daily-recovery-corrupt'))throw Error('Generated download bytes differ');return {text,size:window.__recordBlob.size,type:window.__recordBlob.type}})()"],
+ ["find","role","button","click","--name","Retry loading saved project","--exact"],
+ ["wait","--fn","!!document.querySelector('[data-project-recovery=blocked]')"],
+ ["eval","if(localStorage.getItem('xray:fencing-job:v2')!==sessionStorage.getItem('daily-recovery-corrupt'))throw Error('Retry damaged corrupt record');localStorage.setItem('xray:fencing-job:v2',sessionStorage.getItem('daily-recovery-original'))"],
+ ["find","role","button","click","--name","Retry loading saved project","--exact"],
+ ["wait","--fn","!!document.querySelector('[data-project-record-save=saved]')"],
+ ["eval","if(localStorage.getItem('xray:fencing-job:v2')!==sessionStorage.getItem('daily-recovery-original'))throw Error('Recovery altered original record')"],
+ ["screenshot","screenshots/growth/daily-recovery-dev-valid-restored.png"]
+]

@@ -1,0 +1,23 @@
+[
+ ["set","viewport","1440","1000"],
+ ["find","role","button","click","--name","Cost","--exact"],
+ ["wait","--fn","document.querySelector('.price-books')?.textContent.includes('Library (1)')"],
+ ["find","role","button","click","--name","Library (1)","--exact"],
+ ["find","text","Rename price book","click","--exact"],
+ ["find","label","New price book name","fill","Engineering and trades supplier QA","--exact"],
+ ["find","role","button","click","--name","Save name","--exact"],
+ ["wait","--fn","document.querySelector('.price-book-card h3')?.textContent==='Engineering and trades supplier QA'"],
+ ["find","role","button","click","--name","Archive price book","--exact"],
+ ["wait","--fn","document.querySelector('.price-books')?.textContent.includes('Price book archived.')"],
+ ["find","role","button","click","--name","Show archived","--exact"],
+ ["wait","--fn","[...document.querySelectorAll('.price-books button')].some(b=>b.textContent==='Restore price book'&&!b.disabled)"],
+ ["screenshot","screenshots/price-book/archived-desktop.png"],
+ ["find","role","button","click","--name","Restore price book","--exact"],
+ ["wait","--fn","document.querySelector('.price-books')?.textContent.includes('Price book restored.')"],
+ ["find","role","button","click","--name","Show active","--exact"],
+ ["find","role","button","click","--name","Priced worksheet (1)","--exact"],
+ ["eval","if(!document.querySelector('.price-books')?.textContent.includes('AUD 24.69'))throw Error('Archive/rename changed applied amount')"],
+ ["set","viewport","390","844"],
+ ["screenshot","screenshots/price-book/worksheet-mobile.png"],
+ ["eval","if(document.documentElement.scrollWidth>innerWidth)throw Error('Mobile page has horizontal overflow');for(const b of document.querySelectorAll('.price-books button'))if(b.getBoundingClientRect().height<44)throw Error('Price button below 44px');'Mobile layout and touch targets pass'"]
+]

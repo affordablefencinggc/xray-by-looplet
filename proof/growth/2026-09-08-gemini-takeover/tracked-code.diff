@@ -1,0 +1,729 @@
+diff --git a/package.json b/package.json
+index dae0702..586cd3f 100644
+--- a/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/lib/assistantAi.server.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+@@ -44,6 +44,7 @@
+   "dependencies": {
+     "@electric-sql/pglite": "^0.5.4",
+     "@hookform/resolvers": "^5.7.0",
++    "@modelcontextprotocol/sdk": "^1.30.0",
+     "@radix-ui/react-accordion": "^1.2.12",
+     "@radix-ui/react-alert-dialog": "^1.1.15",
+     "@radix-ui/react-avatar": "^1.1.11",
+diff --git a/src/studio/LiveAssistant.tsx b/src/studio/LiveAssistant.tsx
+index 5473a0d..faedcdf 100644
+--- a/src/studio/LiveAssistant.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -1,33 +1,120 @@
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useRef, useState, type CSSProperties } from "react";
+ import { ArrowUpRight, Bot, ChevronUp, FileSearch, Minus, PlayCircle, RefreshCw, X } from "lucide-react";
+ import { useStudio } from "./store";
+ import { useLiveAssistant } from "./liveAssistantState";
+-import { getMaterialAiStatus, type MaterialAiStatus } from "./materialAiTransport";
++import { type MaterialAiStatus } from "./materialAiTransport";
+ import { inspectPlanBytes } from "./documents";
+ import "./liveAssistant.css";
+ import { LiveAssistantVoice } from "./LiveAssistantVoice";
++import { assistantStatus } from "./assistant/transport";
++import { callAssistantTool, getAssistantMcp, useAssistantConnection } from "./assistant/session";
++import { useAssistantChat } from "./assistant/useAssistantChat";
++import { ConversationView } from "./assistant/ConversationView";
++import type { ChatImage } from "./assistant/conversation";
++
++
+ 
+ export function LiveAssistant() {
+   const { open, draft, guide } = useLiveAssistant();
+   const binary = useStudio(s => s.activePlanBinary);
+   const sheet = useStudio(s => s.sheet);
+   const hydrated = useStudio(s => s.persistenceHydrated);
++  const pane = useStudio(s => s.pane);
++  const jobId = useStudio(s => s.job.id);
++  const chat = useAssistantChat(jobId);
++  const connection = useAssistantConnection();
++  const [attachments, setAttachments] = useState<ChatImage[]>([]);
++  const [alignment, setAlignment] = useState<CSSProperties>({});
+   const [status, setStatus] = useState<MaterialAiStatus | null>(null);
+   const [message, setMessage] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [refresh, setRefresh] = useState(0);
+   const input = useRef<HTMLTextAreaElement>(null);
+   const launcher = useRef<HTMLButtonElement>(null);
++  useEffect(() => {
++    const workspace = launcher.current?.closest(".workspace-rails");
++    if (!workspace) return;
++    const rails = Array.from(workspace.querySelectorAll<HTMLElement>(".studio-right-rail, .building-inspector, .measure-inspector"));
++    const measure = () => {
++      const rail = rails.find(element => element.getBoundingClientRect().width > 0 && getComputedStyle(element).display !== "none");
++      const rect = rail?.getBoundingClientRect();
++      setAlignment(rect && rect.width >= 280 && rect.right <= innerWidth + 1
++        ? { width: rect.width, right: Math.max(0, innerWidth - rect.right) } : {});
++    };
++    const observer = new ResizeObserver(measure);
++    rails.forEach(rail => observer.observe(rail));
++    window.addEventListener("resize", measure);
++    measure();
++    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
++  }, [pane, open]);
+   useEffect(() => {
+     if (!open) return;
+     let active = true;
+     setStatus(null);
+-    getMaterialAiStatus().then(value => { if (active) setStatus(value); })
++    assistantStatus().then(value => { if (active) setStatus(value); })
+       .catch(() => { if (active) setMessage("Connection status is unavailable. Open AI review to check configuration."); });
++    void getAssistantMcp().catch(error => { if (active) setMessage(error instanceof Error ? error.message : "MCP connection failed."); });
+     input.current?.focus();
+     return () => { active = false; };
+   }, [open, refresh]);
++  useEffect(() => { setAttachments([]); setMessage(""); useLiveAssistant.setState({ draft: "" }); }, [jobId]);
+   const collapse = () => { useLiveAssistant.setState({ open: false }); launcher.current?.focus(); };
++  const capabilities = async () => {
++    try { const session = await getAssistantMcp(); setMessage(`Connected to X-Ray workspace MCP. ${session.tools.length} tools: ${session.tools.map(tool => tool.name).join(", ")}. These are the tools currently available to this assistant.`); }
++    catch (error) { setMessage(error instanceof Error ? error.message : "MCP connection failed."); }
++  };
++  const handleDraftsmanChat = async (rawInput: string) => {
++    const command = rawInput.trim().toLowerCase();
++    const commands: Record<string, string> = { "/draw": "play", "/draft": "play", "/pencil": "play", "/magic-pencil": "play", "/draftsman": "status", "draftsman status": "status", "pause drafting": "pause", "pause drawing": "pause", "replay drafting": "replay", "/tour": "tour" };
++    const action = commands[command];
++    if (!action || attachments.length) return false;
++    try {
++      const result = await callAssistantTool("control_draftsman", { expectedJobId: jobId, action }, new AbortController().signal);
++      const output = result.content.filter(item => item.type === "text").map(item => item.text || "").join("\n");
++      chat.postLocalExchange(rawInput, result.isError ? "Drawing action could not be completed. See the tool result." : "Drawing playback command completed. This animates the existing model; it does not create new geometry.", { toolName: "control_draftsman", text: output, failed: !!result.isError });
++    } catch (error) {
++      const output = error instanceof Error ? error.message : "Drawing playback failed.";
++      chat.postLocalExchange(rawInput, output, { toolName: "control_draftsman", text: output, failed: true });
++    }
++    return true;
++  };
++  const sendMessage = async () => {
++    if (chat.busy) return;
++    const command = draft.trim().toLowerCase().replace(/\s+/g, " ");
++    if (!command && !attachments.length) return;
++    if (["/mcp", "/capabilities", "/full capabilities", "/ful capabilities", "/mcp full capabilities", "/mcp /full capabilities", "mcp /full capabilities", "mcp /ful capabilities"].includes(command)) {
++      await capabilities();
++      useLiveAssistant.setState({ draft: "" });
++    } else {
++      const handled = await handleDraftsmanChat(draft);
++      if (handled) {
++        useLiveAssistant.setState({ draft: "" });
++        return;
++      }
++      setMessage("");
++      const sentDraft = draft;
++      try {
++        const ok = await chat.send(draft.trim() || "Please inspect the attached image.", attachments);
++        if (ok && useLiveAssistant.getState().draft === sentDraft) { useLiveAssistant.setState({ draft: "" }); setAttachments([]); }
++      } catch (error) { setMessage(error instanceof Error ? error.message : "Assistant could not start."); }
++    }
++  };
++
++  const attachImages = async (files: FileList | null) => {
++    if (!files?.length) return;
++    try {
++      if (files.length + attachments.length > 2) throw Error("Attach up to two images per message.");
++      const added: ChatImage[] = [];
++      for (const file of Array.from(files)) {
++        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 3 * 1024 * 1024) throw Error("Choose PNG, JPEG or WebP images up to 3 MB each.");
++        const url = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(Error("Image could not be read.")); reader.readAsDataURL(file); });
++        const decoded = new Image(); decoded.src = url; await decoded.decode();
++        if (decoded.naturalWidth * decoded.naturalHeight > 24000000) throw Error("Use an image of at most 24 megapixels.");
++        added.push({ mimeType: file.type as ChatImage["mimeType"], data: url.split(",")[1] });
++      }
++      setAttachments(previous => [...previous, ...added]);
++    } catch (error) { setMessage(error instanceof Error ? error.message : "Image attachment failed."); }
++  };
+   const prepareReview = () => {
+     if (!binary || binary.kind !== "pdf") { setMessage("Open a PDF drawing to prepare an AI review."); return; }
+     useLiveAssistant.setState({
+@@ -49,29 +136,28 @@ export function LiveAssistant() {
+     finally { setLoading(false); }
+   };
+   return (
+-    <aside className={`live-assistant ${open ? "is-open" : ""}`} aria-label="Live assistant">
++    <aside className={`live-assistant ${open ? "is-open" : ""}`} style={alignment} aria-label="Live assistant">
+       {open && <section className="live-assistant-panel" id="live-assistant-panel" role="region" aria-label="Drawing assistant panel"
+         onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); collapse(); } }}>
+         <header className="live-assistant-header">
+           <span className="live-assistant-emblem"><Bot size={25} aria-hidden="true" /></span>
+-          <div className="live-assistant-identity"><strong>Live assistant</strong><span>{status ? status.configured ? `${status.provider} configured` : "Connect AI in drawing review" : "Checking connection…"}</span></div>
++          <div className="live-assistant-identity"><strong>Live assistant</strong><span>{connection.connected ? `MCP connected · ${connection.names.length} tools` : "Connecting workspace tools…"}</span><span>{status ? status.available ? `${status.provider} ready` : status.message : "Checking AI connection…"}</span></div>
+           <button type="button" className="live-assistant-icon" aria-label="Collapse live assistant" onClick={collapse}><Minus size={18} /></button>
+         </header>
+         <div className="live-assistant-body">
+           <div className="live-assistant-context"><FileSearch size={14} aria-hidden="true" /><span>{binary ? `${binary.name} · Sheet ${sheet + 1}` : "No drawing selected"}</span></div>
+-          <form onSubmit={event => { event.preventDefault(); prepareReview(); }}>
+-            <label className="sr-only" htmlFor="live-assistant-prompt">Drawing review instructions</label>
+-            <textarea ref={input} id="live-assistant-prompt" value={draft} maxLength={1500} rows={3}
+-              placeholder="What should we look for in this drawing?"
+-              onChange={event => useLiveAssistant.setState({ draft: event.target.value })} />
+-            <div className="live-assistant-compose-footer"><span>Source-linked materials. Your review.</span><button type="submit" aria-label="Prepare drawing review" disabled={!hydrated || binary?.kind !== "pdf"}><ArrowUpRight size={18} /><span>Prepare review</span></button></div>
+-          </form>
++          <ConversationView entries={chat.entries} busy={chat.busy} error={chat.error} />
+           <LiveAssistantVoice onMessage={setMessage} reply={message || "Tell me what to look for in the drawing. Speak your instructions, review the transcript, then prepare a drawing review. Your drawing is only sent when you choose Send selected sheet to Gemini in AI review."} />
+           <div className="live-assistant-suggestions" aria-label="Drawing review suggestions">
++            <button type="button" onClick={capabilities}>MCP / capabilities</button>
++            <button type="button" onClick={() => void handleDraftsmanChat("draw the tower")}>Magic Pencil: Draw 3D Tower</button>
++            <button type="button" onClick={() => void handleDraftsmanChat("tour")}>Cinematic Tour</button>
++            <button type="button" onClick={() => void handleDraftsmanChat("blueprint")}>Blueprint Sheet</button>
++            <button type="button" onClick={() => void handleDraftsmanChat("draftsman status")}>Draftsman status</button>
+             <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "List every visible material on this sheet, with its source evidence. Flag unknown quantities and avoid counting repeated views twice." }); input.current?.focus(); }}>All materials</button>
+             <button type="button" onClick={() => { useLiveAssistant.setState({ draft: "Find missing dimensions, quantities and material specifications on this sheet. Keep unsupported values unresolved." }); input.current?.focus(); }}>Missing details</button>
+           </div>
+-          <p className="live-assistant-disclosure">Opens AI review with these instructions. The drawing is sent only when you press “Send selected sheet to Gemini” there.</p>
++          <p className="live-assistant-disclosure">Messages, attached images and requested tool results go to the configured AI provider. Web search runs when requested by the assistant. Chat history stays in this app session.</p>
+           {guide && <section className="live-assistant-guide" aria-label="Sketch walkthrough">
+             <div><strong>Your first Sketch</strong><button type="button" className="live-assistant-icon" aria-label="Close Sketch guide" onClick={() => useLiveAssistant.setState({ guide: false })}><X size={15}/></button></div>
+             <ol><li><b>Open the practice plan.</b> A labelled 6 × 4 m room.</li><li><b>Measure → Known distance: 6 m.</b> Pick A and B, then Lock scale.</li><li><b>Sketch → Manual layer.</b> Click A → B → C → D → A.</li><li><b>Commit trace.</b> The outline saves as an annotation. Esc cancels unfinished points.</li></ol>
+@@ -81,6 +167,21 @@ export function LiveAssistant() {
+           {message && <p className="live-assistant-message" role="status">{message}</p>}
+         </div>
+         <footer className="live-assistant-footer"><button type="button" onClick={() => useLiveAssistant.setState({ guide: !guide })} aria-expanded={guide}><PlayCircle size={16}/>Sketch guide</button><span>{status?.configured ? status.model : "Drawing workspace"}</span><button type="button" className="live-assistant-icon" aria-label="Refresh assistant connection" onClick={() => { setMessage(""); setRefresh(v => v + 1); }}><RefreshCw size={15}/></button></footer>
++        <form className="live-assistant-composer" onSubmit={event => { event.preventDefault(); sendMessage(); }}>
++          {!!attachments.length && <div className="assistant-attachments">{attachments.map((image, index) => <div key={index}><img src={`data:${image.mimeType};base64,${image.data}`} alt={`Pending attachment ${index + 1}`} /><button type="button" disabled={chat.busy} aria-label={`Remove attachment ${index + 1}`} onClick={() => setAttachments(previous => previous.filter((_, i) => i !== index))}>Remove</button></div>)}</div>}
++          <label className="sr-only" htmlFor="live-assistant-prompt">Message live assistant</label>
++          <textarea ref={input} id="live-assistant-prompt" value={draft} maxLength={1500} rows={3}
++            placeholder="Ask, draw, search… or type /mcp"
++            disabled={chat.busy}
++            onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); sendMessage(); } }}
++            onChange={event => useLiveAssistant.setState({ draft: event.target.value })} />
++          <div className="live-assistant-compose-footer">
++            <label className="assistant-attach-button">Image<input type="file" accept="image/png,image/jpeg,image/webp" multiple disabled={chat.busy} aria-label="Attach images to assistant" onChange={event => { void attachImages(event.target.files); event.target.value = ""; }} /></label>
++            <button type="button" onClick={chat.clear} disabled={chat.busy || !chat.entries.length}>New chat</button>
++            {chat.busy ? <button type="button" onClick={chat.stop}>Stop</button> : <button type="submit" aria-label="Send assistant message" disabled={!draft.trim() && !attachments.length}><ArrowUpRight size={18} /><span>Send</span></button>}
++          </div>
++          {binary?.kind === "pdf" && <button type="button" className="assistant-review-link" onClick={prepareReview} disabled={!hydrated || chat.busy}>Prepare drawing review</button>}
++        </form>
+       </section>}
+       <button ref={launcher} type="button" className="live-assistant-launcher" aria-expanded={open} aria-controls="live-assistant-panel" onClick={() => useLiveAssistant.setState({ open: !open })}>
+         <Bot size={17} aria-hidden="true"/><strong>Live assistant</strong><span>Drawing tools</span><ChevronUp size={15} className={open ? "is-flipped" : ""}/>
+diff --git a/src/studio/SourceBuildingViewer.tsx b/src/studio/SourceBuildingViewer.tsx
+index e898f1e..ce42a91 100644
+--- a/src/studio/SourceBuildingViewer.tsx
++++ b/src/studio/SourceBuildingViewer.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef, useState } from "react";
+ import * as THREE from "three";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+-import { Box, Download, Expand, Layers, MousePointer2, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
++import { Box, Download, Expand, Layers, MousePointer2, Pencil, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
+ import { useStudio } from "./store";
+ import { inspectPlanBytes } from "./documents";
+ import {
+@@ -31,6 +31,9 @@ import {
+   saveAppearance,
+   type BuildingAppearance,
+ } from "./buildingAppearance";
++import { createMagicPencilDraftsman, type DraftsmanStatus } from "./MagicPencilDraftsman";
++import { DraftsmanControlDock } from "./DraftsmanControlDock";
++import { registerDraftsmanController } from "./assistant/draftsmanBridge";
+ 
+ type ViewOptions = {
+   wireframe: boolean;
+@@ -53,6 +56,19 @@ type SceneApi = {
+   png: () => void;
+   appearance: (value: BuildingAppearance) => void;
+   scope: (value: ModelScopeOptions) => void;
++  startDraftsman: () => void;
++  stopDraftsman: () => void;
++  draftsmanPlay: () => void;
++  draftsmanPause: () => void;
++  draftsmanReplay: () => void;
++  draftsmanSeek: (p: number) => void;
++  draftsmanSpeed: (s: number) => void;
++  draftsmanFinish: () => void;
++  draftsmanToggleOrbit: () => void;
++  draftsmanJumpToStorey: (storey: number | string) => void;
++  draftsmanCaptureBlueprint: (filename?: string) => unknown;
++  draftsmanCapturePlanBook: () => Promise<void>;
++  getDraftsmanStatus: () => DraftsmanStatus | null;
+   dispose: () => void;
+ };
+ const sessionViewOptions = new Map<string, ViewOptions>();
+@@ -67,6 +83,7 @@ function createBuildingScene(
+   onNavigation: (mode: NavigationMode) => void,
+   onCapture: (capture: "locked" | "drag" | null) => void,
+   onDoor: (state: WalkDoorState | null) => void,
++  onDraftsmanStatus?: (status: DraftsmanStatus | null) => void,
+ ): SceneApi {
+   const renderer = new THREE.WebGLRenderer({
+     antialias: true,
+@@ -112,6 +129,7 @@ function createBuildingScene(
+   let doors: ReturnType<typeof createWalkDoors> | null = null;
+   let arm: ReturnType<typeof createFirstPersonArm> | null = null;
+   let currentDoorState: WalkDoorState | null = null;
++  let draftsman: ReturnType<typeof createMagicPencilDraftsman> | null = null;
+   let disposed = false,
+     frame = 0;
+   const render = () => {
+@@ -119,6 +137,7 @@ function createBuildingScene(
+     if (disposed) return;
+     const changing = navigation && navigation.mode !== "orbit" ? navigation.tick() : controls.update();
+     const doorChanging = doors?.tick(navigation?.mode === "walk" && renderer.domElement.dataset.navigationTransition === "idle");
++    const draftsmanChanging = draftsman ? draftsman.tick(performance.now()) : false;
+     arm?.tick(navigation?.mode === "walk" ? currentDoorState : null);
+     renderer.render(scene, camera);
+     scope?.render();
+@@ -144,7 +163,7 @@ function createBuildingScene(
+         projectionMatrix: camera.projectionMatrix.toArray(),
+       },
+     });
+-    if (changing || doorChanging) invalidate();
++    if (changing || doorChanging || draftsmanChanging) invalidate();
+   };
+   const invalidate = () => {
+     if (!disposed && !frame) frame = requestAnimationFrame(render);
+@@ -557,8 +576,86 @@ function createBuildingScene(
+       anchor.href = output.toDataURL("image/png");
+       anchor.click();
+     },
++    startDraftsman() {
++      navigation?.stop();
++      if (!draftsman) {
++        draftsman = createMagicPencilDraftsman({
++          scene,
++          model,
++          meshMap,
++          domElement: renderer.domElement,
++          invalidate,
++          renderBeforeCapture: () => renderer.render(scene, camera),
++          camera,
++          controls,
++          onStatusChange: (status) => {
++            onDraftsmanStatus?.(status);
++          },
++        });
++      }
++      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) draftsman.seek(0.08);
++      else draftsman.play();
++      invalidate();
++    },
++    stopDraftsman() {
++      if (draftsman) {
++        draftsman.restoreOriginal();
++        draftsman.dispose();
++        draftsman = null;
++      }
++      onDraftsmanStatus?.(null);
++      apply();
++      invalidate();
++    },
++    draftsmanPlay() {
++      draftsman?.play();
++      invalidate();
++    },
++    draftsmanPause() {
++      draftsman?.pause();
++      invalidate();
++    },
++    draftsmanReplay() {
++      draftsman?.replay();
++      invalidate();
++    },
++    draftsmanSeek(p: number) {
++      draftsman?.seek(p);
++      invalidate();
++    },
++    draftsmanSpeed(s: number) {
++      draftsman?.setSpeed(s);
++      invalidate();
++    },
++    draftsmanFinish() {
++      draftsman?.finish();
++      invalidate();
++    },
++    draftsmanToggleOrbit() {
++      draftsman?.toggleCinematicOrbit();
++      invalidate();
++    },
++    draftsmanJumpToStorey(storey: number | string) {
++      draftsman?.jumpToStorey(storey);
++      invalidate();
++    },
++    draftsmanCaptureBlueprint(filename?: string) {
++      return draftsman?.captureBlueprint(filename ?? "architectural-blueprint.png");
++    },
++    async draftsmanCapturePlanBook() {
++      if (!draftsman) throw Error("Open Magic Pencil before exporting model sheets.");
++      const book = draftsman.capturePlanBook();
++      await book.downloadPdf();
++    },
++    getDraftsmanStatus() {
++      return draftsman?.getStatus() ?? null;
++    },
+     dispose() {
+       disposed = true;
++      if (draftsman) {
++        draftsman.dispose();
++        draftsman = null;
++      }
+       navigation?.dispose();
+       doors?.dispose();
+       arm?.dispose();
+@@ -660,6 +757,15 @@ export function SourceBuildingViewer() {
+   const [chosen, setChosen] = useState<string>(BUILDING_CATALOG[0].id);
+   const config = BUILDING_CATALOG.find((c) => c.id === chosen)!;
+   const [verifiedBytes, setVerifiedBytes] = useState<Uint8Array | null>(null);
++  const [draftsmanActive, setDraftsmanActive] = useState(false);
++  const [draftsmanStatus, setDraftsmanStatus] = useState<DraftsmanStatus | null>(null);
++  const [previewMode, setPreviewMode] = useState(false);
++  const [exportingBook, setExportingBook] = useState(false);
++  useEffect(() => {
++    setPreviewMode(false);
++    setDraftsmanActive(false);
++    setDraftsmanStatus(null);
++  }, [chosen]);
+   const [svgAvailable, setSvgAvailable] = useState(false);
+   const svgProjection = options.plan
+     ? options.level === "upper"
+@@ -742,7 +848,7 @@ export function SourceBuildingViewer() {
+     };
+   }, [model, binary]);
+   useEffect(() => {
+-    if (!model || !matched || !host.current || !binary || !sceneDigest) return;
++    if (!model || (!matched && !previewMode) || !host.current || !sceneDigest) return;
+     try {
+       api.current = createBuildingScene(
+         host.current,
+@@ -750,10 +856,11 @@ export function SourceBuildingViewer() {
+         setSelected,
+         setError,
+         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
+-        { documentId: binary.documentId, sceneId: config.id, sceneSha256: sceneDigest },
++        { documentId: binary?.documentId ?? config.id, sceneId: config.id, sceneSha256: sceneDigest },
+         setNavigationMode,
+         setNavigationCapture,
+         setDoorState,
++        (status) => setDraftsmanStatus(status),
+       );
+     } catch (e) {
+       setError(e instanceof Error ? e.message : String(e));
+@@ -762,10 +869,142 @@ export function SourceBuildingViewer() {
+       api.current?.dispose();
+       api.current = null;
+     };
+-  }, [model, matched, binary?.documentId, sceneDigest, config.id]);
+-  useEffect(() => api.current?.options(options), [options, matched]);
+-  useEffect(() => api.current?.appearance(appearance), [appearance, matched]);
+-  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched]);
++  }, [model, matched, previewMode, binary?.documentId, sceneDigest, config.id]);
++  useEffect(() => api.current?.options(options), [options, matched, previewMode]);
++  useEffect(() => api.current?.appearance(appearance), [appearance, matched, previewMode]);
++  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched, previewMode]);
++
++  useEffect(() => {
++    const unregister = registerDraftsmanController({
++      control: async (input) => {
++        if (!previewMode && !matched) {
++          throw Error("Open the model preview or its matching source before using drawing playback.");
++        }
++        if (!api.current) throw Error("The model viewer is not ready. Wait for it to finish loading.");
++        switch (input.action) {
++          case "play":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            api.current?.draftsmanPlay();
++            break;
++          case "pause":
++            api.current?.draftsmanPause();
++            break;
++          case "replay":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            api.current?.draftsmanReplay();
++            break;
++          case "seek":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            if (input.progress !== undefined) {
++              api.current?.draftsmanSeek(input.progress);
++            }
++            break;
++          case "set_speed":
++            if (input.speed !== undefined) {
++              api.current?.draftsmanSpeed(input.speed);
++            }
++            break;
++          case "finish":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            api.current?.draftsmanFinish();
++            break;
++          case "exit":
++            api.current?.stopDraftsman();
++            setDraftsmanActive(false);
++            break;
++          case "tour":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            api.current?.draftsmanToggleOrbit();
++            break;
++          case "jump_storey":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            if (input.storey !== undefined) {
++              api.current?.draftsmanJumpToStorey(input.storey);
++            }
++            break;
++          case "blueprint":
++            if (!draftsmanActive) {
++              api.current?.startDraftsman();
++              setDraftsmanActive(true);
++            }
++            api.current?.draftsmanCaptureBlueprint(input.filename);
++            break;
++          case "status":
++            break;
++          default:
++            throw Error(`The ${input.action} command is not connected to this viewer yet. No action was performed.`);
++        }
++        return api.current?.getDraftsmanStatus() ?? null;
++      },
++      getStatus: () => api.current?.getDraftsmanStatus() ?? null,
++      isActive: () => api.current?.getDraftsmanStatus() != null,
++      getModelInfo: () => ({
++        id: config.id,
++        title: config.title,
++        meshCount: model?.objects.length ?? 0,
++      }),
++    });
++    return unregister;
++  }, [previewMode, matched, draftsmanActive, config.id, config.title, model?.objects.length]);
++
++
++  useEffect(() => {
++    const onKeyDown = (e: KeyboardEvent) => {
++      if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('button, [role="button"], [role="tab"], [contenteditable="true"]'))) return;
++      if (
++        e.target instanceof HTMLInputElement ||
++        e.target instanceof HTMLTextAreaElement ||
++        e.target instanceof HTMLSelectElement
++      )
++        return;
++      if (draftsmanActive) {
++        if (e.code === "Space") {
++          e.preventDefault();
++          if (draftsmanStatus?.mode === "drawing") {
++            api.current?.draftsmanPause();
++          } else {
++            api.current?.draftsmanPlay();
++          }
++        } else if (e.key === "r" || e.key === "R") {
++          e.preventDefault();
++          api.current?.draftsmanReplay();
++        } else if (e.key === "s" || e.key === "S") {
++          e.preventDefault();
++          api.current?.draftsmanFinish();
++        } else if (e.key === "t" || e.key === "T") {
++          e.preventDefault();
++          api.current?.draftsmanToggleOrbit();
++        } else if (e.key === "b" || e.key === "B") {
++          e.preventDefault();
++          api.current?.draftsmanCaptureBlueprint("architectural-blueprint.png");
++        } else if (e.key === "Escape") {
++          e.preventDefault();
++          api.current?.stopDraftsman();
++          setDraftsmanActive(false);
++        }
++      }
++    };
++    window.addEventListener("keydown", onKeyDown);
++    return () => window.removeEventListener("keydown", onKeyDown);
++  }, [draftsmanActive, draftsmanStatus?.mode]);
+   function navigate(mode: "fly" | "walk", start?: WalkStart) {
+     const next: ViewOptions = { ...options, plan: false, explode: false, level: mode === "walk" ? "all" : options.level };
+     api.current?.options(next);
+@@ -868,10 +1107,11 @@ export function SourceBuildingViewer() {
+       !!model &&
+       verifiedBytes === binary?.bytes &&
+       model.source.sha256 === binary?.sha256 &&
+-      model.source.sha256 === config.sha256;
++      model.source.sha256 === config.sha256,
++    isDisplayable = (ready || previewMode) && !!model;
+   useEffect(() => {
+     const dock = controlDock.current;
+-    if (!ready || !dock) return;
++    if (!isDisplayable || !dock) return;
+     const root = document.documentElement;
+     const measure = () => root.style.setProperty("--model-controls-clearance", `${Math.max(34, innerHeight - dock.getBoundingClientRect().top + 8)}px`);
+     const observer = new ResizeObserver(measure);
+@@ -884,11 +1124,11 @@ export function SourceBuildingViewer() {
+       window.removeEventListener("resize", measure);
+       root.style.removeProperty("--model-controls-clearance");
+     };
+-  }, [ready]);
++  }, [isDisplayable]);
+   return (
+     <div
+       className="source-building"
+-      data-model-status={ready ? "ready" : checking ? "checking" : model ? "unmatched" : "loading"}
++      data-model-status={ready ? "ready" : previewMode ? "preview" : checking ? "checking" : model ? "unmatched" : "loading"}
+     >
+       <div className="building-workspace">
+         <nav className="building-left-nav" aria-label="Source sheets and models">
+@@ -987,7 +1227,7 @@ export function SourceBuildingViewer() {
+             </div>
+           )}
+           <div className="building-stage">
+-          {ready && (
++          {isDisplayable && (
+             <BuildingVisualSettings
+               value={appearance}
+               onChange={setAppearance}
+@@ -996,25 +1236,55 @@ export function SourceBuildingViewer() {
+               onScopeChange={setScopeOptions}
+             />
+           )}
+-          {ready ? (
++          {isDisplayable ? (
+             <>
+               <div className="building-canvas" ref={host} />
+               <div className="building-toolbar" role="toolbar" aria-label="3D view controls">
+                 <div className="building-tool-group">
+                   <button
+                     type="button"
+-                    aria-pressed={!options.wireframe}
+-                    onClick={() => setOptions((o) => ({ ...o, wireframe: false }))}
++                    aria-pressed={!options.wireframe && !draftsmanActive}
++                    onClick={() => {
++                      if (draftsmanActive) {
++                        api.current?.stopDraftsman();
++                        setDraftsmanActive(false);
++                      }
++                      setOptions((o) => ({ ...o, wireframe: false }));
++                    }}
+                   >
+                     Solid
+                   </button>
+                   <button
+                     type="button"
+-                    aria-pressed={options.wireframe}
+-                    onClick={() => setOptions((o) => ({ ...o, wireframe: true }))}
++                    aria-pressed={options.wireframe && !draftsmanActive}
++                    onClick={() => {
++                      if (draftsmanActive) {
++                        api.current?.stopDraftsman();
++                        setDraftsmanActive(false);
++                      }
++                      setOptions((o) => ({ ...o, wireframe: true }));
++                    }}
+                   >
+                     Wireframe
+                   </button>
++                  <button
++                    type="button"
++                    className="magic-pencil-btn"
++                    aria-pressed={draftsmanActive}
++                    title="Animate architectural drafting from ground datum up"
++                    onClick={() => {
++                      if (draftsmanActive) {
++                        api.current?.stopDraftsman();
++                        setDraftsmanActive(false);
++                      } else {
++                        api.current?.startDraftsman();
++                        setDraftsmanActive(true);
++                      }
++                    }}
++                  >
++                    <Pencil size={14} />
++                    Magic Pencil
++                  </button>
+                 </div>
+                 <div className="building-tool-group">
+                   <button
+@@ -1141,8 +1411,34 @@ export function SourceBuildingViewer() {
+                   : options.plan
+                     ? "ORTHOGRAPHIC PLAN"
+                     : "PERSPECTIVE"}
+-                <span>{model.objects.length} source-linked parts</span>
++                <span>{model.objects.length} {ready ? "source-linked parts" : "preview parts · source unverified"}</span>
+               </div>
++              {draftsmanActive && draftsmanStatus && (
++                <DraftsmanControlDock
++                  status={draftsmanStatus}
++                  onPlay={() => api.current?.draftsmanPlay()}
++                  onPause={() => api.current?.draftsmanPause()}
++                  onReplay={() => api.current?.draftsmanReplay()}
++                  onSeek={(p) => api.current?.draftsmanSeek(p)}
++                  onSpeed={(s) => api.current?.draftsmanSpeed(s)}
++                  onFinish={() => api.current?.draftsmanFinish()}
++                  onClose={() => {
++                    api.current?.stopDraftsman();
++                    setDraftsmanActive(false);
++                  }}
++                  onToggleTour={() => api.current?.draftsmanToggleOrbit()}
++                  onJumpStorey={(st) => api.current?.draftsmanJumpToStorey(st)}
++                  onCaptureBlueprint={() => api.current?.draftsmanCaptureBlueprint("architectural-blueprint.png")}
++                  exportingBook={exportingBook}
++                  onCapturePlanBook={async () => {
++                    if (exportingBook || !api.current) return;
++                    setExportingBook(true);
++                    try { await api.current.draftsmanCapturePlanBook(); }
++                    catch (error) { setError(error instanceof Error ? error.message : "Model sheet export failed."); }
++                    finally { setExportingBook(false); }
++                  }}
++                />
++              )}
+             </>
+           ) : (
+             <div className="building-empty">
+@@ -1183,15 +1479,27 @@ export function SourceBuildingViewer() {
+                     ? `${binary.name} is kept separate from the ${config.title} model. Import the matching original to see this reconstruction.`
+                     : `Open the ${model?.source.pageCount ?? "original"}-sheet ${config.title} PDF to explore its documented walls, openings, roof and rooms.`}
+                 </p>
+-                <button
+-                  type="button"
+-                  className="building-primary"
+-                  disabled={!model || loading || !hydrated || checking}
+-                  onClick={() => void openSource()}
+-                >
+-                  {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
+-                  <Box size={17} />
+-                </button>
++                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "6px" }}>
++                  <button
++                    type="button"
++                    className="building-primary"
++                    disabled={!model || loading || !hydrated || checking}
++                    onClick={() => void openSource()}
++                  >
++                    {loading ? "Importing and verifying PDF…" : `Open ${config.title} plan in 3D`}
++                    <Box size={17} />
++                  </button>
++                  <button
++                    type="button"
++                    className="building-preview-cta"
++                    disabled={!model || loading}
++                    onClick={() => setPreviewMode(true)}
++                    title="Inspect 3D wireframe and drafting animation immediately"
++                  >
++                    <Pencil size={15} />
++                    Explore & Draw 3D Model
++                  </button>
++                </div>
+               </div>
+             </div>
+           )}

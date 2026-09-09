@@ -1,0 +1,12 @@
+[
+  ["open", "http://127.0.0.1:8080/"],
+  ["set", "viewport", "1440", "900"],
+  ["wait", "--fn", "!!document.querySelector('.live-assistant-launcher,.live-assistant-panel')"],
+  ["eval", "if(!document.querySelector('.live-assistant.is-open'))document.querySelector('.live-assistant-launcher').click()"],
+  ["wait", "--fn", "!document.querySelector('.assistant-canvas-action button')?.disabled"],
+  ["find", "role", "button", "click", "--name", "Open canvas", "--exact"],
+  ["wait", "--fn", "document.querySelector('.workspace-rails').dataset.canvasFocus==='true'"],
+  ["eval", "Array.from(document.querySelectorAll('.arch-canvases,.architect-workspace,.studio-main,.live-assistant-panel,.building-stage')).map(e=>({class:e.className,rect:e.getBoundingClientRect().toJSON(),position:getComputedStyle(e).position,left:getComputedStyle(e).left,right:getComputedStyle(e).right,width:getComputedStyle(e).width}))"],
+  ["screenshot", "screenshots/gemini-dubai-capacity/canvas-diagnosis.png"],
+  ["errors"]
+]

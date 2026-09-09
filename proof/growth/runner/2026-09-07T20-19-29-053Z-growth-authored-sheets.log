@@ -1,0 +1,310 @@
+{
+  "project": "job-075b7b4d-b838-4860-a3c6-20802cde2009",
+  "recovered": {
+    "archived": false,
+    "id": "a26956d5-4ce0-407d-8065-26ccf795b299",
+    "layout": {
+      "northAngle": 0,
+      "number": "S-002",
+      "scale": "50",
+      "size": "A3",
+      "viewports": [
+        {
+          "height": 113.5,
+          "id": "b900379d-5a16-4349-9287-c6bbb033bc46",
+          "levelId": "0f46c57e-796e-49d2-8080-a8ebfeb87638",
+          "scale": "50",
+          "view": "plan",
+          "width": 192,
+          "x": 12,
+          "y": 12
+        },
+        {
+          "height": 113.5,
+          "id": "90199c8f-4ba5-4f64-9d02-49faa2608946",
+          "levelId": "0f46c57e-796e-49d2-8080-a8ebfeb87638",
+          "scale": "50",
+          "view": "plan",
+          "width": 194,
+          "x": 210,
+          "y": 12
+        }
+      ]
+    },
+    "name": "Structural coordination"
+  }
+}
+
+✓ Screenshot saved to screenshots/growth/authored-sheets-recovered-desktop.png
+
+✓ Done
+
+"Tablet sheet controls have 44px targets"
+
+✓ Screenshot saved to screenshots/growth/authored-sheets-recovered-tablet.png
+
+
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] hot updated: /src/studio/ProjectDetails.tsx
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] hot updated: /src/studio/Studio.tsx
+[error] The final argument passed to %s changed size between renders. The order and size of this array must remain constant.
+
+Previous: %s
+Incoming: %s useEffect [] [() => {
+		if (get().persistenceHydrated) return Promise.resolve();
+		if (hydrationFlight) return hydrationFlight;
+		set({
+			hydrationStatus: "loading",
+			persistenceError: null,
+			persistenceRecoveryBlocked: true,
+			lastSavedJobRevision: null
+		});
+		hydrationFlight = (async () => {
+			await Promise.resolve();
+			const staleUrls = get().photoPreviewUrls;
+			for (const url of Object.values(staleUrls)) URL.revokeObjectURL(url);
+			if (Object.keys(staleUrls).length > 0) set({ photoPreviewUrls: {} });
+			const loaded = await loadOrCreateBrowserProject(get().job);
+			if (!loaded.job) {
+				const fallbackJobId = get().job.id;
+				const persistedInventory = loadComponentInventory(fallbackJobId);
+				let inventoryPersistenceError = null;
+				if (persistedInventory.ok) {
+					set({ componentInventory: persistedInventory.inventory });
+				} else if (persistedInventory.reason !== "not-found") {
+					inventoryPersistenceError = `Saved component inventory could not be restored (${persistedInventory.reason}). Unreadable data preserved in storage; autosave blocked until recovery.`;
+				}
+				set({
+					inventoryPersistenceError,
+					inventoryRecoveryBlocked: inventoryPersistenceError !== null,
+					persistenceError: loaded.error,
+					persistenceRecoveryBlocked: true,
+					persistenceHydrated: true,
+					hydrationStatus: loaded.error ? "error" : "ready",
+					assetReadiness: EMPTY_RUNTIME_ASSET_READINESS
+				});
+				return;
+			}
+			const job = loaded.job;
+			const persistedBom = loadBomState(job.id);
+			let bomState = persistedBom.ok ? persistedBom.state : createBomState(job.id);
+			let bomPersistenceError = !persistedBom.ok && persistedBom.reason !== "not-found" ? `Saved BOM state could not be restored (${persistedBom.reason}).` : null;
+			if (bomState.pending) {
+				const interrupted = failBomStateBuild(bomState, {
+					expectedRequestId: bomState.pending.requestId,
+					expectedJobRevision: bomState.pending.expectedJobRevision,
+					failedAt: nowIso(),
+					message: "BOM generation was interrupted before reload."
+				});
+				bomState = interrupted.state;
+			}
+			bomState = reconcileBomStateForJob(bomState, job);
+			const restoredSheet = Math.max(0, Math.min(job.activeSheet ?? 0, (job.documents.find((item) => item.id === job.activeDocumentId)?.pageCount ?? 1) - 1));
+			const loadedCalibration = activeCalibration(job, restoredSheet);
+			let traceError = null;
+			try {
+				traceStateFromJob(job);
+			} catch (error) {
+				traceError = error instanceof Error ? error.message : String(error);
+			}
+			const assetReadiness = {
+				document: {
+					state: "idle",
+					message: null
+				},
+				photos: Object.fromEntries(job.photos.map((photo) => [photo.id, {
+					state: "loading",
+					message: null
+				}]))
+			};
+			const persistedInventory = loadComponentInventory(job.id);
+			let componentInventory;
+			let inventoryPersistenceError = null;
+			if (persistedInventory.ok) {
+				componentInventory = persistedInventory.inventory;
+			} else {
+				componentInventory = createSampleStructuralInventory();
+				if (persistedInventory.reason !== "not-found") {
+					inventoryPersistenceError = `Saved component inventory could not be restored (${persistedInventory.reason}). Unreadable data preserved in storage; autosave blocked until recovery.`;
+				}
+			}
+			set({
+				job,
+				bomState,
+				bomPersistenceError,
+				componentInventory,
+				inventoryPersistenceError,
+				inventoryRecoveryBlocked: inventoryPersistenceError !== null,
+				markups: markupsFromJob(job),
+				trades: job.componentRegistry ?? [],
+				currentCalibration: loadedCalibration,
+				scaleM: scaleForCalibration(loadedCalibration),
+				sheet: restoredSheet,
+				calibrationCapture: null,
+				calibrationError: null,
+				selectedRunId: null,
+				selectedVertexIndex: null,
+				selectedGateId: null,
+				traceError,
+				traceUndoStack: [],
+				traceRedoStack: [],
+				photoPreviewUrls: {},
+				photoError: null,
+				activePlanBinary: null,
+				documentError: null,
+				planName: job.documents.find((document) => document.id === job.activeDocumentId)?.name ?? null,
+				persistenceError: null,
+				assetReadiness
+			});
+			const photoPreviewUrls = {};
+			const photoMessages = [];
+			if (job.photos.length > 0) {
+				try {
+					const contents = await createBrowserPhotoStore().list();
+					const byId = new Map(contents.map((content) => [content.id, content]));
+					for (const photo of job.photos) {
+						const result = await verifyPhotoContent(byId.get(photo.id) ?? null, photo);
+						if (result.status === "ready") {
+							photoPreviewUrls[photo.id] = photoContentObjectUrl(result.content);
+							assetReadiness.photos[photo.id] = {
+								state: "ready",
+								message: null
+							};
+						} else {
+							assetReadiness.photos[photo.id] = {
+								state: result.status,
+								message: result.message
+							};
+							photoMessages.push(result.message);
+						}
+					}
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					photoMessages.push(message);
+					for (const photo of job.photos) {
+						if (assetReadiness.photos[photo.id]?.state === "loading") {
+							assetReadiness.photos[photo.id] = {
+								state: "unverified",
+								message
+							};
+						}
+					}
+				}
+			}
+			let activePlanBinary = null;
+			let documentError = null;
+			const activeDocument = job.documents.find((document) => document.id === job.activeDocumentId);
+			if (!activeDocument || activeDocument.source === "sample") {
+				assetReadiness.document = {
+					state: "unverified",
+					message: "Import a source document before final review."
+				};
+			} else {
+				try {
+					activePlanBinary = await verifyStoredPlanContent(await createBrowserPlanStore().get(activeDocument.id), activeDocument);
+					assetReadiness.document = {
+						state: "ready",
+						message: null
+					};
+				} catch (error) {
+					documentError = error instanceof Error ? error.message : String(error);
+					assetReadiness.document = {
+						state: /missing/i.test(documentError) ? "missing" : "corrupt",
+						message: documentError
+					};
+				}
+			}
+			set({
+				photoPreviewUrls,
+				photoError: photoMessages.length > 0 ? photoMessages.join(" ") : null,
+				activePlanBinary,
+				documentError,
+				assetReadiness,
+				persistenceHydrated: true,
+				hydrationStatus: "ready",
+				persistenceRecoveryBlocked: false,
+				lastSavedJobRevision: job.revision
+			});
+		})().catch((error) => {
+			set({
+				persistenceError: error instanceof Error ? error.message : String(error),
+				persistenceHydrated: true,
+				hydrationStatus: "error",
+				persistenceRecoveryBlocked: true
+			});
+		}).finally(() => {
+			hydrationFlight = null;
+		});
+		return hydrationFlight;
+	}, (pane) => set({
+		pane,
+		lifted: pane === "model" ? get().lifted : false,
+		chromeHidden: false
+	})]
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] hot updated: /src/studio/Studio.tsx
+[debug] [vite] hot updated: /src/studio/ProjectPlanSwitcher.tsx
+[debug] [vite] hot updated: /src/studio/WorkspaceRails.tsx
+[debug] [vite] hot updated: /src/studio/WorkspaceDiagnostics.tsx
+[debug] [vite] hot updated: /src/studio/ConnectionTrialPanel.tsx
+[debug] [vite] hot updated: /src/studio/RenderStudio.tsx
+[debug] [vite] invalidate /src/studio/SourceComponents.tsx: Could not Fast Refresh ("useSourceComponents" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[debug] [vite] hot updated: /src/studio/SourceComponents.tsx
+[debug] [vite] hot updated: /src/studio/CapabilitiesChecklist.tsx
+[debug] [vite] hot updated: /src/studio/SettingsRail.tsx
+[debug] [vite] hot updated: /src/studio/SourceTakeoffPanel.tsx
+[debug] [vite] hot updated: /src/studio/ProjectBackups.tsx
+[debug] [vite] hot updated: /src/studio/McpChatDialog.tsx
+[debug] [vite] hot updated: /src/studio/SourceBuildingViewer.tsx
+[debug] [vite] invalidate /src/studio/IsoCanvas.tsx: Could not Fast Refresh ("canvasPointToDocumentPoint" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[debug] [vite] hot updated: /src/studio/IsoCanvas.tsx
+[debug] [vite] hot updated: /src/studio/LiveAssistant.tsx
+[debug] [vite] hot updated: /src/studio/ProjectMaterialsPanel.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectWorkspace.tsx
+[debug] [vite] hot updated: /src/studio/MaterialSourceLibrary.tsx
+[debug] [vite] hot updated: /src/studio/architect/SyncDesignMaterials.tsx
+[debug] [vite] hot updated: /src/studio/AiMaterialReviewPanel.tsx
+[debug] [vite] hot updated: /src/studio/ProjectDetails.tsx
+[debug] [vite] hot updated: /src/studio/SheetManager.tsx
+[debug] [vite] hot updated: /src/studio/BackupRestoreReview.tsx
+[debug] [vite] hot updated: /src/studio/SourceSheetBookmarks.tsx
+[debug] [vite] hot updated: /src/studio/ProjectRecoveryNotice.tsx
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] hot updated: /src/studio/architect/ArchitectWorkspace.tsx
+[debug] [vite] hot updated: /src/studio/ProjectBackups.tsx
+[debug] [vite] hot updated: /src/studio/BackupRestoreReview.tsx
+[debug] [vite] hot updated: /src/studio/architect/DrawingPrimitives.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectCadExchange.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectAi.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectSheets.tsx
+[debug] [vite] hot updated: /src/studio/architect/SyncDesignMaterials.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectInspector.tsx
+[debug] [vite] hot updated: /src/studio/architect/Architect3D.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectWalkStart.tsx
+[debug] [vite] hot updated: /src/studio/architect/ArchitectSheets.tsx
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] hot updated: /src/studio/architect/architect.css
+[debug] [vite] css hot updated: /src/styles.css
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[warning] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[warning] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[warning] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.

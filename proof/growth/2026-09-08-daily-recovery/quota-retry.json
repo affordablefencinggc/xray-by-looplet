@@ -1,0 +1,144 @@
+[
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Rename project",
+    "--exact"
+  ],
+  [
+    "fill",
+    ".project-details input",
+    "Recovery quota unsaved name"
+  ],
+  [
+    "eval",
+    "window.__dailySet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(this===localStorage&&k==='xray:fencing-job:v2')throw new DOMException('Injected quota failure','QuotaExceededError');return window.__dailySet.call(this,k,v)}"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save project name",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-project-save=unsaved]')"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.querySelector('[aria-label=\"Current project\"] h2').textContent.includes('Recovery quota unsaved name'))throw Error('Unsaved name lost');if(document.querySelector('[data-project-record-save=saved]'))throw Error('False saved claim');if(JSON.parse(localStorage.getItem('xray:fencing-job:v2')).name==='Recovery quota unsaved name')throw Error('Quota injection failed');return {unsavedNamePreserved:true}})()"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "eval",
+    "document.querySelector(\"[data-project-save=unsaved]\").scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const root=document.querySelector(\"[data-project-save=unsaved]\");if(!root)throw Error('Missing notice');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,x:r.x,y:r.y,width:r.width,height:r.height}});return {viewport:[innerWidth,innerHeight],buttons:rs}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-unsaved-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "document.querySelector(\"[data-project-save=unsaved]\").scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const root=document.querySelector(\"[data-project-save=unsaved]\");if(!root)throw Error('Missing notice');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,x:r.x,y:r.y,width:r.width,height:r.height}});return {viewport:[innerWidth,innerHeight],buttons:rs}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-unsaved-landscape.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "768",
+    "1024"
+  ],
+  [
+    "eval",
+    "document.querySelector(\"[data-project-save=unsaved]\").scrollIntoView({block:'center',behavior:'instant'})"
+  ],
+  [
+    "eval",
+    "(()=>{const root=document.querySelector(\"[data-project-save=unsaved]\");if(!root)throw Error('Missing notice');const rs=[...root.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('Target blocked/clipped/small: '+b.textContent);return {text:b.textContent,x:r.x,y:r.y,width:r.width,height:r.height}});return {viewport:[innerWidth,innerHeight],buttons:rs}})()"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-unsaved-portrait.png"
+  ],
+  [
+    "eval",
+    "Storage.prototype.setItem=window.__dailySet;delete window.__dailySet"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Retry saving project",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!document.querySelector('[data-project-save=unsaved]') && !!document.querySelector('[data-project-record-save=saved]')"
+  ],
+  [
+    "eval",
+    "if(JSON.parse(localStorage.getItem('xray:fencing-job:v2')).name!=='Recovery quota unsaved name')throw Error('Retry failed')"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sheets",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"Current project\"] h2')?.textContent==='Recovery quota unsaved name' && !!document.querySelector('[data-project-record-save=saved]')"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/daily-recovery-dev-quota-reloaded.png"
+  ],
+  [
+    "errors"
+  ]
+]

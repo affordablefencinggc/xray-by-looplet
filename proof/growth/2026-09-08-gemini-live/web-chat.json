@@ -1,0 +1,64 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Live assistant Drawing tools",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.live-assistant-identity')?.textContent.includes('Gemini ready')"
+  ],
+  [
+    "fill",
+    "#live-assistant-prompt",
+    "Reply exactly: Live Gemini chat is working. Do not call any tools or inspect project data."
+  ],
+  [
+    "press",
+    "Enter"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector(\".assistant-chat-entry.is-assistant\")?.textContent.includes(\"Live Gemini chat is working\") && !Array.from(document.querySelectorAll(\"#live-assistant-panel button\")).some(b=>b.textContent===\"Stop\")"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/gemini-live-web-chat.png"
+  ],
+  [
+    "fill",
+    "#live-assistant-prompt",
+    "Use web_search to find the official Google Gemini API documentation, then give one short sentence with its source link. Do not modify this project."
+  ],
+  [
+    "press",
+    "Enter"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('#live-assistant-panel a[href^=\"https://\"]') && !Array.from(document.querySelectorAll('#live-assistant-panel button')).some(b=>b.textContent==='Stop')"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/gemini-live-web-search.png"
+  ],
+  [
+    "errors"
+  ]
+]

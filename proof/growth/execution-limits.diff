@@ -1,0 +1,553 @@
+diff --git a/proof/growth/execution-limits-before/package.json b/package.json
+index 68cfe7e..404ea4e 100644
+--- a/proof/growth/execution-limits-before/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/proof/growth/execution-limits-before/src-tauri__src__assistant_ai.rs b/src-tauri/src/assistant_ai.rs
+index b346fc3..1ade5bc 100644
+--- a/proof/growth/execution-limits-before/src-tauri__src__assistant_ai.rs
++++ b/src-tauri/src/assistant_ai.rs
+@@ -211,7 +211,7 @@ fn check_part(part: &Value, role: &str) -> Result<(), String> {
+         return Err("Assistant parts require one payload or a signature.".into());
+     }
+     if let Some(text) = part.get("text") {
+-        if !bounded_string(text, 200000) {
++        if !bounded_string(text, 524288) {
+             return Err("Invalid assistant text.".into());
+         }
+     }
+@@ -284,6 +284,7 @@ fn check_request(raw: &str) -> Result<Value, String> {
+             "contents",
+             "declarations",
+             "webSearch",
++            "execution",
+         ],
+     )?;
+     if request["schema"] != "xray.assistant-request/v1"
+@@ -292,10 +293,17 @@ fn check_request(raw: &str) -> Result<Value, String> {
+     {
+         return Err("Invalid assistant request identity or scope.".into());
+     }
++    if let Some(execution) = request.get("execution") {
++        fields(execution, &["maxRounds", "maxToolCalls", "maxOutputTokens", "timeoutMs", "contextTokens"])?;
++        for (key, min, max) in [("maxRounds", 1, 512), ("maxToolCalls", 1, 4096), ("maxOutputTokens", 1024, 65536), ("timeoutMs", 10000, 600000), ("contextTokens", 16000, 900000)] {
++            let value = execution[key].as_u64().ok_or("Invalid execution budget.")?;
++            if value < min || value > max { return Err("Execution budget outside supported range.".into()); }
++        }
++    }
+     let contents = request["contents"]
+         .as_array()
+         .ok_or("Assistant conversation is required.")?;
+-    if contents.is_empty() || contents.len() > 40 {
++    if contents.is_empty() || contents.len() > 2048 {
+         return Err("Assistant conversation exceeds the turn limit.".into());
+     }
+     for content in contents {
+@@ -329,7 +337,7 @@ fn check_request(raw: &str) -> Result<Value, String> {
+     Ok(request)
+ }
+ fn provider_body(request: &Value) -> Value {
+-    let mut body = json!({"contents":request["contents"], "systemInstruction":{"parts":[{"text":SYSTEM_INSTRUCTION.as_str()}]}, "generationConfig":{"maxOutputTokens":8192}});
++    let mut body = json!({"contents":request["contents"], "systemInstruction":{"parts":[{"text":SYSTEM_INSTRUCTION.as_str()}]}, "generationConfig":{"maxOutputTokens":request["execution"]["maxOutputTokens"].as_u64().unwrap_or(32768)}});
+     if request["webSearch"] == true {
+         body["tools"] = json!([{"google_search":{}}]);
+     } else if !request["declarations"].as_array().unwrap().is_empty() {
+@@ -388,7 +396,7 @@ fn response_envelope(body: &Value, request: &Value, model: &str) -> Result<Value
+ }
+ async fn request_gemini(request: &Value, key: &str, model: &str) -> Result<Value, String> {
+     let client = reqwest::Client::builder()
+-        .timeout(Duration::from_secs(120))
++        .timeout(Duration::from_millis(request["execution"]["timeoutMs"].as_u64().unwrap_or(300000)))
+         .redirect(reqwest::redirect::Policy::none())
+         .build()
+         .map_err(|_| "Assistant HTTPS client unavailable.")?;
+@@ -487,7 +495,7 @@ mod tests {
+     /// inside the crate can catch that, so the exact byte length is pinned here: it moves
+     /// whenever the authored Markdown changes, and re-running
+     /// `node scripts/build-assistant-context.mjs` prints the new figure to paste in.
+-    const SYSTEM_INSTRUCTION_LEN: usize = 13599;
++    const SYSTEM_INSTRUCTION_LEN: usize = 13398;
+     #[test]
+     fn system_instruction_appends_the_brief_to_the_safety_manual() {
+         let instruction: &str = SYSTEM_INSTRUCTION.as_str();
+@@ -608,9 +616,9 @@ mod tests {
+     fn rejects_deep_arguments_and_turn_overflow_without_page_limit() {
+         let mut r = request();
+         let entry = r["contents"][0].clone();
+-        r["contents"] = json!(vec![entry.clone(); 40]);
++        r["contents"] = json!(vec![entry.clone(); 2048]);
+         assert!(check_request(&r.to_string()).is_ok());
+-        r["contents"] = json!(vec![entry; 41]);
++        r["contents"] = json!(vec![entry; 2049]);
+         assert!(check_request(&r.to_string()).is_err());
+         let mut nested = json!({});
+         for _ in 0..18 {
+diff --git a/proof/growth/execution-limits-before/src__lib__assistantAi.server.ts b/src/lib/assistantAi.server.ts
+index e2a5e74..b2cb9cc 100644
+--- a/proof/growth/execution-limits-before/src__lib__assistantAi.server.ts
++++ b/src/lib/assistantAi.server.ts
+@@ -1,4 +1,5 @@
+ import { ASSISTANT_LIMITS, ASSISTANT_SYSTEM_INSTRUCTION, assistantRequestSchema, assistantResponseSchema, assistantSourceSchema, type AssistantResponse } from "../studio/assistant/contract.ts";
++import { DEFAULT_EXECUTION_BUDGET } from "../studio/assistant/executionBudget.ts";
+ import { materialAiStatus } from "./materialAi.server.ts";
+ 
+ type Environment = Record<string, string | undefined>;
+@@ -35,8 +36,8 @@ export function assistantFailure(error: unknown): { error: string; status: numbe
+     : { error: "Assistant request failed. No action has been confirmed.", status: 400 };
+ }
+ 
+-// A process guard, deliberately not advertised as a durable account spending cap.
+-let running = false, day = "", calls = 0;
++// Prevent overlapping turns; provider quotas are not duplicated with an app daily cap.
++let running = false;
+ export async function assistantAiTurn(raw: string, options: { env?: Environment; fetcher?: typeof fetch; signal?: AbortSignal } = {}): Promise<AssistantResponse> {
+   const env = options.env ?? process.env, status = assistantAiStatus(env);
+   if (!status.available) throw new AssistantServiceError(status.message, 503);
+@@ -44,18 +45,16 @@ export async function assistantAiTurn(raw: string, options: { env?: Environment;
+   let request;
+   try { request = assistantRequestSchema.parse(JSON.parse(raw)); } catch { throw new AssistantServiceError("Invalid assistant request contract."); }
+   if (options.signal?.aborted) throw new AssistantServiceError("Assistant request cancelled.");
+-  const today = new Date().toISOString().slice(0, 10);
+-  if (today !== day) { day = today; calls = 0; }
+   if (running) throw new AssistantServiceError("An assistant turn is already running. Wait before retrying.", 409);
+-  if (calls >= 100) throw new AssistantServiceError("This server process has reached its daily 100-turn assistant limit.", 429);
+-  running = true; calls++;
+-  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(ASSISTANT_LIMITS.timeoutMs)]) : AbortSignal.timeout(ASSISTANT_LIMITS.timeoutMs);
++  running = true;
++  const budget = request.execution ?? DEFAULT_EXECUTION_BUDGET;
++  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(budget.timeoutMs)]) : AbortSignal.timeout(budget.timeoutMs);
+   try {
+     const tools = request.webSearch ? [{ google_search: {} }] : request.declarations.length ? [{ functionDeclarations: request.declarations }] : [];
+     const response = await (options.fetcher ?? fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${status.model}:generateContent`, {
+       method: "POST", redirect: "error", signal,
+       headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY || env.GOOGLE_API_KEY! },
+-      body: JSON.stringify({ contents: request.contents, systemInstruction: { parts: [{ text: ASSISTANT_SYSTEM_INSTRUCTION }] }, generationConfig: { maxOutputTokens: 8192 },
++      body: JSON.stringify({ contents: request.contents, systemInstruction: { parts: [{ text: ASSISTANT_SYSTEM_INSTRUCTION }] }, generationConfig: { maxOutputTokens: budget.maxOutputTokens },
+         ...(tools.length ? { tools } : {}), ...(!request.webSearch && request.declarations.length ? { toolConfig: { functionCallingConfig: { mode: "AUTO" } } } : {}) }),
+     });
+     if (!response.ok) throw new AssistantServiceError(`Gemini rejected the assistant request (HTTP ${response.status}). Check provider access and quota.`, response.status === 429 ? 429 : 502);
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__appTools.ts b/src/studio/assistant/appTools.ts
+index a3bfe79..130e385 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__appTools.ts
++++ b/src/studio/assistant/appTools.ts
+@@ -71,7 +71,7 @@ const sourcePoint = { type: "object", properties: { x: { type: "number" }, y: {
+ const pitchDeg = { type: "number", minimum: 0, maximum: 89.9 }, eavesMm = { type: "number", minimum: 0, maximum: 3000 };
+ const gableEdges = { type: "array", items: { type: "integer", minimum: 0, maximum: 199 }, maxItems: 200 };
+ const operations = {
+-  type: "array", minItems: 1, maxItems: 25, items: { oneOf: [
++  type: "array", minItems: 1, maxItems: 200, items: { oneOf: [
+     objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, name, templateWallId: id }, ["kind", "levelId", "a", "b"]),
+     objectSchema({ kind: { const: "door" }, ...opening }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "tag", "hinge", "swing"]),
+     objectSchema({ kind: { const: "window" }, ...opening, sillMm: { type: "number", minimum: 0, maximum: 1e6 } }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "sillMm", "tag", "hinge", "swing"]),
+@@ -86,7 +86,7 @@ const operations = {
+   ] },
+ };
+ const editOperations = {
+-  type: "array", minItems: 1, maxItems: 25, items: { oneOf: [
++  type: "array", minItems: 1, maxItems: 200, items: { oneOf: [
+     objectSchema({ kind: { const: "remove" }, id }, ["kind", "id"]),
+     objectSchema({ kind: { const: "move-wall" }, id, a: point, b: point }, ["kind", "id"]),
+     objectSchema({ kind: { const: "set-wall" }, id, name, heightMm: positive, templateWallId: id }, ["kind", "id"]),
+@@ -313,7 +313,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       if (summary.jobId !== args.expectedJobId || summary.jobRevision !== args.expectedRevision) throw Error("The stored backup does not match the expected project revision.");
+       return text({ saved: true, verified: true, backupId: summary.id, name: summary.name, storedAt: summary.storedAt, sha256: summary.sha256, sizeBytes: summary.sizeBytes, plans: summary.plans, photos: summary.photos, records: summary.records, scope: "Stored in this browser's backup database. Download it from Backups to keep a copy outside the app." });
+     }),
+-    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 25 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
++    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
+       const args = architectEditSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("edit", args));
+     }),
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__architectBridge.ts b/src/studio/assistant/architectBridge.ts
+index 42e40eb..5f7b9cd 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__architectBridge.ts
++++ b/src/studio/assistant/architectBridge.ts
+@@ -36,7 +36,7 @@ export const architectOperationSchema = z.discriminatedUnion("kind", [
+ ]);
+ export const architectReadSchema = z.object({ expectedJobId: id }).strict();
+ export const architectRevisionSchema = z.object({ expectedJobId: id, expectedRevision: z.number().int().positive() }).strict();
+-export const architectDrawSchema = architectRevisionSchema.extend({ operations: z.array(architectOperationSchema).min(1).max(25) }).strict();
++export const architectDrawSchema = architectRevisionSchema.extend({ operations: z.array(architectOperationSchema).min(1).max(200) }).strict();
+ export type ArchitectDrawInput = z.infer<typeof architectDrawSchema>;
+ export type ArchitectRevisionInput = z.infer<typeof architectRevisionSchema>;
+ export type ArchitectCreatedElement = { ref?: string; kind: string; id: string };
+@@ -162,7 +162,7 @@ export const architectEditOperationSchema = z.discriminatedUnion("kind", [
+   z.object({ kind: z.literal("rename-design"), name: z.string().trim().min(1).max(200).optional(), address: z.string().trim().max(500).optional(),
+     designRevision: z.string().trim().max(40).optional(), notes: z.string().max(5000).optional() }).strict(),
+ ]);
+-export const architectEditSchema = architectRevisionSchema.extend({ operations: z.array(architectEditOperationSchema).min(1).max(25) }).strict();
++export const architectEditSchema = architectRevisionSchema.extend({ operations: z.array(architectEditOperationSchema).min(1).max(200) }).strict();
+ export type ArchitectEditInput = z.infer<typeof architectEditSchema>;
+ export type ArchitectEditedElement = { kind: string; id: string };
+ 
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__contextBudget.ts b/src/studio/assistant/contextBudget.ts
+index 72a9d6d..fe036f6 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__contextBudget.ts
++++ b/src/studio/assistant/contextBudget.ts
+@@ -32,6 +32,7 @@ export function measureContext(contents: readonly AssistantContent[]): ContextMe
+   for (const content of contents) {
+     for (const part of content.parts) {
+       if (typeof part.text === "string") { tokens += textTokens(part.text); bytes += part.text.length; }
++      if (part.thoughtSignature) { tokens += textTokens(part.thoughtSignature); bytes += part.thoughtSignature.length; }
+       if (part.inlineData) { tokens += IMAGE_TOKENS; bytes += part.inlineData.data.length; }
+       if (part.functionCall) { const json = JSON.stringify(part.functionCall); tokens += textTokens(json); bytes += json.length; }
+       if (part.functionResponse) { const json = JSON.stringify(part.functionResponse); tokens += textTokens(json); bytes += json.length; }
+@@ -94,7 +95,7 @@ export const STATE_CHANGING_TOOL = /^(draw_|edit_|undo_|manage_|calibrate_|trace
+ export const isStateChangingTool = (name: string) => isAssistantEditTool(name) || STATE_CHANGING_TOOL.test(name);
+ export const HANDOVER_HEADING = "Handover from the previous chat";
+ export const HANDOVER_CONTINUED_PREFIX = "Continued from the previous chat.";
+-const OUTSTANDING = /^Paused after eight assistant steps|^Paused at the 24-tool budget|context limit|^This conversation is full/;
++const OUTSTANDING = /^Paused after (?:\d+|eight|twelve) assistant steps|^Paused at the \d+-tool budget|context limit|^This conversation is full/;
+ 
+ const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
+ const clip = (text: string, max: number) => (text.length <= max ? text : text.slice(0, max - 1).trimEnd() + "…");
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__context__app-atlas.md b/src/studio/assistant/context/app-atlas.md
+index e38025a..5777527 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__context__app-atlas.md
++++ b/src/studio/assistant/context/app-atlas.md
+@@ -9,7 +9,7 @@ of the columns below.
+ | Learn what the app can hold | any | read_workbench_structure | Static reference |
+ | Move to another pane | any | navigate_workspace | No pending trace or calibration |
+ | Read the authored design | sketch | navigate_workspace, read_architect_design | Workspace mounted |
+-| Draw walls, openings, levels, slabs, roofs, footprint, extrude | sketch | read_architect_design, draw_architect_elements, save_project | Current revision; 25 operations a batch; user chose Sketch or Model mode |
++| Draw walls, openings, levels, slabs, roofs, footprint, extrude | sketch | read_architect_design, draw_architect_elements, save_project | Current revision; 200 operations a batch; user chose Sketch or Model mode |
+ | Move, re-parameterise or remove entities | sketch | read_architect_design, edit_architect_elements, save_project | IDs read this turn; openings stay in their wall |
+ | Undo one design change | sketch | read_architect_design, undo_architect_change | Session history present |
+ | Rename the design | sketch | read_architect_design, edit_architect_elements (rename-design) | Demonstration marker retained |
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__context__budgets.md b/src/studio/assistant/context/budgets.md
+index 396313d..405efb2 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__context__budgets.md
++++ b/src/studio/assistant/context/budgets.md
+@@ -1,16 +1,15 @@
+ # Budgets
+ 
+-Plan the whole reply inside these limits; code enforces them.
++Use the execution settings supplied with the current work packet. Defaults are 64 model rounds,
++256 tool calls per message, 32,768 output tokens per response and 300 seconds per request.
++The user can adjust these in Assistant settings before the next message. No app daily request cap.
++Provider quotas still apply. Preserve completed receipts when stopped; never replay uncertain edits.
+ 
+-| Limit | Value | What happens when it is hit |
+-| --- | --- | --- |
+-| Rounds per send | 12 | The turn stops with "Paused after twelve assistant steps". Completed actions stay saved; the user sends another message to continue. |
+-| Tool calls per send | 24 | The next call is refused with a budget notice, then the turn throws. Nothing further runs. |
+-| Conversation entries | 38 | The next round throws "This conversation is full". A durable task checkpoint is kept; narrow the task before resuming. |
+-| Output tokens per reply | 8192 | The reply is cut off mid-text. Long content is split across sends instead. |
+-| Files per selection/message | 20 | Files over 500 MB each are refused. Originals stay in local project storage; images use bounded previews and document content is retrieved using read_assistant_file. |
++Working context defaults to 600,000 estimated tokens (configurable to 900,000) and 10 MB.
++There is no 38-entry chat cutoff. Archive the complete task checkpoint before reducing prior
++interaction or stopping for a narrower source selection. Preserve tool call/receipt pairs.
++Reserve rounds for inspection and the final report. A length-truncated response is not executed.
+ 
+-Each tool round adds a model entry and a receipt entry. A fresh request uses a short interaction
+-window plus the current work packet. The runtime persists a checkpoint before reducing old
+-interaction context or stopping at the 300,000-token / 10 MB input budget. Preserve tool call and
+-receipt pairs. Save room for final inspection and an honest report of what completed.
++Up to 20 files per message, 500 MB each. Originals stay in project storage; previews are bounded.
++Use read_assistant_file for document pages or text sections. Drawing/edit batches allow 200
++operations; stage larger jobs with fresh revisions. These limits do not verify engineering accuracy.
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__context__README.md b/src/studio/assistant/context/README.md
+index 125785b..19e3791 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__context__README.md
++++ b/src/studio/assistant/context/README.md
+@@ -30,7 +30,7 @@ For authorised geometry creation, an unmounted architectural controller is a nav
+ use navigate_workspace with pane sketch, then read_architect_design before editing. For a requested
+ Model view, author through Sketch tools then show_design_in_model. Do not ask the user to mount it.
+ Respect pending user gestures, recovery errors and permissions; report an actual failed navigation.
+-The 25-operation batch cap requires staged batches with fresh revisions, not abandonment. Stop and
++The 200-operation batch cap requires staged batches with fresh revisions, not abandonment. Stop and
+ checkpoint at the turn/tool budget. Pencil playback only reveals existing geometry.
+ When reporting blockers, separate verified-output prerequisites, tool-resolvable setup and genuine
+ unsupported capabilities. A pasted report is not a fresh project-state receipt.
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__contract.ts b/src/studio/assistant/contract.ts
+index 7b50229..8d3484f 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__contract.ts
++++ b/src/studio/assistant/contract.ts
+@@ -1,7 +1,8 @@
++import { executionBudgetSchema } from "./executionBudget.ts";
+ import { z } from "zod";
+ export { ASSISTANT_OPERATING_MANUAL as ASSISTANT_SYSTEM_INSTRUCTION } from './skills.ts';
+ 
+-export const ASSISTANT_LIMITS = Object.freeze({ requestBytes: 12 * 1024 * 1024, responseBytes: 2 * 1024 * 1024, timeoutMs: 120000, contents: 40, parts: 64, declarations: 64 });
++export const ASSISTANT_LIMITS = Object.freeze({ requestBytes: 12 * 1024 * 1024, responseBytes: 2 * 1024 * 1024, timeoutMs: 300000, contents: 2048, parts: 64, declarations: 64 });
+ 
+ const name = z.string().regex(/^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$/);
+ /** JSON payloads remain data: finite, acyclic and bounded before provider transmission. */
+@@ -33,7 +34,7 @@ function imageHeaderMatches(value: {mimeType: string; data: string}): boolean {
+   } catch { return false; }
+ }
+ export const assistantPartSchema = z.object({
+-  text: z.string().max(200000).optional(),
++  text: z.string().max(524288).optional(),
+   inlineData: z.object({ mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]), data: z.string().min(4).max(ASSISTANT_LIMITS.requestBytes).regex(/^[A-Za-z0-9+/]*={0,2}$/).refine(v => v.length % 4 === 0, "Invalid base64 length.") }).strict().refine(imageHeaderMatches, "Image bytes do not match the declared format.").optional(),
+   functionCall: z.object({ name, args: object, id: z.string().max(200).optional() }).strict().optional(),
+   functionResponse: z.object({ name, response: object, id: z.string().max(200).optional() }).strict().optional(),
+@@ -52,6 +53,7 @@ export const assistantRequestSchema = z.object({
+   schema: z.literal("xray.assistant-request/v1"), requestId: z.string().uuid(),
+   contents: z.array(assistantContentSchema).min(1).max(ASSISTANT_LIMITS.contents),
+   declarations: z.array(assistantDeclarationSchema).max(ASSISTANT_LIMITS.declarations), webSearch: z.boolean(),
++  execution: executionBudgetSchema.optional(),
+ }).strict().superRefine((v, ctx) => {
+   if (v.webSearch && v.declarations.length) ctx.addIssue({ code: "custom", message: "Web search and function declarations use separate turns." });
+   if (new Set(v.declarations.map(d => d.name)).size !== v.declarations.length) ctx.addIssue({ code: "custom", message: "Duplicate tool declarations." });
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__conversation.ts b/src/studio/assistant/conversation.ts
+index 3c9c0fb..99730f7 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__conversation.ts
++++ b/src/studio/assistant/conversation.ts
+@@ -1,15 +1,18 @@
+ import { assistantResponseSchema, type AssistantContent, type AssistantDeclaration, type AssistantPart, type AssistantRequest, type AssistantResponse } from './contract.ts';
++import { DEFAULT_EXECUTION_BUDGET, executionBudgetSchema, type ExecutionBudget } from "./executionBudget.ts";
+ export type ChatImage = { data: string; mimeType: 'image/png' | 'image/jpeg' | 'image/webp' };
+ export type ToolResult = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean };
+ export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; failed?: boolean };
+ 
+ export async function runConversation(options: {
++  execution?: ExecutionBudget;
+   contents: AssistantContent[]; declarations: AssistantDeclaration[]; signal: AbortSignal;
+   turn: (request: AssistantRequest, signal: AbortSignal) => Promise<AssistantResponse>;
+   call: (name: string, args: Record<string, unknown>, signal: AbortSignal) => Promise<ToolResult>;
+   emit: (event: ChatEvent) => void; checkpoint: (contents: AssistantContent[]) => void;
+   assertContext: () => void;
+ }) {
++  const budget = executionBudgetSchema.parse(options.execution ?? DEFAULT_EXECUTION_BUDGET);
+   const contents = structuredClone(options.contents);
+   const names = new Set(options.declarations.map(tool => tool.name));
+   const callIds = new Set<string>();
+@@ -18,11 +21,10 @@ export async function runConversation(options: {
+     if (part.functionResponse?.id) callIds.add(part.functionResponse.id);
+   }
+   let toolCalls = 0;
+-  for (let round = 0; round < 12; round++) {
++  for (let round = 0; round < budget.maxRounds; round++) {
+     options.signal.throwIfAborted(); options.assertContext();
+-    if (contents.length > 38) throw Error('This conversation is full. Start a new chat to continue; completed tool actions remain saved.');
+     const requestId = crypto.randomUUID();
+-    const response = assistantResponseSchema.parse(await options.turn({ schema: 'xray.assistant-request/v1', requestId, contents, declarations: options.declarations, webSearch: false }, options.signal));
++    const response = assistantResponseSchema.parse(await options.turn({ schema: 'xray.assistant-request/v1', requestId, contents, declarations: options.declarations, webSearch: false, execution: budget }, options.signal));
+     options.signal.throwIfAborted(); options.assertContext();
+     if (response.requestId !== requestId) throw Error('Assistant response identity mismatch. No response actions executed.');
+     contents.push(response.content);
+@@ -49,7 +51,7 @@ export async function runConversation(options: {
+       options.emit({ kind: 'tool', toolName: call.name, text: `Running ${call.name}…` });
+       let result: ToolResult;
+       try {
+-        if (++toolCalls > 24) result = { isError: true, content: [{ type: 'text', text: 'Tool budget reached; not executed. Review completed actions before continuing.' }] };
++        if (++toolCalls > budget.maxToolCalls) result = { isError: true, content: [{ type: 'text', text: 'Tool budget reached; not executed. Review completed actions before continuing.' }] };
+         else if (call.id && callIds.has(call.id)) result = { isError: true, content: [{ type: 'text', text: 'Duplicate tool call ID; not executed. Read current state before retrying.' }] };
+         else if (!names.has(call.name)) result = { isError: true, content: [{ type: 'text', text: 'Unknown or unpermitted tool; no action performed.' }] };
+         else {
+@@ -71,7 +73,7 @@ export async function runConversation(options: {
+     }
+     contents.push({ role: 'user', parts: results });
+     options.checkpoint(contents);
+-    if (toolCalls >= 24) throw Error('Paused at the 24-tool budget. Completed actions are retained; review them before continuing.');
++    if (toolCalls >= budget.maxToolCalls) throw Error(`Paused at the ${budget.maxToolCalls}-tool budget. Completed actions are retained; adjust Execution limits or send another message to continue.`);
+   }
+-  throw Error('Paused after twelve assistant steps. Completed actions are retained; send another message to continue.');
++  throw Error(`Paused after ${budget.maxRounds} assistant steps. Completed actions are retained; adjust Execution limits or send another message to continue.`);
+ }
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__useAssistantChat.ts b/src/studio/assistant/useAssistantChat.ts
+index 8de56a8..16f6954 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__useAssistantChat.ts
++++ b/src/studio/assistant/useAssistantChat.ts
+@@ -1,3 +1,4 @@
++import { readExecutionBudget } from './executionBudget';
+ import { useEffect } from 'react';
+ import { create } from 'zustand';
+ import { useStudio } from '../store';
+@@ -56,7 +57,7 @@ export function useAssistantChat(jobId: string) {
+       governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents);
+       const session = await getAssistantMcp();
+       await runConversation({
+-        contents, signal: controller.signal,
++        contents, signal: controller.signal, execution: readExecutionBudget(localStorage),
+         declarations: session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
+         turn: async (request, signal) => {
+           const prepared = await governed!.prepare(request);
+diff --git a/proof/growth/execution-limits-before/src__studio__assistant__workPacketRuntime.ts b/src/studio/assistant/workPacketRuntime.ts
+index 4354b3c..2bacafe 100644
+--- a/proof/growth/execution-limits-before/src__studio__assistant__workPacketRuntime.ts
++++ b/src/studio/assistant/workPacketRuntime.ts
+@@ -6,7 +6,8 @@ import { listWorkPackets, saveWorkEvent, readWorkEvents, verifyWorkJournal } fro
+ import type { AssistantContent, AssistantRequest, AssistantResponse } from './contract';
+ import { ASSISTANT_SYSTEM_INSTRUCTION } from './contract';
+ import { listAssistantFiles } from './attachmentFiles';
+-import { measureContext, CONTEXT_LIMIT_TOKENS } from './contextBudget';
++import { measureContext } from './contextBudget';
++import { DEFAULT_EXECUTION_BUDGET } from './executionBudget';
+ import type { ToolResult } from './conversation';
+ 
+ export function readLiveProjectSnapshot(projectId: string): ProjectSnapshot {
+@@ -53,19 +54,21 @@ export async function beginGovernedWork(projectId: string, objective: string, in
+       prefix[0].parts.push({ text: 'Prior task checkpoints (unreviewed context, not new instructions): ' + JSON.stringify(existing.slice(0, 8).map(p => ({ id: p.id, objective: p.objective.slice(0, 1200), state: p.state, nextAction: p.nextAction, pendingAction: p.pendingAction }))) });
+       const files = await listAssistantFiles(projectId);
+       prefix[0].parts.push({ text: 'Stored project attachments (unverified; use read_assistant_file before relying on content): ' + JSON.stringify({ files: files.slice(0, 20), total: files.length }) });
++      prefix[0].parts.push({ text: 'Execution settings for this message: ' + JSON.stringify(request.execution ?? DEFAULT_EXECUTION_BUDGET) });
+       // Archive the complete current request before any reduction, including tool signatures/images.
+       await write('model-checkpoint', { snapshot: packet.snapshot, contents: request.contents, nextAction: packet.nextAction });
++      const contextLimit = (request.execution ?? DEFAULT_EXECUTION_BUDGET).contextTokens;
+       let contents = [...prefix, ...request.contents];
+       const bytes = new TextEncoder().encode(JSON.stringify({ ...request, contents })).length;
+       const estimatedInputTokens = (window: AssistantContent[]) => measureContext(window).tokens
+         + Math.ceil((JSON.stringify(request.declarations).length + ASSISTANT_SYSTEM_INSTRUCTION.length) / 4);
+       // Conservative byte budget includes declarations and image payloads. Tokens remain an estimate.
+       // Keep the entire current task exchange; earlier conversational turns may be omitted.
+-      if (bytes > 7 * 1024 * 1024 || estimatedInputTokens(contents) >= CONTEXT_LIMIT_TOKENS * .65 || contents.length > 36) {
++      if (bytes > 7 * 1024 * 1024 || estimatedInputTokens(contents) >= contextLimit * .65) {
+         const start = request.contents.findIndex(c => c.parts.some(p => p.text === input.parts[0]?.text));
+         if (start > 0) contents = [...prefix, ...request.contents.slice(start)];
+       }
+-      if (new TextEncoder().encode(JSON.stringify({ ...request, contents })).length > 10 * 1024 * 1024 || estimatedInputTokens(contents) >= CONTEXT_LIMIT_TOKENS || contents.length > 38) {
++      if (new TextEncoder().encode(JSON.stringify({ ...request, contents })).length > 10 * 1024 * 1024 || estimatedInputTokens(contents) >= contextLimit) {
+         packet = { ...packet, state: 'blocked', nextAction: 'Checkpoint saved. Narrow the source selection or split this task before resuming.' };
+         await write('budget-blocked', { nextAction: packet.nextAction });
+         throw Error('Task checkpoint saved. This work packet needs a narrower source selection before it can fit safely.');
+diff --git a/proof/growth/execution-limits-before/src__studio__LiveAssistant.tsx b/src/studio/LiveAssistant.tsx
+index 655246e..60d3bfb 100644
+--- a/proof/growth/execution-limits-before/src__studio__LiveAssistant.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -1,3 +1,4 @@
++import { ExecutionSettings } from './assistant/ExecutionSettings';
+ import { AssistantFiles } from './assistant/AssistantFiles';
+ import { ASSISTANT_FILE_ACCEPT, MAX_ASSISTANT_FILES, attachmentImagePreview, storeAssistantFile, validateAssistantFile, type AssistantFile } from './assistant/attachmentFiles';
+ import { useEffect, useRef, useState } from "react";
+@@ -749,7 +750,7 @@ export function LiveAssistant() {
+                         ? "Help"
+                         : drawer === "projects"
+                           ? "Projects"
+-                          : "Connection & voice"}
++                          : "Assistant settings"}
+                 </strong>
+               </div>
+             )}
+@@ -950,6 +951,7 @@ export function LiveAssistant() {
+             )}
+             {drawer === "settings" && (
+               <div className="assistant-connection-settings">
++                <ExecutionSettings busy={chat.busy} />
+                 <strong>Skills and guardrails</strong>
+                 <ul className="assistant-guardrails">
+                   <li>Inspect, navigate, capture and research with the available tools.</li>
+diff --git a/proof/growth/execution-limits-empty.txt b/src/studio/assistant/executionBudget.ts
+index e69de29..4168f2a 100644
+--- a/proof/growth/execution-limits-empty.txt
++++ b/src/studio/assistant/executionBudget.ts
+@@ -0,0 +1,21 @@
++import { z } from 'zod';
++
++export const executionBudgetSchema = z.object({
++  maxRounds: z.number().int().min(1).max(512),
++  maxToolCalls: z.number().int().min(1).max(4096),
++  maxOutputTokens: z.number().int().min(1024).max(65536),
++  timeoutMs: z.number().int().min(10000).max(600000),
++  contextTokens: z.number().int().min(16000).max(900000),
++}).strict();
++export type ExecutionBudget = z.infer<typeof executionBudgetSchema>;
++export const DEFAULT_EXECUTION_BUDGET: Readonly<ExecutionBudget> = Object.freeze({
++  maxRounds: 64, maxToolCalls: 256, maxOutputTokens: 32768, timeoutMs: 300000, contextTokens: 600000,
++});
++export const EXECUTION_BUDGET_KEY = 'xray:assistant-execution-budget:v1';
++export function readExecutionBudget(storage?: Pick<Storage, 'getItem'> | null): ExecutionBudget {
++  try {
++    const parsed = executionBudgetSchema.safeParse(JSON.parse(storage?.getItem(EXECUTION_BUDGET_KEY) || 'null'));
++    if (parsed.success) return parsed.data;
++  } catch { /* Unavailable or corrupt preferences use explicit defaults. */ }
++  return { ...DEFAULT_EXECUTION_BUDGET };
++}
+diff --git a/proof/growth/execution-limits-empty.txt b/src/studio/assistant/ExecutionSettings.tsx
+index e69de29..a10d4b3 100644
+--- a/proof/growth/execution-limits-empty.txt
++++ b/src/studio/assistant/ExecutionSettings.tsx
+@@ -0,0 +1,33 @@
++import { useState } from 'react';
++import { DEFAULT_EXECUTION_BUDGET, EXECUTION_BUDGET_KEY, executionBudgetSchema, readExecutionBudget, type ExecutionBudget } from './executionBudget';
++
++export function ExecutionSettings({ busy }: { busy: boolean }) {
++  const [budget, setBudget] = useState(() => readExecutionBudget(typeof localStorage === 'undefined' ? null : localStorage));
++  const [error, setError] = useState('');
++  const save = (next: ExecutionBudget) => {
++    const parsed = executionBudgetSchema.safeParse(next);
++    if (!parsed.success) { setError('Enter a whole number within the displayed range.'); return; }
++    try { localStorage.setItem(EXECUTION_BUDGET_KEY, JSON.stringify(parsed.data)); setBudget(parsed.data); setError(''); }
++    catch { setError('Settings could not be saved. Existing limits still apply.'); }
++  };
++  const fields: Array<{ key: keyof ExecutionBudget; label: string; min: number; max: number; divisor?: number }> = [
++    { key: 'maxRounds', label: 'Model rounds per message', min: 1, max: 512 },
++    { key: 'maxToolCalls', label: 'Tool calls per message', min: 1, max: 4096 },
++    { key: 'maxOutputTokens', label: 'Output tokens per response', min: 1024, max: 65536 },
++    { key: 'timeoutMs', label: 'Request timeout (seconds)', min: 10, max: 600, divisor: 1000 },
++    { key: 'contextTokens', label: 'Working context tokens (estimated)', min: 16000, max: 900000 },
++  ];
++  return <fieldset className="assistant-execution-settings" disabled={busy}>
++    <legend>Execution limits</legend>
++    <p>No app daily request cap. Provider quotas still apply. Changes apply to your next message; larger budgets can use more paid tokens.</p>
++    {fields.map(field => <label key={field.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 100px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
++      <span>{field.label}<small style={{ display: 'block' }}>{field.min.toLocaleString()} to {field.max.toLocaleString()}</small></span>
++      <input key={`${field.key}-${budget[field.key]}`} aria-label={field.label} type="number" min={field.min} max={field.max} step={1}
++        defaultValue={budget[field.key] / (field.divisor || 1)} style={{ width: '100%', minWidth: 0, minHeight: 36, border: '1px solid #b8c3d1', borderRadius: 6, background: '#fff', color: '#26303c', padding: '4px 8px' }}
++        onBlur={event => save({ ...budget, [field.key]: Number(event.currentTarget.value) * (field.divisor || 1) })} />
++    </label>)}
++    <button type="button" className="assistant-text-action" onClick={() => save({ ...DEFAULT_EXECUTION_BUDGET })}>Restore default limits</button>
++    <p>500 MB per file, 20 files per message. Originals stay in project storage; the assistant reads pages or text sections as needed. Drawing batches support 200 operations.</p>
++    {error && <p role="alert">{error}</p>}
++  </fieldset>;
++}
+diff --git a/proof/growth/execution-limits-empty.txt b/src/studio/assistant/executionBudget.test.ts
+index e69de29..c096514 100644
+--- a/proof/growth/execution-limits-empty.txt
++++ b/src/studio/assistant/executionBudget.test.ts
+@@ -0,0 +1,47 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { DEFAULT_EXECUTION_BUDGET as defaults, executionBudgetSchema, readExecutionBudget } from './executionBudget.ts';
++import { runConversation } from './conversation.ts';
++import { assistantRequestSchema, type AssistantContent } from './contract.ts';
++import { emptyProject } from '../architect/model.ts';
++import { prepareArchitectElements, architectDrawSchema } from './architectBridge.ts';
++
++test('settings persist, reject invalid budgets and recover unavailable storage', () => {
++  const custom = { ...defaults, maxRounds: 128, maxToolCalls: 1024, maxOutputTokens: 65536, timeoutMs: 600000, contextTokens: 900000 };
++  assert.deepEqual(readExecutionBudget({ getItem: () => JSON.stringify(custom) }), custom);
++  assert.deepEqual(readExecutionBudget({ getItem: () => { throw Error('Denied'); } }), defaults);
++  for (const maxRounds of [0, -1, 513, Infinity, 1.5]) assert.equal(executionBudgetSchema.safeParse({ ...defaults, maxRounds }).success, false);
++  assert.deepEqual(readExecutionBudget({ getItem: () => '{broken' }), defaults);
++});
++
++test('a 120-tool workflow crosses the former round, tool and 38-entry ceilings with every receipt intact', async () => {
++  let turns = 0, calls = 0; let history: AssistantContent[] = [];
++  await runConversation({ execution: { ...defaults, maxRounds: 128 }, contents: [{ role: 'user', parts: [{ text: 'Run the fixture' }] }],
++    declarations: [{ name: 'inspect', description: 'Fixture', parametersJsonSchema: { type: 'object' } }],
++    signal: new AbortController().signal, assertContext: () => {}, emit: () => {}, checkpoint: c => { history = structuredClone(c); },
++    turn: async request => {
++      assert.ok(assistantRequestSchema.safeParse(request).success);
++      turns++;
++      return { requestId: request.requestId, model: 'gemini-test', sources: [], content: { role: 'model', parts: turns <= 120
++        ? [{ functionCall: { name: 'inspect', args: {}, id: `call-${turns}` }, thoughtSignature: `signature-${turns}` }]
++        : [{ text: 'Complete' }] } };
++    },
++    call: async () => { calls++; return { content: [{ type: 'text', text: `receipt-${calls}` }] }; },
++  });
++  assert.equal(calls, 120); assert.equal(turns, 121);
++  for (let i = 1; i <= 120; i++) {
++    assert.equal(history[2 * i - 1].parts[0].thoughtSignature, `signature-${i}`);
++    assert.equal(history[2 * i].parts[0].functionResponse?.response.text, `receipt-${i}`);
++  }
++});
++
++test('200 real drawing operations validate atomically; 201 rejects without changing the project', () => {
++  const project = emptyProject('batch-proof');
++  const before = JSON.stringify(project);
++  const operations = Array.from({ length: 200 }, (_, i) => ({ kind: 'line', levelId: project.levels[0].id, a: [i * 100, 0], b: [i * 100, 5000] }));
++  const args = { expectedJobId: project.id, expectedRevision: project.revision, operations };
++  const result = prepareArchitectElements(project, architectDrawSchema.parse(args));
++  assert.equal(result.created.length, 200);
++  assert.equal(JSON.stringify(project), before);
++  assert.equal(architectDrawSchema.safeParse({ ...args, operations: [...operations, operations[0]] }).success, false);
++});

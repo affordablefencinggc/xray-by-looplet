@@ -1,0 +1,14 @@
+[
+ ["set","viewport","1280","800"],
+ ["open","http://127.0.0.1:8096/"],
+ ["wait","--fn","!!document.querySelector('[data-hydration-status=\"ready\"]')"],
+ ["find","role","button","click","--name","Model","--exact"],
+ ["wait","--fn","document.querySelector('.building-primary')?.disabled===false"],
+ ["find","role","button","click","--name","Open Redburn BR250157 plan in 3D","--exact"],
+ ["wait","--fn","Number(document.querySelector('.building-canvas canvas')?.dataset.meshCount)===198"],
+ ["find","role","button","click","--name","Sheets","--exact"],
+ ["wait","--fn","document.querySelectorAll('.sheet-manager-list>li').length===13"],
+ ["eval","var job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));var doc=job.documents.find(d=>d.id===job.activeDocumentId);if(doc.sha256!=='b57956f76b5dc893ac2b28a021f3f92e345807e326d6b1f8313e373f9145ad38'||doc.pageCount!==13)throw Error('Unexpected fixture '+doc.sha256+' pages '+doc.pageCount);'Fixture imported: '+doc.name+' sha '+doc.sha256+' pages '+doc.pageCount+' source '+doc.source"],
+ ["screenshot","screenshots/growth/2026-09-09-az3-release/prod-sheets-00-import-sheet-list-desktop.png"],
+ ["errors"]
+]

@@ -1,0 +1,153 @@
+[
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Model",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('.building-primary')?.disabled===false",
+  "--timeout",
+  "60000"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Open Redburn BR250157 plan in 3D",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "Number(document.querySelector('.building-canvas canvas')?.dataset.meshCount)===198",
+  "--timeout",
+  "60000"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Measure",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('[data-hydration-status=\"ready\"]')"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.live-assistant-launcher')"
+ ],
+ [
+  "eval",
+  "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();return 'panel'})()"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Add to assistant",
+  "--exact"
+ ],
+ [
+  "find",
+  "role",
+  "menuitem",
+  "click",
+  "--name",
+  "New chat",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.assistant-permission input')"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();if(!c.checked)throw Error('Permission not enabled');return 'edits allowed'})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "Work on sheet index 1 (original page 2) of the active source. Calibrate it: the two points x=100,y=100 and x=600,y=100 (page units) are 5 metres apart according to the scale bar on that sheet (that is my statement); method 'scale bar'; lock the calibration. Then trace a run from x=100,y=300 to x=600,y=300 on the same sheet. Then read the takeoff evidence and approve that run on my behalf — I am the reviewer and my name is Daniel Sivyer. Report the run length and status."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&(!!document.querySelector('.assistant-chat-entry.is-assistant')||!!document.querySelector('.assistant-chat-error'))",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>({paused:[...document.querySelectorAll('.assistant-chat-error')].some(e=>/Paused after eight/.test(e.textContent)),tools:[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,160))}))()"
+ ],
+ [
+  "eval",
+  "(()=>{const c=document.querySelector('.assistant-permission input');if(!c.checked)c.click();return 'edits allowed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{window.__replies=document.querySelectorAll('.assistant-chat-entry.is-assistant').length;return window.__replies})()"
+ ],
+ [
+  "fill",
+  "#live-assistant-prompt",
+  "If anything from my previous request is still outstanding, continue and finish it; otherwise reply exactly DONE."
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Send assistant message",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('[aria-label=\"Stop assistant response\"]')&&document.querySelectorAll('.assistant-chat-entry.is-assistant').length>window.__replies",
+  "--timeout",
+  "300000"
+ ],
+ [
+  "eval",
+  "(()=>{const errors=[...document.querySelectorAll('.assistant-chat-error')].map(e=>e.textContent);const tools=[...document.querySelectorAll('.assistant-chat-entry.is-tool')].map(e=>e.textContent.trim().slice(0,200));const replies=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(e=>e.textContent.slice(0,1500));return {errors,tools,replies}})()"
+ ],
+ [
+  "eval",
+  "(()=>{const job=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));const cal=job.calibrations.find(c=>c.sheet===1);if(!cal||!cal.locked||cal.coordinateSpace!=='source-page-v1')throw Error('Calibration not locked on sheet 1: '+JSON.stringify(cal&&{locked:cal.locked,space:cal.coordinateSpace}));const run=job.runs.find(r=>r.sheet===1);if(!run)throw Error('No run on sheet 1');if(Math.abs(run.lengthM-5)>1e-6)throw Error('Run length '+run.lengthM);if(run.review.status!=='approved'||run.review.decidedBy!=='Daniel Sivyer')throw Error('Review '+JSON.stringify(run.review));const cand=cal.candidates.find(c=>c.id==='manual-sheet-1');return {metresPerUnit:cal.metresPerUnit,method:cand&&cand.provenance.method,evidence:cand&&cand.provenance.evidence,runId:run.id,lengthM:run.lengthM,review:run.review,jobRevision:job.revision}})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-09-assistant-unlock/b-takeoff-desktop.png"
+ ],
+ [
+  "errors"
+ ]
+]

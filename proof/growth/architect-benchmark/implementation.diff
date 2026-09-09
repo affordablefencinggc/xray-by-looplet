@@ -1,0 +1,484 @@
+diff --git a/proof/growth/architect-benchmark/appTools.before.ts b/src/studio/assistant/appTools.ts
+index 130e385..d9ca718 100644
+--- a/proof/growth/architect-benchmark/appTools.before.ts
++++ b/src/studio/assistant/appTools.ts
+@@ -1,3 +1,4 @@
++import { ArchitectPreparationRejected, preparationReceipt } from './actionOutcome.ts';
+ import { z } from "zod";
+ import { readAttachment } from './readAttachment.ts';
+ import type { FencingJob } from "../domain.ts";
+@@ -18,7 +19,7 @@ import { readBrowserPriceBooks, type PriceBookSession } from "../pricing/priceBo
+ import type { BackupSummary } from "../projectBackupStorage.ts";
+ import { listWorkPackets, readWorkEvents } from "./workPacketStore.ts";
+ 
+-export type AppToolResult = { content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; isError?: boolean };
++export type AppToolResult = { content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; isError?: boolean; _meta?: Record<string, unknown> };
+ export type AppTool = { name: string; description: string; inputSchema: { type: "object"; [key: string]: unknown }; execute(args: unknown): Promise<AppToolResult> };
+ export const APP_PANES = ["overview", "sheets", "measure", "sketch", "components", "model", "render", "review", "cost", "proof"] as const;
+ type AppState = {
+@@ -165,7 +166,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+   const tool = (name: string, description: string, inputSchema: AppTool["inputSchema"], run: (args: unknown) => Promise<AppToolResult>): AppTool => ({
+     name, description, inputSchema, execute: async args => {
+       try { return await run(args); }
+-      catch (error) { return { isError: true, content: [{ type: "text", text: error instanceof z.ZodError ? "Invalid tool arguments: " + error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("; ") : error instanceof Error ? error.message : String(error) }] }; }
++      catch (error) { return { isError: true, ...(error instanceof ArchitectPreparationRejected ? { _meta: preparationReceipt(error) } : {}), content: [{ type: "text", text: error instanceof z.ZodError ? "Invalid tool arguments: " + error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("; ") : error instanceof Error ? error.message : String(error) }] }; }
+     },
+   });
+   return [
+@@ -227,7 +228,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       const args = architectReadSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("read", args));
+     }),
+-    tool("draw_architect_elements", "Append 1–25 validated operations to the active design in millimetres: walls, hosted doors/windows, reference lines, room labels, new levels (storeys), slabs, roofs, a footprint (closed wall loop on one level) or an extrude (footprint repeated over N storeys with new levels, optional slabs and a top roof) — this is how a multi-storey wireframe is drawn; it renders in the workspace's live 3D model. wallRef/levelId may refer to an existing ID or an earlier operation ref. The whole batch validates and saves once; existing geometry and sheets remain intact. No deletions or moves. Unspecified wall assembly uses the unpriced default and is reported for review.", objectSchema({ ...bound, operations }), async input => {
++    tool("draw_architect_elements", "Append 1-200 validated operations to the active design in millimetres: walls, hosted doors/windows, reference lines, room labels, new levels (storeys), slabs, roofs, a footprint (closed wall loop on one level) or an extrude (footprint repeated over N storeys with new levels, optional slabs and a top roof) — this is how a multi-storey wireframe is drawn; it renders in the workspace's live 3D model. wallRef/levelId may refer to an existing ID or an earlier operation ref. The whole batch validates and saves once; existing geometry and sheets remain intact. No deletions or moves. Unspecified wall assembly uses the unpriced default and is reported for review.", objectSchema({ ...bound, operations }), async input => {
+       const args = architectDrawSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("draw", args));
+     }),
+diff --git a/proof/growth/architect-benchmark/architectBridge.ts.before b/src/studio/assistant/architectBridge.ts
+index 5f7b9cd..71513c8 100644
+--- a/proof/growth/architect-benchmark/architectBridge.ts.before
++++ b/src/studio/assistant/architectBridge.ts
+@@ -1,3 +1,4 @@
++import { ArchitectPreparationRejected } from './actionOutcome.ts';
+ import { z } from "zod";
+ import { defaultLayers, newWall, validateProject, type ArchitectProject, type Point } from "../architect/model.ts";
+ 
+@@ -45,6 +46,10 @@ const DEFAULT_STOREY_MM = 3000, DEFAULT_EAVES_MM = 450, DEFAULT_PITCH_DEG = 22.5
+ 
+ /** Append-only draft: no persistence or UI mutation occurs until the entire batch validates. */
+ export function prepareArchitectElements(project: ArchitectProject, input: unknown, makeId: () => string = () => crypto.randomUUID()) {
++  try { return prepareArchitectElementsDraft(project, input, makeId); }
++  catch (error) { throw new ArchitectPreparationRejected(error, project.id, project.revision); }
++}
++function prepareArchitectElementsDraft(project: ArchitectProject, input: unknown, makeId: () => string) {
+   const args = architectDrawSchema.parse(input);
+   if (project.id !== args.expectedJobId) throw Error("The active project changed. Read project context again.");
+   if (project.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before drawing.");
+@@ -173,6 +178,10 @@ const ENTITY_KIND: Record<(typeof ENTITY_LISTS)[number], string> = {
+ 
+ /** Edits a clone in place so entity key order (and therefore revise() change detection) is preserved; validates once at the end. */
+ export function prepareArchitectEdits(project: ArchitectProject, input: unknown, makeId: () => string = () => crypto.randomUUID()) {
++  try { return prepareArchitectEditsDraft(project, input, makeId); }
++  catch (error) { throw new ArchitectPreparationRejected(error, project.id, project.revision); }
++}
++function prepareArchitectEditsDraft(project: ArchitectProject, input: unknown, makeId: () => string) {
+   const args = architectEditSchema.parse(input);
+   if (project.id !== args.expectedJobId) throw Error("The active project changed. Read project context again.");
+   if (project.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before editing.");
+diff --git a/proof/growth/architect-benchmark/conversation.ts.before b/src/studio/assistant/conversation.ts
+index 99730f7..3b1d68d 100644
+--- a/proof/growth/architect-benchmark/conversation.ts.before
++++ b/src/studio/assistant/conversation.ts
+@@ -1,7 +1,7 @@
+ import { assistantResponseSchema, type AssistantContent, type AssistantDeclaration, type AssistantPart, type AssistantRequest, type AssistantResponse } from './contract.ts';
+ import { DEFAULT_EXECUTION_BUDGET, executionBudgetSchema, type ExecutionBudget } from "./executionBudget.ts";
+ export type ChatImage = { data: string; mimeType: 'image/png' | 'image/jpeg' | 'image/webp' };
+-export type ToolResult = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean };
++export type ToolResult = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean; _meta?: Record<string, unknown> };
+ export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; failed?: boolean };
+ 
+ export async function runConversation(options: {
+diff --git a/proof/growth/architect-benchmark/workPacketRuntime.ts.before b/src/studio/assistant/workPacketRuntime.ts
+index 2bacafe..cb956dc 100644
+--- a/proof/growth/architect-benchmark/workPacketRuntime.ts.before
++++ b/src/studio/assistant/workPacketRuntime.ts
+@@ -1,3 +1,4 @@
++import { isConfirmedRejection } from './actionOutcome';
+ import { useStudio } from '../store';
+ import { loadArchitect } from '../architect/persistence';
+ import { isAssistantEditTool } from './skills';
+@@ -15,7 +16,7 @@ export function readLiveProjectSnapshot(projectId: string): ProjectSnapshot {
+   if (s.job.id !== projectId) throw Error('Project changed before work packet retrieval.');
+   const design = loadArchitect(projectId, localStorage);
+   return { projectId, projectName: s.job.name, projectRevision: s.job.revision,
+-    designRevision: design.raw === null ? null : design.value.revision, site: s.job.site.address || null,
++    designRevision: design.value.revision, site: s.job.site.address || null,
+     activeDocumentId: s.job.activeDocumentId, page: s.sheet + 1,
+     recoveryBlocked: s.persistenceRecoveryBlocked || !s.persistenceHydrated || design.blocked,
+     sources: s.job.documents.map(d => ({ id: d.id, name: d.name, sha256: d.sha256, revision: null,
+@@ -83,24 +84,26 @@ export async function beginGovernedWork(projectId: string, objective: string, in
+       const snapshot = readLiveProjectSnapshot(projectId);
+       packet = refreshWorkPacket(packet, snapshot);
+       checkPacketAction(packet, tool, args, snapshot);
+-      packet = { ...packet, pendingAction: crypto.randomUUID(), nextAction: `Await actual result from ${tool}.` };
++      const edits = isAssistantEditTool(tool), previousPending = packet.pendingAction;
++      packet = { ...packet, pendingAction: edits ? crypto.randomUUID() : previousPending, nextAction: `Await actual result from ${tool}.` };
+       await write('tool-intent', { tool, args, snapshot });
+       // Persistence is asynchronous; recheck identity/revision after it, before execution.
+       try { checkPacketAction({ ...packet, pendingAction: null }, tool, args, readLiveProjectSnapshot(projectId)); }
+       catch (error) {
+-        packet = { ...packet, pendingAction: null };
++        packet = { ...packet, pendingAction: previousPending };
+         await write('tool-not-executed', { tool, reason: error instanceof Error ? error.message : 'Preflight failed' });
+         throw error;
+       }
+       let result: ToolResult;
+       try { result = await execute(); }
+       catch (error) {
+-        packet = { ...packet, state: 'blocked', pendingAction: isAssistantEditTool(tool) ? packet.pendingAction : null,
++        packet = { ...packet, state: 'blocked', pendingAction: edits ? packet.pendingAction : previousPending,
+           nextAction: 'Reconcile current saved state with this attempted action before retrying.' };
+         await write('tool-outcome-uncertain', { tool, error: error instanceof Error ? error.message : 'Tool failed' });
+         throw error;
+       }
+-      packet = { ...packet, pendingAction: result.isError && isAssistantEditTool(tool) ? packet.pendingAction : null,
++      const rejected = isConfirmedRejection(tool, result, readLiveProjectSnapshot(projectId));
++      packet = { ...packet, pendingAction: edits ? (result.isError && !rejected ? packet.pendingAction : null) : previousPending,
+         nextAction: result.isError ? 'Inspect the failed tool receipt and reconcile saved state before retrying.' : 'Read the tool receipt, inspect evidence and validate the draft before any further action.' };
+       // If this commit fails, durable storage retains the pending intent and the next send refuses.
+       await write('tool-result', { tool, result });
+@@ -108,7 +111,7 @@ export async function beginGovernedWork(projectId: string, objective: string, in
+     },
+     async finish(reason: string | null) {
+       if (journalFailed) throw Error('Task audit storage failed. The last durable checkpoint is retained; review before retrying.');
+-      packet = { ...packet, state: reason ? 'blocked' : 'review-required', nextAction: reason || 'Validate the draft against its sources and acceptance tests. No professional approval or issue recorded.' };
++      packet = { ...packet, state: reason || packet.pendingAction ? 'blocked' : 'review-required', nextAction: reason || (packet.pendingAction ? 'An attempted edit has an uncertain outcome. Reconcile saved state before further edits.' : null) || 'Validate the draft against its sources and acceptance tests. No professional approval or issue recorded.' };
+       let snapshot = packet.snapshot;
+       let refreshFailure: string | null = null;
+       try { snapshot = readLiveProjectSnapshot(projectId); packet = refreshWorkPacket(packet, snapshot); }
+diff --git a/proof/growth/architect-benchmark/workPacket.ts.before b/src/studio/assistant/workPacket.ts
+index 73d2c26..2d76fe3 100644
+--- a/proof/growth/architect-benchmark/workPacket.ts.before
++++ b/src/studio/assistant/workPacket.ts
+@@ -1,3 +1,4 @@
++import { isAssistantEditTool } from './skills.ts';
+ import { z } from 'zod';
+ 
+ export const WORK_PACKET_POLICY = 'xray.internal-draft/1';
+@@ -73,7 +74,7 @@ export function checkProfessionalAction(tool: string): void {
+ export function checkPacketAction(packet: WorkPacket, tool: string, args: Record<string, unknown>, snapshot: ProjectSnapshot): void {
+   if (packet.projectId !== snapshot.projectId || (args.expectedJobId !== undefined && args.expectedJobId !== packet.projectId)) throw Error('Work packet project identity mismatch.');
+   if (snapshot.recoveryBlocked) throw Error('Project recovery blocks this action.');
+-  if (packet.pendingAction) throw Error('An earlier tool has no durable outcome. Reconcile its saved state before another action.');
++  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable outcome. Reconcile its saved state before another action.');
+   // No model role can manufacture professional approval through a tool argument.
+   checkProfessionalAction(tool);
+   if (packet.snapshot.projectRevision !== snapshot.projectRevision || packet.snapshot.designRevision !== snapshot.designRevision
+diff --git a/proof/growth/architect-benchmark/package.before.json b/package.json
+index 404ea4e..ddacc00 100644
+--- a/proof/growth/architect-benchmark/package.before.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/proof/growth/architect-benchmark/LiveAssistant.before.tsx b/src/studio/LiveAssistant.tsx
+index 60d3bfb..8e44c5a 100644
+--- a/proof/growth/architect-benchmark/LiveAssistant.before.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -1139,10 +1139,18 @@ export function LiveAssistant() {
+               ref={input}
+               id="live-assistant-prompt"
+               value={draft}
+-              maxLength={1500}
++              maxLength={100000}
+               rows={2}
+               placeholder="Ask anything about your project…"
+               disabled={switching || chat.busy}
++              onPaste={(event) => {
++                const pasted = event.clipboardData.getData('text/plain');
++                const selected = event.currentTarget.selectionEnd - event.currentTarget.selectionStart;
++                if (pasted.length + draft.length - selected > 100000) {
++                  event.preventDefault();
++                  setMessage('This message exceeds 100,000 characters. Attach the document instead; your existing draft has been kept.');
++                }
++              }}
+               onKeyDown={(event) => {
+                 if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                   event.preventDefault();
+diff --git a/proof/growth/architect-benchmark/Architect3D.tsx.before b/src/studio/architect/Architect3D.tsx
+index aff2161..b175a07 100644
+--- a/proof/growth/architect-benchmark/Architect3D.tsx.before
++++ b/src/studio/architect/Architect3D.tsx
+@@ -1,5 +1,6 @@
+ ﻿import { useEffect, useRef } from "react";
+ import * as T from "three";
++import { SURFACE_APPEARANCES, surfaceMaterialKey } from './surfaceAppearance';
+ import { useState } from "react";
+ import { createFirstPersonNavigation } from "../FirstPersonNavigation";
+ import type { NavigationMode } from "../navigationMovement";
+@@ -167,11 +168,11 @@ export function Architect3D({
+       clear();
+       const solids: T.Mesh[] = [], supports: T.Mesh[] = [];
+       const doorLeaves: Parameters<typeof createWalkDoors>[0]["doors"][number][] = [];
+-      const mesh = (g: T.BufferGeometry, id: string, color: string, opacity = 1) => {
++      const mesh = (g: T.BufferGeometry, id: string, color: string, opacity = 1, roughness = 0.7, metalness = opacity < 1 ? 0.1 : 0) => {
+         const material = new T.MeshStandardMaterial({
+             color: id === s ? "#bd7053" : color,
+-            roughness: 0.7,
+-            metalness: opacity < 1 ? 0.1 : 0,
++            roughness,
++            metalness,
+             opacity,
+             transparent: opacity < 1,
+             depthWrite: opacity === 1,
+@@ -196,7 +197,8 @@ export function Architect3D({
+           );
+       for (const slab of p.slabs.filter((s) => l === "all" || s.levelId === l)) {
+         const elevation = p.levels.find((l) => l.id === slab.levelId)!.elevation + slab.offset;
+-        supports.push(mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, "#b5b7b3"));
++        const appearance = SURFACE_APPEARANCES[surfaceMaterialKey(slab.material)];
++        supports.push(mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, appearance.color, appearance.opacity, appearance.roughness, appearance.metalness));
+       }
+       const beam = (
+         a: Point,
+diff --git a/proof/growth/architect-benchmark/designedScene.ts.before b/src/studio/architect/designedScene.ts
+index 56c0111..8fdc2b4 100644
+--- a/proof/growth/architect-benchmark/designedScene.ts.before
++++ b/src/studio/architect/designedScene.ts
+@@ -1,4 +1,5 @@
+ import { Earcut } from "three/src/extras/Earcut.js";
++import { SURFACE_APPEARANCES, surfaceMaterialKey } from './surfaceAppearance.ts';
+ import { parseSourceBuilding, type SourceBuilding } from "../sourceBuilding.ts";
+ import { roofFaces, roofTrims, wallSolids } from "./geometry.ts";
+ import { add, cross, distance, mul, unit, wallThickness, type ArchitectProject, type Point } from "./model.ts";
+@@ -23,7 +24,7 @@ export const DESIGNED_MATERIALS: SourceBuilding["materials"] = {
+   concrete: { color: "#dedbd1", roughness: 0.7 },
+   insulation: { color: "#dedbd1", roughness: 0.7 },
+   plaster: { color: "#dedbd1", roughness: 0.7 },
+-  slab: { color: "#b5b7b3", roughness: 0.8 },
++  ...SURFACE_APPEARANCES,
+   frame: { color: "#717e81", roughness: 0.6 },
+   glass: { color: "#aac6c9", opacity: 0.5, roughness: 0.2, metalness: 0.1 },
+   leaf: { color: "#c6c1b6", roughness: 0.6 },
+@@ -170,7 +171,7 @@ export function buildDesignedScene(p: ArchitectProject): SourceBuilding {
+   for (const slab of p.slabs) {
+     const elevation = (levelById.get(slab.levelId)?.elevation ?? lowest) + slab.offset, m: Mesh = { positions: [], indices: [] };
+     extrude(m, [slab.points], elevation - slab.thickness, elevation);
+-    part(`slab-${slab.id}`, "slab", slab.name, "slab", slab.levelId, levelOf(slab.levelId), m, `Authored slab ${slab.thickness} mm thick${slab.material ? `, ${slab.material}` : ""}.`);
++    part(`slab-${slab.id}`, "slab", slab.name, surfaceMaterialKey(slab.material), slab.levelId, levelOf(slab.levelId), m, `Authored slab ${slab.thickness} mm thick${slab.material ? `, ${slab.material}` : ""}.`);
+   }
+   for (const o of p.openings) {
+     const w = p.walls.find((wall) => wall.id === o.wallId);
+diff --git a/proof/growth/architect-benchmark/designedScene.test.ts.before b/src/studio/architect/designedScene.test.ts
+index f8641bf..4f7cc36 100644
+--- a/proof/growth/architect-benchmark/designedScene.test.ts.before
++++ b/src/studio/architect/designedScene.test.ts
+@@ -1,5 +1,19 @@
+ import { test } from "node:test";
++import { surfaceMaterialKey } from './surfaceAppearance.ts';
+ import assert from "node:assert/strict";
++
++test('explicit landscape materials render distinctly without changing geometry or evidence', () => {
++  const p = emptyProject('landscape-materials');
++  for (const [i, material] of ['Water', 'Planting', 'Concrete', 'Waterproof membrane'].entries()) {
++    p.slabs.push({ id: `surface-${i}`, revision: 1, levelId: p.levels[0].id, name: material, material, points: [[i*2000,0],[i*2000+1000,0],[i*2000+1000,1000],[i*2000,1000]], offset: 0, thickness: 200 });
++  }
++  const before = JSON.stringify(p), scene = buildDesignedScene(p);
++  assert.deepEqual(scene.objects.filter(o => o.category === 'slab').map(o => o.material), ['water', 'planting', 'slab', 'slab']);
++  assert.notEqual(scene.materials.water.color, scene.materials.planting.color);
++  assert.ok(scene.objects.every(o => o.evidenceState === 'inferred'));
++  assert.equal(JSON.stringify(p), before);
++  assert.equal(surfaceMaterialKey('  WATER  '), 'water');
++});
+ import { createHash } from "node:crypto";
+ import { demonstration, emptyProject, newWall, validateProject, type ArchitectProject, type Point } from "./model.ts";
+ import { BUILDING_CATALOG, parseSourceBuilding, type SourceBuilding } from "../sourceBuilding.ts";
+diff --git a/proof/growth/architect-benchmark/empty.txt b/src/studio/assistant/actionOutcome.ts
+index e69de29..47d218e 100644
+--- a/proof/growth/architect-benchmark/empty.txt
++++ b/src/studio/assistant/actionOutcome.ts
+@@ -0,0 +1,20 @@
++import { z } from 'zod';
++
++/** Issued only by pure preparation, before any persistence or controller commit. */
++export class ArchitectPreparationRejected extends Error {
++  readonly projectId: string;
++  readonly designRevision: number;
++  constructor(error: unknown, projectId: string, designRevision: number) {
++    super(error instanceof Error ? error.message : 'Architectural preparation rejected.');
++    this.name = 'ArchitectPreparationRejected'; this.projectId = projectId; this.designRevision = designRevision;
++  }
++}
++const receiptSchema = z.object({ status: z.literal('not-executed'), phase: z.literal('architect-preparation'), projectId: z.string(), designRevision: z.number().int().positive() }).strict();
++export function preparationReceipt(error: ArchitectPreparationRejected) {
++  return { 'xray.execution': { status: 'not-executed', phase: 'architect-preparation', projectId: error.projectId, designRevision: error.designRevision } };
++}
++export function isConfirmedRejection(tool: string, result: { isError?: boolean; _meta?: Record<string, unknown> }, snapshot: { projectId: string; designRevision: number | null }): boolean {
++  if (!result.isError || !['draw_architect_elements', 'edit_architect_elements'].includes(tool)) return false;
++  const receipt = receiptSchema.safeParse(result._meta?.['xray.execution']);
++  return receipt.success && receipt.data.projectId === snapshot.projectId && receipt.data.designRevision === snapshot.designRevision;
++}
+diff --git a/proof/growth/architect-benchmark/empty.txt b/src/studio/assistant/actionOutcome.test.ts
+index e69de29..3e25874 100644
+--- a/proof/growth/architect-benchmark/empty.txt
++++ b/src/studio/assistant/actionOutcome.test.ts
+@@ -0,0 +1,28 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { ArchitectPreparationRejected, preparationReceipt, isConfirmedRejection } from './actionOutcome.ts';
++import { prepareArchitectElements } from './architectBridge.ts';
++import { emptyProject } from '../architect/model.ts';
++import { connectAppMcp } from './mcp.ts';
++
++test('concave roof rejection is demonstrably before mutation and survives MCP metadata transport', async () => {
++  const project = emptyProject('rejection-proof'), before = JSON.stringify(project);
++  let rejection: ArchitectPreparationRejected | undefined;
++  try { prepareArchitectElements(project, { expectedJobId: project.id, expectedRevision: 1, operations: [{ kind: 'roof', levelId: project.levels[0].id, pitchDeg: 0, points: [[0,0],[6000,0],[6000,4000],[10000,4000],[10000,10000],[0,10000]] }] }); }
++  catch (error) { assert.ok(error instanceof ArchitectPreparationRejected); rejection = error; }
++  assert.ok(rejection); assert.equal(JSON.stringify(project), before);
++  const result = { isError: true, _meta: preparationReceipt(rejection), content: [{ type: 'text' as const, text: rejection.message }] };
++  const session = await connectAppMcp([{ name: 'draw_architect_elements', description: 'Fixture', inputSchema: { type: 'object' }, execute: async () => result }]);
++  try {
++    const transported = await session.client.callTool({ name: 'draw_architect_elements', arguments: {} });
++    assert.equal(isConfirmedRejection('draw_architect_elements', transported, { projectId: project.id, designRevision: 1 }), true);
++    for (const snapshot of [{ projectId: 'foreign', designRevision: 1 }, { projectId: project.id, designRevision: 2 }]) assert.equal(isConfirmedRejection('draw_architect_elements', transported, snapshot), false);
++    assert.equal(isConfirmedRejection('save_project', transported, { projectId: project.id, designRevision: 1 }), false);
++  } finally { await session.close(); }
++});
++
++test('ordinary errors and text imitating a rejection never resolve an uncertain mutation', () => {
++  const snapshot = { projectId: 'p', designRevision: 1 };
++  assert.equal(isConfirmedRejection('draw_architect_elements', { isError: true }, snapshot), false);
++  assert.equal(isConfirmedRejection('draw_architect_elements', { isError: true, _meta: { 'xray.execution': { status: 'not-executed' } } }, snapshot), false);
++});
+diff --git a/proof/growth/architect-benchmark/empty.txt b/src/studio/architect/surfaceAppearance.ts
+index e69de29..a4077b1 100644
+--- a/proof/growth/architect-benchmark/empty.txt
++++ b/src/studio/architect/surfaceAppearance.ts
+@@ -0,0 +1,12 @@
++/** Illustrative display materials only; no product specification or evidence status. */
++export const SURFACE_APPEARANCES = {
++  slab: { color: '#b5b7b3', roughness: 0.8, opacity: 1, metalness: 0 },
++  water: { color: '#329bb7', roughness: 0.15, opacity: 0.82, metalness: 0.1 },
++  planting: { color: '#537b3d', roughness: 0.95, opacity: 1, metalness: 0 },
++  grass: { color: '#779a50', roughness: 0.95, opacity: 1, metalness: 0 },
++  soil: { color: '#81654d', roughness: 1, opacity: 1, metalness: 0 },
++} as const;
++export function surfaceMaterialKey(material: string): keyof typeof SURFACE_APPEARANCES {
++  const key = material.trim().toLowerCase();
++  return ['water', 'planting', 'grass', 'soil'].includes(key) ? key as keyof typeof SURFACE_APPEARANCES : 'slab';
++}
+diff --git a/proof/growth/architect-benchmark/empty.txt b/scripts/benchmarks/courtyard.mjs
+index e69de29..3153715 100644
+--- a/proof/growth/architect-benchmark/empty.txt
++++ b/scripts/benchmarks/courtyard.mjs
+@@ -0,0 +1,89 @@
++// AB-01 independent oracle: no imports from the product geometry implementation.
++// Dimensions are synthetic benchmark requirements, never construction evidence.
++export const footprint = [[0,0],[6000,0],[6000,12000],[18000,12000],[18000,0],[24000,0],[24000,18000],[0,18000]];
++const close = (a,b,tolerance=1) => Math.abs(a-b)<=tolerance;
++const pointEqual = (a,b) => close(a[0],b[0])&&close(a[1],b[1]);
++const area = points => Math.abs(points.reduce((sum,a,i)=>{const b=points[(i+1)%points.length];return sum+a[0]*b[1]-b[0]*a[1];},0))/2;
++const inside = (point,ring) => {
++  let odd=false;
++  for(let i=0,j=ring.length-1;i<ring.length;j=i++) {
++    const a=ring[i],b=ring[j];
++    if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])odd=!odd;
++  }
++  return odd;
++};
++const bounds = points => ({minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))});
++// Exact cell integration for this orthogonal benchmark. Also detects duplicate coverage.
++function coverage(polygons,target=footprint) {
++  const all=[target,...polygons];
++  const xs=[...new Set(all.flatMap(p=>p.map(v=>v[0])))].sort((a,b)=>a-b);
++  const ys=[...new Set(all.flatMap(p=>p.map(v=>v[1])))].sort((a,b)=>a-b);
++  let covered=0,outside=0,overlap=0;const gaps=[];
++  for(let i=1;i<xs.length;i++)for(let j=1;j<ys.length;j++) {
++    const x=(xs[i]+xs[i-1])/2,y=(ys[j]+ys[j-1])/2,a=(xs[i]-xs[i-1])*(ys[j]-ys[j-1]);
++    const n=polygons.filter(p=>inside([x,y],p)).length,inTarget=inside([x,y],target);
++    if(n&&inTarget)covered+=a;if(n&&!inTarget)outside+=a;if(n>1)overlap+=a;
++    if(!n&&inTarget)gaps.push({a,points:[[xs[i-1],ys[j-1]],[xs[i],ys[j]]]});
++  }
++  return {covered,outside,overlap,gaps,gapArea:gaps.reduce((s,g)=>s+g.a,0)};
++}
++export function inspectCourtyard(p, {stage=1,scene}={}) {
++  const checks=[];
++  const check=(id,pass,actual,expected)=>checks.push({id,pass:!!pass,actual,expected});
++  const levels=[...(p.levels||[])].sort((a,b)=>a.elevation-b.elevation);
++  check('units',p.units==='mm',p.units,'mm');
++  check('levels',levels.length===2&&close(levels[0].elevation,0)&&close(levels[1].elevation,3600)&&levels.every(l=>close(l.height,3600)),levels.map(l=>[l.elevation,l.height]),[[0,3600],[3600,3600]]);
++  const ids=[...(p.walls||[]),...(p.slabs||[]),...(p.openings||[]),...(p.roofs||[])].map(v=>v.id);
++  check('unique-entity-ids',ids.length===new Set(ids).size,ids.length,'all unique');
++  for(const [index,l] of levels.entries()) {
++    const walls=(p.walls||[]).filter(w=>w.levelId===l.id);
++    const matched=footprint.filter((a,i)=>walls.some(w=>(pointEqual(w.a,a)&&pointEqual(w.b,footprint[(i+1)%8]))||(pointEqual(w.b,a)&&pointEqual(w.a,footprint[(i+1)%8])))).length;
++    check(`level-${index}-boundary`,walls.length===8&&matched===8,{walls:walls.length,matched},'8 exact U-shaped boundary segments');
++    check(`level-${index}-wall-heights`,walls.length>0&&walls.every(w=>close(w.height,3600)),walls.map(w=>w.height),3600);
++  }
++  const elevation=s=>(levels.find(l=>l.id===s.levelId)?.elevation??NaN)+s.offset;
++  const floorAt=z=>(p.slabs||[]).filter(s=>close(elevation(s),z)&&close(s.thickness,250));
++  check('orthogonal-floors',p.slabs.every(s=>s.points.every((a,i)=>{const b=s.points[(i+1)%s.points.length];return close(a[0],b[0])||close(a[1],b[1]);})),p.slabs.length,'axis-aligned polygons for exact cell integration');
++  const ground=coverage(floorAt(0).map(s=>s.points)),upper=coverage(floorAt(3600).map(s=>s.points));
++  check('ground-floor-union',close(ground.covered,288e6)&&ground.outside===0&&ground.overlap===0,{areaM2:ground.covered/1e6,outsideM2:ground.outside/1e6,overlapM2:ground.overlap/1e6},'288 m2 without overlaps or courtyard coverage');
++  const gapBounds=upper.gaps.length?bounds(upper.gaps.flatMap(g=>g.points)):null;
++  check('upper-floor-union',close(upper.covered,279.36e6)&&upper.outside===0&&upper.overlap===0,{areaM2:upper.covered/1e6,outsideM2:upper.outside/1e6,overlapM2:upper.overlap/1e6},'279.36 m2 without overlaps or courtyard coverage');
++  check('stairwell-void',gapBounds&&close(upper.gapArea,8.64e6)&&close(gapBounds.maxX-gapBounds.minX,1200)&&close(gapBounds.maxY-gapBounds.minY,7200)&&gapBounds.minX>0&&gapBounds.maxX<6000&&gapBounds.minY>0&&gapBounds.maxY<18000,{gapAreaM2:upper.gapArea/1e6,bounds:gapBounds},'1.2 x 7.2 m rectangle wholly inside west wing');
++  const roofCoverage=coverage((p.roofs||[]).map(r=>r.points));
++  check('roof-footprint',close(roofCoverage.covered,288e6)&&roofCoverage.outside===0&&roofCoverage.overlap===0,{areaM2:roofCoverage.covered/1e6,outsideM2:roofCoverage.outside/1e6},'288 m2 U-shaped roof; courtyard open');
++  check('flat-roof',p.roofs?.length>0&&p.roofs.every(r=>r.edges.every(e=>e.pitch===0)&&r.eaves===0),p.roofs?.map(r=>({eaves:r.eaves,pitches:r.edges.map(e=>e.pitch)})),'zero pitch and eaves');
++  check('roof-datum',p.roofs.length>0&&p.roofs.every(r=>close((levels.find(l=>l.id===r.levelId)?.elevation??NaN)+r.offset,7200)),p.roofs.map(r=>(levels.find(l=>l.id===r.levelId)?.elevation??NaN)+r.offset),'roof plane at 7200 mm');
++  if(stage===2) {
++    const doors=p.openings.filter(o=>o.kind==='door'),windows=p.openings.filter(o=>o.kind==='window');
++    check('doors',doors.length===6&&doors.every(o=>close(o.width,1200)&&close(o.height,2400)),doors.map(o=>[o.width,o.height]),'6 doors, 1200 x 2400 mm');
++    check('windows',windows.length===12&&windows.every(o=>close(o.width,1800)&&close(o.height,1500)&&close(o.sill,900)),windows.map(o=>[o.width,o.height,o.sill]),'12 windows, 1800 x 1500 mm, sill 900 mm');
++    let validHosts=true,clashes=0;
++    for(const o of p.openings) {
++      const w=p.walls.find(w=>w.id===o.wallId);if(!w){validHosts=false;continue;}
++      const length=Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1]);
++      if(o.offset-o.width/2<0||o.offset+o.width/2>length||o.sill+o.height>w.height)validHosts=false;
++      for(const other of p.openings)if(other.id>o.id&&other.wallId===o.wallId&&Math.min(o.offset+o.width/2,other.offset+other.width/2)>Math.max(o.offset-o.width/2,other.offset-other.width/2)&&Math.min(o.sill+o.height,other.sill+other.height)>Math.max(o.sill,other.sill))clashes++;
++    }
++    check('opening-hosts',validHosts&&clashes===0,{validHosts,clashes},'all openings within hosts, no opening overlaps');
++    const treads=p.slabs.filter(s=>close(area(s.points),.36e6)&&elevation(s)>0&&elevation(s)<3600).sort((a,b)=>elevation(a)-elevation(b));
++    check('stair-treads',treads.length===23&&treads.every((s,i)=>close(elevation(s),(i+1)*150)&&close(s.thickness,50)),treads.map(s=>({top:elevation(s),thickness:s.thickness})),'23 treads, 150 mm rise, 50 mm thick');
++    const treadBounds=treads.map(s=>bounds(s.points));
++    check('stair-run',gapBounds&&treadBounds.length===23&&treadBounds.every((b,i)=>close(b.maxX-b.minX,1200)&&close(b.maxY-b.minY,300)&&b.minX>=gapBounds.minX&&b.maxX<=gapBounds.maxX&&b.minY>=gapBounds.minY&&b.maxY<=gapBounds.maxY&&(i===0||close(Math.abs(b.minY-treadBounds[i-1].minY),300))),treadBounds,'continuous 1200 mm wide, 300 mm deep treads inside stairwell');
++    const last=treadBounds.at(-1);
++    const direction=treadBounds.length>1?Math.sign(last.minY-treadBounds[0].minY):0;
++    check('stair-landing',last&&gapBounds&&(direction>0?close(last.maxY,gapBounds.maxY):direction<0&&close(last.minY,gapBounds.minY)),last,'last tread meets the upper floor without a plan gap');
++    const pond=p.slabs.filter(s=>close(area(s.points),18e6)&&close(elevation(s),-100));
++    check('pond',pond.length===1&&close(bounds(pond[0].points).maxX-bounds(pond[0].points).minX,6000)&&close(bounds(pond[0].points).maxY-bounds(pond[0].points).minY,3000)&&pond[0].points.every(([x,y])=>x>=6000&&x<=18000&&y>=0&&y<=12000),pond.map(s=>({name:s.name,areaM2:area(s.points)/1e6})),'one 6 x 3 m pond inside courtyard, top -100 mm');
++    const planters=p.slabs.filter(s=>close(area(s.points),4e6)&&close(elevation(s),600));
++    check('planters',planters.length===2&&planters.every(s=>close(bounds(s.points).maxX-bounds(s.points).minX,4000)&&close(bounds(s.points).maxY-bounds(s.points).minY,1000)&&s.points.every(([x,y])=>x>=6000&&x<=18000&&y>=0&&y<=12000)),planters.map(s=>s.name),'two 4 x 1 m planters inside courtyard, top 600 mm');
++    const site=p.slabs.filter(s=>close(area(s.points),832e6)&&close(elevation(s),-300));
++    check('site',site.length===1&&JSON.stringify(bounds(site[0].points))===JSON.stringify({minX:-4000,maxX:28000,minY:-4000,maxY:22000}),site.map(s=>bounds(s.points)),'32 x 26 m site with 4 m margin, top -300 mm');
++    const landscape=[...pond,...planters], overlaps=landscape.some((s,i)=>landscape.slice(i+1).some(t=>{const a=bounds(s.points),b=bounds(t.points);return Math.min(a.maxX,b.maxX)>Math.max(a.minX,b.minX)&&Math.min(a.maxY,b.maxY)>Math.max(a.minY,b.minY);}));
++    check('landscape-separation',landscape.length===3&&!overlaps,{surfaces:landscape.length,overlaps},'pond and two planters do not overlap');
++    if(scene) {
++      const appearances=[...pond,...planters].map(s=>scene.objects.find(part=>part.id===`slab-${s.id}`)?.material);
++      check('landscape-render-materials',appearances.length===3&&appearances.every(m=>m&&m!=='slab')&&new Set(appearances).size>=2,appearances,'water and planting have distinct rendered materials');
++    }
++  }
++  return {benchmark:'AB-01',stage,projectId:p.id,revision:p.revision,passed:checks.filter(c=>c.pass).length,total:checks.length,checks,stairwell:gapBounds};
++}
+diff --git a/proof/growth/architect-benchmark/empty.txt b/scripts/benchmarks/courtyard.test.mjs
+index e69de29..ae1e62b 100644
+--- a/proof/growth/architect-benchmark/empty.txt
++++ b/scripts/benchmarks/courtyard.test.mjs
+@@ -0,0 +1,29 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { footprint, inspectCourtyard } from './courtyard.mjs';
++const rect=(x,y,w,h)=>[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];
++function fixture() {
++  let id=0;const levels=[{id:'ground',elevation:0,height:3600},{id:'upper',elevation:3600,height:3600}];
++  const slab=(points,levelId)=>({id:`s${id++}`,points,levelId,thickness:250,offset:0});
++  return {id:'oracle-test',revision:1,units:'mm',levels,
++    walls:levels.flatMap(l=>footprint.map((a,i)=>({id:`w${id++}`,levelId:l.id,a,b:footprint[(i+1)%8],height:3600}))),
++    slabs:[slab(footprint,'ground'),...[rect(0,0,6000,3000),rect(0,10200,6000,7800),rect(0,3000,2400,7200),rect(3600,3000,2400,7200),rect(18000,0,6000,18000),rect(6000,12000,12000,6000)].map(p=>slab(p,'upper'))],
++    roofs:[{id:'roof',levelId:'upper',offset:3600,points:footprint,eaves:0,edges:footprint.map(()=>({pitch:0}))}],openings:[]};
++}
++test('independent oracle accepts dimensioned fixture with actual stairwell void',()=>{
++  const result=inspectCourtyard(fixture());assert.equal(result.passed,result.total);
++});
++for(const [label,change,expected] of [
++  ['courtyard filled',p=>{p.slabs[0].points=rect(0,0,24000,18000);},'ground-floor-union'],
++  ['duplicate overlapping floor',p=>{p.slabs.push({...p.slabs[1],id:'duplicate'});},'upper-floor-union'],
++  ['stairwell covered',p=>{p.slabs.push({id:'cap',levelId:'upper',points:rect(2400,3000,1200,7200),thickness:250,offset:0});},'stairwell-void'],
++  ['disconnected wall',p=>{p.walls[0]={...p.walls[0],b:[6001.1,0]};},'level-0-boundary'],
++  ['incorrect storey',p=>{p.levels[1].elevation=3500;},'levels'],
++  ['courtyard roofed',p=>{p.roofs[0].points=rect(0,0,24000,18000);},'roof-footprint'],
++])test(`oracle detects ${label}`,()=>{
++  const p=fixture();change(p);assert.equal(inspectCourtyard(p).checks.find(c=>c.id===expected).pass,false);
++});
++test('detailed stage does not award absent stairs, openings, pond, planters or site',()=>{
++  const result=inspectCourtyard(fixture(),{stage:2});
++  for(const id of ['doors','windows','stair-treads','stair-run','pond','planters','site'])assert.equal(result.checks.find(c=>c.id===id).pass,false);
++});

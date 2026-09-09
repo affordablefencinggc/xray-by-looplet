@@ -1,0 +1,269 @@
+[
+  [
+    "tab",
+    "t1"
+  ],
+  [
+    "set",
+    "viewport",
+    "1280",
+    "900"
+  ],
+  [
+    "open",
+    "http://localhost:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "eval",
+    "(async()=>{var qaDocuments=await import('/src/studio/documents.ts'); var qaStore=(await import('/src/studio/store.ts')).useStudio; await qaStore.getState().importPlan(await qaDocuments.inspectPlanBytes({name:'site.svg',source:'web',bytes:new TextEncoder().encode('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\"><path d=\"M100 100H700V500H100Z\" fill=\"none\" stroke=\"black\"/></svg>')})); return 'Seeded isolated QA job through the real import command';})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('select[aria-label=\"Current plan\"]')?.textContent.includes('site.svg')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sketch",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Architectural workspace",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Load demonstration",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('5 walls')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Backups",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.backup-save-row button')?.disabled===false"
+  ],
+  [
+    "fill",
+    ".backup-save-row input:not([type=file])",
+    "Site tender — issue A"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save project backup",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.backup-notice')?.textContent.includes('saved and verified')"
+  ],
+  [
+    "eval",
+    "if(document.querySelectorAll('.backup-item').length!==1)throw Error('Expected one saved backup');if(!document.querySelector('.backup-item').textContent.includes('1 plans'))throw Error('Original plan missing');'Saved real original and architectural design'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Inspect",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.backup-preview')"
+  ],
+  [
+    "eval",
+    "if(!document.querySelector('.backup-preview').textContent.includes('Architectural design'))throw Error('Design omitted');'Verified architecture and original plan present'"
+  ],
+  [
+    "screenshot",
+    "screenshots/project-backup/dev-saved.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Close contents",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Rename",
+    "--exact"
+  ],
+  [
+    "fill",
+    ".backup-rename input",
+    "Site tender — checked copy"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save label",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.backup-item h3')?.textContent==='Site tender — checked copy'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Archive",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.backup-item').length===0"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Archived (1)",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.backup-item').length===1"
+  ],
+  [
+    "screenshot",
+    "screenshots/project-backup/dev-archived.png"
+  ],
+  [
+    "reload"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[data-hydration-status=ready]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Backups",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.backup-save-row button')?.disabled===false"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Archived (1)",
+    "--exact"
+  ],
+  [
+    "eval",
+    "if(document.querySelector('.backup-item h3')?.textContent!=='Site tender — checked copy')throw Error('Archived backup did not survive reload');'Archive and label survived reload'"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Unarchive",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('.backup-item').length===0"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Active (1)",
+    "--exact"
+  ],
+  [
+    "fill",
+    "input[type=search]",
+    "does not exist"
+  ],
+  [
+    "eval",
+    "if(document.querySelectorAll('.backup-item').length!==0)throw Error('Search failed');'No matching backups'"
+  ],
+  [
+    "fill",
+    "input[type=search]",
+    "checked"
+  ],
+  [
+    "eval",
+    "if(document.querySelectorAll('.backup-item').length!==1)throw Error('Search failed');'Named backup found'"
+  ],
+  [
+    "errors"
+  ]
+]

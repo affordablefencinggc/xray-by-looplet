@@ -1,0 +1,7 @@
+[
+  ["open", "http://127.0.0.1:8091/"],
+  ["wait", "--fn", "!!document.querySelector('.live-assistant')"],
+  ["eval", "(() => { const el = document.querySelector('.live-assistant'); const r = el.getBoundingClientRect(); return { classes: el.className, railAttr: document.documentElement.getAttribute('data-assistant-rail'), rect: { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom), width: Math.round(r.width) }, viewport: { w: innerWidth, h: innerHeight }, spansViewport: Math.round(r.width) >= innerWidth - 2 }; })()"],
+  ["eval", "(() => { const rail = document.querySelector('.studio-right-rail'); const r = rail && rail.getBoundingClientRect(); return { rightRailPresent: !!rail, rightRail: r ? { left: Math.round(r.left), width: Math.round(r.width) } : null, vars: { left: getComputedStyle(document.documentElement).getPropertyValue('--assistant-rail-left'), width: getComputedStyle(document.documentElement).getPropertyValue('--assistant-rail-width'), top: getComputedStyle(document.documentElement).getPropertyValue('--assistant-rail-top'), height: getComputedStyle(document.documentElement).getPropertyValue('--assistant-rail-height') } }; })()"],
+  ["errors"]
+]

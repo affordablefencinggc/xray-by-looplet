@@ -1,0 +1,79 @@
+﻿diff --git a/src/studio/assistant/conversation.test.ts b/src/studio/assistant/conversation.test.ts
+index 89873d9..d730ac6 100644
+--- a/src/studio/assistant/conversation.test.ts
++++ b/src/studio/assistant/conversation.test.ts
+@@ -43,3 +43,47 @@ test('repeated function calls stop after eight steps with completed results chec
+     turn: async request => { turns++; return response(request, [{ functionCall: { name: 'draw', args: {} } }]); }, call: async () => ({ content: [{ type: 'text', text: 'Done' }] }),
+   }), /eight/); assert.equal(turns, 8); assert.equal(history.length, 17);
+ });
++
++for (const interruption of ['stop', 'project change'] as const) {
++  test(`${interruption} between tools preserves completed receipts and records skipped calls for retry`, async () => {
++    const controller = new AbortController();
++    let changed = false;
++    let history: AssistantContent[] = [];
++    const executed: string[] = [];
++    const events: ChatEvent[] = [];
++    await assert.rejects(runConversation({
++      contents: initial, declarations: [declaration], signal: controller.signal,
++      assertContext: () => { if (changed) throw Error('Project changed'); },
++      checkpoint: value => { history = structuredClone(value); }, emit: event => events.push(event),
++      turn: async request => response(request, [1, 2, 3].map(n => ({ functionCall: { name: 'draw', args: { n }, id: `call-${n}` } }))),
++      call: async (_name, args) => {
++        executed.push(`wall-${args.n}`);
++        if (interruption === 'stop') controller.abort(); else changed = true;
++        return { content: [{ type: 'text', text: 'Created wall-1 revision 2' }] };
++      },
++    }));
++    assert.deepEqual(executed, ['wall-1']);
++    const receipts = history.at(-1)?.parts.map(part => part.functionResponse);
++    assert.equal(receipts?.length, 3);
++    assert.deepEqual(receipts?.map(receipt => receipt?.id), ['call-1', 'call-2', 'call-3']);
++    assert.equal(receipts?.[0]?.response.isError, false);
++    assert.match(String(receipts?.[0]?.response.text), /Created wall-1 revision 2/);
++    for (const receipt of receipts?.slice(1) || []) {
++      assert.equal(receipt?.response.isError, true);
++      assert.match(String(receipt?.response.text), /not executed/i);
++    }
++    assert.equal(events.filter(event => event.failed).length, 2);
++    let retryCalls = 0;
++    await runConversation({
++      contents: [...history, { role: 'user', parts: [{ text: 'What was completed?' }] }],
++      declarations: [declaration], signal: new AbortController().signal, assertContext: () => {},
++      checkpoint: () => {}, emit: () => {},
++      turn: async request => {
++        assert.match(JSON.stringify(request.contents), /Created wall-1 revision 2/);
++        return response(request, [{ text: 'Only wall-1 was created.' }]);
++      },
++      call: async () => { retryCalls++; return { content: [] }; },
++    });
++    assert.equal(retryCalls, 0);
++  });
++}
+diff --git a/src/studio/assistant/conversation.ts b/src/studio/assistant/conversation.ts
+index 846b8e1..ec2b522 100644
+--- a/src/studio/assistant/conversation.ts
++++ b/src/studio/assistant/conversation.ts
+@@ -24,8 +24,20 @@ export async function runConversation(options: {
+     const calls = response.content.parts.flatMap(part => part.functionCall ? [part.functionCall] : []);
+     if (!calls.length) { options.checkpoint(contents); return; }
+     const results: AssistantPart[] = [];
+-    for (const call of calls) {
+-      options.signal.throwIfAborted(); options.assertContext();
++    for (const [index, call] of calls.entries()) {
++      try { options.signal.throwIfAborted(); options.assertContext(); }
++      catch (error) {
++        // Keep every completed receipt and pair the remaining calls with explicit
++        // non-execution results, so a later turn has a complete tool exchange.
++        for (const skipped of calls.slice(index)) {
++          const text = 'Not executed: assistant stopped or project context changed before this action.';
++          results.push({ functionResponse: { name: skipped.name, ...(skipped.id ? { id: skipped.id } : {}), response: { isError: true, text } } });
++          options.emit({ kind: 'tool', toolName: skipped.name, text, failed: true });
++        }
++        contents.push({ role: 'user', parts: results });
++        options.checkpoint(contents);
++        throw error;
++      }
+       options.emit({ kind: 'tool', toolName: call.name, text: `Running ${call.name}…` });
+       let result: ToolResult;
+       try { result = names.has(call.name) ? await options.call(call.name, call.args, options.signal) : { isError: true, content: [{ type: 'text', text: 'Unknown tool; no action performed.' }] }; }

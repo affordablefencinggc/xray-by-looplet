@@ -1,0 +1,37 @@
+# SC-12 — Assistant unlock: design edits, calibration/trace/review, price-book import, exports, AI render (development proof, 2026-09-09 07:00–11:10)
+
+Daniel (2026-09-09): "make it happen now" / "go go go impress me" after the list of things the assistant still could not do.
+
+## What changed (code.diff, 3,225 lines; workflow `wf_c007d1c6-cc1`, 20 agents, then coordinator fixes)
+
+- `src/studio/assistant/architectBridge.ts` + `src/studio/architect/ArchitectWorkspace.tsx` (controller block): `edit_architect_elements` — remove (cascades hosted openings/dimensions; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening, rename-design (demonstration marker preserved; previous values in notices). One validated, undoable batch through the same `commit` as the UI.
+- `src/studio/assistant/takeoffTools.ts` (new): `calibrate_source_sheet` (two-point manual calibration through the Measure store sequence, source-page-v1 coordinates, locked pages only with explicit `replaceLocked`, provenance method stamped `Live assistant · …`), `trace_takeoff_run` (Measure tool sequence, run found by ID diff, lengths read back), `review_takeoff_item` (named human reviewer, note stamped "Recorded through the Live assistant for …", sample refused), `remove_takeoff_trace`.
+- `src/studio/assistant/priceImportTool.ts` (new): `import_price_book` from pasted CSV, same parse/preview/append/save path as the Cost pane, bound to `expectedLibraryRevision`, provenance marked as an assistant paste.
+- `src/studio/assistant/exportTools.ts` (new): `export_design_file` — dxf, ifc, drawing-pdf, material-pdf, sheet-register through the existing exporters, sha256 + byte length receipt, browser download.
+- `src/studio/assistant/renderTool.ts`, `src/lib/renderAi.server.ts`, `src/routes/api.render-ai.ts` (new), `src/studio/RenderStudio.tsx` ("Latest AI render" card): `generate_render_visualisation` — captures the live 3D canvas, posts to `/api/render-ai` (same key/gating as the assistant route, image model `XRAY_RENDER_MODEL` default `gemini-2.5-flash-image`, 12 MB caps, fixed keep-the-geometry prompt), stores the result in session memory, shows it on the Render pane with provenance. Web only; native reports unavailable.
+- `appTools.ts` (24 tools), `skills.ts` (VIEW/EDIT sets; operating manual sentence changed identically in TS and Rust), `workbenchStructure.ts` (tool lists and the shrunken not-available list).
+- Verification loop: `verifier-fixes.md` — six of ten adversarial verdicts refuted; every major fixed before wiring.
+
+## Machine proof
+
+- 153/153 tests across the assistant suites, architect, sheet lifecycle and price books (`tests.log`); `tsc --noEmit` exit 0 (`typecheck.log`); eslint clean on new files, the pre-existing `appTools.ts` expression error unchanged (`eslint.log`).
+
+## Human proof (Fast CDP, isolated profile on the user-facing dev server 127.0.0.1:8091, real provider gemini-3.8-flash; edits allowed per message; each journey followed by a "continue or reply DONE" message, all of which replied DONE)
+
+- **A — design edits** (`a-design-edit`, runner `2026-09-09T01-00-27-428Z-unlock-desktop`, exit 0): "Draw a two-storey 10 m × 8 m building with a hip roof … then remove the roof, move the wall (0,0)→(10000,0) to y = −2000, rename to Unlock test." The model read context, design and structure, drew (revision 2), then one `edit_architect_elements` batch (revision 3). Saved design: name "Unlock test", 8 walls, 0 roofs, 2 levels, moved wall at (0,−2000)→(10000,−2000). Screenshot `a-design-edit-desktop.png`: strip "8 walls · 0 openings · 2 levels · Saved · revision 3", inspector shows Wall 1 Start Y/End Y −2000, 3D shows the roofless two-storey block.
+- **B — calibrate, trace, approve** (`b-takeoff`, runner `…01-00-59-525Z`, exit 0): Redburn imported, Measure pane; one message → `calibrate_source_sheet` (sheet 1, points (100,100)/(600,100) = 5 m, locked), `trace_takeoff_run` ((100,300)→(600,300)), `read_takeoff_evidence`, `review_takeoff_item` (approve, actor Daniel Sivyer). Project record: calibration sheet 1 locked, `source-page-v1`, 0.01 m/unit, candidate method "Live assistant · scale bar", evidence "scale bar on that sheet"; run length 5.000 m; review approved, decidedBy "Daniel Sivyer", note "Recorded through the Live assistant for Daniel Sivyer."; job revision 6. Screenshot `b-takeoff-desktop.png`: Measure pane page 2 with the orange trace, "Run 01 · sheet 2 5.00 m", net run 5.00 m.
+- **C — price import** (`c-price-import`, runner `…01-01-19-065Z`, exit 0): one message with the CSV → `read_price_books` (library revision 0) → `import_price_book`. Library: book "Timber Co 2026", revision 1, 3 rows (P100 18.5, R75 4.2, PAL 1.15), fileName `assistant-paste.csv`, sourceReference "Live assistant paste · Quote Q-1234". Screenshot `c-price-import-desktop.png`: Cost pane after reopening shows the book with "Live assistant paste · Quote Q-1234".
+- **D — exports** (`d-export`, runner `…01-01-44-833Z`, exit 0): "Export the current architectural design as DXF and as IFC" → `read_architect_design` then two `export_design_file` receipts: `architect-design.dxf` 79,543 bytes sha256 `330351e6…4cff` (deterministic, AC1027), `architect-design.ifc` 10,978 bytes sha256 `bc7c854f…dd81` (IFC4, timestamped header so not deterministic); both carry designName "Unlock test", demonstration false, downloaded true. Screenshot `d-export-desktop.png`.
+- **E — "generate a real life view of this plan"** (`e-render`, runner `…01-02-00-631Z`, exit 0): on the Model pane with Redburn open, the exact sentence Daniel had typed into the native QA window earlier. The model read context and draftsman status, then `generate_render_visualisation` → `rendered: true`, model `gemini-2.5-flash-image`, captured 620×436 source-building view (sourceSha256 b57956f7…45ad38, sheet 2, camera null / "not recorded"), returned image 1184×864 shown on the Render pane's "Latest AI render" card with the provenance line. Screenshots `e-render-desktop.png` (1280×800) and `e-render-tablet.png` (1024×768): a photoreal two-storey house with a hip roof among trees, the "Image renderer" card reading "AI visualisation via assistant · gemini-2.5-flash-image". Both were inspected; the render is an illustration of the captured massing, not evidence.
+- Ten user-authorized provider messages in total (five journeys × request + "continue or DONE"); every continuation replied DONE, i.e. no journey hit the eight-step pause. Browser errors: none in any run.
+
+## Process hygiene
+
+Journeys ran in an isolated agent-browser profile (`unlock-desktop`, closed afterwards) against the user-facing dev server 8091 (PID 31164, retained for Daniel). No other process was started; the other chat's 8080 server and sessions were not touched.
+
+## Remaining (not claimed)
+
+- Dans1 build + production + native runs of these journeys; native parity of the operating manual needs that build (both source copies are already identical and the parity test passes). Rendering stays web-only.
+- The eight-step cap still applies; the journeys were sized to fit it.
+- Limitations listed at the end of `verifier-fixes.md` (no-op edits bump revisions, archived sheets not refused by calibrate/trace, IFC/PDF non-deterministic bytes, PriceBookPanel needs Reload library, no abort signal into the render call).
+- Backup restore remains unavailable because the product itself does not apply snapshots yet.

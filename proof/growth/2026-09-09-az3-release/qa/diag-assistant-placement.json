@@ -1,0 +1,14 @@
+[
+  ["open", "http://127.0.0.1:8096/"],
+  ["reload"],
+  ["wait", "--fn", "!!document.querySelector('.live-assistant-launcher')"],
+  ["set", "viewport", "1440", "900"],
+  ["eval", "({innerWidth,innerHeight,saved:localStorage.getItem('xray:assistant-panel:v1'),panelOpen:!!document.querySelector('.live-assistant-panel')})"],
+  ["eval", "(()=>{if(!document.querySelector('.live-assistant-panel'))document.querySelector('.live-assistant-launcher').click();return 'Open panel'})()"],
+  ["eval", "(()=>{const el=document.querySelector('.live-assistant');const r=el?.getBoundingClientRect();return {found:!!el,rect:r&&{l:r.left,t:r.top,r:r.right,b:r.bottom,w:r.width,h:r.height},innerWidth,innerHeight,moveHandle:!!document.querySelector('[aria-label=\"Move live assistant\"]'),style:el?.getAttribute('style')}})()"],
+  ["focus", "[aria-label=\"Move live assistant\"]"],
+  ["press", "Home"],
+  ["eval", "(()=>{const el=document.querySelector('.live-assistant');const r=el.getBoundingClientRect();return {after:'Home',rect:{l:r.left,t:r.top,r:r.right,b:r.bottom,w:r.width,h:r.height},innerWidth,innerHeight,active:document.activeElement?.getAttribute('aria-label'),style:el.getAttribute('style'),saved:localStorage.getItem('xray:assistant-panel:v1'),bottomGap:innerHeight-r.bottom}})()"],
+  ["eval", "(async()=>{await new Promise(r=>setTimeout(r,300));const el=document.querySelector('.live-assistant');const r=el.getBoundingClientRect();return {after:'300ms',rect:{l:r.left,t:r.top,r:r.right,b:r.bottom},innerWidth,innerHeight,bottomGap:innerHeight-r.bottom}})()"],
+  ["screenshot", "screenshots/growth/2026-09-09-az3-release/production-assistant-diag-placement.png"]
+]

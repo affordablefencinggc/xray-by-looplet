@@ -1,0 +1,75 @@
+{
+  "id": "2026-09-09-14-az4-release",
+  "title": "Stage 14 — Dans1 build b1117e054a71: the assistant's wireframe and workbench tools verified in production and Windows-native, all gates including graceful shutdown pass",
+  "date": "9 September 2026",
+  "platform": "Frozen Dans1 build (High/16, seven sequential gates, 299 focused tests) · production preview 127.0.0.1:8096 at desktop 1280x800 and tablet 1024x768 · isolated Windows-native executable (WebView2, CDP 9281, not installed) at 2560x1370 · isolated agent-browser profiles · real provider gemini-3.8-flash with the user-authorized key (6 messages in total)",
+  "summary": "The tree carrying the assistant's multi-storey wireframe operations (SC-08), the sheet/takeoff/price-book/backup tools (SC-10) and the harness guardrails (SC-09) was frozen, built on Dans1 and exercised on the production bundle and on the Windows-native executable. All seven build gates passed; the executable, installer and 228 web artifacts are hash-verified and the served bundle carries the build id. Regression journeys for saves, sheets, pricing and the hardened assistant passed on both platforms. Asked in plain words, the assistant drew a three-storey 20 m by 12 m wireframe on both platforms, added and undid a storey, and organised the Redburn sheet register, reported takeoff blockers and price books and stored a verified backup. The native app then closed gracefully on request, so the verified-build pointer moves to b1117e054a71.",
+  "requirements": [
+    {
+      "id": "Assistant wireframe drawing (SC-08)",
+      "status": "Done — production and native verified",
+      "change": "prod-wireframe-desktop/tablet and native-wireframe/-undo exit 0 on build b1117e054a71 (qa/runs.md, verification.md).",
+      "remaining": "Native 3D screenshot framing is a camera default, not a defect; no tablet emulation natively."
+    },
+    {
+      "id": "Assistant workbench tools (SC-10)",
+      "status": "Done — production and native verified",
+      "change": "All eight tool receipts on both platforms; sidecar, Sheets pane, IndexedDB and Backups dialog checked.",
+      "remaining": "Eight-step cap pauses an eight-tool request (product limit)."
+    },
+    {
+      "id": "Release gate incl. native graceful shutdown",
+      "status": "Pass",
+      "change": "native-cleanup.json: gracefulCloseRequested true, forced false, remaining false; LATEST-VERIFIED-BUILD.md → b1117e054a71.",
+      "remaining": "—"
+    }
+  ],
+  "images": [
+    {
+      "file": "screenshots/growth/2026-09-09-az4-release/prod-wireframe-desktop-02-wireframe-3d.png",
+      "caption": "Production build b1117e054a71, desktop 1280x800: one assistant message produced the three-storey hip-roofed wireframe — 12 walls · 0 openings · 3 levels · Saved · revision 2.",
+      "sha256": "64c8a67800aefdf239dc063399447f2cadb5a17cae5928bcf5d6e837e7ae220a",
+      "archivedFile": "screenshots/growth/2026-09-09-14-az4-release/01.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az4-release/prod-workbench-desktop-02-after-assistant.png",
+      "caption": "Production: after one request the Sheets pane shows 12 active and 1 archived sheet with '03 Ground floor plan'; the assistant reports the rename, archive, readiness blockers, price books and the verified backup.",
+      "sha256": "5a78a7528642988e889b0b6bffffd843e63d4d4431fe7d14bdeef10ea078956b",
+      "archivedFile": "screenshots/growth/2026-09-09-14-az4-release/02.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az4-release/native-wireframe-desktop-02-wireframe-3d.png",
+      "caption": "Windows-native executable (2560x1370, not installed): the same wireframe request — 12 walls · 3 levels · revision 2 — with the Level 3 roof selected in the inspector.",
+      "sha256": "a7def5050143371b3464eacf39208eab1a1e0b3bbaaba21d20758d72ac369053",
+      "archivedFile": "screenshots/growth/2026-09-09-14-az4-release/03.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az4-release/native-workbench-desktop-02-after-assistant.png",
+      "caption": "Native: sheet register organised by the assistant — 12 active / 1 archived, 'Ground floor plan' (regression) and 'Level 1 plan' (assistant rename) — with the assistant's blockers, price-book and backup summary.",
+      "sha256": "dae1af67d80456449acce206fd08811fc2de3dca93f5edb18dbd0cf14d850eaa",
+      "archivedFile": "screenshots/growth/2026-09-09-14-az4-release/04.png"
+    },
+    {
+      "file": "screenshots/growth/2026-09-09-az4-release/native-workbench-desktop-03-backups.png",
+      "caption": "Native Backups dialog listing 'Assistant checkpoint' created by capture_project_backup.",
+      "sha256": "e5e57732c03f4a69d14851cbbe2916f26d724cab3c4a8b928ed287b7dfed1c0d",
+      "archivedFile": "screenshots/growth/2026-09-09-14-az4-release/05.png"
+    }
+  ],
+  "commands": [
+    "bash proof/growth/2026-09-09-az4-release/run-pipeline.sh — freeze, transfer, Dans1 build (7 gates exit 0, 299 tests), collect, verify artifacts, build identity (pipeline.log, 06:34–06:40)",
+    "powershell -File start-candidate-preview.ps1 -RunId b1117e054a71 — candidate preview 8096 healthy (candidate-preview.json)",
+    "bash run-production-qa.sh — 15 production scenarios (qa/production-run.log, qa/runs.md)",
+    "node launch-native.mjs b1117e054a71; node configure-native.mjs — isolated native app on CDP 9281, provider in memory only",
+    "bash run-native-qa.sh + native-workbench re-run/continue/verify — 11 native scenarios (qa/native-run.log, qa/runs.md)",
+    "node remote-orchestrator.mjs verify-source b1117e054a71 — drift [] after QA",
+    "powershell -File cleanup-owned.ps1 — native app closed gracefully (forced:false), preview stopped (native-cleanup.json)"
+  ],
+  "logs": [
+    "proof/growth/2026-09-09-az4-release/verification.md",
+    "proof/growth/2026-09-09-az4-release/qa/runs.md",
+    "proof/growth/2026-09-09-az4-release/pipeline.log"
+  ],
+  "sourceIdentity": "feat/architect-cad-engine / baseline 39a50dc7358ae4058d73296ab0c9f338d0df57dd (shared uncommitted tree, frozen at 06:34 as source archive sha256 b1117e054a71…). Executable SHA-256 97efa973a7c7d38fac15f54b60c4d35a3c736d2f845ff6a178f3771709d628a2; installer SHA-256 4ccd520582664966a024af91e3b0aafdf0496125606f73d385938abbb8321a82. Not installed, not committed, not published. Six user-authorized provider messages; no other external calls.",
+  "codeDiff": "No code changes in this stage; it builds and verifies the SC-08/SC-09/SC-10 diffs (proof/growth/2026-09-09-assistant-wireframe/code.diff, proof/growth/2026-09-09-assistant-workbench/code.diff, .claude/settings.json, scripts/guardrails/hook.mjs)."
+}

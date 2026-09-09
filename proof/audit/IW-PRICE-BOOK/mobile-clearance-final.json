@@ -1,0 +1,18 @@
+[
+ ["eval","window.__pricingClearanceReload=true"],
+ ["reload"],
+ ["wait","--load","networkidle"],
+ ["wait","--fn","window.__pricingClearanceReload!==true&&document.querySelector('.workbench')?.dataset.hydrationStatus==='ready'"],
+ ["set","viewport","390","844"],
+ ["find","role","button","click","--name","Cost","--exact"],
+ ["wait","--fn","document.querySelector('.price-books')?.textContent.includes('Priced worksheet (1)')"],
+ ["find","role","button","click","--name","Priced worksheet (1)","--exact"],
+ ["scroll","down","2000","--selector",".workspace-central-content"],
+ ["eval","(()=>{const summary=document.querySelector('.price-book-card summary').getBoundingClientRect(),assistant=document.querySelector('.live-assistant').getBoundingClientRect();if(summary.height<44||summary.bottom>assistant.top)throw Error('Removal summary still overlaps the assistant');return {summary:summary.toJSON(),assistant:assistant.toJSON()};})()"],
+ ["screenshot","screenshots/price-book/mobile-clearance-summary.png"],
+ ["find","text","Remove this priced line","click","--exact"],
+ ["scroll","down","2000","--selector",".workspace-central-content"],
+ ["eval","(()=>{const button=[...document.querySelectorAll('.price-book-card button')].find(b=>b.textContent==='Confirm remove priced line');const rect=button.getBoundingClientRect(),assistant=document.querySelector('.live-assistant').getBoundingClientRect();if(rect.height<44||rect.bottom>assistant.top||rect.top<0)throw Error('Removal confirmation still overlaps assistant');return {button:rect.toJSON(),assistant:assistant.toJSON()};})()"],
+ ["screenshot","screenshots/price-book/mobile-clearance-confirmation.png"],
+ ["errors"]
+]
