@@ -226,3 +226,135 @@ Navigation source commit `6b55950` is local. Build, 110 tests, final browser/Win
 Source checkpoint 844e091 on feat/architect-cad-engine. Both pickers say "Pick your walkthrough starting point" and use clean aligned plans. Solid geometry, real stair/threshold traversal, E/button door operation and a body-mounted CC0 reaching rig are implemented. Original Fly, arrival animation and bottom controls remain verified. Dans1 candidate38a64f0b8c2b: five gates and145tests pass; High/16 CPU policy observed;631source files without drift. Production Source158commands, Architect/tablet/reduced-motion/asset recovery330commands and Windows-native183commands pass (671total). All relevant screenshots inspected. Native retained13sheets,2pricebooks,saved view and unchanged backup review verified; isolatedQAapp closed normally. [Stage09 illustrated proof](proof/growth/2026-09-08-09-walkthrough-polish/index.html).
 
 Full A-Z rows remain PARTIAL: wider model/platform coverage is open. The real ~0.92m unsupported Redburn stair connection remains blocked; inferred door styles are presentation approximations. Instruction overlays partly cover the hand in compact views. No physical tablet, macOS/Linux-native, installation or whole-industry certification claimed. Remote publication remains held by the previously recorded automatic approval rejection; no new push attempted.
+
+
+## Walkthrough publication verified
+
+User approved the four named checkpoints and exact destination. Push succeeded: 93a94a8..1f725b6. Independent git ls-remote confirmed 1f725b6619a3a12a5683c072c1018df26c8a655d on feat/architect-cad-engine at https://github.com/affordablefencinggc/xray-by-looplet.git. This supersedes the earlier publication hold. No merge, installation or unrelated working-file changes. Exact result: proof/growth/2026-09-08-walkthrough-polish/publication-verified.json.
+
+
+### 2026-09-08 Gemini takeover checkpoint — development acceptance
+52 focused tests and typecheck passed. Actual PNG/PDF exports inspected; real MCP drawing, save/reload, undo and playback proof retained. Full release remains open. See [takeover evidence](proof/growth/2026-09-08-gemini-takeover/takeover-report.html) and [exact commands](proof/growth/2026-09-08-gemini-takeover/test-commands.txt). Baseline 1f725b6619a3a12a5683c072c1018df26c8a655d; changed-source hashes and copies in report. No new installed build or full A-Z completion claimed.
+
+
+## 2026-09-08 - MCP/drafting source checkpoint 476f395
+
+Local source checkpoint `476f39511b234fd65050a92a5550a14281277392` records 56 explicit source/test files. Candidate `71f5b012342b` passed seven Dans1 High/16 gates, 219 TypeScript tests, 14 Rust tests, 226 production browser commands and 97 Windows-native commands with inspected visual evidence. [Illustrated report](proof/growth/2026-09-08-assistant-mcp-r4/release-report.html). Native shutdown after the extended QA session remains OPEN; fresh startup-only baseline and candidate close normally. Live provider/search remains unconfigured. No full A-Z, 52-storey, native macOS/Linux or release-promotion claim.
+
+Publication is BLOCKED: automatic approval review rejected uploading the 56 source/test files to the existing GitHub feature branch because destination trust was not established. No upload or bypass occurred. Exact record: `proof/growth/2026-09-08-assistant-mcp-r4/publication-blocked.json`. User approval naming checkpoint476f395 and the exact repository/branch is required.
+
+
+Local evidence checkpoint `39a50dc7358ae4058d73296ab0c9f338d0df57dd` preserves 106 explicit report, test, identity and to-do files for source checkpoint `476f39511b234fd65050a92a5550a14281277392`. Both remain local after the source push was rejected by automatic approval review. No further push or workaround attempted. The clean97-command native retry and unresolved original message-loop process are recorded separately.
+
+
+## MCP candidate publication verified
+
+User explicitly approved source checkpoint `476f395` and evidence checkpoint `39a50dc` for `https://github.com/affordablefencinggc/xray-by-looplet.git`, branch `feat/architect-cad-engine`. Push succeeded; independent `git ls-remote` confirmed remote tip `39a50dc7358ae4058d73296ab0c9f338d0df57dd`. This supersedes the earlier publication hold; original rejection evidence remains preserved. No merge or installation occurred. Shutdown diagnosis and live-provider acceptance remain open. Exact record: `proof/growth/2026-09-08-assistant-mcp-r4/publication-verified.json`.
+
+
+## 2026-09-08 - 10-minute idle cleanup rule applied
+
+User authorized termination of unused agent-owned X-Ray processes within10minutes. Rule saved in AGENTS.project.md: immediate cleanup at completion,10-minute maximum idle reuse, verified PID/creation/command, bounded graceful close then termination, preserve active user preview and all data. This is an agent operating rule, not an installed scheduler.
+
+Executed cleanup: nine local processes stopped (one lingering test app, six completed test helpers, two superseded SSH tunnels); followup verification found none remaining. Twelve superseded Dans1 previews stopped; only currentcandidate71f5b012342b preview and its wrappers remain. Local8080development and8095currentpreview retained. The old native shutdown issue remains unresolved; terminating the test process is cleanup, not a product bug fix. Evidence: proof/growth/2026-09-08-process-cleanup/.
+
+## 2026-09-08 - Assistant Stop/retry receipt correction
+
+Verified bounded unit on `feat/architect-cad-engine`: Stop or a project change between tool calls now preserves completed receipts and records each skipped call as not executed. Two regressions reproduced before the fix. Local focused tests: 36 passed; typecheck and scoped diff check passed. Snapshot 591a4b8b5452 passed all seven sequential Dans1 High/16 gates (221 TypeScript and 14 Rust tests); production desktop/tablet and native assistant checks passed (14 and 11 commands), screenshots inspected.
+
+No release promotion or source publication. Concurrent MagicPencilDraftsman.ts edits triggered the current-source drift gate and remain preserved. Live Gemini, broader assistant requirements and native shutdown diagnosis remain open. Code diff, execution logs, artifact identity and screenshots: [continuation report](proof/growth/2026-09-08-assistant-stop-receipts/README.md).
+
+## 2026-09-08 - Live Gemini configured and verified
+
+On `feat/architect-cad-engine`, used the user-authorized clipboard key (matching existing .env.local) to configure the current native app in memory. Real native and web backend replies/searches passed, followed by native and development-web UI chat and MCP web_search journeys with returned sources and zero chat/browser errors. No application-source edit, build, promotion or publication. Image/cancellation and broader assistant acceptance remain open. Evidence: [live Gemini report](proof/growth/2026-09-08-gemini-live/README.md). Credentials are absent from logs and command-line arguments; existing user-facing apps retained, QA helpers closed.
+
+## 2026-09-08 - Cinematic pencil choreography
+
+Verified bounded animation slice on feat/architect-cad-engine: five near-vertical pencils, 0.2-second scribble beats at 1x, irregular curved transfers rising around sampled wire edges, metallic details and fading trails. No dependency added. Existing reveal behavior and concurrent edits preserved.
+
+Snapshot 0fa105ba7599 passed seven sequential Dans1 High/16 gates: 223 TypeScript and 14 Rust tests, typecheck, web and Windows builds. Six local focused tests passed. Development/production desktop and tablet plus Windows-native motion checks passed, screenshots inspected. Production canvas video recorded. Task-owned QA sessions and preview cleaned up; native test process required bounded termination after close, so no native shutdown fix is claimed. Existing user apps preserved. No publication, installation or promotion. Broader assistant epic remains open.
+
+[Video and verification](proof/growth/2026-09-08-cinematic-pencils/README.md).
+
+## 2026-09-08 - Ring overflow and pencil flutter verified
+
+Fixed a reproduced polygon-clipping enclosing-ring recursion for six overlapping return walls by canonicalizing boolean inputs at existing 0.001 mm editor precision. Saved geometry unchanged. Added bounded flutter at pencil departure/arrival. Local 21 geometry and seven motion/controller tests pass; typecheck passes. Snapshot 925531795d82 passed seven Dans1 High/16 gates (224 selected TypeScript tests, 14 Rust tests). Local Fast CDP crash and desktop/tablet motion checks, production motion and Windows-native fixture/motion checks passed; screenshots inspected. Original user drawing reopened in the fixed same-origin preview, six walls and zero errors. No installation or publication. See proof/growth/2026-09-08-ring-overflow/README.md.
+
+## 2026-09-08 - Independent pencil timing accepted
+
+Five distinct cycle lengths and wider offsets keep the pencils out of lockstep; different orbital rates and per-transfer sideways feints add irregular movement. Local-first Fast CDP desktop/tablet motion and Windows-native/production motion passed with inspected screenshots. Eight local focused tests and typecheck passed. Snapshot 20dcf423e6dd passed all seven sequential Dans1 High/16 gates (225 selected TypeScript and 14 Rust tests); artifact hashes and final source drift verified. User preview replaced on the same origin and Magic Pencil played in the existing Chrome tab. QA helpers/native test app closed; user preview and local development retained. No installation or publication. Evidence: proof/growth/2026-09-08-pencil-independent/README.md.
+
+
+## 2026-09-08 - One-floor construction studio accepted
+
+Bounded one-floor unit complete on feat/architect-cad-engine, source snapshot 8de25142183515a5083915793e615e388703d3b02a79d9ba65369f0cf07e915c (shared uncommitted tree). 416 illustrative components across nine stages. Five vintage graphite pencils and fifty matching-colour pencils deposit persistent real edges/hatching in independent 0.1-second bursts. Existing viewer palette/weather controls wired. Local-first Fast CDP, production 3.61s and native 4.65s acceptance, inspected desktop/tablet/native screenshots, 229 selected TypeScript and 14 Rust tests; seven build gates and source/artifact identity pass. User preview opened; owned test apps/helpers closed. Evidence and code diff: proof/growth/2026-09-08-one-floor/README.md. No installation, commit, deployment or whole-tower/Dubai accuracy claim.
+
+
+## 2026-09-08 - Live assistant layout and floor correction accepted
+
+Requirement: ASSISTANT-MCP conversational UI and user-directed one-floor correction. Compact bottom-left draggable/resizable assistant, lower +/Send composer, image drop/paste, reference library/style briefs, Skills, Help, voice/settings and New chat. Floor sequence corrected: under-slab services, reinforcement/concrete, framing, wall services, insulation, linings/finishes; real slab penetrations and reinforcement clearance. Final snapshot a570fcaf7e77b2e91cebc70566c16be02536b552a37ce08efbe5a48705001687. 233 TypeScript +14 Rust tests; local-first Fast CDP, final production and Windows UI checks and live Gemini image replies passed. Proof/diff: proof/growth/2026-09-08-assistant-layout/README.md. User preview opened; owned QA processes closed. Native shutdown still required bounded termination. Independent sheet/recovery edits after packaging were preserved and excluded from artifact acceptance. No verified takeoff/engineering claim, installation, deployment or commit.
+
+
+## 2026-09-08 - A-Z wave 3: protected project saves, source-sheet lifecycle acceptance, bounded Firecrawl contract
+
+Three disjoint slices on feat/architect-cad-engine (ledger AZ-WAVE3-LEDGER.md, entries in walkthrough.md), implemented by parallel agents and each checked by three independent refuters with one repair round. Development-server proof only; no build, installation, commit or publication.
+
+- B-12/B-13/B-02 partial: the main project record refuses stale writes (compare-and-swap), pauses on another window's newer revision with reload/download actions, and survives injected quota failures with retry. 49 focused tests; same-window, two-tab and tablet Fast CDP scenarios with inspected screenshots. proof/growth/2026-09-08-az3-protected-saves/README.md.
+- D-02/D-04/D-05 partial (verified in development for source sheets): rename keeps evidence references; the archive review now also lists saved views; recover restores slot, locked scale and a real annotation byte-identically. Redburn fixture SHA b57956f7…45ad38, 37 focused tests, desktop and tablet screenshots. proof/growth/2026-09-08-az3-sheets/README.md.
+- P-01/P-02/P-09/P-10 partial, live credential dependency-blocked: server-only Firecrawl v2 search contract with strict response validation, truthful typed failures, single-flight and caps; Cost-pane panel proven in its not-configured state with a seeded price book unchanged across a failure. 27 tests. No live request. proof/growth/2026-09-08-az3-pricing-research/README.md.
+
+Integrated gate on the combined tree: focused suite exit 0 (see proof/growth/2026-09-08-az3-wave/tests-integrated-final.log), typecheck exit 0, git diff --check clean; scope manifest proof/growth/2026-09-08-az3-wave/source-manifest.json. All owned browser sessions closed. No full-application acceptance, Dans1 build, or Burj Khalifa research/model claim.
+
+
+## 2026-09-08 - Live assistant right-side restoration and hardening
+
+User-authorized assistant slice on feat/architect-cad-engine. Restored right-side default and silver/white palette while retaining drag/resize and references. Added eight evidence-aware workflows, matching web/native operating instructions, a fail-closed tool allowlist, per-message edit/save permission, duplicate call-ID protection and a 24-tool budget. Fixed Stop changing into Submit and resubmitting a cancelled message.
+
+Proof: [assistant hardening report](proof/growth/2026-09-08-assistant-hardening/README.md), [exact task diff](proof/growth/2026-09-08-assistant-hardening/code.diff), [desktop](screenshots/growth/assistant-hardened-production-desktop.png), [tablet](screenshots/growth/assistant-hardened-production-tablet.png), [Windows](screenshots/growth/assistant-hardened-native.png). Frozen build 72804bfa9fac passed 251 selected TypeScript tests, 14 Rust tests, typecheck, web/Windows builds, development/production Fast CDP guards and Windows UI checks. All 13 assistant files match the frozen artifact. Five later pricing-research edits by the other chat are preserved and excluded from this artifact acceptance; no pricing/sheet/recovery checklist rows are promoted here.
+
+No verified quantity, construction/compliance or quote claim; no installation, publication, commit or push. Provider adversarial scenarios used labelled deterministic fixtures with real workspace tools, not live model certification. Native QA app closed gracefully; task browsers and remote preview cleaned up; existing user previews retained. Recovery details, commands, manifests and limitations are in the report.
+
+
+## 2026-09-09 - Dans1 build 5dfc922f097f: production and Windows-native QA passed; promotion held on native shutdown
+
+Wave-3 tree frozen and built on Dans1 (seven gates exit 0, 287 focused tests, executable SHA-256 2ff012d231570bcbc4e4263334712326e1565acc3f1f1190cdaa99a8711b3b69, 214/214 web artifacts verified). Production preview journeys (saves, sheets, pricing, hardened assistant, live image reply) and isolated Windows-native journeys passed with inspected screenshots; the native two-tab stale notice is a WebView2/CDP platform limitation; two stale assistant-layout scenarios superseded, none edited. Verification lenses re-run by command after a chat restart: not refuted. The native app did not close gracefully within 5 s after the extended QA workload and was force-stopped, so LATEST-VERIFIED-BUILD.md is unchanged and no preview was replaced. Also completed in development (post-freeze, not in this build): the Magic Pencil control dock shrank 335→95 px and became draggable (walkthrough entry MP-DOCK-01). Evidence: proof/growth/2026-09-09-az3-release/ (qa/, verification.md, native-cleanup.json), proof/growth/2026-09-09-draftsman-dock/, report proof/growth/2026-09-09-11-az3-release/index.html. No commit, push, installation or publication.
+
+
+## 2026-09-09 - Assistant draws multi-storey wireframes; repo skills enforced as harness guardrails
+
+SC-08 (partial, development verified): `draw_architect_elements` now accepts level, slab, roof, footprint and extrude operations, and two permission-free read tools describe X-Ray's structure and the source-building reconstruction. Asked in plain words for a 3-storey 20 m by 12 m wireframe, the real provider issued one extrude call producing 3 levels, 12 walls, 3 slabs and a hip roof (saved revision 2, restored after reload); a second message added a storey and undid it through the undo tool (revision 4). 56/56 focused tests, typecheck exit 0, five inspected screenshots (desktop and tablet). SC-09 (done): `.claude/settings.json` hooks + `scripts/guardrails/hook.mjs` deny whole-tree staging, gate git history mutations on a named checkpoint, gate process kills on an identity-checked cleanup script, guard `LATEST-VERIFIED-BUILD.md`, inject the skill rules at session start and block proof-less completion claims; observed firing live. Evidence: proof/growth/2026-09-09-assistant-wireframe/README.md, proof/growth/2026-09-09-guardrails/README.md, report proof/growth/2026-09-09-12-assistant-wireframe/index.html. Not done: Dans1 build/production/native runs of the wireframe journeys. No commit, push or installation.
+
+
+## 2026-09-09 - Assistant workbench tools: sheets, takeoff evidence, price books, backups
+
+SC-10 (partial, development verified): five assistant tools — read/manage source sheets (rename, archive, recover through the Sheets pane's own sidecar), read takeoff evidence and readiness blockers, read price books, capture a verified workspace backup — with 65/65 focused tests and typecheck exit 0. With the Redburn set imported, one real-provider request renamed page 3, archived page 12, reported blockers and price books and stored a 9.3 MB verified backup; the Sheets list live-updated and the Backups dialog shows the checkpoint (three inspected screenshots). The existing eight-step conversation cap paused the reply after the eighth tool; a continue message finished it. Evidence: proof/growth/2026-09-09-assistant-workbench/README.md, report proof/growth/2026-09-09-13-assistant-workbench/index.html. Not done: Dans1 build/production/native runs; trace, calibration, quote, export and restore actions stay unavailable by design. No commit, push or installation.
+
+
+## 2026-09-09 - Release build b1117e054a71 verified; assistant wireframe and workbench tools in production and native; pointer moved
+
+SC-11 (done): Dans1 build b1117e054a71 passed all seven gates (299 focused tests); 26 production and Windows-native scenario runs (519 commands) verified the az3 regressions plus the assistant's multi-storey wireframe (draw, undo, reload) and workbench journeys (rename/archive sheets, takeoff blockers, price books, verified backup) on both platforms with the real provider; the native app closed gracefully, so LATEST-VERIFIED-BUILD.md now points at b1117e054a71 (exe SHA-256 97efa973a7c7d38fac15f54b60c4d35a3c736d2f845ff6a178f3771709d628a2). SC-08 and SC-10 are therefore done. Evidence: proof/growth/2026-09-09-az4-release/verification.md and qa/runs.md; report proof/growth/2026-09-09-14-az4-release/index.html. Not installed, not committed, not published.
+
+
+## 2026-09-09 - Assistant unlock: design edits, takeoff calibration/trace/review, price-book import, exports, AI render
+
+SC-12 (done, development verified): eight new assistant tools built by a 20-agent workflow with adversarial verification (every major finding fixed), 153/153 tests, typecheck exit 0. Five real-provider journeys on the user's dev server passed every assertion: design edited by ID and renamed; Redburn page 2 calibrated, traced (5.000 m) and approved for a named reviewer with the assistant stamp; a pasted CSV imported as a provenance-marked price book; DXF/IFC exported with sha256 receipts; and "generate a real life view of this plan" produced a gemini-2.5-flash-image visualisation on the Render pane. Evidence: proof/growth/2026-09-09-assistant-unlock/README.md, verifier-fixes.md; report proof/growth/2026-09-09-15-assistant-unlock/index.html. Not done: Dans1 build/production/native runs. No commit, push or installation.
+
+
+## 2026-09-09 - Release build 8e14ac427997 verified; assistant unlock in production and native; pointer moved
+
+SC-13 (done): Dans1 build 8e14ac427997 passed all seven gates (358 focused tests); 40 production and Windows-native scenario runs (765 commands) verified the regressions, the wireframe and workbench journeys, and the five unlock journeys (design edits by ID, takeoff calibration/trace/approval, price-book import, DXF/IFC exports with hash receipts, AI real-life view on the web with a clean native refusal). Native graceful shutdown passed; LATEST-VERIFIED-BUILD.md now points at 8e14ac427997. Evidence: proof/growth/2026-09-09-az5-release/verification.md, qa/runs.md, report proof/growth/2026-09-09-16-az5-release/index.html.
+
+
+
+## 2026-09-09 - Assistant surface: rail mode, canvas right-click AI menu, context guard with continue-in-new-chat, rich replies; sketch-to-design showcase
+
+SC-14, SC-15, SC-16 (done, development verified): a bot button docks the Live assistant into the right-hand menu (persisted, tablet + desktop); right-click on any canvas offers AI actions and puts an exact entity/part reference into the chat (the assistant then edited that very wall by ID); a 300k-token context guard (plus the provider caps) stops the chat and carries the work into a new chat with a handover; replies with choices render pills, an inline answer box and suggestions. Three adversarial verifiers, every major fixed; 85/85 tests, typecheck exit 0; desktop and tablet Fast CDP journeys exit 0. SC-17 (done, development verified): from a client sketch the assistant designed "Riverside Lab & Workshop" — four levels, 66 walls, 31 doors, 60 windows, 33 room tags, 4 slabs, skillion roof — survived the context guard mid-session, rendered a real-life view and exported DXF/IFC with hash receipts. Evidence: proof/growth/2026-09-09-assistant-surface/README.md, verifier-fixes.md.
+
+
+- [x] WR-01 Structured Live assistant workflow routing (development acceptance, 2026-09-10): versioned routes, preflight/revision gates, final-answer correction, durable receipts; 990 regression tests and two real Gemini turns verified. Proof: proof/growth/structured-routing/verification.md. Procedural geometry and native/production acceptance remain separate.
+
+- [x] CS-01 (development): clear sent composer immediately on user-entry acceptance. Live Edge Enter/Send/Stop proof and typecheck/lint clean; see proof/growth/composer-immediate-send/verification.md. Packaged app not rebuilt.
+
+- [x] CP-01 desktop development: compact uniform assistant pills; all 10 visible controls measured 28px high/11px text. See proof/growth/compact-assistant-pills/verification.md. No packaged-build or tablet acceptance claim.
+
+- [x] Assistant work-packet history control: compact vertically sectioned square, project topics/date/recorded tokens, expandable records, Escape with focus return. Live Edge proof and 22 focused passing tests: proof/growth/assistant-task-history/verification.md. Older token counts unavailable; native binary not rebuilt.

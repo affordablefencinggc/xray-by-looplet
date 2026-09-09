@@ -9,7 +9,7 @@ Preserve the current arrival animation, free Fly, top settings and five bottom c
 - [x] SC-02: Door interactions and body reach accepted within tested scope: actual swing/slide/lift, body safety and occlusion; E/button/reduced-motion/missing-arm recovery verified. Compact-view hand occlusion remains disclosed polish.
 - [x] SC-03: Complete development and final production journeys pass: Source158, Architect126, real thresholds/stairs, invalid starts, Fly and original controls. Native183 complete pass includes retained working data in the isolated QA profile.
 - [x] SC-04: Dans1 five build gates/145tests, production/tablet/Windows-native checks, frozen source/artifact identity and inspected Stage09 HTML/PNG accepted. Whole A-Z rows remain partial.
-- [ ] SC-05: Local source checkpoint844e091 saved; separate evidence archive complete. Publication remains held until exact payload/destination approval resolves the previous automatic-review rejection.
+- [x] SC-05: Four approved local checkpoints published to the specified GitHub branch; remote tip independently verified as 1f725b6. See proof/growth/2026-09-08-walkthrough-polish/publication-verified.json.
 
 Known model limitation: Redburn has an approximately 0.92 m unsupported connection beyond the upper stair, so walking correctly stops at the edge. No floor was invented. Door directions inferred from source geometry/labels are visualization assumptions, not construction details. A–Z R-02 remains partial pending wider coverage.
 
@@ -36,3 +36,8 @@ Current freeze: 21 source files, scope `420a03c0d9916921e895bed85e855c5df14dda46
 Source checkpoint 844e091 on feat/architect-cad-engine. Both pickers say "Pick your walkthrough starting point" and use clean aligned plans. Solid geometry, real stair/threshold traversal, E/button door operation and a body-mounted CC0 reaching rig are implemented. Original Fly, arrival animation and bottom controls remain verified. Dans1 candidate38a64f0b8c2b: five gates and145tests pass; High/16 CPU policy observed;631source files without drift. Production Source158commands, Architect/tablet/reduced-motion/asset recovery330commands and Windows-native183commands pass (671total). All relevant screenshots inspected. Native retained13sheets,2pricebooks,saved view and unchanged backup review verified; isolatedQAapp closed normally. [Stage09 illustrated proof](proof/growth/2026-09-08-09-walkthrough-polish/index.html).
 
 Full A-Z rows remain PARTIAL: wider model/platform coverage is open. The real ~0.92m unsupported Redburn stair connection remains blocked; inferred door styles are presentation approximations. Instruction overlays partly cover the hand in compact views. No physical tablet, macOS/Linux-native, installation or whole-industry certification claimed. Remote publication remains held by the previously recorded automatic approval rejection; no new push attempted.
+
+
+## Walkthrough publication verified
+
+User approved the four named checkpoints and exact destination. Push succeeded: 93a94a8..1f725b6. Independent git ls-remote confirmed 1f725b6619a3a12a5683c072c1018df26c8a655d on feat/architect-cad-engine at https://github.com/affordablefencinggc/xray-by-looplet.git. This supersedes the earlier publication hold. No merge, installation or unrelated working-file changes. Exact result: proof/growth/2026-09-08-walkthrough-polish/publication-verified.json.
