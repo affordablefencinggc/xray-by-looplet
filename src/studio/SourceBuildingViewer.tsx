@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Box, Download, Expand, Layers, MousePointer2, Pencil, ScanLine, X, ZoomIn, ZoomOut } from "lucide-react";
@@ -16,6 +17,7 @@ import {
 import "./sourceBuilding.css";
 import { createModelScope, type ModelScopeOptions } from "./ModelScope";
 import { BuildingVisualSettings } from "./BuildingVisualSettings";
+import { createBuildingEnvironment } from "./BuildingEnvironment";
 import { createFirstPersonNavigation } from "./FirstPersonNavigation";
 import { WalkStartDialog, type WalkStart } from "./WalkStartDialog";
 import type { NavigationMode } from "./navigationMovement";
@@ -27,6 +29,7 @@ import { createFirstPersonArm } from "./FirstPersonArm";
 import { publishModelView } from "./modelViewSnapshot";
 import {
   DEFAULT_APPEARANCE,
+  MODEL_PALETTES,
   loadAppearance,
   saveAppearance,
   type BuildingAppearance,
@@ -68,6 +71,9 @@ type SceneApi = {
   draftsmanJumpToStorey: (storey: number | string) => void;
   draftsmanCaptureBlueprint: (filename?: string) => unknown;
   draftsmanCapturePlanBook: () => Promise<void>;
+  draftsmanSetPencilScale: (scale: number) => void;
+  draftsmanSetPencilColor: (color: string) => void;
+  draftsmanSetDockPosition: (pos: "bottom-left" | "bottom-center") => void;
   getDraftsmanStatus: () => DraftsmanStatus | null;
   dispose: () => void;
 };
@@ -99,10 +105,16 @@ function createBuildingScene(
   renderer.localClippingEnabled = true;
   renderer.domElement.setAttribute("aria-label", "Interactive source building model");
   renderer.domElement.setAttribute("role", "img");
-  renderer.domElement.dataset.sourceSha256 = model.source.sha256;
+  // [SC-21 designed model] begin: a designed scene has no source drawing, so it reports no source identity.
+  const designedScene = binding.documentId === "designed";
+  if (designedScene) delete renderer.domElement.dataset.sourceSha256;
+  else renderer.domElement.dataset.sourceSha256 = model.source.sha256;
+  // [SC-21 designed model] end
+  renderer.domElement.dataset.sceneSha256 = binding.sceneSha256;
   renderer.domElement.dataset.meshCount = String(model.objects.length);
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  const environment = createBuildingEnvironment(scene);
   scene.background = new THREE.Color("#e5e5df");
   const bounds = new THREE.Box3(
       new THREE.Vector3(...model.bounds.min),
@@ -163,7 +175,7 @@ function createBuildingScene(
         projectionMatrix: camera.projectionMatrix.toArray(),
       },
     });
-    if (changing || doorChanging || draftsmanChanging) invalidate();
+    if (environment.tick() || changing || doorChanging || draftsmanChanging) invalidate();
   };
   const invalidate = () => {
     if (!disposed && !frame) frame = requestAnimationFrame(render);
@@ -251,6 +263,7 @@ function createBuildingScene(
         side: THREE.DoubleSide,
       });
       materials.set(key, material);
+      material.userData.sourceAppearance = { color: material.color.clone(), metalness: material.metalness, roughness: material.roughness };
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(part.positions, 3));
@@ -480,7 +493,20 @@ function createBuildingScene(
       invalidate();
     },
     appearance(value) {
-      scene.background = new THREE.Color(value.background);
+      environment.set(value);
+      const palette = MODEL_PALETTES.find(p => p.id === value.modelPalette);
+      for (const material of materials.values()) {
+        const source = material.userData.sourceAppearance;
+        if (value.modelPalette === "source") {
+          material.color.copy(source.color);
+          material.metalness = source.metalness;
+          material.roughness = source.roughness;
+        } else {
+          material.color.set(value.modelColor);
+          material.metalness = palette?.metalness ?? 0;
+          material.roughness = 0.65;
+        }
+      }
       groundMaterial.color.set(value.background);
       for (const material of [wireMaterial, clippedWireMaterial]) {
         material.color.set(value.wire);
@@ -647,10 +673,23 @@ function createBuildingScene(
       const book = draftsman.capturePlanBook();
       await book.downloadPdf();
     },
+    draftsmanSetPencilScale(scale: number) {
+      draftsman?.setPencilScale(scale);
+      invalidate();
+    },
+    draftsmanSetPencilColor(color: string) {
+      draftsman?.setPencilColor(color);
+      invalidate();
+    },
+    draftsmanSetDockPosition(pos: "bottom-left" | "bottom-center") {
+      draftsman?.setDockPosition(pos);
+      invalidate();
+    },
     getDraftsmanStatus() {
       return draftsman?.getStatus() ?? null;
     },
     dispose() {
+      environment.dispose();
       disposed = true;
       if (draftsman) {
         draftsman.dispose();
@@ -756,6 +795,10 @@ export function SourceBuildingViewer() {
   }, [binary, options]);
   const [chosen, setChosen] = useState<string>(BUILDING_CATALOG[0].id);
   const config = BUILDING_CATALOG.find((c) => c.id === chosen)!;
+  // [SC-21 designed model] begin
+  const designedBuilding = useStudio((s) => s.designedBuilding), designed = designedBuilding !== null,
+    modelTitle = designed ? "Designed model" : config.title;
+  // [SC-21 designed model] end
   const [verifiedBytes, setVerifiedBytes] = useState<Uint8Array | null>(null);
   const [draftsmanActive, setDraftsmanActive] = useState(false);
   const [draftsmanStatus, setDraftsmanStatus] = useState<DraftsmanStatus | null>(null);
@@ -800,6 +843,10 @@ export function SourceBuildingViewer() {
     setModel(null);
     setMatched(false);
     setError(null);
+    // [SC-21 designed model] begin: a mounted designed scene replaces the catalog fetch and its SHA gate.
+    setDraftsmanActive(false); setDraftsmanStatus(null);
+    if (designedBuilding) { setModel(designedBuilding); setSceneDigest(designedBuilding.source.sha256); return; }
+    // [SC-21 designed model] end
     void fetchBuildingBytes(config.sceneUrl, 20 * 1024 * 1024, abort.signal)
       .then(async (bytes) => {
         const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes).buffer);
@@ -818,7 +865,7 @@ export function SourceBuildingViewer() {
         if (!abort.signal.aborted) setError(e instanceof Error ? e.message : String(e));
       });
     return () => abort.abort();
-  }, [config]);
+  }, [config, designedBuilding]); // [SC-21 designed model]
   useEffect(() => {
     let active = true;
     setMatched(false);
@@ -848,7 +895,7 @@ export function SourceBuildingViewer() {
     };
   }, [model, binary]);
   useEffect(() => {
-    if (!model || (!matched && !previewMode) || !host.current || !sceneDigest) return;
+    if (!model || (!matched && !previewMode && !designed) || !host.current || !sceneDigest) return; // [SC-21 designed model]
     try {
       api.current = createBuildingScene(
         host.current,
@@ -856,7 +903,7 @@ export function SourceBuildingViewer() {
         setSelected,
         setError,
         (zoom) => setScopeOptions((value) => ({ ...value, zoom })),
-        { documentId: binary?.documentId ?? config.id, sceneId: config.id, sceneSha256: sceneDigest },
+        designed ? { documentId: "designed", sceneId: "designed", sceneSha256: sceneDigest } : { documentId: binary?.documentId ?? config.id, sceneId: config.id, sceneSha256: sceneDigest }, // [SC-21 designed model]
         setNavigationMode,
         setNavigationCapture,
         setDoorState,
@@ -869,15 +916,17 @@ export function SourceBuildingViewer() {
       api.current?.dispose();
       api.current = null;
     };
-  }, [model, matched, previewMode, binary?.documentId, sceneDigest, config.id]);
-  useEffect(() => api.current?.options(options), [options, matched, previewMode]);
-  useEffect(() => api.current?.appearance(appearance), [appearance, matched, previewMode]);
-  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched, previewMode]);
+  }, [model, matched, previewMode, binary?.documentId, sceneDigest, config.id, designed]); // [SC-21 designed model]
+  // [SC-21 designed model] begin: a designed scene mounts without a match, so re-apply view state per model.
+  useEffect(() => api.current?.options(options), [options, matched, previewMode, model]);
+  useEffect(() => api.current?.appearance(appearance), [appearance, matched, previewMode, model]);
+  useEffect(() => api.current?.scope(scopeOptions), [scopeOptions, matched, previewMode, model]);
+  // [SC-21 designed model] end
 
   useEffect(() => {
     const unregister = registerDraftsmanController({
       control: async (input) => {
-        if (!previewMode && !matched) {
+        if (!previewMode && !matched && !designed) { // [SC-21 designed model]
           throw Error("Open the model preview or its matching source before using drawing playback.");
         }
         if (!api.current) throw Error("The model viewer is not ready. Wait for it to finish loading.");
@@ -947,6 +996,21 @@ export function SourceBuildingViewer() {
             }
             api.current?.draftsmanCaptureBlueprint(input.filename);
             break;
+          case "set_pencil_scale":
+            if (input.pencilScale !== undefined) {
+              api.current?.draftsmanSetPencilScale(input.pencilScale);
+            }
+            break;
+          case "set_pencil_color":
+            if (input.pencilColor !== undefined) {
+              api.current?.draftsmanSetPencilColor(input.pencilColor);
+            }
+            break;
+          case "set_dock_position":
+            if (input.dockPosition !== undefined) {
+              api.current?.draftsmanSetDockPosition(input.dockPosition);
+            }
+            break;
           case "status":
             break;
           default:
@@ -957,13 +1021,13 @@ export function SourceBuildingViewer() {
       getStatus: () => api.current?.getDraftsmanStatus() ?? null,
       isActive: () => api.current?.getDraftsmanStatus() != null,
       getModelInfo: () => ({
-        id: config.id,
-        title: config.title,
+        id: designed ? "designed" : config.id, // [SC-21 designed model]
+        title: modelTitle, // [SC-21 designed model]
         meshCount: model?.objects.length ?? 0,
       }),
     });
     return unregister;
-  }, [previewMode, matched, draftsmanActive, config.id, config.title, model?.objects.length]);
+  }, [previewMode, matched, draftsmanActive, config.id, modelTitle, designed, model?.objects.length]); // [SC-21 designed model]
 
 
   useEffect(() => {
@@ -1108,7 +1172,7 @@ export function SourceBuildingViewer() {
       verifiedBytes === binary?.bytes &&
       model.source.sha256 === binary?.sha256 &&
       model.source.sha256 === config.sha256,
-    isDisplayable = (ready || previewMode) && !!model;
+    isDisplayable = (ready || previewMode || designed) && !!model; // [SC-21 designed model]
   useEffect(() => {
     const dock = controlDock.current;
     if (!isDisplayable || !dock) return;
@@ -1136,7 +1200,7 @@ export function SourceBuildingViewer() {
   return (
     <div
       className="source-building"
-      data-model-status={ready ? "ready" : previewMode ? "preview" : checking ? "checking" : model ? "unmatched" : "loading"}
+      data-model-status={ready ? "ready" : designed ? "designed" : previewMode ? "preview" : checking ? "checking" : model ? "unmatched" : "loading"} /* [SC-21 designed model] */
     >
       <div className="building-workspace">
         <nav className="building-left-nav" aria-label="Source sheets and models">
@@ -1185,13 +1249,14 @@ export function SourceBuildingViewer() {
         </nav>
         <div className="building-center-column">
           <div className="building-heading">
+            <Link to="/floor-lab" className="floor-lab-launch">One-floor construction studio ↗</Link>
             <div>
               <span className="building-eyebrow">
-                SOURCE RECONSTRUCTION / {config.title.toUpperCase()}
+                {designed ? "DESIGNED MODEL / INFERRED, NO SOURCE DRAWING" : `SOURCE RECONSTRUCTION / ${config.title.toUpperCase()}`}{/* [SC-21 designed model] */}
               </span>
-              <h1>{ready ? "The drawing, in three dimensions" : `Explore ${config.title}`}</h1>
+              <h1>{ready ? "The drawing, in three dimensions" : designed ? "Your design, in three dimensions" : `Explore ${modelTitle}`}</h1>{/* [SC-21 designed model] */}
             </div>
-            {!ready && (
+            {!ready && !designed && ( /* [SC-21 designed model] */
               <select
                 className="building-scene-picker"
                 aria-label="Prepared building"
@@ -1445,6 +1510,9 @@ export function SourceBuildingViewer() {
                     catch (error) { setError(error instanceof Error ? error.message : "Model sheet export failed."); }
                     finally { setExportingBook(false); }
                   }}
+                  onPencilScale={(scale) => api.current?.draftsmanSetPencilScale(scale)}
+                  onPencilColor={(color) => api.current?.draftsmanSetPencilColor(color)}
+                  onDockPositionChange={(pos) => api.current?.draftsmanSetDockPosition(pos)}
                 />
               )}
             </>

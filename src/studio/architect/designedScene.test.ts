@@ -1,0 +1,137 @@
+import { test } from "node:test";
+import { surfaceMaterialKey } from './surfaceAppearance.ts';
+import assert from "node:assert/strict";
+
+test('explicit landscape materials render distinctly without changing geometry or evidence', () => {
+  const p = emptyProject('landscape-materials');
+  for (const [i, material] of ['Water', 'Planting', 'Concrete', 'Waterproof membrane'].entries()) {
+    p.slabs.push({ id: `surface-${i}`, revision: 1, levelId: p.levels[0].id, name: material, material, points: [[i*2000,0],[i*2000+1000,0],[i*2000+1000,1000],[i*2000,1000]], offset: 0, thickness: 200 });
+  }
+  const before = JSON.stringify(p), scene = buildDesignedScene(p);
+  assert.deepEqual(scene.objects.filter(o => o.category === 'slab').map(o => o.material), ['water', 'planting', 'slab', 'slab']);
+  assert.notEqual(scene.materials.water.color, scene.materials.planting.color);
+  assert.ok(scene.objects.every(o => o.evidenceState === 'inferred'));
+  assert.equal(JSON.stringify(p), before);
+  assert.equal(surfaceMaterialKey('  WATER  '), 'water');
+});
+import { createHash } from "node:crypto";
+import { demonstration, emptyProject, newWall, validateProject, type ArchitectProject, type Point } from "./model.ts";
+import { BUILDING_CATALOG, parseSourceBuilding, type SourceBuilding } from "../sourceBuilding.ts";
+import { DESIGNED_MATERIALS, DESIGNED_SCENE_ID, buildDesignedScene, sha256Hex } from "./designedScene.ts";
+
+const footprint: Point[] = [[0, 0], [8000, 0], [8000, 5000], [0, 5000]];
+/** One level, four walls, a door, a window, a slab and a hip roof: the smallest complete designed house. */
+function house(id = "job"): ArchitectProject {
+  const p = emptyProject(id), l = p.levels[0].id;
+  for (let i = 0; i < 4; i++) p.walls.push(newWall(p, l, footprint[i], footprint[(i + 1) % 4]));
+  p.openings.push(
+    { id: "door-1", revision: 1, wallId: p.walls[0].id, tag: "D01", kind: "door", offset: 2000, width: 900, height: 2100, sill: 0, hinge: "left", swing: "in" },
+    { id: "window-1", revision: 1, wallId: p.walls[1].id, tag: "W01", kind: "window", offset: 2500, width: 1800, height: 1200, sill: 900, hinge: "right", swing: "out" },
+  );
+  p.slabs.push({ id: "slab-1", revision: 1, levelId: l, name: "Ground slab", points: footprint, thickness: 150, offset: 0, material: "Concrete" });
+  p.roofs.push({ id: "roof-1", revision: 1, levelId: l, name: "Hip roof", points: footprint, offset: 2700, eaves: 450, fasciaHeight: 140, fasciaThickness: 20, gutterEnabled: true, gutterWidth: 125, gutterDepth: 90, gutterThickness: 1.2, edges: footprint.map(() => ({ pitch: 22.5, gable: false })) });
+  p.roomTags.push({ id: "room-1", revision: 1, levelId: l, point: [4000, 2500], name: "LIVING" });
+  return validateProject(p);
+}
+const inside = (scene: SourceBuilding) => scene.objects.every(part => part.positions.every((v, i) => v >= scene.bounds.min[i % 3] && v <= scene.bounds.max[i % 3]));
+const extent = (part: SourceBuilding["objects"][number], axis: number) => {
+  const values = part.positions.filter((_, i) => i % 3 === axis);
+  return [Math.min(...values), Math.max(...values)];
+};
+
+test("synchronous sha256 matches node:crypto across block and padding boundaries", () => {
+  for (const text of ["", "abc", "a".repeat(55), "a".repeat(56), "a".repeat(63), "a".repeat(64), "a".repeat(120), "xray.designed/job/1", "ünïcode ✓ 日本"])
+    assert.equal(sha256Hex(text), createHash("sha256").update(text).digest("hex"));
+});
+
+test("an empty design is refused; a designed house becomes a valid, fully inferred Model scene", () => {
+  assert.throws(() => buildDesignedScene(emptyProject("job")), /no walls, slabs or roofs/);
+  const p = house(), scene = buildDesignedScene(p);
+  assert.deepEqual(parseSourceBuilding(structuredClone(scene)), scene);
+  assert.equal(scene.summary.objects, scene.objects.length);
+  assert.ok(inside(scene));
+  assert.ok(scene.objects.every(part => part.evidenceState === "inferred" && part.sourceRefs.length === 1 && part.sourceRefs.every(ref => ref.evidenceState === "inferred" && ref.page === 1)));
+  assert.deepEqual([...new Set(scene.objects.map(part => part.category))].sort(), ["door", "roof", "roof-trim", "slab", "wall", "window"]);
+  assert.ok(scene.objects.every(part => Object.hasOwn(DESIGNED_MATERIALS, part.material)));
+  assert.equal(scene.source.sha256, createHash("sha256").update(`xray.designed/${p.id}/${p.revision}`).digest("hex"));
+  assert.ok(BUILDING_CATALOG.every(entry => entry.sha256 !== scene.source.sha256));
+  assert.equal(scene.source.pageCount, 1);
+  assert.deepEqual(scene.sourceSheets.map(sheet => sheet.image), [`/models/${DESIGNED_SCENE_ID}/source-page-1.png`]);
+  assert.deepEqual(scene.storeys, [{ id: p.levels[0].id, label: "Ground", elevation: 0 }]);
+  assert.ok(scene.objects.every(part => part.storey === p.levels[0].id));
+  assert.equal(scene.floorElevations, undefined);
+  assert.deepEqual({ ...scene.summary }, { floors: 1, wallRuns: 4, openings: 2, roofFaces: 4, objects: scene.objects.length, visibleNamedRooms: 1, method: "Designed geometry from the Architectural workspace.", status: "designed" });
+  assert.ok(scene.assumptions.length >= 3 && scene.assumptions.some(line => /no source drawing/i.test(line)));
+});
+
+test("geometry follows the authored design: wall heights, hosted openings, slab and roof levels", () => {
+  const scene = buildDesignedScene(house());
+  const walls = scene.objects.filter(part => part.category === "wall");
+  assert.ok(walls.length >= 4 && walls.every(part => part.level === "ground"));
+  for (const wall of walls) {
+    const [bottom, top] = extent(wall, 1);
+    assert.ok(bottom >= -0.001 && top <= 2.7001, `wall spans ${bottom}..${top}`);
+  }
+  const leaf = scene.objects.find(part => part.id === "door-1")!, frame = scene.objects.find(part => part.id === "door-1-frame")!;
+  assert.equal(leaf.category, "door"); assert.equal(leaf.material, "leaf"); assert.equal(frame.material, "frame");
+  assert.deepEqual(extent(leaf, 1).map(v => Math.round(v * 1000)), [5, 2060]);
+  const glass = scene.objects.find(part => part.id === "window-1")!;
+  assert.equal(glass.material, "glass"); assert.equal(DESIGNED_MATERIALS.glass.opacity, 0.5);
+  assert.deepEqual(extent(glass, 1).map(v => Math.round(v * 1000)), [940, 2060]);
+  const slab = scene.objects.find(part => part.category === "slab")!;
+  assert.deepEqual(extent(slab, 1).map(v => Math.round(v * 1000)), [-150, 0]);
+  const roof = scene.objects.find(part => part.category === "roof")!;
+  assert.equal(roof.level, "roof");
+  // The eaves overhang 450 mm past the wall line, so the faces dip below the 2700 mm roof offset by 450·tan(22.5°), exactly as Architect3D draws them.
+  assert.equal(Math.round(extent(roof, 1)[0] * 1000), Math.round(2700 - 450 * Math.tan(Math.PI / 8)));
+  assert.ok(extent(roof, 1)[1] > 3.5);
+  assert.ok(scene.objects.filter(part => part.category === "roof-trim").every(part => part.level === "roof" && part.indices.length % 3 === 0));
+  assert.ok(scene.objects.every(part => part.indices.every(i => i < part.positions.length / 3)));
+});
+
+test("the scene is deterministic for a project revision and changes identity with the revision or project", () => {
+  const p = house();
+  assert.deepEqual(buildDesignedScene(p), buildDesignedScene(structuredClone(p)));
+  const revised = buildDesignedScene({ ...p, revision: p.revision + 1 });
+  assert.notEqual(revised.source.sha256, buildDesignedScene(p).source.sha256);
+  assert.deepEqual(revised.objects.map(part => part.id), buildDesignedScene(p).objects.map(part => part.id));
+  assert.notEqual(buildDesignedScene({ ...p, id: "other" }).source.sha256, buildDesignedScene(p).source.sha256);
+});
+
+test("upper storeys carry their level identity, floor elevations and the upper level band", () => {
+  const p = house(), upper = { id: "upper-level", name: "First floor", elevation: 3000, height: 2700 };
+  p.levels.push(upper);
+  p.walls.push(newWall(p, upper.id, [0, 0], [8000, 0]));
+  const scene = buildDesignedScene(validateProject(p));
+  assert.deepEqual(scene.storeys?.map(storey => [storey.id, storey.elevation]), [[p.levels[0].id, 0], ["upper-level", 3]]);
+  assert.deepEqual(scene.floorElevations, { ground: 0, upper: 3 });
+  const upperWall = scene.objects.find(part => part.storey === "upper-level")!;
+  assert.equal(upperWall.level, "upper");
+  assert.equal(Math.round(extent(upperWall, 1)[0] * 1000), 3000);
+  assert.ok(scene.objects.filter(part => part.category === "wall" && part.storey !== "upper-level").every(part => part.level === "ground"));
+  assert.ok(inside(scene) && scene.bounds.min[1] <= 0 && scene.bounds.max[1] >= 3);
+});
+
+test("reserved or colliding level identities fall back safely instead of producing an invalid scene", () => {
+  const reserved = house();
+  const original = reserved.levels[0].id;
+  reserved.levels[0].id = "ground";
+  for (const list of [reserved.walls, reserved.slabs, reserved.roofs, reserved.roomTags]) for (const entity of list) entity.levelId = "ground";
+  const renamed = buildDesignedScene(validateProject(reserved));
+  assert.notEqual(renamed.storeys![0].id, original);
+  assert.equal(renamed.storeys![0].id, "designed-level-1");
+  assert.ok(renamed.objects.every(part => part.storey === "designed-level-1"));
+  const colliding = house();
+  colliding.levels.push({ id: "mezzanine", name: "Mezzanine", elevation: 0, height: 2400 });
+  const flat = buildDesignedScene(validateProject(colliding));
+  assert.equal(flat.storeys, undefined);
+  assert.ok(flat.objects.every(part => part.storey === undefined && part.level !== undefined));
+  assert.deepEqual(parseSourceBuilding(structuredClone(flat)), flat);
+});
+
+test("the bundled demonstration design renders as a designed scene", () => {
+  const scene = buildDesignedScene(demonstration("demo"));
+  assert.ok(scene.objects.length > 10 && inside(scene));
+  assert.equal(scene.summary.wallRuns, 5); assert.equal(scene.summary.openings, 3); assert.equal(scene.summary.visibleNamedRooms, 2);
+  assert.equal(scene.source.title, "Courtyard studio / demonstration");
+});

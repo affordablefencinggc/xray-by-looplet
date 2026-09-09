@@ -4,8 +4,10 @@ import { createDefaultJob } from "../domain.ts";
 import type { Pane } from "../store.ts";
 import { emptyProject, demonstration, revise } from "../architect/model.ts";
 import { changeAuthoredSheets } from "../architect/authoredSheetSet.ts";
-import { createAppTools, captureCanvasImage, type AppToolPort } from "./appTools.ts";
+import { createAppTools, captureCanvasImage, readCatalogSourceBuilding, type AppToolPort } from "./appTools.ts";
 import { prepareArchitectElements, registerArchitectController, requestArchitectTool, hasArchitectController } from "./architectBridge.ts";
+import { buildDesignedScene } from "../architect/designedScene.ts";
+import type { SourceBuilding } from "../sourceBuilding.ts";
 
 function fixture() {
   const job = createDefaultJob();
@@ -26,12 +28,17 @@ function fixture() {
 }
 const message = (result: Awaited<ReturnType<ReturnType<typeof fixture>["execute"]>>) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
 
-test("nine SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
+test("SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
   const f = fixture();
   assert.deepEqual(f.tools.map(tool => tool.name), [
-    "read_project_context", "navigate_workspace", "read_architect_design",
+    "read_workflow_route",
+    "read_assistant_file", "read_project_context", "navigate_workspace", "read_work_packet", "read_work_packet_event", "read_architect_design",
     "draw_architect_elements", "undo_architect_change", "capture_workspace_image",
-    "save_project", "control_draftsman", "read_draftsman_status"
+    "save_project", "control_draftsman", "read_draftsman_status",
+    "read_workbench_structure", "read_source_building",
+    "read_source_sheets", "manage_source_sheet", "read_takeoff_evidence", "read_price_books", "capture_project_backup",
+    "edit_architect_elements", "calibrate_source_sheet", "trace_takeoff_run", "review_takeoff_item", "remove_takeoff_trace", "import_price_book", "export_design_file", "generate_render_visualisation",
+    "show_design_in_model", "hide_designed_model",
   ]);
   for (const tool of f.tools) { assert.equal(tool.inputSchema.type, "object"); assert.equal(tool.inputSchema.additionalProperties, false); }
   f.state.hydrationStatus = "error"; f.state.persistenceRecoveryBlocked = true;
@@ -197,4 +204,104 @@ test("draftsman async result is not credited to a switched project",async()=>{
   const f=fixture();f.state.pane="model";const id=f.state.job.id;
   f.port.draftsman=async()=>{f.state.job={...f.state.job,id:"changed"};return {active:true};};
   assert.equal((await f.execute("control_draftsman",{expectedJobId:id,action:"play"})).isError,true);
+});
+
+test("Model mode mounts the design as an inferred designed scene, selects Model and can be hidden again", async () => {
+  const f = fixture(), design = demonstration(f.state.job.id);
+  let mounted: SourceBuilding | null | undefined;
+  f.port.architectAvailable = () => true;
+  f.port.architect = async (action, args) => { f.calls.push({ action, args }); return { ready: true, pendingDraft: false, project: structuredClone(design) }; };
+  f.port.mountDesignedModel = scene => { mounted = scene; };
+  const result = await f.execute("show_design_in_model", { expectedJobId: f.state.job.id, expectedRevision: design.revision });
+  assert.equal(result.isError, undefined, message(result));
+  const receipt = JSON.parse(message(result));
+  assert.equal(receipt.mounted, true); assert.equal(receipt.origin, "designed"); assert.equal(receipt.evidence, "inferred"); assert.equal(receipt.building, "designed");
+  assert.equal(receipt.designRevision, design.revision); assert.equal(receipt.walls, 5); assert.equal(receipt.openings, 3); assert.equal(receipt.storeys, 1);
+  assert.equal(f.state.pane, "model");
+  assert.ok(mounted);
+  assert.equal(mounted.objects.length, receipt.objects);
+  assert.equal(mounted.source.sha256, receipt.sceneSha256);
+  assert.ok(mounted.objects.every(part => part.evidenceState === "inferred" && part.sourceRefs.every(ref => ref.evidenceState === "inferred")));
+  assert.deepEqual(f.calls.map(call => call.action), ["read"]);
+  const summary = await readCatalogSourceBuilding({ expectedJobId: f.state.job.id, building: "designed", category: "wall" }, () => mounted ?? null) as { origin: string; sample: boolean; title: string; matched: number; evidence: { inferred: number; traced: number } };
+  assert.equal(summary.origin, "designed"); assert.equal(summary.sample, false); assert.equal(summary.title, "Designed model");
+  assert.equal(summary.matched, summary.evidence.inferred); assert.equal(summary.evidence.traced, 0);
+  const hidden = await f.execute("hide_designed_model", { expectedJobId: f.state.job.id });
+  assert.equal(hidden.isError, undefined, message(hidden)); assert.equal(mounted, null); assert.equal(JSON.parse(message(hidden)).mounted, false);
+  await assert.rejects(readCatalogSourceBuilding({ expectedJobId: f.state.job.id, building: "designed" }, () => null), /show_design_in_model/);
+  assert.equal(f.state.pane, "model"); assert.equal(f.writes, 0);
+});
+
+for (const displayMode of ['wireframe', 'solid'] as const) {
+  test(`Model display ${displayMode} is reported only after the viewer confirms it`, async () => {
+    const f = fixture(), design = demonstration(f.state.job.id);
+    let mounts = 0;
+    f.port.architectAvailable = () => true;
+    f.port.architect = async () => ({ ready: true, project: design });
+    f.port.mountDesignedModel = () => { mounts++; };
+    const args = { expectedJobId: design.id, expectedRevision: design.revision, displayMode };
+    assert.equal((await f.execute('show_design_in_model', args)).isError, true);
+    assert.equal(mounts, 0);
+    f.port.setModelDisplay = async (projectId, revision, mode) => {
+      assert.equal(projectId, design.id); assert.equal(revision, design.revision); assert.equal(mode, displayMode);
+      assert.equal(f.state.pane, 'model');
+    };
+    const receipt = await f.execute('show_design_in_model', args);
+    assert.equal(receipt.isError, undefined, message(receipt));
+    assert.equal(JSON.parse(message(receipt)).displayMode, displayMode);
+    f.port.setModelDisplay = async () => { throw Error('Viewer confirmation failed'); };
+    assert.equal((await f.execute('show_design_in_model', args)).isError, true);
+    f.port.setModelDisplay = async () => { f.state.job = { ...f.state.job, id: 'other-project' }; };
+    assert.equal((await f.execute('show_design_in_model', args)).isError, true);
+  });
+}
+
+test("Model mode refuses stale revisions, pending work, empty designs, changed projects and sessions without a viewer", async () => {
+  const f = fixture(), design = demonstration(f.state.job.id), args = { expectedJobId: f.state.job.id, expectedRevision: design.revision };
+  let mounted = 0;
+  f.port.architectAvailable = () => true;
+  f.port.architect = async () => ({ ready: true, pendingDraft: false, project: structuredClone(design) });
+  assert.match(message(await f.execute("show_design_in_model", args)), /unavailable/);
+  f.port.mountDesignedModel = () => { mounted++; };
+  assert.match(message(await f.execute("show_design_in_model", { ...args, expectedRevision: design.revision + 1 })), /revision changed/);
+  assert.equal((await f.execute("show_design_in_model", { ...args, extra: true })).isError, true);
+  const getState = f.port.getState;
+  f.port.getState = () => ({ ...f.state, pending: [{ x: 1, y: 2 }] });
+  assert.match(message(await f.execute("show_design_in_model", args)), /pending trace/);
+  f.port.getState = getState;
+  f.port.architect = async () => ({ ready: true, pendingDraft: true, project: structuredClone(design) });
+  assert.match(message(await f.execute("show_design_in_model", args)), /pending draft/);
+  f.port.architect = async () => ({ ready: false, blocked: true, error: "Design recovery is still running", project: structuredClone(design) });
+  assert.match(message(await f.execute("show_design_in_model", args)), /recovery is still running/);
+  f.port.architect = async () => ({ ready: true, pendingDraft: false, project: emptyProject(f.state.job.id) });
+  assert.match(message(await f.execute("show_design_in_model", { expectedJobId: f.state.job.id })), /no walls, slabs or roofs/);
+  const previousId = f.state.job.id;
+  f.port.architect = async () => { f.state.job = createDefaultJob(); return { ready: true, pendingDraft: false, project: structuredClone(design) }; };
+  assert.equal((await f.execute("show_design_in_model", { expectedJobId: previousId, expectedRevision: design.revision })).isError, true);
+  assert.equal(mounted, 0); assert.equal(f.state.pane, "sheets");
+  assert.equal((await f.execute("hide_designed_model", { expectedJobId: previousId })).isError, true);
+  f.state.persistenceRecoveryBlocked = true;
+  assert.equal((await f.execute("hide_designed_model", { expectedJobId: f.state.job.id })).isError, true);
+  assert.equal(f.writes, 0);
+});
+
+test("Model mode opens the Architectural workspace through the existing UI when its controller is not mounted", async () => {
+  const f = fixture(), design = demonstration(f.state.job.id), panes: Pane[] = [];
+  let opened: string | null = null, available = false, mounted: SourceBuilding | null = null;
+  const setPane = f.state.setPane; f.state.setPane = pane => { panes.push(pane); setPane(pane); };
+  f.port.architectAvailable = () => available;
+  f.port.openArchitectWorkspace = async id => { opened = id; available = true; };
+  f.port.architect = async () => { if (!available) throw Error("Open Sketch first"); return { ready: true, pendingDraft: false, project: structuredClone(design) }; };
+  f.port.mountDesignedModel = scene => { mounted = scene; };
+  const result = await f.execute("show_design_in_model", { expectedJobId: f.state.job.id });
+  assert.equal(result.isError, undefined, message(result));
+  assert.equal(opened, f.state.job.id); assert.deepEqual(panes, ["sketch", "model"]); assert.equal(f.state.pane, "model"); assert.ok(mounted);
+  const g = fixture(); g.port.architectAvailable = () => false; g.port.mountDesignedModel = () => {};
+  assert.match(message(await g.execute("show_design_in_model", { expectedJobId: g.state.job.id })), /Architectural workspace/);
+  assert.equal(g.state.pane, "sheets");
+});
+
+test("designed scenes built for Model mode are the same pure geometry the scene builder produces", () => {
+  const design = demonstration("job"), scene = buildDesignedScene(design);
+  assert.equal(scene.summary.status, "designed"); assert.equal(scene.sourceSheets[0].role, "designed");
 });

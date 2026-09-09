@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef } from "react";
 import * as T from "three";
+import { SURFACE_APPEARANCES, surfaceMaterialKey } from './surfaceAppearance';
 import { useState } from "react";
 import { createFirstPersonNavigation } from "../FirstPersonNavigation";
 import type { NavigationMode } from "../navigationMovement";
@@ -167,11 +168,11 @@ export function Architect3D({
       clear();
       const solids: T.Mesh[] = [], supports: T.Mesh[] = [];
       const doorLeaves: Parameters<typeof createWalkDoors>[0]["doors"][number][] = [];
-      const mesh = (g: T.BufferGeometry, id: string, color: string, opacity = 1) => {
+      const mesh = (g: T.BufferGeometry, id: string, color: string, opacity = 1, roughness = 0.7, metalness = opacity < 1 ? 0.1 : 0) => {
         const material = new T.MeshStandardMaterial({
             color: id === s ? "#bd7053" : color,
-            roughness: 0.7,
-            metalness: opacity < 1 ? 0.1 : 0,
+            roughness,
+            metalness,
             opacity,
             transparent: opacity < 1,
             depthWrite: opacity === 1,
@@ -196,7 +197,8 @@ export function Architect3D({
           );
       for (const slab of p.slabs.filter((s) => l === "all" || s.levelId === l)) {
         const elevation = p.levels.find((l) => l.id === slab.levelId)!.elevation + slab.offset;
-        supports.push(mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, "#b5b7b3"));
+        const appearance = SURFACE_APPEARANCES[surfaceMaterialKey(slab.material)];
+        supports.push(mesh(extrude([slab.points], elevation - slab.thickness, elevation), slab.id, appearance.color, appearance.opacity, appearance.roughness, appearance.metalness));
       }
       const beam = (
         a: Point,

@@ -18,7 +18,7 @@ fs.writeFileSync(savedScenario,input,{flag:'wx'});
 const started=performance.now();
 // Real file handles avoid waiting for EOF from inherited daemon output pipes.
 // Use the installed agent-browser binary directly; no shell or alternative browser driver.
-const result=spawnSync(binary,['--session',session,...extra,'batch','--bail'],{input,encoding:'utf8',stdio:['pipe',handle,handle],windowsHide:true,timeout:180000,maxBuffer:2e6});
+const result=spawnSync(binary,['--session',session,...extra,'batch','--bail'],{input,encoding:'utf8',stdio:['pipe',handle,handle],windowsHide:true,timeout:Number(process.env.FAST_CDP_TIMEOUT_MS)||180000,maxBuffer:8e6});
 fs.closeSync(handle);
 const report={session,scenario,savedScenario,scenarioSha256:createHash('sha256').update(input).digest('hex'),commands:commands.length,seconds:(performance.now()-started)/1000,exitCode:result.status,error:result.error?.message??null,log};
 fs.writeFileSync(path.join(directory,id+'.json'),JSON.stringify(report,null,2));

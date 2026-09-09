@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createCinematicPencils, PENCIL_COUNT, SCRIBBLE_SECONDS } from "./cinematicPencils.ts";
 import type { SourceBuilding } from "./sourceBuilding.ts";
 import { createBlueprintSheet, type BlueprintSheetResult, type BlueprintSheetMetadata } from "./blueprintSheet.ts";
 import { createArchitecturalDimensioning, type DimensionData } from "./architecturalDimensioning.ts";
@@ -37,6 +38,9 @@ export interface DraftsmanStatus {
   sectionCut: SectionCutMode;
   dimensionsVisible: boolean;
   dimensions?: DimensionData;
+  pencilScale: number;
+  pencilColor: string;
+  dockPosition: "bottom-left" | "bottom-center";
 }
 
 interface ObjectRecord {
@@ -66,12 +70,18 @@ export interface MagicPencilDraftsmanOptions {
   durationSeconds?: number;
   camera?: THREE.Camera;
   controls?: { target: THREE.Vector3; update: () => void };
+  pencilScale?: number;
+  pencilColor?: string;
+  dockPosition?: "bottom-left" | "bottom-center";
 }
 
 
 export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions) {
   const { scene, model, meshMap, domElement, onStatusChange, invalidate } = options;
   const durationSeconds = options.durationSeconds ?? 14;
+  let pencilScale = options.pencilScale ?? 1.0;
+  let pencilColor = options.pencilColor ?? "#1877F2";
+  let dockPosition: "bottom-left" | "bottom-center" = options.dockPosition ?? "bottom-left";
 
   let mode: DraftsmanMode = "idle";
   let progress = 0;
@@ -240,10 +250,10 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
     gridPositions.push(center.x + gridExtent, gridY, center.z + z);
   }
 
-  const gridGeometry = new THREE.BufferGeometry();
+    const gridGeometry = new THREE.BufferGeometry();
   gridGeometry.setAttribute("position", new THREE.Float32BufferAttribute(gridPositions, 3));
   const gridMaterial = new THREE.LineBasicMaterial({
-    color: "#2a6258",
+    color: "#1b406b",
     transparent: true,
     opacity: 0,
     depthTest: true,
@@ -266,7 +276,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
   const mastGeometry = new THREE.BufferGeometry();
   mastGeometry.setAttribute("position", new THREE.Float32BufferAttribute(mastPositions, 3));
   const mastMaterial = new THREE.LineBasicMaterial({
-    color: "#245048",
+    color: pencilColor,
     transparent: true,
     opacity: 0,
     depthTest: true,
@@ -290,7 +300,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
   const cropGeometry = new THREE.BufferGeometry();
   cropGeometry.setAttribute("position", new THREE.Float32BufferAttribute(cropPositions, 3));
   const cropMaterial = new THREE.LineBasicMaterial({
-    color: "#41766d",
+    color: "#3b82f6",
     transparent: true,
     opacity: 0,
     depthTest: false,
@@ -300,62 +310,10 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
 
   scene.add(datumGroup);
 
-  // 2. Draftsman Pencil Cursor / Reticle 3D Group
-  const pencilGroup = new THREE.Group();
-  pencilGroup.name = "magic-pencil-cursor";
-
-  // Stylus body (inverted cone lead tip + drafting barrel)
-  const tipGeo = new THREE.ConeGeometry(0.18, 0.6, 12);
-  tipGeo.rotateX(Math.PI);
-  const tipMat = new THREE.MeshStandardMaterial({
-    color: "#182c28",
-    roughness: 0.3,
-    metalness: 0.8,
-  });
-  const pencilTip = new THREE.Mesh(tipGeo, tipMat);
-  pencilTip.position.set(0, 0.3, 0);
-  pencilGroup.add(pencilTip);
-
-  const barrelGeo = new THREE.CylinderGeometry(0.14, 0.14, 1.6, 12);
-  const barrelMat = new THREE.MeshStandardMaterial({
-    color: "#2a7567",
-    roughness: 0.4,
-    metalness: 0.4,
-  });
-  const pencilBarrel = new THREE.Mesh(barrelGeo, barrelMat);
-  pencilBarrel.position.set(0, 1.3, 0);
-  pencilGroup.add(pencilBarrel);
-
-  // Compass reticle ring
-  const ringGeo = new THREE.RingGeometry(0.7, 0.85, 32);
-  ringGeo.rotateX(-Math.PI / 2);
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: "#35e0c2",
-    transparent: true,
-    opacity: 0.85,
-    side: THREE.DoubleSide,
-    depthTest: false,
-  });
-  const reticleRing = new THREE.Mesh(ringGeo, ringMat);
-  reticleRing.position.set(0, 0.02, 0);
-  pencilGroup.add(reticleRing);
-
-  // Crosshairs
-  const crossGeo = new THREE.BufferGeometry();
-  crossGeo.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute([-1.2, 0.02, 0, 1.2, 0.02, 0, 0, 0.02, -1.2, 0, 0.02, 1.2], 3),
-  );
-  const crossMat = new THREE.LineBasicMaterial({
-    color: "#35e0c2",
-    transparent: true,
-    opacity: 0.8,
-    depthTest: false,
-  });
-  const crosshair = new THREE.LineSegments(crossGeo, crossMat);
-  pencilGroup.add(crosshair);
-
-  pencilGroup.visible = false;
+  // Five upright drafting pencils share one seekable motion score.
+  const pencilEnsemble = createCinematicPencils({ bounds, lines: records.map(r => r.line),
+    duration: durationSeconds * 0.5, color: pencilColor, scale: pencilScale });
+  const pencilGroup = pencilEnsemble.group;
   scene.add(pencilGroup);
 
   // 3. Section Cut Clipping Planes & Indicator
@@ -377,7 +335,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
   ];
   secFrameGeo.setAttribute("position", new THREE.Float32BufferAttribute(secFramePositions, 3));
   const secFrameMat = new THREE.LineBasicMaterial({
-    color: "#35e0c2",
+    color: pencilColor,
     transparent: true,
     opacity: 0.85,
     depthTest: false,
@@ -388,7 +346,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
   const secFillGeo = new THREE.PlaneGeometry(secSpan, secSpan);
   secFillGeo.rotateX(-Math.PI / 2);
   const secFillMat = new THREE.MeshBasicMaterial({
-    color: "#18453e",
+    color: "#0c2747",
     transparent: true,
     opacity: 0.25,
     side: THREE.DoubleSide,
@@ -500,8 +458,6 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
       pencilGroup.visible = true;
 
       // Find objects on active frontier to position the pencil
-      let activeX = center.x;
-      let activeZ = center.z;
       let frontierCategory = "Structure";
 
       let count = 0;
@@ -515,8 +471,8 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
           rec.line.visible = true;
           const lineMat = rec.line.material as THREE.LineBasicMaterial;
           lineMat.transparent = true;
-          lineMat.opacity = 0.65;
-          lineMat.color.set("#2c5952");
+          lineMat.opacity = 0.70;
+          lineMat.color.set(pencilColor);
 
           // Solid mesh invisible during wireframe phase
           rec.baseMaterial.visible = false;
@@ -524,8 +480,6 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
           // If this element is right at the active cutting edge
           if (rec.maxY >= activeElevation - 1.2 && rec.minY <= activeElevation + 0.5) {
             frontierCategory = rec.category;
-            activeX = rec.centerX;
-            activeZ = rec.centerZ;
           }
         } else {
           rec.line.visible = false;
@@ -536,9 +490,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
       visibleMeshesCount = count;
       activeCategory = frontierCategory.charAt(0).toUpperCase() + frontierCategory.slice(1);
 
-      // Animate pencil reticle
-      pencilGroup.position.set(activeX, activeElevation, activeZ);
-      reticleRing.rotation.z += 0.08;
+      pencilEnsemble.update(t * durationSeconds * 0.5);
     }
     // 3. Ink Strengthening & Line Weight Phase (0.65 -> 0.82)
     else if (progress <= 0.82) {
@@ -553,9 +505,9 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
       activeCategory = "Technical Ink & Profile Weight";
       visibleMeshesCount = records.length;
 
-      // Interpolate from pencil (#2c5952, 0.65) to deep technical ink (#111c1a, 0.95)
+      // Interpolate from pencil (#1877F2, 0.65) to deep technical slate ink (#0c2340, 0.95)
       const currentOpacity = 0.65 + 0.3 * t;
-      const inkColor = new THREE.Color("#2c5952").lerp(new THREE.Color("#111c1a"), t);
+      const inkColor = new THREE.Color(pencilColor).lerp(new THREE.Color("#0c2340"), t);
 
       for (const rec of records) {
         rec.mesh.visible = true;
@@ -599,10 +551,10 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
           rec.baseMaterial.depthWrite = false;
         }
 
-        // Return edge lines smoothly to standard edge weight
+        // Return edge lines smoothly to clean slate edge weight
         const lineMat = rec.line.material as THREE.LineBasicMaterial;
         lineMat.opacity = THREE.MathUtils.lerp(0.95, 0.35, t);
-        lineMat.color.set("#273735");
+        lineMat.color.set("#2c3b4d");
       }
     }
 
@@ -621,6 +573,12 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
     domElement.dataset.drawTotalMeshes = String(records.length);
     domElement.dataset.drawSection = sectionCut;
     domElement.dataset.drawDimensions = dimensioning.isVisible() ? "active" : "inactive";
+    domElement.dataset.drawPencilScale = pencilScale.toFixed(2);
+    domElement.dataset.drawPencilCount = String(PENCIL_COUNT);
+    domElement.dataset.drawScribbleSeconds = String(SCRIBBLE_SECONDS);
+    domElement.dataset.drawPencilColor = pencilColor;
+    domElement.dataset.drawDockPosition = dockPosition;
+    domElement.dataset.drawSpeed = speed.toFixed(2);
 
     if (onStatusChange) {
       onStatusChange({
@@ -639,6 +597,9 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
         sectionCut,
         dimensionsVisible: dimensioning.isVisible(),
         dimensions: dimensioning.getData(),
+        pencilScale,
+        pencilColor,
+        dockPosition,
       });
     }
 
@@ -741,6 +702,43 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
       activeElevation,
       dimensions: dimensioning.getData(),
     });
+  }
+
+  function setPencilScale(scale: number) {
+    pencilScale = Math.max(0.2, Math.min(5.0, scale));
+    pencilEnsemble.setScale(pencilScale);
+    domElement.dataset.drawPencilScale = pencilScale.toFixed(2);
+    applyProgress(progress);
+    invalidate();
+  }
+
+  function getPencilScale(): number {
+    return pencilScale;
+  }
+
+  function setPencilColor(color: string) {
+    pencilColor = color === "facebook-blue" ? "#1877F2" : color;
+    pencilEnsemble.setColor(pencilColor);
+    mastMaterial.color.set(pencilColor);
+    secFrameMat.color.set(pencilColor);
+    domElement.dataset.drawPencilColor = pencilColor;
+    applyProgress(progress);
+    invalidate();
+  }
+
+  function getPencilColor(): string {
+    return pencilColor;
+  }
+
+  function setDockPosition(pos: "bottom-left" | "bottom-center") {
+    dockPosition = pos;
+    domElement.dataset.drawDockPosition = dockPosition;
+    applyProgress(progress);
+    invalidate();
+  }
+
+  function getDockPosition(): "bottom-left" | "bottom-center" {
+    return dockPosition;
   }
 
   function tick(timestamp: number): boolean {
@@ -886,14 +884,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
     mastMaterial.dispose();
     cropGeometry.dispose();
     cropMaterial.dispose();
-    tipGeo.dispose();
-    tipMat.dispose();
-    barrelGeo.dispose();
-    barrelMat.dispose();
-    ringGeo.dispose();
-    ringMat.dispose();
-    crossGeo.dispose();
-    crossMat.dispose();
+    pencilEnsemble.dispose();
     if (typeof window !== "undefined") {
       const host = window as unknown as { __magicPencil?: typeof api };
       if (host.__magicPencil === api) delete host.__magicPencil;
@@ -902,6 +893,7 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
 
   // Register on window for Fast CDP opcode test execution
   const api = {
+    getPencilMotion: () => ({ count: PENCIL_COUNT, scribbleSeconds: SCRIBBLE_SECONDS, visible: pencilGroup.visible, poses: pencilEnsemble.getPoses() }),
     play,
     pause,
     replay,
@@ -917,6 +909,12 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
     toggleDimensions,
     setDimensions,
     capturePlanBook,
+    setPencilScale,
+    getPencilScale,
+    setPencilColor,
+    getPencilColor,
+    setDockPosition,
+    getDockPosition,
     getDimensions: () => dimensioning.getData(),
     getStoreys: () => storeysList,
     getStatus: (): DraftsmanStatus => ({
@@ -935,6 +933,9 @@ export function createMagicPencilDraftsman(options: MagicPencilDraftsmanOptions)
       sectionCut,
       dimensionsVisible: dimensioning.isVisible(),
       dimensions: dimensioning.getData(),
+      pencilScale,
+      pencilColor,
+      dockPosition,
     }),
     tick,
     dispose,

@@ -19,3 +19,13 @@ test('tool failures remain MCP errors, never successful operations', async () =>
   try { const result = await session.client.callTool({ name: 'save' }); assert.equal(result.isError, true); assert.match(JSON.stringify(result.content), /Revision changed/); }
   finally { await session.close(); }
 });
+
+test('raw MCP clients cannot bypass the professional authority gate', async () => {
+  let issued = 0;
+  const session = await connectAppMcp([{ name: 'issue_instruction', description: 'Issue fixture', inputSchema: { type: 'object' }, execute: async () => { issued++; return { content: [] }; } }]);
+  try {
+    const result = await session.client.callTool({ name: 'issue_instruction', arguments: { approved: true, role: 'engineer' } });
+    assert.equal(result.isError, true); assert.equal(issued, 0);
+    assert.match(JSON.stringify(result.content), /verified human authority/);
+  } finally { await session.close(); }
+});

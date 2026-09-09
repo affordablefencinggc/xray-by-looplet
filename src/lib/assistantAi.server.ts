@@ -1,4 +1,5 @@
 import { ASSISTANT_LIMITS, ASSISTANT_SYSTEM_INSTRUCTION, assistantRequestSchema, assistantResponseSchema, assistantSourceSchema, type AssistantResponse } from "../studio/assistant/contract.ts";
+import { DEFAULT_EXECUTION_BUDGET } from "../studio/assistant/executionBudget.ts";
 import { materialAiStatus } from "./materialAi.server.ts";
 
 type Environment = Record<string, string | undefined>;
@@ -35,8 +36,8 @@ export function assistantFailure(error: unknown): { error: string; status: numbe
     : { error: "Assistant request failed. No action has been confirmed.", status: 400 };
 }
 
-// A process guard, deliberately not advertised as a durable account spending cap.
-let running = false, day = "", calls = 0;
+// Prevent overlapping turns; provider quotas are not duplicated with an app daily cap.
+let running = false;
 export async function assistantAiTurn(raw: string, options: { env?: Environment; fetcher?: typeof fetch; signal?: AbortSignal } = {}): Promise<AssistantResponse> {
   const env = options.env ?? process.env, status = assistantAiStatus(env);
   if (!status.available) throw new AssistantServiceError(status.message, 503);
@@ -44,18 +45,16 @@ export async function assistantAiTurn(raw: string, options: { env?: Environment;
   let request;
   try { request = assistantRequestSchema.parse(JSON.parse(raw)); } catch { throw new AssistantServiceError("Invalid assistant request contract."); }
   if (options.signal?.aborted) throw new AssistantServiceError("Assistant request cancelled.");
-  const today = new Date().toISOString().slice(0, 10);
-  if (today !== day) { day = today; calls = 0; }
   if (running) throw new AssistantServiceError("An assistant turn is already running. Wait before retrying.", 409);
-  if (calls >= 100) throw new AssistantServiceError("This server process has reached its daily 100-turn assistant limit.", 429);
-  running = true; calls++;
-  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(ASSISTANT_LIMITS.timeoutMs)]) : AbortSignal.timeout(ASSISTANT_LIMITS.timeoutMs);
+  running = true;
+  const budget = request.execution ?? DEFAULT_EXECUTION_BUDGET;
+  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(budget.timeoutMs)]) : AbortSignal.timeout(budget.timeoutMs);
   try {
     const tools = request.webSearch ? [{ google_search: {} }] : request.declarations.length ? [{ functionDeclarations: request.declarations }] : [];
     const response = await (options.fetcher ?? fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${status.model}:generateContent`, {
       method: "POST", redirect: "error", signal,
       headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY || env.GOOGLE_API_KEY! },
-      body: JSON.stringify({ contents: request.contents, systemInstruction: { parts: [{ text: ASSISTANT_SYSTEM_INSTRUCTION }] }, generationConfig: { maxOutputTokens: 8192 },
+      body: JSON.stringify({ contents: request.contents, systemInstruction: { parts: [{ text: ASSISTANT_SYSTEM_INSTRUCTION }] }, generationConfig: { maxOutputTokens: budget.maxOutputTokens },
         ...(tools.length ? { tools } : {}), ...(!request.webSearch && request.declarations.length ? { toolConfig: { functionCallingConfig: { mode: "AUTO" } } } : {}) }),
     });
     if (!response.ok) throw new AssistantServiceError(`Gemini rejected the assistant request (HTTP ${response.status}). Check provider access and quota.`, response.status === 429 ? 429 : 502);
@@ -64,7 +63,14 @@ export async function assistantAiTurn(raw: string, options: { env?: Environment;
     let body;
     try { body = JSON.parse(text); } catch { throw new AssistantServiceError("Assistant returned invalid JSON.", 502); }
     const candidate = body?.candidates?.[0];
-    if (candidate?.finishReason !== "STOP" || !candidate.content) throw new AssistantServiceError("Assistant response was blocked or incomplete. No action has been confirmed.", 502);
+    if (candidate?.finishReason !== "STOP" || !candidate.content) {
+      const reason = candidate?.finishReason;
+      const detail = reason === "MAX_TOKENS" ? "Gemini reached the response length limit. Try a smaller drawing step."
+        : reason === "MALFORMED_FUNCTION_CALL" ? "Gemini returned an invalid tool call. Retry this drawing step."
+        : reason === "SAFETY" || reason === "RECITATION" ? "Gemini blocked this response."
+        : "Gemini returned an incomplete response.";
+      throw new AssistantServiceError(`${detail} This response was not executed; previously completed actions remain.`, 502);
+    }
     const sources: Array<{title: string; url: string}> = [];
     if (request.webSearch) {
       for (const chunk of Array.isArray(candidate.groundingMetadata?.groundingChunks) ? candidate.groundingMetadata.groundingChunks : []) {
@@ -72,7 +78,9 @@ export async function assistantAiTurn(raw: string, options: { env?: Environment;
         if (parsed.success && !sources.some(s => s.url === parsed.data.url) && sources.length < 50) sources.push(parsed.data);
       }
     }
-    const checked = assistantResponseSchema.safeParse({ requestId: request.requestId, content: candidate.content, sources, model: status.model });
+    const totalTokens = body.usageMetadata?.totalTokenCount;
+    const checked = assistantResponseSchema.safeParse({ requestId: request.requestId, content: candidate.content, sources, model: status.model,
+      ...(Number.isSafeInteger(totalTokens) && totalTokens >= 0 ? { totalTokens } : {}) });
     if (!checked.success) throw new AssistantServiceError("Assistant returned unsupported or malformed content.", 502);
     const known = new Set(request.declarations.map(d => d.name));
     if (checked.data.content.parts.some(p => p.functionResponse || (p.functionCall && !known.has(p.functionCall.name)))) throw new AssistantServiceError("Assistant requested an undeclared tool or returned an invalid tool result.", 502);

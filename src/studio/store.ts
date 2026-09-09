@@ -18,8 +18,11 @@ import {
   restoreDocumentWorkspace,
   prepareDocumentSelection,
 } from "./documentWorkspaces.ts";
-import { loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
+import { FENCING_JOB_STORAGE_KEY, loadOrCreateBrowserProject, saveFencingJob, type JobPersistenceResult } from "./persistence.ts";
 import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentContract.ts";
+// [SC-21 designed model] begin
+import type { SourceBuilding } from "./sourceBuilding.ts";
+// [SC-21 designed model] end
 import { createBrowserPlanStore } from "./documents.ts";
 import {
   calibrationSchema,
@@ -182,10 +185,19 @@ type StudioState = {
   persistenceHydrated: boolean;
   persistenceRecoveryBlocked: boolean;
   lastSavedJobRevision: number | null;
+  /** Exact bytes this window last loaded or wrote to the main job record; the compare-and-swap expectation. */
+  lastSavedJobRaw: string | null;
+  /** True once storage holds a newer revision this window never loaded; writes stay refused until reload. */
+  projectWriteStale: boolean;
   hydrationStatus: HydrationStatus;
   assetReadiness: RuntimeAssetReadiness;
   quoteReadiness: QuoteReadiness;
   pane: Pane;
+  // [SC-21 designed model] begin
+  /** Model mode: the designed scene the Model viewer shows instead of the catalog. Session-only; never persisted. */
+  designedBuilding: SourceBuilding | null;
+  setDesignedBuilding: (scene: SourceBuilding | null) => void;
+  // [SC-21 designed model] end
   sheet: number;
   skin: "navy" | "paper";
   lifted: boolean;
@@ -347,6 +359,8 @@ type StudioState = {
   hydratePersistence: () => Promise<void>;
   retryProjectLoad: () => Promise<void>;
   saveCurrentProject: () => JobPersistenceResult;
+  /** Another window changed the stored main job record; returns true when this window became stale. */
+  noteExternalProjectWrite: (newValue: string | null) => boolean;
 };
 
 function uid() {
@@ -804,10 +818,15 @@ export const useStudio = create<StudioState>((set, get) => ({
   persistenceHydrated: false,
   persistenceRecoveryBlocked: true,
   lastSavedJobRevision: null,
+  lastSavedJobRaw: null,
+  projectWriteStale: false,
   hydrationStatus: "idle",
   assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
   quoteReadiness: readiness(initialJob, EMPTY_RUNTIME_ASSET_READINESS, false),
   pane: "sheets",
+  // [SC-21 designed model] begin
+  designedBuilding: null,
+  // [SC-21 designed model] end
   sheet: 0,
   skin: "paper",
   lifted: false,
@@ -924,6 +943,9 @@ export const useStudio = create<StudioState>((set, get) => ({
   setActiveFloor: (floor) => set({ activeFloor: floor }),
   setPane: (pane) =>
     set({ pane, lifted: pane === "model" ? get().lifted : false, chromeHidden: false }),
+  // [SC-21 designed model] begin
+  setDesignedBuilding: (scene) => set({ designedBuilding: scene }),
+  // [SC-21 designed model] end
   setSheet: (sheet) => {
     const state = get();
     const activeDocument = state.job.documents.find(
@@ -2199,14 +2221,34 @@ export const useStudio = create<StudioState>((set, get) => ({
     const state = get();
     if (!state.persistenceHydrated || state.persistenceRecoveryBlocked || state.hydrationStatus !== "ready")
       return { ok: false, error: "Saved project recovery must finish before saving. Existing records have been preserved." };
-    const result = saveFencingJob(state.job);
-    set({ persistenceError: result.error, ...(result.ok ? { lastSavedJobRevision: state.job.revision } : {}) });
+    // Compare-and-swap against the bytes this window last loaded or wrote (null for a slot it created).
+    const result = saveFencingJob(state.job, undefined, { expectedRaw: state.lastSavedJobRaw });
+    if (result.ok) {
+      set({ persistenceError: null, lastSavedJobRevision: state.job.revision, lastSavedJobRaw: result.raw ?? null });
+    } else if (result.stale) {
+      // Stop autosave retries: the in-memory revision is kept for download, storage keeps the newer one.
+      set({ persistenceError: result.error, projectWriteStale: true, persistenceRecoveryBlocked: true });
+    } else {
+      set({ persistenceError: result.error });
+    }
     return result;
+  },
+  noteExternalProjectWrite: (newValue) => {
+    const state = get();
+    if (!state.persistenceHydrated || state.hydrationStatus !== "ready" || state.persistenceRecoveryBlocked) return false;
+    if (newValue === state.lastSavedJobRaw) return false;
+    set({
+      projectWriteStale: true,
+      persistenceRecoveryBlocked: true,
+      persistenceError:
+        "Another window saved a newer revision of this project. Saving from this window is paused so the newer revision is not overwritten. Reload the latest revision to continue, or download this window's unsaved revision first.",
+    });
+    return true;
   },
   hydratePersistence: () => {
     if (get().persistenceHydrated) return Promise.resolve();
     if (hydrationFlight) return hydrationFlight;
-    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null });
+    set({ hydrationStatus: "loading", persistenceError: null, persistenceRecoveryBlocked: true, lastSavedJobRevision: null, lastSavedJobRaw: null });
     hydrationFlight = (async () => {
       await Promise.resolve();
       const staleUrls = get().photoPreviewUrls;
@@ -2230,6 +2272,8 @@ export const useStudio = create<StudioState>((set, get) => ({
           persistenceHydrated: true,
           hydrationStatus: loaded.error ? "error" : "ready",
           assetReadiness: EMPTY_RUNTIME_ASSET_READINESS,
+          // A failed reload is a load problem, not a stale-writer condition: show the preservation notice.
+          projectWriteStale: false,
         });
         return;
       }
@@ -2375,6 +2419,8 @@ export const useStudio = create<StudioState>((set, get) => ({
         hydrationStatus: "ready",
         persistenceRecoveryBlocked: false,
         lastSavedJobRevision: job.revision,
+        lastSavedJobRaw: loaded.raw,
+        projectWriteStale: false,
       });
     })()
       .catch((error) => {
@@ -2383,6 +2429,7 @@ export const useStudio = create<StudioState>((set, get) => ({
           persistenceHydrated: true,
           hydrationStatus: "error",
           persistenceRecoveryBlocked: true,
+          projectWriteStale: false,
         });
       })
       .finally(() => {
@@ -2420,6 +2467,15 @@ if (typeof window !== "undefined") {
     if (state.job === previous.job || !state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
     state.saveCurrentProject();
   });
+  // Cross-window detection: 'storage' fires only in other windows, so same-window writes rely on the
+  // compare-and-swap inside saveCurrentProject instead.
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("storage", (event: StorageEvent) => {
+      if (event.key !== FENCING_JOB_STORAGE_KEY) return;
+      if (event.storageArea && event.storageArea !== window.localStorage) return;
+      useStudio.getState().noteExternalProjectWrite(event.newValue);
+    });
+  }
   useStudio.subscribe((state, previous) => {
     if (!state.persistenceHydrated || state.persistenceRecoveryBlocked) return;
     if (state.bomState === previous.bomState && previous.persistenceHydrated) return;

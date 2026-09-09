@@ -1,6 +1,6 @@
 import { useDesignConfirmation } from "./useDesignConfirmation";
 import { SyncDesignMaterials } from "./SyncDesignMaterials";
-import { prepareArchitectElements, registerArchitectController } from "../assistant/architectBridge.ts";
+import { prepareArchitectEdits, prepareArchitectElements, registerArchitectController } from "../assistant/architectBridge.ts";
 import { ArchitectAi } from "./ArchitectAi";
 import { ArchitectSheets } from "./ArchitectSheets";
 import { csv } from "./exchange";
@@ -546,6 +546,35 @@ export function ArchitectWorkspace() {
       setFitToken(value => value + 1);
       return { projectId: sessionRef.current.value.id, designRevision: sessionRef.current.value.revision, saved: true, readbackVerified: true,
         created: prepared.created, notices: prepared.notices, counts: { walls: sessionRef.current.value.walls.length, openings: sessionRef.current.value.openings.length, lines: sessionRef.current.value.lines.length, roomTags: sessionRef.current.value.roomTags.length } };
+    },
+    edit(args) {
+      const current = sessionRef.current;
+      if (!ready || useStudio.getState().pane !== "sketch" || useStudio.getState().job.id !== args.expectedJobId || current.value.id !== args.expectedJobId)
+        throw Error("Open the current project's Architectural workspace before editing.");
+      if (current.blocked || current.error || error) throw Error(current.error || error || "Architectural design recovery must finish before editing.");
+      if (current.value.revision !== args.expectedRevision) throw Error("The design revision changed. Read the design again before editing.");
+      if (current.value !== p) throw Error("The design view is updating. Read the design again after it renders.");
+      if (anchor || points.length || length.trim()) throw Error("Finish or cancel the current drawing gesture before applying assistant edits.");
+      const prepared = prepareArchitectEdits(current.value, args);
+      if (!commit(prepared.draft)) throw Error(sessionRef.current.error || "The edit was not saved. Existing design remains active.");
+      const saved = sessionRef.current.value;
+      const revisionOf = (id: string) => {
+        if (id === saved.id) return saved.revision;
+        for (const key of ["walls", "openings", "slabs", "roofs", "lines", "circles", "arcs", "grids", "roomTags", "dimensions"] as const) {
+          const found = saved[key].find(item => item.id === id);
+          if (found) return found.revision;
+        }
+        return null;
+      };
+      const present = (id: string) => id !== saved.id && (revisionOf(id) !== null || saved.levels.some(level => level.id === id));
+      setPanel("draw"); setTool("select"); setSelected([...prepared.changed].reverse().find(item => present(item.id))?.id ?? null);
+      resetDrawing();
+      const bounds = projectBounds(prepared.draft);
+      setViewBox([bounds.min[0] - 1200, bounds.min[1] - 1200, Math.max(bounds.max[0] - bounds.min[0], 3000) + 2400, Math.max(bounds.max[1] - bounds.min[1], 3000) + 2400]);
+      setFitToken(value => value + 1);
+      return { projectId: saved.id, designRevision: saved.revision, saved: true, readbackVerified: true,
+        changed: prepared.changed.map(item => ({ ...item, revision: revisionOf(item.id) })), removed: prepared.removed, notices: prepared.notices,
+        counts: { walls: saved.walls.length, openings: saved.openings.length, lines: saved.lines.length, roomTags: saved.roomTags.length, slabs: saved.slabs.length, roofs: saved.roofs.length, levels: saved.levels.length } };
     },
     undo(args) {
       const current = sessionRef.current;

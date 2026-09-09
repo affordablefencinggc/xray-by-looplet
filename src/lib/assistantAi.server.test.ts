@@ -8,6 +8,21 @@ const request = { schema: "xray.assistant-request/v1", requestId: "5c806de6-124e
 const reply = (parts: unknown[] = [{ text: "Result" }], metadata?: unknown) => Response.json({ candidates: [{ finishReason: "STOP", content: { role: "model", parts }, groundingMetadata: metadata }] });
 const raw = JSON.stringify(request);
 
+test("120 sequential provider requests have no app daily cap and honor selected output budget", async () => {
+  let calls = 0;
+  const execution = { maxRounds: 128, maxToolCalls: 512, maxOutputTokens: 65536, timeoutMs: 600000, contextTokens: 900000 };
+  for (let i = 0; i < 120; i++) {
+    const result = await assistantAiTurn(JSON.stringify({ ...request, execution }), { env, fetcher: async (_url, init) => {
+      calls++;
+      assert.equal(JSON.parse(String(init?.body)).generationConfig.maxOutputTokens, 65536);
+      assert.ok(init?.signal && !init.signal.aborted);
+      return reply();
+    } });
+    assert.equal(result.content.parts[0].text, 'Result');
+  }
+  assert.equal(calls, 120);
+});
+
 test("status keeps credentials private and web access opt-in", () => {
   assert.equal(assistantAiStatus({}).available, false);
   assert.equal(assistantAiStatus({ GEMINI_API_KEY: env.GEMINI_API_KEY }).available, false);
@@ -47,7 +62,7 @@ test("search mode is separate and sources are bounded, deduplicated and safe lin
 });
 test("invalid envelopes, duplicate tools, malformed images and excessive JSON reject before network", async () => {
   let called = false; const fetcher: typeof fetch = async () => { called = true; return reply(); };
-  const invalid = [{ ...request, endpoint: "https://elsewhere.test" }, { ...request, declarations: [request.declarations[0], request.declarations[0]] }, { ...request, contents: [{ role: "user", parts: [{ inlineData: { mimeType: "text/html", data: "abcd" } }] }] }, { ...request, contents: Array(41).fill(request.contents[0]) }];
+  const invalid = [{ ...request, endpoint: "https://elsewhere.test" }, { ...request, declarations: [request.declarations[0], request.declarations[0]] }, { ...request, contents: [{ role: "user", parts: [{ inlineData: { mimeType: "text/html", data: "abcd" } }] }] }, { ...request, contents: Array(ASSISTANT_LIMITS.contents + 1).fill(request.contents[0]) }];
   for (const r of invalid) await assert.rejects(assistantAiTurn(JSON.stringify(r), { env, fetcher }), /Invalid assistant/);
   let nested: unknown = {}; for (let i=0;i<18;i++) nested={ child:nested };
   assert.equal(assistantRequestSchema.safeParse({ ...request, declarations: [{ ...request.declarations[0], parametersJsonSchema: nested }] }).success,false);
@@ -88,10 +103,32 @@ test("response streaming cap cancels the reader and remains safe",async()=>{
   assert.equal(cancelled,true);
   await assert.rejects(readAssistantBody(new ReadableStream({start(c){c.enqueue(new Uint8Array([255]));c.close()}}),100));
 });
+
+test("incomplete response explains length and tool-call failures without exposing provider diagnostics", async () => {
+  for (const [finishReason, message] of [["MAX_TOKENS", /response length limit/], ["MALFORMED_FUNCTION_CALL", /invalid tool call/], [env.GEMINI_API_KEY, /incomplete response/]] as const) {
+    await assert.rejects(assistantAiTurn(raw, {env, fetcher: async () => Response.json({candidates:[{finishReason, content:{role:"model",parts:[{functionCall:{name:"project.inspect",args:{}}}]}}]})}), error => {
+      const failure = assistantFailure(error);
+      assert.match(failure.error, message);
+      assert.match(failure.error, /previously completed actions remain/);
+      assert.equal(failure.error.includes(env.GEMINI_API_KEY), false);
+      return true;
+    });
+  }
+});
 test("cancellation discards late provider results and releases the single-flight guard",async()=>{
   const controller=new AbortController();let release!:()=>void;
   const pending=assistantAiTurn(raw,{env,signal:controller.signal,fetcher:async()=>{await new Promise<void>(r=>{release=r});return reply()}});
   await assert.rejects(assistantAiTurn(raw,{env,fetcher:async()=>reply()}),/already running/);
   controller.abort();release();await assert.rejects(pending,/cancelled/);
   assert.equal((await assistantAiTurn(raw,{env,fetcher:async()=>reply()})).content.parts[0].text,"Result");
+});
+
+test("provider token totals are preserved without inventing absent or invalid usage", async () => {
+  for (const tokens of [12345, 0, undefined, -1, 1.5, '12345']) {
+    const result = await assistantAiTurn(raw, { env, fetcher: async () => Response.json({
+      candidates: [{ finishReason: 'STOP', content: { role: 'model', parts: [{ text: 'Result' }] } }],
+      usageMetadata: { totalTokenCount: tokens },
+    }) });
+    assert.equal(result.totalTokens, typeof tokens === 'number' && Number.isSafeInteger(tokens) && tokens >= 0 ? tokens : undefined);
+  }
 });

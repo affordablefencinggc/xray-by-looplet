@@ -47,9 +47,82 @@ describe("source sheet organisation", () => {
       photos: [{id:"p1",runIds:["r1"],gateIds:["i1"]},{id:"p2",runIds:["r2"],gateIds:[]},{id:"p3",runIds:[],gateIds:[]}],
       annotations: [{sheet:0,documentId:identity.documentId},{sheet:1,documentId:identity.documentId},{sheet:0,documentId:"other"}] };
     const before = structuredClone(input);
-    assert.deepEqual(sheetArchiveImpact(input, identity, 0), {calibrations:1,traces:1,items:1,annotations:1,linkedPhotos:1});
+    assert.deepEqual(sheetArchiveImpact(input, identity, 0), {calibrations:1,traces:1,items:1,annotations:1,linkedPhotos:1,savedViews:0});
     assert.deepEqual(input, before);
     assert.throws(() => sheetArchiveImpact({...input,activeDocumentId:"other"}, identity, 0), /source drawing changed/);
+  });
+  it("D-04: archive review counts the saved views stored on the reviewed page only and refuses a lifecycle from another source", () => {
+    const { job, identity } = fixture();
+    const input = { ...job, activeDocumentId: identity.documentId, calibrations: [], runs: [], gates: [], photos: [], annotations: [] };
+    let value = createSheetLifecycle(identity);
+    const views = [captureSheetBookmark("Junction", 2, {x:15,y:22}, {width:500,height:400}), captureSheetBookmark("Stair", 3, {x:0,y:0}, {width:500,height:400}), captureSheetBookmark("Roof", 1, {x:5,y:5}, {width:500,height:400})];
+    value = changeSheetLifecycle(value, {type:"bookmark",pageIndex:1,bookmark:views[0]});
+    value = changeSheetLifecycle(value, {type:"bookmark",pageIndex:1,bookmark:views[1]});
+    value = changeSheetLifecycle(value, {type:"bookmark",pageIndex:0,bookmark:views[2]});
+    assert.equal(sheetArchiveImpact(input, identity, 1, value).savedViews, 2);
+    assert.equal(sheetArchiveImpact(input, identity, 0, value).savedViews, 1);
+    assert.equal(sheetArchiveImpact(input, identity, 2, value).savedViews, 0);
+    assert.equal(sheetArchiveImpact(input, identity, 1).savedViews, 0);
+    const foreign = createSheetLifecycle({ ...identity, sha256: "b".repeat(64) });
+    assert.throws(() => sheetArchiveImpact(input, identity, 1, foreign), /source drawing changed/);
+  });
+  it("D-02: rename changes only the page label and discipline; page-keyed evidence and saved views are untouched", () => {
+    const { job, identity, storage } = fixture();
+    const evidence = { ...job, activeDocumentId: identity.documentId,
+      calibrations: [{sheet:1}], runs: [{id:"r1",sheet:1,photoIds:["p1"]}], gates: [{id:"i1",sheet:1,photoIds:[]}],
+      photos: [{id:"p1",runIds:["r1"],gateIds:[]}], annotations: [{sheet:1,documentId:identity.documentId},{sheet:1,documentId:identity.documentId}] };
+    const view = captureSheetBookmark("Entry", 2, {x:15,y:22}, {width:500,height:400});
+    const before = saveSheetLifecycle(saveSheetLifecycle(createSheetLifecycle(identity), {type:"bookmark",pageIndex:1,bookmark:view}, storage), {type:"discipline",pageIndex:2,discipline:"Civil"}, storage);
+    const evidenceBefore = structuredClone(evidence), impactBefore = sheetArchiveImpact(evidence, identity, 1, before);
+    const after = saveSheetLifecycle(before, {type:"rename",pageIndex:1,name:"Ground floor plan",discipline:"Architecture"}, storage);
+    assert.deepEqual(after.pages.map(p=>p.pageIndex), before.pages.map(p=>p.pageIndex));
+    assert.deepEqual(after.pages[1], { ...before.pages[1], name: "Ground floor plan", discipline: "Architecture" });
+    assert.deepEqual(after.pages[1].bookmarks, [view]);
+    assert.deepEqual(after.pages.filter((_,i)=>i!==1), before.pages.filter((_,i)=>i!==1));
+    assert.deepEqual(after.identity, identity);
+    assert.deepEqual(evidence, evidenceBefore);
+    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, after), impactBefore);
+    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, after), {calibrations:1,traces:1,items:1,annotations:2,linkedPhotos:1,savedViews:1});
+    assert.equal(readSheetLifecycle(identity, storage).pages[1].name, "Ground floor plan");
+    assert.equal(JSON.parse(exportSheetRegister(after, "Plan.pdf")).sheets[1].originalPage, 2);
+  });
+  it("D-05: a recovered middle page keeps its managed slot, metadata, saved views and page-keyed evidence (scale, annotations, traces, items) after neighbours moved, and the export reflects the same order", () => {
+    const { job, identity, storage, map } = fixture();
+    const evidence = { ...job, activeDocumentId: identity.documentId,
+      calibrations: [{sheet:1},{sheet:0}], runs: [{id:"r1",sheet:1,photoIds:["p1"]}], gates: [{id:"i1",sheet:1,photoIds:[]}],
+      photos: [{id:"p1",runIds:["r1"],gateIds:[]}], annotations: [{sheet:1,documentId:identity.documentId},{sheet:1,documentId:identity.documentId},{sheet:0,documentId:identity.documentId}] };
+    const evidenceBefore = structuredClone(evidence);
+    const view = captureSheetBookmark("Detail", 4, {x:10,y:10}, {width:500,height:400});
+    let value = saveSheetLifecycle(createSheetLifecycle(identity), {type:"rename",pageIndex:1,name:"Ground floor plan",discipline:"Architecture"}, storage);
+    value = saveSheetLifecycle(value, {type:"bookmark",pageIndex:1,bookmark:view}, storage);
+    const impactBefore = sheetArchiveImpact(evidence, identity, 1, value);
+    assert.deepEqual(impactBefore, {calibrations:1,traces:1,items:1,annotations:2,linkedPhotos:1,savedViews:1});
+    const orderBefore = value.pages.map(p=>p.pageIndex), slotBefore = orderBefore.indexOf(1), storedKeysBefore = [...map.keys()];
+    value = saveSheetLifecycle(value, {type:"archive",pageIndex:1}, storage);
+    assert.deepEqual(value.pages.map(p=>p.pageIndex), orderBefore, "archive keeps the managed slot");
+    assert.deepEqual(evidence, evidenceBefore, "archive leaves the job evidence untouched");
+    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, value), impactBefore, "archived page still owns the same scale, traces, items, annotations, photos and saved view");
+    assert.throws(() => changeSheetLifecycle(value, {type:"move",pageIndex:1,direction:1}), /Recover/);
+    value = saveSheetLifecycle(value, {type:"move",pageIndex:2,direction:-1}, storage);
+    value = saveSheetLifecycle(value, {type:"move",pageIndex:3,direction:-1}, storage);
+    assert.deepEqual(value.pages.map(p=>p.pageIndex), [2,1,3,0]);
+    assert.equal(value.pages[1].archived, true);
+    value = saveSheetLifecycle(value, {type:"recover",pageIndex:1}, storage);
+    assert.equal(value.pages.findIndex(p=>p.pageIndex===1), slotBefore);
+    assert.deepEqual(value.pages[slotBefore], { pageIndex:1, name:"Ground floor plan", discipline:"Architecture", archived:false, bookmarks:[view] });
+    assert.deepEqual(value.pages.map(p=>p.pageIndex), [2,1,3,0]);
+    assert.deepEqual(value.pages.filter(p=>!p.archived).map(p=>p.pageIndex), [2,1,3,0]);
+    assert.deepEqual(evidence, evidenceBefore, "recover leaves the job evidence untouched");
+    assert.deepEqual(sheetArchiveImpact(evidence, identity, 1, value), impactBefore, "recovered page owns the same scale, traces, items, annotations, photos and saved view");
+    assert.deepEqual(sheetArchiveImpact(evidence, identity, 0, value), {calibrations:1,traces:0,items:0,annotations:1,linkedPhotos:0,savedViews:0}, "neighbouring page evidence unchanged");
+    assert.deepEqual([...map.keys()], storedKeysBefore, "only the lifecycle sidecar key was written; no job record key was touched");
+    const persisted = readSheetLifecycle(identity, storage);
+    assert.deepEqual(persisted, value);
+    const exported = JSON.parse(exportSheetRegister(persisted, "Plan.pdf"));
+    assert.deepEqual(exported.sheets.map((s:{originalPage:number})=>s.originalPage), [3,2,4,1]);
+    assert.deepEqual(exported.sheets.map((s:{archived:boolean})=>s.archived), [false,false,false,false]);
+    assert.equal(exported.sheets[1].name, "Ground floor plan");
+    assert.equal(exported.sheets[1].bookmarks[0].name, "Detail");
   });
   it("accepts valid source timestamps with a timezone offset", () => {
     const { job } = fixture();

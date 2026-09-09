@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent } from "react";
+import { Bot, ChevronLeft, ChevronRight } from "lucide-react";
 import { LiveAssistant } from "./LiveAssistant";
+import { CanvasContextMenu } from "./CanvasContextMenu.tsx";
 import { useStudio } from "./store";
+import { useLiveAssistant } from "./liveAssistantState";
 import {
   DEFAULT_RAILS,
   RAIL_LAYOUT_KEY,
@@ -9,27 +11,84 @@ import {
   readRailWidths,
   type RailWidths,
 } from "./railLayout";
+import {
+  ASSISTANT_RAIL_KEY,
+  ASSISTANT_RAIL_TOGGLE_EVENT,
+  assistantRailBox,
+  assistantRailVars,
+  nextRailState,
+  readAssistantRail,
+  serializeAssistantRail,
+  type AssistantRailBox,
+  type RailAction,
+} from "./assistantRailMode";
+import "./assistantRail.css";
+import { CANVAS_FOCUS_EVENT } from "./canvasFocus";
+import "./canvasFocus.css";
+
+const ASSISTANT_RAIL_VARS = ["--assistant-rail-left", "--assistant-rail-top", "--assistant-rail-width", "--assistant-rail-height"];
+/**
+ * The right column's inner seam, in viewport pixels, published on <html>.
+ *
+ * The panel is portaled to document.body (LiveAssistant.tsx:1307), so it is outside this
+ * component's subtree and cannot inherit --right-menu-width from the container style below. The
+ * collapsed rail needs the seam to sit flush against it, and unlike the four --assistant-rail-*
+ * vars this one must survive the panel closing: nextRailState clears rail mode on "assistant-closed",
+ * which is exactly the state the collapsed rail renders in.
+ */
+const ASSISTANT_SEAM_VAR = "--assistant-seam-left";
 
 export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [widths, setWidths] = useState<RailWidths>(DEFAULT_RAILS);
   const [ready, setReady] = useState(false);
+  const [canvasFocus, setCanvasFocus] = useState(false);
+  useEffect(() => {
+    const openCanvas = () => setCanvasFocus(true);
+    window.addEventListener(CANVAS_FOCUS_EVENT, openCanvas);
+    return () => window.removeEventListener(CANVAS_FOCUS_EVENT, openCanvas);
+  }, []);
+  useEffect(() => {
+    if (pane !== "sketch" && pane !== "model") setCanvasFocus(false);
+  }, [pane]);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const rightCollapsed = useStudio(s => s.rightCollapsed);
   const collapsed = { left: leftCollapsed, right: rightCollapsed };
+  useEffect(() => {
+    document.documentElement.setAttribute("data-right-menu-collapsed", String(rightCollapsed));
+    return () => document.documentElement.removeAttribute("data-right-menu-collapsed");
+  }, [rightCollapsed]);
+  // Assistant rail mode: the right menu's box becomes the Live assistant (assistantRailMode.ts).
+  const [railMode, setRailMode] = useState(false);
+  const [dock, setDock] = useState<AssistantRailBox | null>(null);
+  const assistantOpen = useLiveAssistant(s => s.open);
+  const assistantWasOpen = useRef(false);
+  const applyRail = (action: RailAction) => {
+    const next = nextRailState({ rail: railMode, rightCollapsed }, action);
+    setRailMode(next.rail);
+    if (next.rightCollapsed !== rightCollapsed) useStudio.setState({ rightCollapsed: next.rightCollapsed });
+    if (next.rail) useLiveAssistant.setState({ open: true });
+  };
   const setCollapsed = (side: keyof RailWidths, value: boolean) => {
     if (side === "left") setLeftCollapsed(value);
-    else useStudio.setState({ rightCollapsed: value });
+    else applyRail(value ? "collapse-right" : "expand-right");
   };
   const drag = useRef<{ side: keyof RailWidths; x: number; width: number; collapsed: boolean; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
   const [rects, setRects] = useState<
-    { side: keyof RailWidths; left: number; top: number; height: number }[]
+    { side: keyof RailWidths; left: number; top: number; height: number; collapsed: boolean }[]
   >([]);
   useEffect(() => {
     try {
       setWidths(readRailWidths(localStorage.getItem(RAIL_LAYOUT_KEY)));
-    } catch {}
+    } catch { /* storage unavailable */ }
+    try {
+      if (readAssistantRail(localStorage.getItem(ASSISTANT_RAIL_KEY))) {
+        setRailMode(true);
+        useStudio.setState({ rightCollapsed: false });
+        useLiveAssistant.setState({ open: true });
+      }
+    } catch { /* storage unavailable */ }
     setReady(true);
     const update = (event: Event) =>
       setWidths(readRailWidths(JSON.stringify((event as CustomEvent).detail)));
@@ -40,8 +99,77 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     if (ready)
       try {
         localStorage.setItem(RAIL_LAYOUT_KEY, JSON.stringify(widths));
-      } catch {}
+      } catch { /* storage unavailable */ }
   }, [widths, ready]);
+  useEffect(() => {
+    if (ready)
+      try {
+        localStorage.setItem(ASSISTANT_RAIL_KEY, serializeAssistantRail(railMode));
+      } catch { /* storage unavailable */ }
+  }, [railMode, ready]);
+  // The panel header's dock/undock button reaches rail mode through a window event.
+  const applyRailRef = useRef(applyRail);
+  applyRailRef.current = applyRail;
+  useEffect(() => {
+    const toggle = () => applyRailRef.current("toggle-rail");
+    window.addEventListener(ASSISTANT_RAIL_TOGGLE_EVENT, toggle);
+    return () => window.removeEventListener(ASSISTANT_RAIL_TOGGLE_EVENT, toggle);
+  }, []);
+  // Closing the assistant from its own header (open → false) hands the menu back.
+  useEffect(() => {
+    if (railMode && assistantWasOpen.current && !assistantOpen) {
+      setRailMode(nextRailState({ rail: true, rightCollapsed }, "assistant-closed").rail);
+      // The launcher the panel focuses is hidden in rail mode; hand focus to the mode toggle instead.
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(".rail-assistant-toggle")?.focus());
+    }
+    assistantWasOpen.current = assistantOpen;
+  }, [assistantOpen, railMode, rightCollapsed]);
+  // Publish the dock box for the portaled panel (assistantRail.css reads these on <html>).
+  useEffect(() => {
+    const root = document.documentElement;
+    // Only a rect measured while the menu was expanded is the dock box; a stale collapsed rect waits for the re-measure.
+    const rail = rects.find((r) => r.side === "right" && !r.collapsed);
+    const box = railMode && !rightCollapsed
+      ? assistantRailBox(rail ? { left: rail.left + 2, top: rail.top, height: rail.height } : null, innerWidth, innerHeight)
+      : null;
+    const vars = assistantRailVars(box);
+    setDock((previous) => (JSON.stringify(previous) === JSON.stringify(box) ? previous : box));
+    if (box) root.setAttribute("data-assistant-rail", "true");
+    else root.removeAttribute("data-assistant-rail");
+    for (const name of ASSISTANT_RAIL_VARS) {
+      if (vars[name]) root.style.setProperty(name, vars[name]);
+      else root.style.removeProperty(name);
+    }
+    return () => {
+      root.removeAttribute("data-assistant-rail");
+      for (const name of ASSISTANT_RAIL_VARS) root.style.removeProperty(name);
+    };
+  }, [railMode, rightCollapsed, rects]);
+  // [SC-19 seam] begin: publish the right column's inner edge for the portaled panel.
+  // Deliberately separate from the effect above, which only runs in rail mode: the collapsed rail
+  // renders after rail mode has been cleared, so it needs a measurement that does not depend on it.
+  // A collapsed column reports its own narrow box, which is the correct seam for that state too.
+  useEffect(() => {
+    const root = document.documentElement;
+    // `rect.left` for the right side is the RESIZER HANDLE position, not the column edge: the
+    // measurement at line 166 subtracts 2px so the drag separator straddles the seam. Using it raw
+    // put the rail 2px inside the menu, overlapping it. The rail-mode dock at line 118 already
+    // corrects the same way, so the +2 is the established convention rather than a magic number.
+    // Keep the stored column width while the column is hidden or awaiting measurement.
+    const right = rects.find((r) => r.side === "right" && !r.collapsed);
+    if (right && right.left > 0) root.style.setProperty(ASSISTANT_SEAM_VAR, `${Math.round(right.left + 2)}px`);
+    else root.style.setProperty(ASSISTANT_SEAM_VAR, `${Math.max(0, innerWidth - widths.right)}px`);
+    const layout = ref.current?.querySelector<HTMLElement>(".studio-layout")?.getBoundingClientRect();
+    root.style.setProperty("--assistant-column-top", `${Math.max(0, layout?.top ?? right?.top ?? 90)}px`);
+    root.style.setProperty("--assistant-column-bottom", `${Math.max(0, innerHeight - (layout?.bottom ?? innerHeight))}px`);
+    // Braced: removeProperty returns the old value, and a cleanup must return void or a destructor.
+    return () => {
+      root.style.removeProperty(ASSISTANT_SEAM_VAR);
+      root.style.removeProperty("--assistant-column-top");
+      root.style.removeProperty("--assistant-column-bottom");
+    };
+  }, [rects, widths.right]);
+  // [SC-19 seam] end
   useEffect(() => {
     let frame = 0;
     const measure = () => {
@@ -65,6 +193,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
                   left: collapsed[side] ? (side === "left" ? r.left : r.right - 10) : side === "left" ? r.right - 8 : r.left - 2,
                   top: Math.max(r.top, 0),
                   height: Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)),
+                  collapsed: collapsed[side],
                 });
             }
           }
@@ -126,19 +255,25 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
       data-pane={pane}
       data-left-collapsed={leftCollapsed}
       data-right-collapsed={rightCollapsed}
+      data-assistant-rail={railMode}
+      data-canvas-focus={canvasFocus}
       style={
         {
           "--left-menu-width": `${widths.left}px`,
           "--right-menu-width": `${widths.right}px`,
           "--left-menu-track": leftCollapsed ? "0px" : `${widths.left}px`,
           "--right-menu-track": rightCollapsed ? "0px" : `${widths.right}px`,
+          "--canvas-focus-top": `${rects.find(r => r.side === "right")?.top ?? 90}px`,
         } as CSSProperties
       }
     >
       {children}
+      {canvasFocus && <button type="button" className="canvas-focus-exit" onClick={() => setCanvasFocus(false)}>Exit canvas</button>}
       <LiveAssistant />
+      <CanvasContextMenu />
       {rects.map((r) => (
-        <div key={r.side} className={`rail-controls rail-controls-${r.side}`}>
+        <Fragment key={r.side}>
+        <div className={`rail-controls rail-controls-${r.side}`}>
         <div
           role="separator"
           tabIndex={0}
@@ -192,6 +327,23 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
           {(r.side === "left") !== collapsed[r.side] ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
         </button>
         </div>
+        {r.side === "right" && (
+          <button
+            type="button"
+            className="rail-assistant-toggle"
+            aria-label={railMode ? "Exit assistant mode" : "Assistant mode"}
+            aria-pressed={railMode}
+            title={railMode ? "Bring the right menu back" : "Turn the right menu into the Live assistant"}
+            style={{
+              left: Math.max(0, Math.min(innerWidth - 24, (railMode && dock ? dock.left - 2 : r.left) - 7)),
+              top: Math.max(0, (railMode && dock ? dock.top + dock.height / 2 : r.top + r.height / 2) - 24 - 56),
+            }}
+            onClick={() => applyRail("toggle-rail")}
+          >
+            <Bot size={13} />
+          </button>
+        )}
+        </Fragment>
       ))}
     </div>
   );

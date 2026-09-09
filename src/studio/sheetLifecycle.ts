@@ -100,23 +100,25 @@ export function saveSheetLifecycle(previous: SheetLifecycle, action: SheetAction
   return next;
 }
 type JobSources = Pick<FencingJob, "id" | "documents">;
-/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. */
+/** Counts only records linked to this active source page; no estimate/BOM is invalidated by archive. Saved views come from the page's lifecycle value when supplied. */
 export function sheetArchiveImpact(job: Pick<FencingJob, "id" | "documents" | "activeDocumentId"> & {
   calibrations: Pick<FencingJob["calibrations"][number], "sheet">[];
   runs: Pick<FencingJob["runs"][number], "id" | "sheet" | "photoIds">[];
   gates: Pick<FencingJob["gates"][number], "id" | "sheet" | "photoIds">[];
   photos: Pick<FencingJob["photos"][number], "id" | "runIds" | "gateIds">[];
   annotations?: { sheet: number; documentId: string }[];
-}, identity: SheetSourceIdentity, pageIndex: number) {
+}, identity: SheetSourceIdentity, pageIndex: number, lifecycle?: Pick<SheetLifecycle, "identity" | "pages">) {
   const document = job.documents.find(d => d.id === job.activeDocumentId);
   const actual = document && sheetSourceIdentity(job.id, document);
   if (!actual || sheetLifecycleStorageKey(actual) !== sheetLifecycleStorageKey(identity) || pageIndex < 0 || pageIndex >= identity.pageCount) throw Error("The source drawing changed. Review the sheet again before archiving.");
+  if (lifecycle && sheetLifecycleStorageKey(lifecycle.identity) !== sheetLifecycleStorageKey(identity)) throw Error("The source drawing changed. Review the sheet again before archiving.");
+  const savedViews = lifecycle?.pages.find(p => p.pageIndex === pageIndex)?.bookmarks?.length ?? 0;
   const runs = job.runs.filter(r => r.sheet === pageIndex), items = job.gates.filter(g => g.sheet === pageIndex);
   const runIds = new Set(runs.map(r => r.id)), itemIds = new Set(items.map(g => g.id));
   const photoIds = new Set([...runs, ...items].flatMap(row => row.photoIds));
   const photos = job.photos.filter(photo => photoIds.has(photo.id) || photo.runIds.some(id => runIds.has(id)) || photo.gateIds.some(id => itemIds.has(id)));
   return { calibrations: job.calibrations.filter(c => c.sheet === pageIndex).length, traces: runs.length, items: items.length,
-    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length };
+    annotations: (job.annotations ?? []).filter(a => a.sheet === pageIndex && a.documentId === identity.documentId).length, linkedPhotos: photos.length, savedViews };
 }
 /** Capture every saved source sidecar, including inactive documents, for a portable backup. */
 export function readJobSheetMetadata(job: JobSources, storage: Pick<Storage, "getItem">): string | null {

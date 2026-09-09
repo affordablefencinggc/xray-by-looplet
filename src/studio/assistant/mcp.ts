@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type Tool, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { checkProfessionalAction } from './workPacket.ts';
 
 export type AssistantTool = {
   name: string;
@@ -19,7 +20,7 @@ export async function connectAppMcp(tools: readonly AssistantTool[]) {
   server.setRequestHandler(CallToolRequestSchema, async request => {
     const tool = tools.find(item => item.name === request.params.name);
     if (!tool) throw Error(`Unknown X-Ray tool: ${request.params.name}`);
-    try { return await tool.execute(request.params.arguments ?? {}) as CallToolResult; }
+    try { checkProfessionalAction(tool.name); return await tool.execute(request.params.arguments ?? {}) as CallToolResult; }
     catch (error) { return { isError: true, content: [{ type: 'text' as const, text: error instanceof Error ? error.message : 'Tool execution failed.' }] }; }
   });
   const client = new Client({ name: 'xray-live-assistant', version: '1.0.0' });

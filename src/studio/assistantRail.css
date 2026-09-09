@@ -1,0 +1,121 @@
+/* Assistant rail mode: the right-hand menu becomes the Live assistant.
+   The rails container sets data-assistant-rail on <html> plus the rail box
+   custom properties; the panel (portaled to <body>) is docked into that box.
+   Rails are only measured from 941 px, so the docking is scoped the same way. */
+@media (min-width: 941px) {
+  :root[data-assistant-rail="true"] .workspace-rails .studio-right-rail,
+  :root[data-assistant-rail="true"] .workspace-rails .building-inspector,
+  :root[data-assistant-rail="true"] .workspace-rails .measure-inspector,
+  :root[data-assistant-rail="true"] .workspace-rails .arch-inspector {
+    visibility: hidden;
+  }
+  :root[data-assistant-rail="true"] .live-assistant {
+    position: fixed !important;
+    left: var(--assistant-rail-left, auto) !important;
+    top: var(--assistant-rail-top, 0px) !important;
+    right: 0 !important;
+    bottom: auto !important;
+    width: var(--assistant-rail-width, var(--right-menu-width, 400px)) !important;
+    height: var(--assistant-rail-height, 100dvh);
+    display: flex;
+    flex-direction: column;
+    /* Below the settings drawer (30) and the seam controls (35/36) so both stay usable in rail mode. */
+    z-index: 20;
+  }
+  :root[data-assistant-rail="true"] .live-assistant-panel {
+    position: static;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    height: 100% !important;
+    max-height: none;
+    width: 100%;
+    border-radius: 0;
+    border-width: 0 0 0 1px;
+    border-color: var(--menu-edge, #45484c);
+    box-shadow: -3px 0 7px -4px #0005;
+    animation: none;
+  }
+  :root[data-assistant-rail="true"] .live-assistant-launcher {
+    display: none;
+  }
+  :root[data-assistant-rail="true"] .assistant-drag-grip,
+  :root[data-assistant-rail="true"] .assistant-resize-handle {
+    display: none;
+  }
+  :root[data-assistant-rail="true"] .assistant-move-handle {
+    cursor: default;
+  }
+}
+.rail-assistant-toggle {
+  position: fixed;
+  /* With the seam controls (35/36); the panel's own header button covers the case where the floating panel overlaps the seam. */
+  z-index: 36;
+  width: 24px;
+  height: 48px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--assistant-ink, #28303a);
+  cursor: pointer;
+}
+.rail-assistant-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 2px -10px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--assistant-paper, #fff), var(--assistant-bg, #e2e6eb));
+  box-shadow: 0 0 0 1px var(--assistant-edge, #a7afb8), 0 2px 5px #14203624;
+}
+.rail-assistant-toggle svg {
+  position: relative;
+  pointer-events: none;
+}
+.rail-assistant-toggle:hover::before,
+.rail-assistant-toggle:focus-visible::before {
+  background: var(--assistant-soft, #edf0f4);
+  box-shadow: 0 0 0 2px var(--assistant-edge, #a7afb8), 0 2px 5px #14203624;
+}
+.rail-assistant-toggle[aria-pressed="true"] {
+  color: var(--color-paper, #fff);
+}
+.rail-assistant-toggle[aria-pressed="true"]::before {
+  background: var(--assistant-ink, #28303a);
+  box-shadow: 0 0 0 1px var(--assistant-edge, #a7afb8), 0 2px 6px #0004;
+}
+/* Both right-rail controls share the assistant palette and the actual column seam. */
+.workspace-rails .rail-controls-right .rail-toggle {
+  color: var(--assistant-ink, #28303a);
+}
+.workspace-rails .rail-controls-right .rail-toggle::before {
+  background: linear-gradient(180deg, var(--assistant-paper, #fff), var(--assistant-bg, #e2e6eb));
+  border-color: var(--assistant-edge, #a7afb8);
+  box-shadow: 0 2px 5px #14203624;
+}
+.workspace-rails .rail-controls-right .rail-toggle:hover::before,
+.workspace-rails .rail-controls-right .rail-toggle:focus-visible::before {
+  background: var(--assistant-soft, #edf0f4);
+  box-shadow: 0 0 0 2px var(--assistant-edge, #a7afb8), 0 2px 5px #14203624;
+}
+@media (min-width: 941px) {
+  .workspace-rails[data-right-collapsed="false"] .rail-controls-right .rail-toggle,
+  .workspace-rails[data-right-collapsed="false"] .rail-assistant-toggle {
+    left: calc(var(--assistant-seam-left) - 12px) !important;
+  }
+}
+@media (max-width: 940px) {
+  .rail-assistant-toggle {
+    display: none;
+  }
+}
+.workspace-rails .rail-resizer:hover::after,
+.workspace-rails .rail-resizer:focus-visible::after,
+.workspace-rails .rail-controls:has(.rail-toggle:hover) .rail-resizer::after {
+  top: 0;
+  height: 100%;
+  width: 1px;
+  border-radius: 0;
+  background: #000;
+}

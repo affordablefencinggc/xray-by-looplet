@@ -7,6 +7,7 @@ import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, p
 import "./priceBooks.css";
 import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
 import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
+import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
 
 type SourceFile = { fileName: string; sizeBytes: number; sha256: string } & ({ kind: "csv"; text: string } | { kind: "xlsx"; workbook: PriceWorkbook });
 type RateSelection = { bookId: string; revision: number; sourceLine: number };
@@ -156,6 +157,7 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
       {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
       {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}<details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details></article>; })}
     </>}
+    <PricingResearchPanel projectId={jobId} />
   </section>;
 }
 

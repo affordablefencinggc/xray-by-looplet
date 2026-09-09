@@ -17,6 +17,8 @@ import {
   designQuantities,
   polygonArea,
   wallAtHeight,
+  union,
+  wallOutline,
 } from "./geometry.ts";
 import {
   snapPoint,
@@ -377,6 +379,21 @@ test("design sync preserves user stock names and supplied unit weights when no d
   assert.equal(r.materials[0].stock.description, "My custom stock name");
   assert.equal(r.materials[0].stock.specifiedWeightKg, 12);
   assert.equal(r.materials[0].review, "pending");
+});
+
+test('overlapping return walls and a short closing segment do not create cyclic clipping rings', () => {
+  const p = emptyProject('overlapping-return');
+  const points: [number, number][] = [[-20.168,236.349],[9047.201,236.349],[-26.676,236.349],[-26.676,6286.036],[8940.314,6286.036],[9063.77,236.349],[9047.201,236.349]];
+  const ids = ['27883449','4cb51d97','075cbeb5','bfff72ba','9d64b742','24baa342'];
+  p.walls = ids.map((id, i) => ({ ...newWall(p, p.levels[0].id, points[i], points[i + 1]), id }));
+  const before = JSON.stringify(p);
+  const solids = wallSolids(p);
+  assert.ok(solids.length > 0 && solids.every(s => Number.isFinite(s.volumeM3) && s.volumeM3 > 0));
+  const envelope = polygonArea(union(...p.walls.map(w => wallOutline(w, p)))) * 2700 / 1e9;
+  const layered = solids.reduce((sum, s) => sum + s.volumeM3, 0);
+  assert.ok(Math.abs(layered - envelope) < 0.0001, `layered ${layered}, envelope ${envelope}`);
+  assert.equal(rooms(p, p.levels[0].id).length, 1);
+  assert.equal(JSON.stringify(p), before, 'clipping must not modify saved wall coordinates');
 });
 
 test('near-aligned layered walls remain closed and subtract hosted openings without clipping crashes', () => {

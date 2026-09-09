@@ -11,6 +11,7 @@ import { PreviewHostBridge } from "./components/preview-host-bridge";
 import { AuthProvider } from "./lib/auth/provider";
 import { AppErrorComponent } from "./lib/error-component";
 import { Studio } from "./studio/Studio";
+import { FloorConstructionStudio } from "./studio/FloorConstructionStudio";
 import "./styles.css";
 
 // The desktop document owns <html>/<body>; reuse the product and providers
@@ -29,7 +30,11 @@ const indexRoute = createRoute({
   component: Studio,
 });
 const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute]),
+  routeTree: rootRoute.addChildren([indexRoute, createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/floor-lab",
+    component: FloorConstructionStudio,
+  })]),
   // Packaged URLs end in index.html. Pane state belongs to Studio, while
   // the router keeps its normal root route and the preview bridge context.
   history: createMemoryHistory({ initialEntries: [`/${window.location.search}`] }),

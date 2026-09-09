@@ -1,5 +1,6 @@
 import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
 import { WorkspaceRails } from "./WorkspaceRails";
+import { AdjustableTopRow } from "./AdjustableTopRow";
 import { SourceComponentsProvider, SourceComponentsList, SourceComponentsInspector, useSourceComponents } from "./SourceComponents";
 import { CapabilitiesChecklist } from "./CapabilitiesChecklist";
 import { SettingsRail, AccountButton, type SettingsSection } from "./SettingsRail";
@@ -9,6 +10,7 @@ import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronU
 import { HOUSE } from "./geometry";
 import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
 import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
+import { inspectPlanBytes } from "./documents";
 import { useStudio, type Pane } from "./store";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
@@ -137,14 +139,44 @@ function StudioContent() {
     }
   }
 
+  async function loadSamplePlan(sampleId = "redburn") {
+    if (useStudio.getState().persistenceRecoveryBlocked) return;
+    try {
+      const resp = await fetch("/models/redburn/source.pdf");
+      if (!resp.ok) throw new Error(`Could not load sample plan PDF (HTTP ${resp.status})`);
+      const bytes = new Uint8Array(await resp.arrayBuffer());
+      const imported = await inspectPlanBytes({
+        name: "Redburn BR250157.pdf",
+        bytes,
+        source: "web",
+        takeoff: null,
+      });
+      await s.importPlan(imported);
+      s.setPane("sheets");
+    } catch (err) {
+      useStudio.setState({
+        documentError: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return (
     <div className="workbench flex h-dvh flex-col bg-bg text-ink" data-hydration-status={s.hydrationStatus} data-skin={s.skin} data-settings-open={settingsOpen}>
+      <AdjustableTopRow id="header" label="Header" minHeight={54}>
       <header className="studio-header flex items-center gap-2.5 border-b border-line bg-header px-3 py-2">
         <div className="studio-brand flex min-w-0 items-center gap-2 font-mono text-[11px] tracking-[0.12em]">
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
           <span className="truncate font-semibold">X-RAY BY LOOPLET</span>
         </div>
-        <ProjectPlanSwitcher onSelect={s.selectDocument} />
+        <ProjectPlanSwitcher onSelect={s.selectDocument} onOpenPlan={openPlan} onLoadSample={loadSamplePlan} />
+        <div className="studio-header-actions ml-auto flex items-center gap-2">
+          <ProjectBackups />
+          <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
+          <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
+        </div>
+      </header>
+      </AdjustableTopRow>
+      <AdjustableTopRow id="navigation" label="Navigation" minHeight={44}>
         <nav className="studio-pane-nav flex flex-1 justify-center gap-0.5" aria-label="Panes">
           {PANES.map((p) => (
             <button
@@ -160,13 +192,8 @@ function StudioContent() {
         </nav>
         <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
         <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
-        <div className="studio-header-actions ml-auto flex items-center gap-2">
-          <ProjectBackups />
-          <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
-          <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
-        </div>
-      </header>
-
+      </AdjustableTopRow>
+      <AdjustableTopRow id="mode" label="Workspace info" minHeight={28}>
       <div className="studio-modebar flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
         {s.pane === "model" && (
           <>MODEL · source-linked architectural reconstruction</>
@@ -180,7 +207,7 @@ function StudioContent() {
         {s.pane === "cost" && <>COST · QUANTITY REGISTER · EVIDENCE BOUND</>}
         {s.pane === "proof" && <>PROOF · export the evidence pack</>}
       </div>
-
+      </AdjustableTopRow>
       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
         {!s.lifted && s.pane !== "model" && (
           <aside className="studio-left-rail overflow-auto border-r border-line p-3">
@@ -246,7 +273,7 @@ function StudioContent() {
           <WorkspaceDiagnostics />
         </section>
 
-        {!s.persistenceRecoveryBlocked && !s.lifted && !sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
+        {!sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
         {settingsOpen && <SettingsRail section={settingsSection} setSection={setSettingsSection} onClose={()=>setSettingsOpen(false)} onOpenPlan={()=>void openPlan()} />}
       </div>
 

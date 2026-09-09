@@ -19,11 +19,12 @@ import {
 export type Polygon = Point[][];
 export type MultiPolygon = Polygon[];
 // Boolean intersections can produce coordinates a few floating-point bits apart.
-// Canonicalize their inputs far below the model's 0.001 mm editing precision so
+// Canonicalize their inputs at the model's 0.001 mm editing precision so
 // coincident layer edges remain identical across successive union/difference calls.
+// Sub-grid slivers from repeated mitres can otherwise create cyclic enclosing rings.
 const canonical = (polygons: MultiPolygon): MultiPolygon => polygons.map(polygon =>
   polygon.map(ring => ring.map(([x, y]) =>
-    [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6] as Point)));
+    [Math.round(x * 1e3) / 1e3, Math.round(y * 1e3) / 1e3] as Point)));
 const close = (ring: Point[]): Point[] =>
   distance(ring[0], ring[ring.length - 1]) < 0.001 ? ring : [...ring, ring[0]];
 export function union(...polygons: MultiPolygon[]): MultiPolygon {

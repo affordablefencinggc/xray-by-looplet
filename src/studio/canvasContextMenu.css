@@ -1,0 +1,100 @@
+/* Canvas right-click menu and "select a shape" pick banner. Tablet and desktop only: 44 px touch targets. */
+.canvas-context-menu {
+  --menu-silver: #e2e6eb;
+  --menu-edge: #a7afb8;
+  --menu-ink: #28303a;
+  --menu-shadow: #17233033;
+  position: fixed;
+  z-index: 90;
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 16px));
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--menu-edge);
+  border-radius: 12px;
+  background: var(--color-paper, #fff);
+  color: var(--color-ink, var(--menu-ink));
+  box-shadow: 0 14px 36px var(--menu-shadow), 0 0 0 3px color-mix(in srgb, var(--menu-silver) 55%, transparent);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  touch-action: manipulation;
+  animation: canvas-context-reveal 140ms cubic-bezier(.22, .68, .28, 1);
+}
+.canvas-context-caption { display: grid; gap: 2px; margin: 0 0 4px; padding: 8px 10px 8px; border-bottom: 1px solid var(--color-line, #d9dee4); }
+.canvas-context-caption strong { font-size: 12px; font-weight: 600; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-context-caption span { font-size: 11px; color: var(--color-muted, #5b6470); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.canvas-context-row { display: grid; }
+.canvas-context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.canvas-context-item:hover, .canvas-context-item:focus-visible { background: color-mix(in srgb, var(--menu-silver) 70%, transparent); outline: none; }
+.canvas-context-item:focus-visible { box-shadow: inset 0 0 0 2px var(--menu-edge); }
+.canvas-context-item:disabled { opacity: .55; cursor: default; }
+.canvas-context-item.is-note { min-height: 36px; font-size: 11px; color: var(--color-muted, #5b6470); }
+.canvas-context-item[aria-expanded="true"] { background: color-mix(in srgb, var(--menu-silver) 45%, transparent); border-radius: 8px 8px 0 0; }
+.canvas-context-modify { display: grid; gap: 6px; margin: 0 0 4px; padding: 8px 10px 10px; border-radius: 0 0 8px 8px; background: color-mix(in srgb, var(--menu-silver) 45%, transparent); }
+.canvas-context-modify label { font-size: 11px; color: var(--color-muted, #5b6470); }
+.canvas-context-modify input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--menu-edge);
+  border-radius: 8px;
+  background: var(--color-paper, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+}
+.canvas-context-modify input:focus-visible { outline: 2px solid var(--menu-edge); outline-offset: 1px; }
+.canvas-context-modify-actions { display: flex; align-items: center; gap: 8px; }
+.canvas-context-modify-actions button { flex: 0 0 auto; min-height: 44px; padding: 6px 12px; border: 1px solid var(--menu-edge); border-radius: 8px; background: var(--menu-ink); color: var(--menu-silver); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.canvas-context-modify-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.canvas-context-modify-actions span { font-size: 10px; line-height: 1.35; color: var(--color-muted, #5b6470); }
+
+.canvas-pick-banner {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  z-index: 90;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 8px 6px 16px;
+  border-radius: 999px;
+  background: #28303a;
+  color: #f3f5f7;
+  box-shadow: 0 10px 28px #17233055;
+  font-family: inherit;
+  font-size: 13px;
+  transform: translateX(-50%);
+  animation: canvas-pick-reveal 160ms cubic-bezier(.22, .68, .28, 1);
+}
+.canvas-pick-banner-text { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canvas-pick-banner-hint { font-size: 11px; opacity: .8; white-space: nowrap; }
+.canvas-pick-banner kbd { padding: 1px 5px; border: 1px solid #a7afb8; border-radius: 4px; font: inherit; font-size: 10px; }
+.canvas-pick-banner button { min-height: 44px; padding: 6px 14px; border: 1px solid #a7afb8; border-radius: 999px; background: #e2e6eb; color: #28303a; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+body.is-canvas-picking svg.architect-plan, body.is-canvas-picking .building-canvas canvas { cursor: crosshair; }
+
+@keyframes canvas-context-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes canvas-pick-reveal { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .canvas-context-menu, .canvas-pick-banner { animation: none; } }
+@media (max-width: 640px) {
+  .canvas-pick-banner { top: 6px; gap: 8px; padding-left: 12px; }
+  .canvas-pick-banner-hint { display: none; }
+}

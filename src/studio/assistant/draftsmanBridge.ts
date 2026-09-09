@@ -16,6 +16,9 @@ export const draftsmanActionSchema = z.enum([
   "section_cut",
   "dimensions",
   "plan_book",
+  "set_pencil_scale",
+  "set_pencil_color",
+  "set_dock_position",
 ]);
 export type DraftsmanAction = z.infer<typeof draftsmanActionSchema>;
 
@@ -39,6 +42,9 @@ export const draftsmanControlSchema = z.object({
   mode: z.enum(["none", "plan", "section-x", "section-z"]).optional(),
   visible: z.boolean().optional(),
   download: z.boolean().optional(),
+  pencilScale: z.number().finite().positive().max(10).optional(),
+  pencilColor: z.string().max(50).optional(),
+  dockPosition: z.enum(["bottom-left", "bottom-center"]).optional(),
 }).strict().superRefine((val, ctx) => {
   if (val.action === "seek" && val.progress === undefined) {
     ctx.addIssue({
@@ -56,6 +62,24 @@ export const draftsmanControlSchema = z.object({
     ctx.addIssue({
       code: "custom",
       message: "Action 'jump_storey' requires a 'storey' level label or index.",
+    });
+  }
+  if (val.action === "set_pencil_scale" && val.pencilScale === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Action 'set_pencil_scale' requires a 'pencilScale' number value.",
+    });
+  }
+  if (val.action === "set_pencil_color" && val.pencilColor === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Action 'set_pencil_color' requires a 'pencilColor' string value.",
+    });
+  }
+  if (val.action === "set_dock_position" && val.dockPosition === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Action 'set_dock_position' requires a 'dockPosition' value ('bottom-left' | 'bottom-center').",
     });
   }
 });

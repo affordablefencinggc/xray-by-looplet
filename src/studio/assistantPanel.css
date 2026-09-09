@@ -1,0 +1,924 @@
+.workspace-rails,
+.live-assistant {
+  --assistant-bg: #e2e6eb;
+  --assistant-paper: #ffffff;
+  --assistant-edge: #a7afb8;
+  --assistant-ink: #28303a;
+  --assistant-muted: #566170;
+  --assistant-line: #e1e5eb;
+  --assistant-soft: #edf0f4;
+  --assistant-pill-height: 28px;
+  --assistant-pill-font-size: 11px;
+  --assistant-pill-padding: 10px;
+}
+@media (pointer: coarse) {
+  .live-assistant { --assistant-pill-height: 44px; }
+}
+.live-assistant {
+  position: fixed;
+  z-index: 80;
+  color: var(--assistant-ink);
+  font-family: inherit;
+  isolation: isolate;
+}
+.live-assistant button,
+.live-assistant select,
+.live-assistant textarea {
+  font-family: inherit;
+  color: inherit;
+}
+.live-assistant button {
+  cursor: pointer;
+}
+.live-assistant button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.live-assistant button:focus-visible,
+.live-assistant select:focus-visible {
+  outline: 2px solid #758dab;
+  outline-offset: 2px;
+}
+.live-assistant-launcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 170px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--assistant-edge);
+  border-radius: 24px;
+  background: linear-gradient(180deg, var(--assistant-paper), var(--assistant-bg));
+  color: var(--assistant-ink);
+  box-shadow: 0 4px 14px #14203624;
+}
+.live-assistant-launcher strong {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.live-assistant-launcher svg:last-child {
+  margin-left: auto;
+}
+.live-assistant-launcher .is-flipped {
+  transform: rotate(180deg);
+}
+.live-assistant-panel {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  border: 1px solid #b9c2ce;
+  border-radius: 16px;
+  background: var(--assistant-paper);
+  box-shadow: 0 12px 36px #12203530;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.assistant-canvas-action {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--assistant-line);
+}
+.assistant-canvas-action button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--assistant-edge);
+  border-radius: 22px;
+  background: var(--assistant-paper);
+  color: var(--assistant-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.assistant-canvas-action button:hover:not(:disabled) {
+  background: var(--assistant-soft);
+}
+.live-assistant-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 56px;
+  padding: 4px 54px 4px 10px;
+  border-bottom: 1px solid var(--assistant-line);
+  border-radius: 15px 15px 0 0;
+  background: linear-gradient(145deg, var(--assistant-paper), var(--assistant-bg));
+  color: var(--assistant-ink);
+}
+.assistant-move-handle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  touch-action: none;
+  cursor: grab !important;
+  padding: 0 4px;
+}
+.assistant-move-handle span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.assistant-move-handle strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.assistant-move-handle small {
+  font-size: 9px;
+  color: var(--assistant-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.assistant-move-handle small i {
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: #b8a282;
+}
+.assistant-move-handle small i.is-ready {
+  background: #9ebfa9;
+}
+.assistant-drag-grip {
+  margin-left: auto;
+  opacity: 0.4;
+}
+.live-assistant.is-gesturing {
+  user-select: none;
+}
+.live-assistant.is-gesturing .assistant-move-handle {
+  cursor: grabbing !important;
+}
+.live-assistant-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: inherit;
+}
+.live-assistant-icon:hover {
+  background: #8997ac20;
+}
+/* SC-18 corner pinch: four 44 px hit boxes (panelCorners.ts) positioned inline by LiveAssistant.
+   They sit above the header/body/footer chrome but below the composer form (z-index 6), so the
+   send and "+" buttons keep their full targets and the bottom corners are grabbed on the note strip
+   and the composer's side margins. */
+.live-assistant .assistant-corner {
+  position: absolute;
+  z-index: 4;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  touch-action: none;
+}
+.assistant-corner::after {
+  content: "";
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border: 2px solid #6f8199;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+.assistant-corner[data-corner="nw"]::after {
+  left: 5px;
+  top: 5px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 8px;
+}
+.assistant-corner[data-corner="ne"]::after {
+  right: 5px;
+  top: 5px;
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: 8px;
+}
+.assistant-corner[data-corner="sw"]::after {
+  left: 5px;
+  bottom: 5px;
+  border-right: 0;
+  border-top: 0;
+  border-bottom-left-radius: 8px;
+}
+.assistant-corner[data-corner="se"]::after {
+  right: 5px;
+  bottom: 5px;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 8px;
+}
+.assistant-corner:hover::after,
+.assistant-corner:focus-visible::after,
+.live-assistant.is-gesturing .assistant-corner::after {
+  opacity: 1;
+}
+.live-assistant .assistant-corner:focus-visible {
+  outline-offset: -3px;
+}
+/* Rail mode sizes the dock from the right menu: no pinching there. */
+:root[data-assistant-rail="true"] .assistant-corner {
+  display: none;
+}
+/* SC-18 dock/undock lives in the header; rail mode itself is desktop/tablet only (941 px+). */
+@media (max-width: 940px) {
+  .live-assistant .assistant-dock-toggle {
+    display: none;
+  }
+}
+.live-assistant-body {
+  padding: 12px 14px 2px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd1da transparent;
+}
+.live-assistant-context {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--assistant-muted);
+  margin-bottom: 12px;
+}
+.live-assistant-context span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.assistant-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding-bottom: 10px;
+}
+.assistant-welcome {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--assistant-muted);
+  padding: 10px 7px;
+}
+.assistant-chat-entry {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 100%;
+  padding: 0 2px;
+}
+.assistant-chat-entry > strong {
+  font-size: 9px;
+  color: var(--assistant-muted);
+  font-weight: 500;
+}
+.assistant-chat-entry.is-user {
+  align-self: flex-end;
+  background: var(--assistant-soft);
+  border-radius: 14px 14px 4px 14px;
+  padding: 8px 11px;
+  max-width: 88%;
+}
+.assistant-chat-entry.is-user > strong {
+  display: none;
+}
+.assistant-chat-entry.is-tool {
+  border-left: 2px solid #c3ccd8;
+  padding: 2px 8px;
+  color: #586679;
+  font-size: 11px;
+}
+.assistant-chat-entry p {
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assistant-chat-entry details summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.assistant-chat-entry details p {
+  max-height: 180px;
+  overflow: auto;
+  font-size: 10px;
+}
+.assistant-chat-entry figure {
+  margin: 7px 0;
+}
+.assistant-chat-entry img {
+  display: block;
+  width: 100%;
+  max-height: 190px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.assistant-chat-entry figcaption {
+  font-size: 9px;
+  color: var(--assistant-muted);
+}
+.assistant-sources {
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}
+.assistant-sources a {
+  display: inline-block;
+  min-height: 36px;
+  color: #345479;
+}
+.assistant-chat-error {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #923a37;
+  background: #f7e9e6;
+  padding: 9px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.live-assistant-message {
+  font-size: 11px;
+  line-height: 1.55;
+  padding: 8px 10px;
+  background: var(--assistant-soft);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+/* SC-18 composer chrome: everything under the separation line shares the header's silver;
+   the composer form itself stays white and the textarea stays transparent on it. */
+.assistant-footer {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 0;
+  border-top: 1px solid var(--assistant-line, #c9ced5);
+  border-radius: 0 0 15px 15px;
+  background: linear-gradient(145deg, var(--assistant-paper), var(--assistant-bg));
+}
+:root[data-assistant-rail="true"] .assistant-footer {
+  border-radius: 0;
+}
+.live-assistant .live-assistant-composer {
+  position: relative;
+  z-index: 6;
+  flex-shrink: 0;
+  margin: 8px 10px 0;
+  padding: 10px 8px 3px;
+  border: 1px solid #d4dbe4;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 2px 5px #14203606;
+}
+.live-assistant-composer:focus-within {
+  border-color: #9caabd;
+}
+.live-assistant textarea {
+  display: block;
+  width: 100%;
+  height: 54px;
+  max-height: 110px;
+  min-height: 44px;
+  resize: none;
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.55;
+  outline: none;
+}
+.live-assistant textarea::placeholder {
+  color: #85909e;
+}
+.live-assistant-compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 44px;
+}
+.assistant-composer-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 50%;
+}
+.assistant-composer-button > span {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: #edf0f4;
+}
+.assistant-composer-button:hover > span {
+  background: #dce3ec;
+}
+.assistant-send > span {
+  background: var(--assistant-ink);
+  color: #fff;
+}
+.assistant-send:hover > span {
+  background: #35465e;
+}
+.assistant-composer-button:disabled > span {
+  background: #d3d9e1;
+  color: #8a94a1;
+}
+.assistant-composer-hint {
+  font-size: 9px;
+  color: var(--assistant-muted);
+  flex: 1;
+}
+.assistant-stop-square {
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border-radius: 2px;
+}
+.assistant-bottom-note {
+  font-size: 8px;
+  text-align: center;
+  color: var(--assistant-muted);
+  margin: 6px 10px 8px;
+  flex-shrink: 0;
+}
+.assistant-permission {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--assistant-ink);
+  flex-shrink: 0;
+}
+.assistant-permission input { width: 18px; height: 18px; accent-color: var(--assistant-ink); }
+.assistant-permission span { line-height: 1.4; }
+.assistant-guardrails { padding-left: 18px; font-size: 11px; line-height: 1.6; color: var(--assistant-muted); }
+.assistant-file-input {
+  display: none;
+}
+.assistant-add-root {
+  position: relative;
+}
+.assistant-add-menu {
+  position: absolute;
+  bottom: 48px;
+  left: 0;
+  width: 244px;
+  max-width: calc(100vw - 60px);
+  max-height: 260px;
+  overflow: auto;
+  z-index: 8;
+  padding: 5px;
+  border: 1px solid var(--assistant-line);
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 8px 25px #17243a24;
+}
+.assistant-add-menu button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  font-size: 11px;
+}
+.assistant-add-menu button:hover {
+  background: var(--assistant-soft);
+}
+.assistant-add-menu .assistant-new-chat {
+  border-top: 1px solid var(--assistant-line);
+  border-radius: 0 0 7px 7px;
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.assistant-drawer-heading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: -8px -6px 4px;
+  font-size: 12px;
+}
+.assistant-drawer-heading > button {
+  width: 30px;
+}
+.assistant-skill-list {
+  display: grid;
+  gap: 4px;
+}
+.assistant-skill-list > p,
+.assistant-reference-library > p,
+.assistant-help p,
+.assistant-connection-settings p {
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--assistant-muted);
+  margin: 4px 0 10px;
+}
+.assistant-skill-list > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  min-height: 53px;
+  border: 1px solid var(--assistant-line);
+  border-radius: 9px;
+  background: #fff;
+  padding: 9px;
+}
+.assistant-skill-list > button:hover {
+  background: var(--assistant-soft);
+}
+.assistant-skill-list span {
+  display: grid;
+  gap: 3px;
+}
+.assistant-skill-list strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.assistant-skill-list small {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--assistant-muted);
+}
+.assistant-reference-library h3,
+.assistant-help h3 {
+  font-size: 11px;
+  margin: 15px 0 8px;
+}
+.assistant-reference-library h3 > span {
+  float: right;
+  font-weight: 400;
+  color: var(--assistant-muted);
+}
+.assistant-style-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+}
+.assistant-style-list button {
+  background: white;
+  border: 1px solid var(--assistant-line);
+  border-radius: 8px;
+  font-size: 11px;
+  min-height: 40px;
+}
+.assistant-style-list button:hover {
+  background: var(--assistant-soft);
+}
+.assistant-reference-upload,
+.assistant-text-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--assistant-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 11px;
+  min-height: 40px;
+  padding: 7px 10px;
+}
+.assistant-reference-upload {
+  width: 100%;
+  border-style: dashed;
+}
+.assistant-reference-library > small {
+  display: block;
+  font-size: 9px;
+  color: var(--assistant-muted);
+  line-height: 1.6;
+  margin-top: 7px;
+}
+.assistant-text-action {
+  margin: 6px 0;
+}
+.assistant-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.assistant-reference-grid article {
+  padding: 6px;
+  border: 1px solid var(--assistant-line);
+  background: #fff;
+  border-radius: 8px;
+  min-width: 0;
+}
+.assistant-reference-grid article > img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.assistant-reference-grid article > strong {
+  display: block;
+  font-size: 9px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin: 5px 0;
+}
+.assistant-reference-grid select {
+  width: 100%;
+  font-size: 9px;
+  min-height: 32px;
+  border: 1px solid var(--assistant-line);
+  border-radius: 5px;
+  background: white;
+}
+.assistant-reference-grid article > div {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.assistant-reference-grid article > div > button:first-child {
+  font-size: 9px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  padding: 3px;
+  flex: 1;
+}
+.assistant-reference-grid .live-assistant-icon {
+  width: 26px;
+  height: 36px;
+}
+.assistant-reference-empty {
+  border: 1px dashed var(--assistant-line);
+  padding: 14px;
+  border-radius: 8px;
+}
+.assistant-help code {
+  background: var(--assistant-soft);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.live-assistant-guide {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.live-assistant-guide ol {
+  padding-left: 18px;
+}
+.live-assistant-guide > p {
+  font-size: 10px;
+  color: var(--assistant-muted);
+}
+.assistant-attachments {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 4px 5px;
+  max-height: 58px;
+}
+.assistant-attachments > div {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 120px;
+  max-width: 170px;
+  padding: 4px;
+  background: var(--assistant-soft);
+  border-radius: 9px;
+}
+.assistant-attachments img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.assistant-attachments span {
+  font-size: 9px;
+  min-width: 0;
+  flex: 1;
+}
+.assistant-attachments small {
+  display: block;
+  font-size: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 75px;
+  color: var(--assistant-muted);
+}
+.assistant-attachments .live-assistant-icon {
+  width: 24px;
+  height: 32px;
+}
+.assistant-drop-target {
+  position: absolute;
+  inset: 7px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #f8f9fbf5;
+  border: 2px dashed #7d91aa;
+  border-radius: 10px;
+  pointer-events: none;
+  font-size: 13px;
+}
+.assistant-drop-target > span {
+  font-size: 10px;
+  color: var(--assistant-muted);
+}
+.live-assistant-voice {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+}
+.live-assistant-voice > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.live-assistant-voice button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 40px;
+  padding: 6px 9px;
+  border: 1px solid var(--assistant-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 10px;
+}
+.live-assistant-voice small,
+.live-assistant-disclosure {
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--assistant-muted);
+}
+.live-assistant button,
+.live-assistant select,
+.assistant-chat-entry details summary {
+  min-height: 44px;
+}
+.live-assistant button { min-width: 44px; }
+
+
+/* SC-19 chrome: collapsed launcher = a thin bottom rail from edge to edge, with a connection light;
+   the context meter sits bottom-left under the composer; the guard banner stays above the footer. */
+.live-assistant:not(.is-open) {
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: 24px !important;
+  width: auto !important;
+}
+/* [SC-19 rail bounds] begin: the collapsed rail belongs to the right-hand menu column, not the
+   whole viewport. The edge-to-edge rule above let it span the window and cover the workspace
+   underneath (it sat across the bottom of the canvas and the log tabs).
+
+   It is anchored to BOTH edges — left to the column's inner seam, right to the viewport — rather
+   than being given a width. A width has to be guessed when the variable is missing, and the guess
+   floats the rail off the seam; anchoring both edges means the rail is whatever the column is, and
+   a missing variable degrades to the old full-width behaviour instead of a wrong offset.
+
+   The anchor cannot be --right-menu-width, and cannot key off [data-assistant-rail]. The panel is
+   portaled to document.body (LiveAssistant.tsx:1307), so it is outside .workspace-rails and does
+   not inherit that container's variables; and WorkspaceRails.tsx:96 dispatches "assistant-closed"
+   when the panel closes, which nextRailState turns into rail mode being cleared — so the attribute
+   and the four --assistant-rail-* vars are already gone in exactly this state. The seam variable is
+   published on <html> by its own effect for that reason. Rails are measured from 941px, matching
+   assistantRail.css. */
+@media (min-width: 941px) {
+  .live-assistant:not(.is-open) {
+    left: var(--assistant-seam-left, 0px) !important;
+    right: 0 !important;
+    width: auto !important;
+    bottom: var(--assistant-column-bottom, 0px) !important;
+  }
+  /* The open assistant occupies the shared column, independent of floating-panel geometry. */
+  .live-assistant.is-open {
+    /* Seam controls sit above the docked panel and remain draggable. */
+    z-index: 20;
+    left: var(--assistant-seam-left, 0px) !important;
+    right: 0 !important;
+    width: auto !important;
+    top: var(--assistant-column-top, 90px) !important;
+    bottom: var(--assistant-column-bottom, 0px) !important;
+    height: auto !important;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+  /* The launcher IS the collapsed rail. Once the panel is open the panel's own header carries the
+     title and the close control, so leaving the launcher rendered stacks a second bar beneath the
+     panel — the pill in the screenshot. It stays in the DOM (LiveAssistant.tsx:1288 renders it
+     unconditionally and focus returns to it on close) but must not be shown. */
+  .live-assistant.is-open .live-assistant-launcher {
+    display: none;
+  }
+  .live-assistant.is-open .live-assistant-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100% !important;
+    max-height: none;
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    border-width: 0 0 0 1px;
+  }
+  .live-assistant.is-open .live-assistant-header {
+    border-radius: 0;
+  }
+}
+/* [SC-19 rail bounds] end */
+@media (min-width: 941px) {
+  :root[data-assistant-rail="true"] .live-assistant.is-open {
+    top: var(--assistant-column-top, 90px) !important;
+    bottom: var(--assistant-column-bottom, 0px) !important;
+    height: auto !important;
+  }
+  :root[data-right-menu-collapsed="true"] .live-assistant { display: none; }
+  .live-assistant.is-open .assistant-drag-grip,
+  .live-assistant.is-open .assistant-corner,
+  .live-assistant.is-open .assistant-resize-handle { display: none; }
+  .live-assistant.is-open .assistant-move-handle { cursor: default; }
+}
+.live-assistant:not(.is-open) .live-assistant-launcher {
+  width: 100%;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  box-shadow: 0 -2px 10px #14203618;
+}
+/* [SC-19 rail seam] begin: the launcher rule above drops both side borders, which is right for the
+   edge-to-edge phone layout but leaves the docked rail with no seam against the workspace. It is
+   declared after the bounds block and has equal specificity, so the seam has to be restored here
+   rather than inside that block, where it would lose the cascade. */
+@media (min-width: 941px) {
+  .live-assistant:not(.is-open) .live-assistant-launcher {
+    border-left: 1px solid var(--color-line, #45484c);
+  }
+}
+/* [SC-19 rail seam] end */
+@media (pointer: coarse) {
+  .live-assistant:not(.is-open) .live-assistant-launcher { height: 44px; }
+}
+.live-assistant.is-open .live-assistant-launcher {
+  width: 170px;
+}
+.assistant-status-light {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: #c9403a;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 6px #c9403a80;
+}
+.assistant-status-light.is-on {
+  background: #2f9e5f;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 6px #2f9e5f80;
+}
+.assistant-footer-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 10px 8px;
+}
+.assistant-footer-status .assistant-bottom-note {
+  margin: 0;
+  text-align: right;
+}

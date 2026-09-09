@@ -46,10 +46,75 @@ describe("project persistence", () => {
     const job = createDefaultJob("2026-09-04T00:00:00.000Z");
     job.name = "Boundary replacement";
 
-    assert.deepEqual(saveFencingJob(job, storage), { ok: true, error: null });
+    const saved = saveFencingJob(job, storage);
+    assert.deepEqual(saved, { ok: true, error: null, raw: storage.getItem(FENCING_JOB_STORAGE_KEY) });
     const loaded = loadFencingJob(storage);
     assert.equal(loaded.error, null);
     assert.deepEqual(loaded.job, job);
+    assert.equal(loaded.raw, saved.raw, "the load reports the exact bytes it parsed");
+  });
+
+  it("refuses a stale write when storage holds bytes the writer never saw and leaves them untouched", () => {
+    const storage = new MemoryStorage();
+    const mine = createDefaultJob("2026-09-04T00:00:00.000Z");
+    const first = saveFencingJob(mine, storage);
+    const expectedRaw = first.raw ?? null;
+    assert.equal(expectedRaw, storage.getItem(FENCING_JOB_STORAGE_KEY));
+
+    // Another window saved a newer revision that this writer has not loaded.
+    const other = { ...mine, name: "Other window revision", revision: mine.revision + 1 };
+    const foreign = JSON.stringify(other);
+    storage.setItem(FENCING_JOB_STORAGE_KEY, foreign);
+
+    const attempt = saveFencingJob({ ...mine, name: "Stale window edit", revision: mine.revision + 1 }, storage, { expectedRaw });
+    assert.equal(attempt.ok, false);
+    assert.equal(attempt.stale, true);
+    assert.match(attempt.error ?? "", /newer revision .* another window/i);
+    assert.match(attempt.error ?? "", /reload/i);
+    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), foreign, "the newer bytes are byte-identical after the refused write");
+  });
+
+  it("accepts a write whose expectedRaw matches the stored bytes and returns the bytes it wrote", () => {
+    const storage = new MemoryStorage();
+    const job = createDefaultJob("2026-09-04T00:00:00.000Z");
+    const first = saveFencingJob(job, storage);
+    const next = { ...job, name: "Same window edit", revision: job.revision + 1 };
+    const saved = saveFencingJob(next, storage, { expectedRaw: first.raw ?? null });
+    assert.equal(saved.ok, true);
+    assert.equal(saved.stale, undefined);
+    assert.equal(saved.raw, storage.getItem(FENCING_JOB_STORAGE_KEY));
+    assert.equal(loadFencingJob(storage).raw, saved.raw);
+    // Tracking the returned bytes keeps the next write valid.
+    assert.equal(saveFencingJob({ ...next, revision: next.revision + 1 }, storage, { expectedRaw: saved.raw ?? null }).ok, true);
+  });
+
+  it("treats an empty slot as the expected state for a first write, and a filled slot as stale for it", () => {
+    const storage = new MemoryStorage();
+    const job = createDefaultJob("2026-09-04T00:00:00.000Z");
+    assert.equal(saveFencingJob(job, storage, { expectedRaw: null }).ok, true);
+    const stored = storage.getItem(FENCING_JOB_STORAGE_KEY);
+    const second = saveFencingJob(createDefaultJob("2026-09-04T00:00:00.000Z"), storage, { expectedRaw: null });
+    assert.equal(second.ok, false);
+    assert.equal(second.stale, true);
+    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), stored);
+  });
+
+  it("still fails on a readback mismatch when the compare-and-swap check passed", () => {
+    const job = createDefaultJob();
+    const replaced = { getItem: () => '{"another":"record"}', setItem: () => {}, removeItem: () => {} };
+    const saved = saveFencingJob(job, replaced, { expectedRaw: '{"another":"record"}' });
+    assert.equal(saved.ok, false);
+    assert.equal(saved.stale, undefined);
+    assert.match(saved.error ?? "", /could not be verified/);
+  });
+
+  it("reports a read failure during the compare-and-swap check instead of writing blind", () => {
+    const backing = new MemoryStorage();
+    const unreadable = { getItem: () => { throw Error("Storage read denied"); }, setItem: backing.setItem.bind(backing), removeItem: backing.removeItem.bind(backing) };
+    const saved = saveFencingJob(createDefaultJob(), unreadable, { expectedRaw: null });
+    assert.equal(saved.ok, false);
+    assert.match(saved.error ?? "", /before saving.*Storage read denied/);
+    assert.equal(backing.getItem(FENCING_JOB_STORAGE_KEY), null, "nothing was written");
   });
 
   it("fails closed when stored JSON is corrupt", () => {
@@ -80,6 +145,17 @@ describe("project persistence", () => {
     assert.equal(loaded.error, null);
     assert.equal(loaded.job?.schemaVersion, 2);
     assert.equal(loaded.job?.name, legacy.name);
+    assert.equal(loaded.raw, JSON.stringify(legacy), "the legacy bytes are reported as the loaded raw");
+
+    // A writer that loaded the legacy record may save with those bytes as its expectation.
+    const saved = saveFencingJob({ ...loaded.job!, name: "Migrated edit", revision: loaded.job!.revision + 1 }, storage, { expectedRaw: loaded.raw });
+    assert.equal(saved.ok, true);
+    assert.equal(storage.getItem(LEGACY_FENCING_JOB_STORAGE_KEY), JSON.stringify(legacy), "legacy bytes stay intact");
+    assert.equal(JSON.parse(storage.getItem(FENCING_JOB_STORAGE_KEY)!).name, "Migrated edit");
+    // Once the v2 record exists, the legacy bytes are no longer the expected state.
+    const stale = saveFencingJob(loaded.job!, storage, { expectedRaw: loaded.raw });
+    assert.equal(stale.stale, true);
+    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), saved.raw);
   });
 
   it("does not overwrite storage with an invalid job", () => {
@@ -99,7 +175,7 @@ describe("project persistence", () => {
     saveFencingJob(createDefaultJob(), storage);
 
     assert.deepEqual(clearFencingJob(storage), { ok: true, error: null });
-    assert.deepEqual(loadFencingJob(storage), { job: null, error: null });
+    assert.deepEqual(loadFencingJob(storage), { job: null, error: null, raw: null });
   });
 
   it("does not report success when storage silently drops or replaces a write", () => {

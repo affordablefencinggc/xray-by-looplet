@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { connectAppMcp, type AssistantTool } from './mcp';
 import { assistantTurn } from './transport';
 import type { ToolResult } from './conversation';
+import { assistantToolAllowed } from './skills';
+import { checkProfessionalAction } from './workPacket';
 export const useAssistantConnection = create<{ connected: boolean; names: string[]; error: string | null }>(() => ({ connected: false, names: [], error: null }));
 let connection: ReturnType<typeof connectAppMcp> | undefined;
 let activeSignal: AbortSignal | undefined;
@@ -27,9 +29,13 @@ export async function getAssistantMcp() {
   }
   return connection;
 }
-export async function callAssistantTool(name: string, args: Record<string, unknown>, signal: AbortSignal): Promise<ToolResult> {
+export async function callAssistantTool(name: string, args: Record<string, unknown>, signal: AbortSignal, permissions = { allowProjectEdits: false }): Promise<ToolResult> {
   signal.throwIfAborted();
+  checkProfessionalAction(name);
+  if (!assistantToolAllowed(name, permissions.allowProjectEdits)) throw Error('This tool is not permitted for this message. No action performed.');
   const session = await getAssistantMcp();
+  signal.throwIfAborted();
+  if (activeSignal) throw Error('Another assistant tool is running. Wait before retrying.');
   activeSignal = signal;
   try { return await session.client.callTool({ name, arguments: args }, undefined, { signal, timeout: 125000 }) as ToolResult; }
   finally { activeSignal = undefined; }

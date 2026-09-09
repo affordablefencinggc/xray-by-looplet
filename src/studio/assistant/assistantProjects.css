@@ -1,0 +1,188 @@
+/* Assistant projects (SC-18): active-project pill + open tabs above the composer footer line,
+   and the Projects drawer. Tokens come from .live-assistant (assistantPanel.css). */
+.assistant-project-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 2px 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd1da transparent;
+}
+.assistant-project-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  max-width: min(62%, 220px);
+  height: var(--assistant-pill-height, 28px);
+  padding: 0 4px 0 var(--assistant-pill-padding, 10px);
+  border: 1px solid #c3cbd6;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff, var(--assistant-soft, #edf0f4));
+  color: var(--assistant-ink, #28303a);
+  font-size: var(--assistant-pill-font-size, 11px);
+}
+.assistant-project-pill > svg {
+  flex-shrink: 0;
+  color: var(--assistant-muted, #566170);
+}
+.assistant-project-pill:has(.assistant-project-close) {
+  padding-right: 0;
+}
+.assistant-project-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+/* Close control follows the shared desktop/tablet pill height. */
+.live-assistant .assistant-project-close {
+  width: var(--assistant-pill-height, 28px);
+  min-width: var(--assistant-pill-height, 28px);
+  height: var(--assistant-pill-height, 28px);
+  min-height: var(--assistant-pill-height, 28px);
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--assistant-muted, #566170);
+}
+.live-assistant .assistant-project-close:hover:not(:disabled) {
+  color: var(--assistant-ink, #28303a);
+  background: #8997ac20;
+}
+.assistant-project-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.live-assistant .assistant-project-tab {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 44px;
+  max-width: 140px;
+  height: var(--assistant-pill-height, 28px);
+  min-height: var(--assistant-pill-height, 28px);
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+}
+.assistant-project-tab > span {
+  display: block;
+  box-sizing: border-box;
+  height: var(--assistant-pill-height, 28px);
+  min-width: 0;
+  max-width: 138px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 var(--assistant-pill-padding, 10px);
+  border: 1px solid var(--assistant-line, #e1e5eb);
+  border-bottom-color: #c3cbd6;
+  border-radius: 999px;
+  background: var(--assistant-soft, #edf0f4);
+  color: var(--assistant-ink, #28303a);
+  font-size: var(--assistant-pill-font-size, 11px);
+  line-height: calc(var(--assistant-pill-height, 28px) - 2px);
+}
+.assistant-project-tab:hover:not(:disabled) > span {
+  background: #dce3ec;
+}
+.assistant-project-tab[aria-selected="true"] > span {
+  background: var(--assistant-ink, #28303a);
+  border-color: var(--assistant-ink, #28303a);
+  color: #fff;
+}
+
+.assistant-project-drawer {
+  display: grid;
+  gap: 8px;
+}
+.assistant-project-drawer > p {
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--assistant-muted, #566170);
+  margin: 4px 0 2px;
+}
+.live-assistant .assistant-project-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px dashed #9aa6b5;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.live-assistant .assistant-project-new:hover:not(:disabled) {
+  background: var(--assistant-soft, #edf0f4);
+}
+.assistant-project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.assistant-project-list > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--assistant-line, #e1e5eb);
+  border-radius: 9px;
+  background: #fff;
+}
+.assistant-project-list > li.is-current {
+  border-color: #9fb0c6;
+  background: var(--assistant-soft, #edf0f4);
+}
+.assistant-project-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.assistant-project-meta strong {
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.assistant-project-meta small {
+  font-size: 9px;
+  color: var(--assistant-muted, #566170);
+}
+.assistant-project-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.live-assistant .assistant-project-actions button {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 600;
+  color: #345479;
+  white-space: nowrap;
+}
+.live-assistant .assistant-project-actions button:hover:not(:disabled) {
+  background: #8997ac20;
+}

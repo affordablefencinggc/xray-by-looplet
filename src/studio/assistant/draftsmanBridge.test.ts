@@ -24,6 +24,9 @@ const mockStatus: DraftsmanStatus = {
   storeys: [],
   sectionCut: "none",
   dimensionsVisible: false,
+  pencilScale: 1.0,
+  pencilColor: "#1877F2",
+  dockPosition: "bottom-left",
 };
 
 test("draftsmanControlSchema strictly validates actions and required parameters", () => {
