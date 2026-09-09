@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "X-Ray Architectural Object",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "name",
+    "sourceDocumentId",
+    "sourceSha256",
+    "evidence",
+    "geometry",
+    "units"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "IFCWall",
+        "IFCSlab",
+        "IFCRoof",
+        "IFCColumn",
+        "IFCBeam",
+        "IFCDoor",
+        "IFCWindow",
+        "IFCCovering",
+        "IFCFurnishingElement",
+        "IFCStair",
+        "IFCMember",
+        "IFCBuildingElementProxy"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "storey": {
+      "type": "object",
+      "required": ["storeyId", "elevationM"],
+      "properties": {
+        "storeyId": { "type": "string" },
+        "storeyName": { "type": "string" },
+        "elevationM": { "type": "number" }
+      }
+    },
+    "units": {
+      "type": "string",
+      "const": "m"
+    },
+    "sourceDocumentId": {
+      "type": "string"
+    },
+    "sourceSha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["state", "sheetReferences"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "source-measured",
+            "source-traced",
+            "source-derived",
+            "inferred",
+            "presentation",
+            "conflicted",
+            "unverified"
+          ]
+        },
+        "sheetReferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["page", "role"],
+            "properties": {
+              "page": { "type": "integer", "minimum": 1 },
+              "role": {
+                "type": "string",
+                "enum": ["plan", "elevation", "section", "detail", "schedule", "note"]
+              },
+              "region": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": { "type": "number" }
+              },
+              "note": { "type": "string" }
+            }
+          }
+        },
+        "calibrationId": { "type": "string" },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "required": ["positions", "indices"],
+      "properties": {
+        "positions": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "indices": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "material": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "colour": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
+    },
+    "takeoff": {
+      "type": "object",
+      "properties": {
+        "componentId": { "type": "string" },
+        "sku": { "type": "string" },
+        "netQuantities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "value", "unit"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["length", "area", "volume", "count", "mass"]
+              },
+              "value": { "type": "number" },
+              "unit": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

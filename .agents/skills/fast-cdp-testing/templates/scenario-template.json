@@ -1,0 +1,21 @@
+[
+  ["tab", "t1"],
+  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=ready]')"],
+  ["eval", "if(!window.__APP__) console.log('Checking app initialization...')"],
+  ["find", "role", "button", "click", "--name", "Model View", "--exact"],
+  ["wait", "--fn", "document.querySelector('.primary-action')?.disabled === false"],
+  ["find", "role", "button", "click", "--name", "Open Project", "--exact"],
+  ["wait", "--fn", "Number(document.querySelector('canvas')?.dataset.meshCount || 0) > 0"],
+  ["find", "role", "button", "click", "--name", "Front", "--exact"],
+  ["screenshot", "screenshots/audit/front-view.png"],
+  ["eval", "var dock = document.querySelector('.control-dock'); if (dock) { var r = dock.getBoundingClientRect(); if (r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) throw Error('Controls clipped outside viewport'); } 'Dock layout verified'"],
+  ["set", "viewport", "390", "844"],
+  ["find", "role", "button", "click", "--name", "Front", "--exact"],
+  ["eval", "for (const btn of document.querySelectorAll('button')) { var h = btn.getBoundingClientRect().height; if (h > 0 && h < 44) throw Error('Touch target smaller than 44px: ' + btn.textContent); } 'Mobile touch sizing verified'"],
+  ["screenshot", "screenshots/audit/mobile-view.png"],
+  ["set", "viewport", "1600", "1000"],
+  ["reload"],
+  ["wait", "--fn", "!!document.querySelector('[data-hydration-status=ready]')"],
+  ["errors"],
+  ["console"]
+]
