@@ -115,3 +115,31 @@ test('capability reference derives the batch limit from the live draw schema', (
   assert.match(WORKBENCH_STRUCTURE.architecturalDesign.wireframeOperations.limits, /≤200 operations/);
   assert.ok(WORKBENCH_STRUCTURE.workflowRouting.workflows.architecture.length > 3);
 });
+
+/**
+ * Observed live 2026-09-10: a user attached an elevation drawing, asked about it, and the assistant
+ * was refused with "Workflow prerequisite missing" for trying to read the file they had just handed
+ * it. Gating a read that changes nothing only costs a round trip and shows a refusal the user cannot
+ * act on.
+ */
+test('reading the user\'s own attachment needs no workflow selected first', () => {
+  assert.equal(nextToolStep(emptyWorkflow(), 'read_assistant_file', {}, c), null,
+    'the file the user just attached must be readable immediately');
+});
+
+test('inspection reads pass through, while every edit stays gated', () => {
+  for (const tool of ['read_assistant_file', 'read_price_books', 'read_draftsman_status', 'read_source_building']) {
+    assert.equal(nextToolStep(emptyWorkflow(), tool, {}, c), null, `${tool} changes nothing and must not be gated`);
+  }
+  // The safety property this router exists for is unchanged: a mutation still routes first.
+  for (const tool of ['draw_architect_elements', 'edit_architect_elements', 'undo_architect_change', 'calibrate_source_sheet', 'trace_takeoff_run', 'remove_takeoff_trace']) {
+    assert.equal(nextToolStep(emptyWorkflow(), tool, {}, c)?.tool, 'read_workflow_route', `${tool} must still be routed before it runs`);
+  }
+});
+
+test('an ungated read does not let a later edit skip its own prerequisites', () => {
+  // Reading an attachment must not be mistaken for having read the design.
+  const afterFile = recordWorkflowResult(selected(), 'read_assistant_file', {}, ok({ fileId: 'f1', page: 1 }), c, c);
+  assert.equal(nextToolStep(afterFile, 'draw_architect_elements', {}, c)?.tool, 'read_project_context',
+    'a drawing edit must still establish project and design state for itself');
+});

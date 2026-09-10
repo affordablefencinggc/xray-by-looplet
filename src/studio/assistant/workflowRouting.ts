@@ -39,7 +39,22 @@ const evidenceKey = (c: RoutingContext, sheet?: unknown) => JSON.stringify([cont
 const captureKey = (c: RoutingContext) => JSON.stringify([contextKey(c), designKey(c), c.pane, c.renderedSceneSha256]);
 const ARCHITECT_EDITS = new Set(['draw_architect_elements', 'edit_architect_elements', 'undo_architect_change']);
 const TAKEOFF_EDITS = new Set(['calibrate_source_sheet', 'trace_takeoff_run', 'remove_takeoff_trace']);
-const UNBOUND_READS = new Set(['read_project_context', 'read_workbench_structure', 'read_work_packet', 'read_work_packet_event', 'web_search']);
+/**
+ * Reads that never need a workflow selected first.
+ *
+ * The router exists to stop a mutation running against stale or unverified state. A read that
+ * changes nothing cannot do that, so gating one only costs the user a round trip and shows them a
+ * refusal they cannot act on.
+ *
+ * `read_assistant_file` is the clearest case, observed live 2026-09-10: the user attached an
+ * elevation drawing and asked about it, and the assistant was refused with "Workflow prerequisite
+ * missing" for trying to read the file the user had just handed it. It still verifies the project
+ * through `expectedJobId` inside the tool, so the binding is not weakened here; only the ordering
+ * requirement is lifted. The same applies to reading price books, draftsman telemetry and a source
+ * building: all are inspection, and any edit they precede is still gated on its own terms.
+ */
+const UNBOUND_READS = new Set(['read_project_context', 'read_workbench_structure', 'read_work_packet', 'read_work_packet_event', 'web_search',
+  'read_assistant_file', 'read_price_books', 'read_draftsman_status', 'read_source_building']);
 const bound = (c: RoutingContext) => ({ expectedJobId: c.projectId });
 const contextStep = (): RouteStep => ({ tool: 'read_project_context', args: {}, reason: 'Read the current project identity, revision and workspace state.' });
 const designStep = (c: RoutingContext): RouteStep => !c.architectReady
