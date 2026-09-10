@@ -1088,7 +1088,8 @@ export function LiveAssistant() {
           {/* [SC-18 composer chrome] begin: silver footer under a separation line; the composer stays white */}
           <div className="assistant-footer">
           {/* [SC-20 permissions] begin: mode control (ask / edit freely / read only) and the per-call prompt */}
-          <PermissionControls />
+          {/* Disabled mid-turn: swapping provider would leave an in-flight request answering to one route and its tool calls to another. */}
+          <PermissionControls disabled={chat.busy || switching} />
           {/* [SC-20 permissions] end */}
           <form
             className="live-assistant-composer"

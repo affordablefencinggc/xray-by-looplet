@@ -1,0 +1,15 @@
+[
+ ["open","http://127.0.0.1:8091/","--timeout","120000"],
+ ["set","viewport","1024","768"],
+ ["wait","--fn","document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'","--timeout","120000"],
+ ["eval","(()=>{const l=document.querySelector('.live-assistant-launcher');l&&l.click();return 'panel'})()"],
+ ["wait","--fn","!!document.querySelector('.assistant-provider-button')","--timeout","60000"],
+ ["eval","(()=>{const b=document.querySelector('.assistant-provider-button').getBoundingClientRect();const c=document.querySelector('.live-assistant-composer').getBoundingClientRect();return 'ABOVE_INPUT:'+(b.bottom<=c.top+2)+' RIGHT_SIDE:'+(b.right>c.left+c.width*0.5)})()"],
+ ["eval","(()=>{document.querySelector('.assistant-provider-button').click();return 'open'})()"],
+ ["wait","--fn","!!document.querySelector('.assistant-provider-menu')","--timeout","20000"],
+ ["eval","(()=>{const m=document.querySelector('.assistant-provider-menu').getBoundingClientRect();const p=document.querySelector('.live-assistant').getBoundingClientRect();const o=[...document.querySelectorAll('.assistant-provider-option')];return 'WITHIN_PANEL:'+(m.left>=p.left-1&&m.right<=p.right+1)+' IN_VIEWPORT:'+(m.top>=0)+' MIN_TOUCH:'+Math.round(Math.min(...o.map(x=>x.getBoundingClientRect().height)))})()"],
+ ["screenshot","screenshots/growth/2026-09-10-provider-switch/tablet-01-menu-open.png"],
+ ["eval","(()=>{const k=new KeyboardEvent('keydown',{key:'Escape',bubbles:true});document.dispatchEvent(k);return 'escape'})()"],
+ ["wait","--fn","!document.querySelector('.assistant-provider-menu')","--timeout","20000"],
+ ["eval","(()=>{return 'CLOSED_ON_ESCAPE:'+!document.querySelector('.assistant-provider-menu')+' PANEL_STILL_OPEN:'+!!document.querySelector('#live-assistant-prompt')})()"]
+]

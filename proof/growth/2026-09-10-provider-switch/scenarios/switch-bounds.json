@@ -1,0 +1,11 @@
+[
+ ["open","http://127.0.0.1:8091/","--timeout","120000"],
+ ["set","viewport","1280","800"],
+ ["wait","--fn","document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'","--timeout","120000"],
+ ["eval","(()=>{const l=document.querySelector('.live-assistant-launcher');l&&l.click();return 'panel'})()"],
+ ["wait","--fn","!!document.querySelector('.assistant-provider-button')","--timeout","60000"],
+ ["eval","(()=>{document.querySelector('.assistant-provider-button').click();return 'open'})()"],
+ ["wait","--fn","!!document.querySelector('.assistant-provider-menu')","--timeout","20000"],
+ ["eval","(()=>{const m=document.querySelector('.assistant-provider-menu').getBoundingClientRect();const p=document.querySelector('.live-assistant').getBoundingClientRect();return 'WITHIN_PANEL:'+(m.left>=p.left-1&&m.right<=p.right+1)+' MENU_L:'+Math.round(m.left)+' PANEL_L:'+Math.round(p.left)+' MENU_W:'+Math.round(m.width)})()"],
+ ["screenshot","screenshots/growth/2026-09-10-provider-switch/desktop-05-menu-within-panel.png"]
+]

@@ -1,6 +1,7 @@
 import { Check, ShieldCheck, ShieldQuestion, Eye, X } from "lucide-react";
 import { PERMISSION_MODES, usePermissions, type PermissionMode } from "./permissions";
 import "./permissionControls.css";
+import { ProviderSwitch } from "./ProviderSwitch";
 
 const ICONS: Record<PermissionMode, (props: { size?: number }) => React.ReactNode> = { ask: ShieldQuestion, auto: ShieldCheck, readonly: Eye };
 
@@ -28,6 +29,8 @@ export function PermissionControls({ disabled = false }: { disabled?: boolean })
         </div>
       </div>
     )}
+    {/* [PROVIDER] The mode group and the model switch share one row: modes left, model right. */}
+    <div className="assistant-controls-row">
     <div className="assistant-permission" role="radiogroup" aria-label="Permissions">
       <input
         type="checkbox"
@@ -54,6 +57,8 @@ export function PermissionControls({ disabled = false }: { disabled?: boolean })
           {label}
         </button>;
       })}
+    </div>
+    <ProviderSwitch disabled={disabled} />
     </div>
   </div>;
 }

@@ -1,0 +1,105 @@
+/* Model switch: sits at the right of the row above the composer, beside the permission modes. */
+.assistant-provider {
+  position: static; /* the menu anchors to the controls row, so it can use the panel width */
+  margin-left: auto; /* pushes it to the right edge of the permissions row */
+  flex: 0 0 auto;
+}
+.live-assistant .assistant-provider-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--assistant-pill-height, 28px);
+  min-height: var(--assistant-pill-height, 28px);
+  padding: 0 var(--assistant-pill-padding, 10px);
+  border: 1px solid #cfd7df;
+  border-radius: 999px;
+  background: #f3f5f8;
+  color: #3b4a58;
+  font-size: var(--assistant-pill-font-size, 11px);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.live-assistant .assistant-provider-button:hover:not(:disabled) {
+  background: #e9eef4;
+  border-color: #b9c4d0;
+}
+.live-assistant .assistant-provider-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.live-assistant .assistant-provider-button:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}
+.assistant-provider-name {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Opens upward: the control sits directly above the composer, so a downward menu would cover it. */
+.assistant-provider-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 95; /* above the canvas context menu at 90 */
+  /* Kept inside the panel: the switch sits near the right edge, so an over-wide menu would spill
+     across the canvas. Bounded by the panel's own width rather than the viewport's. */
+  min-width: min(240px, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+  border: 1px solid #cfd7df;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 26, 38, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.live-assistant .assistant-provider-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px; /* touch target on tablet */
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: #24313d;
+}
+.live-assistant .assistant-provider-option:hover {
+  background: #f2f6fa;
+}
+.live-assistant .assistant-provider-option.is-active {
+  background: #eef4fd;
+}
+.live-assistant .assistant-provider-option:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: -2px;
+}
+.assistant-provider-check {
+  width: 14px;
+  flex: 0 0 14px;
+  padding-top: 2px;
+  color: #2f6feb;
+}
+.assistant-provider-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.assistant-provider-text strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.assistant-provider-text span {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #5b6b7a;
+}
