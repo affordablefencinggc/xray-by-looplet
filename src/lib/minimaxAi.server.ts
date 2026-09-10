@@ -103,9 +103,28 @@ export function toChatMessages(contents: readonly AssistantContent[]): ChatMessa
 }
 
 /** OpenAI-style choice back into the Gemini-shaped content the app already understands. */
+/**
+ * MiniMax M2 returns its reasoning inline as `<think>…</think>` before the answer, verified against
+ * the live API on 2026-09-10. Left alone the user would read the model deliberating with itself in
+ * the chat, and a reply cut off mid-thought would show as the whole answer.
+ *
+ * The block is removed rather than displayed. An unterminated `<think>` (the response hit the token
+ * limit while still reasoning) leaves no answer at all, which the caller reports honestly instead of
+ * presenting reasoning as a result.
+ */
+export function stripReasoning(text: string): string {
+  const closed = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  // An opening tag with no close means the reply ended inside its own reasoning.
+  const unterminated = closed.replace(/<think>[\s\S]*$/i, "");
+  return unterminated.trim();
+}
+
 export function toAssistantContent(message: { content?: unknown; tool_calls?: unknown }): AssistantContent {
   const parts: AssistantPart[] = [];
-  if (typeof message.content === "string" && message.content.length) parts.push({ text: message.content });
+  if (typeof message.content === "string") {
+    const text = stripReasoning(message.content);
+    if (text.length) parts.push({ text });
+  }
   for (const call of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
     const fn = (call as ToolCall).function;
     if (!fn?.name) continue;
@@ -115,9 +134,10 @@ export function toAssistantContent(message: { content?: unknown; tool_calls?: un
     try { args = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch { args = {}; }
     parts.push({ functionCall: { id: (call as ToolCall).id, name: fn.name, args } });
   }
-  // A part must carry exactly one payload, and an empty string still counts as one, so a reply
-  // with neither text nor tool calls needs a real sentence rather than an empty text part.
-  if (!parts.length) parts.push({ text: "The provider returned an empty response." });
+  // A part must carry exactly one payload, and an empty string still counts as one, so a reply with
+  // neither text nor tool calls needs a real sentence. The commonest cause is a reply that spent its
+  // whole budget reasoning, so the message says what to do rather than just reporting emptiness.
+  if (!parts.length) parts.push({ text: "The model finished without an answer, which usually means it spent the response budget on reasoning. Nothing was changed; try a smaller step." });
   return { role: "model", parts };
 }
 

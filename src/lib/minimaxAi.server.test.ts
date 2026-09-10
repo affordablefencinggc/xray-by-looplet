@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { minimaxAiTurn, minimaxAiStatus, toChatMessages, toAssistantContent } from "./minimaxAi.server.ts";
+import { minimaxAiTurn, minimaxAiStatus, stripReasoning, toChatMessages, toAssistantContent } from "./minimaxAi.server.ts";
 
 /**
  * No live provider call is made anywhere in this file. Every request goes through an injected
@@ -162,4 +162,33 @@ test("an empty reply still produces valid content rather than an invalid part", 
   const content = toAssistantContent({});
   assert.equal(content.role, "model");
   assert.equal(content.parts.length, 1, "the response contract requires at least one part");
+});
+
+/**
+ * MiniMax M2 returns its reasoning inline as <think>…</think>, verified against the live API on
+ * 2026-09-10. These cover what the user must never see.
+ */
+test("reasoning blocks are removed so the user never reads the model thinking aloud", () => {
+  assert.equal(stripReasoning("<think>Let me consider.</think>READY"), "READY");
+  assert.equal(stripReasoning("<think>one</think>A<think>two</think>B"), "AB");
+  assert.equal(stripReasoning("<THINK>upper</THINK>Answer"), "Answer", "the tag match must not be case-sensitive");
+  assert.equal(stripReasoning("Plain answer"), "Plain answer", "content without reasoning is untouched");
+});
+
+test("a reply cut off inside its own reasoning yields no answer rather than leaking the thought", () => {
+  // Observed live: with a small token budget the reply ended mid-<think> and never reached an answer.
+  assert.equal(stripReasoning("<think>The user wants READY. I should"), "");
+  const content = toAssistantContent({ content: "<think>still deliberating" });
+  assert.equal(content.parts.length, 1);
+  assert.match(content.parts[0].text ?? "", /spent the response budget on reasoning/,
+    "the user must be told what happened, not shown the raw thought or an empty bubble");
+});
+
+test("a tool call still arrives when the text was only reasoning", () => {
+  const content = toAssistantContent({
+    content: "<think>I should read the design first.</think>",
+    tool_calls: [{ id: "c1", type: "function", function: { name: "xray_read_design", arguments: "{}" } }],
+  });
+  assert.equal(content.parts.some(part => part.functionCall), true, "the tool call must survive reasoning removal");
+  assert.equal(content.parts.some(part => typeof part.text === "string" && part.text.includes("<think>")), false);
 });
