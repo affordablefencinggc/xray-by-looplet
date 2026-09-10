@@ -64,6 +64,14 @@ function ToolRow({ entry }: { entry: ChatEntry }) {
     <Icon size={14} className={`assistant-tool-icon${view.status === 'running' ? ' is-spinning' : ''}`} aria-hidden="true" />
     <span className="assistant-tool-title">{view.title}</span>
     <span className="assistant-tool-summary">{view.summary}</span>
+    {/* [PROVENANCE] Which project this action landed in, and the revision it left behind. Shown on
+        completed rows so the transcript itself answers "whose work did this touch?". */}
+    {view.status !== 'running' && entry.projectName && (
+      <span className="assistant-tool-project" title="The project this action was recorded against">
+        in {entry.projectName}
+        {typeof entry.projectRevision === 'number' ? ` · revision ${entry.projectRevision}` : ''}
+      </span>
+    )}
     <span className="assistant-receipt-raw" hidden aria-hidden="true">{view.status === 'running' ? entry.text : view.status === 'failed' ? `Action failed — inspect details${entry.text}` : `Tool result${entry.text}`}</span>
   </div>;
 }

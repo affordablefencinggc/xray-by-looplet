@@ -21,7 +21,9 @@ export const CONTEXT_CARRIED_UNAVAILABLE = 'Carried context (your saved profile 
 // [SC-22 capture] begin
 import { captureTurn } from './contextCapture';
 // [SC-22 capture] end
-export type ChatEntry = Omit<ChatEvent, 'kind'> & { id: string; kind: 'user' | 'assistant' | 'tool' };
+export type ChatEntry = Omit<ChatEvent, 'kind'> & { id: string; kind: 'user' | 'assistant' | 'tool';
+  /** [PROVENANCE] The project a tool row acted on, stamped when the row is created. */
+  projectName?: string; projectRevision?: number };
 /** `tokens`/`context` are derived from `contents` on every update so the panel can meter the provider transcript. */
 type Conversation = { workPacket?: WorkPacket; entries: ChatEntry[]; contents: AssistantContent[]; busy: boolean; error: string | null; estimate: ContextMeasure; tokens: number; context: ContextState };
 const empty = (): Conversation => ({ entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
@@ -93,7 +95,11 @@ export function useAssistantChat(jobId: string) {
         },
         assertContext: () => { const current = useStudio.getState(); if (current.job.id !== jobId || current.persistenceRecoveryBlocked) throw Error('Project changed or recovery is active. Assistant stopped before the next action.'); },
         beforeFinal: () => governed!.reviewFinal(),
-        emit: event => update(jobId, value => ({ ...value, entries: [...value.entries, { ...event, id: crypto.randomUUID() }] })),
+        // [PROVENANCE] Every tool row records the project it acted on and that project's revision
+        // afterwards, so the transcript itself proves which job each action touched. Read from the
+        // live store at emit time rather than from the closure, so a stale value cannot be recorded.
+        emit: event => update(jobId, value => ({ ...value, entries: [...value.entries, { ...event, id: crypto.randomUUID(),
+          ...(event.kind === 'tool' ? { projectName: useStudio.getState().job.name, projectRevision: useStudio.getState().job.revision } : {}) }] })),
         checkpoint: history => update(jobId, value => ({ ...value, contents: structuredClone(history) })),
       });
       return true;

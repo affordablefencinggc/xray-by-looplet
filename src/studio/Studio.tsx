@@ -48,6 +48,9 @@ import { acceptRecipeAssumption, createCandidateFencingRecipeSet, reopenRecipeAs
 import { createTauriBomAdapter } from "./bomTauriAdapter";
 import { runBomTransport, sameBomSourceBinding } from "./bomTransport";
 import { loadFencingRecipeSet, saveFencingRecipeSet } from "./fencingRecipePersistence";
+// [PROVENANCE] Header "New" button: starts a genuinely empty project.
+import { switchProject } from "./assistant/projectSwitch";
+import { saveFencingJob } from "./persistence";
 
 const PANES: { id: Pane; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -126,6 +129,35 @@ function StudioContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [s]);
 
+  /**
+   * [PROVENANCE] Header "New" button: starts a genuinely empty project.
+   *
+   * Confirms first, because this switches the workspace away from the open job. The open project is
+   * saved through the same compare-and-swap path a normal save uses, and the switch rolls back if
+   * any write fails, so a refused save can never lose the current work.
+   */
+  async function startNewProject() {
+    const state = useStudio.getState();
+    if (state.persistenceRecoveryBlocked) return;
+    const documents = state.job.documents.filter(document => document.source !== "sample");
+    const warning = documents.length
+      ? `"${state.job.name}" has ${documents.length} imported drawing${documents.length === 1 ? "" : "s"}. It will be saved and closed, and a new empty project opened.`
+      : `"${state.job.name}" will be saved and closed, and a new empty project opened.`;
+    if (typeof window !== "undefined" && !window.confirm(`Start a new project?\n\n${warning}`)) return;
+    const storage = typeof localStorage === "undefined" ? null : localStorage;
+    if (!storage) {
+      useStudio.setState({ documentError: "Browser storage is unavailable, so a new project cannot be created." });
+      return;
+    }
+    const result = await switchProject(null, {
+      store: { getState: () => useStudio.getState(), setState: (patch) => useStudio.setState(patch) },
+      storage,
+      saveJob: (job, options) => saveFencingJob(job, undefined, options),
+      busy: false,
+    });
+    if (!result.ok) useStudio.setState({ documentError: result.error });
+  }
+
   async function openPlan() {
     if (useStudio.getState().persistenceRecoveryBlocked) return;
     try {
@@ -168,7 +200,7 @@ function StudioContent() {
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
           <span className="truncate font-semibold">X-RAY BY LOOPLET</span>
         </div>
-        <ProjectPlanSwitcher onSelect={s.selectDocument} onOpenPlan={openPlan} onLoadSample={loadSamplePlan} />
+        <ProjectPlanSwitcher onSelect={s.selectDocument} onOpenPlan={openPlan} onLoadSample={loadSamplePlan} onNewProject={startNewProject} />
         <div className="studio-header-actions ml-auto flex items-center gap-2">
           <ProjectBackups />
           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>

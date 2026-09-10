@@ -758,10 +758,14 @@ export function LiveAssistant() {
             )}
             {!drawer && (
               <>
+                {/* [PROVENANCE] Names the open project first and always. Anyone reading over a
+                    shoulder can see which job is loaded without opening a menu, so an assistant
+                    action can never be mistaken for work on someone else's project. */}
                 <div className="live-assistant-context">
                   <FileSearch size={12} />
-                  <span title={binary?.name}>
-                    {binary ? `${binary.name} · Sheet ${sheet + 1}` : "Your drawing workspace"}
+                  <span title={binary?.name ? `${jobName} · ${binary.name}` : jobName}>
+                    <strong className="live-assistant-context-project">{jobName}</strong>
+                    {binary ? ` · ${binary.name} · Sheet ${sheet + 1}` : " · no drawing imported"}
                   </span>
                 </div>
                 <ConversationView

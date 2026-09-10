@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { FolderOpen } from "lucide-react";
+import { FilePlus2, FolderOpen } from "lucide-react";
 import { useStudio } from "./store";
 import "./workspace-shell.css";
 
 export interface ProjectPlanSwitcherProps {
   onSelect: (documentId: string) => Promise<void>;
   onOpenPlan?: () => Promise<void> | void;
+  /** [PROVENANCE] Starts a new, empty project from the header. */
+  onNewProject?: () => Promise<void> | void;
   onLoadSample?: (sampleId?: string) => Promise<void> | void;
 }
 
-export function ProjectPlanSwitcher({ onSelect, onOpenPlan, onLoadSample }: ProjectPlanSwitcherProps) {
+export function ProjectPlanSwitcher({ onSelect, onOpenPlan, onLoadSample, onNewProject }: ProjectPlanSwitcherProps) {
   const documents = useStudio(state => state.job.documents);
   const activeId = useStudio(state => state.job.activeDocumentId);
   const hydrated = useStudio(state => state.persistenceHydrated);
@@ -95,6 +97,20 @@ export function ProjectPlanSwitcher({ onSelect, onOpenPlan, onLoadSample }: Proj
             >
               <FolderOpen size={13} />
               <span>Open</span>
+            </button>
+          )}
+          {/* [PROVENANCE] Start a genuinely empty project from the header, so new work never begins
+              on top of a job that already holds someone else's imported drawings. */}
+          {onNewProject && (
+            <button
+              type="button"
+              className="workspace-plan-new-btn"
+              onClick={() => void onNewProject()}
+              title="Start a new, empty project. The open project is saved first."
+              disabled={!hydrated || switching}
+            >
+              <FilePlus2 size={13} />
+              <span>New</span>
             </button>
           )}
         </div>
