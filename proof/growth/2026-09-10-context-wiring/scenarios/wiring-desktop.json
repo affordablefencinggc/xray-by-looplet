@@ -1,0 +1,140 @@
+[
+ [
+  "open",
+  "http://127.0.0.1:8091/",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "set",
+  "viewport",
+  "1280",
+  "800"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "find",
+  "role",
+  "button",
+  "click",
+  "--name",
+  "Sketch",
+  "--exact"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('nav[aria-label=\"Sketch workspaces\"]')",
+  "--timeout",
+  "60000"
+ ],
+ [
+  "eval",
+  "(()=>{[...document.querySelectorAll('nav[aria-label=\"Sketch workspaces\"] button')].find(b=>b.textContent.trim()==='Architectural workspace').click();return 'opened'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('.architect-workspace[data-design-revision]')",
+  "--timeout",
+  "60000"
+ ],
+ [
+  "eval",
+  "(async()=>{\n  const raw = localStorage.getItem('xray:fencing-job:v2') || localStorage.getItem('xray:fencing-job:v1');\n  const id = raw ? (JSON.parse(raw).id || null) : null;\n  if(!id) return 'NO_PROJECT_ID';\n  const db = await new Promise((res,rej)=>{const r=indexedDB.open('xray-assistant-context-v1',1);\n    r.onupgradeneeded=()=>{const d=r.result;\n      if(!d.objectStoreNames.contains('entries')) d.createObjectStore('entries',{keyPath:'id'}).createIndex('jobId','jobId',{unique:false});\n      if(!d.objectStoreNames.contains('profile')) d.createObjectStore('profile',{keyPath:'jobId'});};\n    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});\n  await new Promise((res,rej)=>{const tx=db.transaction(['entries','profile'],'readwrite');\n    tx.objectStore('profile').put({jobId:id,updatedAt:'2026-09-10T04:00:00.000+10:00',\n      notes:['role: fencing contractor in Queensland','units: millimetres on every drawing']});\n    tx.objectStore('entries').put({id:id+'-seed-1',jobId:id,at:'2026-09-10T04:00:00.000+10:00',\n      topic:'Northern boundary fence',\n      summary:'Traced the northern boundary and confirmed the 900 mm setback.',\n      evidence:'tool-receipt',tools:['xray_read_architect_design']});\n    tx.oncomplete=()=>res(); tx.onabort=()=>rej(tx.error);});\n  db.close();\n  return 'SEEDED:'+id;\n})()"
+ ],
+ [
+  "eval",
+  "(()=>{location.reload();return 'reloading so the seeded store is read fresh'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+  "--timeout",
+  "120000"
+ ],
+ [
+  "eval",
+  "(()=>{const l=document.querySelector('.live-assistant-launcher'); if(!l) return 'NO_LAUNCHER'; l.click(); return 'opened'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!!document.querySelector('#live-assistant-prompt')",
+  "--timeout",
+  "60000"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-10-context-wiring/desktop-01-panel-open.png"
+ ],
+ [
+  "eval",
+  "(()=>{const m=document.querySelector('.assistant-context-meter');\n  if(!m) return 'NO_METER';\n  const n=(m.textContent||'').replace(/[^0-9]/g,'');\n  return 'TOKENS:'+(n||'0');})()"
+ ],
+ [
+  "eval",
+  "(()=>{const p=document.querySelector('#live-assistant-prompt');\n    const set=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;\n    set.call(p,\"In one short sentence, what units does this project use?\");\n    p.dispatchEvent(new Event('input',{bubbles:true}));\n    return 'typed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{const f=document.querySelector('#live-assistant-prompt').closest('form'); f.requestSubmit(); return 'sent'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('#live-assistant-prompt')?.disabled",
+  "--timeout",
+  "600000"
+ ],
+ [
+  "eval",
+  "(()=>{const m=document.querySelector('.assistant-context-meter');\n  if(!m) return 'NO_METER';\n  const n=(m.textContent||'').replace(/[^0-9]/g,'');\n  return 'TOKENS:'+(n||'0');})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-10-context-wiring/desktop-02-after-first-reply.png"
+ ],
+ [
+  "eval",
+  "(()=>{const p=document.querySelector('#live-assistant-prompt');\n    const set=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;\n    set.call(p,\"Name the boundary you have notes about. One line.\");\n    p.dispatchEvent(new Event('input',{bubbles:true}));\n    return 'typed'})()"
+ ],
+ [
+  "eval",
+  "(()=>{const f=document.querySelector('#live-assistant-prompt').closest('form'); f.requestSubmit(); return 'sent'})()"
+ ],
+ [
+  "wait",
+  "--fn",
+  "!document.querySelector('#live-assistant-prompt')?.disabled",
+  "--timeout",
+  "600000"
+ ],
+ [
+  "eval",
+  "(()=>{const m=document.querySelector('.assistant-context-meter');\n  if(!m) return 'NO_METER';\n  const n=(m.textContent||'').replace(/[^0-9]/g,'');\n  return 'TOKENS:'+(n||'0');})()"
+ ],
+ [
+  "screenshot",
+  "screenshots/growth/2026-09-10-context-wiring/desktop-03-after-second-reply.png"
+ ],
+ [
+  "eval",
+  "(()=>{const t=[...document.querySelectorAll('.assistant-chat-entry, .assistant-reply, .reply-block')].map(e=>e.textContent||'').join(' \\n ');return 'TRANSCRIPT_CHARS:'+t.length})()"
+ ],
+ [
+  "eval",
+  "(()=>{const shown=document.body.innerText.includes('[xray:pinned-context]');return 'SENTINEL_VISIBLE_TO_USER:'+shown})()"
+ ],
+ [
+  "eval",
+  "(()=>{const e=document.querySelector('.assistant-chat-error');return 'ERROR_BANNER:'+(e?e.textContent.trim().slice(0,160):'none')})()"
+ ]
+]

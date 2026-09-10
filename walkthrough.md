@@ -621,3 +621,17 @@ Release-gate defect found and fixed while wiring: proof/growth/2026-09-09-az6-re
 Development-level proof only. Still open: a live Fast CDP journey showing compaction, the pinned pair carried into a later turn and the unavailable notice under an induced storage failure, then the az6 Dans1 build with production and native runs. No build produced; LATEST-VERIFIED-BUILD.md remains 8e14ac427997.
 
 Evidence: proof/growth/2026-09-10-context-wiring/ (README.md, wiring-tests.log, full-suite.log, mutation-evidence.md).
+
+## [SC-22 LIVE PROOF] Context wiring verified in the browser (2026-09-10)
+
+Fast CDP on the development server 8091, desktop 1280x800 and tablet 1024x768, three runs exit 0.
+
+A seeded profile and digest produced an on-screen meter of 369 tokens on both viewports, from independently seeded projects. That reading was checked rather than asserted: measure-pinned.mjs rebuilds the same transcript under bare Node with the same estimator the meter uses and reports 369 with carried context against 31 without, matching the browser exactly. So 338 tokens of profile and digest demonstrably rode with the live message, and the wiring fires in the browser rather than only in unit tests. The pinned sentinel was never visible to the user on any leg.
+
+With only the context database broken, the message still sent and the notice appeared verbatim: "Carried context (your saved profile and project digest) could not be read, so this message was sent without it. Your message was still sent." Screenshot inspected: the user's message sits in the transcript, the assistant is working, and the notice is a non-blocking amber banner.
+
+A first fail-open attempt asserted the notice was absent, and that was a fault in the test rather than the product. Breaking all of indexedDB also breaks the work-packet store, which beginGovernedWork reads before the context read runs, so the send aborted earlier and never reached the wiring. Both runs are preserved. The finding is recorded rather than buried: a total IndexedDB failure fails the send at the work-packet stage. That behaviour predates this slice and is unchanged by it, so the fail-open guarantee proven here is scoped to the context store specifically.
+
+Blocked by provider quota: Gemini returned HTTP 429 on every send across three runs, so no model reply was produced. Assembly, the pinned pair, the meter, the notice and the hidden sentinel all happen before the request leaves the browser and are proven; a completed reply, and therefore a live long-chat compaction round, are not. Compaction remains proven by unit test and mutation evidence only. This is a quota limit on the configured key, not a defect, and retrying does not change it.
+
+Evidence: proof/growth/2026-09-10-context-wiring/live-proof.md, measure-pinned.json, scenarios/, screenshots/growth/2026-09-10-context-wiring/. Verified-build pointer unchanged at 8e14ac427997.

@@ -225,7 +225,7 @@ Notes: SourceBuildingViewer.tsx and store.ts are another workstream's files; the
 Commit: —
 
 
-## SC-22 — Assistant context system: guardrail brief + shortcut atlases + KYC + rolling compressed log, last 3 user messages kept verbatim (user request 2026-09-09 15:22)  [wiring done and tested 2026-09-10; live proof and Dans1 build pending]
+## SC-22 — Assistant context system: guardrail brief + shortcut atlases + KYC + rolling compressed log, last 3 user messages kept verbatim (user request 2026-09-09 15:22)  [wiring done, tested and live-verified 2026-09-10; long-chat compaction blocked on provider quota; Dans1 build pending]
 TODO (design): 20-agent workflow wf_c298dccd-d7b maps the manual/parity, turn loop, storage and tool surfaces, then scores three architectures (static-first, runtime-tool, compaction-first) on correctness, token economy, usefulness and buildability. Requirements captured verbatim in the scratchpad brief (A1–A11): a main Markdown brief with strict guardrails, the global prompt, fallback and purpose; the goal loop (understand → ask defining questions → reiterate a short clean summary → complete); when to clear context; call the tools; a routing table at the top ("if you need to do this, use this"); an app atlas (intent → pane → tool → preconditions); a skills atlas with traps and references; a KYC section; and an ongoing feed compressed to topic + one line per turn, indexed so old chats are findable.
 DONE (machine, 2026-09-09 16:40): five modules authored in disjoint files by workflow wf_bb65bdf1-72c, then verified adversarially.
   - src/studio/assistant/context/ — five flat Markdown files, 8,992 bytes total, ASCII only, no sub-folders: README.md (purpose, routing table, how to work, when to clear context, never-do list), app-atlas.md (intent to pane to tools in order with preconditions, plus what is not available through tools), skills-atlas.md (skills by category as headings, plus the traps), budgets.md (8 rounds, 24 tools, 38 entries, 8192 output tokens, 2 images, and what happens at each), user.md (empty KYC template, six slots).
@@ -258,9 +258,30 @@ without ever running. The step now derives the list from `package.json`'s test s
 if it resolves fewer than 100 suites. Verified in PowerShell: the script parses, derives 117 suites
 including the new one, and every derived path exists on disk.
 
-TODO (proof): a live Fast CDP journey showing a long chat compacting, the pinned pair carrying a profile
-and digest into a later turn, and the unavailable notice on an induced storage failure; then the Dans1
-az6 build with production and native runs.
+DONE (human, 2026-09-10): live Fast CDP on the development server 8091, desktop 1280x800 and tablet
+1024x768, three runs exit 0. A seeded profile and digest produced an on-screen meter of 369 tokens on
+both viewports from independently seeded projects. That reading was verified rather than asserted:
+measure-pinned.mjs rebuilds the same transcript under bare Node with the same estimator and reports 369
+with carried context against 31 without, matching the browser exactly, so 338 tokens of profile and
+digest demonstrably rode with the live message. The pinned sentinel was never visible to the user on any
+leg. With only the context database broken, the message still sent and the notice appeared verbatim
+("Carried context ... Your message was still sent."), inspected in
+screenshots/growth/2026-09-10-context-wiring/desktop-04-carried-context-unavailable.png.
+
+A first fail-open attempt asserted the notice was absent. That was a fault in the test: breaking all of
+indexedDB also breaks the work-packet store, which beginGovernedWork reads before the context read, so
+the send aborted earlier and never reached the wiring. Both runs are preserved. The finding is recorded
+rather than hidden: a total IndexedDB failure fails the send at the work-packet stage, which predates
+this slice and is unchanged by it, so the fail-open guarantee proven here is scoped to the context store.
+
+BLOCKED (provider quota): Gemini returned HTTP 429 on every send across three runs, so no model reply was
+produced. Assembly, the pinned pair, the meter, the notice and the hidden sentinel all happen before the
+request leaves the browser and are proven; a completed reply, and therefore a live long-chat compaction
+round, are not. Compaction remains proven by unit test and mutation evidence only. Re-run when quota is
+available. Evidence: proof/growth/2026-09-10-context-wiring/live-proof.md.
+
+TODO (proof): a live long-chat compaction round once provider quota allows, then the Dans1 az6 build with
+production and native runs.
 Depends on: SC-19, SC-20
 Commit: —
 
