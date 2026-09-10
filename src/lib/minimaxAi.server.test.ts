@@ -41,7 +41,7 @@ test("the request carries bearer auth, the model and the system instruction", as
     assert.match(String(url), /\/chat\/completions$/);
     assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${env.MINIMAX_API_KEY}`);
     const body = JSON.parse(String(init?.body));
-    assert.equal(body.model, "MiniMax-M2");
+    assert.equal(body.model, "MiniMax-M3");
     assert.equal(body.messages[0].role, "system");
     assert.ok(body.messages[0].content.length > 100, "the safety manual must be sent as the system message");
     assert.equal(body.messages[1].content, "Inspect the project");
@@ -191,4 +191,14 @@ test("a tool call still arrives when the text was only reasoning", () => {
   });
   assert.equal(content.parts.some(part => part.functionCall), true, "the tool call must survive reasoning removal");
   assert.equal(content.parts.some(part => typeof part.text === "string" && part.text.includes("<think>")), false);
+});
+
+test("a lone closing tag is treated as the end of reasoning, not shown as a bare tag", () => {
+  // Observed live on M3 with tool calls: reasoning arrives already open, so only </think> reaches
+  // the content. Without this the chat would display a bare "</think>".
+  assert.equal(stripReasoning("</think>"), "");
+  assert.equal(stripReasoning("thinking aloud</think>The answer"), "The answer");
+  assert.equal(stripReasoning("</think>\n\nREADY"), "READY");
+  // A normal reply that merely mentions the word is untouched.
+  assert.equal(stripReasoning("I will think about the roof"), "I will think about the roof");
 });

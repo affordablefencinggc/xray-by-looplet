@@ -26,7 +26,7 @@ type Environment = Record<string, string | undefined>;
 
 /** MiniMax model ids are free-form; bounded to keep an operator typo out of a request URL. */
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/;
-const DEFAULT_MODEL = "MiniMax-M2";
+const DEFAULT_MODEL = "MiniMax-M3";
 const DEFAULT_BASE_URL = "https://api.minimax.io/v1";
 
 /** Reported to the panel. Mirrors assistantAiStatus so the client needs no special case. */
@@ -116,7 +116,11 @@ export function stripReasoning(text: string): string {
   const closed = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
   // An opening tag with no close means the reply ended inside its own reasoning.
   const unterminated = closed.replace(/<think>[\s\S]*$/i, "");
-  return unterminated.trim();
+  // Observed live on M3 with tool calls: the reasoning arrives already open, so only the closing
+  // tag reaches the content and neither rule above matches it. Everything up to and including a
+  // lone `</think>` is reasoning, so it is dropped rather than shown as a bare tag in the chat.
+  const orphanClose = unterminated.replace(/^[\s\S]*?<\/think>/i, "");
+  return orphanClose.trim();
 }
 
 export function toAssistantContent(message: { content?: unknown; tool_calls?: unknown }): AssistantContent {
