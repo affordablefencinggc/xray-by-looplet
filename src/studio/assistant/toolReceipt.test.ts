@@ -29,3 +29,37 @@ test("running, failed and plain-text results are described without dumping the t
   const longText = describeToolReceipt({ toolName: "read_source_sheets", text: "x".repeat(500) });
   assert.ok(longText.summary.length <= 160);
 });
+
+/**
+ * Observed live 2026-09-10: the chat displayed the raw workflow refusal payload, JSON braces and
+ * all, next to a red warning icon. The no-code-in-the-chat rule exists to prevent exactly that.
+ */
+test("a workflow refusal reads as a sentence, never as raw JSON", () => {
+  const text = JSON.stringify({
+    status: "not-executed",
+    reason: "Workflow prerequisite missing.",
+    requestedTool: "read_source_sheets",
+    next: { tool: "read_workflow_route", args: { expectedJobId: "job-6a166b71-08a7-4cd4-a95a-17283" } },
+  });
+  const view = describeToolReceipt({ toolName: "read_source_sheets", text, failed: true });
+  assert.equal(view.status, "failed");
+  assert.equal(/[{}"]/.test(view.summary), false, `summary must contain no JSON punctuation: ${view.summary}`);
+  assert.match(view.summary, /Not run/);
+  assert.match(view.summary, /Workflow prerequisite missing/);
+  assert.match(view.summary, /read the workflow route/i, "the next step must be named in plain words");
+});
+
+test("a refusal without a next step still reads as a sentence", () => {
+  const view = describeToolReceipt({
+    toolName: "draw_architect_elements",
+    text: JSON.stringify({ status: "not-executed", reason: "The user declined this action." }),
+    failed: true,
+  });
+  assert.equal(/[{}"]/.test(view.summary), false);
+  assert.match(view.summary, /Not run: The user declined this action\./);
+});
+
+test("a failure carrying a plain message is still preferred over the payload", () => {
+  const view = describeToolReceipt({ toolName: "save_project", text: JSON.stringify({ text: "Storage is full." }), failed: true });
+  assert.equal(view.summary, "Storage is full.");
+});

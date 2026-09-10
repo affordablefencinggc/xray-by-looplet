@@ -31,6 +31,10 @@ const TITLES: Record<string, string> = {
   show_design_in_model: "Put the design into the 3D model viewer",
   hide_designed_model: "Returned the model viewer to its source building",
   web_search: "Searched the web",
+  read_workflow_route: "Read the workflow route",
+  read_work_packet: "Read the task record",
+  read_work_packet_event: "Read the task history",
+  read_assistant_file: "Read an attached file",
 };
 
 export type ToolReceiptView = { title: string; status: "running" | "done" | "failed"; summary: string; detail: string | null };
@@ -102,14 +106,34 @@ export function summariseReceipt(toolName: string, text: string): string {
   return summary.length > 200 ? summary.slice(0, 199) + "…" : summary;
 }
 
+/**
+ * A refusal payload in plain words. The workflow router writes {status, reason, requestedTool, next}
+ * for the model to act on; a person needs to know what was skipped and what happens next, never the
+ * JSON. The next step is named by its human title so the sentence matches the rest of the chat.
+ */
+function describeRefusal(r: Record<string, unknown>): string {
+  const reason = typeof r.reason === "string" ? r.reason.replace(/\.$/, "") : "This step was not run";
+  const next = r.next && typeof r.next === "object" ? (r.next as { tool?: unknown }).tool : undefined;
+  const step = typeof next === "string" ? (TITLES[next] ?? humanise(next)) : null;
+  const executed = r.status === "not-executed" ? "Not run" : "Stopped";
+  return step ? `${executed}: ${reason}. Next step: ${step.toLowerCase()}.` : `${executed}: ${reason}.`;
+}
+
 export function describeToolReceipt(entry: { toolName?: string; text: string; failed?: boolean }): ToolReceiptView {
   const name = entry.toolName ?? "tool";
   const title = TITLES[name] ?? humanise(name);
   if (/^Running .*…$/.test(entry.text.trim())) return { title, status: "running", summary: "Working…", detail: null };
   if (entry.failed) {
     const r = parse(entry.text);
-    const message = (r && typeof r.text === "string" ? r.text : entry.text).trim().split("\n")[0];
-    return { title, status: "failed", summary: message.length > 200 ? message.slice(0, 199) + "…" : message, detail: null };
+    // A refusal payload is written for the model to read, not for a person. Rendering it verbatim
+    // put raw JSON in the chat, which the no-code-in-the-chat rule exists to prevent. Its known
+    // fields are turned into a sentence; only an unrecognised shape falls back to the raw first line.
+    const message = r && typeof r.text === "string" ? r.text
+      : r && typeof r.reason === "string"
+        ? describeRefusal(r)
+        : entry.text;
+    const line = message.trim().split("\n")[0];
+    return { title, status: "failed", summary: line.length > 200 ? line.slice(0, 199) + "…" : line, detail: null };
   }
   return { title, status: "done", summary: summariseReceipt(name, entry.text) || "Completed", detail: null };
 }
