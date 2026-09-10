@@ -14,6 +14,7 @@ import { Route as FloorLabRouteImport } from './routes/floor-lab'
 import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
 import { Route as ApiAssistantAiRouteImport } from './routes/api.assistant-ai'
 import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
+import { Route as ApiMinimaxAiRouteImport } from './routes/api.minimax-ai'
 import { Route as ApiPricingResearchRouteImport } from './routes/api.pricing-research'
 import { Route as ApiRenderAiRouteImport } from './routes/api.render-ai'
 import { Route as ApiVoiceRouteImport } from './routes/api.voice'
@@ -43,6 +44,11 @@ const ApiMaterialAiRoute = ApiMaterialAiRouteImport.update({
   path: '/api/material-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMinimaxAiRoute = ApiMinimaxAiRouteImport.update({
+  id: '/api/minimax-ai',
+  path: '/api/minimax-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPricingResearchRoute = ApiPricingResearchRouteImport.update({
   id: '/api/pricing-research',
   path: '/api/pricing-research',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/api/architect-ai': typeof ApiArchitectAiRoute
   '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
+  '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/api/architect-ai': typeof ApiArchitectAiRoute
   '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
+  '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/api/architect-ai': typeof ApiArchitectAiRoute
   '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
+  '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/api/architect-ai'
     | '/api/assistant-ai'
     | '/api/material-ai'
+    | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
     | '/api/voice'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/api/architect-ai'
     | '/api/assistant-ai'
     | '/api/material-ai'
+    | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
     | '/api/voice'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/api/architect-ai'
     | '/api/assistant-ai'
     | '/api/material-ai'
+    | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
     | '/api/voice'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   ApiArchitectAiRoute: typeof ApiArchitectAiRoute
   ApiAssistantAiRoute: typeof ApiAssistantAiRoute
   ApiMaterialAiRoute: typeof ApiMaterialAiRoute
+  ApiMinimaxAiRoute: typeof ApiMinimaxAiRoute
   ApiPricingResearchRoute: typeof ApiPricingResearchRoute
   ApiRenderAiRoute: typeof ApiRenderAiRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMaterialAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/minimax-ai': {
+      id: '/api/minimax-ai'
+      path: '/api/minimax-ai'
+      fullPath: '/api/minimax-ai'
+      preLoaderRoute: typeof ApiMinimaxAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pricing-research': {
       id: '/api/pricing-research'
       path: '/api/pricing-research'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiArchitectAiRoute: ApiArchitectAiRoute,
   ApiAssistantAiRoute: ApiAssistantAiRoute,
   ApiMaterialAiRoute: ApiMaterialAiRoute,
+  ApiMinimaxAiRoute: ApiMinimaxAiRoute,
   ApiPricingResearchRoute: ApiPricingResearchRoute,
   ApiRenderAiRoute: ApiRenderAiRoute,
   ApiVoiceRoute: ApiVoiceRoute,

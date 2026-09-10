@@ -66,7 +66,10 @@ export type AssistantRequest = z.infer<typeof assistantRequestSchema>;
 export const assistantSourceSchema = z.object({ title: z.string().max(500), url: z.string().max(4000).url().refine(v => { const u = new URL(v); return ["http:", "https:"].includes(u.protocol) && !u.username && !u.password; }) }).strict();
 export const assistantResponseSchema = z.object({
   requestId: z.string().uuid(), content: z.object({ role: z.literal("model"), parts: z.array(assistantPartSchema).min(1).max(ASSISTANT_LIMITS.parts) }).strict(),
-  sources: z.array(assistantSourceSchema).max(50), model: z.string().regex(/^gemini-[A-Za-z0-9._-]{1,100}$/),
+  // Model ids are provider-scoped: `gemini-*` for the Gemini route, `MiniMax-*` for the MiniMax
+  // route. Kept as an explicit allowlist rather than a permissive string, so the reported model
+  // still cannot become arbitrary text echoed back to the browser.
+  sources: z.array(assistantSourceSchema).max(50), model: z.string().regex(/^(gemini|MiniMax)-[A-Za-z0-9._-]{1,100}$/),
   totalTokens: z.number().int().nonnegative().safe().optional(),
 }).strict();
 export type AssistantResponse = z.infer<typeof assistantResponseSchema>;
