@@ -10,6 +10,7 @@
 } from "pdf-lib";
 import { primitives, arcPath, ringsPath, type Primitive } from "./drawing.ts";
 import { validateProject, type ArchitectProject, type Point } from "./model.ts";
+import { fitTextMeasured } from "./titleBlock.ts";
 export const paperSize = (p: ArchitectProject): Point =>
   p.sheet.size === "A1" ? [841, 594] : [420, 297];
 export function drawingBounds(items: Primitive[]) {
@@ -161,11 +162,23 @@ export async function exportDrawingPdf(project: ArchitectProject) {
     thickness: 0.7,
     color: rgb(0.3, 0.3, 0.3),
   });
-  text(p.name, 14, h - 32, 13);
-  text(p.address || "Project address not specified", 14, h - 25, 8);
-  text("DESIGN REVIEW / not for construction", 14, h - 17, 8);
-  text(p.sheet.number + " | REV " + p.designRevision + " | " + p.sheet.size, w - 100, h - 31, 11);
-  text("Model revision " + p.revision + " | print at 100%", w - 100, h - 24, 8);
+  // D-07: fit each linked field to its column using the embedded font's own
+  // metrics, so a long name or address cannot run under the sheet number in the
+  // exported drawing. Measured in points, matching font.widthOfTextAtSize.
+  const leftAvailable = (w - 100 - 14 - 6) * mm,
+    rightAvailable = (100 - 8 - 6) * mm,
+    fit = (value: string, size: number, available: number) =>
+      fitTextMeasured(value, size, available, (v, s) => font.widthOfTextAtSize(v, s)).text;
+  text(fit(p.name, 13, leftAvailable), 14, h - 32, 13);
+  text(fit(p.address || "Project address not specified", 8, leftAvailable), 14, h - 25, 8);
+  text(fit("DESIGN REVIEW / not for construction", 8, leftAvailable), 14, h - 17, 8);
+  text(
+    fit(p.sheet.number + " | REV " + p.designRevision + " | " + p.sheet.size, 11, rightAvailable),
+    w - 100,
+    h - 31,
+    11,
+  );
+  text(fit("Model revision " + p.revision + " | print at 100%", 8, rightAvailable), w - 100, h - 24, 8);
   const scale = Number(p.sheet.scale),
     bar = 5000 / scale,
     x = w - 100,

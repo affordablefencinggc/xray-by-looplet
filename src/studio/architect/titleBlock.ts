@@ -115,6 +115,35 @@ export function titleBlockFields(
   return { fields, anyTruncated: fields.some((field) => field.truncated) };
 }
 
+/**
+ * Fit using a real font metric instead of the advance-ratio estimate.
+ *
+ * The PDF export embeds Helvetica and can measure exactly, so it must not rely
+ * on the conservative on-screen approximation: an exported drawing is the
+ * artifact that actually gets issued, and it is the one place where the true
+ * width is known. `measure` is the font's own width function, e.g. pdf-lib's
+ * `font.widthOfTextAtSize`. Widths here are the caller's units (PDF points),
+ * not paper millimetres.
+ */
+export function fitTextMeasured(
+  text: string,
+  fontSize: number,
+  available: number,
+  measure: (value: string, size: number) => number,
+): { text: string; truncated: boolean } {
+  if (available <= 0) return { text: "", truncated: text.length > 0 };
+  if (measure(text, fontSize) <= available) return { text, truncated: false };
+  // Helvetica has no ellipsis glyph in pdf-lib's standard encoding; three dots
+  // render reliably in every viewer.
+  const ellipsis = "...";
+  if (measure(ellipsis, fontSize) > available) return { text: "", truncated: true };
+  // Shrink by whole characters until the result plus the marker fits.
+  let keep = text.length;
+  while (keep > 0 && measure(text.slice(0, keep) + ellipsis, fontSize) > available) keep--;
+  if (keep <= 0) return { text: ellipsis, truncated: true };
+  return { text: text.slice(0, keep).trimEnd() + ellipsis, truncated: true };
+}
+
 /** Convenience for the renderer: look one field up by key. */
 export function titleBlockField(block: TitleBlock, key: TitleBlockField["key"]): TitleBlockField {
   const found = block.fields.find((field) => field.key === key);

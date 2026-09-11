@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fitText, textWidth, titleBlockFields, titleBlockField } from "./titleBlock.ts";
+import { fitText, fitTextMeasured, textWidth, titleBlockFields, titleBlockField } from "./titleBlock.ts";
 
 const A1_WIDTH = 841;
 const A3_WIDTH = 420;
@@ -103,4 +103,41 @@ test("an unknown field key is refused rather than returning undefined", () => {
   const block = titleBlockFields(project, layout, A1_WIDTH);
   // @ts-expect-error deliberately invalid key
   assert.throws(() => titleBlockField(block, "nope"), /Unknown title block field/);
+});
+
+// A stand-in for a real font metric: proportional, so "i" is narrower than "W".
+// The point is that fitTextMeasured must consult the function rather than assume
+// a uniform advance like the on-screen estimate does.
+const measure = (value: string, size: number) =>
+  [...value].reduce((total, ch) => total + (ch === "i" || ch === "." ? 0.28 : ch === "W" ? 0.95 : 0.55), 0) * size;
+
+test("fitTextMeasured leaves text that the real font says fits", () => {
+  const result = fitTextMeasured("Courtyard studio", 13, 500, measure);
+  assert.equal(result.truncated, false);
+  assert.equal(result.text, "Courtyard studio");
+});
+
+test("fitTextMeasured truncates to within the measured width", () => {
+  const value = "x".repeat(500);
+  const available = 850;
+  const result = fitTextMeasured(value, 8, available, measure);
+  assert.equal(result.truncated, true);
+  assert.ok(measure(result.text, 8) <= available, `${measure(result.text, 8)} must fit ${available}`);
+  assert.ok(result.text.endsWith("..."), "truncation must be visible in the exported drawing");
+});
+
+test("fitTextMeasured respects proportional widths rather than a flat ratio", () => {
+  // Same character count, very different real widths: the wide string must be
+  // cut shorter than the narrow one.
+  const wide = fitTextMeasured("W".repeat(200), 10, 300, measure);
+  const narrow = fitTextMeasured("i".repeat(200), 10, 300, measure);
+  assert.ok(wide.text.length < narrow.text.length, "a wider glyph must yield fewer characters");
+  assert.ok(measure(wide.text, 10) <= 300);
+  assert.ok(measure(narrow.text, 10) <= 300);
+});
+
+test("fitTextMeasured yields nothing when even the marker cannot fit", () => {
+  assert.deepEqual(fitTextMeasured("anything", 10, 1, measure), { text: "", truncated: true });
+  assert.deepEqual(fitTextMeasured("anything", 10, 0, measure), { text: "", truncated: true });
+  assert.deepEqual(fitTextMeasured("", 10, 0, measure), { text: "", truncated: false });
 });
