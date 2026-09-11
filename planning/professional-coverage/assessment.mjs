@@ -4,7 +4,7 @@ const states = new Set(['not-assessed','gap','partial','in-progress','failed','d
 export function readAssessment(markdown, expectedIds) {
   const rows = new Map();
   for (const line of markdown.split(/\r?\n/)) {
-    const match = line.match(/^- \[([ x])\] \*\*([A-Z]-\d{2}) [^*]+\*\*.*?State: ([a-z-]+)(.*)$/);
+    const match = line.match(/^- \[([ x])\] \*\*([A-Z]{1,2}-\d{2}) [^*]+\*\*.*?State: ([a-z-]+)(.*)$/);
     if (!match) continue;
     const [, tick, id, state] = match;
     if (!states.has(state)) throw Error(`${id}: unknown assessment state ${state}`);

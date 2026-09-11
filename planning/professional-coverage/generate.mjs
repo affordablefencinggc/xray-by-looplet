@@ -13,7 +13,9 @@ const initialFindings=reviewed?.findings.length ? reviewed.findings : originalFi
 mkdirSync(out,{recursive:true});
 const items=categories.flatMap(c=>c.items.map(i=>({...i,category:c.id,categoryName:c.title,benchmarks:c.benchmarks})));
 const ids=new Set(items.map(i=>i.id));
-if(ids.size!==items.length || categories.length!==26 || items.some(i=>!i.name||!i.acceptance)) throw Error('Incomplete catalogue');
+// 26 A-Z categories plus SO and PH, added 2026-09-11 from the industry
+// specifications. Deliberate count: raise it only alongside a reviewed proposal.
+if(ids.size!==items.length || categories.length!==28 || items.some(i=>!i.name||!i.acceptance)) throw Error('Incomplete catalogue');
 if(industries.some(i=>i.categories.some(c=>!categories.some(x=>x.id===c)))) throw Error('Unknown industry category');
 const sourceIds=new Set(sources.map(s=>s[0]));
 if(categories.some(c=>c.benchmarks.some(s=>!sourceIds.has(s))))throw Error('Unknown benchmark');

@@ -1,6 +1,6 @@
 # Professional workspace: A–Z requirements and proof checklist
 
-Research checked 2026-09-07. 364 requirements, 26 categories, 68 industry/professional profiles and 33 primary-source references.
+Research checked 2026-09-07. 375 requirements, 28 categories, 68 industry/professional profiles and 33 primary-source references. Eleven requirements and two categories (SO set-out, PH phasing) were added on 2026-09-11 from the first six industry specifications in planning/industry-specs/; see planning/PROPOSED-REGISTER-EXPANSIONS.md.
 
 User authorization: “smoke testing as you go with screenshots of proof means ticked off a list” and an extensive A–Z across relevant industries and use cases. Work continues on feat/architect-cad-engine, baseline 3e422f0084de607a775c2ede8dfecdf0b032c75e, preserving prior work and user data.
 
@@ -12,7 +12,7 @@ Delivery states: not-assessed → gap / partial / in-progress / failed / depende
 
 ## Assessment status, updated 2026-09-11
 
-Every one of the 364 rows now carries a state and its reasoning. No row is left not-assessed. The assessment read shipping source code rather than earlier ledger claims, and where a ledger and the code disagreed, the code decided.
+Every one of the 375 rows now carries a state and its reasoning. No row is left not-assessed. The assessment read shipping source code rather than earlier ledger claims, and where a ledger and the code disagreed, the code decided.
 
 | State | Rows | Meaning |
 |---|---|---|
@@ -20,9 +20,9 @@ Every one of the 364 rows now carries a state and its reasoning. No row is left 
 | partial | 102 | Real implementation with executed proof, and a named remaining boundary. |
 | dependency-blocked | 19 | Cannot progress until an external dependency exists, chiefly an account service or a live search credential. |
 | failed | 1 | Attempted and not achieved: Q-13 installed-app verification. |
-| gap | 236 | Not implemented. Nothing to assess until the capability is built. |
+| gap | 247 | Not implemented. Nothing to assess until the capability is built. |
 
-Reading these numbers correctly matters more than the numbers. A gap is an honest absence, not a defect, and 11 whole categories are gaps because X-Ray holds discipline labels rather than engineering engines: G geospatial, H services, J programme, K libraries, L landscape, M manufacturing, N electrical, O operations, S structural, W whole-life and Y specialist assets. Naming a trade in a takeoff category never constitutes a solver for it.
+Reading these numbers correctly matters more than the numbers. A gap is an honest absence, not a defect, and 13 whole categories are gaps because X-Ray holds discipline labels rather than engineering engines: G geospatial, H services, J programme, K libraries, L landscape, M manufacturing, N electrical, O operations, S structural, W whole-life, Y specialist assets, and the two added on 2026-09-11, SO set-out and PH phasing. Naming a trade in a takeoff category never constitutes a solver for it.
 
 The 102 partial rows are where the product actually is. They are concentrated in drawing precision, takeoff and calibration, documents and sheets, interoperability, review, the assistant, and release integrity. Most say the same thing about what is missing: behaviour is proven by executed test rather than by an inspected screenshot at the declared viewports, or it is proven for one surface rather than the whole application.
 
@@ -157,6 +157,7 @@ Benchmark references: [Autodesk AutoCAD](https://www.autodesk.com/products/autoc
 - [ ] **D-12 Cross-sheet references and hyperlinks** — Detail callout opens the intended sheet revision. State: gap (assessed 2026-09-10). Cross-sheet references and detail callouts are not implemented.
 - [ ] **D-13 Batch printing and issue sets** — Selected sheets export in reviewed order with an issue register. State: gap (assessed 2026-09-10). There is no batch printing or issue set. Single-sheet PDF export exists and is assessed under D-08.
 - [ ] **D-14 Bookmarks and saved views** — Personal navigation restores the correct page and viewport. State: partial (assessed 2026-09-10). Verified in the 2026-09-07 acceptance addendum in this file for local original-page, zoom and source-relative-centre bookmarks, with pan, zoom, page switching, viewport restoration, resize, reload, removal and failed-write preservation passing, and a tablet sub-check at both declared orientations. Remaining: saved views are local project metadata, with no account synchronisation or sharing.
+- [ ] **D-15 Visual and vector revision delta** — Two issued revisions report added, removed and changed geometry with a quantity variance table. State: gap (assessed 2026-09-11). Added to the register on 2026-09-11 from the first six industry specifications. No revision comparison of any kind exists: D-09 supersession and D-10 overlay are gaps, and T-09 revision quantity comparison is a gap, so there is nothing to diff against. Measured as the widest single blocker across the drafted profiles, stopping roofing T-7, quantity surveying T-5, residential T-6 and drafting T-3. Source: planning/PROPOSED-REGISTER-EXPANSIONS.md.
 
 ### E — Estimation, pricing and commercial work
 
@@ -176,6 +177,7 @@ Benchmark references: [RIB CostX](https://www.rib-software.com/en/rib-costx), [O
 - [ ] **E-12 Escalation and exchange rates** — Source and effective date bind each applied factor. State: gap (assessed 2026-09-10). Escalation and exchange-rate factors are not implemented. An effective date is recorded per price book but binds no applied factor.
 - [ ] **E-13 Quote approval and issue** — Issued estimate freezes rates, quantities, exclusions and revision. State: gap (assessed 2026-09-10). There is no quote approval or issue, so nothing freezes rates, quantities and exclusions. Takeoff evidence approval for a named reviewer is a separate behaviour assessed under Q-10 and V rows.
 - [ ] **E-14 Cost-to-complete and variations** — Approved changes reconcile original budget to current forecast. State: gap (assessed 2026-09-10). Cost-to-complete and variation reconciliation are not implemented.
+- [ ] **E-15 Preliminaries and site allowances** — Time-related and site-wide costs are built up separately from measured rates and carry into the estimate without double counting. State: gap (assessed 2026-09-11). Added to the register on 2026-09-11 from the quantity surveying specification, which found no row for preliminaries anywhere in category E. Site establishment, scaffolding, craneage, supervision and waste are a standard separately-built estimate component; E-08 build-ups is itself a gap. Source: planning/PROPOSED-REGISTER-EXPANSIONS.md.
 
 ### F — Field work, construction and site delivery
 
@@ -461,6 +463,7 @@ Benchmark references: [RIB CostX](https://www.rib-software.com/en/rib-costx), [B
 - [ ] **T-12 Manual, model and AI quantity provenance** — User can distinguish and review each quantity origin. State: partial (assessed 2026-09-10). Provenance is enforced rather than optional: calibration candidates carry method, evidence and document id, and a candidate with empty evidence is rejected by test. Assistant-created measurements carry tool receipts bound to a revision (SC-12). Remaining: manual, model and AI origins are not surfaced as a single reviewable distinction in the interface.
 - [ ] **T-13 Reconciliation and audit exports** — Summary totals reproduce detailed rows with units and rounding. State: partial (assessed 2026-09-10). Money totals are summed in integer minor units grouped by currency, tax basis and decimal places, so summary figures reproduce their rows without floating-point drift, and CSV export escapes formula-leading cells (`src/studio/priceBooks.ts`). Remaining: a reconciliation export that reproduces detailed rows with units and declared rounding is not implemented.
 - [ ] **T-14 Bulk edit, undo and recovery** — Batch operation restores all affected quantities and associations. State: gap (assessed 2026-09-10). There is no batch edit over quantities, and therefore no batch undo or recovery of affected associations.
+- [ ] **T-15 Cost code and classification binding** — Every measured item maps to a user-definable classification hierarchy and reports with no unclassified residue. State: gap (assessed 2026-09-11). Added to the register on 2026-09-11 from the quantity surveying specification. T-06 trade and work-package classification is a gap and covers trade grouping; this row covers binding to an extensible cost-code hierarchy so an estimate can be reported, benchmarked and compared between revisions. Without it the whole quantity surveying profile is blocked at its second task. Source: planning/PROPOSED-REGISTER-EXPANSIONS.md.
 
 ### U — Usability, performance and everyday flexibility
 
@@ -575,6 +578,24 @@ Benchmark references: [Autodesk Forma construction document management](https://
 - [ ] **Z-12 Proof expiry after changes** — Dependency changes reopen affected completed acceptance rows. State: verified (assessed 2026-09-10). Stated as a governing rule of this register and applied in practice: a dependency change reopens its acceptance, superseded builds are marked superseded rather than deleted, and on 2026-09-10 every row was re-assessed against shipping code with stale claims corrected. Earlier candidate builds remain recorded as superseded with their failures preserved.
 - [ ] **Z-13 Release notes and capability contract** — Users see delivered limits and verified platform support. State: partial (assessed 2026-09-10). The verified build record states what the build delivers, its digests, and its known limits including the eight-step assistant pause, web-only rendering and the untested two-window native case (LATEST-VERIFIED-BUILD.md). Remaining: this is a repository record rather than release notes visible to a user inside the application.
 - [ ] **Z-14 Full working-day acceptance** — Named industry scenario completes create-to-handover-to-reopen with proof. State: gap (assessed 2026-09-10). No named industry scenario has completed the create-to-handover-to-reopen working day. Handover cannot complete while external delivery is unavailable (V-05) and complete-context backup acceptance remains open (B-09). All 68 industry profiles remain not-tested.
+
+## SO — Set-out and discrete optimisation
+
+Added 2026-09-11. Category T measures continuous geometry; nothing converted a measurement into a discrete, buildable, orderable arrangement. Identified independently by the fencing and roofing specifications and merged as one category rather than two industry quirks. Every row is a gap: no solver of this kind exists.
+
+- [ ] **SO-01 Modular division and bay set-out** — A run divides into bays within a maximum spacing and the remainder is resolved by a stated rule. State: gap (assessed 2026-09-11). No bay-division solver exists. The rule differs by construction system: modular systems take maximum full bays plus one cut bay at a terminal, while stick-built systems equalise all bays within maximum post centres. Blocks fencing T-1, T-3 and balustrade set-out.
+- [ ] **SO-02 Stock nesting and cut-list packing** — Required lengths pack into orderable stock with reported offcuts and no silent rounding. State: gap (assessed 2026-09-11). No 1D packing solver exists. T-11 stock lengths, packs and wastage is partial and records stock quantities, but does not pack required cuts into orderable increments. Blocks roofing T-2 and fencing material ordering.
+- [ ] **SO-03 Sheet, panel and roll layout** — Surface elements set out for cover width, laps and staggered joints with cut waste reported. State: gap (assessed 2026-09-11). No 2D layout solver exists. Blocks roofing T-2 and any cladding, flooring or lining layout.
+- [ ] **SO-04 True surface geometric development** — Plan projections develop to true lengths and areas for a stated pitch, including unequal-pitch intersections. State: gap (assessed 2026-09-11). Plan-to-true-area development is not implemented. Unequal-pitch hip and valley true lengths are the specific case the roofing specification identified as the common error source. Blocks roofing T-1's development step.
+- [ ] **SO-05 Slope set-out and clearance solver** — Stepping or raking is chosen against a stated threshold and resulting ground gaps are reported. State: gap (assessed 2026-09-11). T-05 volumes, slopes and elevations is partial and treats slope as a measurement, not as a set-out input. No ground-line model, raking limit or clearance computation exists. Blocks fencing T-3.
+
+## PH — Phasing, existing fabric and demolition
+
+Added 2026-09-11. All 364 original rows assumed greenfield work. Nothing distinguished existing fabric, demolition or repair from new work, which blocks the dominant project type in several profiles — residential alteration, fence repair and re-roofing. Identified by the residential building design specification, whose own profile scenario is "develop an alteration with existing/new/demolished work". Every row is a gap.
+
+- [ ] **PH-01 Element lifecycle status** — Existing, demolished, new and repaired elements stay visually and quantitatively distinct. State: gap (assessed 2026-09-11). No phase, lifecycle or element-status concept exists in the model schema. Quantities cannot be split between retained and new work. Blocks residential T-1, fencing T-2 and roofing T-4.
+- [ ] **PH-02 Demolition and strip-out scheduling** — Removed work reports disposal, salvage and hazardous allowances separately from new work. State: gap (assessed 2026-09-11). No demolition scope, disposal quantity or hazardous-material allowance exists. Blocks roofing T-4 re-roof pricing, where strip and disposal are a major cost line.
+- [ ] **PH-03 Existing interface and tie-in matching** — Legacy profiles and tie-in points are recorded with any substitution mismatch disclosed. State: gap (assessed 2026-09-11). No means of recording an existing product identity so a later repair can match it, and no substitution-mismatch disclosure. Blocks fencing T-2, where the existing product is frequently discontinued.
 
 ## Industry and professional scenarios
 
@@ -707,7 +728,7 @@ Reviewed by the coordinating root and sheet/pricing agents on 2026-09-07. This d
 
 Acceptance identity: branch `feat/architect-cad-engine`, baseline `3e422f0084de607a775c2ede8dfecdf0b032c75e`; frozen source SHA-256 `a8a8c4946d93cafa283a7875b97337719f4c1bce8884b5b4097ab30fc5b29b84`; verified Windows executable SHA-256 `1a6486a3af6425e61996b1641f5ffdeade546df9fa549e4dcafe43209899aa8b`. [Build/test and artifact evidence](proof/growth/2026-09-07-release/README.md) records 95 tests, source-wide typecheck, sequential Dans1 web/native builds, source checks and artifact hashes. [Illustrated stage reports](proof/growth/PROGRESS.md) retain the implementation diffs and inspected evidence. Final native scenarios ran in an isolated profile only; the package was not installed over the normal application and user data remained untouched.
 
-Latest user device scope: tablets, laptops and desktop PCs across Windows/macOS/Linux; phone use is excluded. Earlier phone evidence is retained as history, not a current requirement. This batch verifies the stated built-browser and Windows-native workflows only. Tablet-specific layout, macOS/Linux packages, remaining categories and full working-day industry scenarios require their own acceptance. No overall percentage or comprehensive readiness claim is assigned to the 364-requirement register.
+Latest user device scope: tablets, laptops and desktop PCs across Windows/macOS/Linux; phone use is excluded. Earlier phone evidence is retained as history, not a current requirement. This batch verifies the stated built-browser and Windows-native workflows only. Tablet-specific layout, macOS/Linux packages, remaining categories and full working-day industry scenarios require their own acceptance. No overall percentage or comprehensive readiness claim is assigned to the 375-requirement register.
 
 Historical automation failures remain available: viewport CDP EOF after the size applied, a centre check issued before source geometry settled, and an incorrect test details-toggle action. Corrected waits/actions passed without application-source edits or an additional native build.
 
@@ -716,7 +737,7 @@ Historical automation failures remain available: viewport CDP EOF after the size
 - [x] D-14 tablet layout sub-check: saved source view retains original page/centre at 1024×768 and 768×1024; eight lower controls measure at least 44×44 and pass viewport/hit checks. Browser emulation evidence: proof/growth/2026-09-07-05-tablet-controls/index.html. Actual tablet hardware acceptance remains open.
 - [ ] Native macOS/Linux: blocked by scripts/build-cad.mjs rejecting non-Windows while required by the native beforeBuildCommand. No platform compatibility claim.
 
-Phones are excluded. Work paused at the user's requested safe point after staged pushes. Earlier full-application requirements remain governed by their actual pass/partial/open status; this does not complete the 364-item catalogue.
+Phones are excluded. Work paused at the user's requested safe point after staged pushes. Earlier full-application requirements remain governed by their actual pass/partial/open status; this does not complete the 375-item catalogue.
 
 
 2026-09-11 recovery addendum: the earlier 2026-09-07 table describes historical read-only proof. The implemented protected apply path and current B-10 acceptance above supersede its statement that applying is unavailable. Full B-09/B-11/Z-07 remain unchecked.

@@ -102,6 +102,7 @@ OCR and sheet indexing => Suggested names are reviewable and uncertainty is visi
 Cross-sheet references and hyperlinks => Detail callout opens the intended sheet revision
 Batch printing and issue sets => Selected sheets export in reviewed order with an issue register
 Bookmarks and saved views => Personal navigation restores the correct page and viewport
+Visual and vector revision delta => Two issued revisions report added, removed and changed geometry with a quantity variance table
 `],
 ['E','Estimation, pricing and commercial work','COSTX,LCC',`
 Pricing workbook import => XLSX/CSV sheets preview without executing spreadsheet formulas
@@ -118,6 +119,7 @@ Tender alternates and scenarios => Base and options compare without altering the
 Escalation and exchange rates => Source and effective date bind each applied factor
 Quote approval and issue => Issued estimate freezes rates, quantities, exclusions and revision
 Cost-to-complete and variations => Approved changes reconcile original budget to current forecast
+Preliminaries and site allowances => Time-related and site-wide costs are built up separately from measured rates and carry into the estimate without double counting
 `],
 ['F','Field work, construction and site delivery','PROCORE,BLUEBEAM',`
 Offline field packages => Required drawings and checklists open without connectivity
@@ -358,6 +360,7 @@ Stock lengths, packs and wastage => Purchased quantities remain distinct from ne
 Manual, model and AI quantity provenance => User can distinguish and review each quantity origin
 Reconciliation and audit exports => Summary totals reproduce detailed rows with units and rounding
 Bulk edit, undo and recovery => Batch operation restores all affected quantities and associations
+Cost code and classification binding => Every measured item maps to a user-definable classification hierarchy and reports with no unclassified residue
 `],
 ['U','Usability, performance and everyday flexibility','BLUEBEAM,ACAD',`
 Role-specific workspace presets => Architect and estimator get useful tools without separate data copies
@@ -454,6 +457,22 @@ Support and incident handling => Reproducible ticket links diagnostics, affected
 Proof expiry after changes => Dependency changes reopen affected completed acceptance rows
 Release notes and capability contract => Users see delivered limits and verified platform support
 Full working-day acceptance => Named industry scenario completes create-to-handover-to-reopen with proof
+`],
+// SO and PH were added 2026-09-11 from the first six industry specifications in
+// planning/industry-specs/. Both hold requirements that no existing A-Z row held:
+// converting measurement into a buildable arrangement, and distinguishing existing
+// fabric from new work. Proposal and rationale: planning/PROPOSED-REGISTER-EXPANSIONS.md
+['SO','Set-out and discrete optimisation','ACAD,COSTX,SOLID',`
+Modular division and bay set-out => A run divides into bays within a maximum spacing and the remainder is resolved by a stated rule
+Stock nesting and cut-list packing => Required lengths pack into orderable stock with reported offcuts and no silent rounding
+Sheet, panel and roll layout => Surface elements set out for cover width, laps and staggered joints with cut waste reported
+True surface geometric development => Plan projections develop to true lengths and areas for a stated pitch, including unequal-pitch intersections
+Slope set-out and clearance solver => Stepping or raking is chosen against a stated threshold and resulting ground gaps are reported
+`],
+['PH','Phasing, existing fabric and demolition','ARCHICAD,REVIT,PROCORE',`
+Element lifecycle status => Existing, demolished, new and repaired elements stay visually and quantitatively distinct
+Demolition and strip-out scheduling => Removed work reports disposal, salvage and hazardous allowances separately from new work
+Existing interface and tie-in matching => Legacy profiles and tie-in points are recorded with any substitution mismatch disclosed
 `],
 ];
 
