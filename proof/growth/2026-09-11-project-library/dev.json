@@ -1,0 +1,281 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library-trigger')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-library-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library')"
+  ],
+  [
+    "eval",
+    "(()=>{const i=document.querySelector('input[aria-label=\"New project name\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,\"Library proof\");i.dispatchEvent(new Event('input',{bubbles:true}))})()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Create project\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"status\"]')?.textContent==='Opened Library proof.'"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close Project library\"]').click();document.querySelector('[aria-label=\"Close Project\"]').click()"
+  ],
+  [
+    "eval",
+    "(()=>{const original=HTMLInputElement.prototype.click;let picked;HTMLInputElement.prototype.click=function(){if(this.type==='file')picked=this;else original.call(this)};try{document.querySelector('.source-ingest-action').click()}finally{HTMLInputElement.prototype.click=original}if(!picked)throw Error('No file input');const transfer=new DataTransfer();transfer.items.add(new File(['<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\" viewBox=\"0 0 800 600\"><rect width=\"800\" height=\"600\" fill=\"white\"/><rect x=\"80\" y=\"80\" width=\"640\" height=\"420\" fill=\"none\" stroke=\"black\" stroke-width=\"4\"/><text x=\"100\" y=\"140\" font-size=\"30\">Archive lifecycle proof</text></svg>'],'archive-proof.svg',{type:'image/svg+xml'}));picked.files=transfer.files;picked.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.sheets-document-preview')"
+  ],
+  [
+    "capture-fixture",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2'))"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library-trigger')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-library-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library')"
+  ],
+  [
+    "eval",
+    "(()=>{const i=document.querySelector('input[aria-label=\"New project name\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,\"Library proof\");i.dispatchEvent(new Event('input',{bubbles:true}))})()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Create project\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"status\"]')?.textContent==='Opened Library proof.' && [...document.querySelectorAll('.project-library-list strong')].filter(e=>e.textContent==='Library proof').length===2"
+  ],
+  [
+    "eval",
+    "window.libraryBefore=Object.fromEntries(Object.entries(localStorage));window.targetId=[...document.querySelectorAll('.project-library-list li')].find(e=>e.querySelector('strong').textContent==='Library proof'&&!e.textContent.includes('Open now')).dataset.projectId;document.querySelector('[data-project-id=\"'+window.targetId+'\"] button:last-child').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-archive-review')"
+  ],
+  [
+    "screenshot",
+    "archive-review.png"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-archive-review button\")].find(b=>b.textContent.trim()===\"Cancel\").click()"
+  ],
+  [
+    "eval",
+    "(()=>{if(JSON.stringify(Object.fromEntries(Object.entries(localStorage)))!==JSON.stringify(window.libraryBefore))throw Error('Cancel changed storage');document.querySelector('[data-project-id=\"'+window.targetId+'\"] button:last-child').click();navigator.locks.request('xray:project-lifecycle:v1',()=>new Promise(resolve=>{window.releaseLibraryLock=resolve}));return true})()"
+  ],
+  [
+    "wait",
+    "typeof window.releaseLibraryLock==='function'"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-archive-review button\")].find(b=>b.textContent.trim()===\"Confirm archive\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"alert\"]')?.textContent.includes('Another window')"
+  ],
+  [
+    "eval",
+    "window.releaseLibraryLock()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-archive-review button\")].find(b=>b.textContent.trim()===\"Confirm archive\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"status\"]')?.textContent.includes('archived.')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.project-library-list [data-project-id=\"'+window.targetId+'\"]'))throw Error('Archived remains active');for(const [k,v] of Object.entries(window.libraryBefore)){if(['xray:projects:v1','xray:assistant-project-tabs:v1'].includes(k))continue;if(localStorage.getItem(k)!==v)throw Error('Archive changed '+k)}return {projectId:window.targetId,preservedKeys:Object.keys(window.libraryBefore).length}})()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Archived\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library-list li')?.dataset.projectId===window.targetId"
+  ],
+  [
+    "screenshot",
+    "archived-desktop.png"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library-trigger')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-library-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library')"
+  ],
+  [
+    "eval-fixture",
+    "fixture=>{if(document.querySelector('.project-library-list [data-project-id=\"'+fixture.id+'\"]'))throw Error('Archive lost on reload');return true}"
+  ],
+  [
+    "viewport",
+    [
+      1024,
+      768,
+      true
+    ]
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Archived\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library-list li')?.querySelector('strong')?.textContent==='Library proof'"
+  ],
+  [
+    "screenshot",
+    "archived-tablet.png"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library-list button\")].find(b=>b.textContent.trim()===\"Restore\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"status\"]')?.textContent.includes('restored to Active')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Active\").click()"
+  ],
+  [
+    "eval-fixture",
+    "fixture=>document.querySelector('.project-library-list [data-project-id=\"'+fixture.id+'\"] button').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"status\"]')?.textContent==='Opened Library proof.'"
+  ],
+  [
+    "eval-fixture",
+    "fixture=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));if(j.id!==fixture.id||j.revision!==fixture.revision||JSON.stringify(j.documents)!==JSON.stringify(fixture.documents)||JSON.stringify(j.documentWorkspaces)!==JSON.stringify(fixture.documentWorkspaces))throw Error('Restored project differs');return {id:j.id,revision:j.revision,documents:j.documents}}"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close Project library\"]').click();document.querySelector('[aria-label=\"Close Project\"]').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.sheets-document-preview')"
+  ],
+  [
+    "screenshot",
+    "restored-drawing-tablet.png"
+  ],
+  [
+    "viewport",
+    [
+      1280,
+      800,
+      false
+    ]
+  ],
+  [
+    "screenshot",
+    "restored-drawing-desktop.png"
+  ],
+  [
+    "eval-fixture",
+    "async fixture=>{const content=await new Promise((resolve,reject)=>{const r=indexedDB.open('xray-plan-content-v1',1);r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,tx=db.transaction('documents','readonly'),q=tx.objectStore('documents').get(fixture.documents.find(d=>d.source!=='sample').id);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);tx.oncomplete=()=>db.close()}});const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',content.bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');if(hash!==fixture.documents.find(d=>d.source!=='sample').sha256)throw Error('Original bytes changed');return {sha256:hash,sizeBytes:content.bytes.byteLength}}"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library-trigger')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-library-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library')"
+  ],
+  [
+    "eval",
+    "window.savedLibrary=localStorage.getItem('xray:projects:v1');window.invalidLibrary=JSON.stringify({schema:'xray.projects/v1',entries:[{id:'broken'}]});localStorage.setItem('xray:projects:v1',window.invalidLibrary)"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Create project\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"alert\"]')?.textContent.includes('library is unreadable')"
+  ],
+  [
+    "screenshot",
+    "corrupt-library-refused.png"
+  ],
+  [
+    "eval",
+    "(()=>{if(localStorage.getItem('xray:projects:v1')!==window.invalidLibrary)throw Error('Corrupt library overwritten');localStorage.setItem('xray:projects:v1',window.savedLibrary);return true})()"
+  ],
+  [
+    "errors"
+  ]
+]

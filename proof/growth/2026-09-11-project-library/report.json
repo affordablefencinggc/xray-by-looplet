@@ -1,0 +1,12 @@
+[
+ ["navigate","http://127.0.0.1:8080/industry-coverage/index.html"],
+ ["wait","document.querySelectorAll('.requirement').length===364"],
+ ["eval","(()=>{const states=[...document.querySelectorAll('.state')].map(e=>e.textContent);if(states.includes('Not assessed')||states.includes('not-assessed'))throw Error('Lost assessments');if(states.filter(s=>s==='verified').length!==5)throw Error('Wrong verified count');if(document.querySelectorAll('.check[aria-label=Checked]').length!==2)throw Error('Invented or missing ticks');const search=document.querySelector('#search');search.value='B-07';search.dispatchEvent(new Event('input'));return states.reduce((a,s)=>(a[s]=(a[s]||0)+1,a),{})})()"],
+ ["eval","document.querySelector('#category-B').scrollIntoView()"],
+ ["screenshot","report-desktop.png"],
+ ["viewport",[1024,768,true]],
+ ["screenshot","report-tablet.png"],
+ ["eval","(()=>{const search=document.querySelector('#search');search.value='';search.dispatchEvent(new Event('input'));document.querySelector('#category').value='B';document.querySelector('#category').dispatchEvent(new Event('change'));if([...document.querySelectorAll('.requirement')].filter(e=>!e.closest('.hidden')&&!e.classList.contains('hidden')).length!==14)throw Error('Category filter broke');return true})()"],
+ ["errors"]
+]
+

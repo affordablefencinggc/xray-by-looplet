@@ -46,6 +46,7 @@ import { ASSISTANT_SKILLS } from "./assistant/skills";
 import { ASSISTANT_RAIL_TOGGLE_EVENT } from "./assistantRailMode";
 import { saveFencingJob } from "./persistence";
 import { closeTab, openTab, readRegistry, readTabs, writeTabs, emptyRegistry } from "./projectRegistry";
+import { PROJECT_LIBRARY_CHANGED } from "./projectArchive";
 import { listProjects, resolveTabs, switchProject } from "./assistant/projectSwitch";
 import { ProjectStrip, ProjectsDrawer } from "./assistant/AssistantProjects";
 import { useAssistantRailDocked } from "./assistant/useAssistantPanel";
@@ -119,7 +120,7 @@ export function LiveAssistant() {
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [menu, setMenu] = useState(false);
   const [drawer, setDrawer] = useState<
-    "skills" | "references" | "help" | "settings" | "projects" | null
+    "skills" | "references" | "help" | "settings" | "projects" | "history" | null
   >(null);
   const [dragOver, setDragOver] = useState(false);
   const [readingImages, setReadingImages] = useState(false);
@@ -188,6 +189,13 @@ export function LiveAssistant() {
   }, [jobId]);
   // [SC-18 projects] begin: registry + tab strip state (re-read per project and when the drawer opens)
   const projectsOpen = drawer === "projects";
+  const [libraryVersion, setLibraryVersion] = useState(0);
+  useEffect(() => {
+    const refreshLibrary = () => setLibraryVersion(value => value + 1);
+    window.addEventListener(PROJECT_LIBRARY_CHANGED, refreshLibrary);
+    window.addEventListener("storage", refreshLibrary);
+    return () => { window.removeEventListener(PROJECT_LIBRARY_CHANGED, refreshLibrary); window.removeEventListener("storage", refreshLibrary); };
+  }, []);
   useEffect(() => {
     const storage = projectStorage();
     if (!storage) return;
@@ -197,7 +205,7 @@ export function LiveAssistant() {
     const kept = resolveTabs(storedTabs, stored, { id: jobId, name: jobName }).map((tab) => tab.id);
     setRegistry(stored);
     setTabs(kept.length === storedTabs.length ? storedTabs : writeTabs(storage, kept));
-  }, [jobId, jobName, projectsOpen]);
+  }, [jobId, jobName, projectsOpen, libraryVersion]);
   // [SC-18 projects] end
   const collapse = () => {
     setMenu(false);
@@ -376,9 +384,10 @@ export function LiveAssistant() {
     followMessages.current = true;
   };
   /** Carries the work over: handover note first, then a fresh transcript (nothing sent until the next message). */
-  const continueChat = () => {
+  const continueChat = async () => {
     if (chat.busy || readingImages) return;
-    if (!chat.continueInNewChat()) return;
+    try { if (!await chat.continueInNewChat()) return; }
+    catch(e) { setMessage(e instanceof Error ? e.message : 'Chat could not be saved.'); return; }
     setAttachments([]); setPendingFiles([]);
     setMenu(false);
     setDrawer(null);
@@ -463,9 +472,10 @@ export function LiveAssistant() {
     setMenu(false);
     input.current?.focus();
   };
-  const newChat = () => {
+  const newChat = async () => {
     if (chat.busy || readingImages) return;
-    chat.clear();
+    try { if(!await chat.clear())return; }
+    catch(e) { setMessage(e instanceof Error ? e.message : 'Chat could not be saved.'); return; }
     setAttachments([]); setPendingFiles([]);
     setMessage("");
     setMenu(false);
@@ -752,10 +762,18 @@ export function LiveAssistant() {
                         ? "Help"
                         : drawer === "projects"
                           ? "Projects"
-                          : "Assistant settings"}
+                          : drawer === "history" ? "Chat history" : "Assistant settings"}
                 </strong>
               </div>
             )}
+            {drawer === "history" && <div className="assistant-chat-history">
+              <p>Saved conversations for {jobName}. Starting a new chat keeps earlier conversations here.</p>
+              {chat.history.map(thread => <button key={thread.id} type="button" disabled={chat.busy || chat.loadingHistory}
+                aria-current={thread.active ? 'true' : undefined}
+                onClick={async()=>{try { if(await chat.restoreHistory(thread.id))setDrawer(null); } catch(e){setMessage(e instanceof Error?e.message:'Chat could not be opened.');}}}>
+                <strong>{thread.title}</strong><span>{thread.active ? 'Current · ' : ''}{new Date(thread.updatedAt).toLocaleString()}</span>
+              </button>)}
+            </div>}
             {!drawer && (
               <>
                 {/* [PROVENANCE] Names the open project first and always. Anyone reading over a
@@ -767,7 +785,9 @@ export function LiveAssistant() {
                     <strong className="live-assistant-context-project">{jobName}</strong>
                     {binary ? ` · ${binary.name} · Sheet ${sheet + 1}` : " · no drawing imported"}
                   </span>
+                  <button type="button" onClick={()=>setDrawer('history')} disabled={chat.loadingHistory} aria-label="Open chat history">History</button>
                 </div>
+                {chat.loadingHistory && <p role="status">Restoring saved conversations…</p>}
                 <ConversationView
                   entries={chat.entries}
                   busy={chat.busy}
@@ -1013,8 +1033,8 @@ export function LiveAssistant() {
                 />
                 <p className="live-assistant-disclosure">
                   Messages, selected images and requested tool results go to the configured provider
-                  when you send. Chat and references stay in this app session. New chat clears the
-                  conversation, not your project.
+                  when you send. Conversations are saved on this device. New chat keeps the previous
+                  conversation in History. Reference selections stay in this app session.
                 </p>
               </div>
             )}
@@ -1149,7 +1169,7 @@ export function LiveAssistant() {
               maxLength={100000}
               rows={2}
               placeholder="Ask anything about your project…"
-              disabled={switching || chat.busy}
+              disabled={switching || chat.busy || chat.loadingHistory}
               onPaste={(event) => {
                 const pasted = event.clipboardData.getData('text/plain');
                 const selected = event.currentTarget.selectionEnd - event.currentTarget.selectionStart;
@@ -1297,7 +1317,7 @@ export function LiveAssistant() {
                   type="submit"
                   className="assistant-composer-button assistant-send"
                   aria-label="Send assistant message"
-                  disabled={switching || readingImages || (!draft.trim() && !attachments.length && !pendingFiles.length)}
+                  disabled={switching || readingImages || chat.loadingHistory || (!draft.trim() && !attachments.length && !pendingFiles.length)}
                 >
                   <span>
                     <ArrowUp size={17} />

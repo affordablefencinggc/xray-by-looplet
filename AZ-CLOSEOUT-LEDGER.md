@@ -1,0 +1,20 @@
+# A–Z closeout
+
+Approved: yes, 2026-09-11 — user: “C:\Users\danie\repo\xray-by-looplet\PROFESSIONAL-A-Z-CHECKLIST.md finish this”.
+Baseline: `82612dbdce15a5f31fb602bbbdc88f8125d3f511`, branch `feat/architect-cad-engine`, with existing assistant/navigation/contrast changes preserved.
+
+Goal: deliver and prove the complete 364-row register. No bulk ticking, unsupported readiness claims, credential substitution, or external transmission. Work stays in this repository; builds and product tests run on DANS1. MiniMax remains the assistant default.
+
+- [x] SC-01 Project library and archive lifecycle (B-01/B-07): verified in built-browser scope, 2026-09-11. Duplicate names, cancellation, locked competing operation, archive, reload, restore, exact revision/source ID and original SHA-256 passed; 34 project tests and 59-step dev/production journeys. Desktop/tablet screenshots inspected. B-04 remains partial until a full process restart is proved. Files and exact patch: proof/growth/2026-09-11-project-library/README.md. No commit or installed/native claim.
+- [ ] SC-02 Recoverable portable backup application (B-09/B-10/B-11/Z-07): in progress, authorized again 2026-09-11 (“proceed with everything”). Implement before-editor restore under an exclusive lifetime workspace lock; normal editors hold shared locks and other open editors refuse restore. Stage verified package, preserve a recovery copy, journal allowlisted before/after images, insert originals without overwrite, switch active job last, replay incomplete writes before hydration. Keep unsupported package exclusions explicit. Files: workspaceRestore*, WorkspaceStartup, backup review/library, route, tests. Native and forced-process-termination claims require separate proof.
+- [ ] SC-03 Complete document and pricing workflows (D/E/T): pending; current partial implementations require row-specific completion and proof.
+- [ ] SC-04 Accounts, permissions and durable handoff (A/V): external account-service selection/configuration and named recipient acceptance remain dependencies. Do not send externally without explicit recipient authorization.
+- [ ] SC-05 Discipline engines and validated scenarios (G–O/S/W/Y): pending; each solver needs benchmark fixtures and qualified-review boundaries.
+- [ ] SC-06 Release, recovery and working-day scenarios (Q/Z/DAY-01–08): pending; platform-specific proof required.
+- [x] SC-07 Preserve and synchronize the reviewed register: 364 assessed states, two evidence-backed ticks and all assessment text now appear in HTML/CSV/JSON. Repeated generation preserves the Markdown hash and produces identical HTML. Three parser tests and nine-step dev/production report checks pass; screenshots inspected. Final integrated source: `f59a593750f0b29152793f160db39c0d818a9f843d5c0185ebee674ea9d7ced2`.
+
+Every finished slice records exact patch, executed assertions, source/build identity and inspected screenshots. Completion of a slice does not close broader rows whose requirements remain unmet.
+
+Final safeguard verification, 2026-09-11: strict registry reads now refuse creation/open against damaged library records. Source 9e2e87d46bf659108278e4eb6ddc29b81ada7672988358bf5b4f6bd3031c5be3 supersedes intermediate f59a593750f0. DANS1: 38/38 tests, typecheck/build, 68/68 library and 9/9 report operations pass. Final inspected proof: proof/growth/2026-09-11-project-library/production-complete/ and report-production-complete/. Checklist scope and remaining work are unchanged.
+
+2026-09-11 SC-02 implementation milestone: protected v2 backup application now exists. DANS1 built-browser proof covers exact revision/source hash, fresh browser storage import, competing editor refusal, corrupt original refusal, simulated persisted interruption and damaged journal refusal. 45 targeted tests pass. B-10 is verified in browser scope; SC-02 remains open for full-context, native and forced-process-termination acceptance. Code and inspected proof: proof/growth/2026-09-11-restore/README.md. MiniMax stays selected; no external delivery, commit or install.

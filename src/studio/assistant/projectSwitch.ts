@@ -1,5 +1,6 @@
 import { createDefaultJob, fencingJobSchema, parseFencingJob, type FencingJob } from "../domain.ts";
 import type { JobPersistenceResult } from "../persistence.ts";
+import { withProjectLifecycle } from "../projectArchive.ts";
 import {
   applySwitchRemoves,
   applySwitchWrites,
@@ -8,7 +9,7 @@ import {
   openTab,
   peekShelvedJobText,
   planProjectSwitch,
-  readRegistry,
+  readRegistryStrict,
   readTabs,
   writeRegistry,
   writeTabs,
@@ -74,6 +75,11 @@ export function defaultProjectText(now?: string): string {
 }
 
 export async function switchProject(targetId: string | null, deps: ProjectSwitchDeps): Promise<ProjectSwitchResult> {
+  try { return await withProjectLifecycle(() => switchProjectLocked(targetId, deps)); }
+  catch (error) { return { ok: false, stage: "write", error: messageOf(error) }; }
+}
+
+async function switchProjectLocked(targetId: string | null, deps: ProjectSwitchDeps): Promise<ProjectSwitchResult> {
   const { store, storage } = deps;
   const parseJob = deps.parseJob ?? parseFencingJob;
   const createJobText = deps.createJobText ?? defaultProjectText;
@@ -97,7 +103,7 @@ export async function switchProject(targetId: string | null, deps: ProjectSwitch
       currentJob: state.job,
       currentRaw,
       targetId,
-      registry: readRegistry(storage),
+      registry: readRegistryStrict(storage),
       shelvedTargetText: targetId === null ? null : peekShelvedJobText(storage, targetId),
       createJobText,
     });
@@ -165,7 +171,7 @@ export type CurrentProject = { id: string; name: string; updatedAt: string };
 export function listProjects(registry: ProjectRegistry, current: CurrentProject): ProjectRow[] {
   const rows: ProjectRow[] = [{ id: current.id, name: current.name, updatedAt: current.updatedAt, current: true }];
   for (const entry of entriesNewestFirst(registry))
-    if (entry.id !== current.id) rows.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, current: false });
+    if (entry.id !== current.id && !entry.archived) rows.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, current: false });
   return rows;
 }
 
@@ -178,7 +184,7 @@ export function resolveTabs(tabs: readonly string[], registry: ProjectRegistry, 
       continue;
     }
     const entry = findEntry(registry, id);
-    if (entry) resolved.push({ id, name: entry.name });
+    if (entry && !entry.archived) resolved.push({ id, name: entry.name });
   }
   return resolved;
 }

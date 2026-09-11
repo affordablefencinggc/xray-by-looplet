@@ -1,0 +1,414 @@
+diff --git a/.temp/library-before/projectRegistry.ts b/src/studio/projectRegistry.ts
+index 598c081..218cc36 100644
+--- a/.temp/library-before/projectRegistry.ts
++++ b/src/studio/projectRegistry.ts
+@@ -17,7 +17,7 @@ export const PROJECT_REGISTRY_SCHEMA = "xray.projects/v1";
+ export const MAX_PROJECT_TABS = 12;
+ 
+ export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+-export type ProjectSummary = { id: string; name: string; updatedAt: string; revision: number };
++export type ProjectSummary = { id: string; name: string; updatedAt: string; revision: number; archived?: boolean };
+ export type ProjectRegistry = { schema: typeof PROJECT_REGISTRY_SCHEMA; entries: ProjectSummary[] };
+ export type JobSummarySource = Pick<FencingJob, "id" | "name" | "revision" | "updatedAt">;
+ 
+@@ -37,7 +37,7 @@ function isSummary(value: unknown): value is ProjectSummary {
+     Number.isFinite(Date.parse(v.updatedAt)) &&
+     typeof v.revision === "number" &&
+     Number.isInteger(v.revision) &&
+-    v.revision > 0
++    v.revision > 0 && (v.archived === undefined || typeof v.archived === "boolean")
+   );
+ }
+ 
+@@ -78,7 +78,7 @@ export function parseRegistry(text: string | null | undefined): ProjectRegistry
+   for (const entry of entries) {
+     if (!isSummary(entry) || seen.has(entry.id)) continue;
+     seen.add(entry.id);
+-    kept.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, revision: entry.revision });
++    kept.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, revision: entry.revision, ...(entry.archived === undefined ? {} : { archived: entry.archived }) });
+   }
+   return { schema: PROJECT_REGISTRY_SCHEMA, entries: kept };
+ }
+@@ -95,6 +95,17 @@ export function readRegistry(storage: StorageLike): ProjectRegistry {
+   }
+ }
+ 
++/** Mutations must not silently drop unreadable entries as the display parser does. */
++export function readRegistryStrict(storage: StorageLike): ProjectRegistry {
++  const raw = storage.getItem(PROJECT_REGISTRY_KEY);
++  if (raw === null) return emptyRegistry();
++  const registry = parseRegistry(raw);
++  try {
++    if (JSON.stringify(JSON.parse(raw)) === serializeRegistry(registry)) return registry;
++  } catch { /* Preserve original bytes and report below. */ }
++  throw Error("The project library is unreadable. Saved data has been preserved.");
++}
++
+ /** Writes the registry and returns the exact text stored. Storage errors propagate to the caller. */
+ export function writeRegistry(storage: StorageLike, registry: ProjectRegistry): string {
+   const text = serializeRegistry(registry);
+@@ -119,7 +130,7 @@ export function upsertEntry(registry: ProjectRegistry, job: JobSummarySource): P
+   )
+     return registry;
+   const entries = registry.entries.slice();
+-  entries[index] = summary;
++  entries[index] = { ...summary, ...(existing.archived === undefined ? {} : { archived: existing.archived }) };
+   return { schema: PROJECT_REGISTRY_SCHEMA, entries };
+ }
+ 
+@@ -231,6 +242,7 @@ export function planProjectSwitch(request: ProjectSwitchRequest): ProjectSwitchP
+     kind = "new";
+     removes = [];
+   } else {
++    if (findEntry(request.registry, request.targetId)?.archived) throw new Error("Restore this project from Archived before opening it.");
+     if (request.targetId === current.id) throw new Error("This project is already open.");
+     if (typeof request.shelvedTargetText !== "string" || !request.shelvedTargetText)
+       throw new Error(`Project ${request.targetId} has no shelved record to open.`);
+diff --git a/.temp/library-before/Studio.tsx b/src/studio/Studio.tsx
+index 7ed6cf0..3715dc3 100644
+--- a/.temp/library-before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -18,6 +18,7 @@ import { useStudio, type Pane } from "./store";
+ import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+ import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
+ import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
++import { ProjectLibrary } from "./ProjectLibrary";
+ import { ProjectBackups } from "./ProjectBackups";
+ import { ProjectDetails } from "./ProjectDetails";
+ import { ProjectRecoveryNotice, ProjectSaveFailure } from "./ProjectRecoveryNotice";
+@@ -210,6 +211,7 @@ function StudioContent() {
+           <ProjectDetails />
+           <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { await startNewProject(); setProjectMenuOpen(false); }} />
+           <ProjectBackups />
++          <ProjectLibrary />
+         </div>
+       </WorkspaceDialog>}
+       <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
+diff --git a/.temp/library-before/LiveAssistant.tsx b/src/studio/LiveAssistant.tsx
+index 938bada..0c38f22 100644
+--- a/.temp/library-before/LiveAssistant.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -46,6 +46,7 @@ import { ASSISTANT_SKILLS } from "./assistant/skills";
+ import { ASSISTANT_RAIL_TOGGLE_EVENT } from "./assistantRailMode";
+ import { saveFencingJob } from "./persistence";
+ import { closeTab, openTab, readRegistry, readTabs, writeTabs, emptyRegistry } from "./projectRegistry";
++import { PROJECT_LIBRARY_CHANGED } from "./projectArchive";
+ import { listProjects, resolveTabs, switchProject } from "./assistant/projectSwitch";
+ import { ProjectStrip, ProjectsDrawer } from "./assistant/AssistantProjects";
+ import { useAssistantRailDocked } from "./assistant/useAssistantPanel";
+@@ -188,6 +189,13 @@ export function LiveAssistant() {
+   }, [jobId]);
+   // [SC-18 projects] begin: registry + tab strip state (re-read per project and when the drawer opens)
+   const projectsOpen = drawer === "projects";
++  const [libraryVersion, setLibraryVersion] = useState(0);
++  useEffect(() => {
++    const refreshLibrary = () => setLibraryVersion(value => value + 1);
++    window.addEventListener(PROJECT_LIBRARY_CHANGED, refreshLibrary);
++    window.addEventListener("storage", refreshLibrary);
++    return () => { window.removeEventListener(PROJECT_LIBRARY_CHANGED, refreshLibrary); window.removeEventListener("storage", refreshLibrary); };
++  }, []);
+   useEffect(() => {
+     const storage = projectStorage();
+     if (!storage) return;
+@@ -197,7 +205,7 @@ export function LiveAssistant() {
+     const kept = resolveTabs(storedTabs, stored, { id: jobId, name: jobName }).map((tab) => tab.id);
+     setRegistry(stored);
+     setTabs(kept.length === storedTabs.length ? storedTabs : writeTabs(storage, kept));
+-  }, [jobId, jobName, projectsOpen]);
++  }, [jobId, jobName, projectsOpen, libraryVersion]);
+   // [SC-18 projects] end
+   const collapse = () => {
+     setMenu(false);
+diff --git a/.temp/library-before/projectSwitch.ts b/src/studio/assistant/projectSwitch.ts
+index c0133e6..f007f62 100644
+--- a/.temp/library-before/projectSwitch.ts
++++ b/src/studio/assistant/projectSwitch.ts
+@@ -1,5 +1,6 @@
+ import { createDefaultJob, fencingJobSchema, parseFencingJob, type FencingJob } from "../domain.ts";
+ import type { JobPersistenceResult } from "../persistence.ts";
++import { withProjectLifecycle } from "../projectArchive.ts";
+ import {
+   applySwitchRemoves,
+   applySwitchWrites,
+@@ -8,7 +9,7 @@ import {
+   openTab,
+   peekShelvedJobText,
+   planProjectSwitch,
+-  readRegistry,
++  readRegistryStrict,
+   readTabs,
+   writeRegistry,
+   writeTabs,
+@@ -74,6 +75,11 @@ export function defaultProjectText(now?: string): string {
+ }
+ 
+ export async function switchProject(targetId: string | null, deps: ProjectSwitchDeps): Promise<ProjectSwitchResult> {
++  try { return await withProjectLifecycle(() => switchProjectLocked(targetId, deps)); }
++  catch (error) { return { ok: false, stage: "write", error: messageOf(error) }; }
++}
++
++async function switchProjectLocked(targetId: string | null, deps: ProjectSwitchDeps): Promise<ProjectSwitchResult> {
+   const { store, storage } = deps;
+   const parseJob = deps.parseJob ?? parseFencingJob;
+   const createJobText = deps.createJobText ?? defaultProjectText;
+@@ -97,7 +103,7 @@ export async function switchProject(targetId: string | null, deps: ProjectSwitch
+       currentJob: state.job,
+       currentRaw,
+       targetId,
+-      registry: readRegistry(storage),
++      registry: readRegistryStrict(storage),
+       shelvedTargetText: targetId === null ? null : peekShelvedJobText(storage, targetId),
+       createJobText,
+     });
+@@ -165,7 +171,7 @@ export type CurrentProject = { id: string; name: string; updatedAt: string };
+ export function listProjects(registry: ProjectRegistry, current: CurrentProject): ProjectRow[] {
+   const rows: ProjectRow[] = [{ id: current.id, name: current.name, updatedAt: current.updatedAt, current: true }];
+   for (const entry of entriesNewestFirst(registry))
+-    if (entry.id !== current.id) rows.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, current: false });
++    if (entry.id !== current.id && !entry.archived) rows.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, current: false });
+   return rows;
+ }
+ 
+@@ -178,7 +184,7 @@ export function resolveTabs(tabs: readonly string[], registry: ProjectRegistry,
+       continue;
+     }
+     const entry = findEntry(registry, id);
+-    if (entry) resolved.push({ id, name: entry.name });
++    if (entry && !entry.archived) resolved.push({ id, name: entry.name });
+   }
+   return resolved;
+ }
+diff --git a/src/studio/projectArchive.ts b/src/studio/projectArchive.ts
+new file mode 100644
+index 0000000..f9ef05a
+--- /dev/null
++++ b/src/studio/projectArchive.ts
+@@ -0,0 +1,40 @@
++import { parseFencingJob } from "./domain.ts";
++import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
++import { PROJECT_REGISTRY_KEY, readRegistryStrict, serializeRegistry, shelfKey, type StorageLike, type ProjectRegistry } from "./projectRegistry.ts";
++
++export const PROJECT_LIFECYCLE_LOCK = "xray:project-lifecycle:v1";
++export const PROJECT_LIBRARY_CHANGED = "xray:project-library-changed";
++
++/** The same origin lock protects archive and project switching in cooperating windows. */
++export async function withProjectLifecycle<T>(action: () => Promise<T>): Promise<T> {
++  if (typeof window === "undefined") return action();
++  if (!navigator.locks) throw Error("Project management needs browser storage locking. Use a supported browser.");
++  return navigator.locks.request(PROJECT_LIFECYCLE_LOCK, { mode: "exclusive", ifAvailable: true }, lock => {
++    if (!lock) throw Error("Another window is changing projects. Try again when it finishes.");
++    return action();
++  });
++}
++
++/** One metadata write; no original, shelf, module or conversation is removed or rewritten. */
++export function setProjectArchived(storage: StorageLike, id: string, archived: boolean, expectedRegistryRaw: string | null): ProjectRegistry {
++  const raw = storage.getItem(PROJECT_REGISTRY_KEY);
++  if (raw !== expectedRegistryRaw) throw Error("The project library changed. Refresh it before trying again.");
++  const registry = readRegistryStrict(storage);
++  const entry = registry.entries.find(item => item.id === id);
++  if (!entry) throw Error("This project is no longer listed. Refresh the library.");
++  const main = storage.getItem(FENCING_JOB_STORAGE_KEY);
++  if (!main) throw Error("The active project is not saved. Save it before managing projects.");
++  const current = parseFencingJob(JSON.parse(main));
++  if (current.id === id) throw Error("Open another project before archiving this one.");
++  const shelf = storage.getItem(shelfKey(id));
++  if (!shelf || parseFencingJob(JSON.parse(shelf)).id !== id)
++    throw Error("This project's saved record is missing or unreadable. Nothing was changed.");
++  const next = { ...registry, entries: registry.entries.map(item => item.id === id ? { ...item, archived } : item) };
++  const text = serializeRegistry(next);
++  if (storage.getItem(PROJECT_REGISTRY_KEY) !== raw || storage.getItem(FENCING_JOB_STORAGE_KEY) !== main || storage.getItem(shelfKey(id)) !== shelf)
++    throw Error("Saved projects changed during review. Refresh the library.");
++  storage.setItem(PROJECT_REGISTRY_KEY, text);
++  if (storage.getItem(PROJECT_REGISTRY_KEY) !== text)
++    throw Error("The archive change was not confirmed saved. Refresh the library to check its state.");
++  return next;
++}
+diff --git a/src/studio/projectArchive.test.ts b/src/studio/projectArchive.test.ts
+new file mode 100644
+index 0000000..6832ee0
+--- /dev/null
++++ b/src/studio/projectArchive.test.ts
+@@ -0,0 +1,80 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { createDefaultJob } from "./domain.ts";
++import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
++import { emptyRegistry, upsertEntry, serializeRegistry, parseRegistry, readRegistryStrict, PROJECT_REGISTRY_KEY, shelfKey, planProjectSwitch } from "./projectRegistry.ts";
++import { setProjectArchived } from "./projectArchive.ts";
++import { listProjects, resolveTabs } from "./assistant/projectSwitch.ts";
++
++function fixture() {
++  const current = createDefaultJob(), target = createDefaultJob();
++  current.name = target.name = "Same project name";
++  const registry = upsertEntry(upsertEntry(emptyRegistry(), current), target);
++  const raw = serializeRegistry(registry);
++  const values = new Map([[PROJECT_REGISTRY_KEY, raw], [FENCING_JOB_STORAGE_KEY, JSON.stringify(current)], [shelfKey(target.id), JSON.stringify(target)], [`architecture:${target.id}`, 'keep design'], [`history:${target.id}`, 'keep chat']]);
++  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
++  return { current, target, registry, raw, values, storage };
++}
++test("archive and restore duplicate-named project preserves every non-registry byte and identity", () => {
++  const f = fixture(), before = new Map(f.values);
++  const archived = setProjectArchived(f.storage, f.target.id, true, f.raw);
++  assert.deepEqual(listProjects(archived, f.current).map(r => r.id), [f.current.id]);
++  assert.deepEqual(resolveTabs([f.target.id, f.current.id], archived, f.current).map(r => r.id), [f.current.id]);
++  assert.throws(() => planProjectSwitch({ currentJob: f.current, currentRaw: JSON.stringify(f.current), targetId: f.target.id, registry: archived, shelvedTargetText: JSON.stringify(f.target), createJobText: () => '' }), /Restore this project/);
++  const restored = setProjectArchived(f.storage, f.target.id, false, serializeRegistry(archived));
++  assert.equal(listProjects(restored, f.current).length, 2);
++  assert.equal(resolveTabs([f.target.id], restored, f.current)[0].id, f.target.id);
++  for (const [key, value] of before) if (key !== PROJECT_REGISTRY_KEY) assert.equal(f.storage.getItem(key), value);
++});
++test("archive marker survives registry parsing and summary updates", () => {
++  const f = fixture();
++  const archived = setProjectArchived(f.storage, f.target.id, true, f.raw);
++  const parsed = parseRegistry(serializeRegistry(archived));
++  const updated = upsertEntry(parsed, { ...f.target, name: "Changed", revision: 2 });
++  assert.equal(updated.entries.find(e => e.id === f.target.id)?.archived, true);
++});
++test("current, absent and corrupt shelved projects cannot be archived", () => {
++  for (const mode of ['current', 'absent', 'corrupt', 'wrong-identity']) {
++    const f = fixture();
++    if (mode === 'absent') f.values.delete(shelfKey(f.target.id));
++    if (mode === 'corrupt') f.values.set(shelfKey(f.target.id), '{}');
++    if (mode === 'wrong-identity') f.values.set(shelfKey(f.target.id), JSON.stringify(f.current));
++    const before = [...f.values];
++    assert.throws(() => setProjectArchived(f.storage, mode === 'current' ? f.current.id : f.target.id, true, f.raw));
++    assert.deepEqual([...f.values], before);
++  }
++});
++test("stale review and malformed registry preserve existing records", () => {
++  for (const value of ['broken', JSON.stringify({schema:'xray.projects/v1',entries:[{bad:true}]}), serializeRegistry(emptyRegistry())]) {
++    const f = fixture(); f.values.set(PROJECT_REGISTRY_KEY, value);
++    assert.throws(() => setProjectArchived(f.storage, f.target.id, true, f.raw), /changed/);
++    assert.throws(() => setProjectArchived(f.storage, f.target.id, true, value));
++    assert.equal(f.storage.getItem(PROJECT_REGISTRY_KEY), value);
++  }
++});
++test("quota failure cannot discard the project or its shelf", () => {
++  const f = fixture(), before = [...f.values];
++  f.storage.setItem = () => { throw Error('Quota exceeded'); };
++  assert.throws(() => setProjectArchived(f.storage, f.target.id, true, f.raw), /Quota/);
++  assert.deepEqual([...f.values], before);
++});
++test("silent write failure is never reported as saved", () => {
++  const f = fixture(); f.storage.setItem = () => {};
++  assert.throws(() => setProjectArchived(f.storage, f.target.id, true, f.raw), /not confirmed saved/);
++  assert.equal(f.storage.getItem(PROJECT_REGISTRY_KEY), f.raw);
++});
++test("a changed shelf during validation refuses before writing", () => {
++  const f = fixture(); let reads = 0;
++  const get = f.storage.getItem;
++  f.storage.getItem = key => key === shelfKey(f.target.id) && ++reads > 1 ? 'changed' : get(key);
++  assert.throws(() => setProjectArchived(f.storage, f.target.id, true, f.raw), /changed during review/);
++  assert.equal(get(PROJECT_REGISTRY_KEY), f.raw);
++});
++
++test("mutating registry reads refuse data the display parser would drop", () => {
++  for (const raw of ['{}','broken',JSON.stringify({schema:'xray.projects/v1',entries:[{id:'damaged'}]})]) {
++    const f=fixture();f.values.set(PROJECT_REGISTRY_KEY,raw);
++    assert.throws(()=>readRegistryStrict(f.storage),/unreadable/);
++    assert.equal(f.storage.getItem(PROJECT_REGISTRY_KEY),raw);
++  }
++});
+diff --git a/src/studio/ProjectLibrary.tsx b/src/studio/ProjectLibrary.tsx
+new file mode 100644
+index 0000000..fc0bb9e
+--- /dev/null
++++ b/src/studio/ProjectLibrary.tsx
+@@ -0,0 +1,73 @@
++import { useEffect, useState } from "react";
++import { FolderOpen } from "lucide-react";
++import { useStudio } from "./store";
++import { saveFencingJob } from "./persistence";
++import { defaultProjectText, switchProject } from "./assistant/projectSwitch";
++import { PROJECT_REGISTRY_KEY, entriesNewestFirst, parseRegistry, upsertEntry, type ProjectSummary } from "./projectRegistry";
++import { PROJECT_LIBRARY_CHANGED, setProjectArchived, withProjectLifecycle } from "./projectArchive";
++import { WorkspaceDialog } from "./WorkspaceDialog";
++import "./projectLibrary.css";
++
++export function ProjectLibrary() {
++  const [open, setOpen] = useState(false);
++  return <><button className="pill project-library-trigger" onClick={() => setOpen(true)}><FolderOpen size={14} />Project library</button>
++    {open && <WorkspaceDialog title="Project library" onClose={() => setOpen(false)}><LibraryContents /></WorkspaceDialog>}</>;
++}
++
++function LibraryContents() {
++  const job = useStudio(s => s.job), ready = useStudio(s => s.hydrationStatus === "ready" && !s.persistenceRecoveryBlocked);
++  const [raw, setRaw] = useState<string | null>(null), [filter, setFilter] = useState("");
++  const [archived, setArchived] = useState(false), [busy, setBusy] = useState(false);
++  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [name, setName] = useState("");
++  const [review, setReview] = useState<ProjectSummary | null>(null);
++  const [reviewRaw, setReviewRaw] = useState<string | null>(null);
++  const refresh = () => { try { setRaw(localStorage.getItem(PROJECT_REGISTRY_KEY)); } catch { setError("Project storage is unavailable."); } };
++  useEffect(() => {
++    refresh();
++    window.addEventListener("storage", refresh);
++    window.addEventListener(PROJECT_LIBRARY_CHANGED, refresh);
++    return () => { window.removeEventListener("storage", refresh); window.removeEventListener(PROJECT_LIBRARY_CHANGED, refresh); };
++  }, [job.id]);
++  const registry = upsertEntry(parseRegistry(raw), job);
++  const rows = entriesNewestFirst(registry).filter(e => Boolean(e.archived) === archived && `${e.name} ${e.id}`.toLowerCase().includes(filter.toLowerCase()));
++  async function openProject(id: string | null) {
++    if (busy) return;
++    setBusy(true); setError(""); setNotice(""); setReview(null);
++    try {
++      const result = await switchProject(id, {
++        store: { getState: useStudio.getState, setState: patch => useStudio.setState(patch) },
++        storage: localStorage, saveJob: (value, options) => saveFencingJob(value, undefined, options), busy: false,
++        createJobText: () => { const value = JSON.parse(defaultProjectText()); value.name = name.trim() || "New project"; return JSON.stringify(value); },
++      });
++      if (!result.ok) throw Error(result.error);
++      setNotice(`Opened ${result.target.name}.`); setName(""); setArchived(false); setFilter("");
++      window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGED)); refresh();
++    } catch (failure) { setError(failure instanceof Error ? failure.message : "Project could not be opened."); }
++    finally { setBusy(false); }
++  }
++  async function changeArchive(entry: ProjectSummary, value: boolean) {
++    if (busy) return;
++    setBusy(true); setError(""); setNotice("");
++    try {
++      await withProjectLifecycle(async () => setProjectArchived(localStorage, entry.id, value, value ? reviewRaw : raw));
++      setReview(null); setNotice(`${entry.name} ${value ? "archived. Its saved work is kept on this device." : "restored to Active projects."}`);
++      window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGED)); refresh();
++    } catch (failure) { setError(failure instanceof Error ? failure.message : "Project archive change failed."); }
++    finally { setBusy(false); }
++  }
++  return <section className="project-library" aria-busy={busy}>
++    <p>Open saved projects or put finished work away. Archiving keeps drawings, design, rates and conversation history on this device.</p>
++    <div className="project-library-new"><label>New project name<input aria-label="New project name" maxLength={120} value={name} onChange={e => setName(e.target.value)} disabled={busy} placeholder="Project name" /></label>
++      <button className="pill" disabled={busy || !ready} onClick={() => void openProject(null)}>Create project</button></div>
++    <div className="project-library-toolbar"><div role="group" aria-label="Project list"><button className="pill" aria-pressed={!archived} onClick={() => { setArchived(false); setReview(null); }}>Active</button><button className="pill" aria-pressed={archived} onClick={() => { setArchived(true); setReview(null); }}>Archived</button></div>
++      <label>Find a project<input aria-label="Find a project" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Name or project ID" /></label><button className="pill" disabled={busy} onClick={() => { refresh(); setReview(null); }}>Refresh</button></div>
++    {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
++    {review && <section className="project-archive-review" aria-label="Archive project review"><h3>Archive {review.name}?</h3><p>This removes it from Active projects and the assistant's project tabs. Its saved records and original files stay intact. Restore it from Archived whenever you need it.</p><p>Project ID: <code>{review.id}</code></p><div><button className="pill" disabled={busy} onClick={() => void changeArchive(review, true)}>Confirm archive</button><button className="pill" disabled={busy} onClick={() => setReview(null)}>Cancel</button></div></section>}
++    <ul className="project-library-list" aria-label={archived ? "Archived projects" : "Active projects"}>{rows.map(entry => <li key={entry.id} data-project-id={entry.id}>
++      <div><strong>{entry.name}</strong><small>{entry.id === job.id ? "Open now · " : ""}Revision {entry.revision} · {new Date(entry.updatedAt).toLocaleDateString()}</small><code>{entry.id}</code></div>
++      <div className="project-library-actions">{archived ? <button className="pill" disabled={busy || !ready} onClick={() => void changeArchive(entry, false)}>Restore</button> : <><button className="pill" disabled={busy || !ready || entry.id === job.id} onClick={() => void openProject(entry.id)}>Open</button><button className="pill" disabled={busy || !ready || entry.id === job.id} title={entry.id === job.id ? "Open another project before archiving this one" : "Archive project"} onClick={() => { setError(""); setReviewRaw(raw); setReview(entry); }}>Archive</button></>}</div>
++    </li>)}</ul>
++    {!rows.length && <p>{filter ? "No projects match your search." : archived ? "No archived projects." : "No active projects."}</p>}
++    {!archived && <p className="project-library-note">To archive the open project, first open or create another project. This library is local to this device; portable backups are managed separately.</p>}
++  </section>;
++}
+diff --git a/src/studio/projectLibrary.css b/src/studio/projectLibrary.css
+new file mode 100644
+index 0000000..7151f5a
+--- /dev/null
++++ b/src/studio/projectLibrary.css
+@@ -0,0 +1,17 @@
++.project-library-trigger { display: inline-flex; align-items: center; gap: 8px; }
++.project-library { display: grid; gap: 16px; padding: 20px; color: var(--color-ink); }
++.project-library p { line-height: 1.5; }
++.project-library label { display: grid; gap: 6px; font-size: 12px; flex: 1; }
++.project-library input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; width: 100%; }
++.project-library .pill { min-height: 44px; }
++.project-library-new, .project-library-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
++.project-library-toolbar [role=group], .project-library-actions, .project-archive-review > div { display: flex; gap: 8px; }
++.project-library-list { display: grid; gap: 8px; }
++.project-library-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-card); }
++.project-library-list small, .project-library-list code { display: block; margin-top: 4px; color: var(--color-muted); font-size: 11px; overflow-wrap: anywhere; }
++.project-library-list strong { overflow-wrap: anywhere; }
++.project-library-list li > div:first-child { min-width: 0; }
++.project-library [aria-pressed=true] { background: var(--color-navy); color: var(--color-on-navy); }
++.project-archive-review { display: grid; gap: 12px; padding: 16px; background: var(--color-card); border: 1px solid var(--color-heading-line); border-radius: 8px; }
++.project-library-note { font-size: 12px; color: var(--color-muted); }
++.project-library [role=alert] { color: var(--color-danger, #9b2525); }

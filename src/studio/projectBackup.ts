@@ -17,6 +17,7 @@ export const BACKUP_FORMAT = "xray.workspace-backup/v2";
 export const BACKUP_LEGACY_FORMAT = "xray.workspace-backup/v1";
 export const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
 export const BACKUP_EXCLUSIONS = [
+  "Assistant conversations and tool history (existing conversations stay on this device)",
   "Separate construction-runtime jobs and their history",
   "Source-model location notes, camera views and appearance settings",
   "Unsaved form edits, undo history, accounts and credentials",

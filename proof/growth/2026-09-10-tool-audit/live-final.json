@@ -1,0 +1,87 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "(async()=>{\nwindow.audit={};\naudit.store=(await import('/src/studio/store.ts')).useStudio;\naudit.jobId=audit.store.getState().job.id;\n(await import('/src/studio/assistant/provider.ts')).useAssistantProvider.getState().setProvider('minimax');\n(await import('/src/studio/assistant/permissions.ts')).usePermissions.getState().setMode('auto');\nlocalStorage.setItem('xray:assistant-execution-budget:v1',JSON.stringify({maxRounds:16,maxToolCalls:48,maxOutputTokens:8192,timeoutMs:90000,contextTokens:300000}));\naudit.file=await (await import('/src/studio/assistant/attachmentFiles.ts')).storeAssistantFile(audit.jobId,new File(['Audit fixture: the room is called Willow Study. Requested illustrative dimensions are 6000 mm by 4000 mm. This is a test brief, not a surveyed drawing.'],'audit-brief.txt',{type:'text/plain'}));\ndocument.querySelector('.live-assistant-launcher')?.click();\nreturn {project:audit.jobId,file:audit.file};\n})()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('textarea') && !document.querySelector('textarea').disabled"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.querySelector('textarea');if(!t)throw Error('Composer missing');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,\"Read audit-brief.txt and tell me the room name and dimensions. Do not draw anything.\");t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "document.querySelector('[aria-label=\"Send assistant message\"]')?.disabled===false"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Send assistant message\"]').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('[aria-label=\"Stop assistant response\"]')",
+    15000
+  ],
+  [
+    "wait",
+    "!!document.querySelector('[aria-label=\"Send assistant message\"]')",
+    230000
+  ],
+  [
+    "eval",
+    "(async()=>{const p=await (await import('/src/studio/assistant/workPacketStore.ts')).listWorkPackets(audit.jobId);const events=await (await import('/src/studio/assistant/workPacketStore.ts')).readWorkEvents(p[0].id);return {text:document.querySelector('.live-assistant')?.innerText||document.body.innerText,packets:p,events:events.filter(e=>e.kind.includes('tool')||e.kind.includes('fail')||e.kind.includes('finish'))}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{if(document.querySelector('.live-assistant')?.innerText.includes('Working…'))throw Error('Completed call still marked Working');const id=(await import('/src/studio/store.ts')).useStudio.getState().job.id;const saved=await(await import('/src/studio/assistant/chatHistory.ts')).readChatArchive(id);if(!saved?.threads.some(t=>t.entries.some(e=>e.kind==='assistant'&&e.text.includes('Willow'))))throw Error('Provider reply not saved');return {threadCount:saved.threads.length,entries:saved.threads.at(-1).entries.length}})()"
+  ],
+  [
+    "screenshot",
+    "saved-live-chat.png"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.live-assistant')?.innerText.includes('Willow') && !document.querySelector('textarea').disabled"
+  ],
+  [
+    "eval",
+    "(async()=>{if((await import('/src/studio/assistant/provider.ts')).useAssistantProvider.getState().provider!=='minimax')throw Error('Provider selection lost on reload');return document.querySelector('.live-assistant').innerText})()"
+  ],
+  [
+    "screenshot",
+    "live-chat-after-reload.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const provider=(await import('/src/studio/assistant/provider.ts')).useAssistantProvider;provider.getState().setProvider('minimax');const calls=[];const original=window.fetch;window.fetch=(...args)=>{calls.push(String(args[0]));return original(...args)};let result;try{result=await(await import('/src/studio/assistant/session.ts')).callAssistantTool('web_search',{query:'Find the official Australian Bureau of Meteorology website and return its URL.'},AbortSignal.timeout(90000));}catch(e){result={isError:true,content:[{type:'text',text:e.message}]}}finally{window.fetch=original}if(provider.getState().provider!=='minimax')throw Error('Selected provider changed during search');if(!calls.some(p=>p.includes('/api/assistant-ai')))throw Error('Search not routed to grounding provider');return {requests:calls,selected:provider.getState().provider,result}})()"
+  ],
+  [
+    "errors"
+  ]
+]

@@ -2,7 +2,15 @@ import { assistantResponseSchema, type AssistantContent, type AssistantDeclarati
 import { DEFAULT_EXECUTION_BUDGET, executionBudgetSchema, type ExecutionBudget } from "./executionBudget.ts";
 export type ChatImage = { data: string; mimeType: 'image/png' | 'image/jpeg' | 'image/webp' };
 export type ToolResult = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean; _meta?: Record<string, unknown> };
-export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; failed?: boolean };
+export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; toolCallId?: string; failed?: boolean };
+
+/** A completed call replaces its progress row; repeated calls keep distinct identities. */
+export function appendChatEvent<T extends { id: string; kind: string; toolCallId?: string }>(entries: readonly T[], entry: T): T[] {
+  const index = entry.kind === 'tool' && entry.toolCallId
+    ? entries.findIndex(previous => previous.kind === 'tool' && previous.toolCallId === entry.toolCallId) : -1;
+  if (index < 0) return [...entries, entry];
+  return entries.map((previous, i) => i === index ? { ...entry, id: previous.id } : previous);
+}
 
 export async function runConversation(options: {
   execution?: ExecutionBudget;
@@ -61,7 +69,8 @@ export async function runConversation(options: {
         options.checkpoint(contents);
         throw error;
       }
-      options.emit({ kind: 'tool', toolName: call.name, text: `Running ${call.name}…` });
+      const toolCallId = `${requestId}:${index}`;
+      options.emit({ kind: 'tool', toolName: call.name, toolCallId, text: `Running ${call.name}…` });
       let result: ToolResult;
       try {
         if (++toolCalls > budget.maxToolCalls) result = { isError: true, content: [{ type: 'text', text: 'Tool budget reached; not executed. Review completed actions before continuing.' }] };
@@ -80,7 +89,7 @@ export async function runConversation(options: {
       if (call.name === 'web_search' && !result.isError) {
         try { const parsed = JSON.parse(output); if (Array.isArray(parsed.sources)) sources = parsed.sources.filter((source: { title?: unknown; url?: unknown }) => typeof source.title === 'string' && typeof source.url === 'string' && /^https?:\/\//.test(source.url)); } catch { /* Non-JSON tool output remains visible. */ }
       }
-      options.emit({ kind: 'tool', toolName: call.name, text: output || (result.isError ? 'Tool failed.' : 'Tool completed.'), failed: result.isError, images: toolImages, sources });
+      options.emit({ kind: 'tool', toolName: call.name, toolCallId, text: output || (result.isError ? 'Tool failed.' : 'Tool completed.'), failed: result.isError, images: toolImages, sources });
       results.push({ functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { isError: !!result.isError, text: output, images: toolImages.length } } });
       toolImages.forEach(image => results.push({ inlineData: image }));
     }

@@ -14,6 +14,7 @@ const TABS = ["Logs", "Console", "Errors", "Status"] as const;
 const buildId = import.meta.env.VITE_XRAY_BUILD_ID;
 const buildLabel = typeof buildId === "string" && /^[a-f0-9]{12}$/.test(buildId)
   ? `Build ${buildId}` : import.meta.env.DEV ? "Development" : "Build not identified";
+const collapsedBarHeight = () => typeof document === 'undefined' ? 38 : Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--workspace-bottom-bar-height')) || 38;
 type Tab = (typeof TABS)[number];
 
 /** Mounted once in the central workspace; session diagnostics never leave this browser. */
@@ -26,7 +27,7 @@ export function WorkspaceDiagnostics() {
   const drag = useRef<{ y: number; height: number; moved: boolean } | null>(null),
     suppressClick = useRef(false);
   const resizeDrawer = (value: number) => {
-    const next = Math.max(22, Math.min(600, innerHeight * 0.65, value));
+    const next = Math.max(collapsedBarHeight(), Math.min(600, innerHeight * 0.65, value));
     setExpanded(next > 45);
     if (next > 45) setDrawerHeight(Math.max(100, next));
   };
@@ -195,7 +196,7 @@ export function WorkspaceDiagnostics() {
         onPointerDown={(e) => {
           if (e.button !== 0) return;
           suppressClick.current = false;
-          drag.current = { y: e.clientY, height: expanded ? drawerHeight : 22, moved: false };
+          drag.current = { y: e.clientY, height: expanded ? drawerHeight : collapsedBarHeight(), moved: false };
           (e.target as HTMLElement).setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
@@ -226,9 +227,9 @@ export function WorkspaceDiagnostics() {
           tabIndex={0}
           aria-label="Resize bottom panel"
           aria-orientation="horizontal"
-          aria-valuemin={22}
+          aria-valuemin={collapsedBarHeight()}
           aria-valuemax={600}
-          aria-valuenow={expanded ? drawerHeight : 22}
+          aria-valuenow={expanded ? drawerHeight : collapsedBarHeight()}
           onKeyDown={(e) => {
             if (e.key === "ArrowUp" || e.key === "ArrowDown") {
               e.preventDefault();
@@ -241,7 +242,7 @@ export function WorkspaceDiagnostics() {
             }
           }}
         />
-        <div role="tablist" aria-label="Workspace diagnostic views">
+        {expanded && <div role="tablist" aria-label="Workspace diagnostic views">
           {TABS.map((name, index) => (
             <button
               key={name}
@@ -285,8 +286,8 @@ export function WorkspaceDiagnostics() {
               )}
             </button>
           ))}
-        </div>
-        <span className="workspace-build-label" data-xray-build={buildId || "development"} title="Identifies the application build currently running">{buildLabel}</span>
+        </div>}
+        {expanded && <span className="workspace-build-label" data-xray-build={buildId || "development"} title="Identifies the application build currently running">{buildLabel}</span>}
         <button
           type="button"
           className="workspace-diagnostics-toggle"
@@ -295,6 +296,7 @@ export function WorkspaceDiagnostics() {
           aria-label={expanded ? "Collapse workspace diagnostics" : "Expand workspace diagnostics"}
           onClick={toggleDrawer}
         >
+          Diagnostics
           {expanded ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
         </button>
       </div>

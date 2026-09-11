@@ -1,0 +1,21 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "(async()=>{\nwindow.audit={results:[]};\nconst studio=(await import('/src/studio/store.ts')).useStudio;\nconst api=await import('/src/studio/assistant/session.ts');\nconst session=await api.getAssistantMcp(), id=studio.getState().job.id;\nconst bound={expectedJobId:id};\nasync function call(name,args,expected='success'){\n let result;\n try{result=await api.callAssistantTool(name,args,AbortSignal.timeout(90000),{allowProjectEdits:true});}\n catch(e){result={isError:true,content:[{type:'text',text:e.message}]};}\n const text=result.content.filter(c=>c.type==='text').map(c=>c.text).join('\\n');\n const record={name,args,expected,isError:!!result.isError,text,images:result.content.filter(c=>c.type==='image').map(c=>({mimeType:c.mimeType,bytes:c.data.length}))};audit.results.push(record);\n if(expected==='success' && result.isError)throw Error(name+': '+text);\n if(expected==='refusal' && !result.isError)throw Error(name+' accepted invalid input');\n try{return JSON.parse(text)}catch{return text}\n}\naudit.call=call;audit.store=studio;audit.id=id;\nfor(const t of session.tools) await call(t.name,{unexpectedAuditArgument:true},'refusal');\nfor(const name of ['read_project_context','read_workbench_structure'])await call(name,{});\nfor(const name of ['read_assistant_file','read_source_sheets','read_takeoff_evidence','read_price_books','read_work_packet'])await call(name,bound);\nawait call('read_workflow_route',{...bound,workflow:'architecture'});\nawait call('navigate_workspace',{...bound,pane:'sketch'});\nlet design=(await call('read_architect_design',bound)).project;\nawait call('draw_architect_elements',{...bound,expectedRevision:design.revision,operations:[{kind:'footprint',levelId:design.levels[0].id,points:[[0,0],[6000,0],[6000,4000],[0,4000]],name:'Audit room'}]});\ndesign=(await call('read_architect_design',bound)).project;\nif(design.walls.length!==4)throw Error('Expected four walls');\nawait call('edit_architect_elements',{...bound,expectedRevision:design.revision,operations:[{kind:'rename-design',name:'Audit renamed'}]});\ndesign=(await call('read_architect_design',bound)).project;\nif(design.name!=='Audit renamed')throw Error('Rename readback failed');\nawait call('undo_architect_change',{...bound,expectedRevision:design.revision});\ndesign=(await call('read_architect_design',bound)).project;\nif(design.name==='Audit renamed'||design.walls.length!==4)throw Error('Undo readback failed');\nawait call('save_project',{...bound,expectedRevision:studio.getState().job.revision});\nawait call('capture_project_backup',{...bound,expectedRevision:studio.getState().job.revision,name:'Tool audit fixture'});\nawait call('export_design_file',{...bound,expectedRevision:design.revision,format:'dxf'});\nconst books=await call('read_price_books',bound);\nawait call('import_price_book',{...bound,expectedLibraryRevision:books.libraryRevision,bookName:'Audit fictional rates',csvText:'description,unit,rate\\nAudit stud,m,5.50',mapping:{stockCode:null,description:0,unit:1,rate:2},metadata:{supplier:'Audit fixture - fictional',currency:'AUD',taxBasis:'exclusive',effectiveDate:'2026-09-10',sourceReference:'Synthetic tool test; never a supplier quote'}});\nconst readback=await call('read_price_books',bound);\nawait call('show_design_in_model',{...bound,expectedRevision:design.revision,displayMode:'solid'});\nawait call('read_source_building',{...bound,building:'designed-model'});\nawait call('read_draftsman_status',bound);\nawait call('control_draftsman',{...bound,action:'play'});\nawait call('control_draftsman',{...bound,action:'pause'});\nawait call('control_draftsman',{...bound,action:'exit'});\nawait call('capture_workspace_image',{...bound,target:'source-building'});\nreturn {discovered:session.tools.map(t=>t.name),results:audit.results,design:{revision:design.revision,walls:design.walls},priceBooks:readback};\n})()"
+  ],
+  [
+    "screenshot",
+    "executed-model.png"
+  ],
+  [
+    "errors"
+  ]
+]

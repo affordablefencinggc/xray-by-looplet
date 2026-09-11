@@ -1,0 +1,21 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "(async()=>{window.audit = {}; audit.store = (await import('/src/studio/store.ts')).useStudio; audit.session = await (await import('/src/studio/assistant/session.ts')).getAssistantMcp(); audit.jobId = audit.store.getState().job.id; return {jobId:audit.jobId,tools:audit.session.tools}})()"
+  ],
+  [
+    "screenshot",
+    "baseline.png"
+  ],
+  [
+    "errors"
+  ]
+]

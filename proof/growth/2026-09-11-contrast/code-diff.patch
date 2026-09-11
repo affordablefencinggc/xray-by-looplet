@@ -1,0 +1,84 @@
+diff --git a/.temp/contrast-before/styles.css b/src/styles.css
+index f7376e4..0fc9e19 100644
+--- a/.temp/contrast-before/styles.css
++++ b/src/styles.css
+@@ -14,7 +14,12 @@
+   --color-roof: #e8b339;
+   --color-manual: #c9a227;
+   --color-extrude: #c07a5b;
+-  --color-card: #f7f1e4;
++  --color-card: #ffffff;
++  --color-field: #ffffff;
++  --color-field-ink: #1c1812;
++  --color-field-muted: #6b6256;
++  --color-heading-line: #aea493;
++  --color-context-surface: #faf8f3;
+   --color-header: #f3ece0;
+   --color-on-navy: #e8f4fb;
+   --color-cbar: #8fb3cc;
+@@ -51,6 +56,8 @@
+ /* The reference workbench has two complete skins. The theme control changes
+    every workbench surface, not only the drawing canvas. */
+ .workbench[data-skin="navy"] {
++  --color-heading-line: #697264;
++  --color-context-surface: #252725;
+   --color-bg: #1b1d1b;
+   --color-paper: #252725;
+   --color-ink: #f2f0e8;
+diff --git a/.temp/contrast-before/Studio.tsx b/src/studio/Studio.tsx
+index d21924d..7ed6cf0 100644
+--- a/.temp/contrast-before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -7,6 +7,7 @@ import { SourceComponentsProvider, SourceComponentsList, SourceComponentsInspect
+ import { CapabilitiesChecklist } from "./CapabilitiesChecklist";
+ import { SettingsRail, AccountButton, type SettingsSection } from "./SettingsRail";
+ import "./workspacePanels.css";
++import "./surfaceContrast.css";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronUp, Download, ExternalLink, FileUp, FolderOpen, RefreshCw, Ruler, ScanLine, Search } from "lucide-react";
+ import { HOUSE } from "./geometry";
+diff --git a/src/studio/surfaceContrast.css b/src/studio/surfaceContrast.css
+new file mode 100644
+index 0000000..52796e7
+--- /dev/null
++++ b/src/studio/surfaceContrast.css
+@@ -0,0 +1,39 @@
++/* Shared surface hierarchy: warm workspace, raised cards, white editable fields. */
++.workbench input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
++.workbench[data-skin] textarea,
++.workbench[data-skin] select {
++  background: var(--color-field);
++  color: var(--color-field-ink);
++  border-color: var(--color-heading-line);
++  color-scheme: light;
++}
++.workbench :is(input, textarea)::placeholder { color: var(--color-field-muted); opacity: 1; }
++.workbench :is(input, textarea, select):focus-visible {
++  outline: 2px solid var(--color-blue);
++  outline-offset: 2px;
++}
++
++/* Alternate the permanent rows without changing their saved geometry. */
++.workbench [data-top-row="navigation"] { background: var(--color-card); }
++.workbench [data-top-row="mode"] { background: var(--color-context-surface); }
++.workbench .adjustable-top-row { border-bottom-color: var(--color-heading-line); }
++.workbench .workflow-context button[aria-current] { background: var(--color-field); color: var(--color-field-ink); }
++
++.workbench :is(.source-ingest, .project-details, .calibration-panel, .trace-editor-panel, .specification-panel, .price-book-card) {
++  background: var(--color-card);
++}
++.workbench :is(header, .pane-heading-row, .photo-evidence-heading-row, .calibration-heading-row, .trace-editor-heading-row, .specification-heading-row, .arch-toolbar, .arch-layer-heading, .document-preview-header) {
++  border-bottom: 1px solid var(--color-heading-line);
++}
++.workbench :is(.pane-heading-row, .photo-evidence-heading-row, .calibration-heading-row, .trace-editor-heading-row, .specification-heading-row) {
++  padding-bottom: 12px;
++}
++/* Standalone section titles get a divider; titles inside heading rows use their row's divider. */
++.workbench :is(h1, h2, h3):not(header *, [class*="heading"] *) {
++  padding-bottom: 8px;
++  border-bottom: 1px solid var(--color-heading-line);
++}
++.workbench .architect-header { background: #faf8f3; }
++.workbench .arch-toolbar { background: #ffffff; }
++.workbench .workspace-dialog-heading { background: var(--color-context-surface); }
++.live-assistant :is(.live-assistant-header, .assistant-drawer-heading) { border-bottom: 1px solid var(--assistant-edge); }

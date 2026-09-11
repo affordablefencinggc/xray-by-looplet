@@ -1,0 +1,193 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library-trigger')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-library-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library')"
+  ],
+  [
+    "eval",
+    "(()=>{const i=document.querySelector('input[aria-label=\"New project name\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,\"Library proof\");i.dispatchEvent(new Event('input',{bubbles:true}))})()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll(\".project-library button\")].find(b=>b.textContent.trim()===\"Create project\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=\"status\"]')?.textContent==='Opened Library proof.'"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close Project library\"]').click();document.querySelector('[aria-label=\"Close Project\"]').click()"
+  ],
+  [
+    "eval",
+    "(()=>{const original=HTMLInputElement.prototype.click;let picked;HTMLInputElement.prototype.click=function(){if(this.type==='file')picked=this;else original.call(this)};try{document.querySelector('.source-ingest-action').click()}finally{HTMLInputElement.prototype.click=original}if(!picked)throw Error('No file input');const transfer=new DataTransfer();transfer.items.add(new File(['<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\" viewBox=\"0 0 800 600\"><rect width=\"800\" height=\"600\" fill=\"white\"/><rect x=\"80\" y=\"80\" width=\"640\" height=\"420\" fill=\"none\" stroke=\"black\" stroke-width=\"4\"/><text x=\"100\" y=\"140\" font-size=\"30\">Archive lifecycle proof</text></svg>'],'archive-proof.svg',{type:'image/svg+xml'}));picked.files=transfer.files;picked.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.sheets-document-preview')"
+  ],
+  [
+    "capture-fixture",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2'))"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.backup-trigger')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.backup-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-backups') && !document.querySelector('.project-backups').matches('[aria-busy=true]')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Save project backup\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.backup-item') && !document.querySelector('.project-backups').matches('[aria-busy=true]')"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close Project backups\"]').click()"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-library-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.project-library')"
+  ],
+  [
+    "eval",
+    "(()=>{const i=document.querySelector('input[aria-label=\"New project name\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Before restore');i.dispatchEvent(new Event('input',{bubbles:true}))})()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Create project\").click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.project-library [role=status]')?.textContent==='Opened Before restore.'"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close Project library\"]').click()"
+  ],
+  [
+    "eval",
+    "document.querySelector('.backup-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.backup-item')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Inspect\").click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.backup-restore-review')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Review restore impact\").click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.restore-review-result')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.restore-conflicts'))throw Error(document.querySelector('.restore-conflicts').textContent);return document.querySelector('.restore-review-result').textContent})()"
+  ],
+  [
+    "screenshot",
+    "impact-desktop.png"
+  ],
+  [
+    "reload-action",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Restore this snapshot and reload\").click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.workspace-startup-actions') && document.body.textContent.includes('Open workspace')"
+  ],
+  [
+    "eval",
+    "(()=>{if(!document.body.textContent.includes('Restored project and original files verified'))throw Error(document.body.innerText);if(document.querySelector('.workbench'))throw Error('Editor mounted during recovery');return document.body.innerText})()"
+  ],
+  [
+    "screenshot",
+    "verified-desktop.png"
+  ],
+  [
+    "viewport",
+    [
+      1024,
+      768,
+      true
+    ]
+  ],
+  [
+    "screenshot",
+    "verified-tablet.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('xray-workspace-restore-v1',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});await new Promise((resolve,reject)=>{const tx=db.transaction('journal','readwrite'),s=tx.objectStore('journal'),p=s.get('active');p.onsuccess=()=>{const r=s.get(p.result);r.onsuccess=()=>s.put({...r.result,sha256:'0'.repeat(64)},p.result)};tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error)});db.close();return true})()"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.body.textContent.includes('Restore journal failed integrity checks')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.workbench')||[...document.querySelectorAll('button')].some(b=>b.textContent==='Open workspace'))throw Error('Corrupt journal allowed editing');return document.body.innerText})()"
+  ],
+  [
+    "screenshot",
+    "corrupt-journal-tablet.png"
+  ],
+  [
+    "errors"
+  ]
+]

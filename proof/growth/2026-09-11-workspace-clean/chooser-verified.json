@@ -1,0 +1,137 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready' && !!document.querySelector('.source-ingest-action')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.studio-left-rail,.studio-right-rail'))throw Error('Empty Drawings retains sidebar clutter');if(document.querySelector('.workspace-central-content').innerText.includes('Sheet register'))throw Error('Empty sheet register remains');if(document.querySelectorAll('.workspace-central-content button').length!==1)throw Error('More than one empty action');if(document.querySelector('.workspace-diagnostics [role=\"tablist\"]'))throw Error('Diagnostics tabs visible when collapsed');return {emptyActions:1,sidebars:0,diagnosticsCollapsed:true}})()"
+  ],
+  [
+    "screenshot",
+    "empty-desktop.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.workspace-diagnostics-toggle').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.workspace-diagnostics [role=\"tablist\"]')"
+  ],
+  [
+    "eval",
+    "document.querySelector('#workspace-tab-Logs').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('#workspace-tab-Logs')?.getAttribute('aria-selected')==='true'"
+  ],
+  [
+    "eval",
+    "document.querySelector('.workspace-diagnostics-toggle').click()"
+  ],
+  [
+    "wait",
+    "!document.querySelector('.workspace-diagnostics [role=\"tablist\"]')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('.workflow-nav button')].find(b=>b.textContent==='Checks').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.studio-right-rail .kicker')?.textContent==='Model readiness'"
+  ],
+  [
+    "screenshot",
+    "checks-readiness.png"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('.workflow-nav button')].find(b=>b.textContent==='Drawings').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.source-ingest-action')"
+  ],
+  [
+    "viewport",
+    [
+      1024,
+      768,
+      true
+    ]
+  ],
+  [
+    "screenshot",
+    "empty-tablet.png"
+  ],
+  [
+    "eval",
+    "(()=>{const original=HTMLInputElement.prototype.click;let picked;HTMLInputElement.prototype.click=function(){if(this.type==='file')picked=this;else original.call(this)};try{document.querySelector('.source-ingest-action').click()}finally{HTMLInputElement.prototype.click=original}if(!picked)throw Error('Open drawing did not invoke the file picker');const transfer=new DataTransfer();transfer.items.add(new File([\"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"800\\\" height=\\\"600\\\" viewBox=\\\"0 0 800 600\\\"><rect width=\\\"800\\\" height=\\\"600\\\" fill=\\\"white\\\"/><rect x=\\\"80\\\" y=\\\"80\\\" width=\\\"640\\\" height=\\\"420\\\" fill=\\\"none\\\" stroke=\\\"black\\\" stroke-width=\\\"4\\\"/><text x=\\\"100\\\" y=\\\"140\\\" font-size=\\\"30\\\">Navigation test drawing</text></svg>\"],'navigation-test.svg',{type:'image/svg+xml'}));picked.files=transfer.files;picked.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.sheets-document-preview') && !document.querySelector('.source-ingest-action')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.studio-right-rail'))throw Error('Readiness returned to Drawings');if(document.querySelector('.studio-left-rail')?.innerText.includes('Models')||document.querySelector('.studio-left-rail')?.innerText.includes('Evidence layers'))throw Error('Unrelated drawing controls remain');return {drawingLoaded:true,sheetControls:document.querySelectorAll('[aria-label^=\"Open source page\"]').length}})()"
+  ],
+  [
+    "viewport",
+    [
+      1280,
+      800,
+      false
+    ]
+  ],
+  [
+    "screenshot",
+    "loaded-drawing.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.drawing-sheet-manager summary').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.drawing-sheet-manager')?.open===true"
+  ],
+  [
+    "screenshot",
+    "sheet-management.png"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.sheets-document-preview') && document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant textarea')"
+  ],
+  [
+    "screenshot",
+    "assistant-available.png"
+  ],
+  [
+    "errors"
+  ]
+]

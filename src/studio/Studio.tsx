@@ -1,10 +1,13 @@
 import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
 import { WorkspaceRails } from "./WorkspaceRails";
+import { WorkflowNavigation } from "./WorkflowNavigation";
+import { WorkspaceDialog } from "./WorkspaceDialog";
 import { AdjustableTopRow } from "./AdjustableTopRow";
 import { SourceComponentsProvider, SourceComponentsList, SourceComponentsInspector, useSourceComponents } from "./SourceComponents";
 import { CapabilitiesChecklist } from "./CapabilitiesChecklist";
 import { SettingsRail, AccountButton, type SettingsSection } from "./SettingsRail";
 import "./workspacePanels.css";
+import "./surfaceContrast.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronUp, Download, ExternalLink, FileUp, FolderOpen, RefreshCw, Ruler, ScanLine, Search } from "lucide-react";
 import { HOUSE } from "./geometry";
@@ -15,6 +18,7 @@ import { useStudio, type Pane } from "./store";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
 import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
+import { ProjectLibrary } from "./ProjectLibrary";
 import { ProjectBackups } from "./ProjectBackups";
 import { ProjectDetails } from "./ProjectDetails";
 import { ProjectRecoveryNotice, ProjectSaveFailure } from "./ProjectRecoveryNotice";
@@ -72,6 +76,7 @@ export function Studio() {
 
 function StudioContent() {
   const s = useStudio();
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("Appearance");
   useEffect(() => {
@@ -79,7 +84,6 @@ function StudioContent() {
     window.addEventListener("xray:inspect-component", inspect);
     return () => window.removeEventListener("xray:inspect-component", inspect);
   }, []);
-  const activePaneTabRef = useRef<HTMLButtonElement>(null);
   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
   const pageCount = activeDocument?.pageCount ?? 1;
   const { value: sheetOrganisation } = useSheetLifecycle(s.job.id, activeDocument);
@@ -94,15 +98,6 @@ function StudioContent() {
       if (new URLSearchParams(window.location.search).get("pane") === "model") s.setPane("model");
     });
   }, [s.hydratePersistence, s.setPane]);
-
-  useEffect(() => {
-    const tab = activePaneTabRef.current, nav = tab?.parentElement;
-    if (!tab || !nav) return;
-    const reveal = () => { nav.scrollLeft = Math.max(0, tab.offsetLeft - nav.offsetLeft - (nav.clientWidth - tab.offsetWidth) / 2); };
-    reveal();
-    const observer = new ResizeObserver(reveal); observer.observe(nav);
-    return () => observer.disconnect();
-  }, [s.pane]);
 
   // Global keyboard shortcuts for tool switching and navigation
   useEffect(() => {
@@ -200,51 +195,29 @@ function StudioContent() {
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
           <span className="truncate font-semibold">X-RAY BY LOOPLET</span>
         </div>
-        <ProjectPlanSwitcher onSelect={s.selectDocument} onOpenPlan={openPlan} onLoadSample={loadSamplePlan} onNewProject={startNewProject} />
+        <button type="button" className="pill project-menu-trigger" aria-haspopup="dialog" aria-expanded={projectMenuOpen} onClick={() => setProjectMenuOpen(true)}>Project <ChevronDown size={13} /></button>
+        <div className="project-identity">
+          <button type="button" title="Open project overview" onClick={() => s.setPane("overview")}>{s.job.name}</button>
+          <small>{!s.persistenceHydrated ? 'Restoring project…' : s.persistenceError ? 'Save needs attention' : s.lastSavedJobRevision === s.job.revision ? 'Project record saved on this device' : 'Project record save unconfirmed'}</small>
+        </div>
         <div className="studio-header-actions ml-auto flex items-center gap-2">
-          <ProjectBackups />
           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
           <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
         </div>
       </header>
       </AdjustableTopRow>
-      <AdjustableTopRow id="navigation" label="Navigation" minHeight={44}>
-        <nav className="studio-pane-nav flex flex-1 justify-center gap-0.5" aria-label="Panes">
-          {PANES.map((p) => (
-            <button
-              key={p.id}
-              ref={s.pane === p.id ? activePaneTabRef : undefined}
-              type="button"
-              className={`pane-tab ${s.pane === p.id ? "active" : ""}`}
-              onClick={() => s.setPane(p.id)}
-            >
-              {p.label}
-            </button>
-          ))}
-        </nav>
-        <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
-        <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
-      </AdjustableTopRow>
-      <AdjustableTopRow id="mode" label="Workspace info" minHeight={28}>
-      <div className="studio-modebar flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
-        {s.pane === "model" && (
-          <>MODEL · source-linked architectural reconstruction</>
-        )}
-        {s.pane === "measure" && <>MEASURE · scale first · then length / area / count</>}
-        {s.pane === "sketch" && <>SKETCH · architectural design & source annotations</>}
-        {s.pane === "overview" && <>STUDIO · evidence-first takeoff</>}
-        {s.pane === "sheets" && <>SHEETS · {s.activePlanBinary?.name ?? "no verified plan"}</>}
-        {s.pane === "components" && <>COMPONENTS · Evidence-Backed Hierarchy</>}
-        {s.pane === "review" && <>REVIEW · flags from missing evidence</>}
-        {s.pane === "cost" && <>COST · QUANTITY REGISTER · EVIDENCE BOUND</>}
-        {s.pane === "proof" && <>PROOF · export the evidence pack</>}
-      </div>
-      </AdjustableTopRow>
+      {projectMenuOpen && <WorkspaceDialog title="Project" onClose={() => setProjectMenuOpen(false)}>
+        <div className="project-menu-content">
+          <ProjectDetails />
+          <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { await startNewProject(); setProjectMenuOpen(false); }} />
+          <ProjectBackups />
+          <ProjectLibrary />
+        </div>
+      </WorkspaceDialog>}
+      <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
-        {!s.lifted && s.pane !== "model" && (
+        {!s.lifted && s.pane !== "model" && s.pane !== "render" && (s.pane !== "sheets" || !!activeDocument) && (
           <aside className="studio-left-rail overflow-auto border-r border-line p-3">
-            <h2 className="kicker mb-2">Models</h2>
-            <button type="button" className="sheet-btn mb-4" onClick={() => s.setPane("model")}>Source building</button>
             <h2 className="kicker mb-2">
               Project sheets <span className="float-right">{navigationSheets.length}</span>
             </h2>
@@ -269,7 +242,7 @@ function StudioContent() {
               </button>
             ))}
             {archivedSheetCount > 0 && <button className="pill" onClick={() => s.setPane("sheets")}>Sheet register · {archivedSheetCount} archived</button>}
-            <h2 className="kicker mt-4">
+            {s.pane !== "sheets" && <><h2 className="kicker mt-4">
               Evidence layers <span className="float-right">Live</span>
             </h2>
             <p className="mt-2 flex justify-between text-muted">
@@ -281,6 +254,7 @@ function StudioContent() {
             <p className="flex justify-between text-muted">
               Review flags <b className="text-ink">{s.scaleM === 1 && s.markups.length ? 1 : 0}</b>
             </p>
+            </>}
           </aside>
         )}
 
@@ -305,7 +279,7 @@ function StudioContent() {
           <WorkspaceDiagnostics />
         </section>
 
-        {!sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
+        {!sourceTakeoffActive && ["review", "proof", "cost", "components"].includes(s.pane) && <RightRail />}
         {settingsOpen && <SettingsRail section={settingsSection} setSection={setSettingsSection} onClose={()=>setSettingsOpen(false)} onOpenPlan={()=>void openPlan()} />}
       </div>
 
@@ -371,12 +345,11 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
   const pageName = organisation?.pages.find(page => page.pageIndex === s.sheet)?.name ?? `Sheet ${s.sheet + 1}`;
   return (
     <>
-      <ProjectDetails />
-      <SheetManager />
+      {s.activePlanBinary && <><details className="drawing-sheet-manager"><summary>Manage sheets</summary><SheetManager /></details>
       <div className="pane-heading-row">
         <div><span className="kicker">Source drawings</span><h1>{s.activePlanBinary ? pageName : "Your drawing starts here"}</h1></div>
         {s.activePlanBinary ? <span className={`asset-state ${s.assetReadiness.document.state}`}>{s.assetReadiness.document.state}</span> : null}
-      </div>
+      </div></>}
       {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
       {s.activePlanBinary ? (
         <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="sheets-document-preview" />
@@ -386,14 +359,9 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
             <span className="source-ingest-icon"><FileUp aria-hidden="true" /></span>
             <h2 id="source-ingest-title">Open a drawing</h2>
             <p>Choose a plan to view its sheets, set the scale and start measuring.</p>
-            <button type="button" className="source-ingest-action" onClick={onOpenPlan} disabled={!s.persistenceHydrated}><FolderOpen size={18} aria-hidden="true" />Choose a file<ArrowUpRight size={16} aria-hidden="true" /></button>
+            <button type="button" className="source-ingest-action" onClick={onOpenPlan} disabled={!s.persistenceHydrated}><FolderOpen size={18} aria-hidden="true" />Open drawing</button>
             <span className="source-ingest-formats">PDF, DXF or SVG <span aria-hidden="true">·</span> Up to 100 MB</span>
           </div>
-          <ol className="source-ingest-steps" aria-label="From drawing to measurement">
-            <li><FolderOpen aria-hidden="true" /><strong>Open your plan</strong><small>Keep the original intact</small></li>
-            <li><ScanLine aria-hidden="true" /><strong>Check the sheets</strong><small>Find the detail you need</small></li>
-            <li><Ruler aria-hidden="true" /><strong>Set scale & measure</strong><small>Work from known dimensions</small></li>
-          </ol>
         </section>
       )}
       {s.activePlanBinary ? <dl className="source-metadata">

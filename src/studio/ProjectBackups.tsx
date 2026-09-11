@@ -87,7 +87,7 @@ function BackupLibrary({ onClose }: { onClose: () => void }) {
         <p>Current job, document workspaces, calibration, measurements, annotations and evidence; saved design, sheet layout, quantities, recipes, reviews, materials and reference rates; every referenced original plan and photo. Missing or corrupt originals block the backup.</p>
         <p>Not included:</p><ul>{BACKUP_EXCLUSIONS.map(item => <li key={item}>{item}</li>)}</ul>
         <p>New packages also include saved source sheet names, order and archive state, supplier price books and their priced worksheet. Format v2 requires an updated X-Ray reader; older v1 packages can still be inspected and imported.</p>
-        <p>Import adds a verified package to this library. Applying a package to the editing workspace is not available yet. Stored backups are not cloud sync or a staff delivery receipt.</p>
+        <p>Import adds a verified package to this library. Review a v2 snapshot before restoring it; restoration preserves a recovery copy and reloads the workspace. Stored backups are not cloud sync or a staff delivery receipt.</p>
       </details>
       {busy && <p role="status">Checking files and saving data…</p>}
       {message && <p className="backup-notice" role="status">{message}</p>}

@@ -63,3 +63,9 @@ test("a failure carrying a plain message is still preferred over the payload", (
   const view = describeToolReceipt({ toolName: "save_project", text: JSON.stringify({ text: "Storage is full." }), failed: true });
   assert.equal(view.summary, "Storage is full.");
 });
+
+test("unknown structured failures do not leak raw objects or arrays into the chat", () => {
+  for (const text of ['{"unexpected":{"internal":"payload"}}', '[{"internal":"payload"}]']) {
+    assert.equal(describeToolReceipt({ toolName: 'save_project', text, failed: true }).summary, 'This step failed.');
+  }
+});

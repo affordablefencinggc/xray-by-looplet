@@ -1,0 +1,131 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "(async()=>{\nconst studio=(await import('/src/studio/store.ts')).useStudio,id=studio.getState().job.id;\nconst history=await import('/src/studio/assistant/chatHistory.ts');\nconst thread={id:'audit-saved-chat',updatedAt:new Date().toISOString(),entries:[{id:'audit-user',kind:'user',text:'Keep my Willow conversation'},{id:'audit-reply',kind:'assistant',text:'The Willow design belongs to this project.'}],contents:[{role:'user',parts:[{text:'Keep my Willow conversation'}]},{role:'model',parts:[{text:'The Willow design belongs to this project.'}]}],busy:false,error:null};\nawait history.saveChatArchive({projectId:id,revision:0,activeId:thread.id,threads:[thread]},0);\nconst persistence=await import('/src/studio/architect/persistence.ts'), bridge=await import('/src/studio/assistant/architectBridge.ts');\nconst session=persistence.loadArchitect(id,localStorage);\nconst p=bridge.prepareArchitectElements(session.value,{expectedJobId:id,expectedRevision:session.value.revision,operations:[{kind:'footprint',levelId:session.value.levels[0].id,points:[[0,0],[6000,0],[6000,4000],[0,4000]],name:'Willow project model'}]}).draft;\nconst saved=persistence.saveArchitect(session,p,localStorage);if(saved.error)throw Error(saved.error);\nstudio.getState().setModelSelection('designed');\nconst hash=studio.getState().designedBuilding.source.sha256;\nconst sw=(await import('/src/studio/assistant/projectSwitch.ts')).switchProject;\nconst saveJob=(await import('/src/studio/persistence.ts')).saveFencingJob;\nconst deps={store:studio,storage:localStorage,saveJob:(job,options)=>saveJob(job,undefined,options),busy:false};\nlet result=await sw(null,deps);if(!result.ok)throw Error(result.error+' '+JSON.stringify({stage:result.stage,hydrated:studio.getState().persistenceHydrated,status:studio.getState().hydrationStatus,blocked:studio.getState().persistenceRecoveryBlocked,error:studio.getState().persistenceError}));\nconst other=studio.getState().job.id;\nif(other===id||studio.getState().designedBuilding!==null||studio.getState().modelSelection!==null)throw Error('New project inherited prior model');\nresult=await sw(id,deps);if(!result.ok)throw Error(result.error+' '+JSON.stringify({stage:result.stage,hydrated:studio.getState().persistenceHydrated,status:studio.getState().hydrationStatus,blocked:studio.getState().persistenceRecoveryBlocked,error:studio.getState().persistenceError}));\nif(studio.getState().designedBuilding?.source.sha256!==hash||studio.getState().modelSelection!=='designed')throw Error('Original model not restored');\nreturn {original:id,other,hash,switchIsolation:true};\n})()"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')",
+    15000
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher')?.click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.live-assistant')?.innerText.includes('Keep my Willow conversation') && !document.querySelector('textarea')?.disabled"
+  ],
+  [
+    "eval",
+    "(async()=>{const s=(await import('/src/studio/store.ts')).useStudio;const h=await(await import('/src/studio/assistant/chatHistory.ts')).readChatArchive(s.getState().job.id);if(s.getState().modelSelection!=='designed'||!s.getState().designedBuilding)throw Error('Model lost after reload');s.getState().setPane('model');return {project:s.getState().job.id,selection:s.getState().modelSelection,scene:s.getState().designedBuilding.source.sha256,archive:h}})()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.building-canvas canvas')"
+  ],
+  [
+    "screenshot",
+    "restored-chat-model.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Add to assistant\"]').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.assistant-new-chat')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.assistant-new-chat').click()"
+  ],
+  [
+    "wait",
+    "!document.querySelector('.live-assistant')?.innerText.includes('Keep my Willow conversation') && !document.querySelector('textarea')?.disabled"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Open chat history\"]').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.assistant-chat-history')"
+  ],
+  [
+    "screenshot",
+    "history-list.png"
+  ],
+  [
+    "viewport",
+    [
+      1024,
+      768,
+      true
+    ]
+  ],
+  [
+    "screenshot",
+    "tablet-history.png"
+  ],
+  [
+    "eval",
+    "(()=>{const buttons=[...document.querySelectorAll('.assistant-chat-history button')];if(buttons.length!==2)throw Error('Expected 2 preserved conversations, got '+buttons.length);const old=buttons.find(b=>b.textContent.includes('Keep my Willow conversation'));if(!old)throw Error('Old chat disappeared');old.click();return true})()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.live-assistant')?.innerText.includes('Keep my Willow conversation') && !document.querySelector('textarea')?.disabled"
+  ],
+  [
+    "screenshot",
+    "history-reopened.png"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')",
+    15000
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher')?.click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.live-assistant')?.innerText.includes('Keep my Willow conversation') && !document.querySelector('textarea')?.disabled"
+  ],
+  [
+    "eval",
+    "(async()=>{const s=(await import('/src/studio/store.ts')).useStudio;const h=await(await import('/src/studio/assistant/chatHistory.ts')).readChatArchive(s.getState().job.id);if(s.getState().modelSelection!=='designed'||!s.getState().designedBuilding)throw Error('Model lost after reload');s.getState().setPane('model');return {project:s.getState().job.id,selection:s.getState().modelSelection,scene:s.getState().designedBuilding.source.sha256,archive:h}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{const id=(await import('/src/studio/store.ts')).useStudio.getState().job.id;const h=await import('/src/studio/assistant/chatHistory.ts');const before=await h.readChatArchive(id);let refused=false;try{await h.saveChatArchive(before,0)}catch{refused=true}const after=await h.readChatArchive(id);if(!refused||JSON.stringify(before)!==JSON.stringify(after))throw Error('Stale writer overwrote history');return {staleWriteRefused:true,threads:after.threads.length}})()"
+  ],
+  [
+    "errors"
+  ]
+]

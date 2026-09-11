@@ -1,0 +1,172 @@
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 658659e..0b633f7 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -1,5 +1,7 @@
+ import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
+ import { WorkspaceRails } from "./WorkspaceRails";
++import { WorkflowNavigation } from "./WorkflowNavigation";
++import { WorkspaceDialog } from "./WorkspaceDialog";
+ import { AdjustableTopRow } from "./AdjustableTopRow";
+ import { SourceComponentsProvider, SourceComponentsList, SourceComponentsInspector, useSourceComponents } from "./SourceComponents";
+ import { CapabilitiesChecklist } from "./CapabilitiesChecklist";
+@@ -72,6 +74,7 @@ export function Studio() {
+ 
+ function StudioContent() {
+   const s = useStudio();
++  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+   const [settingsOpen, setSettingsOpen] = useState(false);
+   const [settingsSection, setSettingsSection] = useState<SettingsSection>("Appearance");
+   useEffect(() => {
+@@ -79,7 +82,6 @@ function StudioContent() {
+     window.addEventListener("xray:inspect-component", inspect);
+     return () => window.removeEventListener("xray:inspect-component", inspect);
+   }, []);
+-  const activePaneTabRef = useRef<HTMLButtonElement>(null);
+   const activeDocument = s.job.documents.find((document) => document.id === s.job.activeDocumentId && document.source !== "sample");
+   const pageCount = activeDocument?.pageCount ?? 1;
+   const { value: sheetOrganisation } = useSheetLifecycle(s.job.id, activeDocument);
+@@ -95,15 +97,6 @@ function StudioContent() {
+     });
+   }, [s.hydratePersistence, s.setPane]);
+ 
+-  useEffect(() => {
+-    const tab = activePaneTabRef.current, nav = tab?.parentElement;
+-    if (!tab || !nav) return;
+-    const reveal = () => { nav.scrollLeft = Math.max(0, tab.offsetLeft - nav.offsetLeft - (nav.clientWidth - tab.offsetWidth) / 2); };
+-    reveal();
+-    const observer = new ResizeObserver(reveal); observer.observe(nav);
+-    return () => observer.disconnect();
+-  }, [s.pane]);
+-
+   // Global keyboard shortcuts for tool switching and navigation
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+@@ -200,46 +193,25 @@ function StudioContent() {
+           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-paper">XR</span>
+           <span className="truncate font-semibold">X-RAY BY LOOPLET</span>
+         </div>
+-        <ProjectPlanSwitcher onSelect={s.selectDocument} onOpenPlan={openPlan} onLoadSample={loadSamplePlan} onNewProject={startNewProject} />
++        <button type="button" className="pill project-menu-trigger" aria-haspopup="dialog" aria-expanded={projectMenuOpen} onClick={() => setProjectMenuOpen(true)}>Project <ChevronDown size={13} /></button>
++        <div className="project-identity">
++          <button type="button" title="Open project overview" onClick={() => s.setPane("overview")}>{s.job.name}</button>
++          <small>{!s.persistenceHydrated ? 'Restoring project…' : s.persistenceError ? 'Save needs attention' : s.lastSavedJobRevision === s.job.revision ? 'Project record saved on this device' : 'Project record save unconfirmed'}</small>
++        </div>
+         <div className="studio-header-actions ml-auto flex items-center gap-2">
+-          <ProjectBackups />
+           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
+           <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
+         </div>
+       </header>
+       </AdjustableTopRow>
+-      <AdjustableTopRow id="navigation" label="Navigation" minHeight={44}>
+-        <nav className="studio-pane-nav flex flex-1 justify-center gap-0.5" aria-label="Panes">
+-          {PANES.map((p) => (
+-            <button
+-              key={p.id}
+-              ref={s.pane === p.id ? activePaneTabRef : undefined}
+-              type="button"
+-              className={`pane-tab ${s.pane === p.id ? "active" : ""}`}
+-              onClick={() => s.setPane(p.id)}
+-            >
+-              {p.label}
+-            </button>
+-          ))}
+-        </nav>
+-        <span className="nav-scroll-instruction sr-only">More workbench modes are available by scrolling horizontally.</span>
+-        <span className="nav-scroll-cue" aria-hidden="true">More <b>›</b></span>
+-      </AdjustableTopRow>
+-      <AdjustableTopRow id="mode" label="Workspace info" minHeight={28}>
+-      <div className="studio-modebar flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
+-        {s.pane === "model" && (
+-          <>MODEL · source-linked architectural reconstruction</>
+-        )}
+-        {s.pane === "measure" && <>MEASURE · scale first · then length / area / count</>}
+-        {s.pane === "sketch" && <>SKETCH · architectural design & source annotations</>}
+-        {s.pane === "overview" && <>STUDIO · evidence-first takeoff</>}
+-        {s.pane === "sheets" && <>SHEETS · {s.activePlanBinary?.name ?? "no verified plan"}</>}
+-        {s.pane === "components" && <>COMPONENTS · Evidence-Backed Hierarchy</>}
+-        {s.pane === "review" && <>REVIEW · flags from missing evidence</>}
+-        {s.pane === "cost" && <>COST · QUANTITY REGISTER · EVIDENCE BOUND</>}
+-        {s.pane === "proof" && <>PROOF · export the evidence pack</>}
+-      </div>
+-      </AdjustableTopRow>
++      {projectMenuOpen && <WorkspaceDialog title="Project" onClose={() => setProjectMenuOpen(false)}>
++        <div className="project-menu-content">
++          <ProjectDetails />
++          <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { await startNewProject(); setProjectMenuOpen(false); }} />
++          <ProjectBackups />
++        </div>
++      </WorkspaceDialog>}
++      <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
+       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
+         {!s.lifted && s.pane !== "model" && (
+           <aside className="studio-left-rail overflow-auto border-r border-line p-3">
+diff --git a/src/studio/WorkflowNavigation.tsx b/src/studio/WorkflowNavigation.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/studio/WorkflowNavigation.tsx
+@@ -0,0 +1,36 @@
++import { AdjustableTopRow } from './AdjustableTopRow';
++import type { Pane } from './store';
++import './workflowNavigation.css';
++
++const workflows: { label: string; panes: { id: Pane; label: string }[]; hint: string }[] = [
++  { label: 'Drawings', panes: [{ id: 'sheets', label: 'Sheets & files' }], hint: 'Open and organise your source drawings' },
++  { label: 'Takeoff', panes: [{ id: 'measure', label: 'Measure' }, { id: 'components', label: 'Quantities & components' }], hint: 'Set the scale, then measure' },
++  { label: 'Design', panes: [{ id: 'sketch', label: 'Design workspace' }], hint: 'Draw and edit your building' },
++  { label: 'Visualise', panes: [{ id: 'model', label: '3D viewer' }, { id: 'render', label: 'Renders' }], hint: 'Explore and present your design' },
++  { label: 'Estimate', panes: [{ id: 'cost', label: 'Costs & pricing' }], hint: 'Review quantities and build your estimate' },
++];
++const checks: { id: Pane; label: string }[] = [{ id: 'review', label: 'Review issues' }, { id: 'proof', label: 'Evidence & exports' }];
++
++export function WorkflowNavigation({ pane, onSelect }: { pane: Pane; onSelect: (pane: Pane) => void }) {
++  const workflow = workflows.find(w => w.panes.some(p => p.id === pane));
++  const checking = checks.some(p => p.id === pane);
++  const items = checking ? checks : workflow?.panes ?? [{ id: 'overview' as Pane, label: 'Project overview' }];
++  return <>
++    <AdjustableTopRow id="navigation" label="Navigation" minHeight={44}>
++      <nav className="workflow-nav" aria-label="Main workflow">
++        {workflows.map(w => <button key={w.label} type="button" aria-current={workflow === w ? 'page' : undefined}
++          onClick={() => onSelect(workflow === w ? pane : w.panes[0].id)}>{w.label}</button>)}
++        <button type="button" className="workflow-checks" aria-current={checking ? 'page' : undefined}
++          onClick={() => onSelect(checking ? pane : 'review')}>Checks</button>
++      </nav>
++    </AdjustableTopRow>
++    <AdjustableTopRow id="mode" label="Workspace tools" minHeight={44}>
++      <nav className="workflow-context" aria-label="Workspace tools">
++        <span className="workflow-context-label">{checking ? 'Checks' : workflow?.label ?? 'Project'}</span>
++        {items.map(p => <button key={p.id} type="button" aria-current={pane === p.id ? 'page' : undefined}
++          onClick={() => onSelect(p.id)}>{p.label}</button>)}
++        <span className="workflow-context-hint">{checking ? 'Review issues and supporting evidence' : workflow?.hint ?? 'Your project at a glance'}</span>
++      </nav>
++    </AdjustableTopRow>
++  </>;
++}
+diff --git a/src/studio/workflowNavigation.css b/src/studio/workflowNavigation.css
+new file mode 100644
+--- /dev/null
++++ b/src/studio/workflowNavigation.css
+@@ -0,0 +1,22 @@
++.workflow-nav, .workflow-context { display: flex; align-items: center; gap: 8px; min-height: 44px; height: 100%; padding: 0 16px; }
++.workflow-nav button, .workflow-context button { flex-shrink: 0; min-height: 40px; padding: 8px 16px; color: var(--color-muted); background: transparent; border: 0; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
++.workflow-nav button:hover, .workflow-context button:hover { background: var(--color-selected); color: var(--color-ink); }
++.workflow-nav button[aria-current] { color: var(--color-ink); box-shadow: inset 0 -2px var(--color-accent, var(--color-ink)); background: var(--color-selected); }
++.workflow-nav .workflow-checks { margin-left: auto; border-left: 1px solid var(--color-line); }
++.workflow-context { gap: 8px; }
++.workflow-context-label { font-size: 11px; color: var(--color-muted); padding-right: 12px; border-right: 1px solid var(--color-line); }
++.workflow-context button { font-size: 12px; padding: 6px 12px; min-height: 36px; border-radius: 5px; }
++.workflow-context button[aria-current] { background: var(--color-card); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-line); }
++.workflow-context-hint { margin-left: auto; color: var(--color-muted); font-size: 11px; white-space: nowrap; }
++.project-identity { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
++.project-identity button { color: var(--color-ink); font-size: 13px; font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; cursor: pointer; }
++.project-identity small { color: var(--color-muted); font-size: 10px; }
++.project-menu-trigger { display: inline-flex; align-items: center; gap: 8px; }
++.workbench .workspace-dialog:has(.project-menu-content) { width: min(680px, calc(100vw - 48px)); }
++.project-menu-content { display: grid; gap: 16px; padding: 24px; }
++.project-menu-content .workspace-plan-switcher { max-width: none; }
++.project-menu-content .workspace-plan-switcher label { flex-direction: column; align-items: stretch; }
++.project-menu-content .workspace-plan-controls { flex-wrap: wrap; }
++.project-menu-content .backup-trigger { justify-self: start; }
++@media (max-width: 1100px) { .workflow-context-hint { display: none; } .workbench .studio-brand > span:last-child { display: none; } }
++@media (max-width: 700px) { .workflow-nav, .workflow-context { overflow-x: auto; padding-inline: 8px; } .workflow-nav button { padding-inline: 12px; } .project-identity button { max-width: 160px; } }

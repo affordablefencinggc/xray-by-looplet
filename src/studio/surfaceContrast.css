@@ -1,0 +1,39 @@
+/* Shared surface hierarchy: warm workspace, raised cards, white editable fields. */
+.workbench input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
+.workbench[data-skin] textarea,
+.workbench[data-skin] select {
+  background: var(--color-field);
+  color: var(--color-field-ink);
+  border-color: var(--color-heading-line);
+  color-scheme: light;
+}
+.workbench :is(input, textarea)::placeholder { color: var(--color-field-muted); opacity: 1; }
+.workbench :is(input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* Alternate the permanent rows without changing their saved geometry. */
+.workbench [data-top-row="navigation"] { background: var(--color-card); }
+.workbench [data-top-row="mode"] { background: var(--color-context-surface); }
+.workbench .adjustable-top-row { border-bottom-color: var(--color-heading-line); }
+.workbench .workflow-context button[aria-current] { background: var(--color-field); color: var(--color-field-ink); }
+
+.workbench :is(.source-ingest, .project-details, .calibration-panel, .trace-editor-panel, .specification-panel, .price-book-card) {
+  background: var(--color-card);
+}
+.workbench :is(header, .pane-heading-row, .photo-evidence-heading-row, .calibration-heading-row, .trace-editor-heading-row, .specification-heading-row, .arch-toolbar, .arch-layer-heading, .document-preview-header) {
+  border-bottom: 1px solid var(--color-heading-line);
+}
+.workbench :is(.pane-heading-row, .photo-evidence-heading-row, .calibration-heading-row, .trace-editor-heading-row, .specification-heading-row) {
+  padding-bottom: 12px;
+}
+/* Standalone section titles get a divider; titles inside heading rows use their row's divider. */
+.workbench :is(h1, h2, h3):not(header *, [class*="heading"] *) {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-heading-line);
+}
+.workbench .architect-header { background: #faf8f3; }
+.workbench .arch-toolbar { background: #ffffff; }
+.workbench .workspace-dialog-heading { background: var(--color-context-surface); }
+.live-assistant :is(.live-assistant-header, .assistant-drawer-heading) { border-bottom: 1px solid var(--assistant-edge); }

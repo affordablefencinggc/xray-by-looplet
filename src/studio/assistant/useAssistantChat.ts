@@ -3,8 +3,9 @@ import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useStudio } from '../store';
 import { assistantTurn } from './transport';
+import { providerSupportsTool, useAssistantProvider } from './provider';
 import { callAssistantTool, getAssistantMcp } from './session';
-import { runConversation, type ChatEvent, type ChatImage } from './conversation';
+import { appendChatEvent, runConversation, type ChatEvent, type ChatImage } from './conversation';
 import type { AssistantContent } from './contract';
 import { assistantToolAllowed } from './skills';
 import { gateToolCall, usePermissions } from './permissions';
@@ -20,16 +21,77 @@ export const CONTEXT_CARRIED_UNAVAILABLE = 'Carried context (your saved profile 
 // [SC-22 context] end
 // [SC-22 capture] begin
 import { captureTurn } from './contextCapture';
+import { chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
+import { listWorkPackets, readWorkEvents, verifyWorkJournal } from './workPacketStore';
 // [SC-22 capture] end
 export type ChatEntry = Omit<ChatEvent, 'kind'> & { id: string; kind: 'user' | 'assistant' | 'tool';
   /** [PROVENANCE] The project a tool row acted on, stamped when the row is created. */
   projectName?: string; projectRevision?: number };
 /** `tokens`/`context` are derived from `contents` on every update so the panel can meter the provider transcript. */
-type Conversation = { workPacket?: WorkPacket; entries: ChatEntry[]; contents: AssistantContent[]; busy: boolean; error: string | null; estimate: ContextMeasure; tokens: number; context: ContextState };
-const empty = (): Conversation => ({ entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
+type Conversation = SavedChat & { estimate: ContextMeasure; tokens: number; context: ContextState };
+const empty = (): Conversation => ({ id: crypto.randomUUID(), updatedAt: new Date().toISOString(), entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
 const blank = empty();
-const useChats = create<{ records: Record<string, Conversation> }>(() => ({ records: {} }));
+const useChats = create<{ records: Record<string, Conversation>; ready: Record<string, boolean> }>(() => ({ records: {}, ready: {} }));
 const controllers = new Map<string, AbortController>();
+const histories = new Map<string, { archive: ChatArchive; revision: number; queue: Promise<void>; failure: string | null }>();
+const loads = new Map<string, Promise<void>>();
+const changingChats = new Set<string>();
+const saved = (value: Conversation): SavedChat => ({id:value.id,updatedAt:new Date().toISOString(),entries:value.entries,contents:value.contents,busy:value.busy,error:value.error,...(value.workPacket?{workPacket:value.workPacket}:{})});
+const restored = (value: SavedChat): Conversation => {
+  const thread = restoreChat(value), estimate = measureContext(thread.contents);
+  return {...thread,estimate,tokens:estimate.tokens,context:contextState(estimate.tokens,{count:estimate.count,bytes:estimate.bytes})};
+};
+function persistenceError(jobId: string, error: unknown) {
+  const message = error instanceof Error ? error.message : 'Chat history could not be saved.';
+  const h = histories.get(jobId); if(h) h.failure = message;
+  useChats.setState(s => ({records:{...s.records,[jobId]:{...(s.records[jobId]||empty()),error:message}}}));
+}
+async function ensureChat(jobId: string) {
+  if(useChats.getState().ready[jobId]) return;
+  if(loads.has(jobId)) return loads.get(jobId)!;
+  const loading = (async()=>{
+    let archive = await readChatArchive(jobId);
+    if(!archive) {
+      const threads: SavedChat[] = [];
+      for(const packet of (await listWorkPackets(jobId)).reverse()) {
+        const events = await readWorkEvents(packet.id);
+        if(!await verifyWorkJournal(packet,events)) throw Error('Saved task history failed its integrity check. Original records have been preserved.');
+        threads.push(recoverTaskChat(packet,events));
+      }
+      if(!threads.length) threads.push(saved(empty()));
+      archive = {projectId:jobId,revision:0,activeId:threads.at(-1)!.id,threads};
+    }
+    histories.set(jobId,{archive,revision:archive.revision,queue:Promise.resolve(),failure:null});
+    useChats.setState(s=>({records:{...s.records,[jobId]:restored(archive!.threads.find(t=>t.id===archive!.activeId)!)},ready:{...s.ready,[jobId]:true}}));
+  })();
+  loads.set(jobId,loading);
+  try { await loading; } catch(e) { persistenceError(jobId,e); throw e; } finally { loads.delete(jobId); }
+}
+function persist(jobId: string, value: Conversation) {
+  const h = histories.get(jobId); if(!h || h.failure) return;
+  h.archive = putChat(h.archive,saved(value));
+  const snapshot = structuredClone(h.archive);
+  h.queue = h.queue.then(async()=>{ if(h.failure)return; h.revision = await saveChatArchive(snapshot,h.revision); }).catch(e=>persistenceError(jobId,e));
+}
+async function flushChat(jobId: string) {
+  const h=histories.get(jobId); if(!h)throw Error('Chat history is still loading.');
+  await h.queue; if(h.failure)throw Error(h.failure);
+}
+async function activateChat(jobId: string, next: Conversation): Promise<boolean> {
+  if(changingChats.has(jobId)||controllers.has(jobId))return false;
+  changingChats.add(jobId);
+  try {
+    await flushChat(jobId);
+    const h=histories.get(jobId)!;
+    const archive=putChat(h.archive,saved(next));
+    const revision=await saveChatArchive(archive,h.revision);
+    h.archive={...archive,revision};h.revision=revision;
+    // Only replace the visible conversation once the new active thread is durable.
+    useChats.setState(s=>({records:{...s.records,[jobId]:next}}));
+    return true;
+  } catch(e) { persistenceError(jobId,e);throw e; }
+  finally {changingChats.delete(jobId);}
+}
 function update(jobId: string, action: (record: Conversation) => Conversation) {
   useChats.setState(state => {
     const previous = state.records[jobId] || empty();
@@ -39,13 +101,20 @@ function update(jobId: string, action: (record: Conversation) => Conversation) {
     const tokens = applyContextFloor(estimate.tokens, readContextFloor(typeof localStorage === 'undefined' ? null : localStorage));
     return { records: { ...state.records, [jobId]: { ...next, estimate, tokens, context: contextState(tokens, { count: estimate.count, bytes: estimate.bytes }) } } };
   });
+  persist(jobId,useChats.getState().records[jobId]);
 }
 export const HANDOVER_ACKNOWLEDGEMENT = 'Understood. I have the handover; tell me what to do next.';
 export function useAssistantChat(jobId: string) {
   const record = useChats(state => state.records[jobId] || blank);
+  const historyReady = useChats(state => !!state.ready[jobId]);
+  useEffect(() => { void ensureChat(jobId).catch(()=>{}); },[jobId]);
   useEffect(() => () => { controllers.get(jobId)?.abort(); }, [jobId]);
   /** `allowProjectEdits` is kept for callers that still pass it; the permission mode (permissions.ts) is what decides. */
   const send = async (text: string, images: ChatImage[], allowProjectEdits = false, fileContext = '', onAccepted?: () => void) => {
+    const provider = useAssistantProvider.getState().provider;
+    await ensureChat(jobId);
+    await flushChat(jobId);
+    if(changingChats.has(jobId))throw Error('Wait for the saved conversation to open.');
     const editsDeclared = allowProjectEdits || usePermissions.getState().mode !== 'readonly';
     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
     const initial = useChats.getState().records[jobId] || empty();
@@ -77,20 +146,21 @@ export function useAssistantChat(jobId: string) {
     try {
       // The user entry is already visible. Release the composer before any model or tool work.
       onAccepted?.();
+      await flushChat(jobId);
       governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents);
       const session = await getAssistantMcp();
       await runConversation({
         contents, signal: controller.signal, execution: readExecutionBudget(localStorage),
-        declarations: session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
+        declarations: session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared) && providerSupportsTool(provider, tool.name)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
         turn: async (request, signal) => {
           const prepared = await governed!.prepare(request);
-          const response = await assistantTurn(prepared, signal);
+          const response = await assistantTurn(prepared, signal, provider);
           await governed!.response(response);
           return response;
         },
         call: async (name, args, signal) => {
           // Ask / edit freely / read only, plus per-call prompts in ask mode (permissions.ts). A refusal is a tool error the model can read.
-          return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: true }),
+          return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: true, provider }),
             () => allowProjectEdits ? Promise.resolve(null) : gateToolCall(name, args, signal));
         },
         assertContext: () => { const current = useStudio.getState(); if (current.job.id !== jobId || current.persistenceRecoveryBlocked) throw Error('Project changed or recovery is active. Assistant stopped before the next action.'); },
@@ -98,8 +168,8 @@ export function useAssistantChat(jobId: string) {
         // [PROVENANCE] Every tool row records the project it acted on and that project's revision
         // afterwards, so the transcript itself proves which job each action touched. Read from the
         // live store at emit time rather than from the closure, so a stale value cannot be recorded.
-        emit: event => update(jobId, value => ({ ...value, entries: [...value.entries, { ...event, id: crypto.randomUUID(),
-          ...(event.kind === 'tool' ? { projectName: useStudio.getState().job.name, projectRevision: useStudio.getState().job.revision } : {}) }] })),
+        emit: event => update(jobId, value => ({ ...value, entries: appendChatEvent(value.entries, { ...event, id: crypto.randomUUID(),
+          ...(event.kind === 'tool' ? { projectName: useStudio.getState().job.name, projectRevision: useStudio.getState().job.revision } : {}) }) })),
         checkpoint: history => update(jobId, value => ({ ...value, contents: structuredClone(history) })),
       });
       return true;
@@ -113,6 +183,7 @@ export function useAssistantChat(jobId: string) {
         catch (error) { update(jobId, value => ({ ...value, error: error instanceof Error ? error.message : 'Task checkpoint could not be saved. Review before retrying.' })); }
       }
       controllers.delete(jobId); update(jobId, value => ({ ...value, busy: false }));
+      await histories.get(jobId)?.queue;
       // [SC-22 capture] begin
       // One entry per completed turn. Only the entries this turn added are read, so a long chat
       // never re-summarises its own history. captureTurn swallows a storage failure (contextCapture.ts)
@@ -159,24 +230,32 @@ export function useAssistantChat(jobId: string) {
    * receipts, the last reply and any outstanding pause) becomes the first visible entry and a seed
    * user/model exchange in the transcript. Nothing is sent to the provider until the next message.
    */
-  const continueInNewChat = () => {
+  const continueInNewChat = async () => {
+    await ensureChat(jobId); await flushChat(jobId);
     const current = useChats.getState().records[jobId] || empty();
     if (current.busy || controllers.has(jobId)) return false;
     const handover = buildHandover({ jobId, entries: current.entries, contents: current.contents, reason: current.error });
-    update(jobId, () => ({
+    const next: Conversation = {
       ...empty(),
       entries: [{ id: crypto.randomUUID(), kind: 'assistant', text: `${HANDOVER_CONTINUED_PREFIX}\n${handover}` }],
       contents: [
         { role: 'user', parts: [{ text: `${handover}\n(This handover was carried over automatically; treat it as context, not as a new instruction.)` }] },
         { role: 'model', parts: [{ text: HANDOVER_ACKNOWLEDGEMENT }] },
       ],
-    }));
-    return true;
+    };
+    return activateChat(jobId,next);
   };
   return {
-    ...record, send, postLocalExchange,
-    continueInNewChat: () => { const ok = continueInNewChat(); if (ok) usePermissions.getState().resetChatGrants(); return ok; },
+    ...record, send, postLocalExchange, loadingHistory: !historyReady,
+    history: (histories.get(jobId)?.archive.threads || []).slice().reverse().map(t=>({id:t.id,title:chatTitle(t),updatedAt:t.updatedAt,active:t.id===record.id})),
+    restoreHistory: async (id: string) => {
+      if(controllers.has(jobId)||record.busy)return false;
+      await ensureChat(jobId); await flushChat(jobId);
+      const thread=histories.get(jobId)?.archive.threads.find(t=>t.id===id);if(!thread)return false;
+      const ok=await activateChat(jobId,restored(thread));if(ok)usePermissions.getState().resetChatGrants();return ok;
+    },
+    continueInNewChat: async () => { const ok = await continueInNewChat(); if (ok) usePermissions.getState().resetChatGrants(); return ok; },
     stop: () => controllers.get(jobId)?.abort(),
-    clear: () => { if (!record.busy) { update(jobId, () => empty()); usePermissions.getState().resetChatGrants(); } },
+    clear: async () => { if(record.busy||controllers.has(jobId))return false; await ensureChat(jobId);const ok=await activateChat(jobId,empty());if(ok)usePermissions.getState().resetChatGrants();return ok; },
   };
 }

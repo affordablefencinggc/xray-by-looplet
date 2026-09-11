@@ -358,3 +358,13 @@ SC-14, SC-15, SC-16 (done, development verified): a bot button docks the Live as
 - [x] CP-01 desktop development: compact uniform assistant pills; all 10 visible controls measured 28px high/11px text. See proof/growth/compact-assistant-pills/verification.md. No packaged-build or tablet acceptance claim.
 
 - [x] Assistant work-packet history control: compact vertically sectioned square, project topics/date/recorded tokens, expandable records, Escape with focus return. Live Edge proof and 22 focused passing tests: proof/growth/assistant-task-history/verification.md. Older token counts unavailable; native binary not rebuilt.
+
+## 2026-09-11 — A–Z project library and truthful coverage report
+
+B-01 and B-07 verified for built-browser scope: create duplicate-named projects with separate IDs; archive/restore inactive projects without deleting saved work; re-open revision and SHA-256-identical original drawing. B-04 remains partial because page reload is not a full process restart. Report regeneration preserves the reviewed Markdown and all 364 states rather than resetting them.
+
+Proof and exact file/patch list: proof/growth/2026-09-11-project-library/README.md. Final source f59a593750f0b29152793f160db39c0d818a9f843d5c0185ebee674ea9d7ced2, branch feat/architect-cad-engine, baseline 82612dbdce15a5f31fb602bbbdc88f8125d3f511. DANS1: 37 tests, typecheck, production build, 59-step library and 9-step report journeys pass. Inspected desktop 1280x800 and tablet 1024x768 screenshots in production-final/ and report-production/. No phone, installed/native, paid AI or construction-quantity claim. Full register remains open in AZ-CLOSEOUT-LEDGER.md.
+
+Final safeguard verification, 2026-09-11: strict registry reads now refuse creation/open against damaged library records. Source 9e2e87d46bf659108278e4eb6ddc29b81ada7672988358bf5b4f6bd3031c5be3 supersedes intermediate f59a593750f0. DANS1: 38/38 tests, typecheck/build, 68/68 library and 9/9 report operations pass. Final inspected proof: proof/growth/2026-09-11-project-library/production-complete/ and report-production-complete/. Checklist scope and remaining work are unchanged.
+
+2026-09-11: Protected portable snapshot application is implemented and verified for built-browser scope. Startup blocks editor hydration until the journal is resolved; an exclusive workspace lease, recovery package, before-images, non-overwriting assets and readback protect the restore. 45 tests and desktop/tablet executed proof: proof/growth/2026-09-11-restore/README.md. B-10 passes. B-09/B-11/Z-07 remain partial; no full project/native/forced termination claim.

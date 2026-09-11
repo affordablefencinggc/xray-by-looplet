@@ -1,0 +1,87 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "(async()=>{\nwindow.audit={requests:[]};const originalFetch=window.fetch;window.fetch=(...args)=>{const url=String(args[0]);if(url.includes('/api/assistant-ai'))throw Error('Unexpected Gemini request');if(url.includes('/api/minimax-ai')&&args[1]?.method==='POST')audit.requests.push({url,body:JSON.parse(args[1].body)});return originalFetch(...args)};\naudit.store=(await import('/src/studio/store.ts')).useStudio;\naudit.jobId=audit.store.getState().job.id;\n(await import('/src/studio/assistant/provider.ts')).useAssistantProvider.getState().setProvider('minimax');\n(await import('/src/studio/assistant/permissions.ts')).usePermissions.getState().setMode('auto');\nlocalStorage.setItem('xray:assistant-execution-budget:v1',JSON.stringify({maxRounds:16,maxToolCalls:48,maxOutputTokens:8192,timeoutMs:90000,contextTokens:300000}));\naudit.file=await (await import('/src/studio/assistant/attachmentFiles.ts')).storeAssistantFile(audit.jobId,new File(['Audit fixture: the room is called Willow Study. Requested illustrative dimensions are 6000 mm by 4000 mm. This is a test brief, not a surveyed drawing.'],'audit-brief.txt',{type:'text/plain'}));\ndocument.querySelector('.live-assistant-launcher')?.click();\nreturn {project:audit.jobId,file:audit.file};\n})()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('textarea') && !document.querySelector('textarea').disabled"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.querySelector('textarea');if(!t)throw Error('Composer missing');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,\"Read audit-brief.txt and tell me the room name and dimensions. Do not draw anything.\");t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "document.querySelector('[aria-label=\"Send assistant message\"]')?.disabled===false"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Send assistant message\"]').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('[aria-label=\"Stop assistant response\"]')",
+    15000
+  ],
+  [
+    "wait",
+    "!!document.querySelector('[aria-label=\"Send assistant message\"]')",
+    230000
+  ],
+  [
+    "eval",
+    "(async()=>{const p=await (await import('/src/studio/assistant/workPacketStore.ts')).listWorkPackets(audit.jobId);const events=await (await import('/src/studio/assistant/workPacketStore.ts')).readWorkEvents(p[0].id);if(!audit.requests.length||audit.requests.some(r=>r.body.declarations.some(d=>['web_search','generate_render_visualisation'].includes(d.name))))throw Error('Provider capability declarations wrong');return {requests:audit.requests.map(r=>({url:r.url,tools:r.body.declarations.map(d=>d.name)})),text:document.querySelector('.live-assistant')?.innerText||document.body.innerText,packets:p,events:events.filter(e=>e.kind.includes('tool')||e.kind.includes('fail')||e.kind.includes('finish'))}})()"
+  ],
+  [
+    "eval",
+    "(async()=>{if(document.querySelector('.live-assistant')?.innerText.includes('Workingâ€¦'))throw Error('Completed call still marked Working');const id=(await import('/src/studio/store.ts')).useStudio.getState().job.id;const saved=await(await import('/src/studio/assistant/chatHistory.ts')).readChatArchive(id);if(!saved?.threads.some(t=>t.entries.some(e=>e.kind==='assistant'&&e.text.includes('Willow'))))throw Error('Provider reply not saved');return {threadCount:saved.threads.length,entries:saved.threads.at(-1).entries.length}})()"
+  ],
+  [
+    "screenshot",
+    "saved-live-chat.png"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.live-assistant')?.innerText.includes('Willow') && !document.querySelector('textarea').disabled"
+  ],
+  [
+    "eval",
+    "(async()=>{if((await import('/src/studio/assistant/provider.ts')).useAssistantProvider.getState().provider!=='minimax')throw Error('Provider selection lost on reload');return document.querySelector('.live-assistant').innerText})()"
+  ],
+  [
+    "screenshot",
+    "live-chat-after-reload.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const p=await import('/src/studio/assistant/provider.ts'),t=await import('/src/studio/assistant/transport.ts'),s=await import('/src/studio/assistant/session.ts');p.useAssistantProvider.getState().setProvider('minimax');const calls=[],original=window.fetch;window.fetch=async(url,init)=>{calls.push(String(url));const body=JSON.parse(init.body);return new Response(JSON.stringify({requestId:body.requestId,content:{role:'model',parts:[{text:'Transport fixture'}]},sources:[],model:'MiniMax-M2.5'}),{status:200})};const errors=[];try{for(const name of ['web_search','generate_render_visualisation']){let refused=false;try{await s.callAssistantTool(name,{query:'Search fixture'},AbortSignal.timeout(10000))}catch(e){errors.push(e.message);refused=e.message.includes('No Gemini request was sent')}if(!refused)throw Error('Tool not refused '+name)}const req={schema:'xray.assistant-request/v1',requestId:crypto.randomUUID(),contents:[{role:'user',parts:[{text:'Fixture'}]}],declarations:[],webSearch:true};try{await t.assistantTurn(req,AbortSignal.timeout(10000),'minimax');throw Error('Search unexpectedly allowed')}catch(e){if(!e.message.includes('No Gemini request was sent'))throw e;errors.push(e.message)}if(calls.length)throw Error('Unavailable capability sent a request');p.useAssistantProvider.getState().setProvider('gemini');await t.assistantTurn({...req,webSearch:false},AbortSignal.timeout(10000),'minimax');if(calls.length!==1||calls[0]!=='/api/minimax-ai')throw Error('Pinned provider changed');}finally{window.fetch=original;p.useAssistantProvider.getState().setProvider('minimax')}return {requests:calls,errors,pinnedProviderVerified:true,selected:p.useAssistantProvider.getState().provider}})()"
+  ],
+  [
+    "errors"
+  ]
+]

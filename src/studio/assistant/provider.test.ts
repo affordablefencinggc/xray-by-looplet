@@ -1,11 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PROVIDERS, PROVIDER_KEY, isAssistantProvider, providerEndpoint, providerLabel, readProvider } from "./provider.ts";
+import { PROVIDERS, PROVIDER_KEY, isAssistantProvider, providerEndpoint, providerLabel, readProvider, providerSupportsTool, providerToolError } from "./provider.ts";
 
-test("an unknown, missing or malformed stored value falls back to Gemini", () => {
-  // Gemini is the provider the app is verified against, so it is what an unreadable choice means.
+test('MiniMax cannot silently use Gemini-only tools', () => {
+  for (const name of ['web_search', 'generate_render_visualisation']) {
+    assert.equal(providerSupportsTool('minimax', name), false);
+    assert.equal(providerSupportsTool('gemini', name), true);
+    assert.match(providerToolError('minimax', name), /No Gemini request was sent/);
+  }
+  for (const name of ['draw_floor_plan', 'read_attachments', 'capture_model_view']) assert.equal(providerSupportsTool('minimax', name), true);
+});
+
+test("an unknown, missing or malformed stored value falls back to MiniMax", () => {
   for (const value of [null, undefined, "", "openai", "MINIMAX", "gemini-pro", "{}", "0"]) {
-    assert.equal(readProvider(value as string | null), "gemini", `expected fallback for ${JSON.stringify(value)}`);
+    assert.equal(readProvider(value as string | null), "minimax", `expected fallback for ${JSON.stringify(value)}`);
   }
   assert.equal(readProvider("minimax"), "minimax");
   assert.equal(readProvider("gemini"), "gemini");
@@ -26,8 +34,8 @@ test("each provider routes to its own endpoint and no two share one", () => {
 
 test("an unrecognised provider still resolves to a usable route rather than undefined", () => {
   // Defence in depth: a persisted value from a future build must not produce `fetch(undefined)`.
-  assert.equal(providerEndpoint("openai" as never), "/api/assistant-ai");
-  assert.equal(providerLabel("openai" as never), "Gemini");
+  assert.equal(providerEndpoint("openai" as never), "/api/minimax-ai");
+  assert.equal(providerLabel("openai" as never), "MiniMax");
 });
 
 test("every provider carries a label and a hint that states its limits", () => {

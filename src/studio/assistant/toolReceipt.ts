@@ -127,11 +127,11 @@ export function describeToolReceipt(entry: { toolName?: string; text: string; fa
     const r = parse(entry.text);
     // A refusal payload is written for the model to read, not for a person. Rendering it verbatim
     // put raw JSON in the chat, which the no-code-in-the-chat rule exists to prevent. Its known
-    // fields are turned into a sentence; only an unrecognised shape falls back to the raw first line.
+    // fields are turned into a sentence; unknown structured failures never expose the payload.
     const message = r && typeof r.text === "string" ? r.text
       : r && typeof r.reason === "string"
         ? describeRefusal(r)
-        : entry.text;
+        : r || looksStructured(entry.text) ? "This step failed." : entry.text;
     const line = message.trim().split("\n")[0];
     return { title, status: "failed", summary: line.length > 200 ? line.slice(0, 199) + "…" : line, detail: null };
   }

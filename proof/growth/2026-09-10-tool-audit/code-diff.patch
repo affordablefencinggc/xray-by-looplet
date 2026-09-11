@@ -1,0 +1,725 @@
+diff --git a/package.json b/package.json
+index 9c3e931..018e1d4 100644
+--- a/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/scripts/dans1-build-worker.ps1 b/scripts/dans1-build-worker.ps1
+index de98ce7..a7688b2 100644
+--- a/scripts/dans1-build-worker.ps1
++++ b/scripts/dans1-build-worker.ps1
+@@ -2,7 +2,8 @@ param(
+   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{12}$')][string]$RunId,
+   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$SourceHash,
+   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$RuntimeHash,
+-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$NativeHash
++  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$NativeHash,
++  [switch]$WebOnly
+ )
+ $ErrorActionPreference='Stop'
+ $ProgressPreference='SilentlyContinue'
+@@ -82,6 +83,7 @@ Invoke-Step 'web-build' @($npmCli,'run','build')
+ $artifacts=Get-ChildItem -LiteralPath (Join-Path $source '.vercel\output\static\assets') -File | ForEach-Object { [pscustomobject]@{name=$_.Name;bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()} }
+ [pscustomobject]@{computer=$env:COMPUTERNAME;run=$run;sourceSha256=$SourceHash;nativeSourceSha256=$NativeHash;sourceFiles=$webManifest.entries.Count;nativeFiles=$nativeManifest.entries.Count;buildEnvironment=@{VITE_AUTH_ENABLED=$env:VITE_AUTH_ENABLED;RAYON_NUM_THREADS=$env:RAYON_NUM_THREADS};results=$results;artifacts=$artifacts} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $run 'completion.json') -Encoding UTF8
+ Write-Output 'WEB_READY: production output available for browser QA; native build follows sequentially.'
++if ($WebOnly) { Write-Output 'WEB_ONLY_COMPLETE: native packaging was not requested.'; return }
+ Verify-Sources
+ $cacheRun=Join-Path $buildRoot 'runs\44c9a5bdd386'
+ $cacheRecord=Get-Content -LiteralPath (Join-Path $cacheRun 'native-completion.json') -Raw | ConvertFrom-Json
+diff --git a/src/studio/LiveAssistant.tsx b/src/studio/LiveAssistant.tsx
+index 75ea027..938bada 100644
+--- a/src/studio/LiveAssistant.tsx
++++ b/src/studio/LiveAssistant.tsx
+@@ -119,7 +119,7 @@ export function LiveAssistant() {
+   const [references, setReferences] = useState<ReferenceImage[]>([]);
+   const [menu, setMenu] = useState(false);
+   const [drawer, setDrawer] = useState<
+-    "skills" | "references" | "help" | "settings" | "projects" | null
++    "skills" | "references" | "help" | "settings" | "projects" | "history" | null
+   >(null);
+   const [dragOver, setDragOver] = useState(false);
+   const [readingImages, setReadingImages] = useState(false);
+@@ -376,9 +376,10 @@ export function LiveAssistant() {
+     followMessages.current = true;
+   };
+   /** Carries the work over: handover note first, then a fresh transcript (nothing sent until the next message). */
+-  const continueChat = () => {
++  const continueChat = async () => {
+     if (chat.busy || readingImages) return;
+-    if (!chat.continueInNewChat()) return;
++    try { if (!await chat.continueInNewChat()) return; }
++    catch(e) { setMessage(e instanceof Error ? e.message : 'Chat could not be saved.'); return; }
+     setAttachments([]); setPendingFiles([]);
+     setMenu(false);
+     setDrawer(null);
+@@ -463,9 +464,10 @@ export function LiveAssistant() {
+     setMenu(false);
+     input.current?.focus();
+   };
+-  const newChat = () => {
++  const newChat = async () => {
+     if (chat.busy || readingImages) return;
+-    chat.clear();
++    try { if(!await chat.clear())return; }
++    catch(e) { setMessage(e instanceof Error ? e.message : 'Chat could not be saved.'); return; }
+     setAttachments([]); setPendingFiles([]);
+     setMessage("");
+     setMenu(false);
+@@ -752,10 +754,18 @@ export function LiveAssistant() {
+                         ? "Help"
+                         : drawer === "projects"
+                           ? "Projects"
+-                          : "Assistant settings"}
++                          : drawer === "history" ? "Chat history" : "Assistant settings"}
+                 </strong>
+               </div>
+             )}
++            {drawer === "history" && <div className="assistant-chat-history">
++              <p>Saved conversations for {jobName}. Starting a new chat keeps earlier conversations here.</p>
++              {chat.history.map(thread => <button key={thread.id} type="button" disabled={chat.busy || chat.loadingHistory}
++                aria-current={thread.active ? 'true' : undefined}
++                onClick={async()=>{try { if(await chat.restoreHistory(thread.id))setDrawer(null); } catch(e){setMessage(e instanceof Error?e.message:'Chat could not be opened.');}}}>
++                <strong>{thread.title}</strong><span>{thread.active ? 'Current · ' : ''}{new Date(thread.updatedAt).toLocaleString()}</span>
++              </button>)}
++            </div>}
+             {!drawer && (
+               <>
+                 {/* [PROVENANCE] Names the open project first and always. Anyone reading over a
+@@ -767,7 +777,9 @@ export function LiveAssistant() {
+                     <strong className="live-assistant-context-project">{jobName}</strong>
+                     {binary ? ` · ${binary.name} · Sheet ${sheet + 1}` : " · no drawing imported"}
+                   </span>
++                  <button type="button" onClick={()=>setDrawer('history')} disabled={chat.loadingHistory} aria-label="Open chat history">History</button>
+                 </div>
++                {chat.loadingHistory && <p role="status">Restoring saved conversations…</p>}
+                 <ConversationView
+                   entries={chat.entries}
+                   busy={chat.busy}
+@@ -1013,8 +1025,8 @@ export function LiveAssistant() {
+                 />
+                 <p className="live-assistant-disclosure">
+                   Messages, selected images and requested tool results go to the configured provider
+-                  when you send. Chat and references stay in this app session. New chat clears the
+-                  conversation, not your project.
++                  when you send. Conversations are saved on this device. New chat keeps the previous
++                  conversation in History. Reference selections stay in this app session.
+                 </p>
+               </div>
+             )}
+@@ -1149,7 +1161,7 @@ export function LiveAssistant() {
+               maxLength={100000}
+               rows={2}
+               placeholder="Ask anything about your project…"
+-              disabled={switching || chat.busy}
++              disabled={switching || chat.busy || chat.loadingHistory}
+               onPaste={(event) => {
+                 const pasted = event.clipboardData.getData('text/plain');
+                 const selected = event.currentTarget.selectionEnd - event.currentTarget.selectionStart;
+@@ -1297,7 +1309,7 @@ export function LiveAssistant() {
+                   type="submit"
+                   className="assistant-composer-button assistant-send"
+                   aria-label="Send assistant message"
+-                  disabled={switching || readingImages || (!draft.trim() && !attachments.length && !pendingFiles.length)}
++                  disabled={switching || readingImages || chat.loadingHistory || (!draft.trim() && !attachments.length && !pendingFiles.length)}
+                 >
+                   <span>
+                     <ArrowUp size={17} />
+diff --git a/src/studio/assistant/conversation.test.ts b/src/studio/assistant/conversation.test.ts
+index 1ffd332..237a5c3 100644
+--- a/src/studio/assistant/conversation.test.ts
++++ b/src/studio/assistant/conversation.test.ts
+@@ -1,12 +1,35 @@
+ import { DEFAULT_EXECUTION_BUDGET } from './executionBudget.ts';
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+-import { runConversation, type ChatEvent } from './conversation.ts';
++import { appendChatEvent, runConversation, type ChatEvent } from './conversation.ts';
+ import type { AssistantContent, AssistantRequest, AssistantResponse } from './contract.ts';
+ const declaration = { name: 'draw', description: 'Draw fixture', parametersJsonSchema: { type: 'object' } };
+ const initial: AssistantContent[] = [{ role: 'user', parts: [{ text: 'Draw a wall' }] }];
+ const response = (request: AssistantRequest, parts: AssistantResponse['content']['parts']): AssistantResponse => ({ requestId: request.requestId, content: { role: 'model', parts }, model: 'gemini-test', sources: [] });
+ 
++test('repeated tool calls replace their own progress row, including a failed call', async () => {
++  let entries: (ChatEvent & { id: string })[] = [], turns = 0, calls = 0;
++  const runningIds: string[] = [];
++  await runConversation({ contents: initial, declarations: [declaration], signal: new AbortController().signal,
++    assertContext: () => {}, checkpoint: () => {},
++    emit: event => {
++      const id = crypto.randomUUID();
++      if (event.text.startsWith('Running ')) runningIds.push(id);
++      entries = appendChatEvent(entries, { ...event, id });
++    },
++    turn: async request => ++turns === 1
++      ? response(request, [1, 2].map(() => ({ functionCall: { name: 'draw', args: {} } })))
++      : response(request, [{ text: 'One completed, one refused.' }]),
++    call: async () => ({ isError: ++calls === 2, content: [{ type: 'text', text: calls === 1 ? 'Saved' : 'Stale revision' }] }),
++  });
++  const rows = entries.filter(e => e.kind === 'tool');
++  assert.equal(rows.length, 2);
++  assert.deepEqual(rows.map(e => e.id), runningIds);
++  assert.notEqual(rows[0].toolCallId, rows[1].toolCallId);
++  assert.deepEqual(rows.map(e => [e.text, e.failed]), [['Saved', false], ['Stale revision', true]]);
++  assert.equal(entries.some(e => e.text.startsWith('Running ')), false);
++});
++
+ test('routing suppresses premature final success and returns the required step to the model', async () => {
+   let turns = 0, executed = false;
+   const events: ChatEvent[] = [];
+diff --git a/src/studio/assistant/conversation.ts b/src/studio/assistant/conversation.ts
+index cd5c472..00fbcaa 100644
+--- a/src/studio/assistant/conversation.ts
++++ b/src/studio/assistant/conversation.ts
+@@ -2,7 +2,15 @@ import { assistantResponseSchema, type AssistantContent, type AssistantDeclarati
+ import { DEFAULT_EXECUTION_BUDGET, executionBudgetSchema, type ExecutionBudget } from "./executionBudget.ts";
+ export type ChatImage = { data: string; mimeType: 'image/png' | 'image/jpeg' | 'image/webp' };
+ export type ToolResult = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean; _meta?: Record<string, unknown> };
+-export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; failed?: boolean };
++export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; toolCallId?: string; failed?: boolean };
++
++/** A completed call replaces its progress row; repeated calls keep distinct identities. */
++export function appendChatEvent<T extends { id: string; kind: string; toolCallId?: string }>(entries: readonly T[], entry: T): T[] {
++  const index = entry.kind === 'tool' && entry.toolCallId
++    ? entries.findIndex(previous => previous.kind === 'tool' && previous.toolCallId === entry.toolCallId) : -1;
++  if (index < 0) return [...entries, entry];
++  return entries.map((previous, i) => i === index ? { ...entry, id: previous.id } : previous);
++}
+ 
+ export async function runConversation(options: {
+   execution?: ExecutionBudget;
+@@ -61,7 +69,8 @@ export async function runConversation(options: {
+         options.checkpoint(contents);
+         throw error;
+       }
+-      options.emit({ kind: 'tool', toolName: call.name, text: `Running ${call.name}…` });
++      const toolCallId = `${requestId}:${index}`;
++      options.emit({ kind: 'tool', toolName: call.name, toolCallId, text: `Running ${call.name}…` });
+       let result: ToolResult;
+       try {
+         if (++toolCalls > budget.maxToolCalls) result = { isError: true, content: [{ type: 'text', text: 'Tool budget reached; not executed. Review completed actions before continuing.' }] };
+@@ -80,7 +89,7 @@ export async function runConversation(options: {
+       if (call.name === 'web_search' && !result.isError) {
+         try { const parsed = JSON.parse(output); if (Array.isArray(parsed.sources)) sources = parsed.sources.filter((source: { title?: unknown; url?: unknown }) => typeof source.title === 'string' && typeof source.url === 'string' && /^https?:\/\//.test(source.url)); } catch { /* Non-JSON tool output remains visible. */ }
+       }
+-      options.emit({ kind: 'tool', toolName: call.name, text: output || (result.isError ? 'Tool failed.' : 'Tool completed.'), failed: result.isError, images: toolImages, sources });
++      options.emit({ kind: 'tool', toolName: call.name, toolCallId, text: output || (result.isError ? 'Tool failed.' : 'Tool completed.'), failed: result.isError, images: toolImages, sources });
+       results.push({ functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { isError: !!result.isError, text: output, images: toolImages.length } } });
+       toolImages.forEach(image => results.push({ inlineData: image }));
+     }
+diff --git a/src/studio/assistant/provider.test.ts b/src/studio/assistant/provider.test.ts
+index 2719312..4ad9529 100644
+--- a/src/studio/assistant/provider.test.ts
++++ b/src/studio/assistant/provider.test.ts
+@@ -1,6 +1,15 @@
+ import test from "node:test";
+ import assert from "node:assert/strict";
+-import { PROVIDERS, PROVIDER_KEY, isAssistantProvider, providerEndpoint, providerLabel, readProvider } from "./provider.ts";
++import { PROVIDERS, PROVIDER_KEY, isAssistantProvider, providerEndpoint, providerLabel, readProvider, providerSupportsTool, providerToolError } from "./provider.ts";
++
++test('MiniMax cannot silently use Gemini-only tools', () => {
++  for (const name of ['web_search', 'generate_render_visualisation']) {
++    assert.equal(providerSupportsTool('minimax', name), false);
++    assert.equal(providerSupportsTool('gemini', name), true);
++    assert.match(providerToolError('minimax', name), /No Gemini request was sent/);
++  }
++  for (const name of ['draw_floor_plan', 'read_attachments', 'capture_model_view']) assert.equal(providerSupportsTool('minimax', name), true);
++});
+ 
+ test("an unknown, missing or malformed stored value falls back to Gemini", () => {
+   // Gemini is the provider the app is verified against, so it is what an unreadable choice means.
+diff --git a/src/studio/assistant/provider.ts b/src/studio/assistant/provider.ts
+index 65aa7b5..c2cb762 100644
+--- a/src/studio/assistant/provider.ts
++++ b/src/studio/assistant/provider.ts
+@@ -33,6 +33,16 @@ export function providerEndpoint(provider: AssistantProvider): string {
+   return (PROVIDERS.find(entry => entry.provider === provider) ?? PROVIDERS[0]).endpoint;
+ }
+ 
++/** Never spend another provider's quota to fill a capability gap. */
++export function providerSupportsTool(provider: AssistantProvider, name: string): boolean {
++  return provider === 'gemini' || !['web_search', 'generate_render_visualisation'].includes(name);
++}
++
++export function providerToolError(provider: AssistantProvider, name: string): string {
++  const capability = name === 'web_search' ? 'Web search' : 'Image generation';
++  return `${capability} requires Gemini and is unavailable with ${providerLabel(provider)} selected. No Gemini request was sent.`;
++}
++
+ export function providerLabel(provider: AssistantProvider): string {
+   return (PROVIDERS.find(entry => entry.provider === provider) ?? PROVIDERS[0]).label;
+ }
+diff --git a/src/studio/assistant/session.ts b/src/studio/assistant/session.ts
+index 7c22a5c..eadd08c 100644
+--- a/src/studio/assistant/session.ts
++++ b/src/studio/assistant/session.ts
+@@ -4,9 +4,11 @@ import { assistantTurn } from './transport';
+ import type { ToolResult } from './conversation';
+ import { assistantToolAllowed } from './skills';
+ import { checkProfessionalAction } from './workPacket';
++import { providerSupportsTool, providerToolError, useAssistantProvider, type AssistantProvider } from './provider';
+ export const useAssistantConnection = create<{ connected: boolean; names: string[]; error: string | null }>(() => ({ connected: false, names: [], error: null }));
+ let connection: ReturnType<typeof connectAppMcp> | undefined;
+ let activeSignal: AbortSignal | undefined;
++let activeProvider: AssistantProvider | undefined;
+ export async function getAssistantMcp() {
+   if (!connection) {
+     connection = (async () => {
+@@ -17,7 +19,7 @@ export async function getAssistantMcp() {
+         execute: async args => {
+           if (!args || typeof args !== 'object' || Object.keys(args).some(key => key !== 'query') || !('query' in args) || typeof args.query !== 'string' || args.query.length < 3 || args.query.length > 2000) throw Error('Search needs a query of 3–2000 characters.');
+           if (!activeSignal) throw Error('No active assistant request.');
+-          const response = await assistantTurn({ schema: 'xray.assistant-request/v1', requestId: crypto.randomUUID(), contents: [{ role: 'user', parts: [{ text: args.query }] }], declarations: [], webSearch: true }, activeSignal);
++          const response = await assistantTurn({ schema: 'xray.assistant-request/v1', requestId: crypto.randomUUID(), contents: [{ role: 'user', parts: [{ text: args.query }] }], declarations: [], webSearch: true }, activeSignal, activeProvider);
+           return { content: [{ type: 'text', text: JSON.stringify({ answer: response.content.parts.filter(p => !p.thought).map(p => p.text || '').join('\n'), sources: response.sources }) }] };
+         },
+       };
+@@ -29,14 +31,17 @@ export async function getAssistantMcp() {
+   }
+   return connection;
+ }
+-export async function callAssistantTool(name: string, args: Record<string, unknown>, signal: AbortSignal, permissions = { allowProjectEdits: false }): Promise<ToolResult> {
++export async function callAssistantTool(name: string, args: Record<string, unknown>, signal: AbortSignal, permissions: { allowProjectEdits: boolean; provider?: AssistantProvider } = { allowProjectEdits: false }): Promise<ToolResult> {
+   signal.throwIfAborted();
++  const provider = permissions.provider ?? useAssistantProvider.getState().provider;
++  if (!providerSupportsTool(provider, name)) throw Error(providerToolError(provider, name));
+   checkProfessionalAction(name);
+   if (!assistantToolAllowed(name, permissions.allowProjectEdits)) throw Error('This tool is not permitted for this message. No action performed.');
+   const session = await getAssistantMcp();
+   signal.throwIfAborted();
+   if (activeSignal) throw Error('Another assistant tool is running. Wait before retrying.');
+   activeSignal = signal;
++  activeProvider = provider;
+   try { return await session.client.callTool({ name, arguments: args }, undefined, { signal, timeout: 125000 }) as ToolResult; }
+-  finally { activeSignal = undefined; }
++  finally { activeSignal = undefined; activeProvider = undefined; }
+ }
+diff --git a/src/studio/assistant/toolReceipt.test.ts b/src/studio/assistant/toolReceipt.test.ts
+index 4616b0a..9bfc11f 100644
+--- a/src/studio/assistant/toolReceipt.test.ts
++++ b/src/studio/assistant/toolReceipt.test.ts
+@@ -63,3 +63,9 @@ test("a failure carrying a plain message is still preferred over the payload", (
+   const view = describeToolReceipt({ toolName: "save_project", text: JSON.stringify({ text: "Storage is full." }), failed: true });
+   assert.equal(view.summary, "Storage is full.");
+ });
++
++test("unknown structured failures do not leak raw objects or arrays into the chat", () => {
++  for (const text of ['{"unexpected":{"internal":"payload"}}', '[{"internal":"payload"}]']) {
++    assert.equal(describeToolReceipt({ toolName: 'save_project', text, failed: true }).summary, 'This step failed.');
++  }
++});
+diff --git a/src/studio/assistant/toolReceipt.ts b/src/studio/assistant/toolReceipt.ts
+index e1889b4..02ede69 100644
+--- a/src/studio/assistant/toolReceipt.ts
++++ b/src/studio/assistant/toolReceipt.ts
+@@ -127,11 +127,11 @@ export function describeToolReceipt(entry: { toolName?: string; text: string; fa
+     const r = parse(entry.text);
+     // A refusal payload is written for the model to read, not for a person. Rendering it verbatim
+     // put raw JSON in the chat, which the no-code-in-the-chat rule exists to prevent. Its known
+-    // fields are turned into a sentence; only an unrecognised shape falls back to the raw first line.
++    // fields are turned into a sentence; unknown structured failures never expose the payload.
+     const message = r && typeof r.text === "string" ? r.text
+       : r && typeof r.reason === "string"
+         ? describeRefusal(r)
+-        : entry.text;
++        : r || looksStructured(entry.text) ? "This step failed." : entry.text;
+     const line = message.trim().split("\n")[0];
+     return { title, status: "failed", summary: line.length > 200 ? line.slice(0, 199) + "…" : line, detail: null };
+   }
+diff --git a/src/studio/assistant/transport.ts b/src/studio/assistant/transport.ts
+index 0984dc2..983eb00 100644
+--- a/src/studio/assistant/transport.ts
++++ b/src/studio/assistant/transport.ts
+@@ -1,28 +1,21 @@
+ import { assistantRequestSchema, assistantResponseSchema, type AssistantRequest, type AssistantResponse } from './contract';
+-import { providerEndpoint, useAssistantProvider } from './provider';
++import { providerEndpoint, providerToolError, useAssistantProvider, type AssistantProvider } from './provider';
+ const native = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+ /**
+  * The route for the provider the user selected in the composer. Native builds ignore it: they
+  * carry only the Gemini transport, so the switch is web-only and the native path is unchanged.
+  */
+ const endpoint = () => providerEndpoint(useAssistantProvider.getState().provider);
+-/**
+- * Grounded web search is a capability of the provider, not of the conversation. `web_search` is an
+- * ordinary MCP tool whose handler makes its own request with `webSearch: true`, and only Gemini can
+- * serve that. Routing it by the user's selected model would make the tool fail for no reason the
+- * user could act on, so a grounded request always goes to the provider that supports it while the
+- * conversation itself stays on the selected model.
+- */
+-const GROUNDED_SEARCH_ENDPOINT = providerEndpoint('gemini');
+-const turnEndpoint = (grounded: boolean) => (grounded ? GROUNDED_SEARCH_ENDPOINT : endpoint());
+ export async function assistantStatus() {
+   if (native()) { const { invoke } = await import('@tauri-apps/api/core'); return invoke<{ provider: string; model: string; configured: boolean; available: boolean; message: string }>('xray_assistant_status'); }
+   const response = await fetch(endpoint(), { cache: 'no-store' });
+   if (!response.ok) throw Error('Assistant service status unavailable.');
+   return response.json() as Promise<{ provider: string; model: string; configured: boolean; available: boolean; message: string }>;
+ }
+-export async function assistantTurn(request: AssistantRequest, signal: AbortSignal): Promise<AssistantResponse> {
++export async function assistantTurn(request: AssistantRequest, signal: AbortSignal, provider: AssistantProvider = useAssistantProvider.getState().provider): Promise<AssistantResponse> {
+   signal.throwIfAborted();
++  if (provider === 'minimax' && native()) throw Error('MiniMax is unavailable in this native build. No Gemini request was sent.');
++  if (provider === 'minimax' && request.webSearch) throw Error(providerToolError(provider, 'web_search'));
+   const body = JSON.stringify(assistantRequestSchema.parse(request));
+   let result: unknown;
+   if (native()) {
+@@ -32,7 +25,7 @@ export async function assistantTurn(request: AssistantRequest, signal: AbortSign
+     try { signal.throwIfAborted(); result = await invoke('xray_assistant_turn', { requestJson: body }); }
+     finally { signal.removeEventListener('abort', cancel); }
+   } else {
+-    const response = await fetch(turnEndpoint(request.webSearch), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal });
++    const response = await fetch(providerEndpoint(provider), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal });
+     const data = await response.json();
+     if (!response.ok) throw Error(data.error || `Assistant request failed (${response.status}).`);
+     result = data;
+diff --git a/src/studio/assistant/useAssistantChat.ts b/src/studio/assistant/useAssistantChat.ts
+index dadddb5..19c9039 100644
+--- a/src/studio/assistant/useAssistantChat.ts
++++ b/src/studio/assistant/useAssistantChat.ts
+@@ -3,8 +3,9 @@ import { useEffect } from 'react';
+ import { create } from 'zustand';
+ import { useStudio } from '../store';
+ import { assistantTurn } from './transport';
++import { providerSupportsTool, useAssistantProvider } from './provider';
+ import { callAssistantTool, getAssistantMcp } from './session';
+-import { runConversation, type ChatEvent, type ChatImage } from './conversation';
++import { appendChatEvent, runConversation, type ChatEvent, type ChatImage } from './conversation';
+ import type { AssistantContent } from './contract';
+ import { assistantToolAllowed } from './skills';
+ import { gateToolCall, usePermissions } from './permissions';
+@@ -20,16 +21,77 @@ export const CONTEXT_CARRIED_UNAVAILABLE = 'Carried context (your saved profile
+ // [SC-22 context] end
+ // [SC-22 capture] begin
+ import { captureTurn } from './contextCapture';
++import { chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
++import { listWorkPackets, readWorkEvents, verifyWorkJournal } from './workPacketStore';
+ // [SC-22 capture] end
+ export type ChatEntry = Omit<ChatEvent, 'kind'> & { id: string; kind: 'user' | 'assistant' | 'tool';
+   /** [PROVENANCE] The project a tool row acted on, stamped when the row is created. */
+   projectName?: string; projectRevision?: number };
+ /** `tokens`/`context` are derived from `contents` on every update so the panel can meter the provider transcript. */
+-type Conversation = { workPacket?: WorkPacket; entries: ChatEntry[]; contents: AssistantContent[]; busy: boolean; error: string | null; estimate: ContextMeasure; tokens: number; context: ContextState };
+-const empty = (): Conversation => ({ entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
++type Conversation = SavedChat & { estimate: ContextMeasure; tokens: number; context: ContextState };
++const empty = (): Conversation => ({ id: crypto.randomUUID(), updatedAt: new Date().toISOString(), entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
+ const blank = empty();
+-const useChats = create<{ records: Record<string, Conversation> }>(() => ({ records: {} }));
++const useChats = create<{ records: Record<string, Conversation>; ready: Record<string, boolean> }>(() => ({ records: {}, ready: {} }));
+ const controllers = new Map<string, AbortController>();
++const histories = new Map<string, { archive: ChatArchive; revision: number; queue: Promise<void>; failure: string | null }>();
++const loads = new Map<string, Promise<void>>();
++const changingChats = new Set<string>();
++const saved = (value: Conversation): SavedChat => ({id:value.id,updatedAt:new Date().toISOString(),entries:value.entries,contents:value.contents,busy:value.busy,error:value.error,...(value.workPacket?{workPacket:value.workPacket}:{})});
++const restored = (value: SavedChat): Conversation => {
++  const thread = restoreChat(value), estimate = measureContext(thread.contents);
++  return {...thread,estimate,tokens:estimate.tokens,context:contextState(estimate.tokens,{count:estimate.count,bytes:estimate.bytes})};
++};
++function persistenceError(jobId: string, error: unknown) {
++  const message = error instanceof Error ? error.message : 'Chat history could not be saved.';
++  const h = histories.get(jobId); if(h) h.failure = message;
++  useChats.setState(s => ({records:{...s.records,[jobId]:{...(s.records[jobId]||empty()),error:message}}}));
++}
++async function ensureChat(jobId: string) {
++  if(useChats.getState().ready[jobId]) return;
++  if(loads.has(jobId)) return loads.get(jobId)!;
++  const loading = (async()=>{
++    let archive = await readChatArchive(jobId);
++    if(!archive) {
++      const threads: SavedChat[] = [];
++      for(const packet of (await listWorkPackets(jobId)).reverse()) {
++        const events = await readWorkEvents(packet.id);
++        if(!await verifyWorkJournal(packet,events)) throw Error('Saved task history failed its integrity check. Original records have been preserved.');
++        threads.push(recoverTaskChat(packet,events));
++      }
++      if(!threads.length) threads.push(saved(empty()));
++      archive = {projectId:jobId,revision:0,activeId:threads.at(-1)!.id,threads};
++    }
++    histories.set(jobId,{archive,revision:archive.revision,queue:Promise.resolve(),failure:null});
++    useChats.setState(s=>({records:{...s.records,[jobId]:restored(archive!.threads.find(t=>t.id===archive!.activeId)!)},ready:{...s.ready,[jobId]:true}}));
++  })();
++  loads.set(jobId,loading);
++  try { await loading; } catch(e) { persistenceError(jobId,e); throw e; } finally { loads.delete(jobId); }
++}
++function persist(jobId: string, value: Conversation) {
++  const h = histories.get(jobId); if(!h || h.failure) return;
++  h.archive = putChat(h.archive,saved(value));
++  const snapshot = structuredClone(h.archive);
++  h.queue = h.queue.then(async()=>{ if(h.failure)return; h.revision = await saveChatArchive(snapshot,h.revision); }).catch(e=>persistenceError(jobId,e));
++}
++async function flushChat(jobId: string) {
++  const h=histories.get(jobId); if(!h)throw Error('Chat history is still loading.');
++  await h.queue; if(h.failure)throw Error(h.failure);
++}
++async function activateChat(jobId: string, next: Conversation): Promise<boolean> {
++  if(changingChats.has(jobId)||controllers.has(jobId))return false;
++  changingChats.add(jobId);
++  try {
++    await flushChat(jobId);
++    const h=histories.get(jobId)!;
++    const archive=putChat(h.archive,saved(next));
++    const revision=await saveChatArchive(archive,h.revision);
++    h.archive={...archive,revision};h.revision=revision;
++    // Only replace the visible conversation once the new active thread is durable.
++    useChats.setState(s=>({records:{...s.records,[jobId]:next}}));
++    return true;
++  } catch(e) { persistenceError(jobId,e);throw e; }
++  finally {changingChats.delete(jobId);}
++}
+ function update(jobId: string, action: (record: Conversation) => Conversation) {
+   useChats.setState(state => {
+     const previous = state.records[jobId] || empty();
+@@ -39,13 +101,20 @@ function update(jobId: string, action: (record: Conversation) => Conversation) {
+     const tokens = applyContextFloor(estimate.tokens, readContextFloor(typeof localStorage === 'undefined' ? null : localStorage));
+     return { records: { ...state.records, [jobId]: { ...next, estimate, tokens, context: contextState(tokens, { count: estimate.count, bytes: estimate.bytes }) } } };
+   });
++  persist(jobId,useChats.getState().records[jobId]);
+ }
+ export const HANDOVER_ACKNOWLEDGEMENT = 'Understood. I have the handover; tell me what to do next.';
+ export function useAssistantChat(jobId: string) {
+   const record = useChats(state => state.records[jobId] || blank);
++  const historyReady = useChats(state => !!state.ready[jobId]);
++  useEffect(() => { void ensureChat(jobId).catch(()=>{}); },[jobId]);
+   useEffect(() => () => { controllers.get(jobId)?.abort(); }, [jobId]);
+   /** `allowProjectEdits` is kept for callers that still pass it; the permission mode (permissions.ts) is what decides. */
+   const send = async (text: string, images: ChatImage[], allowProjectEdits = false, fileContext = '', onAccepted?: () => void) => {
++    const provider = useAssistantProvider.getState().provider;
++    await ensureChat(jobId);
++    await flushChat(jobId);
++    if(changingChats.has(jobId))throw Error('Wait for the saved conversation to open.');
+     const editsDeclared = allowProjectEdits || usePermissions.getState().mode !== 'readonly';
+     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
+     const initial = useChats.getState().records[jobId] || empty();
+@@ -77,20 +146,21 @@ export function useAssistantChat(jobId: string) {
+     try {
+       // The user entry is already visible. Release the composer before any model or tool work.
+       onAccepted?.();
++      await flushChat(jobId);
+       governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents);
+       const session = await getAssistantMcp();
+       await runConversation({
+         contents, signal: controller.signal, execution: readExecutionBudget(localStorage),
+-        declarations: session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
++        declarations: session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared) && providerSupportsTool(provider, tool.name)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
+         turn: async (request, signal) => {
+           const prepared = await governed!.prepare(request);
+-          const response = await assistantTurn(prepared, signal);
++          const response = await assistantTurn(prepared, signal, provider);
+           await governed!.response(response);
+           return response;
+         },
+         call: async (name, args, signal) => {
+           // Ask / edit freely / read only, plus per-call prompts in ask mode (permissions.ts). A refusal is a tool error the model can read.
+-          return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: true }),
++          return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: true, provider }),
+             () => allowProjectEdits ? Promise.resolve(null) : gateToolCall(name, args, signal));
+         },
+         assertContext: () => { const current = useStudio.getState(); if (current.job.id !== jobId || current.persistenceRecoveryBlocked) throw Error('Project changed or recovery is active. Assistant stopped before the next action.'); },
+@@ -98,8 +168,8 @@ export function useAssistantChat(jobId: string) {
+         // [PROVENANCE] Every tool row records the project it acted on and that project's revision
+         // afterwards, so the transcript itself proves which job each action touched. Read from the
+         // live store at emit time rather than from the closure, so a stale value cannot be recorded.
+-        emit: event => update(jobId, value => ({ ...value, entries: [...value.entries, { ...event, id: crypto.randomUUID(),
+-          ...(event.kind === 'tool' ? { projectName: useStudio.getState().job.name, projectRevision: useStudio.getState().job.revision } : {}) }] })),
++        emit: event => update(jobId, value => ({ ...value, entries: appendChatEvent(value.entries, { ...event, id: crypto.randomUUID(),
++          ...(event.kind === 'tool' ? { projectName: useStudio.getState().job.name, projectRevision: useStudio.getState().job.revision } : {}) }) })),
+         checkpoint: history => update(jobId, value => ({ ...value, contents: structuredClone(history) })),
+       });
+       return true;
+@@ -113,6 +183,7 @@ export function useAssistantChat(jobId: string) {
+         catch (error) { update(jobId, value => ({ ...value, error: error instanceof Error ? error.message : 'Task checkpoint could not be saved. Review before retrying.' })); }
+       }
+       controllers.delete(jobId); update(jobId, value => ({ ...value, busy: false }));
++      await histories.get(jobId)?.queue;
+       // [SC-22 capture] begin
+       // One entry per completed turn. Only the entries this turn added are read, so a long chat
+       // never re-summarises its own history. captureTurn swallows a storage failure (contextCapture.ts)
+@@ -159,24 +230,32 @@ export function useAssistantChat(jobId: string) {
+    * receipts, the last reply and any outstanding pause) becomes the first visible entry and a seed
+    * user/model exchange in the transcript. Nothing is sent to the provider until the next message.
+    */
+-  const continueInNewChat = () => {
++  const continueInNewChat = async () => {
++    await ensureChat(jobId); await flushChat(jobId);
+     const current = useChats.getState().records[jobId] || empty();
+     if (current.busy || controllers.has(jobId)) return false;
+     const handover = buildHandover({ jobId, entries: current.entries, contents: current.contents, reason: current.error });
+-    update(jobId, () => ({
++    const next: Conversation = {
+       ...empty(),
+       entries: [{ id: crypto.randomUUID(), kind: 'assistant', text: `${HANDOVER_CONTINUED_PREFIX}\n${handover}` }],
+       contents: [
+         { role: 'user', parts: [{ text: `${handover}\n(This handover was carried over automatically; treat it as context, not as a new instruction.)` }] },
+         { role: 'model', parts: [{ text: HANDOVER_ACKNOWLEDGEMENT }] },
+       ],
+-    }));
+-    return true;
++    };
++    return activateChat(jobId,next);
+   };
+   return {
+-    ...record, send, postLocalExchange,
+-    continueInNewChat: () => { const ok = continueInNewChat(); if (ok) usePermissions.getState().resetChatGrants(); return ok; },
++    ...record, send, postLocalExchange, loadingHistory: !historyReady,
++    history: (histories.get(jobId)?.archive.threads || []).slice().reverse().map(t=>({id:t.id,title:chatTitle(t),updatedAt:t.updatedAt,active:t.id===record.id})),
++    restoreHistory: async (id: string) => {
++      if(controllers.has(jobId)||record.busy)return false;
++      await ensureChat(jobId); await flushChat(jobId);
++      const thread=histories.get(jobId)?.archive.threads.find(t=>t.id===id);if(!thread)return false;
++      const ok=await activateChat(jobId,restored(thread));if(ok)usePermissions.getState().resetChatGrants();return ok;
++    },
++    continueInNewChat: async () => { const ok = await continueInNewChat(); if (ok) usePermissions.getState().resetChatGrants(); return ok; },
+     stop: () => controllers.get(jobId)?.abort(),
+-    clear: () => { if (!record.busy) { update(jobId, () => empty()); usePermissions.getState().resetChatGrants(); } },
++    clear: async () => { if(record.busy||controllers.has(jobId))return false; await ensureChat(jobId);const ok=await activateChat(jobId,empty());if(ok)usePermissions.getState().resetChatGrants();return ok; },
+   };
+ }
+diff --git a/src/studio/assistantPanel.css b/src/studio/assistantPanel.css
+index 23ad7e6..bbd8d5d 100644
+--- a/src/studio/assistantPanel.css
++++ b/src/studio/assistantPanel.css
+@@ -922,3 +922,9 @@
+   margin: 0;
+   text-align: right;
+ }
++.assistant-chat-history { display: grid; gap: 8px; padding: 12px; }
++.assistant-chat-history > button { display: grid; gap: 4px; min-height: 44px; text-align: left; padding: 10px; border: 1px solid var(--assistant-edge); border-radius: 8px; background: var(--assistant-paper); color: var(--assistant-ink); overflow-wrap: anywhere; }
++.assistant-chat-history > button[aria-current="true"] { background: var(--assistant-soft); }
++.assistant-chat-history > button > span { color: var(--assistant-muted); font-size: 11px; }
++.live-assistant-context > button { margin-left: auto; min-height: 28px; padding: 4px 8px; border: 1px solid var(--assistant-edge); border-radius: 8px; background: var(--assistant-paper); color: var(--assistant-ink); }
++@media (pointer: coarse) { .live-assistant-context > button { min-height: 44px; } }
+diff --git a/src/studio/assistant/chatHistory.ts b/src/studio/assistant/chatHistory.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/assistant/chatHistory.ts
+@@ -0,0 +1,94 @@
++import { z } from 'zod';
++import { assistantContentSchema, assistantSourceSchema } from './contract.ts';
++import { workPacketSchema, type WorkPacket } from './workPacket.ts';
++import type { ChatEntry } from './useAssistantChat.ts';
++import type { AssistantContent } from './contract.ts';
++import type { WorkEvent } from './workPacketStore.ts';
++
++export type SavedChat = { id: string; updatedAt: string; entries: ChatEntry[]; contents: AssistantContent[]; error: string | null; busy: boolean; workPacket?: WorkPacket };
++export type ChatArchive = { projectId: string; revision: number; activeId: string; threads: SavedChat[] };
++const entrySchema = z.object({ id: z.string(), kind: z.enum(['user','assistant','tool']), text: z.string(),
++  images: z.array(z.object({data:z.string(),mimeType:z.enum(['image/png','image/jpeg','image/webp'])})).optional(),
++  sources:z.array(assistantSourceSchema).optional(),toolName:z.string().optional(),toolCallId:z.string().optional(),failed:z.boolean().optional(),
++  projectName:z.string().optional(),projectRevision:z.number().int().positive().optional(),
++}).strict();
++const threadSchema = z.object({ id: z.string(), updatedAt: z.string(), entries: z.array(entrySchema), contents: z.array(assistantContentSchema), error: z.string().nullable(), busy: z.boolean(), workPacket: workPacketSchema.optional() });
++const archiveSchema = z.object({ projectId: z.string(), revision: z.number().int().nonnegative(), activeId: z.string(), threads: z.array(threadSchema) });
++
++export function parseChatArchive(value: unknown, projectId: string): ChatArchive {
++  const archive = archiveSchema.parse(value) as ChatArchive;
++  if (archive.projectId !== projectId || !archive.threads.some(t => t.id === archive.activeId)
++    || new Set(archive.threads.map(t => t.id)).size !== archive.threads.length
++    || archive.threads.some(t => t.workPacket && t.workPacket.projectId !== projectId)) throw Error('Chat history belongs to a different project or is incomplete. Saved records were preserved.');
++  return archive;
++}
++export function restoreChat(thread: SavedChat): SavedChat {
++  if (!thread.busy) return thread;
++  return { ...thread, busy: false, error: 'This response was interrupted by a reload. Completed actions remain; review the saved task before continuing.',
++    entries: thread.entries.map(e => e.kind === 'tool' && /^Running .*…$/.test(e.text)
++      ? { ...e, failed: true, text: 'Response interrupted. Check the saved task and current state before retrying.' } : e) };
++}
++export function putChat(archive: ChatArchive, thread: SavedChat): ChatArchive {
++  return { ...archive, activeId: thread.id, threads: [...archive.threads.filter(t => t.id !== thread.id), thread] };
++}
++export const chatTitle = (thread: Pick<SavedChat, 'entries'>) => thread.entries.find(e => e.kind === 'user')?.text.slice(0, 90) || 'New chat';
++
++function open(): Promise<IDBDatabase> {
++  return new Promise((resolve,reject) => {
++    const request = indexedDB.open('xray-chat-history-v1',1);
++    request.onupgradeneeded = () => request.result.createObjectStore('projects',{keyPath:'projectId'});
++    request.onsuccess = () => resolve(request.result);
++    request.onerror = () => reject(request.error || Error('Chat storage unavailable.'));
++    request.onblocked = () => reject(Error('Chat storage is blocked by another window.'));
++  });
++}
++export async function readChatArchive(projectId: string): Promise<ChatArchive | null> {
++  const db = await open();
++  try { return await new Promise((resolve,reject) => {
++    const request = db.transaction('projects').objectStore('projects').get(projectId);
++    request.onsuccess = () => { try { resolve(request.result === undefined ? null : parseChatArchive(request.result,projectId)); } catch(e) { reject(e); } };
++    request.onerror = () => reject(request.error);
++  }); } finally { db.close(); }
++}
++/** Atomic version check prevents another tab from silently overwriting this project's chats. */
++export async function saveChatArchive(archive: ChatArchive, expectedRevision: number): Promise<number> {
++  parseChatArchive(archive,archive.projectId);
++  const db = await open();
++  try { return await new Promise((resolve,reject) => {
++    const tx = db.transaction('projects','readwrite'), store = tx.objectStore('projects');
++    let reason: unknown;
++    const request = store.get(archive.projectId);
++    request.onsuccess = () => {
++      try {
++        const current = request.result === undefined ? null : parseChatArchive(request.result,archive.projectId);
++        if ((current?.revision ?? 0) !== expectedRevision) throw Error('Chat history changed in another window. Reload to read the saved conversation; this window has not overwritten it.');
++        store.put({ ...archive, revision: expectedRevision + 1 });
++      } catch(e) { reason=e; tx.abort(); }
++    };
++    tx.oncomplete = () => resolve(expectedRevision + 1);
++    tx.onabort = () => reject(reason || tx.error || Error('Chat could not be saved.'));
++    tx.onerror = () => {};
++  }); } finally { db.close(); }
++}
++
++/** Recover older task journals once, without inventing missing replies or replaying any action. */
++export function recoverTaskChat(packet: WorkPacket, events: WorkEvent[]): SavedChat {
++  const entries: ChatEntry[] = [{id:packet.id+':user',kind:'user',text:packet.objective}];
++  for (const event of events) {
++    const payload = event.payload as Record<string, unknown>;
++    if (event.kind === 'model-response-unreviewed') {
++      const parsed = assistantContentSchema.safeParse(payload.content);
++      if (!parsed.success) continue;
++      const text = parsed.data.parts.filter(p => !p.thought).map(p => p.text || '').join('\n').trim();
++      if (text) entries.push({id:event.id,kind:'assistant',text});
++    } else if (event.kind === 'tool-result') {
++      const result = payload.result as { isError?: boolean; content?: {type:string;text?:string;data?:string;mimeType?:string}[] };
++      if (!result || !Array.isArray(result.content) || typeof payload.tool !== 'string') continue;
++      entries.push({id:event.id,kind:'tool',toolName:payload.tool,failed:!!result.isError,
++        text:result.content.filter(p=>p.type==='text').map(p=>p.text||'').join('\n'),
++        projectName:packet.snapshot.projectName,projectRevision:packet.snapshot.projectRevision});
++    }
++  }
++  return {id:'recovered:'+packet.id,updatedAt:packet.updatedAt,entries,contents:[],busy:false,workPacket:packet,
++    error:'Recovered from saved task records. Earlier chat-only messages may be unavailable; recovered replies remain unreviewed.'};
++}
+diff --git a/src/studio/assistant/chatHistory.test.ts b/src/studio/assistant/chatHistory.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/assistant/chatHistory.test.ts
+@@ -0,0 +1,27 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { parseChatArchive, putChat, restoreChat, type ChatArchive, type SavedChat } from './chatHistory.ts';
++const thread = (id:string):SavedChat=>({id,updatedAt:'2026-09-10T00:00:00Z',entries:[{id:id+':u',kind:'user',text:'Keep '+id}],contents:[],error:null,busy:false});
++test('new chats retain prior conversations and switching history preserves every thread',()=>{
++  const first=thread('first'),second=thread('second');
++  const original:ChatArchive={projectId:'project-a',revision:0,activeId:first.id,threads:[first]};
++  const next=putChat(original,second);
++  assert.equal(next.activeId,'second');assert.equal(next.threads.length,2);
++  const restored=putChat(next,first);
++  assert.equal(restored.activeId,'first');assert.equal(restored.threads.length,2);
++  assert.deepEqual(original.threads,[first]);
++});
++test('restoring an interrupted response does not leave a tool permanently working',()=>{
++  const value=thread('a');value.busy=true;value.entries.push({id:'tool',kind:'tool',toolName:'save_project',text:'Running save_project…'});
++  const restored=restoreChat(value);
++  assert.equal(restored.busy,false);assert.match(restored.error!,/interrupted/);
++  assert.equal(restored.entries[1].failed,true);assert.doesNotMatch(restored.entries[1].text,/Running/);
++  assert.equal(value.busy,true);
++});
++test('foreign, incomplete or duplicate history is rejected without manufacturing an empty replacement',()=>{
++  const value:ChatArchive={projectId:'a',revision:1,activeId:'one',threads:[thread('one')]};
++  assert.equal(parseChatArchive(value,'a').threads[0].entries[0].text,'Keep one');
++  assert.throws(()=>parseChatArchive(value,'b'));
++  assert.throws(()=>parseChatArchive({...value,activeId:'missing'},'a'));
++  assert.throws(()=>parseChatArchive({...value,threads:[thread('one'),thread('one')]},'a'));
++});

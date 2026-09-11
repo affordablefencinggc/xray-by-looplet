@@ -1,11 +1,34 @@
 import { DEFAULT_EXECUTION_BUDGET } from './executionBudget.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runConversation, type ChatEvent } from './conversation.ts';
+import { appendChatEvent, runConversation, type ChatEvent } from './conversation.ts';
 import type { AssistantContent, AssistantRequest, AssistantResponse } from './contract.ts';
 const declaration = { name: 'draw', description: 'Draw fixture', parametersJsonSchema: { type: 'object' } };
 const initial: AssistantContent[] = [{ role: 'user', parts: [{ text: 'Draw a wall' }] }];
 const response = (request: AssistantRequest, parts: AssistantResponse['content']['parts']): AssistantResponse => ({ requestId: request.requestId, content: { role: 'model', parts }, model: 'gemini-test', sources: [] });
+
+test('repeated tool calls replace their own progress row, including a failed call', async () => {
+  let entries: (ChatEvent & { id: string })[] = [], turns = 0, calls = 0;
+  const runningIds: string[] = [];
+  await runConversation({ contents: initial, declarations: [declaration], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {},
+    emit: event => {
+      const id = crypto.randomUUID();
+      if (event.text.startsWith('Running ')) runningIds.push(id);
+      entries = appendChatEvent(entries, { ...event, id });
+    },
+    turn: async request => ++turns === 1
+      ? response(request, [1, 2].map(() => ({ functionCall: { name: 'draw', args: {} } })))
+      : response(request, [{ text: 'One completed, one refused.' }]),
+    call: async () => ({ isError: ++calls === 2, content: [{ type: 'text', text: calls === 1 ? 'Saved' : 'Stale revision' }] }),
+  });
+  const rows = entries.filter(e => e.kind === 'tool');
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(e => e.id), runningIds);
+  assert.notEqual(rows[0].toolCallId, rows[1].toolCallId);
+  assert.deepEqual(rows.map(e => [e.text, e.failed]), [['Saved', false], ['Stale revision', true]]);
+  assert.equal(entries.some(e => e.text.startsWith('Running ')), false);
+});
 
 test('routing suppresses premature final success and returns the required step to the model', async () => {
   let turns = 0, executed = false;

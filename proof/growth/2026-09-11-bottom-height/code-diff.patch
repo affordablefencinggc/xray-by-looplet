@@ -1,0 +1,84 @@
+diff --git a/.temp/height-before/assistantPanel.css b/src/studio/assistantPanel.css
+index bbd8d5d..a8e44b6 100644
+--- a/.temp/height-before/assistantPanel.css
++++ b/src/studio/assistantPanel.css
+@@ -1,3 +1,5 @@
++:root { --workspace-bottom-bar-height: 38px; }
++@media (pointer: coarse) { :root { --workspace-bottom-bar-height: 44px; } }
+ .workspace-rails,
+ .live-assistant {
+   --assistant-bg: #e2e6eb;
+@@ -875,7 +877,8 @@
+ }
+ .live-assistant:not(.is-open) .live-assistant-launcher {
+   width: 100%;
+-  height: 38px;
++  height: var(--workspace-bottom-bar-height);
++  min-height: var(--workspace-bottom-bar-height);
+   padding: 0 18px;
+   border-radius: 0;
+   border-left: 0;
+@@ -893,7 +896,7 @@
+ }
+ /* [SC-19 rail seam] end */
+ @media (pointer: coarse) {
+-  .live-assistant:not(.is-open) .live-assistant-launcher { height: 44px; }
++  .live-assistant:not(.is-open) .live-assistant-launcher { height: var(--workspace-bottom-bar-height); }
+ }
+ .live-assistant.is-open .live-assistant-launcher {
+   width: 170px;
+diff --git a/.temp/height-before/WorkspaceDiagnostics.tsx b/src/studio/WorkspaceDiagnostics.tsx
+index 642efbb..1102037 100644
+--- a/.temp/height-before/WorkspaceDiagnostics.tsx
++++ b/src/studio/WorkspaceDiagnostics.tsx
+@@ -14,6 +14,7 @@ const TABS = ["Logs", "Console", "Errors", "Status"] as const;
+ const buildId = import.meta.env.VITE_XRAY_BUILD_ID;
+ const buildLabel = typeof buildId === "string" && /^[a-f0-9]{12}$/.test(buildId)
+   ? `Build ${buildId}` : import.meta.env.DEV ? "Development" : "Build not identified";
++const collapsedBarHeight = () => typeof document === 'undefined' ? 38 : Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--workspace-bottom-bar-height')) || 38;
+ type Tab = (typeof TABS)[number];
+ 
+ /** Mounted once in the central workspace; session diagnostics never leave this browser. */
+@@ -26,7 +27,7 @@ export function WorkspaceDiagnostics() {
+   const drag = useRef<{ y: number; height: number; moved: boolean } | null>(null),
+     suppressClick = useRef(false);
+   const resizeDrawer = (value: number) => {
+-    const next = Math.max(22, Math.min(600, innerHeight * 0.65, value));
++    const next = Math.max(collapsedBarHeight(), Math.min(600, innerHeight * 0.65, value));
+     setExpanded(next > 45);
+     if (next > 45) setDrawerHeight(Math.max(100, next));
+   };
+@@ -195,7 +196,7 @@ export function WorkspaceDiagnostics() {
+         onPointerDown={(e) => {
+           if (e.button !== 0) return;
+           suppressClick.current = false;
+-          drag.current = { y: e.clientY, height: expanded ? drawerHeight : 22, moved: false };
++          drag.current = { y: e.clientY, height: expanded ? drawerHeight : collapsedBarHeight(), moved: false };
+           (e.target as HTMLElement).setPointerCapture(e.pointerId);
+         }}
+         onPointerMove={(e) => {
+@@ -226,9 +227,9 @@ export function WorkspaceDiagnostics() {
+           tabIndex={0}
+           aria-label="Resize bottom panel"
+           aria-orientation="horizontal"
+-          aria-valuemin={22}
++          aria-valuemin={collapsedBarHeight()}
+           aria-valuemax={600}
+-          aria-valuenow={expanded ? drawerHeight : 22}
++          aria-valuenow={expanded ? drawerHeight : collapsedBarHeight()}
+           onKeyDown={(e) => {
+             if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+               e.preventDefault();
+diff --git a/.temp/height-before/workflowNavigation.css b/src/studio/workflowNavigation.css
+index cbcf4ba..971e7b7 100644
+--- a/.temp/height-before/workflowNavigation.css
++++ b/src/studio/workflowNavigation.css
+@@ -23,5 +23,8 @@
+ .workspace-rails[data-pane="sheets"] .source-ingest { width: min(100%, 680px); margin: 24px auto; min-height: 0; }
+ .workspace-rails .workspace-diagnostics[data-expanded="false"] .workspace-diagnostics-toggle { flex: 0 0 auto; justify-content: flex-start; width: auto; margin-left: 0; gap: 8px; padding-inline: 12px; }
+ .workspace-rails .workspace-diagnostics[data-expanded="true"] .workspace-diagnostics-toggle { width: auto; gap: 8px; padding-inline: 12px; }
++.workspace-rails .workspace-diagnostics[data-expanded="false"] { height: var(--workspace-bottom-bar-height); min-height: var(--workspace-bottom-bar-height); }
++.workspace-rails .workspace-diagnostics[data-expanded="false"] .workspace-diagnostics-bar,
++.workspace-rails .workspace-diagnostics[data-expanded="false"] .workspace-diagnostics-bar button { height: calc(var(--workspace-bottom-bar-height) - 1px); min-height: calc(var(--workspace-bottom-bar-height) - 1px); }
+ @media (max-width: 1100px) { .workflow-context-hint { display: none; } .workbench .studio-brand > span:last-child { display: none; } }
+ @media (max-width: 700px) { .workflow-nav, .workflow-context { overflow-x: auto; padding-inline: 8px; } .workflow-nav button { padding-inline: 12px; } .project-identity button { max-width: 160px; } }

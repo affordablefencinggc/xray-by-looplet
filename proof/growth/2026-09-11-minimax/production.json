@@ -1,0 +1,13 @@
+[
+ ["navigate","http://127.0.0.1:8081"],
+ ["wait","!!document.querySelector('.live-assistant-launcher')"],
+ ["eval","localStorage.setItem('xray:assistant-provider:v1','gemini')"],
+ ["navigate","http://127.0.0.1:8081"],
+ ["wait","!!document.querySelector('.live-assistant-launcher')"],
+ ["eval","document.querySelector('.live-assistant-launcher').click()"],
+ ["wait","document.querySelector('.assistant-provider-name')?.textContent==='MiniMax'"],
+ ["eval","(()=>{const urls=performance.getEntriesByType('resource').map(e=>e.name);if(urls.some(u=>u.includes('/api/assistant-ai')))throw Error('Gemini status requested');return urls.filter(u=>u.includes('/api/minimax-ai'))})()"],
+ ["screenshot","minimax-default.png"],
+ ["errors"]
+]
+

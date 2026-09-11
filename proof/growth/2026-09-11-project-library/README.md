@@ -1,0 +1,27 @@
+# Project library lifecycle — B-01, B-04, B-07
+
+Latest verified source: `9e2e87d46bf659108278e4eb6ddc29b81ada7672988358bf5b4f6bd3031c5be3`. This supersedes the intermediate snapshots below after adding strict registry reads to project creation/open. `completion-complete.json` passes all build gates; `focused-tests-complete.log` passes 38/38 tests. `dev-complete` and `production-complete` each pass 68/68 operations, including a real UI attempt against injected damaged registry bytes, refusal and exact-byte preservation. `report-production-complete` passes 9/9 operations. Final desktop/tablet screenshots and the corruption-refusal screenshot were inspected. `code-diff.patch` includes this final safeguard.
+
+Reviewed by Codex, 2026-09-11. Branch `feat/architect-cad-engine`, baseline `82612dbdce15a5f31fb602bbbdc88f8125d3f511` with earlier user/assistant work preserved.
+
+Project → Project library now creates named projects, searches by name/ID, opens saved projects, and archives/restores inactive projects. Duplicate names keep separate IDs. Archive writes only a registry flag; shelf records, original assets, design, rates and conversations are not deleted or rewritten. Archived projects are excluded from assistant lists/tabs and refused by the switch planner until restored. An origin-wide Web Lock serializes cooperating project-management actions; changed reviews and unreadable or missing shelf records fail closed.
+
+Code: src/studio/ProjectLibrary.tsx, projectLibrary.css, projectArchive.ts, projectArchive.test.ts, projectRegistry.ts, assistant/projectSwitch.ts, Studio.tsx, LiveAssistant.tsx; package.json includes the regression suite. Incremental patch: `code-diff.patch`.
+
+DANS1 source archive SHA-256 `43a9f6a1e17890216dc1d5fd4c3ac58c5b8c1836fe36e35c72a62dbe1a12d39b`. Typecheck, focused tests and production web build passed; see completion.json. All 34 project archive/registry/switch tests passed, including invalid records, quota errors, silent failed writes, stale reads and switch rollback.
+
+Dev and production Fast CDP each passed 59/59 operations with no uncaught errors. UI created two projects both named Library proof, imported a real SVG through the file-import handler, shelved one, cancelled archive without storage changes, refused a competing held lifecycle lock, archived, reloaded, restored and opened it. Original job ID, revision 2, documents and document workspaces were asserted. All non-registry/tab localStorage bytes were unchanged by archive. Original SVG bytes were read back from IndexedDB and rehashed: SHA-256 `c3639dc86a71e9ebd602a9e62cd04fcdabd22cf7c381de1f209607cd77e2c5ed`, 295 bytes. The file chooser used a synthetic File through the actual import input, not a production import bypass.
+
+Inspected screenshots: `production/archive-review.png`, `production/archived-desktop.png`, `production/archived-tablet.png`, `production/restored-drawing-desktop.png`, `production/restored-drawing-tablet.png`. Viewports 1280×800 and 1024×768 touch emulation. White fields/cards and heading dividers match the current workspace.
+
+B-01 and B-07 are verified for this built-browser scope. B-04 remains partial: page reload/reopen is proven, a full browser-process or installed-app restart is not. Native macOS/Linux, actual tablet hardware, mixed old application versions and every module's editing lifecycle are not claimed. Archiving is reversible storage on this device, not a portable backup, recycle bin or access-control mechanism. B-08/B-09 remain open. No construction quantity, engineering approval, paid AI call, deployment, commit or installed update is claimed.
+
+## Final integrated report and library proof
+
+Final source archive `f59a593750f0b29152793f160db39c0d818a9f843d5c0185ebee674ea9d7ced2`; `completion-final.json` records passing typecheck, focused tests and production build on DANS1 at High priority/16 workers. `focused-tests.log` contains 37 passing tests (34 project lifecycle + 3 assessment parser).
+
+The report generator now reads reviewed states, checkmarks, evidence paths and current findings from PROFESSIONAL-A-Z-CHECKLIST.md. It does not overwrite that file. HTML/CSV/JSON preserve all 364 states and the two newly earned ticks; original unchecked process assessments remain unchecked. Duplicate, missing, unknown and falsely checked rows fail generation. Current state totals: 5 verified, 101 partial, 236 gaps, 21 dependency-blocked and 1 failed. These totals are not overall industry readiness. Report source changes: planning/professional-coverage/assessment.mjs, assessment.test.mjs, generate.mjs, validation.json and public/industry-coverage/{index.html,catalogue.json,requirements.csv}.
+
+`report-generation.json` proves repeated output is identical and reviewed Markdown is unchanged. `production-final/result.json` passes 59/59 library operations and `report-production/result.json` passes 9/9 report operations (state/tick counts, search, category filter, no uncaught errors). Final desktop/tablet screenshots were inspected. Report patch: `report-diff.patch`. CSV retains its established CRLF format; whitespace checking passes with Git's `cr-at-eol` setting.
+
+Initial report navigation used the directory URL and waited for content that was not served there. The corrected scenario uses `/industry-coverage/index.html`, matching the actual in-app iframe, and passes on development and production. Failed-run artifacts are retained. Owned test processes are identity-checked and stopped; cleanup reports are adjacent.

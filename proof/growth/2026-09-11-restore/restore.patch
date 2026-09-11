@@ -1,0 +1,678 @@
+diff --git a/.temp/restore-before/src/routes/index.tsx b/src/routes/index.tsx
+index d1940a4..8dac709 100644
+--- a/.temp/restore-before/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -1,8 +1,9 @@
+ import { createFileRoute } from "@tanstack/react-router";
+ import { Studio } from "@/studio/Studio";
++import { WorkspaceStartup } from "@/studio/WorkspaceStartup";
+ 
+ export const Route = createFileRoute("/")({ component: Home });
+ 
+ function Home() {
+-  return <Studio />;
++  return <WorkspaceStartup><Studio /></WorkspaceStartup>;
+ }
+diff --git a/.temp/restore-before/src/studio/BackupRestoreReview.tsx b/src/studio/BackupRestoreReview.tsx
+index 2147d32..ed6194c 100644
+--- a/.temp/restore-before/src/studio/BackupRestoreReview.tsx
++++ b/src/studio/BackupRestoreReview.tsx
+@@ -6,6 +6,8 @@ import { createBrowserPhotoStore } from "./evidence";
+ import { restoreMaterialDatabase } from "./projectMaterialsPersistence";
+ import { useStudio } from "./store";
+ import "./backupRestoreReview.css";
++import { stageWorkspaceRestore } from "./workspaceRestoreStorage";
++import { BACKUP_FORMAT } from "./projectBackup";
+ 
+ type Assessment = Awaited<ReturnType<typeof assessBackupRestore>>;
+ export function BackupRestoreReview({ backup }: { backup: ProjectBackup }) {
+@@ -42,9 +44,9 @@ export function BackupRestoreReview({ backup }: { backup: ProjectBackup }) {
+     } finally { if (ticket === generation.current) setBusy(false); }
+   }
+   return <section className="backup-restore-review" aria-label="Restore impact review" aria-busy={busy}>
+-    <h3>Review a future restore</h3>
++    <h3>Review restoration</h3>
+     <p>Check what this snapshot would replace and whether original files conflict with this device. This review does not change the editing workspace.</p>
+-    <label className="restore-rate-option"><input type="checkbox" checked={includeRates} disabled={busy} onChange={e => { setIncludeRates(e.target.checked); setReview(null); }} />Include this device's shared reference rates in the impact review</label>
++    <label className="restore-rate-option"><input type="checkbox" checked={includeRates} disabled={busy} onChange={e => { setIncludeRates(e.target.checked); setReview(null); }} />Restore shared reference rates from this snapshot (affects all projects)</label>
+     <div className="backup-actions">
+       <button className="pill" disabled={busy} onClick={() => void inspect()}>{review ? "Recheck current workspace" : "Review restore impact"}</button>
+       {review && <button className="pill" disabled={busy} onClick={() => void inspect(true)}>Start a fresh review</button>}
+@@ -59,7 +61,14 @@ export function BackupRestoreReview({ backup }: { backup: ProjectBackup }) {
+         <div><strong>{row.label}</strong><span>{row.action}</span></div><p>{row.message}</p>
+       </article>)}</div>
+       {!!review.warnings.length && <details><summary>Scope and compatibility notes ({review.warnings.length})</summary><ul>{review.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
+-      <p>Applying this snapshot is not available yet. A complete restore needs a recovery copy, protected writes and recovery after interruption. Keep the verified backup file.</p>
++      <p>Restoring replaces the listed saved records, preserves a recovery copy and reloads the workspace. Close other X-Ray tabs first. Unsaved edits and assistant chats are not included in the snapshot.</p>
++      <p>The restored project becomes active in the project library. If it is a different project, your current saved project remains in the library. Existing assistant conversations stay on this device.</p>
++      <button className="pill" disabled={busy || review.blockingIssues.length > 0 || backup.format !== BACKUP_FORMAT} onClick={() => {
++        setBusy(true); setError("");
++        void stageWorkspaceRestore(backup, review.fingerprint, includeRates).then(() => location.reload()).catch(failure => {
++          setReview(null); setError(failure instanceof Error ? failure.message : "Restore could not be prepared."); setBusy(false);
++        });
++      }}>Restore this snapshot and reload</button>
+     </>}
+   </section>;
+ }
+diff --git a/.temp/restore-before/src/studio/projectBackup.ts b/src/studio/projectBackup.ts
+index 0030f85..a1d562c 100644
+--- a/.temp/restore-before/src/studio/projectBackup.ts
++++ b/src/studio/projectBackup.ts
+@@ -17,6 +17,7 @@ export const BACKUP_FORMAT = "xray.workspace-backup/v2";
+ export const BACKUP_LEGACY_FORMAT = "xray.workspace-backup/v1";
+ export const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
+ export const BACKUP_EXCLUSIONS = [
++  "Assistant conversations and tool history (existing conversations stay on this device)",
+   "Separate construction-runtime jobs and their history",
+   "Source-model location notes, camera views and appearance settings",
+   "Unsaved form edits, undo history, accounts and credentials",
+diff --git a/.temp/restore-before/src/studio/ProjectBackups.tsx b/src/studio/ProjectBackups.tsx
+index cdfdc59..407f5ab 100644
+--- a/.temp/restore-before/src/studio/ProjectBackups.tsx
++++ b/src/studio/ProjectBackups.tsx
+@@ -87,7 +87,7 @@ function BackupLibrary({ onClose }: { onClose: () => void }) {
+         <p>Current job, document workspaces, calibration, measurements, annotations and evidence; saved design, sheet layout, quantities, recipes, reviews, materials and reference rates; every referenced original plan and photo. Missing or corrupt originals block the backup.</p>
+         <p>Not included:</p><ul>{BACKUP_EXCLUSIONS.map(item => <li key={item}>{item}</li>)}</ul>
+         <p>New packages also include saved source sheet names, order and archive state, supplier price books and their priced worksheet. Format v2 requires an updated X-Ray reader; older v1 packages can still be inspected and imported.</p>
+-        <p>Import adds a verified package to this library. Applying a package to the editing workspace is not available yet. Stored backups are not cloud sync or a staff delivery receipt.</p>
++        <p>Import adds a verified package to this library. Review a v2 snapshot before restoring it; restoration preserves a recovery copy and reloads the workspace. Stored backups are not cloud sync or a staff delivery receipt.</p>
+       </details>
+       {busy && <p role="status">Checking files and saving data…</p>}
+       {message && <p className="backup-notice" role="status">{message}</p>}
+diff --git a/.temp/restore-before/src/studio/backupRestorePreflight.ts b/src/studio/backupRestorePreflight.ts
+index 9b4dccc..96eee34 100644
+--- a/.temp/restore-before/src/studio/backupRestorePreflight.ts
++++ b/src/studio/backupRestorePreflight.ts
+@@ -54,7 +54,7 @@ export async function assessBackupRestore(
+   const target = await parseProjectBackup(serialized);
+   const current = fencingJobSchema.parse(structuredClone(ports.currentJob()));
+   const currentText = JSON.stringify(current), backupSha256 = await backupDigest(serialized);
+-  const warnings = ["Read-only impact review. No project, original file or saved setting has been changed. Applying a backup is not available.",
++  const warnings = ["Read-only impact review. No project, original file or saved setting has been changed. Restoration is a separate action and repeats these checks before writing.",
+     "This review does not acquire a write lease or create a recovery journal. Repeat it after changes; a stable fingerprint is not permission to apply."];
+   const blockingIssues: string[] = [], rows: RestoreImpactRow[] = [], targets = new Map<string, Target>();
+   const put = (value: Target) => targets.set(value.id, value);
+diff --git a/.temp/restore-before/package.json b/package.json
+index 7fc27ff..e5497fc 100644
+--- a/.temp/restore-before/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/workspaceRestore.ts b/src/studio/workspaceRestore.ts
+new file mode 100644
+index 0000000..bb9d0ac
+--- /dev/null
++++ b/src/studio/workspaceRestore.ts
+@@ -0,0 +1,93 @@
++import { z } from "zod";
++
++export const WORKSPACE_ACCESS_LOCK = "xray:editing-workspace:v1";
++const mutationSchema = z.object({ storage: z.enum(["local", "materials"]), key: z.string().min(1), label: z.string(), before: z.string().nullable(), after: z.string().nullable() }).strict();
++export type RestoreMutation = z.infer<typeof mutationSchema>;
++export const restoreOperationSchema = z.object({
++  schema: z.literal("xray.restore/v1"), id: z.string().uuid(), revision: z.number().int().positive(),
++  createdAt: z.string().datetime(), phase: z.enum(["requested", "prepared", "writing", "committed", "verified", "rolled-back", "recovery-required"]),
++  backup: z.string(), expectedFingerprint: z.string().regex(/^[a-f0-9]{64}$/), restoreReferenceRates: z.boolean(),
++  plan: z.object({ mutations: z.array(mutationSchema), recoveryBackupId: z.string().uuid(), targetId: z.string(), targetName: z.string() }).strict().optional(),
++  progress: z.number().int().nonnegative().default(0), message: z.string().default(""),
++}).strict();
++export type RestoreOperation = z.infer<typeof restoreOperationSchema>;
++export type RestorePlan = NonNullable<RestoreOperation["plan"]>;
++export type RestorePorts = {
++  prepare(operation: RestoreOperation): Promise<RestorePlan>;
++  read(mutation: RestoreMutation): Promise<string | null>;
++  compareWrite(mutation: RestoreMutation, expected: string | null, value: string | null): Promise<void>;
++  ensureAssets(backup: string): Promise<void>;
++  verifyAssets(backup: string): Promise<void>;
++  journal(next: RestoreOperation, expectedRevision: number): Promise<void>;
++};
++const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e);
++class JournalSaveError extends Error {}
++
++/** All calls run under an exclusive workspace lock, before any editor hydrates. */
++export async function executeWorkspaceRestore(initial: RestoreOperation, ports: RestorePorts): Promise<RestoreOperation> {
++  let operation = restoreOperationSchema.parse(initial);
++  const save = async (change: Partial<RestoreOperation>) => {
++    const next = restoreOperationSchema.parse({ ...operation, ...change, revision: operation.revision + 1 });
++    try { await ports.journal(next, operation.revision); }
++    catch (error) { throw new JournalSaveError(`Restore journal acknowledgement failed. Reload to recover its saved state. ${messageOf(error)}`); }
++    operation = next;
++  };
++  const check = async (side: "before" | "after") => {
++    if (!operation.plan) throw Error("Restore journal has no validated storage plan.");
++    for (const item of operation.plan.mutations) if (await ports.read(item) !== item[side])
++      throw Error(`${item.label} no longer matches the ${side === "before" ? "previous" : "restored"} snapshot. Saved data has been preserved.`);
++  };
++  const rollback = async (reason: string) => {
++    if (!operation.plan) throw Error("Restore journal is missing its recovery plan.");
++    try {
++      // Active job is last in the plan and therefore restored last too. No editor can mount mid-replay.
++      for (const item of operation.plan.mutations) {
++        const actual = await ports.read(item);
++        if (actual === item.before) continue;
++        if (actual !== item.after) throw Error(`${item.label} was changed outside this restore. Recovery will not overwrite it.`);
++        await ports.compareWrite(item, item.after, item.before);
++      }
++      await check("before");
++      await save({ phase: "rolled-back", message: `Previous saved workspace recovered. ${reason}` });
++    } catch (failure) {
++      await save({ phase: "recovery-required", message: `Editing is paused: ${messageOf(failure)}` });
++    }
++    return operation;
++  };
++
++  // An interrupted write never resumes into a half-old/half-new editable workspace.
++  if (["prepared", "writing", "recovery-required"].includes(operation.phase)) return rollback("An earlier restore was interrupted.");
++  if (operation.phase === "rolled-back") { await check("before"); return operation; }
++  if (operation.phase === "verified") {
++    await check("after"); await ports.verifyAssets(operation.backup); return operation;
++  }
++  if (operation.phase === "committed") {
++    await check("after"); await ports.ensureAssets(operation.backup); await ports.verifyAssets(operation.backup);
++    await save({ phase: "verified", message: "Restored project and original files verified. Open the workspace to continue." });
++    return operation;
++  }
++
++  // Preparation may fail without touching any active record. The pending request remains cancellable.
++  const plan = await ports.prepare(operation);
++  await save({ plan, phase: "prepared", message: "Recovery copy and write journal saved." });
++  try {
++    await check("before");
++    await ports.ensureAssets(operation.backup);
++    await save({ phase: "writing", message: "Restoring saved project records." });
++    for (const [index, item] of plan.mutations.entries()) {
++      await ports.compareWrite(item, item.before, item.after);
++      if (await ports.read(item) !== item.after) throw Error(`${item.label} was not confirmed saved.`);
++      await save({ progress: index + 1 });
++    }
++    await check("after"); await ports.verifyAssets(operation.backup);
++    await save({ phase: "committed", message: "Restored snapshot committed." });
++  } catch (error) {
++    // A rejected acknowledgement may still have committed. Stop writing and let startup
++    // read the durable phase; never roll back on an assumption about journal success.
++    if (error instanceof JournalSaveError) throw error;
++    return rollback(messageOf(error));
++  }
++  // After a durable commit, a failed acknowledgement is retried on startup rather than rolled back.
++  await save({ phase: "verified", message: "Restored project and original files verified. Open the workspace to continue." });
++  return operation;
++}
+diff --git a/src/studio/workspaceRestorePlan.ts b/src/studio/workspaceRestorePlan.ts
+new file mode 100644
+index 0000000..666f951
+--- /dev/null
++++ b/src/studio/workspaceRestorePlan.ts
+@@ -0,0 +1,74 @@
++import { fencingJobSchema } from "./domain.ts";
++import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
++import { architectKey } from "./architect/persistence.ts";
++import { bomStorageKey } from "./bomPersistence.ts";
++import { inventoryStorageKey } from "./construction/inventoryPersistence.ts";
++import { fencingRecipeStorageKey } from "./fencingRecipePersistence.ts";
++import { takeoffKey } from "./construction/altitudeTakeoff.ts";
++import { trialKey } from "./construction/connectionTrial.ts";
++import { priceBookKey } from "./pricing/priceBooks.ts";
++import { sheetLifecycleStorageKey, sheetSourceIdentity, validateJobSheetMetadata } from "./sheetLifecycle.ts";
++import { PROJECT_REGISTRY_KEY, readRegistryStrict, serializeRegistry, shelfKey, upsertEntry } from "./projectRegistry.ts";
++import { BACKUP_FORMAT, type ProjectBackup } from "./projectBackup.ts";
++import type { RestoreMutation, RestoreOperation } from "./workspaceRestore.ts";
++
++/** One explicit address list serves preparation and replay validation. No arbitrary storage keys. */
++export async function planRestoreMutations(backup: ProjectBackup, includeRates: boolean,
++  read: (storage: RestoreMutation["storage"], key: string) => Promise<string | null>): Promise<RestoreMutation[]> {
++  if (backup.format !== BACKUP_FORMAT) throw Error("This older package can be inspected, but restoration requires a v2 package.");
++  const currentRaw = await read("local", FENCING_JOB_STORAGE_KEY);
++  if (!currentRaw) throw Error("Save the current workspace before restoring a backup.");
++  const current = fencingJobSchema.parse(JSON.parse(currentRaw)), target = backup.job;
++  const mutations: RestoreMutation[] = [];
++  const add = async (storage: RestoreMutation["storage"], key: string, label: string, after: string | null) => {
++    mutations.push({ storage, key, label, before: await read(storage, key), after });
++  };
++  const modules = [
++    [architectKey(target.id), "Architectural design", backup.records.architecture],
++    [bomStorageKey(target.id), "BOM", backup.records.bom],
++    [inventoryStorageKey(target.id), "Component inventory", backup.records.components],
++    [fencingRecipeStorageKey(target.id), "Recipes", backup.records.recipes],
++    [takeoffKey(target.id), "Source takeoff", backup.records.sourceTakeoff],
++    [trialKey(target.id), "Connection review", backup.records.connectionReview],
++    [priceBookKey(target.id), "Supplier price books", backup.records.priceBooks ?? null],
++  ] as const;
++  for (const [key, label, after] of modules) await add("local", key, label, after);
++  await add("materials", target.id, "Project materials", backup.records.materials);
++  const sheets = new Map(validateJobSheetMetadata(backup.records.sheetMetadata ?? null, target).map(v => [sheetLifecycleStorageKey(v.identity), JSON.stringify(v)]));
++  const sheetKeys = new Set(sheets.keys());
++  for (const owner of current.id === target.id ? [current, target] : [target]) for (const doc of owner.documents) {
++    const identity = sheetSourceIdentity(owner.id, doc); if (identity) sheetKeys.add(sheetLifecycleStorageKey(identity));
++  }
++  for (const key of [...sheetKeys].sort()) await add("local", key, "Sheet organisation", sheets.get(key) ?? null);
++  if (includeRates) await add("local", "xray.price-sheet.v1", "Shared reference rates", backup.records.referenceRates);
++  const registryRaw = await read("local", PROJECT_REGISTRY_KEY);
++  let registry = readRegistryStrict({ getItem: () => registryRaw, setItem() {}, removeItem() {} });
++  registry = upsertEntry(upsertEntry(registry, current), target);
++  registry = { ...registry, entries: registry.entries.map(v => v.id === target.id ? { ...v, archived: false } : v) };
++  if (current.id !== target.id) await add("local", shelfKey(current.id), "Previous project shelf", currentRaw);
++  await add("local", shelfKey(target.id), "Restored project shelf", null);
++  await add("local", PROJECT_REGISTRY_KEY, "Project library", serializeRegistry(registry));
++  await add("local", FENCING_JOB_STORAGE_KEY, "Active editing project", JSON.stringify(target));
++  return mutations;
++}
++
++export async function validateRestorePlan(operation: RestoreOperation, backup: ProjectBackup) {
++  if (!operation.plan) {
++    if (operation.phase !== "requested") throw Error("Recovery journal is missing its write plan.");
++    return;
++  }
++  if (operation.phase === "requested") throw Error("Unprepared request contains a write plan.");
++  const before = new Map<string, string | null>();
++  for (const item of operation.plan.mutations) {
++    const id = `${item.storage}:${item.key}`;
++    if (before.has(id)) throw Error("Recovery journal contains duplicate storage addresses.");
++    before.set(id, item.before);
++  }
++  const expected = await planRestoreMutations(backup, operation.restoreReferenceRates, async (storage, key) => {
++    const id = `${storage}:${key}`;
++    if (!before.has(id)) throw Error("Recovery journal is incomplete.");
++    return before.get(id)!;
++  });
++  if (JSON.stringify(expected) !== JSON.stringify(operation.plan.mutations) || operation.plan.targetId !== backup.job.id || operation.plan.targetName !== backup.job.name)
++    throw Error("Recovery journal does not match its verified package and allowed storage addresses.");
++}
+diff --git a/src/studio/workspaceRestoreStorage.ts b/src/studio/workspaceRestoreStorage.ts
+new file mode 100644
+index 0000000..86afd3d
+--- /dev/null
++++ b/src/studio/workspaceRestoreStorage.ts
+@@ -0,0 +1,180 @@
++import { backupDigest, captureProjectBackup, decodeBackupBytes, parseProjectBackup, type ProjectBackup } from "./projectBackup.ts";
++import { readBackupRecords, readProjectBackup, storeProjectBackup } from "./projectBackupStorage.ts";
++import { assessBackupRestore } from "./backupRestorePreflight.ts";
++import { planRestoreMutations, validateRestorePlan } from "./workspaceRestorePlan.ts";
++import { restoreOperationSchema, type RestoreMutation, type RestoreOperation, type RestorePorts } from "./workspaceRestore.ts";
++import { loadFencingJob } from "./persistence.ts";
++import { createBrowserPlanStore } from "./documents.ts";
++import { createBrowserPhotoStore, PHOTO_CONTENT_DB, PHOTO_CONTENT_STORE } from "./evidence.ts";
++import { PLAN_CONTENT_DB, PLAN_CONTENT_STORE } from "./documentContract.ts";
++import { MATERIALS_DB, restoreMaterialDatabase } from "./projectMaterialsPersistence.ts";
++
++export const RESTORE_DATABASE = "xray-workspace-restore-v1";
++const JOURNAL_STORE = "journal";
++type Envelope = { serialized: string; sha256: string };
++
++async function transaction<T>(database: string, storeName: string, keyPath: string | undefined, mode: IDBTransactionMode,
++  issue: (store: IDBObjectStore, done: (v: T) => void, fail: (e: Error) => void) => void): Promise<T> {
++  const db = await new Promise<IDBDatabase>((resolve, reject) => {
++    const request = indexedDB.open(database, 1);
++    request.onupgradeneeded = () => request.result.createObjectStore(storeName, keyPath ? { keyPath } : undefined);
++    request.onerror = () => reject(request.error ?? Error("Workspace storage could not be opened."));
++    request.onblocked = () => reject(Error("Another X-Ray window is blocking workspace storage."));
++    request.onsuccess = () => resolve(request.result);
++  });
++  try {
++    return await new Promise<T>((resolve, reject) => {
++      const tx = db.transaction(storeName, mode); let result: T, failure: Error | undefined;
++      tx.oncomplete = () => resolve(result);
++      tx.onabort = () => reject(failure ?? tx.error ?? Error("Workspace storage transaction failed."));
++      tx.onerror = () => {};
++      const fail = (e: Error) => { failure = e; tx.abort(); };
++      try { issue(tx.objectStore(storeName), v => { result = v; }, fail); } catch (e) { fail(e instanceof Error ? e : Error(String(e))); }
++    });
++  } finally { db.close(); }
++}
++const journalTransaction = <T>(mode: IDBTransactionMode, issue: Parameters<typeof transaction<T>>[4]) => transaction(RESTORE_DATABASE, JOURNAL_STORE, undefined, mode, issue);
++async function decodeEnvelope(value: unknown): Promise<RestoreOperation> {
++  const envelope = value as Envelope | undefined;
++  if (!envelope || typeof envelope.serialized !== "string" || await backupDigest(envelope.serialized) !== envelope.sha256)
++    throw Error("Restore journal failed integrity checks. Editing is paused; stored data is preserved.");
++  const operation = restoreOperationSchema.parse(JSON.parse(envelope.serialized));
++  const backup = await parseProjectBackup(operation.backup);
++  await validateRestorePlan(operation, backup);
++  return operation;
++}
++export async function readPendingRestore(): Promise<RestoreOperation | null> {
++  const value = await journalTransaction<unknown>("readonly", (store, done, fail) => {
++    const pointer = store.get("active");
++    pointer.onsuccess = () => {
++      if (pointer.result === undefined) { done(null); return; }
++      if (typeof pointer.result !== "string") { fail(Error("Restore journal pointer is unreadable.")); return; }
++      const record = store.get(pointer.result); record.onsuccess = () => {
++        if (!record.result) { fail(Error("Pending restore journal is missing. Editing remains paused.")); return; }
++        done(record.result);
++      };
++    };
++  });
++  return value === null ? null : decodeEnvelope(value);
++}
++async function writeJournal(next: RestoreOperation, previous: RestoreOperation | null) {
++  const serialized = JSON.stringify(restoreOperationSchema.parse(next));
++  const envelope: Envelope = { serialized, sha256: await backupDigest(serialized) };
++  await journalTransaction<void>("readwrite", (store, done, fail) => {
++    const pointer = store.get("active"); pointer.onsuccess = () => {
++      if (!previous) {
++        if (pointer.result !== undefined) { fail(Error("A restore is already pending. Reload to review it.")); return; }
++        store.add(envelope, next.id); store.put(next.id, "active"); done(); return;
++      }
++      if (pointer.result !== previous.id) { fail(Error("Pending restore changed in another window.")); return; }
++      const record = store.get(previous.id); record.onsuccess = () => {
++        if (record.result?.serialized !== JSON.stringify(previous)) { fail(Error("Restore journal changed. Reload to recover its latest saved state.")); return; }
++        store.put(envelope, next.id); done();
++      };
++    };
++  });
++}
++export async function stageWorkspaceRestore(backup: ProjectBackup, expectedFingerprint: string, restoreReferenceRates: boolean) {
++  if (!navigator.locks) throw Error("This browser cannot protect a restore across open windows.");
++  const serialized = JSON.stringify(await parseProjectBackup(JSON.stringify(backup)));
++  const review = await assessBackupRestore(serialized, browserReadPorts(), { expectedFingerprint, restoreReferenceRates });
++  if (review.blockingIssues.length) throw Error(review.blockingIssues.join(" "));
++  // Validate compatibility before staging. Preparation repeats this under the exclusive startup lease.
++  await planRestoreMutations(backup, restoreReferenceRates, readRecord);
++  const operation = restoreOperationSchema.parse({ schema: "xray.restore/v1", id: crypto.randomUUID(), revision: 1,
++    createdAt: new Date().toISOString(), phase: "requested", backup: serialized, expectedFingerprint,
++    restoreReferenceRates, progress: 0, message: "Restore requested. Close other X-Ray tabs before continuing." });
++  await writeJournal(operation, null);
++}
++export async function finishPendingRestore(previous: RestoreOperation) {
++  if (!["requested", "verified", "rolled-back"].includes(previous.phase)) throw Error("Recovery must finish before editing can resume.");
++  await journalTransaction<void>("readwrite", (store, done, fail) => {
++    const pointer = store.get("active"); pointer.onsuccess = () => {
++      if (pointer.result !== previous.id) { fail(Error("Pending restore changed.")); return; }
++      const record = store.get(previous.id); record.onsuccess = () => {
++        if (record.result?.serialized !== JSON.stringify(previous)) { fail(Error("Restore journal changed. Reload before continuing.")); return; }
++        store.delete("active"); done(); // Retain the immutable operation history and recovery package.
++      };
++    };
++  });
++}
++function currentJob() {
++  const result = loadFencingJob();
++  if (result.error || !result.job) throw Error(result.error ?? "Save the current workspace before restoring.");
++  return result.job;
++}
++function browserReadPorts() {
++  const plans = createBrowserPlanStore(), photos = createBrowserPhotoStore();
++  return { currentJob, readLocal: (key: string) => localStorage.getItem(key),
++    readMaterials: async (id: string) => {
++      const result = await restoreMaterialDatabase(id);
++      if (result.blocked || result.error) throw Error(result.error ?? "Materials cannot be read.");
++      return result.raw;
++    }, plan: (id: string) => plans.get(id), photo: (id: string) => photos.get(id) };
++}
++async function readRecord(storage: RestoreMutation["storage"], key: string): Promise<string | null> {
++  if (storage === "local") return localStorage.getItem(key);
++  return transaction(MATERIALS_DB, "inventories", undefined, "readonly", (store, done, fail) => {
++    const req = store.get(key); req.onsuccess = () => {
++      if (req.result !== undefined && typeof req.result !== "string") { fail(Error("Materials storage is unreadable.")); return; }
++      done(req.result ?? null);
++    };
++  });
++}
++async function compareWrite(item: RestoreMutation, expected: string | null, value: string | null) {
++  if (item.storage === "local") {
++    if (localStorage.getItem(item.key) !== expected) throw Error(`${item.label} changed before restoration.`);
++    if (value === null) localStorage.removeItem(item.key); else localStorage.setItem(item.key, value);
++    return;
++  }
++  await transaction<void>(MATERIALS_DB, "inventories", undefined, "readwrite", (store, done, fail) => {
++    const req = store.get(item.key); req.onsuccess = () => {
++      if ((req.result ?? null) !== expected) { fail(Error("Materials changed before restoration.")); return; }
++      if (value === null) store.delete(item.key); else store.put(value, item.key); done();
++    };
++  });
++}
++async function originals(serialized: string, insert: boolean) {
++  const backup = await parseProjectBackup(serialized);
++  for (const asset of backup.assets) {
++    const bytes = decodeBackupBytes(asset.bytesBase64), plan = asset.kind === "plan";
++    const wanted = plan ? { documentId: asset.id, name: asset.name, kind: backup.job.documents.find(d => d.id === asset.id)!.kind,
++      mimeType: asset.mimeType, sizeBytes: bytes.byteLength, sha256: asset.sha256, bytes } :
++      { id: asset.id, name: asset.name, mimeType: asset.mimeType, sha256: asset.sha256, bytes };
++    await transaction<void>(plan ? PLAN_CONTENT_DB : PHOTO_CONTENT_DB, plan ? PLAN_CONTENT_STORE : PHOTO_CONTENT_STORE,
++      plan ? "documentId" : "id", insert ? "readwrite" : "readonly", (store, done, fail) => {
++        const req = store.get(asset.id); req.onsuccess = () => {
++          const existing = req.result;
++          if (existing === undefined && insert) { store.add(wanted); done(); return; }
++          const existingBytes = existing?.bytes instanceof ArrayBuffer ? new Uint8Array(existing.bytes) : null;
++          if (!existing || !(existing.bytes instanceof ArrayBuffer) || existing.bytes.byteLength !== bytes.byteLength ||
++            Object.entries(wanted).some(([key, value]) => key !== "bytes" && existing[key] !== value) ||
++            !existingBytes || !new Uint8Array(bytes).every((v, i) => existingBytes[i] === v)) {
++            fail(Error(`Original file “${asset.name}” is missing or conflicts. Its stored bytes were not overwritten.`)); return;
++          }
++          done();
++        };
++      });
++  }
++}
++export function browserRestorePorts(): RestorePorts {
++  return {
++    async prepare(operation) {
++      const backup = await parseProjectBackup(operation.backup), ports = browserReadPorts();
++      const review = await assessBackupRestore(backup, ports, { expectedFingerprint: operation.expectedFingerprint, restoreReferenceRates: operation.restoreReferenceRates });
++      if (review.blockingIssues.length) throw Error(review.blockingIssues.join(" "));
++      const mutations = await planRestoreMutations(backup, operation.restoreReferenceRates, readRecord);
++      const previous = currentJob();
++      const recovery = await captureProjectBackup(previous, `Before restore — ${previous.name}`.slice(0, 120), { ...ports, records: readBackupRecords });
++      const saved = await storeProjectBackup(recovery); await readProjectBackup(saved.id);
++      return { mutations, recoveryBackupId: saved.id, targetId: backup.job.id, targetName: backup.job.name };
++    },
++    read: item => readRecord(item.storage, item.key), compareWrite,
++    ensureAssets: serialized => originals(serialized, true), verifyAssets: serialized => originals(serialized, false),
++    async journal(next, expectedRevision) {
++      const previous = await readPendingRestore();
++      if (!previous || previous.id !== next.id || previous.revision !== expectedRevision) throw Error("Restore journal revision changed.");
++      await writeJournal(next, previous);
++    },
++  };
++}
+diff --git a/src/studio/workspaceRestore.test.ts b/src/studio/workspaceRestore.test.ts
+new file mode 100644
+index 0000000..78f71ba
+--- /dev/null
++++ b/src/studio/workspaceRestore.test.ts
+@@ -0,0 +1,102 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { executeWorkspaceRestore, type RestoreOperation, type RestorePorts, type RestoreMutation } from "./workspaceRestore.ts";
++import { planRestoreMutations, validateRestorePlan } from "./workspaceRestorePlan.ts";
++import { createDefaultJob } from "./domain.ts";
++import { BACKUP_FORMAT, emptyBackupRecords, type ProjectBackup } from "./projectBackup.ts";
++import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
++import { shelfKey } from "./projectRegistry.ts";
++
++function harness() {
++  const mutations: RestoreMutation[] = [
++    { storage: "local", key: "module", label: "Design", before: "old", after: "new" },
++    { storage: "materials", key: "materials", label: "Materials", before: null, after: "new materials" },
++    { storage: "local", key: "removed", label: "Removed module", before: "old module", after: null },
++    { storage: "local", key: "active", label: "Active project", before: "old job", after: "new job" },
++  ];
++  const values = new Map(mutations.map(v => [v.key, v.before]));
++  let saved: RestoreOperation = { schema: "xray.restore/v1", id: crypto.randomUUID(), revision: 1, createdAt: new Date().toISOString(),
++    phase: "requested", backup: "verified package", expectedFingerprint: "a".repeat(64), restoreReferenceRates: false, progress: 0, message: "" };
++  const phases: string[] = [], writes: string[] = [];
++  const ports: RestorePorts = {
++    prepare: async () => ({ mutations, recoveryBackupId: crypto.randomUUID(), targetId: "target", targetName: "Target" }),
++    read: async v => values.get(v.key) ?? null,
++    compareWrite: async (v, expected, next) => { assert.equal(values.get(v.key) ?? null, expected); values.set(v.key, next); writes.push(v.key); },
++    ensureAssets: async () => { phases.push("assets"); }, verifyAssets: async () => { phases.push("verify assets"); },
++    journal: async (next, expected) => { assert.equal(saved.revision, expected); saved = structuredClone(next); phases.push(next.phase); },
++  };
++  return { mutations, values, ports, phases, writes, saved: () => structuredClone(saved), setSaved: (v: RestoreOperation) => { saved = structuredClone(v); } };
++}
++test("durable restore orders recovery plan, originals, module writes, active project and commit", async () => {
++  const h = harness(), result = await executeWorkspaceRestore(h.saved(), h.ports);
++  assert.equal(result.phase, "verified"); assert.deepEqual(h.writes, h.mutations.map(v => v.key));
++  assert.deepEqual(h.phases.slice(0, 3), ["prepared", "assets", "writing"]);
++  assert.deepEqual(h.phases.slice(-3), ["verify assets", "committed", "verified"]);
++  for (const item of h.mutations) assert.equal(h.values.get(item.key), item.after);
++});
++for (let failAt = 0; failAt < 4; failAt++) test(`write failure ${failAt + 1} rolls back exact before-images including absent records`, async () => {
++  const h = harness(), write = h.ports.compareWrite; let calls = 0;
++  h.ports.compareWrite = async (...args) => { if (calls++ === failAt) throw Error("Injected write failure"); await write(...args); };
++  const result = await executeWorkspaceRestore(h.saved(), h.ports);
++  assert.equal(result.phase, "rolled-back");
++  for (const item of h.mutations) assert.equal(h.values.get(item.key), item.before);
++});
++for (const phase of ["prepared", "writing", "recovery-required"] as const) test(`${phase} startup rolls back even when saved progress missed a write`, async () => {
++  const h = harness(), initial = { ...h.saved(), phase, plan: await h.ports.prepare(h.saved()), progress: 0 };
++  h.setSaved(initial); for (const item of h.mutations.slice(0, 3)) h.values.set(item.key, item.after);
++  assert.equal((await executeWorkspaceRestore(initial, h.ports)).phase, "rolled-back");
++  for (const item of h.mutations) assert.equal(h.values.get(item.key), item.before);
++});
++test("recovery refuses unexpected third-party bytes and remains blocked", async () => {
++  const h = harness(), initial = { ...h.saved(), phase: "writing" as const, plan: await h.ports.prepare(h.saved()) };
++  h.setSaved(initial); h.values.set("module", "third party edit");
++  assert.equal((await executeWorkspaceRestore(initial, h.ports)).phase, "recovery-required");
++  assert.equal(h.values.get("module"), "third party edit"); assert.deepEqual(h.writes, []);
++});
++test("preparation and first journal failures do not write active records", async () => {
++  for (const part of ["prepare", "journal"] as const) {
++    const h = harness(); h.ports[part] = async () => { throw Error("Storage unavailable"); };
++    await assert.rejects(executeWorkspaceRestore(h.saved(), h.ports), /Storage unavailable/); assert.deepEqual(h.writes, []);
++  }
++});
++test("committed restart verifies without replaying or rolling back module writes", async () => {
++  const h = harness(), result = await executeWorkspaceRestore(h.saved(), h.ports);
++  const committed = { ...result, phase: "committed" as const }; h.setSaved(committed); h.writes.length = 0;
++  assert.equal((await executeWorkspaceRestore(committed, h.ports)).phase, "verified"); assert.deepEqual(h.writes, []);
++  h.values.set("module", "third party edit");
++  await assert.rejects(executeWorkspaceRestore(h.saved(), h.ports), /no longer matches/);
++  assert.equal(h.values.get("module"), "third party edit");
++});
++test("lost final acknowledgement leaves a durable commit that startup can verify", async () => {
++  const h = harness(), journal = h.ports.journal;
++  h.ports.journal = async (next, expected) => { if (next.phase === "verified") throw Error("Lost acknowledgement"); await journal(next, expected); };
++  await assert.rejects(executeWorkspaceRestore(h.saved(), h.ports), /Lost acknowledgement/);
++  assert.equal(h.saved().phase, "committed"); h.ports.journal = journal;
++  assert.equal((await executeWorkspaceRestore(h.saved(), h.ports)).phase, "verified");
++});
++test("original-file failure restores previous records and never deletes originals", async () => {
++  const h = harness(); h.ports.ensureAssets = async () => { throw Error("Conflicting original"); };
++  assert.equal((await executeWorkspaceRestore(h.saved(), h.ports)).phase, "rolled-back"); assert.deepEqual(h.writes, []);
++});
++for (const phase of ["writing", "committed"] as const) test(`lost acknowledgement after durable ${phase} is recovered from saved phase`, async () => {
++  const h = harness(), journal = h.ports.journal;
++  h.ports.journal = async (next, expected) => {
++    await journal(next, expected); if (next.phase === phase) throw Error("Connection lost after commit");
++  };
++  await assert.rejects(executeWorkspaceRestore(h.saved(), h.ports), /acknowledgement failed/);
++  assert.equal(h.saved().phase, phase); h.ports.journal = journal;
++  assert.equal((await executeWorkspaceRestore(h.saved(), h.ports)).phase, phase === "committed" ? "verified" : "rolled-back");
++});
++test("planner shelves the previous project, restores absent records and validates its address allowlist", async () => {
++  const current = createDefaultJob(), target = { ...createDefaultJob(), id: crypto.randomUUID(), name: "Restored project" };
++  const backup: ProjectBackup = { format: BACKUP_FORMAT, createdAt: new Date().toISOString(), name: "Snapshot", job: target, records: emptyBackupRecords(), assets: [] };
++  const read = async (_storage: string, key: string) => key === FENCING_JOB_STORAGE_KEY ? JSON.stringify(current) : null;
++  const mutations = await planRestoreMutations(backup, false, read);
++  assert.equal(mutations.at(-1)!.key, FENCING_JOB_STORAGE_KEY);
++  assert.equal(mutations.find(v => v.key === shelfKey(current.id))!.after, JSON.stringify(current));
++  assert.ok(!mutations.some(v => v.key === "xray.price-sheet.v1"));
++  const h = harness(), operation: RestoreOperation = { ...h.saved(), phase: "prepared", plan: { mutations, recoveryBackupId: crypto.randomUUID(), targetId: target.id, targetName: target.name } };
++  await validateRestorePlan(operation, backup);
++  operation.plan!.mutations.push({ storage: "local", key: "credentials", label: "Injected", before: null, after: "bad" });
++  await assert.rejects(validateRestorePlan(operation, backup), /allowed storage/);
++});
+diff --git a/src/studio/WorkspaceStartup.tsx b/src/studio/WorkspaceStartup.tsx
+new file mode 100644
+index 0000000..d08b5b8
+--- /dev/null
++++ b/src/studio/WorkspaceStartup.tsx
+@@ -0,0 +1,76 @@
++import { useEffect, useState, type ReactNode } from "react";
++import { WORKSPACE_ACCESS_LOCK, executeWorkspaceRestore, type RestoreOperation } from "./workspaceRestore";
++import { browserRestorePorts, finishPendingRestore, readPendingRestore } from "./workspaceRestoreStorage";
++import { readProjectBackup } from "./projectBackupStorage";
++import "./workspaceStartup.css";
++
++function download(serialized: string, name: string) {
++  const url = URL.createObjectURL(new Blob([serialized], { type: "application/json" }));
++  const link = document.createElement("a"); link.href = url; link.download = `${name}.xray-backup.json`;
++  link.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
++}
++/** Nothing in Studio (including persistence effects) mounts before the workspace lease is acquired. */
++export function WorkspaceStartup({ children }: { children: ReactNode }) {
++  const [ready, setReady] = useState(false), [busy, setBusy] = useState(true);
++  const [operation, setOperation] = useState<RestoreOperation | null>(null), [error, setError] = useState("");
++  const [exclusive, setExclusive] = useState(false);
++  useEffect(() => {
++    let disposed = false, release = () => {};
++    const hold = new Promise<void>(resolve => { release = resolve; });
++    async function start() {
++      const pending = await readPendingRestore();
++      if (disposed) return;
++      setOperation(pending);
++      if (!navigator.locks) {
++        if (pending) throw Error("This browser cannot protect restoration. Open this workspace in a browser with Web Locks support.");
++        setReady(true); setBusy(false); return;
++      }
++      await navigator.locks.request(WORKSPACE_ACCESS_LOCK, { mode: pending ? "exclusive" : "shared", ifAvailable: true }, async lock => {
++        if (disposed) return;
++        if (!lock) throw Error("Close other X-Ray tabs or windows, then retry. Their editing sessions prevent restoration from starting.");
++        const latest = await readPendingRestore();
++        if (disposed) return;
++        if (!pending && latest) throw Error("A restore was requested in another window. Reload to review it.");
++        if (!latest) { setReady(true); setBusy(false); await hold; return; }
++        setExclusive(true); setOperation(latest);
++        try {
++          const result = await executeWorkspaceRestore(latest, browserRestorePorts());
++          if (!disposed) setOperation(result);
++        } catch (failure) {
++          if (!disposed) {
++            setError(failure instanceof Error ? failure.message : "Restoration did not finish.");
++            setOperation(await readPendingRestore());
++          }
++        }
++        if (!disposed) setBusy(false);
++        await hold;
++      });
++    }
++    void start().catch(failure => { if (!disposed) { setExclusive(false); setError(failure instanceof Error ? failure.message : String(failure)); setBusy(false); } });
++    return () => { disposed = true; release(); };
++  }, []);
++  if (ready) return <>{children}</>;
++  async function finish() {
++    if (!operation || !exclusive) return;
++    setBusy(true); setError("");
++    try { await finishPendingRestore(operation); location.reload(); }
++    catch (failure) { setError(failure instanceof Error ? failure.message : String(failure)); setBusy(false); }
++  }
++  const terminal = operation?.phase === "verified" || operation?.phase === "rolled-back";
++  return <main className="workspace-startup" aria-busy={busy}>
++    <section aria-label="Workspace recovery">
++      <header><p>X-Ray workspace</p><h1>{ready ? "Workspace ready" : operation ? "Restore project" : "Opening your workspace"}</h1></header>
++      {busy ? <p role="status">{operation ? "Checking the saved snapshot and recovery journal. Editing will open after verification." : "Checking saved work…"}</p> : <>
++        {operation?.message && <p role="status">{operation.message}</p>}
++        {error && <p role="alert">{error}</p>}
++        {operation?.phase === "recovery-required" && <p>Keep both packages below. Retry recovery before making further edits.</p>}
++        <div className="workspace-startup-actions">
++          {exclusive && operation && (terminal || operation.phase === "requested") && <button onClick={() => void finish()}>{terminal ? "Open workspace" : "Cancel restore and open workspace"}</button>}
++          <button onClick={() => location.reload()}>Retry</button>
++          {operation && <button onClick={() => download(operation.backup, "Requested restore")}>Download requested backup</button>}
++          {operation?.plan && <button onClick={() => void readProjectBackup(operation.plan!.recoveryBackupId).then(v => download(v.serialized, "Before restore")).catch(e => setError(String(e)))}>Download recovery copy</button>}
++        </div>
++      </>}
++    </section>
++  </main>;
++}
+diff --git a/src/studio/workspaceStartup.css b/src/studio/workspaceStartup.css
+new file mode 100644
+index 0000000..d4d2203
+--- /dev/null
++++ b/src/studio/workspaceStartup.css
+@@ -0,0 +1,10 @@
++.workspace-startup { min-height: 100dvh; display: grid; place-items: center; padding: 32px; background: #ede7da; color: #29251f; }
++.workspace-startup > section { width: min(680px, 100%); padding: 28px; border: 1px solid #c5baa8; border-radius: 12px; background: white; box-shadow: 0 10px 40px #29251f0c; }
++.workspace-startup header { padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid #a99d89; }
++.workspace-startup header p { margin: 0 0 8px; color: #655d51; }
++.workspace-startup h1 { margin: 0; font-size: 26px; }
++.workspace-startup p { line-height: 1.6; }
++.workspace-startup [role=alert] { padding: 12px; border: 1px solid #ba755f; background: #fff5f0; }
++.workspace-startup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
++.workspace-startup button { min-height: 44px; padding: 10px 16px; border: 1px solid #a99d89; border-radius: 6px; background: white; cursor: pointer; }
++.workspace-startup button:first-child { background: #29251f; color: white; }

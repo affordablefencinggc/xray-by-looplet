@@ -1,0 +1,41 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "(async()=>{const id=(await import('/src/studio/store.ts')).useStudio.getState().job.id;const {createWorkPacket}=await import('/src/studio/assistant/workPacket.ts');const {readLiveProjectSnapshot}=await import('/src/studio/assistant/workPacketRuntime.ts');const {saveWorkEvent}=await import('/src/studio/assistant/workPacketStore.ts');let p=createWorkPacket('Recover this earlier task',readLiveProjectSnapshot(id));p=await saveWorkEvent(p,'intake',{input:{role:'user',parts:[{text:p.objective}]}});p=await saveWorkEvent(p,'model-response-unreviewed',{content:{role:'model',parts:[{text:'Earlier recorded response: Willow remains an illustrative design.'}]}});return {project:id,packet:p.id}})()"
+  ],
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.live-assistant')?.innerText.includes('Earlier recorded response: Willow')"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.querySelector('.live-assistant').innerText;if(!t.includes('Recovered from saved task records'))throw Error('Recovery limitation not shown');return t})()"
+  ],
+  [
+    "screenshot",
+    "recovered-task-chat.png"
+  ],
+  [
+    "errors"
+  ]
+]

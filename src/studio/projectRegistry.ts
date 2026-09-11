@@ -17,7 +17,7 @@ export const PROJECT_REGISTRY_SCHEMA = "xray.projects/v1";
 export const MAX_PROJECT_TABS = 12;
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-export type ProjectSummary = { id: string; name: string; updatedAt: string; revision: number };
+export type ProjectSummary = { id: string; name: string; updatedAt: string; revision: number; archived?: boolean };
 export type ProjectRegistry = { schema: typeof PROJECT_REGISTRY_SCHEMA; entries: ProjectSummary[] };
 export type JobSummarySource = Pick<FencingJob, "id" | "name" | "revision" | "updatedAt">;
 
@@ -37,7 +37,7 @@ function isSummary(value: unknown): value is ProjectSummary {
     Number.isFinite(Date.parse(v.updatedAt)) &&
     typeof v.revision === "number" &&
     Number.isInteger(v.revision) &&
-    v.revision > 0
+    v.revision > 0 && (v.archived === undefined || typeof v.archived === "boolean")
   );
 }
 
@@ -78,7 +78,7 @@ export function parseRegistry(text: string | null | undefined): ProjectRegistry 
   for (const entry of entries) {
     if (!isSummary(entry) || seen.has(entry.id)) continue;
     seen.add(entry.id);
-    kept.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, revision: entry.revision });
+    kept.push({ id: entry.id, name: entry.name, updatedAt: entry.updatedAt, revision: entry.revision, ...(entry.archived === undefined ? {} : { archived: entry.archived }) });
   }
   return { schema: PROJECT_REGISTRY_SCHEMA, entries: kept };
 }
@@ -93,6 +93,17 @@ export function readRegistry(storage: StorageLike): ProjectRegistry {
   } catch {
     return emptyRegistry();
   }
+}
+
+/** Mutations must not silently drop unreadable entries as the display parser does. */
+export function readRegistryStrict(storage: StorageLike): ProjectRegistry {
+  const raw = storage.getItem(PROJECT_REGISTRY_KEY);
+  if (raw === null) return emptyRegistry();
+  const registry = parseRegistry(raw);
+  try {
+    if (JSON.stringify(JSON.parse(raw)) === serializeRegistry(registry)) return registry;
+  } catch { /* Preserve original bytes and report below. */ }
+  throw Error("The project library is unreadable. Saved data has been preserved.");
 }
 
 /** Writes the registry and returns the exact text stored. Storage errors propagate to the caller. */
@@ -119,7 +130,7 @@ export function upsertEntry(registry: ProjectRegistry, job: JobSummarySource): P
   )
     return registry;
   const entries = registry.entries.slice();
-  entries[index] = summary;
+  entries[index] = { ...summary, ...(existing.archived === undefined ? {} : { archived: existing.archived }) };
   return { schema: PROJECT_REGISTRY_SCHEMA, entries };
 }
 
@@ -231,6 +242,7 @@ export function planProjectSwitch(request: ProjectSwitchRequest): ProjectSwitchP
     kind = "new";
     removes = [];
   } else {
+    if (findEntry(request.registry, request.targetId)?.archived) throw new Error("Restore this project from Archived before opening it.");
     if (request.targetId === current.id) throw new Error("This project is already open.");
     if (typeof request.shelvedTargetText !== "string" || !request.shelvedTargetText)
       throw new Error(`Project ${request.targetId} has no shelved record to open.`);

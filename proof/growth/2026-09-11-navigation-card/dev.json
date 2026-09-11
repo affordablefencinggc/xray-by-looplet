@@ -1,0 +1,61 @@
+[
+  [
+    "navigate",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready' && !!document.querySelector('.workflow-nav')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('.workflow-nav button')].find(b=>b.textContent==='Drawings').click()"
+  ],
+  [
+    "wait",
+    "document.querySelector('.workflow-context button[aria-current]')?.textContent==='Sheets & files'"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.workspace-central-content .project-details'))throw Error('Duplicate project card remains');if(!document.querySelector('.workspace-central-content').innerText.includes('Sheet register'))throw Error('Sheet register missing');return {projectCardsOnDrawing:0}})()"
+  ],
+  [
+    "screenshot",
+    "drawings-desktop.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.project-menu-trigger').click()"
+  ],
+  [
+    "wait",
+    "!!document.querySelector('dialog[aria-label=\"Project\"][open] .project-details')"
+  ],
+  [
+    "eval",
+    "(()=>{if(![...document.querySelectorAll('dialog[aria-label=\"Project\"] button')].some(b=>b.textContent==='Rename project'))throw Error('Rename missing');return {projectMenuRetained:true}})()"
+  ],
+  [
+    "screenshot",
+    "project-menu.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close Project\"]').click()"
+  ],
+  [
+    "viewport",
+    [
+      1024,
+      768,
+      true
+    ]
+  ],
+  [
+    "screenshot",
+    "drawings-tablet.png"
+  ],
+  [
+    "errors"
+  ]
+]

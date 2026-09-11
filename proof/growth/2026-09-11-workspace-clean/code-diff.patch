@@ -1,0 +1,119 @@
+diff --git a/.temp/clean-before/Studio.tsx b/src/studio/Studio.tsx
+index 46f84c2..d21924d 100644
+--- a/.temp/clean-before/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -213,10 +213,8 @@ function StudioContent() {
+       </WorkspaceDialog>}
+       <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
+       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
+-        {!s.lifted && s.pane !== "model" && (
++        {!s.lifted && s.pane !== "model" && s.pane !== "render" && (s.pane !== "sheets" || !!activeDocument) && (
+           <aside className="studio-left-rail overflow-auto border-r border-line p-3">
+-            <h2 className="kicker mb-2">Models</h2>
+-            <button type="button" className="sheet-btn mb-4" onClick={() => s.setPane("model")}>Source building</button>
+             <h2 className="kicker mb-2">
+               Project sheets <span className="float-right">{navigationSheets.length}</span>
+             </h2>
+@@ -241,7 +239,7 @@ function StudioContent() {
+               </button>
+             ))}
+             {archivedSheetCount > 0 && <button className="pill" onClick={() => s.setPane("sheets")}>Sheet register · {archivedSheetCount} archived</button>}
+-            <h2 className="kicker mt-4">
++            {s.pane !== "sheets" && <><h2 className="kicker mt-4">
+               Evidence layers <span className="float-right">Live</span>
+             </h2>
+             <p className="mt-2 flex justify-between text-muted">
+@@ -253,6 +251,7 @@ function StudioContent() {
+             <p className="flex justify-between text-muted">
+               Review flags <b className="text-ink">{s.scaleM === 1 && s.markups.length ? 1 : 0}</b>
+             </p>
++            </>}
+           </aside>
+         )}
+ 
+@@ -277,7 +276,7 @@ function StudioContent() {
+           <WorkspaceDiagnostics />
+         </section>
+ 
+-        {!sourceTakeoffActive && s.pane !== "measure" && s.pane !== "model" && <RightRail />}
++        {!sourceTakeoffActive && ["review", "proof", "cost", "components"].includes(s.pane) && <RightRail />}
+         {settingsOpen && <SettingsRail section={settingsSection} setSection={setSettingsSection} onClose={()=>setSettingsOpen(false)} onOpenPlan={()=>void openPlan()} />}
+       </div>
+ 
+@@ -343,11 +342,11 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
+   const pageName = organisation?.pages.find(page => page.pageIndex === s.sheet)?.name ?? `Sheet ${s.sheet + 1}`;
+   return (
+     <>
+-      <SheetManager />
++      {s.activePlanBinary && <><details className="drawing-sheet-manager"><summary>Manage sheets</summary><SheetManager /></details>
+       <div className="pane-heading-row">
+         <div><span className="kicker">Source drawings</span><h1>{s.activePlanBinary ? pageName : "Your drawing starts here"}</h1></div>
+         {s.activePlanBinary ? <span className={`asset-state ${s.assetReadiness.document.state}`}>{s.assetReadiness.document.state}</span> : null}
+-      </div>
++      </div></>}
+       {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+       {s.activePlanBinary ? (
+         <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} className="sheets-document-preview" />
+@@ -357,14 +356,9 @@ function SheetsPane({ onOpenPlan }: { onOpenPlan: () => void }) {
+             <span className="source-ingest-icon"><FileUp aria-hidden="true" /></span>
+             <h2 id="source-ingest-title">Open a drawing</h2>
+             <p>Choose a plan to view its sheets, set the scale and start measuring.</p>
+-            <button type="button" className="source-ingest-action" onClick={onOpenPlan} disabled={!s.persistenceHydrated}><FolderOpen size={18} aria-hidden="true" />Choose a file<ArrowUpRight size={16} aria-hidden="true" /></button>
++            <button type="button" className="source-ingest-action" onClick={onOpenPlan} disabled={!s.persistenceHydrated}><FolderOpen size={18} aria-hidden="true" />Open drawing</button>
+             <span className="source-ingest-formats">PDF, DXF or SVG <span aria-hidden="true">·</span> Up to 100 MB</span>
+           </div>
+-          <ol className="source-ingest-steps" aria-label="From drawing to measurement">
+-            <li><FolderOpen aria-hidden="true" /><strong>Open your plan</strong><small>Keep the original intact</small></li>
+-            <li><ScanLine aria-hidden="true" /><strong>Check the sheets</strong><small>Find the detail you need</small></li>
+-            <li><Ruler aria-hidden="true" /><strong>Set scale & measure</strong><small>Work from known dimensions</small></li>
+-          </ol>
+         </section>
+       )}
+       {s.activePlanBinary ? <dl className="source-metadata">
+diff --git a/.temp/clean-before/WorkspaceDiagnostics.tsx b/src/studio/WorkspaceDiagnostics.tsx
+index 9747608..642efbb 100644
+--- a/.temp/clean-before/WorkspaceDiagnostics.tsx
++++ b/src/studio/WorkspaceDiagnostics.tsx
+@@ -241,7 +241,7 @@ export function WorkspaceDiagnostics() {
+             }
+           }}
+         />
+-        <div role="tablist" aria-label="Workspace diagnostic views">
++        {expanded && <div role="tablist" aria-label="Workspace diagnostic views">
+           {TABS.map((name, index) => (
+             <button
+               key={name}
+@@ -285,8 +285,8 @@ export function WorkspaceDiagnostics() {
+               )}
+             </button>
+           ))}
+-        </div>
+-        <span className="workspace-build-label" data-xray-build={buildId || "development"} title="Identifies the application build currently running">{buildLabel}</span>
++        </div>}
++        {expanded && <span className="workspace-build-label" data-xray-build={buildId || "development"} title="Identifies the application build currently running">{buildLabel}</span>}
+         <button
+           type="button"
+           className="workspace-diagnostics-toggle"
+@@ -295,6 +295,7 @@ export function WorkspaceDiagnostics() {
+           aria-label={expanded ? "Collapse workspace diagnostics" : "Expand workspace diagnostics"}
+           onClick={toggleDrawer}
+         >
++          Diagnostics
+           {expanded ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+         </button>
+       </div>
+diff --git a/.temp/clean-before/workflowNavigation.css b/src/studio/workflowNavigation.css
+index 47b9cbc..cbcf4ba 100644
+--- a/.temp/clean-before/workflowNavigation.css
++++ b/src/studio/workflowNavigation.css
+@@ -18,5 +18,10 @@
+ .project-menu-content .workspace-plan-switcher label { flex-direction: column; align-items: stretch; }
+ .project-menu-content .workspace-plan-controls { flex-wrap: wrap; }
+ .project-menu-content .backup-trigger { justify-self: start; }
++.drawing-sheet-manager > summary { color: var(--color-muted); font-size: 12px; cursor: pointer; padding: 8px 0; }
++.workspace-rails[data-pane="sheets"] .workspace-central-content:has(.source-ingest) { justify-content: center; align-items: center; }
++.workspace-rails[data-pane="sheets"] .source-ingest { width: min(100%, 680px); margin: 24px auto; min-height: 0; }
++.workspace-rails .workspace-diagnostics[data-expanded="false"] .workspace-diagnostics-toggle { flex: 0 0 auto; justify-content: flex-start; width: auto; margin-left: 0; gap: 8px; padding-inline: 12px; }
++.workspace-rails .workspace-diagnostics[data-expanded="true"] .workspace-diagnostics-toggle { width: auto; gap: 8px; padding-inline: 12px; }
+ @media (max-width: 1100px) { .workflow-context-hint { display: none; } .workbench .studio-brand > span:last-child { display: none; } }
+ @media (max-width: 700px) { .workflow-nav, .workflow-context { overflow-x: auto; padding-inline: 8px; } .workflow-nav button { padding-inline: 12px; } .project-identity button { max-width: 160px; } }

@@ -54,7 +54,7 @@ export async function assessBackupRestore(
   const target = await parseProjectBackup(serialized);
   const current = fencingJobSchema.parse(structuredClone(ports.currentJob()));
   const currentText = JSON.stringify(current), backupSha256 = await backupDigest(serialized);
-  const warnings = ["Read-only impact review. No project, original file or saved setting has been changed. Applying a backup is not available.",
+  const warnings = ["Read-only impact review. No project, original file or saved setting has been changed. Restoration is a separate action and repeats these checks before writing.",
     "This review does not acquire a write lease or create a recovery journal. Repeat it after changes; a stable fingerprint is not permission to apply."];
   const blockingIssues: string[] = [], rows: RestoreImpactRow[] = [], targets = new Map<string, Target>();
   const put = (value: Target) => targets.set(value.id, value);

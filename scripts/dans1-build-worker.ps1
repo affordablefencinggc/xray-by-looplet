@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{12}$')][string]$RunId,
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$SourceHash,
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$RuntimeHash,
-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$NativeHash
+  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$NativeHash,
+  [switch]$WebOnly
 )
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
@@ -82,6 +83,7 @@ Invoke-Step 'web-build' @($npmCli,'run','build')
 $artifacts=Get-ChildItem -LiteralPath (Join-Path $source '.vercel\output\static\assets') -File | ForEach-Object { [pscustomobject]@{name=$_.Name;bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()} }
 [pscustomobject]@{computer=$env:COMPUTERNAME;run=$run;sourceSha256=$SourceHash;nativeSourceSha256=$NativeHash;sourceFiles=$webManifest.entries.Count;nativeFiles=$nativeManifest.entries.Count;buildEnvironment=@{VITE_AUTH_ENABLED=$env:VITE_AUTH_ENABLED;RAYON_NUM_THREADS=$env:RAYON_NUM_THREADS};results=$results;artifacts=$artifacts} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $run 'completion.json') -Encoding UTF8
 Write-Output 'WEB_READY: production output available for browser QA; native build follows sequentially.'
+if ($WebOnly) { Write-Output 'WEB_ONLY_COMPLETE: native packaging was not requested.'; return }
 Verify-Sources
 $cacheRun=Join-Path $buildRoot 'runs\44c9a5bdd386'
 $cacheRecord=Get-Content -LiteralPath (Join-Path $cacheRun 'native-completion.json') -Raw | ConvertFrom-Json
