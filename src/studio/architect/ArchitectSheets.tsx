@@ -3,7 +3,15 @@ import { useEffect } from "react";
 import { type View } from "./drawing";
 import { authoredSheets, changeAuthoredSheets, editActiveSheet, resizeSheetPaper, reviewAuthoredSheetArchive, type AuthoredSheetAction, type AuthoredSheetArchiveReview } from "./authoredSheetSet";
 import { DrawingPrimitives } from "./DrawingPrimitives";
-import { paperSize, sheetViewports, viewportBox, exportDrawingPdf, saveDownload } from "./sheets";
+import {
+  paperSize,
+  sheetViewports,
+  viewportBox,
+  exportDrawingPdf,
+  exportIssueSetPdf,
+  saveDownload,
+} from "./sheets";
+import { reviewIssueSet, issueFileName, type IssueSetReview } from "./issueSet";
 import { uuid, type ArchitectProject } from "./model";
 import { titleBlockFields, titleBlockField } from "./titleBlock";
 import { NumberField, TextField } from "./ArchitectInspector";
@@ -23,6 +31,10 @@ export function ArchitectSheets({
     [newView, setNewView] = useState<View>("plan"),
     [newLevel, setNewLevel] = useState(p.levels[0].id),
     [review, setReview] = useState<AuthoredSheetArchiveReview | null>(null),
+    // D-13: which sheets are in the issue, its purpose, and the reviewed set.
+    [issueSelection, setIssueSelection] = useState<string[]>([]),
+    [issuePurpose, setIssuePurpose] = useState("For construction"),
+    [issueReview, setIssueReview] = useState<IssueSetReview | null>(null),
     [notice, setNotice] = useState(""),
     [failure, setFailure] = useState(""),
     drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
@@ -89,6 +101,124 @@ export function ArchitectSheets({
         </div>}
         <details className="arch-sheet-archive"><summary>Archived drawing sheets ({archived.length})</summary>
           {archived.length ? <ol>{archived.map(sheet => <li key={sheet.id}><span><strong>{sheet.layout.number} · {sheet.name}</strong><small>Position {set.sheets.indexOf(sheet) + 1} · {sheet.layout.size} · 1:{sheet.layout.scale} · {Math.max(1, sheet.layout.viewports.length)} viewports retained</small></span><button aria-label={`Recover drawing sheet ${sheet.name}`} onClick={() => change({ type: "recover", sheetId: sheet.id }, "Drawing sheet recovered in its saved position.")}>Recover sheet</button></li>)}</ol> : <p>No archived drawing sheets.</p>}
+        </details>
+        <details className="arch-sheet-archive arch-issue-set">
+          <summary>Issue a drawing set ({issueSelection.length} of {live.length} selected)</summary>
+          <p>
+            Select the sheets to issue, state the purpose, then review. The issued PDF leads with
+            an issue register listing every sheet in printed order. Issuing never changes the design.
+          </p>
+          <div className="arch-sheet-actions">
+            <button
+              type="button"
+              onClick={() => { setIssueSelection(live.map(sheet => sheet.id)); setIssueReview(null); }}
+            >
+              Select all sheets
+            </button>
+            <button
+              type="button"
+              disabled={!issueSelection.length}
+              onClick={() => { setIssueSelection([]); setIssueReview(null); }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <ol className="arch-issue-list">
+            {live.map(sheet => (
+              <li key={sheet.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={issueSelection.includes(sheet.id)}
+                    onChange={event => {
+                      setIssueReview(null);
+                      setIssueSelection(current =>
+                        event.target.checked
+                          ? [...current, sheet.id]
+                          : current.filter(id => id !== sheet.id));
+                    }}
+                  />
+                  <span>
+                    <strong>{sheet.layout.number} · {sheet.name}</strong>
+                    <small>{sheet.layout.size} · 1:{sheet.layout.scale} · {Math.max(1, sheet.layout.viewports.length)} viewports</small>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ol>
+          <label>
+            Issue purpose
+            <input
+              value={issuePurpose}
+              maxLength={80}
+              onChange={event => { setIssuePurpose(event.target.value); setIssueReview(null); }}
+            />
+          </label>
+          <div className="arch-sheet-actions">
+            <button
+              type="button"
+              disabled={!issueSelection.length}
+              onClick={() => {
+                setNotice(""); setFailure("");
+                try {
+                  setIssueReview(reviewIssueSet(p, issueSelection, issuePurpose));
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error);
+                  setIssueReview(null); setFailure(message); onError(message);
+                }
+              }}
+            >
+              Review issue
+            </button>
+          </div>
+          {issueReview && (
+            <div className="arch-sheet-review" role="region" aria-label="Review drawing issue">
+              <h3>Issue {issueReview.sheets.length} sheet{issueReview.sheets.length === 1 ? "" : "s"}?</h3>
+              <p>
+                Purpose: {issueReview.purpose}. Design revision {issueReview.designRevision}, model
+                revision {issueReview.modelRevision}. Sheets print in this order:
+              </p>
+              <ol>
+                {issueReview.sheets.map(sheet => (
+                  <li key={sheet.sheetId}>
+                    <span>
+                      <strong>{sheet.number} · {sheet.name}</strong>
+                      <small>{sheet.size} · 1:{sheet.scale} · {sheet.viewports} viewports</small>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {issueReview.projectSnapshot !== JSON.stringify(p) && (
+                <p role="alert">The design changed after this review. Review the issue again before exporting.</p>
+              )}
+              <div className="arch-sheet-actions">
+                <button
+                  type="button"
+                  disabled={busy || issueReview.projectSnapshot !== JSON.stringify(p)}
+                  onClick={async () => {
+                    setBusy(true); setNotice(""); setFailure("");
+                    try {
+                      const issuedAt = new Date();
+                      saveDownload(
+                        await exportIssueSetPdf(p, issueReview, issuedAt),
+                        issueFileName(issueReview, issuedAt),
+                        "application/pdf",
+                      );
+                      setNotice(`Issued ${issueReview.sheets.length} sheets with an issue register.`);
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : String(error);
+                      setFailure(message); onError(message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? "Preparing issue…" : "Export issue PDF"}
+                </button>
+                <button type="button" onClick={() => setIssueReview(null)}>Cancel issue</button>
+              </div>
+            </div>
+          )}
         </details>
       </section>
       <div>

@@ -11,6 +11,8 @@
 import { primitives, arcPath, ringsPath, type Primitive } from "./drawing.ts";
 import { validateProject, type ArchitectProject, type Point } from "./model.ts";
 import { fitTextMeasured } from "./titleBlock.ts";
+import { authoredSheets } from "./authoredSheetSet.ts";
+import { assertIssueReviewCurrent, issueRegister, type IssueSetReview } from "./issueSet.ts";
 export const paperSize = (p: ArchitectProject): Point =>
   p.sheet.size === "A1" ? [841, 594] : [420, 297];
 export function drawingBounds(items: Primitive[]) {
@@ -202,6 +204,74 @@ export async function exportDrawingPdf(project: ArchitectProject) {
   text("N", nx - 1, ny - 11, 8);
   return doc.save();
 }
+/**
+ * D-13: export a reviewed issue as one PDF.
+ *
+ * Each selected sheet is rendered by the same single-sheet path, so an issued
+ * drawing is byte-for-byte the drawing the user saw, then the pages are merged
+ * and a register page is prepended. The register leads because it is the
+ * document that says what the issue contains and at which revision.
+ *
+ * The review is re-checked against the live design first: an issue assembled
+ * from a stale review could contain a sheet the reviewer never approved.
+ */
+export async function exportIssueSetPdf(
+  project: ArchitectProject,
+  review: IssueSetReview,
+  issuedAt: Date,
+) {
+  assertIssueReviewCurrent(project, review);
+  const set = authoredSheets(project),
+    out = await PDFDocument.create(),
+    font = await out.embedFont(StandardFonts.Helvetica);
+
+  for (const entry of review.sheets) {
+    const sheet = set.sheets.find((row) => row.id === entry.sheetId)!;
+    // Render this sheet through the single-sheet path by making it the active
+    // sheet on a copy. activeId and sheet must move together or
+    // validateAuthoredSheets rightly refuses the inconsistent pair. The stored
+    // design is never mutated.
+    const single = structuredClone(project);
+    single.sheet = structuredClone(sheet.layout);
+    single.sheetSet = { ...structuredClone(set), activeId: sheet.id };
+    const rendered = await PDFDocument.load(await exportDrawingPdf(single));
+    const pages = await out.copyPages(rendered, rendered.getPageIndices());
+    for (const page of pages) out.addPage(page);
+  }
+
+  const register = issueRegister(review, issuedAt),
+    page = out.insertPage(0, [595.276, 841.89]),
+    line = (value: string, y: number, size = 9) =>
+      page.drawText(value, { x: 35, y, size, font, color: rgb(0.16, 0.19, 0.21) });
+  line("DRAWING ISSUE REGISTER", 800, 14);
+  line(register.project.slice(0, 90), 780, 11);
+  line(`Purpose: ${register.purpose}`, 764);
+  line(
+    `Design revision ${register.designRevision} / model revision ${register.modelRevision} / issued ${register.issuedAt}`,
+    750,
+  );
+  line(`${register.sheetCount} drawing sheet${register.sheetCount === 1 ? "" : "s"} in this issue`, 736);
+  line("This issue requires design review. Print at 100%, without fit-to-page.", 722, 8);
+  line("No.  Sheet      Size  Scale    Views  Name", 700, 8);
+  register.sheets.forEach((row, index) => {
+    const y = 686 - index * 13;
+    if (y < 40) return;
+    line(
+      `${String(row.position).padStart(3, " ")}  ${row.number.slice(0, 9).padEnd(9, " ")}  ` +
+        `${row.size.padEnd(4, " ")}  ${row.scale.padEnd(7, " ")}  ${String(row.viewports).padStart(5, " ")}  ` +
+        row.name.slice(0, 44),
+      y,
+      8,
+    );
+  });
+  out.setTitle(`${register.project} / ${register.purpose}`);
+  out.setSubject(
+    `Drawing issue, design revision ${register.designRevision}. Requires design review.`,
+  );
+  out.setCreator("X-Ray architectural sketch");
+  return out.save();
+}
+
 export function saveDownload(data: string | Uint8Array, name: string, type: string) {
   const url = URL.createObjectURL(
       new Blob([typeof data === "string" ? data : new Uint8Array(data).buffer], { type }),
