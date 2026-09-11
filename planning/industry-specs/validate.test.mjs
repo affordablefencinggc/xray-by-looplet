@@ -17,8 +17,10 @@ test('register parses all 375 rows with the states the register itself reports',
   for (const r of rows.values()) tally[r.state] = (tally[r.state] || 0) + 1;
   assert.deepEqual(tally, {
     verified: 6,
-    partial: 102,
-    gap: 247, // 236 + the 11 merged rows, every one honestly a gap
+    // 102 + D-07, re-assessed 2026-09-11: the title block's linked fields were
+    // already implemented, so 'gap' was wrong. See the D-07 row for what remains.
+    partial: 103,
+    gap: 246, // 236 + 11 merged rows - D-07 corrected out of gap
     'dependency-blocked': 19,
     failed: 1,
   });
@@ -31,13 +33,15 @@ test('the merge disturbed no previously reviewed assessment', () => {
   const tally = {};
   for (const r of rows.values()) tally[r.state] = (tally[r.state] || 0) + 1;
   assert.equal(tally.verified, 6);
-  assert.equal(tally.partial, 102);
+  assert.equal(tally.partial, 103);
   assert.equal(tally['dependency-blocked'], 19);
   assert.equal(tally.failed, 1);
   // Spot-check rows whose reviewed states were expensive to earn.
   assert.equal(rows.get('B-10').state, 'verified');
   assert.equal(rows.get('Z-12').state, 'verified');
   assert.equal(rows.get('D-14').state, 'partial');
+  // Corrected 2026-09-11 from gap after reading the shipping renderer.
+  assert.equal(rows.get('D-07').state, 'partial');
 });
 
 test('weakest takes the least-ready state, not the most-ready', () => {

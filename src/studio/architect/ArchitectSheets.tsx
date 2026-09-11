@@ -5,6 +5,7 @@ import { authoredSheets, changeAuthoredSheets, editActiveSheet, resizeSheetPaper
 import { DrawingPrimitives } from "./DrawingPrimitives";
 import { paperSize, sheetViewports, viewportBox, exportDrawingPdf, saveDownload } from "./sheets";
 import { uuid, type ArchitectProject } from "./model";
+import { titleBlockFields, titleBlockField } from "./titleBlock";
 import { NumberField, TextField } from "./ArchitectInspector";
 export function ArchitectSheets({
   project: p,
@@ -27,6 +28,9 @@ export function ArchitectSheets({
     drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
     svg = useRef<SVGSVGElement>(null),
     [w, h] = paperSize(p),
+    // D-07: linked title block fields, fitted to their columns so a long
+    // project name or address cannot overrun the sheet number beside it.
+    titleBlock = titleBlockFields(p, p.sheet, w),
     vs = sheetViewports(p),
     v = vs.find((v) => v.id === selected),
     set = authoredSheets(p),
@@ -211,19 +215,24 @@ export function ArchitectSheets({
           })}
           <path d={`M8 ${h - 42} H${w - 8}`} stroke="#555" strokeWidth=".3" />
           <text x="14" y={h - 31} fontSize="4.5">
-            {p.name}
+            {titleBlockField(titleBlock, "name").text}
+            {titleBlockField(titleBlock, "name").truncated && <title>{p.name}</title>}
           </text>
           <text x="14" y={h - 24} fontSize="2.7">
-            {p.address || "Project address not specified"}
+            {titleBlockField(titleBlock, "address").text}
+            {titleBlockField(titleBlock, "address").truncated && <title>{p.address}</title>}
           </text>
           <text x="14" y={h - 16} fontSize="2.7">
-            DESIGN REVIEW / not for construction
+            {titleBlockField(titleBlock, "status").text}
           </text>
           <text x={w - 100} y={h - 31} fontSize="3.5">
-            {p.sheet.number} / REV {p.designRevision} / {p.sheet.size}
+            {titleBlockField(titleBlock, "number").text}
+            {titleBlockField(titleBlock, "number").truncated && (
+              <title>{titleBlockField(titleBlock, "number").full}</title>
+            )}
           </text>
           <text x={w - 100} y={h - 24} fontSize="2.7">
-            Model revision {p.revision} / print at 100%
+            {titleBlockField(titleBlock, "modelRevision").text}
           </text>
           <g transform={`translate(${w - 18} ${h - 29}) rotate(${p.sheet.northAngle})`}>
             <path d="M0 8V-8M-2 -4L0 -8L2 -4" fill="none" stroke="#333" strokeWidth=".4" />
