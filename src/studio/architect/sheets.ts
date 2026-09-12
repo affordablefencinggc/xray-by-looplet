@@ -1,4 +1,4 @@
-﻿import {
+import {
   PDFDocument,
   StandardFonts,
   rgb,
@@ -183,7 +183,7 @@ export async function exportDrawingPdf(project: ArchitectProject) {
   text(fit("Model revision " + p.revision + " | print at 100%", 8, rightAvailable), w - 100, h - 24, 8);
   const scale = Number(p.sheet.scale),
     bar = 5000 / scale,
-    x = w - 100,
+    x = Math.min(w - 100, w - 14 - bar),
     y = h - 14;
   page.drawLine({
     start: { x: x * mm, y: (h - y) * mm },

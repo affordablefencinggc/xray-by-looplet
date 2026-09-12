@@ -1,0 +1,522 @@
+[
+  [
+    "context",
+    "tabs"
+  ],
+  [
+    "viewport",
+    "tabs",
+    1440,
+    900
+  ],
+  [
+    "navigate",
+    "tabs",
+    "http://127.0.0.1:8187/?pane=measure"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "window.tabErrors=[];addEventListener('error',e=>tabErrors.push(e.message));window.checkTabs=()=>{const r=document.querySelector('.workflow-main-tabs').getBoundingClientRect();if(Math.abs(r.x+r.width/2-innerWidth/2)>2)throw Error('Main tabs not centered');const seam=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--assistant-seam-left'));for(const b of document.querySelectorAll('.top-row-toggle')){const v=b.getBoundingClientRect();if(Math.abs(v.x+v.width/2-seam)>2)throw Error('Arrow does not align with right rail');}return {center:r.x+r.width/2,seam};};checkTabs()"
+  ],
+  [
+    "screenshot",
+    "tabs",
+    "centered-tabs-desktop.png"
+  ],
+  [
+    "eval",
+    "tabs",
+    "document.querySelector('[aria-label=\"Collapse workspace tools\"]').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=mode]').dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "[...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent==='Takeoff').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=mode]').dataset.collapsed==='false'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "[...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent==='Takeoff').click()"
+  ],
+  [
+    "eval",
+    "tabs",
+    "if(document.querySelector('[data-top-row=mode]').dataset.collapsed!=='false')throw Error('Repeated tab click hid tools');document.querySelector('[aria-label=\"Collapse navigation\"]').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=navigation]').dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "(()=>{const e=document.querySelector('[aria-label=\"Expand navigation\"]');if(e.getBoundingClientRect().width<innerWidth-2)throw Error('Collapsed row not clickable across its width');e.click();})()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=navigation]').dataset.collapsed==='false'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "window.previousHeight=document.querySelector('[data-top-row=header]').getBoundingClientRect().height;document.querySelector('[aria-label=\"Resize header\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));document.querySelector('[aria-label=\"Collapse workspace tools\"]').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=header]').getBoundingClientRect().height>=previousHeight+7"
+  ],
+  [
+    "navigate",
+    "tabs",
+    "http://127.0.0.1:8187/?pane=measure"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready' && document.querySelector('[data-top-row=mode]')?.dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "document.querySelector('[aria-label=\"Expand workspace tools\"]').click()"
+  ],
+  [
+    "viewport",
+    "tabs",
+    1024,
+    768
+  ],
+  [
+    "eval",
+    "tabs",
+    "(()=>{const r=document.querySelector('.workflow-main-tabs').getBoundingClientRect();if(Math.abs(r.x+r.width/2-innerWidth/2)>2)throw Error('Tablet tabs not centered');if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');return r.toJSON();})()"
+  ],
+  [
+    "eval",
+    "tabs",
+    "document.querySelector(\".studio-header-actions button\").click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "!!document.querySelector(\".workspace-settings\") && Math.abs(document.querySelector(\".top-row-toggle\").getBoundingClientRect().x+14-document.querySelector(\".workspace-settings\").getBoundingClientRect().left)<2"
+  ],
+  [
+    "screenshot",
+    "tabs",
+    "centered-tabs-tablet.png"
+  ],
+  [
+    "dispose",
+    "tabs"
+  ],
+  [
+    "context",
+    "app"
+  ],
+  [
+    "viewport",
+    "app",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8187/?pane=model"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "window.reviewErrors=[];addEventListener('error',e=>reviewErrors.push(e.message));addEventListener('unhandledrejection',e=>reviewErrors.push(String(e.reason)))"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.building-scene-picker')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const s=document.querySelector('.building-scene-picker');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'crown-wharf');s.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.building-scene-picker')?.value==='crown-wharf' && !document.querySelector('.building-scene-picker').disabled"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.building-preview-cta:not(:disabled)') && document.querySelector('.source-building')?.dataset.modelStatus==='unmatched'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Explore & Draw 3D Model\");if(!b)throw Error('Missing button: Explore & Draw 3D Model');b.click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('canvas[data-mesh-count]')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Visual settings\");if(!b)throw Error('Missing button: Visual settings');b.click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('#building-visual-panel')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const e=document.querySelector('[aria-label=\"Resize visual settings\"]');e.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[aria-label=\"Resize visual settings\"]')?.getAttribute('aria-valuenow')==='410'"
+  ],
+  [
+    "eval",
+    "app",
+    "if(localStorage.getItem('xray:visual-settings-width:v1')!=='410')throw Error('Visual width not saved')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Settings\");if(!b)throw Error('Missing button: Settings');b.click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.workspace-settings')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const s=document.querySelector('.workspace-settings').getBoundingClientRect();const h=document.querySelector('[aria-label=\"Resize right menu\"]');const r=h.getBoundingClientRect();if(!r.height||Math.abs(r.left+2-s.left)>2)throw Error('Settings resizer not at visible seam'); h.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true})); return {settings:s.toJSON(),seam:r.toJSON()};})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.workspace-settings')?.getBoundingClientRect().width===420"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const d=document.querySelector('.workspace-settings').getBoundingClientRect();const b=document.querySelector('[aria-label=\"Close settings\"]').getBoundingClientRect();if(b.right>innerWidth||d.right>innerWidth)throw Error('Settings close action clipped');return {width:d.width,saved:localStorage.getItem('xray.rail-layout.v1')};})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "settings-resized.png"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('.rail-assistant-toggle').click()"
+  ],
+  [
+    "wait",
+    "app",
+    "!document.querySelector('.workspace-settings') && !!document.querySelector('.live-assistant.is-open')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const p=document.querySelector('.live-assistant-panel').getBoundingClientRect();const hit=document.elementFromPoint(p.left+p.width/2,p.top+40);if(!hit?.closest('.live-assistant'))throw Error('AI is obscured');return {assistant:p.toJSON(),visible:true};})()"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Add to assistant\"]').click()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('[aria-label=\"Add to assistant menu\"]')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const items=[...document.querySelectorAll('[role=menuitem]')].map(e=>e.textContent.trim());if(items.indexOf('NCC')!==items.indexOf('Projects')+1)throw Error('NCC must follow Projects');document.querySelectorAll('[role=menuitem]')[items.indexOf('NCC')].click();return items;})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.ncc-empty')"
+  ],
+  [
+    "eval",
+    "app",
+    "if(!document.querySelector('.ncc-empty').textContent.includes('No NCC files uploaded yet'))throw Error('Empty library misrepresents sources')"
+  ],
+  [
+    "screenshot",
+    "app",
+    "ncc-empty.png"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const e=document.querySelector('#live-assistant-prompt');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(e,'evacuation');e.dispatchEvent(new Event('input',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!document.querySelector('[aria-label=\"Find NCC references\"]').disabled"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Find NCC references\"]').click()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.assistant-ncc-library input[type=search]')?.value==='evacuation'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const e=document.querySelector('.assistant-ncc-library input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'Synthetic QA volume - not NCC law');e.dispatchEvent(new Event('input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const data=Uint8Array.from(atob('JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMTI1ID4+CnN0cmVhbQpCVCAvRjEgMTYgVGYgNTAgNzUwIFRkIChEMkQzIFN5bnRoZXRpYyBldmFjdWF0aW9uIHRlc3QpIFRqIDAgLTI1IFRkIChTeW50aGV0aWMgZml4dHVyZSBvbmx5LiBFdmFjdWF0aW9uIHBhc3NhZ2UgYWxwaGEuKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzExIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDg3CiUlRU9G'),c=>c.charCodeAt(0));const dt=new DataTransfer();dt.items.add(new File([data],'synthetic-qa.pdf',{type:'application/pdf'}));const e=document.querySelector('.assistant-ncc-library input[type=file]');e.files=dt.files;e.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.assistant-ncc-library article')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const a=document.querySelector('.assistant-ncc-library article');if(!a.textContent.includes('D2D3')||!a.textContent.includes('PDF page 1'))throw Error('Missing extracted citation');a.querySelector('input[type=checkbox]').click();a.querySelector('details').open=true;[...a.querySelectorAll('button')].find(b=>b.textContent==='View original page').click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.assistant-ncc-library a')?.href.endsWith('#page=1')"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('.assistant-ncc-library article').scrollIntoView({block:'start'})"
+  ],
+  [
+    "screenshot",
+    "app",
+    "ncc-selected.png"
+  ],
+  [
+    "eval",
+    "app",
+    "[...document.querySelectorAll('.assistant-ncc-library button')].find(b=>b.textContent==='Add references to question').click()"
+  ],
+  [
+    "wait",
+    "app",
+    "!document.querySelector('.assistant-ncc-library') && document.querySelector('#live-assistant-prompt')?.value.includes('Synthetic fixture only')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const d=document.querySelector('#live-assistant-prompt').value;if(!d.startsWith('evacuation')||!d.includes('D2D3')||!d.includes('Synthetic QA volume'))throw Error('Draft lost source or question');return {draft:d,externalSend:false};})()"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Collapse live assistant\"]').click()"
+  ],
+  [
+    "wait",
+    "app",
+    "!document.querySelector('.live-assistant.is-open')"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Close visual settings\"]')?.click()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Walk-through\");if(!b)throw Error('Missing button: Walk-through');b.click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelectorAll('.walk-floor-rail button').length>10"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{if(document.querySelector('.walk-start-picker select'))throw Error('Floor dropdown remains');const buttons=[...document.querySelectorAll('.walk-floor-rail button')];buttons.find(b=>b.textContent.includes('Level 02')).click();return {floors:buttons.length};})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.walk-floor-rail [aria-pressed=true]')?.textContent.includes('Level 02')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{for(const b of document.querySelectorAll('.walk-floor-rail button')){const s=b.querySelector('span');if(s.getBoundingClientRect().bottom>b.getBoundingClientRect().bottom)throw Error('Floor label clipped')}return 'Floor labels fit';})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "walk-floor-rail.png"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const svg=document.querySelector('.walk-clean-plan'), marker=svg.querySelector('.walk-plan-suggestion');if(!marker)throw Error('No supported suggestion');const m=marker.getScreenCTM();const pt={x:m.e,y:m.f};window.startScreen={x:pt.x,y:pt.y};svg.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:pt.x,clientY:pt.y}));})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.walk-start-picker')?.dataset.startPhase==='aim'"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('.walk-clean-plan').dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:startScreen.x+80,clientY:startScreen.y}))"
+  ],
+  [
+    "wait",
+    "app",
+    "Math.abs(Number(document.querySelector('.walk-start-picker')?.dataset.startYaw)+Math.PI/2)<.01"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('.walk-clean-plan').dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:startScreen.x-80,clientY:startScreen.y}))"
+  ],
+  [
+    "wait",
+    "app",
+    "Math.abs(Number(document.querySelector('.walk-start-picker')?.dataset.startYaw)-Math.PI/2)<.01"
+  ],
+  [
+    "screenshot",
+    "app",
+    "walk-aim-left.png"
+  ],
+  [
+    "eval",
+    "app",
+    "window.selectedYaw=Number(document.querySelector('.walk-start-picker').dataset.startYaw); document.querySelector('.walk-clean-plan').dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:startScreen.x-80,clientY:startScreen.y}))"
+  ],
+  [
+    "wait",
+    "app",
+    "!document.querySelector('.walk-start-picker') && document.querySelector('canvas[data-navigation]')?.dataset.navigation==='walk'"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('canvas[data-navigation]')?.dataset.navigationTransition==='idle'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const c=document.querySelector('canvas[data-navigation]');if(Math.abs(Number(c.dataset.navigationYaw)-selectedYaw)>.02)throw Error('Entered heading differs from chosen arrow');return {yaw:c.dataset.navigationYaw,feet:c.dataset.walkFeet,direction:c.dataset.navigationDirection};})()"
+  ],
+  [
+    "eval",
+    "app",
+    "document.exitPointerLock?.()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Orbit\");if(!b)throw Error('Missing button: Orbit');b.click();})()"
+  ],
+  [
+    "viewport",
+    "app",
+    1024,
+    768
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Settings\");if(!b)throw Error('Missing button: Settings');b.click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.workspace-settings')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const r=document.querySelector('.workspace-settings').getBoundingClientRect();const b=document.querySelector('[aria-label=\"Close settings\"]').getBoundingClientRect();if(r.right>innerWidth+1||b.right>innerWidth+1)throw Error('Tablet settings clipped');return {settings:r.toJSON(),overflow:document.documentElement.scrollWidth>innerWidth};})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "tablet-settings.png"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Close settings\"]').click()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Walk-through\");if(!b)throw Error('Missing button: Walk-through');b.click();})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.walk-floor-rail')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const r=document.querySelector('.workspace-dialog').getBoundingClientRect();if(r.right>innerWidth+1||r.left<0)throw Error('Tablet walkthrough clipped');if(window.reviewErrors.length)throw Error(window.reviewErrors.join(';'));return {dialog:r.toJSON(),errors:reviewErrors};})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "tablet-floor-rail.png"
+  ],
+  [
+    "dispose",
+    "app"
+  ]
+]

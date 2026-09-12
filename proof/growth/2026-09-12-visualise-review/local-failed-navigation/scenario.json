@@ -1,0 +1,66 @@
+[
+  [
+    "context",
+    "review"
+  ],
+  [
+    "viewport",
+    "review",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "review",
+    "http://127.0.0.1:8091/?pane=model"
+  ],
+  [
+    "wait",
+    "review",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "review",
+    "document.body.innerHTML='<div id=review-fixture-root></div>'; import('/proof/growth/2026-09-12-d15-review/fixture.tsx')"
+  ],
+  [
+    "wait",
+    "review",
+    "!!document.querySelector('.arch-delta-kpis')"
+  ],
+  [
+    "eval",
+    "review",
+    "(()=>{const root=document.querySelector('.arch-revision-delta-control'); const text=root.innerText; if(!text.includes('Added review roof')||!root.querySelector('.arch-delta-card-removed')||!text.includes('Element geometry')) throw Error('Missing added/removed/moved geometry detail'); root.scrollIntoView(); return {text, width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth};})()"
+  ],
+  [
+    "screenshot",
+    "review",
+    "desktop-delta.png"
+  ],
+  [
+    "eval",
+    "review",
+    "document.querySelector('#legacy').click()"
+  ],
+  [
+    "wait",
+    "review",
+    "!!document.querySelector('.arch-revision-delta-control [role=alert]')"
+  ],
+  [
+    "eval",
+    "review",
+    "(()=>{const root=document.querySelector('.arch-revision-delta-control');root.open=true;const alert=root.querySelector('[role=alert]');if(root.querySelector('.arch-delta-kpis')||!alert.textContent.includes('snapshot'))throw Error('Legacy error unavailable');alert.scrollIntoView({block:'center'});return alert.textContent;})()"
+  ],
+  [
+    "screenshot",
+    "review",
+    "legacy-unavailable.png"
+  ],
+  [
+    "dispose",
+    "review"
+  ]
+]

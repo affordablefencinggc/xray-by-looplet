@@ -1,3 +1,4 @@
+import {SiteImport} from "./SiteImport";
 import { useState, useSyncExternalStore } from "react";
 import { Bot, Camera, Download, Image as ImageIcon, Shield, Sliders } from "lucide-react";
 import { useStudio } from "./store";
@@ -67,6 +68,7 @@ export function RenderStudio() {
 
   return (
     <div className="render-workspace flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+      <SiteImport key={s.job.id} projectId={s.job.id} />
       <div>
         <div className="kicker">Camera / reference brief</div>
         <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">Render</h1>

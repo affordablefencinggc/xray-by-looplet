@@ -1,0 +1,986 @@
+import { useRef, useState, useMemo, useEffect } from "react";
+import { type View } from "./drawing";
+import { authoredSheets, changeAuthoredSheets, editActiveSheet, resizeSheetPaper, reviewAuthoredSheetArchive, type AuthoredSheetAction, type AuthoredSheetArchiveReview } from "./authoredSheetSet";
+import { DrawingPrimitives } from "./DrawingPrimitives";
+import {
+  paperSize,
+  sheetViewports,
+  viewportBox,
+  exportDrawingPdf,
+  exportIssueSetPdf,
+  saveDownload,
+} from "./sheets";
+import { reviewIssueSet, issueFileName, type IssueSetReview } from "./issueSet";
+import { recordDrawingIssue, issueHistory, type IssueRecord } from "./issueHistory";
+import { uuid, type ArchitectProject } from "./model";
+import { titleBlockFields, titleBlockField } from "./titleBlock";
+import { NumberField, TextField } from "./ArchitectInspector";
+import { compareDrawingRevisions, type RevisionDeltaReport } from "./revisionDelta";
+export function ArchitectSheets({
+  project: p,
+  onChange,
+  onError,
+  disabled = false,
+}: {
+  project: ArchitectProject;
+  onChange: (p: ArchitectProject) => boolean;
+  onError: (e: string) => void;
+  disabled?: boolean;
+}) {
+  const [selected, setSelected] = useState<string | null>(null),
+    [busy, setBusy] = useState(false),
+    [newView, setNewView] = useState<View>("plan"),
+    [newLevel, setNewLevel] = useState(p.levels[0].id),
+    [review, setReview] = useState<AuthoredSheetArchiveReview | null>(null),
+    // D-13: which sheets are in the issue, its purpose, and the reviewed set.
+    [issueSelection, setIssueSelection] = useState<string[]>([]),
+    [issuePurpose, setIssuePurpose] = useState("For construction"),
+    [issueReview, setIssueReview] = useState<IssueSetReview | null>(null),
+    // D-09: issue history and supersession inspection
+    [selectedHistoricalIssueId, setSelectedHistoricalIssueId] = useState<string | null>(null),
+    [inspectingIssueId, setInspectingIssueId] = useState<string | null>(null),
+    [notice, setNotice] = useState(""),
+    [failure, setFailure] = useState(""),
+    drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
+    svg = useRef<SVGSVGElement>(null),
+    set = authoredSheets(p),
+    active = set.sheets.find(sheet => sheet.id === set.activeId)!,
+    live = set.sheets.filter(sheet => !sheet.archived),
+    archived = set.sheets.filter(sheet => sheet.archived),
+    issues = issueHistory(p),
+    // D-15: visual and vector revision delta
+    [deltaBaselineId, setDeltaBaselineId] = useState<string>(""),
+    [deltaTargetId, setDeltaTargetId] = useState<string>("active"),
+    [deltaCategoryFilter, setDeltaCategoryFilter] = useState<"all" | "summary" | "walls" | "slabs" | "roofs">("all"),
+    inspectingIssue = inspectingIssueId ? issues.find((i) => i.id === inspectingIssueId) ?? null : null,
+    inspectingSheet = inspectingIssue
+      ? inspectingIssue.sheets.find((s) => s.sheetId === active.id) ?? inspectingIssue.sheets[0]
+      : null,
+    effectiveLayout = inspectingSheet ? inspectingSheet.layout : p.sheet,
+    [w, h] = inspectingSheet
+      ? (inspectingSheet.size === "A1" ? [841, 594] : [420, 297])
+      : paperSize(p),
+    // D-07: linked title block fields, fitted to their columns so a long
+    // project name or address cannot overrun the sheet number beside it.
+    titleBlock = titleBlockFields(p, effectiveLayout, w),
+    vs = inspectingSheet ? effectiveLayout.viewports : sheetViewports(p),
+    v = vs.find((v) => v.id === selected);
+
+  const baselineSource = issues.find((i) => i.id === deltaBaselineId) ?? (issues.length > 0 ? issues[0] : null);
+  const targetSource = deltaTargetId === "active" ? p : issues.find((i) => i.id === deltaTargetId) ?? p;
+
+  const deltaComparison = useMemo((): { report: RevisionDeltaReport | null; error: string | null } => {
+    if (!baselineSource) return { report: null, error: null };
+    try {
+      return { report: compareDrawingRevisions(baselineSource, targetSource), error: null };
+    } catch (error) {
+      return { report: null, error: error instanceof Error ? error.message : "Revision comparison unavailable." };
+    }
+  }, [baselineSource, targetSource, p]);
+
+  const deltaReport = deltaComparison.report;
+
+  const filteredQuantityRows = useMemo(() => {
+    if (!deltaReport) return [];
+    if (deltaCategoryFilter === "summary") return deltaReport.quantityVariance.summaryRows;
+    if (deltaCategoryFilter === "walls") {
+      return deltaReport.quantityVariance.tradeRows.filter((r) => r.category === "Wall layer");
+    }
+    if (deltaCategoryFilter === "slabs") {
+      return deltaReport.quantityVariance.tradeRows.filter((r) => r.category === "Slab");
+    }
+    if (deltaCategoryFilter === "roofs") {
+      return deltaReport.quantityVariance.tradeRows.filter((r) => r.category.startsWith("Roof"));
+    }
+    return deltaReport.quantityVariance.allRows;
+  }, [deltaReport, deltaCategoryFilter]);
+
+  useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId]);
+  function change(action: AuthoredSheetAction, message: string) {
+    if (disabled) return;
+    setNotice("");
+    setFailure("");
+    try {
+      if (onChange(changeAuthoredSheets(p, action))) {
+        setReview(null); setNotice(message);
+      } else setFailure("Drawing sheet was not saved. Your previous saved sheets are unchanged. Resolve the design storage error, then retry this action.");
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); setFailure(message); onError(message); }
+  }
+  function update(fn: (q: ArchitectProject) => void) {
+    if (disabled) return;
+    setNotice("");
+    setFailure("");
+    try {
+      const q = structuredClone(p);
+      q.sheet.viewports = structuredClone(vs);
+      fn(q);
+      if (!onChange(editActiveSheet(p, layout => Object.assign(layout, q.sheet)))) setFailure("Drawing sheet changes were not saved. Your previous saved layout is unchanged. Resolve the design storage error, then retry the edit.");
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); setFailure(message); onError(message); }
+  }
+  function at(e: { clientX: number; clientY: number }) {
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(
+      svg.current!.getScreenCTM()!.inverse(),
+    );
+  }
+  return (
+    <fieldset className="arch-sheet-layout" disabled={disabled}>
+      <section className="arch-sheet-register" aria-label="Authored drawing sheets">
+        <div><h2>Drawing sheets</h2><p>Save independent layouts in this design. Archived sheets remain recoverable after reopening.</p></div>
+        <div className="arch-sheet-actions">
+          <label>Active drawing sheet<select aria-label="Active drawing sheet" value={set.activeId} onChange={event => change({ type: "select", sheetId: event.target.value }, "Active drawing sheet saved.")}>{live.map(sheet => <option key={sheet.id} value={sheet.id}>{sheet.layout.number} · {sheet.name}</option>)}</select></label>
+          <button disabled={set.sheets.length >= 200} onClick={() => change({ type: "add" }, "Drawing sheet added and saved.")}>Add drawing sheet</button>
+          <button disabled={set.sheets.length >= 200} onClick={() => change({ type: "duplicate", sheetId: active.id }, "Independent copy saved with new sheet and viewport identities.")}>Duplicate sheet</button>
+          <button disabled={live.length < 2} title={live.length < 2 ? "Keep one active sheet; add another before archiving." : "Review the layout before archiving"} onClick={() => { try { setReview(reviewAuthoredSheetArchive(p, active.id)); setNotice(""); } catch (error) { onError(String(error)); } }}>Archive sheet</button>
+        </div>
+        <div className="arch-sheet-actions">
+          <button disabled={live[0].id === active.id} onClick={() => change({ type: "move", sheetId: active.id, direction: -1 }, "Sheet order saved.")}>Move sheet earlier</button>
+          <button disabled={live.at(-1)!.id === active.id} onClick={() => change({ type: "move", sheetId: active.id, direction: 1 }, "Sheet order saved.")}>Move sheet later</button>
+          <span>{live.length} active · {archived.length} archived · {set.sheets.length}/200 sheets</span>
+        </div>
+        {notice && <p role="status">{notice}</p>}
+        {failure && <p className="arch-sheet-review" role="alert">{failure}</p>}
+        {review && <div className="arch-sheet-review" role="region" aria-label="Review drawing sheet archive">
+          <h3>Archive {review.name}?</h3><p>{review.viewports} live viewport{review.viewports === 1 ? "" : "s"}, sheet scale, north rotation and layout will be retained in the original sheet position. Shared model geometry, dimensions, quantities and previously exported files stay unchanged.</p>
+          <p>Recover the same sheet from Archived drawing sheets after reopening. Keep at least one active drawing sheet.</p>
+          {review.projectSnapshot !== JSON.stringify(p) && <p role="alert">The design changed after this review. Cancel and review again before archiving.</p>}
+          <div className="arch-sheet-actions"><button disabled={review.projectSnapshot !== JSON.stringify(p)} onClick={() => change({ type: "archive", review }, "Sheet archived and saved. Recover it from Archived drawing sheets.")}>Confirm sheet archive</button><button onClick={() => setReview(null)}>Cancel sheet archive</button></div>
+        </div>}
+        <details className="arch-sheet-archive"><summary>Archived drawing sheets ({archived.length})</summary>
+          {archived.length ? <ol>{archived.map(sheet => <li key={sheet.id}><span><strong>{sheet.layout.number} · {sheet.name}</strong><small>Position {set.sheets.indexOf(sheet) + 1} · {sheet.layout.size} · 1:{sheet.layout.scale} · {Math.max(1, sheet.layout.viewports.length)} viewports retained</small></span><button aria-label={`Recover drawing sheet ${sheet.name}`} onClick={() => change({ type: "recover", sheetId: sheet.id }, "Drawing sheet recovered in its saved position.")}>Recover sheet</button></li>)}</ol> : <p>No archived drawing sheets.</p>}
+        </details>
+        <details className="arch-sheet-archive arch-issue-set">
+          <summary>Issue a drawing set ({issueSelection.length} of {live.length} selected)</summary>
+          <p>
+            Select the sheets to issue, state the purpose, then review. The issued PDF leads with
+            an issue register listing every sheet in printed order. Issuing never changes the design.
+          </p>
+          <div className="arch-sheet-actions">
+            <button
+              type="button"
+              onClick={() => { setIssueSelection(live.map(sheet => sheet.id)); setIssueReview(null); }}
+            >
+              Select all sheets
+            </button>
+            <button
+              type="button"
+              disabled={!issueSelection.length}
+              onClick={() => { setIssueSelection([]); setIssueReview(null); }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <ol className="arch-issue-list">
+            {live.map(sheet => (
+              <li key={sheet.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={issueSelection.includes(sheet.id)}
+                    onChange={event => {
+                      setIssueReview(null);
+                      setIssueSelection(current =>
+                        event.target.checked
+                          ? [...current, sheet.id]
+                          : current.filter(id => id !== sheet.id));
+                    }}
+                  />
+                  <span>
+                    <strong>{sheet.layout.number} · {sheet.name}</strong>
+                    <small>{sheet.layout.size} · 1:{sheet.layout.scale} · {Math.max(1, sheet.layout.viewports.length)} viewports</small>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ol>
+          <label>
+            Issue purpose
+            <input
+              className="arch-issue-purpose-input"
+              value={issuePurpose}
+              maxLength={80}
+              onChange={event => { setIssuePurpose(event.target.value); setIssueReview(null); }}
+            />
+          </label>
+          <div className="arch-sheet-actions">
+            <button
+              type="button"
+              disabled={!issueSelection.length}
+              onClick={() => {
+                setNotice(""); setFailure("");
+                try {
+                  setIssueReview(reviewIssueSet(p, issueSelection, issuePurpose));
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error);
+                  setIssueReview(null); setFailure(message); onError(message);
+                }
+              }}
+            >
+              Review issue
+            </button>
+          </div>
+          {issueReview && (
+            <div className="arch-sheet-review" role="region" aria-label="Review drawing issue">
+              <h3>Issue {issueReview.sheets.length} sheet{issueReview.sheets.length === 1 ? "" : "s"}?</h3>
+              <p>
+                Purpose: {issueReview.purpose}. Design revision {issueReview.designRevision}, model
+                revision {issueReview.modelRevision}. Sheets print in this order:
+              </p>
+              <ol>
+                {issueReview.sheets.map(sheet => (
+                  <li key={sheet.sheetId}>
+                    <span>
+                      <strong>{sheet.number} · {sheet.name}</strong>
+                      <small>{sheet.size} · 1:{sheet.scale} · {sheet.viewports} viewports</small>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {issueReview.projectSnapshot !== JSON.stringify(p) && (
+                <p role="alert">The design changed after this review. Review the issue again before exporting.</p>
+              )}
+              <div className="arch-sheet-actions">
+                <button
+                  type="button"
+                  disabled={busy || issueReview.projectSnapshot !== JSON.stringify(p)}
+                  onClick={async () => {
+                    setBusy(true); setNotice(""); setFailure("");
+                    try {
+                      const issuedAt = new Date();
+                      saveDownload(
+                        await exportIssueSetPdf(p, issueReview, issuedAt),
+                        issueFileName(issueReview, issuedAt),
+                        "application/pdf",
+                      );
+                      const updated = recordDrawingIssue(p, issueReview, issuedAt);
+                      onChange(updated);
+                      setNotice(`Issued ${issueReview.sheets.length} sheets with an issue register.`);
+                      setIssueReview(null);
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : String(error);
+                      setFailure(message); onError(message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? "Preparing issue…" : "Export issue PDF"}
+                </button>
+                <button type="button" onClick={() => setIssueReview(null)}>Cancel issue</button>
+              </div>
+            </div>
+          )}
+        </details>
+      </section>
+      <section className="arch-issue-history-control" aria-label="Drawing revisions and issue history">
+        <details className="arch-issue-history-details" open={Boolean(selectedHistoricalIssueId || issues.length > 0)}>
+          <summary>
+            <strong>Drawing revisions & history</strong>
+            <small>{issues.length ? `${issues.length} issue${issues.length === 1 ? "" : "s"}` : "No issues yet"}</small>
+          </summary>
+          {issues.length === 0 ? (
+            <p className="arch-sheet-empty" style={{ margin: "8px 0", fontSize: "11px", color: "#6c7a70" }}>
+              No drawing sets have been issued yet for this project.
+            </p>
+          ) : (
+            <div className="arch-issue-history-list">
+              {issues.map((issue) => {
+                const isSelected = issue.id === selectedHistoricalIssueId;
+                const isSuperseded = issue.status === "superseded";
+                const isInspectingThis = inspectingIssueId === issue.id;
+                return (
+                  <div
+                    key={issue.id}
+                    className={`arch-issue-history-card ${isSelected ? "is-selected" : ""} ${isSuperseded ? "is-superseded" : "is-current"}`}
+                  >
+                    <div className="arch-issue-card-header">
+                      <div>
+                        <strong>Rev {issue.designRevision} · {issue.purpose}</strong>
+                        <small>{issue.issuedAt.slice(0, 10)} · {issue.sheets.length} sheet{issue.sheets.length === 1 ? "" : "s"}</small>
+                      </div>
+                      <span className={`arch-issue-badge ${isSuperseded ? "arch-issue-badge-superseded" : "arch-issue-badge-current"}`}>
+                        {isSuperseded ? "SUPERSEDED" : "CURRENT"}
+                      </span>
+                    </div>
+                    {isSuperseded && (
+                      <p className="arch-superseded-notice" role="alert">
+                        Superseded by Rev {issue.supersededByRevision ?? "later"} on {issue.supersededAt ? issue.supersededAt.slice(0, 10) : "later"}.
+                      </p>
+                    )}
+                    <div className="arch-sheet-actions" style={{ marginTop: "6px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedHistoricalIssueId(isSelected ? null : issue.id)}
+                      >
+                        {isSelected ? "Hide register" : "View register"}
+                      </button>
+                      <button
+                        type="button"
+                        className={isInspectingThis ? "is-active-inspect" : ""}
+                        onClick={() => setInspectingIssueId(isInspectingThis ? null : issue.id)}
+                      >
+                        {isInspectingThis ? "Close inspection" : "Inspect layout"}
+                      </button>
+                    </div>
+                    {isSelected && (
+                      <div className="arch-historical-sheet-list">
+                        <h4>Issue register (Rev {issue.designRevision})</h4>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>No.</th>
+                              <th>Name</th>
+                              <th>Size</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {issue.sheets.map((s) => (
+                              <tr key={s.sheetId} className={s.status === "superseded" ? "is-superseded-row" : ""}>
+                                <td>{s.number}</td>
+                                <td>{s.name}</td>
+                                <td>{s.size}</td>
+                                <td>
+                                  <span className={`arch-issue-sheet-status ${s.status === "superseded" ? "is-superseded" : "is-current"}`}>
+                                    {s.status === "superseded" ? "SUPERSEDED" : "CURRENT"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </details>
+      </section>
+      <section className="arch-revision-delta-control" aria-label="Drawing revision comparison and delta">
+        <details className="arch-revision-delta-details" open={Boolean(issues.length > 1 || deltaReport || deltaComparison.error)}>
+          <summary>
+            <strong>Compare revisions (Revision Delta)</strong>
+            <small>
+              {deltaReport
+                ? (deltaReport.summary.hasChanges
+                    ? `${deltaReport.summary.sheetsChangedCount} sheet & ${deltaReport.summary.geometryChangedCount} geom changes`
+                    : "No changes detected (identical)")
+                : "Select revisions to compare"}
+            </small>
+          </summary>
+          {issues.length === 0 ? (
+            <p className="arch-sheet-empty" style={{ margin: "8px 0", fontSize: "11px", color: "#6c7a70" }}>
+              Issue at least one drawing revision above to compare vector geometry and takeoff variance against revisions.
+            </p>
+          ) : (
+            <div className="arch-revision-delta-panel">
+              <div className="arch-delta-selectors">
+                <label>
+                  <span>Baseline revision</span>
+                  <select
+                    className="arch-delta-baseline-select"
+                    value={baselineSource?.id ?? ""}
+                    onChange={(e) => setDeltaBaselineId(e.target.value)}
+                  >
+                    {issues.map((iss) => (
+                      <option key={iss.id} value={iss.id}>
+                        Rev {iss.designRevision} · {iss.purpose} ({iss.issuedAt.slice(0, 10)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="arch-delta-vs">vs</div>
+                <label>
+                  <span>Target revision</span>
+                  <select
+                    className="arch-delta-target-select"
+                    value={deltaTargetId}
+                    onChange={(e) => setDeltaTargetId(e.target.value)}
+                  >
+                    <option value="active">Current active design (WIP)</option>
+                    {issues.map((iss) => (
+                      <option key={iss.id} value={iss.id} disabled={iss.id === baselineSource?.id}>
+                        Rev {iss.designRevision} · {iss.purpose} ({iss.issuedAt.slice(0, 10)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {deltaComparison.error && <p role="alert">{deltaComparison.error}</p>}
+              <p className="arch-delta-none">Model-derived comparison of sheets, walls, openings, slabs and roofs. Drafting annotations are not compared. Quantities and known costs are design values; missing rates are excluded, not priced as zero.</p>
+              {deltaReport && (
+                <div className="arch-delta-content">
+                  {/* Summary KPI Badges */}
+                  <div className="arch-delta-kpis">
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Sheet changes</span>
+                      <strong className="arch-delta-kpi-value">
+                        +{deltaReport.sheets.counts.added} / -{deltaReport.sheets.counts.removed} / {deltaReport.sheets.counts.changed}
+                      </strong>
+                    </div>
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Geometry elements</span>
+                      <strong className="arch-delta-kpi-value">
+                        +{deltaReport.geometry.counts.totalAdded} / -{deltaReport.geometry.counts.totalRemoved} / {deltaReport.geometry.counts.totalChanged}
+                      </strong>
+                    </div>
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Net area variance</span>
+                      <strong className={`arch-delta-kpi-value ${deltaReport.summary.netAreaVarianceM2 > 0 ? "is-pos" : deltaReport.summary.netAreaVarianceM2 < 0 ? "is-neg" : ""}`}>
+                        {deltaReport.summary.netAreaVarianceM2 >= 0 ? "+" : ""}{deltaReport.summary.netAreaVarianceM2.toFixed(2)} m²
+                      </strong>
+                    </div>
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Material cost delta</span>
+                      <strong className={`arch-delta-kpi-value ${deltaReport.summary.netCostVariance > 0 ? "is-pos" : deltaReport.summary.netCostVariance < 0 ? "is-neg" : ""}`}>
+                        {deltaReport.summary.netCostVariance >= 0 ? "+" : ""}${deltaReport.summary.netCostVariance.toFixed(2)}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* 1. Sheets Delta */}
+                  <div className="arch-delta-section">
+                    <h4>Drawing sheets delta ({deltaReport.sheets.counts.added} added, {deltaReport.sheets.counts.removed} removed, {deltaReport.sheets.counts.changed} modified)</h4>
+                    {deltaReport.sheets.counts.added === 0 && deltaReport.sheets.counts.removed === 0 && deltaReport.sheets.counts.changed === 0 ? (
+                      <p className="arch-delta-none">All drawing sheets and layouts are identical between selected revisions.</p>
+                    ) : (
+                      <div className="arch-delta-items-grid">
+                        {deltaReport.sheets.added.map((s) => (
+                          <div key={s.sheetId} className="arch-delta-card arch-delta-card-added">
+                            <span className="arch-delta-badge arch-delta-badge-added">ADDED</span>
+                            <strong>{s.number} · {s.name}</strong>
+                            <small>{s.size} · 1:{s.scale} · {s.viewports} viewport{s.viewports === 1 ? "" : "s"}</small>
+                          </div>
+                        ))}
+                        {deltaReport.sheets.removed.map((s) => (
+                          <div key={s.sheetId} className="arch-delta-card arch-delta-card-removed">
+                            <span className="arch-delta-badge arch-delta-badge-removed">REMOVED</span>
+                            <strong>{s.number} · {s.name}</strong>
+                            <small>{s.size} · 1:{s.scale}</small>
+                          </div>
+                        ))}
+                        {deltaReport.sheets.changed.map((s) => (
+                          <div key={s.sheetId} className="arch-delta-card arch-delta-card-changed">
+                            <div className="arch-delta-card-header">
+                              <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                              <strong>{s.number} · {s.name}</strong>
+                            </div>
+                            <ul className="arch-delta-change-list">
+                              {s.changes.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Vector Geometry Delta */}
+                  <div className="arch-delta-section">
+                    <h4>Vector geometry delta (+{deltaReport.geometry.counts.totalAdded} / -{deltaReport.geometry.counts.totalRemoved} / {deltaReport.geometry.counts.totalChanged} changes)</h4>
+                    {deltaReport.geometry.counts.totalAdded === 0 && deltaReport.geometry.counts.totalRemoved === 0 && deltaReport.geometry.counts.totalChanged === 0 ? (
+                      <p className="arch-delta-none">All walls, openings, slabs, and roofs are identical between selected revisions.</p>
+                    ) : (
+                      <div className="arch-delta-geometry-groups">
+                        {/* Walls */}
+                        {(deltaReport.geometry.walls.added.length > 0 || deltaReport.geometry.walls.removed.length > 0 || deltaReport.geometry.walls.changed.length > 0) && (
+                          <div className="arch-delta-geom-category">
+                            <h5>Walls ({deltaReport.geometry.walls.added.length} added, {deltaReport.geometry.walls.removed.length} removed, {deltaReport.geometry.walls.changed.length} modified)</h5>
+                            <div className="arch-delta-items-grid">
+                              {deltaReport.geometry.walls.added.map((w) => (
+                                <div key={w.id} className="arch-delta-card arch-delta-card-added">
+                                  <span className="arch-delta-badge arch-delta-badge-added">ADDED</span>
+                                  <strong>{w.name}</strong>
+                                  <small>{(Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) / 1000).toFixed(2)}m run · {w.height}mm high · {w.layers.length} layers</small>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.walls.removed.map((w) => (
+                                <div key={w.id} className="arch-delta-card arch-delta-card-removed">
+                                  <span className="arch-delta-badge arch-delta-badge-removed">REMOVED</span>
+                                  <strong>{w.name}</strong>
+                                  <small>{(Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) / 1000).toFixed(2)}m run</small>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.walls.changed.map((w) => (
+                                <div key={w.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{w.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {w.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Openings */}
+                        {(deltaReport.geometry.openings.added.length > 0 || deltaReport.geometry.openings.removed.length > 0 || deltaReport.geometry.openings.changed.length > 0) && (
+                          <div className="arch-delta-geom-category">
+                            <h5>Doors & Windows ({deltaReport.geometry.openings.added.length} added, {deltaReport.geometry.openings.removed.length} removed, {deltaReport.geometry.openings.changed.length} modified)</h5>
+                            <div className="arch-delta-items-grid">
+                              {deltaReport.geometry.openings.added.map((o) => (
+                                <div key={o.id} className="arch-delta-card arch-delta-card-added">
+                                  <span className="arch-delta-badge arch-delta-badge-added">ADDED</span>
+                                  <strong>{o.kind.toUpperCase()} {o.tag}</strong>
+                                  <small>{o.width}×{o.height}mm · sill {o.sill}mm</small>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.openings.removed.map((o) => (
+                                <div key={o.id} className="arch-delta-card arch-delta-card-removed">
+                                  <span className="arch-delta-badge arch-delta-badge-removed">REMOVED</span>
+                                  <strong>{o.kind.toUpperCase()} {o.tag}</strong>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.openings.changed.map((o) => (
+                                <div key={o.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{o.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {o.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Slabs & Roofs */}
+                        {(deltaReport.geometry.slabs.changed.length + deltaReport.geometry.slabs.added.length + deltaReport.geometry.slabs.removed.length + deltaReport.geometry.roofs.changed.length + deltaReport.geometry.roofs.added.length + deltaReport.geometry.roofs.removed.length > 0) && (
+                          <div className="arch-delta-geom-category">
+                            <h5>Slabs & Roofs</h5>
+                            <div className="arch-delta-items-grid">
+                              {(["slabs", "roofs"] as const).flatMap(category =>
+                                (["added", "removed"] as const).flatMap(status =>
+                                  deltaReport.geometry[category][status].map(element => (
+                                    <div key={`${category}-${status}-${element.id}`} className={`arch-delta-card arch-delta-card-${status}`}>
+                                      <span className={`arch-delta-badge arch-delta-badge-${status}`}>{status.toUpperCase()}</span>
+                                      <strong>{element.name}</strong>
+                                      <small>{category === "slabs" ? "Slab" : "Roof"}</small>
+                                    </div>
+                                  ))
+                                )
+                              )}
+                              {deltaReport.geometry.slabs.changed.map((s) => (
+                                <div key={s.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{s.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {s.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.roofs.changed.map((r) => (
+                                <div key={r.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{r.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {r.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Quantity Variance Table */}
+                  <div className="arch-delta-section">
+                    <div className="arch-delta-table-header">
+                      <h4>Quantity variance table</h4>
+                      <div className="arch-delta-filter-pills">
+                        {(["all", "summary", "walls", "slabs", "roofs"] as const).map((filter) => (
+                          <button
+                            key={filter}
+                            type="button"
+                            className={`arch-delta-filter-btn ${deltaCategoryFilter === filter ? "is-active" : ""}`}
+                            onClick={() => setDeltaCategoryFilter(filter)}
+                          >
+                            {filter === "all" ? "All items" : filter === "summary" ? "Takeoff summary" : filter.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="arch-delta-table-wrapper">
+                      <table className="arch-quantity-variance-table">
+                        <thead>
+                          <tr>
+                            <th>Item / Trade description</th>
+                            <th>Category</th>
+                            <th>Unit</th>
+                            <th>Baseline ({deltaReport.baseline.revision ? `Rev ${deltaReport.baseline.revision}` : "Base"})</th>
+                            <th>Target ({deltaReport.target.revision ? `Rev ${deltaReport.target.revision}` : "Target"})</th>
+                            <th>Variance (Δ)</th>
+                            <th>% Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredQuantityRows.map((row) => {
+                            const isAdded = row.status === "added";
+                            const isRemoved = row.status === "removed";
+                            const isIncreased = row.status === "increased";
+                            const isDecreased = row.status === "decreased";
+                            const rowClass = isAdded ? "is-row-added" : isRemoved ? "is-row-removed" : isIncreased ? "is-row-increased" : isDecreased ? "is-row-decreased" : "is-row-unchanged";
+                            return (
+                              <tr key={row.id} className={rowClass}>
+                                <td className="arch-delta-cell-name">
+                                  <strong>{row.name}</strong>
+                                  {row.category === "Summary" && <span className="arch-delta-summary-tag">KEY TAKEAWAY</span>}
+                                </td>
+                                <td>{row.category}</td>
+                                <td>{row.unit}</td>
+                                <td className="arch-delta-cell-num">{row.baselineQuantity.toFixed(2)}</td>
+                                <td className="arch-delta-cell-num">{row.targetQuantity.toFixed(2)}</td>
+                                <td className={`arch-delta-cell-num arch-delta-variance ${row.variance > 0 ? "is-pos" : row.variance < 0 ? "is-neg" : ""}`}>
+                                  {row.variance > 0 ? "+" : ""}{row.variance.toFixed(2)}
+                                </td>
+                                <td>
+                                  <span className={`arch-delta-pct-badge ${row.variance > 0 ? "is-pos" : row.variance < 0 ? "is-neg" : "is-zero"}`}>
+                                    {row.percentVariance !== null ? `${row.percentVariance > 0 ? "+" : ""}${row.percentVariance.toFixed(1)}%` : "—"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </details>
+      </section>
+      <div>
+        <div className="arch-button-row">
+          <select
+            aria-label="Paper size"
+            disabled={disabled || Boolean(inspectingSheet)}
+            value={effectiveLayout.size}
+            onChange={(e) =>
+              update((q) => {
+                Object.assign(q.sheet, resizeSheetPaper(q.sheet, e.target.value as "A1" | "A3"));
+              })
+            }
+          >
+            <option>A3</option>
+            <option>A1</option>
+          </select>
+          <select
+            aria-label="Sheet default scale"
+            disabled={disabled || Boolean(inspectingSheet)}
+            value={effectiveLayout.scale}
+            onChange={(e) =>
+              update((q) => {
+                q.sheet.scale = e.target.value as "50";
+                for (const v of q.sheet.viewports) v.scale = q.sheet.scale;
+              })
+            }
+          >
+            {["50", "100", "200"].map((s) => (
+              <option key={s} value={s}>
+                1:{s}
+              </option>
+            ))}
+          </select>
+          <button
+            disabled={busy || Boolean(inspectingSheet)}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                saveDownload(await exportDrawingPdf(p), effectiveLayout.number + ".pdf", "application/pdf");
+              } catch (e) {
+                onError(String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Preparing vectors…" : "Export vector PDF"}
+          </button>
+        </div>
+        {inspectingSheet && (
+          <div
+            className={`arch-superseded-banner ${inspectingSheet.status === "superseded" ? "is-superseded" : "is-current"}`}
+            role="alert"
+          >
+            <span className="arch-superseded-tag">
+              {inspectingSheet.status === "superseded" ? "SUPERSEDED REVISION" : "HISTORICAL ISSUE"}
+            </span>
+            <span>
+              {inspectingSheet.status === "superseded"
+                ? `Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") was superseded by Rev ${inspectingSheet.supersededByRevision ?? inspectingIssue?.supersededByRevision ?? "later"} on ${inspectingSheet.supersededAt ? inspectingSheet.supersededAt.slice(0, 10) : "a later date"}.`
+                : `Viewing frozen layout for Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") issued on ${inspectingIssue ? inspectingIssue.issuedAt.slice(0, 10) : ""}.`}
+            </span>
+            <button type="button" onClick={() => setInspectingIssueId(null)}>
+              Return to live design
+            </button>
+          </div>
+        )}
+        <svg
+          ref={svg}
+          className="arch-paper"
+          role="img"
+          aria-label="Scaled architectural drawing sheet"
+          viewBox={`0 0 ${w} ${h}`}
+          onPointerMove={(e) => {
+            if (disabled || !drag.current) return;
+            const pt = at(e),
+              d = drag.current;
+            const g = svg.current?.querySelector(`[data-viewport="${d.id}"]`);
+            g?.setAttribute(
+              "transform",
+              `translate(${Math.max(8, Math.min(w - 25, d.oldX + pt.x - d.x))} ${Math.max(8, Math.min(h - 60, d.oldY + pt.y - d.y))})`,
+            );
+          }}
+          onPointerUp={(e) => {
+            if (disabled || !drag.current) return;
+            const pt = at(e),
+              d = drag.current;
+            drag.current = null;
+            update((q) => {
+              const v = q.sheet.viewports.find((v) => v.id === d.id)!;
+              v.x = Math.max(8, Math.min(w - v.width - 8, d.oldX + pt.x - d.x));
+              v.y = Math.max(8, Math.min(h - v.height - 44, d.oldY + pt.y - d.y));
+            });
+          }}
+        >
+          <rect width={w} height={h} fill="#fffefa" />
+          <rect
+            x="8"
+            y="8"
+            width={w - 16}
+            height={h - 16}
+            fill="none"
+            stroke="#64686b"
+            strokeWidth=".3"
+          />
+          {vs.map((v) => {
+            const { items, box } = viewportBox(p, v);
+            return (
+              <g
+                key={v.id}
+                data-viewport={v.id}
+                transform={`translate(${v.x} ${v.y})`}
+                onPointerDown={(e) => {
+                  if (disabled) return;
+                  e.stopPropagation();
+                  setSelected(v.id);
+                  const pt = at(e);
+                  drag.current = { id: v.id, x: pt.x, y: pt.y, oldX: v.x, oldY: v.y };
+                  svg.current?.setPointerCapture(e.pointerId);
+                }}
+              >
+                <rect
+                  width={v.width}
+                  height={v.height}
+                  fill="transparent"
+                  stroke={selected === v.id ? "#7a908e" : "none"}
+                  strokeWidth=".3"
+                />
+                <svg
+                  width={v.width}
+                  height={v.height - 8}
+                  viewBox={box.join(" ")}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <DrawingPrimitives items={items} />
+                </svg>
+                <text x="0" y={v.height - 2} fontSize="2.8">
+                  {v.view.toUpperCase()} / {p.levels.find((l) => l.id === v.levelId)?.name} / 1:
+                  {v.scale}
+                </text>
+              </g>
+            );
+          })}
+          <path d={`M8 ${h - 42} H${w - 8}`} stroke="#555" strokeWidth=".3" />
+          <text x="14" y={h - 31} fontSize="4.5">
+            {titleBlockField(titleBlock, "name").text}
+            {titleBlockField(titleBlock, "name").truncated && <title>{p.name}</title>}
+          </text>
+          <text x="14" y={h - 24} fontSize="2.7">
+            {titleBlockField(titleBlock, "address").text}
+            {titleBlockField(titleBlock, "address").truncated && <title>{p.address}</title>}
+          </text>
+          <text x="14" y={h - 16} fontSize="2.7">
+            {titleBlockField(titleBlock, "status").text}
+          </text>
+          <text x={w - 100} y={h - 31} fontSize="3.5">
+            {titleBlockField(titleBlock, "number").text}
+            {titleBlockField(titleBlock, "number").truncated && (
+              <title>{titleBlockField(titleBlock, "number").full}</title>
+            )}
+          </text>
+          <text x={w - 100} y={h - 24} fontSize="2.7">
+            {titleBlockField(titleBlock, "modelRevision").text}
+          </text>
+          <g transform={`translate(${w - 18} ${h - 29}) rotate(${p.sheet.northAngle})`}>
+            <path d="M0 8V-8M-2 -4L0 -8L2 -4" fill="none" stroke="#333" strokeWidth=".4" />
+            <text x="-1" y="-10" fontSize="3">
+              N
+            </text>
+          </g>
+          <path
+            d={`M${w - 100} ${h - 14}h${5000 / Number(p.sheet.scale)}`}
+            stroke="#333"
+            strokeWidth=".7"
+          />
+          <text x={w - 100} y={h - 10} fontSize="2.2">
+            0 — 5 m / 1:{p.sheet.scale}
+          </text>
+          {inspectingSheet?.status === "superseded" && (
+            <text
+              className="arch-superseded-watermark"
+              x={w / 2}
+              y={h / 2}
+              fill="rgba(196, 48, 48, 0.16)"
+              fontSize={Math.min(w, h) / 7}
+              fontWeight="bold"
+              letterSpacing="6"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(-25 ${w / 2} ${h / 2})`}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              SUPERSEDED
+            </text>
+          )}
+        </svg>
+        <p className="arch-note">
+          Drag a viewport to position it. Each viewport prints at its labelled scale; content
+          outside its frame is clipped. Changing paper size fits frames to the paper and preserves their scales. Print the PDF at 100%, without fit-to-page.
+        </p>
+      </div>
+      <aside className="arch-inspector">
+        <h2>Drawing sheet</h2>
+        <TextField key={active.id} label="Drawing sheet name" value={active.name} onCommit={name => change({ type: "rename", sheetId: active.id, name }, "Drawing sheet name saved.")} />
+        <TextField
+          label="Sheet number"
+          value={p.sheet.number}
+          onCommit={(n) =>
+            update((q) => {
+              q.sheet.number = n;
+            })
+          }
+        />
+        <TextField
+          className="arch-revision-input"
+          label="Drawing revision"
+          value={p.designRevision}
+          onCommit={(rev) => {
+            onChange({ ...p, designRevision: rev.trim() || "A" });
+          }}
+        />
+        <NumberField
+          label="North rotation °"
+          value={p.sheet.northAngle}
+          onCommit={(n) =>
+            update((q) => {
+              q.sheet.northAngle = n;
+            })
+          }
+        />
+        <h3>Add a live viewport</h3>
+        <select
+          aria-label="New viewport projection"
+          value={newView}
+          onChange={(e) => setNewView(e.target.value as View)}
+        >
+          {["plan", "north", "south", "east", "west", "section"].map((v) => (
+            <option key={v}>{v}</option>
+          ))}
+        </select>
+        <select
+          aria-label="New viewport level"
+          value={newLevel}
+          onChange={(e) => setNewLevel(e.target.value)}
+        >
+          {p.levels.map((l) => (
+            <option value={l.id} key={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        <button
+          disabled={vs.length >= 4}
+          title="Up to four live viewports per drawing sheet"
+          onClick={() =>
+            update((q) => {
+              if (q.sheet.viewports.length === 1 && q.sheet.viewports[0].width === w - 24 && q.sheet.viewports[0].height === h - 62)
+                q.sheet.viewports[0] = {
+                  ...q.sheet.viewports[0],
+                  width: (w - 36) / 2,
+                  height: (h - 70) / 2,
+                };
+              q.sheet.viewports.push({
+                id: uuid(),
+                view: newView,
+                levelId: newLevel,
+                x: q.sheet.viewports.length % 2 === 0 ? 12 : w / 2,
+                y: 12 + Math.floor(q.sheet.viewports.length / 2) * ((h - 70) / 2 + 8),
+                width: w / 2 - 16,
+                height: (h - 70) / 2,
+                scale: p.sheet.scale,
+              });
+            })
+          }
+        >
+          Add viewport
+        </button>
+        {v && (
+          <>
+            <h3>Selected viewport</h3>
+            <select
+              aria-label="Viewport scale"
+              value={v.scale}
+              onChange={(e) =>
+                update((q) => {
+                  q.sheet.viewports.find((a) => a.id === v.id)!.scale = e.target.value as "50";
+                })
+              }
+            >
+              {["50", "100", "200"].map((s) => (
+                <option value={s} key={s}>
+                  1:{s}
+                </option>
+              ))}
+            </select>
+            {(["x", "y", "width", "height"] as const).map((key) => (
+              <NumberField
+                key={key}
+                label={key + " / paper mm"}
+                value={v[key]}
+                onCommit={(n) =>
+                  update((q) => {
+                    q.sheet.viewports.find((a) => a.id === v.id)![key] = n;
+                  })
+                }
+              />
+            ))}
+            <button
+              onClick={() =>
+                update((q) => {
+                  q.sheet.viewports = q.sheet.viewports.filter((a) => a.id !== v.id);
+                })
+              }
+            >
+              Remove viewport
+            </button>
+          </>
+        )}
+      </aside>
+    </fieldset>
+  );
+}

@@ -1,4 +1,5 @@
 import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
+import { CLOSE_SETTINGS_EVENT } from "./railLayout";
 import { WorkspaceRails } from "./WorkspaceRails";
 import { WorkflowNavigation } from "./WorkflowNavigation";
 import { WorkspaceDialog } from "./WorkspaceDialog";
@@ -77,7 +78,21 @@ export function Studio() {
 function StudioContent() {
   const s = useStudio();
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectError, setNewProjectError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    const close = () => setSettingsOpen(false);
+    window.addEventListener(CLOSE_SETTINGS_EVENT, close);
+    return () => window.removeEventListener(CLOSE_SETTINGS_EVENT, close);
+  }, []);
+  useEffect(() => {
+    if (settingsOpen) {
+      useStudio.setState({ rightCollapsed: false });
+      useLiveAssistant.setState({ open: false });
+    }
+  }, [settingsOpen]);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("Appearance");
   useEffect(() => {
     const inspect = () => setSettingsOpen(false);
@@ -133,24 +148,24 @@ function StudioContent() {
    */
   async function startNewProject() {
     const state = useStudio.getState();
-    if (state.persistenceRecoveryBlocked) return;
-    const documents = state.job.documents.filter(document => document.source !== "sample");
-    const warning = documents.length
-      ? `"${state.job.name}" has ${documents.length} imported drawing${documents.length === 1 ? "" : "s"}. It will be saved and closed, and a new empty project opened.`
-      : `"${state.job.name}" will be saved and closed, and a new empty project opened.`;
-    if (typeof window !== "undefined" && !window.confirm(`Start a new project?\n\n${warning}`)) return;
+    if (state.persistenceRecoveryBlocked || creatingProject) return;
     const storage = typeof localStorage === "undefined" ? null : localStorage;
     if (!storage) {
-      useStudio.setState({ documentError: "Browser storage is unavailable, so a new project cannot be created." });
+      setNewProjectError("Browser storage is unavailable, so a new project cannot be created.");
       return;
     }
+    setCreatingProject(true); setNewProjectError("");
+    try {
     const result = await switchProject(null, {
       store: { getState: () => useStudio.getState(), setState: (patch) => useStudio.setState(patch) },
       storage,
       saveJob: (job, options) => saveFencingJob(job, undefined, options),
       busy: false,
     });
-    if (!result.ok) useStudio.setState({ documentError: result.error });
+    if (!result.ok) setNewProjectError(result.error);
+    else setNewProjectOpen(false);
+    } catch (error) { setNewProjectError(error instanceof Error ? error.message : "The project could not be created. Your current project remains open."); }
+    finally { setCreatingProject(false); }
   }
 
   async function openPlan() {
@@ -209,9 +224,16 @@ function StudioContent() {
       {projectMenuOpen && <WorkspaceDialog title="Project" onClose={() => setProjectMenuOpen(false)}>
         <div className="project-menu-content">
           <ProjectDetails />
-          <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { await startNewProject(); setProjectMenuOpen(false); }} />
+          <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { setNewProjectError(""); setNewProjectOpen(true); setProjectMenuOpen(false); }} />
           <ProjectBackups />
           <ProjectLibrary />
+        </div>
+      </WorkspaceDialog>}
+      {newProjectOpen && <WorkspaceDialog title="Start a new project" onClose={() => { if (!creatingProject) setNewProjectOpen(false); }}>
+        <div className="project-menu-content">
+          <p><strong>{s.job.name}</strong> will be saved to the project library before the new workspace opens. You can return to it from Project library.</p>
+          {newProjectError && <p role="alert">{newProjectError}</p>}
+          <div className="flex gap-2"><button type="button" className="pill" disabled={creatingProject} onClick={() => setNewProjectOpen(false)}>Keep current project</button><button type="button" className="pill" disabled={creatingProject || s.persistenceRecoveryBlocked} onClick={() => void startNewProject()}>{creatingProject ? "Saving current project…" : "Save and start new project"}</button></div>
         </div>
       </WorkspaceDialog>}
       <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
@@ -384,7 +406,7 @@ function MeasurePane() {
   return (
     <div className="measure-workspace">
       <div className="measure-main-column">
-        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly}>
+        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly || !calibration.locked}>
           <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
           <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
           <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>Gate <kbd>C</kbd></button>
@@ -394,6 +416,7 @@ function MeasurePane() {
           <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>Cancel</button>
         </fieldset>
         {legacyReadOnly ? <div className="integrity-notice" role="status"><strong>Saved measurements need source-coordinate recovery</strong><span>These older coordinates are preserved read-only. They cannot prove alignment to this source or authorize quantities. Export the current manifest in Proof before a reviewed retrace; automatic conversion is unavailable.</span><button type="button" className="pill" onClick={()=>s.setPane("proof")}>Open Proof for export</button></div> : null}
+        {!legacyReadOnly && !calibration.locked && <div className="integrity-notice" role="status"><strong>Set the scale to start measuring</strong><span>In Calibration, enter a known distance, pick its two endpoints on the plan, then lock the scale. Run and Area will become available.</span></div>}
         {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
         {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
         {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}

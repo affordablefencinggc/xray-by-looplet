@@ -90,7 +90,7 @@
   background: var(--color-card);
   box-shadow: 0 0 0 2px var(--color-line), 0 2px 5px #0003;
 }
-.workspace-rails:has([data-settings-open="true"]) .rail-controls-right { display: none; }
+
 @media (min-width: 941px) {
   .workspace-rails[data-left-collapsed="true"] .building-left-nav,
   .workspace-rails[data-right-collapsed="true"] .studio-right-rail,
@@ -1422,9 +1422,6 @@
   color: var(--color-ink);
   box-shadow: -5px 0 16px #181a1e24;
 }
-.workspace-settings[data-wide="true"] {
-  width: min(720px, 100%);
-}
 .workspace-settings > header {
   display: flex;
   align-items: center;
@@ -1533,9 +1530,6 @@
 .workbench[data-settings-open="true"] .measure-inspector {
   visibility: hidden;
 }
-.workspace-rails:has([data-settings-open="true"]) .rail-resizer[aria-label="Resize right menu"] {
-  display: none;
-}
 @media (max-width: 760px) {
   .workbench .studio-header-actions > button {
     display: inline-flex !important;
@@ -1547,3 +1541,15 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
+
+/* Settings uses the same seam as the inspector and must keep its actions in view. */
+.workspace-settings { min-width: 0; max-width: 100%; overflow: hidden; }
+.workspace-settings > header > div { min-width: 0; }
+.workspace-settings > header > button { flex-shrink: 0; }
+.workspace-settings .settings-content { min-height: 0; overflow-wrap: anywhere; }
+.workbench[data-settings-open="true"] .building-visual-settings { visibility: hidden; }
+
+.visual-panel-resizer { position: absolute; top: 0; bottom: 0; left: 0; width: 12px; cursor: col-resize; touch-action: none; z-index: 1; }
+.visual-panel-resizer::after { content: ""; position: absolute; top: 12px; bottom: 12px; left: 3px; width: 2px; background: var(--color-muted); opacity: .5; }
+.visual-panel-resizer:hover::after, .visual-panel-resizer:focus-visible::after { opacity: 1; }
+.visual-panel-resizer:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }

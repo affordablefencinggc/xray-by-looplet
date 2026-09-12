@@ -5,6 +5,8 @@ import { CanvasContextMenu } from "./CanvasContextMenu.tsx";
 import { useStudio } from "./store";
 import { useLiveAssistant } from "./liveAssistantState";
 import {
+  RAIL_WIDTHS_CHANGED_EVENT,
+  CLOSE_SETTINGS_EVENT,
   DEFAULT_RAILS,
   RAIL_LAYOUT_KEY,
   railWidth,
@@ -67,6 +69,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     const next = nextRailState({ rail: railMode, rightCollapsed }, action);
     setRailMode(next.rail);
     if (next.rightCollapsed !== rightCollapsed) useStudio.setState({ rightCollapsed: next.rightCollapsed });
+    if (next.rail || action === "collapse-right") window.dispatchEvent(new Event(CLOSE_SETTINGS_EVENT));
     if (next.rail) useLiveAssistant.setState({ open: true });
   };
   const setCollapsed = (side: keyof RailWidths, value: boolean) => {
@@ -100,6 +103,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
       try {
         localStorage.setItem(RAIL_LAYOUT_KEY, JSON.stringify(widths));
       } catch { /* storage unavailable */ }
+    if (ready) window.dispatchEvent(new CustomEvent(RAIL_WIDTHS_CHANGED_EVENT, { detail: widths }));
   }, [widths, ready]);
   useEffect(() => {
     if (ready)
@@ -158,7 +162,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     // Keep the stored column width while the column is hidden or awaiting measurement.
     const right = rects.find((r) => r.side === "right" && !r.collapsed);
     if (right && right.left > 0) root.style.setProperty(ASSISTANT_SEAM_VAR, `${Math.round(right.left + 2)}px`);
-    else root.style.setProperty(ASSISTANT_SEAM_VAR, `${Math.max(0, innerWidth - widths.right)}px`);
+    else root.style.setProperty(ASSISTANT_SEAM_VAR, `max(0px, calc(100vw - ${widths.right}px))`);
     const layout = ref.current?.querySelector<HTMLElement>(".studio-layout")?.getBoundingClientRect();
     root.style.setProperty("--assistant-column-top", `${Math.max(0, layout?.top ?? right?.top ?? 90)}px`);
     root.style.setProperty("--assistant-column-bottom", `${Math.max(0, innerHeight - (layout?.bottom ?? innerHeight))}px`);
@@ -182,7 +186,9 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
               side === "left"
                 ? ".studio-left-rail, .building-left-nav"
                 : ".studio-right-rail, .building-inspector, .measure-inspector";
-            const node = ref.current?.querySelector<HTMLElement>(selector);
+            // Settings replaces the inspector; measure the visible drawer, not its hidden predecessor.
+            const node = (side === "right" ? ref.current?.querySelector<HTMLElement>(".workspace-settings") : null)
+              ?? ref.current?.querySelector<HTMLElement>(selector);
             if (node) {
               // A collapsed rail still needs a handle even though its own box is hidden.
               if (side === "left" && node.matches(".studio-left-rail") && innerWidth < 1180) continue;
@@ -207,7 +213,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     ) ?? [])
       observer.observe(n);
     const mutation = new MutationObserver(measure);
-    if (ref.current) mutation.observe(ref.current, { childList: true, subtree: true });
+    if (ref.current) mutation.observe(ref.current, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-settings-open", "data-wide"] });
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     measure();

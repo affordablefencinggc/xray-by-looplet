@@ -1,0 +1,126 @@
+[
+  [
+    "context",
+    "pdf"
+  ],
+  [
+    "viewport",
+    "pdf",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "pdf",
+    "http://127.0.0.1:8091/?pane=model"
+  ],
+  [
+    "wait",
+    "pdf",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "pdf",
+    "document.body.innerHTML='<div id=history-fixture-root></div>';import('/proof/growth/2026-09-13-history-pdf/fixture.tsx')"
+  ],
+  [
+    "wait",
+    "pdf",
+    "!!document.querySelector('#mutate')"
+  ],
+  [
+    "eval",
+    "pdf",
+    "document.querySelector('#mutate').click();window.pdfDownloads=[];const originalURL=URL.createObjectURL;URL.createObjectURL=function(blob){if(blob.type==='application/pdf')pdfDownloads.push({blob});return originalURL.call(this,blob)};const originalClick=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download){pdfDownloads.at(-1).filename=this.download;return;}originalClick.call(this)}"
+  ],
+  [
+    "wait",
+    "pdf",
+    "document.querySelectorAll('.arch-issue-history-card').length===2"
+  ],
+  [
+    "eval",
+    "pdf",
+    "[...document.querySelector('.arch-issue-history-card').querySelectorAll('button')].find(b=>b.textContent==='Inspect layout').click()"
+  ],
+  [
+    "wait",
+    "pdf",
+    "!!document.querySelector('.arch-superseded-banner')"
+  ],
+  [
+    "eval",
+    "pdf",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Export issued PDF').click()"
+  ],
+  [
+    "wait",
+    "pdf",
+    "pdfDownloads.length===1 && !!pdfDownloads[0].filename"
+  ],
+  [
+    "eval",
+    "pdf",
+    "(async()=>{const d=pdfDownloads.at(-1);const bytes=new Uint8Array(await d.blob.arrayBuffer());const pdfjs=await import('/node_modules/pdfjs-dist/legacy/build/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs';const task=pdfjs.getDocument({data:bytes,standardFontDataUrl:'/pdfjs/standard_fonts/'});const pdf=await task.promise;const page=await pdf.getPage(1);const text=(await page.getTextContent()).items.filter(i=>'str'in i).map(i=>i.str).join('\\n');if(text.includes('LIVE')||!text.includes('Issued project A')||!text.includes('Recreated from saved issue'))throw Error('PDF lost historical identity');const raw=page.getViewport({scale:1});const viewport=page.getViewport({scale:Math.min((innerWidth-40)/raw.width,(innerHeight-40)/raw.height)});const overlay=document.createElement('div');overlay.id='pdf-proof-overlay';Object.assign(overlay.style,{position:'fixed',inset:'0',background:'#eee',zIndex:'999999',display:'grid',placeItems:'center'});const canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;overlay.append(canvas);document.body.append(overlay);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;await task.destroy();const binary=String.fromCharCode(...new Uint8Array(await d.blob.arrayBuffer()));return {filename:d.filename,text,width:raw.width,height:raw.height,pdfBase64:btoa(binary)};})()"
+  ],
+  [
+    "screenshot",
+    "pdf",
+    "issued-a3-render.png"
+  ],
+  [
+    "eval",
+    "pdf",
+    "document.querySelector('#pdf-proof-overlay').remove();const e=document.querySelector('[aria-label=\"Historical sheet\"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,e.options[0].value);e.dispatchEvent(new Event('change',{bubbles:true}))"
+  ],
+  [
+    "wait",
+    "pdf",
+    "!!document.querySelector('.arch-superseded-watermark')"
+  ],
+  [
+    "eval",
+    "pdf",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Export issued PDF').click()"
+  ],
+  [
+    "wait",
+    "pdf",
+    "pdfDownloads.length===2 && !!pdfDownloads[1].filename"
+  ],
+  [
+    "eval",
+    "pdf",
+    "(async()=>{const d=pdfDownloads.at(-1);const bytes=new Uint8Array(await d.blob.arrayBuffer());const pdfjs=await import('/node_modules/pdfjs-dist/legacy/build/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs';const task=pdfjs.getDocument({data:bytes,standardFontDataUrl:'/pdfjs/standard_fonts/'});const pdf=await task.promise;const page=await pdf.getPage(1);const text=(await page.getTextContent()).items.filter(i=>'str'in i).map(i=>i.str).join('\\n');if(text.includes('LIVE')||!text.includes('Issued project A')||!text.includes('Recreated from saved issue'))throw Error('PDF lost historical identity');const raw=page.getViewport({scale:1});const viewport=page.getViewport({scale:Math.min((innerWidth-40)/raw.width,(innerHeight-40)/raw.height)});const overlay=document.createElement('div');overlay.id='pdf-proof-overlay';Object.assign(overlay.style,{position:'fixed',inset:'0',background:'#eee',zIndex:'999999',display:'grid',placeItems:'center'});const canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;overlay.append(canvas);document.body.append(overlay);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;await task.destroy();const binary=String.fromCharCode(...new Uint8Array(await d.blob.arrayBuffer()));return {filename:d.filename,text,width:raw.width,height:raw.height,pdfBase64:btoa(binary)};})()"
+  ],
+  [
+    "screenshot",
+    "pdf",
+    "superseded-a1-render.png"
+  ],
+  [
+    "eval",
+    "pdf",
+    "document.querySelector('#pdf-proof-overlay').remove();document.querySelector('#legacy').click()"
+  ],
+  [
+    "wait",
+    "pdf",
+    "!!document.querySelector('.arch-history-unavailable')"
+  ],
+  [
+    "eval",
+    "pdf",
+    "if(![...document.querySelectorAll('button')].find(b=>b.textContent==='Export issued PDF').disabled)throw Error('Incomplete export enabled');if(pdfDownloads.length!==2)throw Error('Unexpected export');document.querySelector('.arch-history-unavailable').scrollIntoView({block:'center'})"
+  ],
+  [
+    "screenshot",
+    "pdf",
+    "incomplete-export-disabled.png"
+  ],
+  [
+    "dispose",
+    "pdf"
+  ]
+]

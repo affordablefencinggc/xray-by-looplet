@@ -34,10 +34,34 @@ export const issuedSheetRecordSchema = z
     status: z.enum(["current", "superseded"]).default("current"),
     supersededAt: z.string().optional(),
     supersededByRevision: z.string().optional(),
+    supersededByIssueId: z.string().optional(),
   })
   .strict();
 
 export type IssuedSheetRecord = z.infer<typeof issuedSheetRecordSchema>;
+
+export const projectGeometrySnapshotSchema = z
+  .object({
+    revision: z.number().int().positive(),
+    designRevision: z.string().max(40),
+    units: z.literal("mm").default("mm"),
+    section: z.object({ a: z.tuple([z.number().finite(), z.number().finite()]), b: z.tuple([z.number().finite(), z.number().finite()]) }).strict().optional(),
+    levels: z.array(z.any()),
+    walls: z.array(z.any()),
+    openings: z.array(z.any()),
+    slabs: z.array(z.any()),
+    roofs: z.array(z.any()),
+    lines: z.array(z.any()).default([]),
+    circles: z.array(z.any()).default([]),
+    arcs: z.array(z.any()).default([]),
+    grids: z.array(z.any()).default([]),
+    roomTags: z.array(z.any()).default([]),
+    dimensions: z.array(z.any()).default([]),
+    notes: z.string().max(5000).optional(),
+  })
+  .strict();
+
+export type ProjectGeometrySnapshot = z.infer<typeof projectGeometrySnapshotSchema>;
 
 export const issueRecordSchema = z
   .object({
@@ -47,11 +71,13 @@ export const issueRecordSchema = z
     designRevision: z.string().min(1).max(40),
     modelRevision: z.number().int().positive(),
     projectName: z.string().min(1).max(200),
+    projectAddress: z.string().max(500).optional(),
     status: z.enum(["current", "superseded"]).default("current"),
     supersededAt: z.string().optional(),
     supersededById: z.string().optional(),
     supersededByRevision: z.string().optional(),
     sheets: z.array(issuedSheetRecordSchema).min(1).max(ISSUE_SHEET_MAX),
+    snapshot: projectGeometrySnapshotSchema.optional(),
   })
   .strict();
 
@@ -105,6 +131,7 @@ export function recordDrawingIssue(
 
   const issuedTimestamp = issuedAt.toISOString();
   const newIssueId = makeId();
+  if (!newIssueId || project.issues?.some(issue => issue.id === newIssueId)) throw Error("Drawing issue ID must be new and nonempty.");
 
   const newSheets: IssuedSheetRecord[] = review.sheets.map((entry) => {
     const authored = byId.get(entry.sheetId);
@@ -127,6 +154,25 @@ export function recordDrawingIssue(
     };
   });
 
+  const snapshot: ProjectGeometrySnapshot = {
+    revision: project.revision,
+    designRevision: review.designRevision,
+    units: project.units,
+    section: structuredClone(project.section),
+    levels: structuredClone(project.levels),
+    walls: structuredClone(project.walls),
+    openings: structuredClone(project.openings),
+    slabs: structuredClone(project.slabs),
+    roofs: structuredClone(project.roofs),
+    lines: structuredClone(project.lines ?? []),
+    circles: structuredClone(project.circles ?? []),
+    arcs: structuredClone(project.arcs ?? []),
+    grids: structuredClone(project.grids ?? []),
+    roomTags: structuredClone(project.roomTags ?? []),
+    dimensions: structuredClone(project.dimensions ?? []),
+    notes: project.notes,
+  };
+
   const newIssue: IssueRecord = {
     id: newIssueId,
     issuedAt: issuedTimestamp,
@@ -134,8 +180,10 @@ export function recordDrawingIssue(
     designRevision: review.designRevision,
     modelRevision: review.modelRevision,
     projectName: review.projectName,
+    projectAddress: project.address,
     status: "current",
     sheets: newSheets,
+    snapshot,
   };
 
   const currentIssues: IssueRecord[] = (project.issues ?? []).map((prior) => {
@@ -147,16 +195,21 @@ export function recordDrawingIssue(
     // A prior active issue is now superseded by the newer issue release
     const updatedSheets = prior.sheets.map((s) => {
       const reissued = newSheets.some((ns) => ns.number === s.number || ns.sheetId === s.sheetId);
-      if (reissued || s.status !== "superseded") {
+      if (reissued && s.status !== "superseded") {
         return {
           ...structuredClone(s),
           status: "superseded" as const,
           supersededAt: s.supersededAt ?? issuedTimestamp,
-          supersededByRevision: s.supersededByRevision ?? review.designRevision,
+          supersededByRevision: review.designRevision,
+          supersededByIssueId: newIssueId,
         };
       }
       return structuredClone(s);
     });
+
+    if (!updatedSheets.every(sheet => sheet.status === "superseded")) {
+      return { ...structuredClone(prior), sheets: updatedSheets };
+    }
 
     return {
       ...structuredClone(prior),

@@ -1,0 +1,102 @@
+[
+  [
+    "context",
+    "history"
+  ],
+  [
+    "viewport",
+    "history",
+    1440,
+    900
+  ],
+  [
+    "navigate",
+    "history",
+    "http://127.0.0.1:8091/?pane=model"
+  ],
+  [
+    "wait",
+    "history",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "history",
+    "window.historyErrors=[];addEventListener('error',e=>historyErrors.push(e.message));addEventListener('unhandledrejection',e=>historyErrors.push(String(e.reason)));document.body.innerHTML='<div id=history-fixture-root></div>';import('/proof/growth/2026-09-12-history-followup/fixture.tsx')"
+  ],
+  [
+    "wait",
+    "history",
+    "!!document.querySelector('.arch-paper [data-viewport]')"
+  ],
+  [
+    "eval",
+    "history",
+    "window.savedVectors=[...document.querySelectorAll('.arch-paper [data-viewport]')].map(e=>e.innerHTML);window.savedTitle=document.querySelector('.arch-paper').textContent;document.querySelector('#mutate').click()"
+  ],
+  [
+    "wait",
+    "history",
+    "document.querySelector('.arch-paper').textContent.includes('LIVE PROJECT B')"
+  ],
+  [
+    "eval",
+    "history",
+    "(()=>{if(JSON.stringify(savedVectors)===JSON.stringify([...document.querySelectorAll('.arch-paper [data-viewport]')].map(e=>e.innerHTML)))throw Error('Fixture did not change geometry');const cards=[...document.querySelectorAll('.arch-issue-history-card')];if(!cards[0].textContent.includes('PARTIALLY SUPERSEDED'))throw Error('Missing partial label');[...cards[0].querySelectorAll('button')].find(b=>b.textContent==='Inspect layout').click();})()"
+  ],
+  [
+    "wait",
+    "history",
+    "!!document.querySelector('.arch-superseded-banner')"
+  ],
+  [
+    "eval",
+    "history",
+    "(()=>{const s=document.querySelector('.arch-paper');if(!s||s.textContent.includes('LIVE')||!s.textContent.includes('Original issued address'))throw Error('Live metadata leaked into history');if(JSON.stringify(savedVectors)!==JSON.stringify([...s.querySelectorAll('[data-viewport]')].map(e=>e.innerHTML)))throw Error('History geometry differs from issued geometry');s.scrollIntoView({block:'center'});return {title:s.textContent,geometryMatches:true};})()"
+  ],
+  [
+    "screenshot",
+    "history",
+    "historical-desktop.png"
+  ],
+  [
+    "viewport",
+    "history",
+    1024,
+    768
+  ],
+  [
+    "eval",
+    "history",
+    "document.querySelector('.arch-paper').scrollIntoView({block:'center'})"
+  ],
+  [
+    "screenshot",
+    "history",
+    "historical-tablet.png"
+  ],
+  [
+    "eval",
+    "history",
+    "document.querySelector('#legacy').click()"
+  ],
+  [
+    "wait",
+    "history",
+    "!!document.querySelector('.arch-history-unavailable')"
+  ],
+  [
+    "eval",
+    "history",
+    "(()=>{if(document.querySelector('.arch-paper'))throw Error('Incomplete history rendered live geometry');const e=document.querySelector('.arch-history-unavailable');e.scrollIntoView({block:'center'});if(historyErrors.length)throw Error(historyErrors.join(';'));return {message:e.textContent,errors:historyErrors};})()"
+  ],
+  [
+    "screenshot",
+    "history",
+    "incomplete-history.png"
+  ],
+  [
+    "dispose",
+    "history"
+  ]
+]

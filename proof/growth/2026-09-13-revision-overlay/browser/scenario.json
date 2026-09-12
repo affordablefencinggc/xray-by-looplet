@@ -1,0 +1,132 @@
+[
+  [
+    "context",
+    "overlay"
+  ],
+  [
+    "viewport",
+    "overlay",
+    1440,
+    900
+  ],
+  [
+    "navigate",
+    "overlay",
+    "http://127.0.0.1:8091/"
+  ],
+  [
+    "wait",
+    "overlay",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "overlay",
+    "document.body.innerHTML='<div id=\"overlay-fixture-root\"></div>';window.errors=[];addEventListener('error',e=>errors.push(e.message));import('/proof/growth/2026-09-13-revision-overlay/fixture.tsx')"
+  ],
+  [
+    "wait",
+    "overlay",
+    "!!document.querySelector('.revision-overlay-plan')"
+  ],
+  [
+    "eval",
+    "overlay",
+    "document.querySelector('.arch-revision-delta-control').open=true;document.querySelector('.revision-overlay').open=true;document.querySelector('.revision-overlay').scrollIntoView({block:'start'});window.originalKpis=document.querySelector('.arch-delta-kpis').textContent;window.originalEarlierCount=document.querySelector('[data-overlay-layer=earlier]').children.length;window.originalLaterCount=document.querySelector('[data-overlay-layer=later]').children.length;if(originalLaterCount<=originalEarlierCount)throw Error('Added wall missing in later plan');true"
+  ],
+  [
+    "screenshot",
+    "overlay",
+    "overlay-desktop.png"
+  ],
+  [
+    "eval",
+    "overlay",
+    "(()=>{const el=document.querySelector('[aria-label=\"Earlier x\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'1000');el.dispatchEvent(new Event('input',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "overlay",
+    "document.querySelector('[data-overlay-layer=earlier]').getAttribute('transform').includes('translate(1000')"
+  ],
+  [
+    "eval",
+    "overlay",
+    "(()=>{const el=document.querySelector('[aria-label=\"Earlier rotation\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'30');el.dispatchEvent(new Event('input',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "overlay",
+    "document.querySelector('[data-overlay-layer=earlier]').getAttribute('transform').includes('rotate(30)')"
+  ],
+  [
+    "eval",
+    "overlay",
+    "if(originalKpis!==document.querySelector('.arch-delta-kpis').textContent)throw Error('Alignment changed quantities');true"
+  ],
+  [
+    "screenshot",
+    "overlay",
+    "overlay-aligned.png"
+  ],
+  [
+    "eval",
+    "overlay",
+    "[...document.querySelectorAll('.revision-overlay button')].find(b=>b.textContent==='Reset alignment').click()"
+  ],
+  [
+    "wait",
+    "overlay",
+    "document.querySelector('[data-overlay-layer=earlier]').getAttribute('transform')==='translate(0 0) rotate(0)'"
+  ],
+  [
+    "eval",
+    "overlay",
+    "[...document.querySelectorAll('.revision-overlay label')].find(l=>l.textContent.includes('Changed elements only')).querySelector('input').click()"
+  ],
+  [
+    "wait",
+    "overlay",
+    "document.querySelector('[data-overlay-layer=later]').children.length<originalLaterCount"
+  ],
+  [
+    "eval",
+    "overlay",
+    "if(!document.querySelector('[data-overlay-layer=later]').children.length)throw Error('Added wall lost in changed-only mode');true"
+  ],
+  [
+    "viewport",
+    "overlay",
+    1024,
+    768
+  ],
+  [
+    "eval",
+    "overlay",
+    "document.querySelector('.revision-overlay').scrollIntoView({block:'start'});if(errors.length)throw Error(errors.join(';'));true"
+  ],
+  [
+    "screenshot",
+    "overlay",
+    "overlay-tablet-changes.png"
+  ],
+  [
+    "eval",
+    "overlay",
+    "[...document.querySelectorAll('.revision-overlay input[type=checkbox]')].slice(0,2).forEach(el=>el.click())"
+  ],
+  [
+    "wait",
+    "overlay",
+    "!document.querySelector('[data-overlay-layer]')&&document.querySelector('.revision-overlay').textContent.includes('Both layers are hidden')"
+  ],
+  [
+    "screenshot",
+    "overlay",
+    "overlay-hidden.png"
+  ],
+  [
+    "dispose",
+    "overlay"
+  ]
+]

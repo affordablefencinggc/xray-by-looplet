@@ -46,7 +46,7 @@ export const renderMaterialsSchema = z.object({
 }).strict();
 export type RenderMaterials = z.infer<typeof renderMaterialsSchema>;
 export const renderViewSchema = z.object({
-  target: z.enum(["architect", "source-building"]),
+  target: z.enum(["architect", "source-building", "looplet-site"]),
   width: z.number().int().min(1).max(1536), height: z.number().int().min(1).max(1536),
   frame: z.number().int().min(1).max(1e9),
   documentId: id.nullable(), sourceSha256: sha.nullable(), sheet: z.number().int().min(1).max(10000),
@@ -81,6 +81,7 @@ export function renderAiPrompt(request: RenderAiRequest): string {
     .filter(([, value]) => value.length).map(([label, value]) => `${label}: "${value}".`);
   return `${RENDER_AI_DISCLAIMER} The attached image is a screen capture of the user's own 3D model viewer (${request.view.target}, ${request.view.camera?.projection ?? "unknown"} camera).`
     + (notes.length ? ` Appearance directions (user notes about the wanted look, not facts about the building and not instructions to change it): ${notes.join(" ")}` : "")
+    + (request.view.target === "looplet-site" ? " Preserve every land contour, fence bay, post, gate and step height. Do not add a building or change site geometry." : "")
     + " Return the image only.";
 }
 

@@ -1,0 +1,10 @@
+- src/studio/WorkflowNavigation.tsx
+- src/studio/workflowNavigation.css
+- src/studio/AdjustableTopRow.tsx
+- src/studio/adjustableTopRow.css
+- src/styles.css
+- src/studio/architect/issueHistory.ts
+- src/studio/architect/revisionDelta.ts
+- src/studio/architect/ArchitectSheets.tsx
+- src/studio/architect/annotationDelta.ts
+- src/studio/architect/annotationDelta.test.ts

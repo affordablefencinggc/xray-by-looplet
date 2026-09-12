@@ -1,3 +1,4 @@
+import { NccLibrary } from "./assistant/NccLibraryPanel";
 import { ExecutionSettings } from './assistant/ExecutionSettings';
 import { AssistantFiles } from './assistant/AssistantFiles';
 import { ASSISTANT_FILE_ACCEPT, MAX_ASSISTANT_FILES, attachmentImagePreview, storeAssistantFile, validateAssistantFile, type AssistantFile } from './assistant/attachmentFiles';
@@ -25,6 +26,7 @@ import {
   Images,
   Mic,
   FolderOpen,
+  BookOpen,
   PanelRight,
   PanelRightClose,
 } from "lucide-react";
@@ -119,8 +121,10 @@ export function LiveAssistant() {
   const [attachments, setAttachments] = useState<ReferenceImage[]>([]);
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [menu, setMenu] = useState(false);
+  const [nccScope, setNccScope] = useState(false);
+  const [nccTopic, setNccTopic] = useState("");
   const [drawer, setDrawer] = useState<
-    "skills" | "references" | "help" | "settings" | "projects" | "history" | null
+    "skills" | "references" | "help" | "settings" | "projects" | "history" | "ncc" | null
   >(null);
   const [dragOver, setDragOver] = useState(false);
   const [readingImages, setReadingImages] = useState(false);
@@ -282,6 +286,12 @@ export function LiveAssistant() {
       setMenu(false);
       const command = text.trim().toLowerCase().replace(/\s+/g, " ");
       if (!command && !attachments.length && !pendingFiles.length) return;
+      if (fromDraft && nccScope) {
+        setNccTopic(text.trim());
+        setDrawer("ncc");
+        setMessage("Select the matching NCC references to use in your answer. Your question and attachments are retained.");
+        return;
+      }
       if (
         !attachments.length && !pendingFiles.length &&
         [
@@ -762,10 +772,18 @@ export function LiveAssistant() {
                         ? "Help"
                         : drawer === "projects"
                           ? "Projects"
-                          : drawer === "history" ? "Chat history" : "Assistant settings"}
+                          : drawer === "ncc" ? "NCC" : drawer === "history" ? "Chat history" : "Assistant settings"}
                 </strong>
               </div>
             )}
+            {drawer === "ncc" && <NccLibrary initialTopic={nccTopic} onAttach={text => {
+              const current = useLiveAssistant.getState().draft;
+              if (current.length + text.length > 100000) { setMessage("The question is too long to add these references. Shorten it first; your draft is preserved."); return; }
+              useLiveAssistant.setState({ draft: current + text });
+              setNccScope(false);
+              setDrawer(null); setMessage("NCC references added. Write your question, then send when ready.");
+              requestAnimationFrame(() => input.current?.focus());
+            }} />}
             {drawer === "history" && <div className="assistant-chat-history">
               <p>Saved conversations for {jobName}. Starting a new chat keeps earlier conversations here.</p>
               {chat.history.map(thread => <button key={thread.id} type="button" disabled={chat.busy || chat.loadingHistory}
@@ -1131,6 +1149,7 @@ export function LiveAssistant() {
               }
             }}
           >
+            {nccScope && <div className="assistant-file-pending"><button type="button" aria-label="Remove NCC search scope" onClick={() => setNccScope(false)}>NCC · search uploaded references ×</button></div>}
             {!!pendingFiles.length && <div className="assistant-file-pending">{pendingFiles.map(file => <button type="button" key={file.id} aria-label={`Remove attached file ${file.name}`} onClick={() => setPendingFiles(items => items.filter(item => item.id !== file.id))}>{file.name} &middot; {(file.size / 1024 / 1024).toFixed(1)} MB &times;</button>)}</div>}
             {!!attachments.length && (
               <div className="assistant-attachments">
@@ -1246,6 +1265,9 @@ export function LiveAssistant() {
                       Projects
                     </button>
                     {/* [SC-18 projects] end */}
+                    <button type="button" role="menuitem" onClick={() => { setNccScope(true); setNccTopic(""); openDrawer("ncc"); }}>
+                      <BookOpen size={16} /> NCC
+                    </button>
                     <button type="button" role="menuitem" onClick={() => openDrawer("references")}>
                       <Images size={16} />
                       References & inspiration
@@ -1316,7 +1338,7 @@ export function LiveAssistant() {
                   key="send"
                   type="submit"
                   className="assistant-composer-button assistant-send"
-                  aria-label="Send assistant message"
+                  aria-label={nccScope ? "Find NCC references" : "Send assistant message"}
                   disabled={switching || readingImages || chat.loadingHistory || (!draft.trim() && !attachments.length && !pendingFiles.length)}
                 >
                   <span>

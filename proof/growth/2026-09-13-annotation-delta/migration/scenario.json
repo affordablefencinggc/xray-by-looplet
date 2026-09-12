@@ -1,0 +1,55 @@
+[
+  [
+    "context",
+    "migration"
+  ],
+  [
+    "navigate",
+    "migration",
+    "http://127.0.0.1:8091/"
+  ],
+  [
+    "wait",
+    "migration",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "migration",
+    "localStorage.setItem('xray:top-row:mode:v1',JSON.stringify({height:90,collapsed:false}))"
+  ],
+  [
+    "navigate",
+    "migration",
+    "http://127.0.0.1:8091/"
+  ],
+  [
+    "wait",
+    "migration",
+    "JSON.parse(localStorage.getItem('xray:top-row:mode:v1')||'null')?.compact===true && JSON.parse(localStorage.getItem('xray:top-row:mode:v1')).height===72"
+  ],
+  [
+    "navigate",
+    "migration",
+    "http://127.0.0.1:8091/"
+  ],
+  [
+    "wait",
+    "migration",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "migration",
+    "const s=JSON.parse(localStorage.getItem('xray:top-row:mode:v1'));if(s.height!==72)throw Error('Gutter deducted repeatedly');document.querySelector('[aria-label=\"Resize workspace tools\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true}));true"
+  ],
+  [
+    "wait",
+    "migration",
+    "document.querySelector('[data-top-row=mode]').getBoundingClientRect().height<=33"
+  ],
+  [
+    "dispose",
+    "migration"
+  ]
+]

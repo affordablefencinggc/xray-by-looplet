@@ -1,0 +1,132 @@
+[
+  [
+    "context",
+    "tabs"
+  ],
+  [
+    "viewport",
+    "tabs",
+    1440,
+    900
+  ],
+  [
+    "navigate",
+    "tabs",
+    "http://127.0.0.1:8091/?pane=measure"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "window.tabErrors=[];addEventListener('error',e=>tabErrors.push(e.message));window.checkTabs=()=>{const r=document.querySelector('.workflow-main-tabs').getBoundingClientRect();if(Math.abs(r.x+r.width/2-innerWidth/2)>2)throw Error('Main tabs not centered');const seam=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--assistant-seam-left'));for(const b of document.querySelectorAll('.top-row-toggle')){const v=b.getBoundingClientRect();if(Math.abs(v.x+v.width/2-seam)>2)throw Error('Arrow does not align with right rail');}return {center:r.x+r.width/2,seam};};checkTabs()"
+  ],
+  [
+    "screenshot",
+    "tabs",
+    "centered-tabs-desktop.png"
+  ],
+  [
+    "eval",
+    "tabs",
+    "document.querySelector('[aria-label=\"Collapse workspace tools\"]').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=mode]').dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "[...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent==='Takeoff').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=mode]').dataset.collapsed==='false'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "[...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent==='Takeoff').click()"
+  ],
+  [
+    "eval",
+    "tabs",
+    "if(document.querySelector('[data-top-row=mode]').dataset.collapsed!=='false')throw Error('Repeated tab click hid tools');document.querySelector('[aria-label=\"Collapse navigation\"]').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=navigation]').dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "(()=>{const e=document.querySelector('[aria-label=\"Expand navigation\"]');if(e.getBoundingClientRect().width<innerWidth-2)throw Error('Collapsed row not clickable across its width');e.click();})()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=navigation]').dataset.collapsed==='false'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "window.previousHeight=document.querySelector('[data-top-row=header]').getBoundingClientRect().height;document.querySelector('[aria-label=\"Resize header\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));document.querySelector('[aria-label=\"Collapse workspace tools\"]').click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-top-row=header]').getBoundingClientRect().height>=previousHeight+7"
+  ],
+  [
+    "navigate",
+    "tabs",
+    "http://127.0.0.1:8091/?pane=measure"
+  ],
+  [
+    "wait",
+    "tabs",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready' && document.querySelector('[data-top-row=mode]')?.dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "tabs",
+    "document.querySelector('[aria-label=\"Expand workspace tools\"]').click()"
+  ],
+  [
+    "viewport",
+    "tabs",
+    1024,
+    768
+  ],
+  [
+    "eval",
+    "tabs",
+    "(()=>{const r=document.querySelector('.workflow-main-tabs').getBoundingClientRect();if(Math.abs(r.x+r.width/2-innerWidth/2)>2)throw Error('Tablet tabs not centered');if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');return r.toJSON();})()"
+  ],
+  [
+    "eval",
+    "tabs",
+    "document.querySelector(\".studio-header-actions button\").click()"
+  ],
+  [
+    "wait",
+    "tabs",
+    "!!document.querySelector(\".workspace-settings\") && Math.abs(document.querySelector(\".top-row-toggle\").getBoundingClientRect().x+14-document.querySelector(\".workspace-settings\").getBoundingClientRect().left)<2"
+  ],
+  [
+    "screenshot",
+    "tabs",
+    "centered-tabs-tablet.png"
+  ],
+  [
+    "dispose",
+    "tabs"
+  ]
+]

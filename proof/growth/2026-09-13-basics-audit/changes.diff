@@ -1,0 +1,485 @@
+diff --git a/src/studio/SourceSheetBookmarks.tsx b/src/studio/SourceSheetBookmarks.tsx
+index bb632bf..3337237 100644
+--- a/src/studio/SourceSheetBookmarks.tsx
++++ b/src/studio/SourceSheetBookmarks.tsx
+@@ -77,10 +77,11 @@ export function SheetBookmarks(){
+   }
+   const bookmarks=value?.pages.flatMap(page=>(page.bookmarks??[]).map(bookmark=>({page,bookmark})))??[];
+   return <section className="sheet-bookmarks" aria-label="Saved source views" data-saved-view-count={bookmarks.length} data-restored-view={restoring?.bookmark.id??""}>
++    <details><summary>Saved views ({bookmarks.length})<span className="sheet-bookmarks-help">Save or return to a detail</span></summary>
+     <form onSubmit={e=>{e.preventDefault();save();}}><label>Save this page view<input aria-label="Saved view name" value={name} onChange={e=>setName(e.target.value)} maxLength={120} placeholder={`Page ${sheet+1} detail`} disabled={busy}/></label><button className="pill" type="submit" disabled={!value||!hydrated||busy||!name.trim()}><BookmarkPlus size={15} aria-hidden="true"/>Save view</button></form>
+     {(error||readError)&&<p role="alert">{error||readError}<button className="pill" onClick={()=>{reload();setError("");}} disabled={busy}>Reload saved views</button></p>}
+     {message&&<p role="status">{message}</p>}
+-    <details><summary>Saved views ({bookmarks.length})</summary><p className="sheet-bookmarks-help">Saved locally with this source and included in project backups. A view keeps its original page, zoom and centre when the window size changes.</p>
++    <p className="sheet-bookmarks-help">Saved locally with this source and included in project backups. A view keeps its original page, zoom and centre when the window size changes.</p>
+       {!bookmarks.length?<p>No saved views yet. Zoom or pan to a detail, give it a name and save.</p>:<ul>{bookmarks.map(({page,bookmark})=><li key={bookmark.id}><div><strong>{bookmark.name}</strong><span>{page.name} · Original page {page.pageIndex+1} · {Math.round(bookmark.zoom*100)}%{page.archived?" · Archived":""}</span></div><button className="pill" aria-label={`Open saved view ${bookmark.name}`} disabled={busy} onClick={()=>open(page.pageIndex,bookmark)}><Navigation size={14} aria-hidden="true"/>Open</button><button className="pill" aria-label={`Remove saved view ${bookmark.name}`} disabled={busy} onClick={()=>void change({type:"remove-bookmark",pageIndex:page.pageIndex,bookmarkId:bookmark.id})}><Trash2 size={14} aria-hidden="true"/>Remove</button></li>)}</ul>}
+     </details>
+   </section>;
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 3715dc3..dfae31e 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -1,4 +1,5 @@
+ import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
++import { CLOSE_SETTINGS_EVENT } from "./railLayout";
+ import { WorkspaceRails } from "./WorkspaceRails";
+ import { WorkflowNavigation } from "./WorkflowNavigation";
+ import { WorkspaceDialog } from "./WorkspaceDialog";
+@@ -77,7 +78,21 @@ export function Studio() {
+ function StudioContent() {
+   const s = useStudio();
+   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
++  const [newProjectOpen, setNewProjectOpen] = useState(false);
++  const [creatingProject, setCreatingProject] = useState(false);
++  const [newProjectError, setNewProjectError] = useState("");
+   const [settingsOpen, setSettingsOpen] = useState(false);
++  useEffect(() => {
++    const close = () => setSettingsOpen(false);
++    window.addEventListener(CLOSE_SETTINGS_EVENT, close);
++    return () => window.removeEventListener(CLOSE_SETTINGS_EVENT, close);
++  }, []);
++  useEffect(() => {
++    if (settingsOpen) {
++      useStudio.setState({ rightCollapsed: false });
++      useLiveAssistant.setState({ open: false });
++    }
++  }, [settingsOpen]);
+   const [settingsSection, setSettingsSection] = useState<SettingsSection>("Appearance");
+   useEffect(() => {
+     const inspect = () => setSettingsOpen(false);
+@@ -133,24 +148,24 @@ function StudioContent() {
+    */
+   async function startNewProject() {
+     const state = useStudio.getState();
+-    if (state.persistenceRecoveryBlocked) return;
+-    const documents = state.job.documents.filter(document => document.source !== "sample");
+-    const warning = documents.length
+-      ? `"${state.job.name}" has ${documents.length} imported drawing${documents.length === 1 ? "" : "s"}. It will be saved and closed, and a new empty project opened.`
+-      : `"${state.job.name}" will be saved and closed, and a new empty project opened.`;
+-    if (typeof window !== "undefined" && !window.confirm(`Start a new project?\n\n${warning}`)) return;
++    if (state.persistenceRecoveryBlocked || creatingProject) return;
+     const storage = typeof localStorage === "undefined" ? null : localStorage;
+     if (!storage) {
+-      useStudio.setState({ documentError: "Browser storage is unavailable, so a new project cannot be created." });
++      setNewProjectError("Browser storage is unavailable, so a new project cannot be created.");
+       return;
+     }
++    setCreatingProject(true); setNewProjectError("");
++    try {
+     const result = await switchProject(null, {
+       store: { getState: () => useStudio.getState(), setState: (patch) => useStudio.setState(patch) },
+       storage,
+       saveJob: (job, options) => saveFencingJob(job, undefined, options),
+       busy: false,
+     });
+-    if (!result.ok) useStudio.setState({ documentError: result.error });
++    if (!result.ok) setNewProjectError(result.error);
++    else setNewProjectOpen(false);
++    } catch (error) { setNewProjectError(error instanceof Error ? error.message : "The project could not be created. Your current project remains open."); }
++    finally { setCreatingProject(false); }
+   }
+ 
+   async function openPlan() {
+@@ -209,11 +224,18 @@ function StudioContent() {
+       {projectMenuOpen && <WorkspaceDialog title="Project" onClose={() => setProjectMenuOpen(false)}>
+         <div className="project-menu-content">
+           <ProjectDetails />
+-          <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { await startNewProject(); setProjectMenuOpen(false); }} />
++          <ProjectPlanSwitcher onSelect={async id => { await s.selectDocument(id); setProjectMenuOpen(false); }} onOpenPlan={async () => { await openPlan(); setProjectMenuOpen(false); }} onLoadSample={async id => { await loadSamplePlan(id); setProjectMenuOpen(false); }} onNewProject={async () => { setNewProjectError(""); setNewProjectOpen(true); setProjectMenuOpen(false); }} />
+           <ProjectBackups />
+           <ProjectLibrary />
+         </div>
+       </WorkspaceDialog>}
++      {newProjectOpen && <WorkspaceDialog title="Start a new project" onClose={() => { if (!creatingProject) setNewProjectOpen(false); }}>
++        <div className="project-menu-content">
++          <p><strong>{s.job.name}</strong> will be saved to the project library before the new workspace opens. You can return to it from Project library.</p>
++          {newProjectError && <p role="alert">{newProjectError}</p>}
++          <div className="flex gap-2"><button type="button" className="pill" disabled={creatingProject} onClick={() => setNewProjectOpen(false)}>Keep current project</button><button type="button" className="pill" disabled={creatingProject || s.persistenceRecoveryBlocked} onClick={() => void startNewProject()}>{creatingProject ? "Saving current project…" : "Save and start new project"}</button></div>
++        </div>
++      </WorkspaceDialog>}
+       <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
+       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
+         {!s.lifted && s.pane !== "model" && s.pane !== "render" && (s.pane !== "sheets" || !!activeDocument) && (
+@@ -384,7 +406,7 @@ function MeasurePane() {
+   return (
+     <div className="measure-workspace">
+       <div className="measure-main-column">
+-        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly}>
++        <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly || !calibration.locked}>
+           <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
+           <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
+           <button type="button" className="pill" aria-pressed={s.tool === "count"} onClick={() => s.setTool("count")}>Gate <kbd>C</kbd></button>
+@@ -394,6 +416,7 @@ function MeasurePane() {
+           <button type="button" className="pill" onClick={() => { s.clearPending(); s.setTool("none"); }}>Cancel</button>
+         </fieldset>
+         {legacyReadOnly ? <div className="integrity-notice" role="status"><strong>Saved measurements need source-coordinate recovery</strong><span>These older coordinates are preserved read-only. They cannot prove alignment to this source or authorize quantities. Export the current manifest in Proof before a reviewed retrace; automatic conversion is unavailable.</span><button type="button" className="pill" onClick={()=>s.setPane("proof")}>Open Proof for export</button></div> : null}
++        {!legacyReadOnly && !calibration.locked && <div className="integrity-notice" role="status"><strong>Set the scale to start measuring</strong><span>In Calibration, enter a known distance, pick its two endpoints on the plan, then lock the scale. Run and Area will become available.</span></div>}
+         {s.calibrationError ? <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} /> : null}
+         {s.traceError ? <IntegrityNotice title="Trace needs attention" message={s.traceError} /> : null}
+         {s.documentError ? <IntegrityNotice title="Plan source needs attention" message={s.documentError} /> : null}
+diff --git a/src/studio/WorkflowNavigation.tsx b/src/studio/WorkflowNavigation.tsx
+index 0719856..ab986d8 100644
+--- a/src/studio/WorkflowNavigation.tsx
++++ b/src/studio/WorkflowNavigation.tsx
+@@ -5,7 +5,7 @@ import './workflowNavigation.css';
+ const workflows: { label: string; panes: { id: Pane; label: string }[]; hint: string }[] = [
+   { label: 'Drawings', panes: [{ id: 'sheets', label: 'Sheets & files' }], hint: 'Open and organise your source drawings' },
+   { label: 'Takeoff', panes: [{ id: 'measure', label: 'Measure' }, { id: 'components', label: 'Quantities & components' }], hint: 'Set the scale, then measure' },
+-  { label: 'Design', panes: [{ id: 'sketch', label: 'Design workspace' }], hint: 'Draw and edit your building' },
++  { label: 'Design', panes: [{ id: 'sketch', label: 'Sketch & redesign' }], hint: 'Draw and edit your building' },
+   { label: 'Visualise', panes: [{ id: 'model', label: '3D viewer' }, { id: 'render', label: 'Renders' }], hint: 'Explore and present your design' },
+   { label: 'Estimate', panes: [{ id: 'cost', label: 'Costs & pricing' }], hint: 'Review quantities and build your estimate' },
+ ];
+@@ -15,20 +15,23 @@ export function WorkflowNavigation({ pane, onSelect }: { pane: Pane; onSelect: (
+   const workflow = workflows.find(w => w.panes.some(p => p.id === pane));
+   const checking = checks.some(p => p.id === pane);
+   const items = checking ? checks : workflow?.panes ?? [{ id: 'overview' as Pane, label: 'Project overview' }];
++  const select = (next: Pane) => { window.dispatchEvent(new CustomEvent("xray:expand-top-row", { detail: "mode" })); onSelect(next); };
+   return <>
+     <AdjustableTopRow id="navigation" label="Navigation" minHeight={44}>
+       <nav className="workflow-nav" aria-label="Main workflow">
+-        {workflows.map(w => <button key={w.label} type="button" aria-current={workflow === w ? 'page' : undefined}
+-          onClick={() => onSelect(workflow === w ? pane : w.panes[0].id)}>{w.label}</button>)}
++        <div className="workflow-main-tabs">{workflows.map(w => <button key={w.label} type="button" aria-current={workflow === w ? 'page' : undefined}
++          onClick={() => select(workflow === w ? pane : w.panes[0].id)}>{w.label}</button>)}</div>
+         <button type="button" className="workflow-checks" aria-current={checking ? 'page' : undefined}
+-          onClick={() => onSelect(checking ? pane : 'review')}>Checks</button>
++          onClick={() => select(checking ? pane : 'review')}>Checks</button>
+       </nav>
+     </AdjustableTopRow>
+-    <AdjustableTopRow id="mode" label="Workspace tools" minHeight={44}>
++    <AdjustableTopRow id="mode" label="Workspace tools" minHeight={32} compact>
+       <nav className="workflow-context" aria-label="Workspace tools">
++        <div className="workflow-context-controls">
+         <span className="workflow-context-label">{checking ? 'Checks' : workflow?.label ?? 'Project'}</span>
+         {items.map(p => <button key={p.id} type="button" aria-current={pane === p.id ? 'page' : undefined}
+           onClick={() => onSelect(p.id)}>{p.label}</button>)}
++        </div>
+         <span className="workflow-context-hint">{checking ? 'Review issues and supporting evidence' : workflow?.hint ?? 'Your project at a glance'}</span>
+       </nav>
+     </AdjustableTopRow>
+diff --git a/src/studio/architect/architect.css b/src/studio/architect/architect.css
+index 5bbc71c..e2b66cb 100644
+--- a/src/studio/architect/architect.css
++++ b/src/studio/architect/architect.css
+@@ -599,6 +599,9 @@
+  * lazily from ArchitectWorkspace.tsx and its position is not guaranteed.
+  */
+ .workspace-rails.workspace-rails[data-pane="sketch"] .studio-layout:has(.architect-workspace) {
++  grid-template-columns: minmax(0, 1fr) !important;
++}
++.workspace-rails.workspace-rails[data-pane="sketch"] .studio-layout:has(.architect-workspace):has(> .studio-right-rail) {
+   grid-template-columns: minmax(0, 1fr) var(--right-menu-track) !important;
+ }
+ .workspace-rails.workspace-rails[data-pane="sketch"]
+@@ -893,3 +896,288 @@
+   background: var(--arch-accent) !important;
+   color: #fff !important;
+ }
++
++/* D-15: visual and vector revision delta */
++.arch-revision-delta-control {
++  grid-column: 1 / -1;
++  padding: 12px 24px;
++  background: var(--arch-paper);
++  border-bottom: 1px solid var(--arch-line);
++}
++.arch-revision-delta-details {
++  background: var(--arch-surface);
++  border: 1px solid var(--arch-line);
++  border-radius: 8px;
++  padding: 8px 12px;
++}
++.arch-revision-delta-details summary {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  cursor: pointer;
++}
++.arch-revision-delta-details summary small {
++  color: #6c7a70;
++  font-size: 11px;
++}
++.arch-revision-delta-panel {
++  margin-top: 10px;
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++}
++.arch-delta-selectors {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  background: #f8faf8;
++  padding: 8px 12px;
++  border-radius: 6px;
++  border: 1px solid var(--arch-line);
++  flex-wrap: wrap;
++}
++.arch-delta-selectors label {
++  display: flex;
++  flex-direction: column;
++  gap: 3px;
++  font-size: 11px;
++  font-weight: 550;
++  color: var(--arch-ink);
++}
++.arch-delta-selectors select {
++  padding: 4px 8px;
++  font-size: 11px;
++  border-radius: 4px;
++  border: 1px solid #b8c4bc;
++  background: #fff;
++  min-width: 220px;
++}
++.arch-delta-vs {
++  font-weight: 700;
++  font-size: 11px;
++  color: #8a968f;
++  margin-top: 14px;
++}
++.arch-delta-kpis {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
++  gap: 10px;
++}
++.arch-delta-kpi-card {
++  background: #fff;
++  border: 1px solid var(--arch-line);
++  border-radius: 6px;
++  padding: 8px 12px;
++  display: flex;
++  flex-direction: column;
++  gap: 3px;
++}
++.arch-delta-kpi-label {
++  font-size: 10px;
++  text-transform: uppercase;
++  color: #6c7a70;
++  letter-spacing: 0.5px;
++}
++.arch-delta-kpi-value {
++  font-size: 14px;
++  font-weight: 700;
++  color: var(--arch-ink);
++}
++.arch-delta-kpi-value.is-pos {
++  color: #137333;
++}
++.arch-delta-kpi-value.is-neg {
++  color: #c5221f;
++}
++.arch-delta-section {
++  border-top: 1px solid #e0e6e2;
++  padding-top: 10px;
++}
++.arch-delta-section h4 {
++  margin: 0 0 8px;
++  font-size: 12px;
++  color: var(--arch-ink);
++}
++.arch-delta-none {
++  font-size: 11px;
++  color: #6c7a70;
++  margin: 4px 0;
++  font-style: italic;
++}
++.arch-delta-items-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
++  gap: 8px;
++}
++.arch-delta-card {
++  border-radius: 6px;
++  padding: 8px 10px;
++  font-size: 11px;
++  border: 1px solid #d5ded8;
++  background: #fff;
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++}
++.arch-delta-card-added {
++  border-left: 4px solid #137333;
++  background: #f6fbf7;
++}
++.arch-delta-card-removed {
++  border-left: 4px solid #c5221f;
++  background: #fdf7f7;
++}
++.arch-delta-card-changed {
++  border-left: 4px solid #b06000;
++  background: #fefdf9;
++}
++.arch-delta-card-header {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++}
++.arch-delta-badge {
++  font-size: 8px;
++  font-weight: 700;
++  padding: 2px 5px;
++  border-radius: 3px;
++  text-transform: uppercase;
++  letter-spacing: 0.5px;
++  width: fit-content;
++}
++.arch-delta-badge-added {
++  background: #e6f4ea;
++  color: #137333;
++}
++.arch-delta-badge-removed {
++  background: #fce8e6;
++  color: #c5221f;
++}
++.arch-delta-badge-changed {
++  background: #fef7e0;
++  color: #b06000;
++}
++.arch-delta-change-list {
++  list-style-type: disc;
++  padding-left: 18px;
++  margin: 2px 0 0;
++  font-size: 10.5px;
++  color: #3c4043;
++}
++.arch-delta-geometry-groups {
++  display: flex;
++  flex-direction: column;
++  gap: 10px;
++}
++.arch-delta-geom-category h5 {
++  margin: 4px 0 6px;
++  font-size: 11px;
++  font-weight: 600;
++  color: #4b5563;
++}
++.arch-delta-table-header {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 8px;
++  margin-bottom: 8px;
++}
++.arch-delta-filter-pills {
++  display: flex;
++  gap: 6px;
++}
++.arch-delta-filter-btn {
++  padding: 2px 8px;
++  font-size: 10px;
++  border: 1px solid #c9d1c8;
++  border-radius: 12px;
++  background: #fff;
++  cursor: pointer;
++  color: var(--arch-ink);
++}
++.arch-delta-filter-btn.is-active {
++  background: var(--arch-accent);
++  color: #fff;
++  border-color: var(--arch-accent);
++}
++.arch-delta-table-wrapper {
++  overflow-x: auto;
++  border: 1px solid var(--arch-line);
++  border-radius: 6px;
++}
++.arch-quantity-variance-table {
++  width: 100%;
++  border-collapse: collapse;
++  font-size: 11px;
++}
++.arch-quantity-variance-table th {
++  text-align: left;
++  padding: 7px 10px;
++  background: #f1f5f2;
++  border-bottom: 2px solid #cbd5cf;
++  font-size: 10px;
++  text-transform: uppercase;
++  color: #55635b;
++  letter-spacing: 0.5px;
++}
++.arch-quantity-variance-table td {
++  padding: 6px 10px;
++  border-bottom: 1px solid #e3eae5;
++}
++.arch-delta-cell-name {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++}
++.arch-delta-cell-num {
++  font-variant-numeric: tabular-nums;
++  text-align: right;
++}
++.arch-delta-variance.is-pos {
++  color: #137333;
++  font-weight: 600;
++}
++.arch-delta-variance.is-neg {
++  color: #c5221f;
++  font-weight: 600;
++}
++.arch-delta-pct-badge {
++  padding: 2px 5px;
++  border-radius: 4px;
++  font-size: 10px;
++  font-weight: 600;
++  display: inline-block;
++}
++.arch-delta-pct-badge.is-pos {
++  background: #e6f4ea;
++  color: #137333;
++}
++.arch-delta-pct-badge.is-neg {
++  background: #fce8e6;
++  color: #c5221f;
++}
++.arch-delta-pct-badge.is-zero {
++  background: #f1f3f4;
++  color: #5f6368;
++}
++.arch-delta-summary-tag {
++  font-size: 8px;
++  font-weight: 700;
++  background: #e8f0fe;
++  color: #1a73e8;
++  padding: 1px 4px;
++  border-radius: 3px;
++}
++.is-row-added {
++  background: #f9fdfa;
++}
++.is-row-removed {
++  background: #fef8f8;
++}
++.is-row-increased {
++  background: #fdfdf9;
++}
++.is-row-decreased {
++  background: #fefbfb;
++}
+diff --git a/src/studio/sheetBookmarks.css b/src/studio/sheetBookmarks.css
+index 4583c2d..1033afa 100644
+--- a/src/studio/sheetBookmarks.css
++++ b/src/studio/sheetBookmarks.css
+@@ -1,11 +1,15 @@
+-.sheet-bookmarks { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--color-line); border-radius: 8px; color: var(--color-ink); background: var(--color-header); }
++.sheet-bookmarks { padding: 2px 10px; border: 1px solid var(--color-line); border-radius: 6px; color: var(--color-ink); background: var(--color-header); }
++.sheet-bookmarks details[open] { padding-bottom: 8px; }
++.sheet-bookmarks details[open] form { margin-block: 8px; }
+ .sheet-bookmarks form, .sheet-bookmarks li { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+ .sheet-bookmarks label { display: grid; gap: 4px; flex: 1 1 180px; font-size: 12px; min-width: 0; }
+ .sheet-bookmarks input { width: 100%; min-height: 44px; padding: 8px; border: 1px solid var(--color-line); border-radius: 4px; background: var(--color-bg); color: var(--color-ink); }
+ .sheet-bookmarks .pill { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+ .sheet-bookmarks button:disabled { opacity: .45; cursor: default; }
+ .sheet-bookmarks p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+-.sheet-bookmarks summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 12px; font-weight: 600; }
++.sheet-bookmarks summary { cursor: pointer; min-height: 28px; display: flex; gap: 12px; align-items: center; font-size: 12px; font-weight: 600; }
++.sheet-bookmarks summary::before { content: '›'; }
++.sheet-bookmarks details[open] > summary::before { transform: rotate(90deg); }
+ .sheet-bookmarks li { padding-block: 8px; border-top: 1px solid var(--color-line); align-items: center; }
+ .sheet-bookmarks li>div { flex: 1 1 180px; min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; }
+ .sheet-bookmarks li span, .sheet-bookmarks-help { color: var(--color-muted); font-size: 12px; }

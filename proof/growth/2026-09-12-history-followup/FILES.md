@@ -1,0 +1,5 @@
+- src/studio/architect/issueHistory.ts
+- src/studio/architect/ArchitectSheets.tsx
+- src/studio/architect/revisionDelta.ts
+- src/studio/architect/issuedDrawing.ts
+- src/studio/architect/issuedDrawing.test.ts

@@ -1,0 +1,21 @@
+import React, {useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {ArchitectSheets} from '/src/studio/architect/ArchitectSheets';
+import {demonstration} from '/src/studio/architect/model';
+import {authoredSheets,changeAuthoredSheets} from '/src/studio/architect/authoredSheetSet';
+import {recordDrawingIssue} from '/src/studio/architect/issueHistory';
+import {reviewIssueSet} from '/src/studio/architect/issueSet';
+import '/src/studio/architect/architect.css';
+let original=changeAuthoredSheets(demonstration('history-browser'),{type:'add'});
+original.name='Issued project A'; original.address='Original issued address';original.designRevision='A';
+const ids=authoredSheets(original).sheets.map(s=>s.id);
+original=recordDrawingIssue(original,reviewIssueSet(original,ids,'Original issue'),new Date('2026-09-12T00:00Z'),()=> 'issue-a');
+const changed=structuredClone(original);
+changed.name='LIVE PROJECT B';changed.address='LIVE ADDRESS';changed.revision+=1;changed.designRevision='B';
+changed.walls[0].b[0]+=3000;changed.roomTags[0].name='LIVE ROOM';changed.section.a=[4000,4000];
+changed.sheet.northAngle=80;changed.sheet.scale='200';
+changed.sheetSet.sheets.find(s=>s.id===changed.sheetSet.activeId).layout=structuredClone(changed.sheet);
+const reissued=recordDrawingIssue(changed,reviewIssueSet(changed,[ids[0]],'Partial replacement'),new Date('2026-09-12T01:00Z'),()=> 'issue-b');
+const legacy=structuredClone(reissued);delete legacy.issues[0].snapshot;
+function Fixture(){const [p,set]=useState(original);return <div style={{padding:16}}><button id="mutate" onClick={()=>set(reissued)}>Change live design and reissue one sheet</button><button id="legacy" onClick={()=>set(legacy)}>Load incomplete historical record</button><ArchitectSheets project={p} onChange={q=>{set(q);return true}} onError={e=>{throw Error(e)}}/></div>}
+createRoot(document.getElementById('history-fixture-root')!).render(<Fixture/>);

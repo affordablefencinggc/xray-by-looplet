@@ -1,0 +1,95 @@
+.adjustable-top-row {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-header, var(--color-paper));
+  border-bottom: 1px solid var(--color-line);
+}
+.adjustable-top-content {
+  height: 100%;
+  padding: 0 0 18px;
+  box-sizing: border-box;
+  overflow: auto;
+}
+.adjustable-top-content[hidden] { display: none; }
+.workbench .adjustable-top-content > .studio-header {
+  min-height: 54px;
+  height: 100%;
+  border-bottom: 0;
+}
+.workbench .adjustable-top-content > .studio-pane-nav {
+  height: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  align-items: center;
+}
+.workbench .adjustable-top-content > .studio-modebar {
+  height: 100%;
+  min-height: 28px;
+}
+.top-row-toggle {
+  position: absolute;
+  z-index: 4;
+  left: clamp(14px, var(--assistant-seam-left, calc(100vw - 400px)), calc(100% - 14px));
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.top-row-toggle:hover, .top-row-toggle:focus-visible {
+  color: var(--color-ink);
+  background: var(--color-selected);
+}
+.top-row-resizer {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 5px;
+  cursor: row-resize;
+  touch-action: none;
+}
+.top-row-resizer:hover, .top-row-resizer:focus-visible {
+  background: transparent;
+  outline: none;
+}
+.top-row-resizer:hover::after, .top-row-resizer:focus-visible::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 1px;
+  background: #000;
+}
+.top-row-caption {
+  display: block;
+  padding-left: 12px;
+  color: var(--color-muted);
+  font: 10px/17px var(--font-mono);
+}
+.diagnostics-resize-grip:hover::after,
+.diagnostics-resize-grip:focus-visible::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #000;
+}
+
+.top-row-expand { display: block; position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; color: var(--color-muted); }
+.top-row-expand:hover, .top-row-expand:focus-visible { background: var(--color-selected); color: var(--color-ink); }
+.top-row-expand .top-row-caption { line-height: 27px; }
+.top-row-chevron { position: absolute; left: clamp(14px, var(--assistant-seam-left, calc(100vw - 400px)), calc(100% - 14px)); top: 8px; transform: translateX(-50%); }

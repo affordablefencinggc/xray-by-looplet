@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Expand, Minimize, X, UserRound } from "lucide-react";
 import { useStudio } from "./store";
-import { DEFAULT_RAILS, RAIL_LAYOUT_KEY, readRailWidths } from "./railLayout";
+import { RAIL_WIDTHS_CHANGED_EVENT, DEFAULT_RAILS, RAIL_LAYOUT_KEY, readRailWidths } from "./railLayout";
 import { useCurrentUserState } from "../lib/auth/use-current-user";
 import { authEnabled, signOut } from "../lib/auth/client";
 
@@ -38,11 +38,13 @@ export function SettingsRail({
   const s = useStudio(),
     { user } = useCurrentUserState();
   const real = user && !user.isDevFallback ? user : null;
-  const [wide, setWide] = useState(false),
-    [error, setError] = useState("");
+  const [error, setError] = useState("");
   const [widths, setWidths] = useState(DEFAULT_RAILS);
   useEffect(() => {
-    setWidths(readRailWidths(localStorage.getItem(RAIL_LAYOUT_KEY)));
+    try { setWidths(readRailWidths(localStorage.getItem(RAIL_LAYOUT_KEY))); } catch { /* defaults */ }
+    const update = (event: Event) => setWidths(readRailWidths(JSON.stringify((event as CustomEvent).detail)));
+    window.addEventListener(RAIL_WIDTHS_CHANGED_EVENT, update);
+    return () => window.removeEventListener(RAIL_WIDTHS_CHANGED_EVENT, update);
   }, []);
   useEffect(() => {
     const close = (e: KeyboardEvent) => {
@@ -56,6 +58,7 @@ export function SettingsRail({
     setWidths(next);
     window.dispatchEvent(new CustomEvent("xray:rail-layout", { detail: next }));
   };
+  const wide = widths.right > DEFAULT_RAILS.right;
   return (
     <aside className="workspace-settings" data-wide={wide} aria-label="Settings">
       <header>
@@ -66,7 +69,7 @@ export function SettingsRail({
         <button
           className="pill"
           aria-label={wide ? "Narrow settings" : "Expand settings"}
-          onClick={() => setWide((v) => !v)}
+          onClick={() => resize("right", wide ? DEFAULT_RAILS.right : 600)}
         >
           {wide ? <Minimize size={16} /> : <Expand size={16} />}
         </button>
@@ -90,7 +93,7 @@ export function SettingsRail({
             aria-pressed={section === name}
             onClick={() => {
               setSection(name);
-              if (name === "Price sheets") setWide(true);
+              if (name === "Price sheets") resize("right", 600);
             }}
           >
             {name}

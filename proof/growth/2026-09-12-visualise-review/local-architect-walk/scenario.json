@@ -1,0 +1,76 @@
+[
+  [
+    "context",
+    "walk"
+  ],
+  [
+    "viewport",
+    "walk",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "walk",
+    "http://127.0.0.1:8091/?pane=model"
+  ],
+  [
+    "wait",
+    "walk",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "walk",
+    "document.body.innerHTML='<div id=review-fixture-root></div>';import('/proof/growth/2026-09-12-visualise-review/architect-walk-fixture.tsx')"
+  ],
+  [
+    "wait",
+    "walk",
+    "document.querySelectorAll('.walk-floor-rail button').length===2"
+  ],
+  [
+    "eval",
+    "walk",
+    "document.querySelectorAll('.walk-floor-rail button')[1].click()"
+  ],
+  [
+    "eval",
+    "walk",
+    "(()=>{const s=document.querySelector('.arch-walk-plan'),r=s.getBoundingClientRect();window.reviewPoint={x:r.x+r.width/2,y:r.y+r.height/2};s.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:reviewPoint.x,clientY:reviewPoint.y}));})()"
+  ],
+  [
+    "wait",
+    "walk",
+    "document.querySelector('.walk-start-picker').dataset.startPhase==='aim'"
+  ],
+  [
+    "eval",
+    "walk",
+    "document.querySelector('.arch-walk-plan').dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:reviewPoint.x+80,clientY:reviewPoint.y}))"
+  ],
+  [
+    "wait",
+    "walk",
+    "Math.abs(Number(document.querySelector('.walk-start-picker').dataset.startYaw)+Math.PI/2)<.01"
+  ],
+  [
+    "screenshot",
+    "walk",
+    "architect-aim.png"
+  ],
+  [
+    "eval",
+    "walk",
+    "document.querySelector('.arch-walk-plan').dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:reviewPoint.x+80,clientY:reviewPoint.y}))"
+  ],
+  [
+    "eval",
+    "walk",
+    "if(reviewStart.level!=='review-upper'||reviewStart.elevation!==3.3||Math.abs(reviewStart.yaw+Math.PI/2)>.01)throw Error('Architect start mismatch');JSON.stringify(reviewStart)"
+  ],
+  [
+    "dispose",
+    "walk"
+  ]
+]

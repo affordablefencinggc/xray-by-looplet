@@ -1,0 +1,394 @@
+--- before/issueHistory.ts
++++ src/studio/architect/issueHistory.ts
+@@ -34,6 +34,7 @@
+     status: z.enum(["current", "superseded"]).default("current"),
+     supersededAt: z.string().optional(),
+     supersededByRevision: z.string().optional(),
++    supersededByIssueId: z.string().optional(),
+   })
+   .strict();
+ 
+@@ -44,6 +45,7 @@
+     revision: z.number().int().positive(),
+     designRevision: z.string().max(40),
+     units: z.literal("mm").default("mm"),
++    section: z.object({ a: z.tuple([z.number().finite(), z.number().finite()]), b: z.tuple([z.number().finite(), z.number().finite()]) }).strict().optional(),
+     levels: z.array(z.any()),
+     walls: z.array(z.any()),
+     openings: z.array(z.any()),
+@@ -68,6 +70,7 @@
+     designRevision: z.string().min(1).max(40),
+     modelRevision: z.number().int().positive(),
+     projectName: z.string().min(1).max(200),
++    projectAddress: z.string().max(500).optional(),
+     status: z.enum(["current", "superseded"]).default("current"),
+     supersededAt: z.string().optional(),
+     supersededById: z.string().optional(),
+@@ -127,6 +130,7 @@
+ 
+   const issuedTimestamp = issuedAt.toISOString();
+   const newIssueId = makeId();
++  if (!newIssueId || project.issues?.some(issue => issue.id === newIssueId)) throw Error("Drawing issue ID must be new and nonempty.");
+ 
+   const newSheets: IssuedSheetRecord[] = review.sheets.map((entry) => {
+     const authored = byId.get(entry.sheetId);
+@@ -153,6 +157,7 @@
+     revision: project.revision,
+     designRevision: review.designRevision,
+     units: project.units,
++    section: structuredClone(project.section),
+     levels: structuredClone(project.levels),
+     walls: structuredClone(project.walls),
+     openings: structuredClone(project.openings),
+@@ -173,6 +178,7 @@
+     designRevision: review.designRevision,
+     modelRevision: review.modelRevision,
+     projectName: review.projectName,
++    projectAddress: project.address,
+     status: "current",
+     sheets: newSheets,
+     snapshot,
+@@ -187,16 +193,21 @@
+     // A prior active issue is now superseded by the newer issue release
+     const updatedSheets = prior.sheets.map((s) => {
+       const reissued = newSheets.some((ns) => ns.number === s.number || ns.sheetId === s.sheetId);
+-      if (reissued || s.status !== "superseded") {
++      if (reissued && s.status !== "superseded") {
+         return {
+           ...structuredClone(s),
+           status: "superseded" as const,
+           supersededAt: s.supersededAt ?? issuedTimestamp,
+-          supersededByRevision: s.supersededByRevision ?? review.designRevision,
++          supersededByRevision: review.designRevision,
++          supersededByIssueId: newIssueId,
+         };
+       }
+       return structuredClone(s);
+     });
++
++    if (!updatedSheets.every(sheet => sheet.status === "superseded")) {
++      return { ...structuredClone(prior), sheets: updatedSheets };
++    }
+ 
+     return {
+       ...structuredClone(prior),
+--- before/ArchitectSheets.tsx
++++ src/studio/architect/ArchitectSheets.tsx
+@@ -16,6 +16,7 @@
+ import { titleBlockFields, titleBlockField } from "./titleBlock";
+ import { NumberField, TextField } from "./ArchitectInspector";
+ import { compareDrawingRevisions, type RevisionDeltaReport } from "./revisionDelta";
++import { issuedDrawing } from "./issuedDrawing";
+ export function ArchitectSheets({
+   project: p,
+   onChange,
+@@ -39,6 +40,7 @@
+     // D-09: issue history and supersession inspection
+     [selectedHistoricalIssueId, setSelectedHistoricalIssueId] = useState<string | null>(null),
+     [inspectingIssueId, setInspectingIssueId] = useState<string | null>(null),
++    [historicalSheetId, setHistoricalSheetId] = useState<string | null>(null),
+     [notice, setNotice] = useState(""),
+     [failure, setFailure] = useState(""),
+     drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
+@@ -54,16 +56,22 @@
+     [deltaCategoryFilter, setDeltaCategoryFilter] = useState<"all" | "summary" | "walls" | "slabs" | "roofs">("all"),
+     inspectingIssue = inspectingIssueId ? issues.find((i) => i.id === inspectingIssueId) ?? null : null,
+     inspectingSheet = inspectingIssue
+-      ? inspectingIssue.sheets.find((s) => s.sheetId === active.id) ?? inspectingIssue.sheets[0]
++      ? inspectingIssue.sheets.find((s) => s.sheetId === historicalSheetId) ?? inspectingIssue.sheets.find((s) => s.sheetId === active.id) ?? inspectingIssue.sheets[0]
+       : null,
++    historical = useMemo(() => {
++      if (!inspectingIssue || !inspectingSheet) return { model: p, error: "" };
++      try { return { model: issuedDrawing(inspectingIssue, inspectingSheet.sheetId), error: "" }; }
++      catch (error) { return { model: null, error: error instanceof Error ? error.message : String(error) }; }
++    }, [p, inspectingIssue, inspectingSheet]),
++    drawingModel = historical.model,
+     effectiveLayout = inspectingSheet ? inspectingSheet.layout : p.sheet,
+     [w, h] = inspectingSheet
+       ? (inspectingSheet.size === "A1" ? [841, 594] : [420, 297])
+       : paperSize(p),
+     // D-07: linked title block fields, fitted to their columns so a long
+     // project name or address cannot overrun the sheet number beside it.
+-    titleBlock = titleBlockFields(p, effectiveLayout, w),
+-    vs = inspectingSheet ? effectiveLayout.viewports : sheetViewports(p),
++    titleBlock = titleBlockFields(drawingModel ?? { name: "", address: "", revision: 1, designRevision: "" }, effectiveLayout, w),
++    vs = drawingModel ? sheetViewports(drawingModel) : [],
+     v = vs.find((v) => v.id === selected);
+ 
+   const baselineSource = issues.find((i) => i.id === deltaBaselineId) ?? (issues.length > 0 ? issues[0] : null);
+@@ -95,7 +103,7 @@
+     return deltaReport.quantityVariance.allRows;
+   }, [deltaReport, deltaCategoryFilter]);
+ 
+-  useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId]);
++  useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId, inspectingIssueId]);
+   function change(action: AuthoredSheetAction, message: string) {
+     if (disabled) return;
+     setNotice("");
+@@ -286,6 +294,7 @@
+               {issues.map((issue) => {
+                 const isSelected = issue.id === selectedHistoricalIssueId;
+                 const isSuperseded = issue.status === "superseded";
++                const isPartial = !isSuperseded && issue.sheets.some(sheet => sheet.status === "superseded");
+                 const isInspectingThis = inspectingIssueId === issue.id;
+                 return (
+                   <div
+@@ -298,7 +307,7 @@
+                         <small>{issue.issuedAt.slice(0, 10)} · {issue.sheets.length} sheet{issue.sheets.length === 1 ? "" : "s"}</small>
+                       </div>
+                       <span className={`arch-issue-badge ${isSuperseded ? "arch-issue-badge-superseded" : "arch-issue-badge-current"}`}>
+-                        {isSuperseded ? "SUPERSEDED" : "CURRENT"}
++                        {isSuperseded ? "SUPERSEDED" : isPartial ? "PARTIALLY SUPERSEDED" : "CURRENT"}
+                       </span>
+                     </div>
+                     {isSuperseded && (
+@@ -722,21 +731,22 @@
+             <span>
+               {inspectingSheet.status === "superseded"
+                 ? `Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") was superseded by Rev ${inspectingSheet.supersededByRevision ?? inspectingIssue?.supersededByRevision ?? "later"} on ${inspectingSheet.supersededAt ? inspectingSheet.supersededAt.slice(0, 10) : "a later date"}.`
+-                : `Viewing frozen layout for Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") issued on ${inspectingIssue ? inspectingIssue.issuedAt.slice(0, 10) : ""}.`}
++                : `Viewing issued drawing for Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") issued on ${inspectingIssue ? inspectingIssue.issuedAt.slice(0, 10) : ""}.`}
+             </span>
+             <button type="button" onClick={() => setInspectingIssueId(null)}>
+               Return to live design
+             </button>
+           </div>
+         )}
+-        <svg
++        {historical.error && <p className="arch-history-unavailable" role="alert">{historical.error}</p>}
++        {drawingModel && <svg
+           ref={svg}
+           className="arch-paper"
+           role="img"
+           aria-label="Scaled architectural drawing sheet"
+           viewBox={`0 0 ${w} ${h}`}
+           onPointerMove={(e) => {
+-            if (disabled || !drag.current) return;
++            if (disabled || inspectingSheet || !drag.current) return;
+             const pt = at(e),
+               d = drag.current;
+             const g = svg.current?.querySelector(`[data-viewport="${d.id}"]`);
+@@ -746,7 +756,7 @@
+             );
+           }}
+           onPointerUp={(e) => {
+-            if (disabled || !drag.current) return;
++            if (disabled || inspectingSheet || !drag.current) return;
+             const pt = at(e),
+               d = drag.current;
+             drag.current = null;
+@@ -768,14 +778,14 @@
+             strokeWidth=".3"
+           />
+           {vs.map((v) => {
+-            const { items, box } = viewportBox(p, v);
++            const { items, box } = viewportBox(drawingModel, v);
+             return (
+               <g
+                 key={v.id}
+                 data-viewport={v.id}
+                 transform={`translate(${v.x} ${v.y})`}
+                 onPointerDown={(e) => {
+-                  if (disabled) return;
++                  if (disabled || inspectingSheet) return;
+                   e.stopPropagation();
+                   setSelected(v.id);
+                   const pt = at(e);
+@@ -799,7 +809,7 @@
+                   <DrawingPrimitives items={items} />
+                 </svg>
+                 <text x="0" y={v.height - 2} fontSize="2.8">
+-                  {v.view.toUpperCase()} / {p.levels.find((l) => l.id === v.levelId)?.name} / 1:
++                  {v.view.toUpperCase()} / {drawingModel.levels.find((l) => l.id === v.levelId)?.name} / 1:
+                   {v.scale}
+                 </text>
+               </g>
+@@ -808,11 +818,11 @@
+           <path d={`M8 ${h - 42} H${w - 8}`} stroke="#555" strokeWidth=".3" />
+           <text x="14" y={h - 31} fontSize="4.5">
+             {titleBlockField(titleBlock, "name").text}
+-            {titleBlockField(titleBlock, "name").truncated && <title>{p.name}</title>}
++            {titleBlockField(titleBlock, "name").truncated && <title>{drawingModel.name}</title>}
+           </text>
+           <text x="14" y={h - 24} fontSize="2.7">
+             {titleBlockField(titleBlock, "address").text}
+-            {titleBlockField(titleBlock, "address").truncated && <title>{p.address}</title>}
++            {titleBlockField(titleBlock, "address").truncated && <title>{drawingModel.address}</title>}
+           </text>
+           <text x="14" y={h - 16} fontSize="2.7">
+             {titleBlockField(titleBlock, "status").text}
+@@ -826,19 +836,19 @@
+           <text x={w - 100} y={h - 24} fontSize="2.7">
+             {titleBlockField(titleBlock, "modelRevision").text}
+           </text>
+-          <g transform={`translate(${w - 18} ${h - 29}) rotate(${p.sheet.northAngle})`}>
++          <g transform={`translate(${w - 18} ${h - 29}) rotate(${effectiveLayout.northAngle})`}>
+             <path d="M0 8V-8M-2 -4L0 -8L2 -4" fill="none" stroke="#333" strokeWidth=".4" />
+             <text x="-1" y="-10" fontSize="3">
+               N
+             </text>
+           </g>
+           <path
+-            d={`M${w - 100} ${h - 14}h${5000 / Number(p.sheet.scale)}`}
++            d={`M${w - 100} ${h - 14}h${5000 / Number(effectiveLayout.scale)}`}
+             stroke="#333"
+             strokeWidth=".7"
+           />
+           <text x={w - 100} y={h - 10} fontSize="2.2">
+-            0 — 5 m / 1:{p.sheet.scale}
++            0 — 5 m / 1:{effectiveLayout.scale}
+           </text>
+           {inspectingSheet?.status === "superseded" && (
+             <text
+@@ -857,13 +867,18 @@
+               SUPERSEDED
+             </text>
+           )}
+-        </svg>
++        </svg>}
+         <p className="arch-note">
+-          Drag a viewport to position it. Each viewport prints at its labelled scale; content
+-          outside its frame is clipped. Changing paper size fits frames to the paper and preserves their scales. Print the PDF at 100%, without fit-to-page.
++          {inspectingSheet ? "Read-only historical issue. Return to the live design to edit." : <>Drag a viewport to position it. Each viewport prints at its labelled scale; content
++          outside its frame is clipped. Changing paper size fits frames to the paper and preserves their scales. Print the PDF at 100%, without fit-to-page.</>}
+         </p>
+       </div>
+-      <aside className="arch-inspector">
++      {inspectingIssue && inspectingSheet ? <aside className="arch-inspector">
++        <h2>Issued drawing</h2>
++        <label>Historical sheet<select aria-label="Historical sheet" value={inspectingSheet.sheetId} onChange={e => setHistoricalSheetId(e.target.value)}>{inspectingIssue.sheets.map(sheet => <option key={sheet.sheetId} value={sheet.sheetId}>{sheet.number} - {sheet.name}</option>)}</select></label>
++        <p>Revision {inspectingIssue.designRevision}</p><p>{inspectingSheet.status === "superseded" ? "Superseded" : "Current issued sheet"}</p>
++        <p>North {effectiveLayout.northAngle}° · Scale 1:{effectiveLayout.scale}</p>
++      </aside> : <aside className="arch-inspector">
+         <h2>Drawing sheet</h2>
+         <TextField key={active.id} label="Drawing sheet name" value={active.name} onCommit={name => change({ type: "rename", sheetId: active.id, name }, "Drawing sheet name saved.")} />
+         <TextField
+@@ -980,7 +995,7 @@
+             </button>
+           </>
+         )}
+-      </aside>
++      </aside>}
+     </fieldset>
+   );
+ }
+--- before/revisionDelta.ts
++++ src/studio/architect/revisionDelta.ts
+@@ -183,7 +183,7 @@
+       id: issue.id,
+       revision: issue.snapshot.revision,
+       name: issue.projectName,
+-      address: "",
++      address: issue.projectAddress ?? "",
+       designRevision: issue.designRevision,
+       units: issue.snapshot.units ?? "mm",
+       levels: structuredClone(issue.snapshot.levels),
+@@ -197,7 +197,7 @@
+       grids: structuredClone(issue.snapshot.grids ?? []),
+       roomTags: structuredClone(issue.snapshot.roomTags ?? []),
+       dimensions: structuredClone(issue.snapshot.dimensions ?? []),
+-      section: { a: [0, 0], b: [10000, 0] },
++      section: structuredClone(issue.snapshot.section ?? { a: [0, 0], b: [10000, 0] }),
+       sheet: {
+         size: "A3",
+         scale: "100",
+--- before/issuedDrawing.ts
++++ src/studio/architect/issuedDrawing.ts
+@@ -0,0 +1,17 @@
++import { validateProject, type ArchitectProject } from "./model.ts";
++import type { IssueRecord } from "./issueHistory.ts";
++import { extractProjectModel } from "./revisionDelta.ts";
++import { sha256Hex } from "./designedScene.ts";
++
++/** Historical rendering never borrows geometry or metadata from the live project. */
++export function issuedDrawing(issue: IssueRecord, sheetId: string): ArchitectProject {
++  const sheet = issue.sheets.find(sheet => sheet.sheetId === sheetId);
++  if (!sheet) throw Error("Historical drawing unavailable: this sheet is not in the selected issue.");
++  if (!issue.snapshot?.section || issue.projectAddress === undefined) {
++    throw Error("Historical drawing unavailable: this older issue does not contain a complete drawing snapshot. Its saved layout and register remain available; the live design cannot reconstruct the issued drawing.");
++  }
++  if (sha256Hex(JSON.stringify(sheet.layout)) !== sheet.layoutHash) {
++    throw Error("Historical drawing unavailable: the saved layout does not match its recorded hash.");
++  }
++  return validateProject({ ...extractProjectModel(issue), sheet: structuredClone(sheet.layout) });
++}
+--- before/issuedDrawing.test.ts
++++ src/studio/architect/issuedDrawing.test.ts
+@@ -0,0 +1,77 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { demonstration, validateProject } from "./model.ts";
++import { authoredSheets, changeAuthoredSheets } from "./authoredSheetSet.ts";
++import { recordDrawingIssue } from "./issueHistory.ts";
++import { reviewIssueSet } from "./issueSet.ts";
++import { issuedDrawing } from "./issuedDrawing.ts";
++import { viewportBox, sheetViewports } from "./sheets.ts";
++import { titleBlockFields } from "./titleBlock.ts";
++
++test("issued drawing survives live geometry, annotation, section and title changes and JSON persistence", () => {
++  const p = demonstration("frozen-render");
++  p.address = "Issued address";
++  p.designRevision = "A";
++  const id = authoredSheets(p).activeId;
++  const recorded = recordDrawingIssue(p, reviewIssueSet(p, [id], "Tender"), new Date("2026-09-12"), () => "a");
++  const original = issuedDrawing(recorded.issues![0], id);
++  const originalVectors = sheetViewports(original).map(v => viewportBox(original, v));
++  const originalTitle = titleBlockFields(original, original.sheet, 420);
++  recorded.name = "Changed live project";
++  recorded.address = "New address";
++  recorded.designRevision = "B";
++  recorded.revision += 1;
++  recorded.walls[0].b[0] += 5000;
++  recorded.roomTags[0].name = "Changed room";
++  recorded.section.a = [4000, 4000];
++  recorded.sheet.northAngle = 85;
++  recorded.sheet.scale = "200";
++  const restored = validateProject(JSON.parse(JSON.stringify(recorded)));
++  const historic = issuedDrawing(restored.issues![0], id);
++  assert.deepEqual(sheetViewports(historic).map(v => viewportBox(historic, v)), originalVectors);
++  assert.deepEqual(titleBlockFields(historic, historic.sheet, 420), originalTitle);
++  assert.deepEqual(historic.section, p.section);
++  assert.equal(historic.sheet.northAngle, p.sheet.northAngle);
++  historic.walls[0].b[0] += 10;
++  assert.notDeepEqual(historic.walls, restored.issues![0].snapshot!.walls);
++});
++
++test("historical rendering refuses incomplete and altered records without substituting the live model", () => {
++  const p = demonstration("unavailable");
++  const id = authoredSheets(p).activeId;
++  const issue = recordDrawingIssue(p, reviewIssueSet(p, [id], "Tender"), new Date("2026-09-12"), () => "a").issues![0];
++  for (const field of ["snapshot", "projectAddress"] as const) {
++    const old = structuredClone(issue); delete old[field];
++    assert.throws(() => issuedDrawing(old, id), /complete drawing snapshot/);
++  }
++  const old = structuredClone(issue); delete old.snapshot!.section;
++  assert.throws(() => issuedDrawing(old, id), /complete drawing snapshot/);
++  const corrupt = structuredClone(issue); corrupt.sheets[0].layout.northAngle += 5;
++  assert.throws(() => issuedDrawing(corrupt, id), /recorded hash/);
++});
++
++test("partial reissues only supersede their sheets and retain each successor through later releases", () => {
++  let p = changeAuthoredSheets(demonstration("partial"), { type: "add" });
++  const ids = authoredSheets(p).sheets.map(s => s.id);
++  p.designRevision = "A";
++  p = recordDrawingIssue(p, reviewIssueSet(p, ids, "Both sheets"), new Date("2026-09-12T00:00Z"), () => "a");
++  const frozen = JSON.stringify(p.issues![0].snapshot);
++  p.designRevision = "B";
++  p = recordDrawingIssue(p, reviewIssueSet(p, [ids[0]], "First sheet"), new Date("2026-09-12T01:00Z"), () => "b");
++  assert.equal(p.issues![0].status, "current");
++  assert.equal(p.issues![0].supersededAt, undefined);
++  assert.deepEqual(p.issues![0].sheets.map(s => s.status), ["superseded", "current"]);
++  const firstSheet = structuredClone(p.issues![0].sheets[0]);
++  assert.equal(firstSheet.supersededByIssueId, "b");
++  p.designRevision = "C";
++  p = recordDrawingIssue(p, reviewIssueSet(p, [ids[1]], "Second sheet"), new Date("2026-09-12T02:00Z"), () => "c");
++  assert.deepEqual(p.issues![0].sheets[0], firstSheet);
++  assert.equal(p.issues![0].sheets[1].supersededByIssueId, "c");
++  assert.equal(p.issues![0].status, "superseded");
++  assert.equal(p.issues![0].supersededById, "c");
++  assert.equal(p.issues![1].status, "current");
++  assert.equal(p.issues![1].sheets[0].status, "current");
++  assert.equal(JSON.stringify(p.issues![0].snapshot), frozen);
++  assert.equal(validateProject(p).issues!.length, 3);
++  assert.throws(() => recordDrawingIssue(p, reviewIssueSet(p, [ids[1]], "Duplicate"), new Date(), () => "b"), /must be new/);
++});

@@ -368,3 +368,23 @@ Proof and exact file/patch list: proof/growth/2026-09-11-project-library/README.
 Final safeguard verification, 2026-09-11: strict registry reads now refuse creation/open against damaged library records. Source 9e2e87d46bf659108278e4eb6ddc29b81ada7672988358bf5b4f6bd3031c5be3 supersedes intermediate f59a593750f0. DANS1: 38/38 tests, typecheck/build, 68/68 library and 9/9 report operations pass. Final inspected proof: proof/growth/2026-09-11-project-library/production-complete/ and report-production-complete/. Checklist scope and remaining work are unchanged.
 
 2026-09-11: Protected portable snapshot application is implemented and verified for built-browser scope. Startup blocks editor hydration until the journal is resolved; an exclusive workspace lease, recovery package, before-images, non-overwriting assets and readback protect the restore. 45 tests and desktop/tablet executed proof: proof/growth/2026-09-11-restore/README.md. B-10 passes. B-09/B-11/Z-07 remain partial; no full project/native/forced termination claim.
+
+2026-09-13 D-09 follow-up: frozen issued geometry/metadata/section and historical sheet selector; incomplete history refused without live substitution; partial sheet supersession and per-sheet successor links. Files: src/studio/architect/{ArchitectSheets.tsx,issueHistory.ts,revisionDelta.ts,issuedDrawing.ts,issuedDrawing.test.ts}. 105 architect tests and typecheck pass; 25 desktop/tablet history-browser operations, DANS1 web build and 78 compiled-app regression operations pass. Evidence and exact follow-up diff: proof/growth/2026-09-12-history-followup/README.md and changes.patch. Broader D-09 remains partial; no release or native package.
+
+
+### 2026-09-13 - Historical PDF and navigation follow-up
+
+Completed scoped D09 historical PDF export and requested top-navigation adjustments: centered main tabs, collapse arrows at right-rail seam, row/tab click expands and arrow hides. Historical exports preserve saved geometry, provenance and supersession markings; incomplete history refuses export. Scale bars stay inside frames. 118 focused tests, local and DANS1 typecheck, production build and 104 compiled-app CDP operations passed; 25 PDF UI operations and rendered A1/A3 pages verified. Evidence: proof/growth/2026-09-13-history-pdf/README.md. Broader checklist items are not closed by this scoped follow-up. Existing branch and unrelated work preserved; no commit or release. Owned QA helpers cleaned; user preview retained.
+
+
+### 2026-09-13 - Thin workspace tools, Charcoal palette and drafting revision comparison
+
+Verified scoped U-03/D-15 follow-up: caption in the next row, compact tools without the arrow gutter, one-time saved-height migration, Charcoal surface/field/accent colours with readable selected controls, and frozen drafting/notes comparison with explicit legacy unavailability. 112 architect tests; 44 development operations; 11 migration operations; DANS1 typecheck/build and 28 compiled-navigation/theme operations passed. Annotation UI uses a development component fixture; broader/native acceptance remains open. Evidence and ten-file source list: proof/growth/2026-09-13-annotation-delta/README.md. Branch feat/architect-cad-engine preserved, no commit/release; QA helpers cleaned and user preview retained.
+
+
+### 2026-09-13 — Core workflow audit and compact saved views
+Verified in existing Edge with an isolated QA project: calibration, area/run, undo/redo, saved view restore, source annotation, wall/door/schedule and net quantity deduction, walkthrough aim/entry, assistant rail, Checks-to-specification and Estimate. New-project confirmation is in-app; Sketch navigation and empty-column layout corrected. Typecheck and DANS1 web build passed; 38/38 development and compiled desktop/tablet operations passed. Proof: proof/growth/2026-09-13-basics-audit/README.md. Branch feat/architect-cad-engine, commit pending. No exhaustive feature or native release claim.
+
+
+### 2026-09-13 — D-10 authored plan overlay
+Earlier/later plan layers, level choice, changed-only emphasis and preview-only translation/rotation/opacity/visibility/reset verified. Four geometry tests and 26/26 desktop/tablet component interaction operations passed; exact source included in DANS1 build 2f46514c2abd. Scanned-PDF registration and 3D Boolean differences are outside scope. Proof: proof/growth/2026-09-13-revision-overlay/README.md. Commit pending on feat/architect-cad-engine.

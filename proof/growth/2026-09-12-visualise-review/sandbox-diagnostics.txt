@@ -1,0 +1,436 @@
+Sandbox Status
+Process	Type	Name	Sandbox	Lockdown	Integrity	Mitigations	Component Filter	Lowbox/AppContainer
+3668	Utility	Storage Service	Service	Lockdown	S-1-16-0 Untrusted	➕01111011110110000100000000010000	00000001	
+7692	Utility	Network Service	Not Sandboxed					
+12044	GPU	GPU	GPU	Limited	S-1-16-4096 Low	➕01111001010110000100000000010000	00000001	
+5252	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+16568	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+8588	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+19232	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+5136	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+11220	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+13460	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020011000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922
+
+features: [
+  {
+    "enabled": true,
+    "name": "NetworkServiceSandbox"
+  },
+  {
+    "enabled": true,
+    "name": "RendererAppContainer"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxDisableExtensionPoint"
+  },
+  {
+    "enabled": true,
+    "name": "WinSboxZeroAppShim"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxNoFakeGdiInit"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxRestrictCoreSharingOnRenderer"
+  },
+  {
+    "enabled": false,
+    "name": "EnableCsrssLockdown"
+  },
+  {
+    "enabled": true,
+    "name": "WinSboxModuleTamperingProtection"
+  }
+]
+policies: [
+  {
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004af3b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "\\Device\\DeviceApi"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "platformMitigations": "01111011110110000100000000010000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 3668,
+    "tag": "utility!kService",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 13460,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 5136,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 8588,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 19232,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-4096 Low",
+    "desiredMitigations": "0000000004af1367",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [],
+    "jobLevel": "Limited User",
+    "lockdownLevel": "Limited",
+    "platformMitigations": "01111001010110000100000000010000",
+    "policyRules": {
+      "CreateThread": [],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": []
+    },
+    "processId": 12044,
+    "tag": "gpu!kGpu",
+    "zeroAppShim": false
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 16568,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 5168,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 5252,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000014ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012149-129201922",
+    "platformMitigations": "01111001110110000100000020011000",
+    "policyRules": {
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome.dll') -> returnConst 0xe6c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files\\Google\\Chrome\\Application\\153.0.8010.36\\chrome_elf.dll') -> returnConst 0xe70"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 11220,
+    "tag": "renderer!kRenderer",
+    "zeroAppShim": true
+  }
+]

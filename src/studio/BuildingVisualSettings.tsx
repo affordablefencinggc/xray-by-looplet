@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { ModelScopeOptions } from "./ModelScope";
 import { ChevronRight, Download, RotateCcw, SlidersHorizontal, X } from "lucide-react";
 import {
@@ -75,6 +75,23 @@ export function BuildingVisualSettings({
   viewDetail?: string;
   onExportPng?: () => void;
 }) {
+  const [panelWidth, setPanelWidth] = useState(390);
+  const resizeDrag = useRef<{ x: number; width: number } | null>(null);
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem("xray:visual-settings-width:v1"));
+      if (saved >= 280 && saved <= 600) setPanelWidth(saved);
+    } catch { /* Use the default width when storage is unavailable. */ }
+  }, []);
+  const resizePanel = (width: number) => {
+    const next = Math.round(Math.max(280, Math.min(600, innerWidth - 32, width)));
+    setPanelWidth(next);
+    try { localStorage.setItem("xray:visual-settings-width:v1", String(next)); } catch { /* session only */ }
+  };
+  const finishResize = (event: PointerEvent<HTMLDivElement>) => {
+    resizeDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   const [open, setOpen] = useState(false),
     trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -124,7 +141,27 @@ export function BuildingVisualSettings({
           id="building-visual-panel"
           className="building-visual-panel"
           aria-label="Visual settings"
+          style={{ width: panelWidth, maxWidth: "calc(100vw - 32px)" }}
         >
+          <div className="visual-panel-resizer" role="separator" tabIndex={0}
+            aria-label="Resize visual settings" aria-orientation="vertical" aria-valuemin={280} aria-valuemax={600} aria-valuenow={panelWidth}
+            title="Drag to resize; arrow keys adjust; double-click resets"
+            onDoubleClick={() => resizePanel(390)}
+            onPointerDown={event => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              resizeDrag.current = { x: event.clientX, width: panelWidth };
+            }}
+            onPointerMove={event => {
+              if (resizeDrag.current) resizePanel(resizeDrag.current.width + resizeDrag.current.x - event.clientX);
+            }}
+            onPointerUp={finishResize} onPointerCancel={finishResize}
+            onKeyDown={event => {
+              if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
+              event.preventDefault(); event.stopPropagation();
+              resizePanel(event.key === "Home" ? 390 : panelWidth + (event.key === "ArrowLeft" ? 20 : -20));
+            }} />
           <header>
             <div>
               <span>APPEARANCE</span>

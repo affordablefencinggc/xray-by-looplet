@@ -1,0 +1,324 @@
+--- before/src/studio/AdjustableTopRow.tsx
++++ src/studio/AdjustableTopRow.tsx
+@@ -11,51 +11,57 @@
+   const [ready, setReady] = useState(false);
+   const row = useRef<HTMLDivElement>(null);
+   const drag = useRef<{ y: number; height: number } | null>(null);
++  const expandedMinimum = minHeight + 18;
+   const key = `xray:top-row:${id}:v1`;
+   useEffect(() => {
+     try {
+       const saved = JSON.parse(localStorage.getItem(key) ?? "null");
+       setCollapsed(saved?.collapsed === true);
+       if (typeof saved?.height === "number" && Number.isFinite(saved.height)) {
+-        setHeight(Math.max(minHeight, Math.min(240, saved.height)));
++        setHeight(Math.max(expandedMinimum, Math.min(240, saved.height)));
+       }
+     } catch { /* Invalid or unavailable storage uses the natural row size. */ }
+     setReady(true);
+-  }, [key, minHeight]);
++  }, [key, expandedMinimum]);
+   useEffect(() => {
+     if (ready) try { localStorage.setItem(key, JSON.stringify({ collapsed, height })); } catch { /* Storage unavailable. */ }
+   }, [key, collapsed, height, ready]);
++  useEffect(() => {
++    const expand = (event: Event) => { if ((event as CustomEvent).detail === id) setCollapsed(false); };
++    window.addEventListener("xray:expand-top-row", expand);
++    return () => window.removeEventListener("xray:expand-top-row", expand);
++  }, [id]);
+   const resize = (value: number) => {
+     setCollapsed(false);
+-    setHeight(Math.max(minHeight, Math.min(240, value)));
++    setHeight(Math.max(expandedMinimum, Math.min(240, value)));
+   };
+   const end = (event: PointerEvent<HTMLDivElement>) => {
+     drag.current = null;
+     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+   };
+   return <div ref={row} className="adjustable-top-row" data-top-row={id} data-collapsed={collapsed}
+-    style={{ height: collapsed ? 18 : height ?? undefined, minHeight: collapsed ? 18 : minHeight }}>
++    style={{ height: collapsed ? 28 : height ?? undefined, minHeight: collapsed ? 28 : expandedMinimum }}>
+     <div id={`top-row-${id}`} className="adjustable-top-content" hidden={collapsed}>{children}</div>
+-    {collapsed && <span className="top-row-caption" aria-hidden="true">{label}</span>}
+-    <button type="button" className="top-row-toggle" aria-label={`${collapsed ? "Expand" : "Collapse"} ${label.toLowerCase()}`}
+-      aria-expanded={!collapsed} aria-controls={`top-row-${id}`} title={`${collapsed ? "Expand" : "Collapse"} ${label.toLowerCase()}`}
+-      onClick={() => setCollapsed(value => !value)}>
+-      {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+-    </button>
++    {collapsed ? <button type="button" className="top-row-expand" aria-label={`Expand ${label.toLowerCase()}`}
++      aria-expanded={false} aria-controls={`top-row-${id}`} onClick={() => setCollapsed(false)}>
++      <span className="top-row-caption">{label}</span><ChevronDown className="top-row-chevron" size={12} />
++    </button> : <button type="button" className="top-row-toggle" aria-label={`Collapse ${label.toLowerCase()}`}
++      aria-expanded={true} aria-controls={`top-row-${id}`} title={`Collapse ${label.toLowerCase()}`}
++      onClick={() => setCollapsed(true)}><ChevronUp size={12} /></button>}
+     {!collapsed && <div role="separator" tabIndex={0} className="top-row-resizer" aria-label={`Resize ${label.toLowerCase()}`}
+-      aria-orientation="horizontal" aria-valuemin={minHeight} aria-valuemax={240} aria-valuenow={height ?? minHeight}
++      aria-orientation="horizontal" aria-valuemin={expandedMinimum} aria-valuemax={240} aria-valuenow={height ?? expandedMinimum}
+       title="Drag to resize · arrow keys adjust · double-click resets"
+       onDoubleClick={() => setHeight(null)}
+       onKeyDown={event => {
+         if (!["ArrowUp", "ArrowDown", "Home"].includes(event.key)) return;
+         event.preventDefault(); event.stopPropagation();
+         if (event.key === "Home") setHeight(null);
+-        else resize((row.current?.getBoundingClientRect().height ?? minHeight) + (event.key === "ArrowDown" ? 8 : -8));
++        else resize((row.current?.getBoundingClientRect().height ?? expandedMinimum) + (event.key === "ArrowDown" ? 8 : -8));
+       }}
+       onPointerDown={event => {
+         if (event.button !== 0) return;
+         event.preventDefault();
+-        drag.current = { y: event.clientY, height: row.current?.getBoundingClientRect().height ?? minHeight };
++        drag.current = { y: event.clientY, height: row.current?.getBoundingClientRect().height ?? expandedMinimum };
+         event.currentTarget.setPointerCapture(event.pointerId);
+       }}
+       onPointerMove={event => {
+--- before/src/studio/adjustableTopRow.css
++++ src/studio/adjustableTopRow.css
+@@ -8,7 +8,8 @@
+ }
+ .adjustable-top-content {
+   height: 100%;
+-  padding-right: 30px;
++  padding: 0 0 18px;
++  box-sizing: border-box;
+   overflow: auto;
+ }
+ .adjustable-top-content[hidden] { display: none; }
+@@ -30,11 +31,12 @@
+ }
+ .top-row-toggle {
+   position: absolute;
+-  z-index: 2;
+-  right: 2px;
+-  top: 0;
++  z-index: 4;
++  left: clamp(14px, var(--assistant-seam-left, calc(100vw - 400px)), calc(100% - 14px));
+   bottom: 0;
+-  width: 26px;
++  transform: translateX(-50%);
++  width: 28px;
++  height: 18px;
+   display: grid;
+   place-items: center;
+   padding: 0;
+@@ -51,7 +53,7 @@
+   position: absolute;
+   z-index: 3;
+   left: 0;
+-  right: 30px;
++  right: 0;
+   bottom: -2px;
+   height: 5px;
+   cursor: row-resize;
+@@ -86,3 +88,8 @@
+   height: 1px;
+   background: #000;
+ }
++
++.top-row-expand { display: block; position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; color: var(--color-muted); }
++.top-row-expand:hover, .top-row-expand:focus-visible { background: var(--color-selected); color: var(--color-ink); }
++.top-row-expand .top-row-caption { line-height: 27px; }
++.top-row-chevron { position: absolute; left: clamp(14px, var(--assistant-seam-left, calc(100vw - 400px)), calc(100% - 14px)); top: 8px; transform: translateX(-50%); }
+--- before/src/studio/WorkflowNavigation.tsx
++++ src/studio/WorkflowNavigation.tsx
+@@ -15,13 +15,14 @@
+   const workflow = workflows.find(w => w.panes.some(p => p.id === pane));
+   const checking = checks.some(p => p.id === pane);
+   const items = checking ? checks : workflow?.panes ?? [{ id: 'overview' as Pane, label: 'Project overview' }];
++  const select = (next: Pane) => { window.dispatchEvent(new CustomEvent("xray:expand-top-row", { detail: "mode" })); onSelect(next); };
+   return <>
+     <AdjustableTopRow id="navigation" label="Navigation" minHeight={44}>
+       <nav className="workflow-nav" aria-label="Main workflow">
+-        {workflows.map(w => <button key={w.label} type="button" aria-current={workflow === w ? 'page' : undefined}
+-          onClick={() => onSelect(workflow === w ? pane : w.panes[0].id)}>{w.label}</button>)}
++        <div className="workflow-main-tabs">{workflows.map(w => <button key={w.label} type="button" aria-current={workflow === w ? 'page' : undefined}
++          onClick={() => select(workflow === w ? pane : w.panes[0].id)}>{w.label}</button>)}</div>
+         <button type="button" className="workflow-checks" aria-current={checking ? 'page' : undefined}
+-          onClick={() => onSelect(checking ? pane : 'review')}>Checks</button>
++          onClick={() => select(checking ? pane : 'review')}>Checks</button>
+       </nav>
+     </AdjustableTopRow>
+     <AdjustableTopRow id="mode" label="Workspace tools" minHeight={44}>
+--- before/src/studio/workflowNavigation.css
++++ src/studio/workflowNavigation.css
+@@ -28,3 +28,7 @@
+ .workspace-rails .workspace-diagnostics[data-expanded="false"] .workspace-diagnostics-bar button { height: calc(var(--workspace-bottom-bar-height) - 1px); min-height: calc(var(--workspace-bottom-bar-height) - 1px); }
+ @media (max-width: 1100px) { .workflow-context-hint { display: none; } .workbench .studio-brand > span:last-child { display: none; } }
+ @media (max-width: 700px) { .workflow-nav, .workflow-context { overflow-x: auto; padding-inline: 8px; } .workflow-nav button { padding-inline: 12px; } .project-identity button { max-width: 160px; } }
++
++.workflow-nav { display: grid; grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr); gap: 0; }
++.workflow-main-tabs { grid-column: 2; display: flex; align-items: center; gap: 8px; }
++.workflow-nav .workflow-checks { grid-column: 3; justify-self: end; margin-left: 0; }
+--- before/src/studio/WorkspaceRails.tsx
++++ src/studio/WorkspaceRails.tsx
+@@ -162,7 +162,7 @@
+     // Keep the stored column width while the column is hidden or awaiting measurement.
+     const right = rects.find((r) => r.side === "right" && !r.collapsed);
+     if (right && right.left > 0) root.style.setProperty(ASSISTANT_SEAM_VAR, `${Math.round(right.left + 2)}px`);
+-    else root.style.setProperty(ASSISTANT_SEAM_VAR, `${Math.max(0, innerWidth - widths.right)}px`);
++    else root.style.setProperty(ASSISTANT_SEAM_VAR, `max(0px, calc(100vw - ${widths.right}px))`);
+     const layout = ref.current?.querySelector<HTMLElement>(".studio-layout")?.getBoundingClientRect();
+     root.style.setProperty("--assistant-column-top", `${Math.max(0, layout?.top ?? right?.top ?? 90)}px`);
+     root.style.setProperty("--assistant-column-bottom", `${Math.max(0, innerHeight - (layout?.bottom ?? innerHeight))}px`);
+--- before/src/studio/architect/ArchitectSheets.tsx
++++ src/studio/architect/ArchitectSheets.tsx
+@@ -17,6 +17,7 @@
+ import { NumberField, TextField } from "./ArchitectInspector";
+ import { compareDrawingRevisions, type RevisionDeltaReport } from "./revisionDelta";
+ import { issuedDrawing } from "./issuedDrawing";
++import { exportIssuedDrawingPdf } from "./issuedDrawingPdf";
+ export function ArchitectSheets({
+   project: p,
+   onChange,
+@@ -705,11 +706,15 @@
+             ))}
+           </select>
+           <button
+-            disabled={busy || Boolean(inspectingSheet)}
++            disabled={busy || Boolean(historical.error)}
++            title={inspectingSheet ? "Recreate a PDF from the saved issue, including its current superseded status." : undefined}
+             onClick={async () => {
+               setBusy(true);
+               try {
+-                saveDownload(await exportDrawingPdf(p), effectiveLayout.number + ".pdf", "application/pdf");
++                if (inspectingIssue && inspectingSheet) {
++                  const result = await exportIssuedDrawingPdf(inspectingIssue, inspectingSheet.sheetId);
++                  saveDownload(result.bytes, result.filename, "application/pdf");
++                } else saveDownload(await exportDrawingPdf(p), effectiveLayout.number + ".pdf", "application/pdf");
+               } catch (e) {
+                 onError(String(e));
+               } finally {
+@@ -717,7 +722,7 @@
+               }
+             }}
+           >
+-            {busy ? "Preparing vectors…" : "Export vector PDF"}
++            {busy ? "Preparing vectors…" : inspectingSheet ? "Export issued PDF" : "Export vector PDF"}
+           </button>
+         </div>
+         {inspectingSheet && (
+@@ -843,11 +848,11 @@
+             </text>
+           </g>
+           <path
+-            d={`M${w - 100} ${h - 14}h${5000 / Number(effectiveLayout.scale)}`}
++            d={`M${Math.min(w - 100, w - 14 - 5000 / Number(effectiveLayout.scale))} ${h - 14}h${5000 / Number(effectiveLayout.scale)}`}
+             stroke="#333"
+             strokeWidth=".7"
+           />
+-          <text x={w - 100} y={h - 10} fontSize="2.2">
++          <text x={Math.min(w - 100, w - 14 - 5000 / Number(effectiveLayout.scale))} y={h - 10} fontSize="2.2">
+             0 — 5 m / 1:{effectiveLayout.scale}
+           </text>
+           {inspectingSheet?.status === "superseded" && (
+--- before/src/studio/architect/sheets.ts
++++ src/studio/architect/sheets.ts
+@@ -1,4 +1,4 @@
+-﻿import {
++import {
+   PDFDocument,
+   StandardFonts,
+   rgb,
+@@ -183,7 +183,7 @@
+   text(fit("Model revision " + p.revision + " | print at 100%", 8, rightAvailable), w - 100, h - 24, 8);
+   const scale = Number(p.sheet.scale),
+     bar = 5000 / scale,
+-    x = w - 100,
++    x = Math.min(w - 100, w - 14 - bar),
+     y = h - 14;
+   page.drawLine({
+     start: { x: x * mm, y: (h - y) * mm },
+--- before/src/studio/architect/issuedDrawingPdf.ts
++++ src/studio/architect/issuedDrawingPdf.ts
+@@ -0,0 +1,30 @@
++import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
++import type { IssueRecord } from "./issueHistory.ts";
++import { issuedDrawing } from "./issuedDrawing.ts";
++import { exportDrawingPdf } from "./sheets.ts";
++import { fitTextMeasured } from "./titleBlock.ts";
++
++/** Recreates a saved issue; never represents these bytes as the original issued file. */
++export async function exportIssuedDrawingPdf(issue: IssueRecord, sheetId: string) {
++  const model = issuedDrawing(issue, sheetId);
++  const sheet = issue.sheets.find(sheet => sheet.sheetId === sheetId)!;
++  const document = await PDFDocument.load(await exportDrawingPdf(model));
++  const page = document.getPage(0), font = await document.embedFont(StandardFonts.HelveticaBold);
++  const superseded = sheet.status === "superseded", mm = 72 / 25.4;
++  const status = superseded ? "SUPERSEDED" : "HISTORICAL ISSUE";
++  const date = issue.issuedAt.slice(0, 10);
++  const label = `${status} | Rev ${issue.designRevision} | issued ${date} | Recreated from saved issue`;
++  const fitted = fitTextMeasured(label, 8, page.getWidth() - 24 * mm, (text, size) => font.widthOfTextAtSize(text, size));
++  page.drawText(fitted.text, { x: 12 * mm, y: page.getHeight() - 6 * mm, size: 8, font, color: superseded ? rgb(.65, .12, .12) : rgb(.2, .25, .3) });
++  if (superseded) {
++    const size = page.getWidth() / 13;
++    const width = font.widthOfTextAtSize("SUPERSEDED", size);
++    page.drawText("SUPERSEDED", { x: (page.getWidth() - width * Math.cos(Math.PI / 7.2)) / 2, y: page.getHeight() / 2 - width * Math.sin(Math.PI / 7.2) / 2, size, font, rotate: degrees(25), color: rgb(.75, .12, .12), opacity: .16 });
++    const replacement = `Superseded by Rev ${sheet.supersededByRevision ?? "unknown"} on ${sheet.supersededAt?.slice(0, 10) ?? "date not recorded"}`;
++    page.drawText(fitTextMeasured(replacement, 7, page.getWidth() - 24 * mm, (text, size) => font.widthOfTextAtSize(text, size)).text, { x: 12 * mm, y: 4 * mm, size: 7, font, color: rgb(.65, .12, .12) });
++  }
++  document.setTitle(`${model.name} / ${sheet.number} / Rev ${issue.designRevision} / ${status}`);
++  document.setSubject(`Recreated from saved issue ${issue.id}; issued ${issue.issuedAt}; sheet ${sheet.sheetId}; layout SHA-256 ${sheet.layoutHash}. ${status}. Design review required.`);
++  const safe = (value: string) => value.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80);
++  return { bytes: await document.save(), filename: `xray-${safe(sheet.number)}-rev-${safe(issue.designRevision)}-${safe(date)}-${superseded ? "superseded" : "issued"}.pdf` };
++}
+--- before/src/studio/architect/issuedDrawingPdf.test.ts
++++ src/studio/architect/issuedDrawingPdf.test.ts
+@@ -0,0 +1,59 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { PDFDocument, PDFArray, PDFRawStream, decodePDFRawStream } from "pdf-lib";
++import { demonstration } from "./model.ts";
++import { authoredSheets } from "./authoredSheetSet.ts";
++import { recordDrawingIssue } from "./issueHistory.ts";
++import { reviewIssueSet } from "./issueSet.ts";
++import { exportIssuedDrawingPdf } from "./issuedDrawingPdf.ts";
++
++async function inspect(bytes: Uint8Array) {
++  const doc = await PDFDocument.load(bytes), page = doc.getPage(0);
++  const contents = page.node.Contents()!;
++  const streams = contents instanceof PDFArray ? contents.asArray().map(ref => doc.context.lookup(ref)) : [contents];
++  const operators = streams.map(stream => Buffer.from(decodePDFRawStream(stream as PDFRawStream).decode()).toString()).join("\n");
++  const text = [...operators.matchAll(/<([0-9a-f]+)>/gi)].map(match => Buffer.from(match[1], "hex").toString("latin1")).join("\n");
++  return {doc,page,text,operators};
++}
++
++test("issued PDF preserves original geometry, metadata, dimensions and a recreated-file label", async () => {
++  const p = demonstration("issued-pdf");p.name = "Issued project";p.address = "Original address";p.designRevision = "A";
++  const id = authoredSheets(p).activeId;
++  const ready = recordDrawingIssue(p, reviewIssueSet(p, [id], "Tender"), new Date("2026-09-12"), () => "issue-a");
++  const baseline = await inspect((await exportIssuedDrawingPdf(ready.issues![0], id)).bytes);
++  ready.name = "LIVE PROJECT";ready.address = "LIVE ADDRESS";ready.walls[0].b[0] += 4000;ready.roomTags[0].name = "LIVE ROOM";
++  const result = await exportIssuedDrawingPdf(ready.issues![0], id), output = await inspect(result.bytes);
++  assert.equal(output.doc.getPageCount(), 1);
++  assert.ok(Math.abs(output.page.getWidth() - 420 * 72 / 25.4) < 1e-8);
++  assert.ok(Math.abs(output.page.getHeight() - 297 * 72 / 25.4) < 1e-8);
++  assert.equal(output.operators, baseline.operators);
++  assert.match(output.text, /Issued project/);assert.match(output.text, /Original address/);
++  assert.match(output.text, /HISTORICAL ISSUE/);assert.match(output.text, /Recreated from saved issue/);
++  assert.doesNotMatch(output.text, /LIVE|SUPERSEDED/);
++  assert.match(output.doc.getSubject()!, new RegExp(ready.issues![0].sheets[0].layoutHash));
++  assert.match(result.filename, /rev-A-2026-09-12-issued\.pdf$/);
++});
++
++test("superseded PDF carries a watermark and replacement reference, including A1 paper", async () => {
++  let p = demonstration("superseded-pdf");p.sheet.size = "A1";p.designRevision = "A";
++  const id = authoredSheets(p).activeId;
++  p = recordDrawingIssue(p, reviewIssueSet(p, [id], "Tender"), new Date("2026-09-12"), () => "issue-a");
++  p.designRevision = "B";
++  p = recordDrawingIssue(p, reviewIssueSet(p, [id], "Replacement"), new Date("2026-09-13"), () => "issue-b");
++  const result = await exportIssuedDrawingPdf(p.issues![0], id), output = await inspect(result.bytes);
++  assert.match(output.text, /SUPERSEDED/);
++  assert.match(output.text, /Superseded by Rev B on 2026-09-13/);
++  assert.ok(Math.abs(output.page.getWidth() - 841 * 72 / 25.4) < 1e-8);
++  assert.ok(Math.abs(output.page.getHeight() - 594 * 72 / 25.4) < 1e-8);
++  assert.match(result.filename, /superseded\.pdf$/);
++  assert.match(output.doc.getTitle()!, /Rev A/);
++});
++
++test("incomplete or tampered issue records cannot be exported", async () => {
++  const p = demonstration("bad-export"), id = authoredSheets(p).activeId;
++  const issue = recordDrawingIssue(p, reviewIssueSet(p, [id], "Tender"), new Date("2026-09-12"), () => "issue-a").issues![0];
++  const old = structuredClone(issue);delete old.snapshot;
++  await assert.rejects(exportIssuedDrawingPdf(old, id), /complete drawing snapshot/);
++  issue.sheets[0].layout.scale = "200";
++  await assert.rejects(exportIssuedDrawingPdf(issue, id), /recorded hash/);
++});

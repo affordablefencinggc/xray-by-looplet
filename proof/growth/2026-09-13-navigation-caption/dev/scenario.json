@@ -1,0 +1,77 @@
+[
+  [
+    "context",
+    "caption"
+  ],
+  [
+    "viewport",
+    "caption",
+    1440,
+    900
+  ],
+  [
+    "navigate",
+    "caption",
+    "http://127.0.0.1:8091/"
+  ],
+  [
+    "wait",
+    "caption",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'"
+  ],
+  [
+    "eval",
+    "caption",
+    "window.errors=[];addEventListener('error',e=>errors.push(e.message));window.checkCaption=()=>{const h=document.querySelector('.workflow-context-hint'),r=h.getBoundingClientRect(),tabs=document.querySelector('.workflow-main-tabs').getBoundingClientRect(),m=document.querySelector('[data-top-row=mode]').getBoundingClientRect();if(!h.closest('.workflow-nav')||Math.abs(r.x+r.width/2-innerWidth/2)>2||r.top<tabs.bottom||m.height>51)throw Error('Caption or compact row layout invalid '+JSON.stringify({r,tabs,m}));return {hint:h.textContent,toolsHeight:m.height,captionTop:r.top};};checkCaption()"
+  ],
+  [
+    "screenshot",
+    "caption",
+    "desktop.png"
+  ],
+  [
+    "viewport",
+    "caption",
+    1024,
+    768
+  ],
+  [
+    "eval",
+    "caption",
+    "checkCaption()"
+  ],
+  [
+    "screenshot",
+    "caption",
+    "tablet.png"
+  ],
+  [
+    "eval",
+    "caption",
+    "document.querySelector('[aria-label=\"Collapse workspace tools\"]').click()"
+  ],
+  [
+    "wait",
+    "caption",
+    "document.querySelector('[data-top-row=mode]').dataset.collapsed==='true'"
+  ],
+  [
+    "eval",
+    "caption",
+    "document.querySelector('.workflow-main-tabs button').click()"
+  ],
+  [
+    "wait",
+    "caption",
+    "document.querySelector('[data-top-row=mode]').dataset.collapsed==='false'"
+  ],
+  [
+    "eval",
+    "caption",
+    "checkCaption();if(errors.length)throw Error(errors.join(';'));true"
+  ],
+  [
+    "dispose",
+    "caption"
+  ]
+]

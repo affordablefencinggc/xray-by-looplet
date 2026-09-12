@@ -1,0 +1,803 @@
+import type { ArchitectProject, Wall, Opening, Roof } from "./model.ts";
+import { distance, area, validateProject } from "./model.ts";
+import { type IssueRecord, type IssuedSheetRecord } from "./issueHistory.ts";
+import { authoredSheets } from "./authoredSheetSet.ts";
+import { sha256Hex } from "./designedScene.ts";
+import { designQuantities } from "./geometry.ts";
+
+/**
+ * D-15: Visual and vector revision delta engine.
+ *
+ * Acceptance requirement:
+ * "Two issued revisions report added, removed and changed geometry with a quantity variance table"
+ *
+ * Compares two issued drawing revisions (or an issue against the active project):
+ * 1. Sheet delta: added, removed, and modified sheets (size, scale, viewports, layout hash).
+ * 2. Vector geometry delta: added, removed, and modified walls, hosted openings, slabs, roofs,
+ *    with explicit human-readable descriptions of coordinates, dimensions, and layer edits.
+ * 3. Quantity variance table: detailed line-item takeoff rows and macro summary indicators
+ *    (net area, order area, volume, weight, cost, linear run, doors, windows) with variance and % change.
+ */
+
+export type SheetDeltaItem = {
+  sheetId: string;
+  number: string;
+  name: string;
+  size: "A1" | "A3";
+  scale: string;
+  viewports: number;
+};
+
+export type ModifiedSheetDelta = {
+  sheetId: string;
+  number: string;
+  name: string;
+  baseline: SheetDeltaItem;
+  target: SheetDeltaItem;
+  layoutHashChanged: boolean;
+  changes: string[];
+};
+
+export type SheetDelta = {
+  added: SheetDeltaItem[];
+  removed: SheetDeltaItem[];
+  changed: ModifiedSheetDelta[];
+  unchanged: SheetDeltaItem[];
+  counts: {
+    added: number;
+    removed: number;
+    changed: number;
+    unchanged: number;
+  };
+};
+
+export type ModifiedEntity<T> = {
+  id: string;
+  name: string;
+  baseline: T;
+  target: T;
+  changes: string[];
+};
+
+export type GeometryDelta = {
+  walls: {
+    added: Wall[];
+    removed: Wall[];
+    changed: ModifiedEntity<Wall>[];
+  };
+  openings: {
+    added: Opening[];
+    removed: Opening[];
+    changed: ModifiedEntity<Opening>[];
+  };
+  slabs: {
+    added: ArchitectProject["slabs"][number][];
+    removed: ArchitectProject["slabs"][number][];
+    changed: ModifiedEntity<ArchitectProject["slabs"][number]>[];
+  };
+  roofs: {
+    added: Roof[];
+    removed: Roof[];
+    changed: ModifiedEntity<Roof>[];
+  };
+  counts: {
+    totalAdded: number;
+    totalRemoved: number;
+    totalChanged: number;
+    wallsAdded: number;
+    wallsRemoved: number;
+    wallsChanged: number;
+    openingsAdded: number;
+    openingsRemoved: number;
+    openingsChanged: number;
+    slabsAdded: number;
+    slabsRemoved: number;
+    slabsChanged: number;
+    roofsAdded: number;
+    roofsRemoved: number;
+    roofsChanged: number;
+  };
+};
+
+export type QuantityVarianceStatus =
+  | "added"
+  | "removed"
+  | "increased"
+  | "decreased"
+  | "unchanged";
+
+export type QuantityVarianceRow = {
+  id: string;
+  category: "Summary" | "Wall layer" | "Slab" | "Roof covering" | "Roof fascia" | "Roof gutter";
+  name: string;
+  unit: "m²" | "m³" | "kg" | "$" | "m" | "ea";
+  baselineQuantity: number;
+  targetQuantity: number;
+  variance: number;
+  percentVariance: number | null;
+  status: QuantityVarianceStatus;
+};
+
+export type QuantityVarianceTable = {
+  summaryRows: QuantityVarianceRow[];
+  tradeRows: QuantityVarianceRow[];
+  allRows: QuantityVarianceRow[];
+  totals: {
+    baselineNetAreaM2: number;
+    targetNetAreaM2: number;
+    varianceNetAreaM2: number;
+    baselineOrderAreaM2: number;
+    targetOrderAreaM2: number;
+    varianceOrderAreaM2: number;
+    baselineVolumeM3: number;
+    targetVolumeM3: number;
+    varianceVolumeM3: number;
+    baselineWeightKg: number;
+    targetWeightKg: number;
+    varianceWeightKg: number;
+    baselineCost: number;
+    targetCost: number;
+    varianceCost: number;
+  };
+};
+
+export type RevisionDeltaReport = {
+  baseline: {
+    id: string;
+    revision: string;
+    designRevision: string;
+    purpose: string;
+    issuedAt: string;
+  };
+  target: {
+    id: string;
+    revision: string;
+    designRevision: string;
+    purpose: string;
+    issuedAt: string;
+  };
+  sheets: SheetDelta;
+  geometry: GeometryDelta;
+  quantityVariance: QuantityVarianceTable;
+  summary: {
+    hasChanges: boolean;
+    sheetsChangedCount: number;
+    geometryChangedCount: number;
+    netAreaVarianceM2: number;
+    netCostVariance: number;
+  };
+};
+
+/**
+ * Reconstructs or extracts an ArchitectProject model suitable for geometry analysis
+ * and quantity calculations from an IssueRecord or ArchitectProject.
+ */
+export function extractProjectModel(source: IssueRecord | ArchitectProject): ArchitectProject {
+  if ("schema" in source && "sheet" in source && "walls" in source) {
+    return source as ArchitectProject;
+  }
+  const issue = source as IssueRecord;
+  if (issue.snapshot) {
+    return validateProject({
+      schema: "xray.architect/v1",
+      id: issue.id,
+      revision: issue.snapshot.revision,
+      name: issue.projectName,
+      address: issue.projectAddress ?? "",
+      designRevision: issue.designRevision,
+      units: issue.snapshot.units ?? "mm",
+      levels: structuredClone(issue.snapshot.levels),
+      walls: structuredClone(issue.snapshot.walls),
+      openings: structuredClone(issue.snapshot.openings),
+      slabs: structuredClone(issue.snapshot.slabs),
+      roofs: structuredClone(issue.snapshot.roofs),
+      lines: structuredClone(issue.snapshot.lines ?? []),
+      circles: structuredClone(issue.snapshot.circles ?? []),
+      arcs: structuredClone(issue.snapshot.arcs ?? []),
+      grids: structuredClone(issue.snapshot.grids ?? []),
+      roomTags: structuredClone(issue.snapshot.roomTags ?? []),
+      dimensions: structuredClone(issue.snapshot.dimensions ?? []),
+      section: structuredClone(issue.snapshot.section ?? { a: [0, 0], b: [10000, 0] }),
+      sheet: {
+        size: "A3",
+        scale: "100",
+        number: "A-01",
+        northAngle: 0,
+        viewports: [],
+      },
+      notes: "",
+    });
+  }
+  throw new Error("Geometry comparison unavailable: this issue predates geometry snapshots. Select a newer issue; missing geometry cannot be treated as an empty design.");
+}
+
+function extractSheets(source: IssueRecord | ArchitectProject): IssuedSheetRecord[] {
+  if ("sheets" in source && Array.isArray(source.sheets)) return (source as IssueRecord).sheets;
+  return authoredSheets(source as ArchitectProject).sheets.filter(s => !s.archived).map(s => ({
+    sheetId: s.id, number: s.layout.number, name: s.name,
+    size: s.layout.size, scale: s.layout.scale,
+    viewports: Math.max(1, s.layout.viewports.length),
+    layoutHash: sha256Hex(JSON.stringify(s.layout)),
+    layout: structuredClone(s.layout), status: "current",
+  }));
+}
+
+/**
+ * Compares two sheet collections and detects added, removed, and modified sheets.
+ */
+export function compareSheets(
+  baselineSheets: IssuedSheetRecord[],
+  targetSheets: IssuedSheetRecord[],
+): SheetDelta {
+  const baselineMap = new Map(baselineSheets.map((s) => [s.sheetId, s]));
+  const targetMap = new Map(targetSheets.map((s) => [s.sheetId, s]));
+
+  const added: SheetDeltaItem[] = [];
+  const removed: SheetDeltaItem[] = [];
+  const changed: ModifiedSheetDelta[] = [];
+  const unchanged: SheetDeltaItem[] = [];
+
+  for (const t of targetSheets) {
+    const b = baselineMap.get(t.sheetId);
+    const targetItem: SheetDeltaItem = {
+      sheetId: t.sheetId,
+      number: t.number,
+      name: t.name,
+      size: t.size,
+      scale: t.scale,
+      viewports: t.viewports,
+    };
+
+    if (!b) {
+      added.push(targetItem);
+      continue;
+    }
+
+    const baselineItem: SheetDeltaItem = {
+      sheetId: b.sheetId,
+      number: b.number,
+      name: b.name,
+      size: b.size,
+      scale: b.scale,
+      viewports: b.viewports,
+    };
+
+    const changes: string[] = [];
+    if (b.number !== t.number) changes.push(`Sheet number changed ${b.number} to ${t.number}`);
+    if (b.size !== t.size) {
+      changes.push(`Sheet size changed ${b.size} → ${t.size}`);
+    }
+    if (b.scale !== t.scale) {
+      changes.push(`Drawing scale changed 1:${b.scale} → 1:${t.scale}`);
+    }
+    if (b.viewports !== t.viewports) {
+      changes.push(`Viewports changed from ${b.viewports} to ${t.viewports}`);
+    }
+    if (b.name !== t.name) {
+      changes.push(`Title renamed "${b.name}" → "${t.name}"`);
+    }
+    if (b.layoutHash && t.layoutHash && b.layoutHash !== t.layoutHash) {
+      if (!changes.length) {
+        changes.push("Sheet layout and drawing arrangement modified");
+      }
+    }
+
+    if (changes.length > 0) {
+      changed.push({
+        sheetId: t.sheetId,
+        number: t.number,
+        name: t.name,
+        baseline: baselineItem,
+        target: targetItem,
+        layoutHashChanged: Boolean(b.layoutHash && t.layoutHash && b.layoutHash !== t.layoutHash),
+        changes,
+      });
+    } else {
+      unchanged.push(targetItem);
+    }
+  }
+
+  for (const b of baselineSheets) {
+    const t = targetMap.get(b.sheetId);
+    if (!t) {
+      removed.push({
+        sheetId: b.sheetId,
+        number: b.number,
+        name: b.name,
+        size: b.size,
+        scale: b.scale,
+        viewports: b.viewports,
+      });
+    }
+  }
+
+  return {
+    added,
+    removed,
+    changed,
+    unchanged,
+    counts: {
+      added: added.length,
+      removed: removed.length,
+      changed: changed.length,
+      unchanged: unchanged.length,
+    },
+  };
+}
+
+function remainingChanges<T extends { revision: number }>(baseline: T, target: T, changes: string[]) {
+  const { revision: _before, ...before } = baseline;
+  const { revision: _after, ...after } = target;
+  if (!changes.length && JSON.stringify(before) !== JSON.stringify(after)) {
+    changes.push("Element geometry, placement, or specification modified");
+  }
+}
+
+/**
+ * Compares two vector geometry models (walls, openings, slabs, roofs)
+ * and detects additions, removals, and detailed parameter alterations.
+ */
+export function compareGeometry(
+  baselineProj: ArchitectProject,
+  targetProj: ArchitectProject,
+): GeometryDelta {
+  // Walls
+  const baselineWalls = new Map(baselineProj.walls.map((w) => [w.id, w]));
+  const targetWalls = new Map(targetProj.walls.map((w) => [w.id, w]));
+  const addedWalls: Wall[] = [];
+  const removedWalls: Wall[] = [];
+  const changedWalls: ModifiedEntity<Wall>[] = [];
+
+  for (const tw of targetProj.walls) {
+    const bw = baselineWalls.get(tw.id);
+    if (!bw) {
+      addedWalls.push(tw);
+      continue;
+    }
+    const changes: string[] = [];
+    const bLen = distance(bw.a, bw.b) / 1000;
+    const tLen = distance(tw.a, tw.b) / 1000;
+    if (Math.abs(bLen - tLen) > 0.005) {
+      changes.push(`Length changed ${bLen.toFixed(2)}m → ${tLen.toFixed(2)}m`);
+    }
+    if (Math.abs(bw.height - tw.height) > 0.5) {
+      changes.push(`Height changed ${bw.height}mm → ${tw.height}mm`);
+    }
+    if (
+      Math.abs(bw.a[0] - tw.a[0]) > 0.5 ||
+      Math.abs(bw.a[1] - tw.a[1]) > 0.5 ||
+      Math.abs(bw.b[0] - tw.b[0]) > 0.5 ||
+      Math.abs(bw.b[1] - tw.b[1]) > 0.5
+    ) {
+      changes.push("Wall alignment / coordinates repositioned");
+    }
+    if (bw.layers.length !== tw.layers.length) {
+      changes.push(`Layer count changed (${bw.layers.length} → ${tw.layers.length})`);
+    } else {
+      const layerDiffs = tw.layers.filter((tl, idx) => {
+        const bl = bw.layers[idx];
+        return !bl || bl.name !== tl.name || bl.thickness !== tl.thickness || bl.kind !== tl.kind;
+      });
+      if (layerDiffs.length > 0) {
+        changes.push(`Layer build-up modified (${layerDiffs.map((l) => l.name).join(", ")})`);
+      }
+    }
+    remainingChanges(bw, tw, changes);
+    const baselineLevel = baselineProj.levels.find(l => l.id === bw.levelId);
+    const targetLevel = targetProj.levels.find(l => l.id === tw.levelId);
+    if (JSON.stringify(baselineLevel) !== JSON.stringify(targetLevel)) changes.push("Associated level changed");
+    if (changes.length > 0) {
+      changedWalls.push({
+        id: tw.id,
+        name: tw.name,
+        baseline: bw,
+        target: tw,
+        changes,
+      });
+    }
+  }
+
+  for (const bw of baselineProj.walls) {
+    if (!targetWalls.has(bw.id)) {
+      removedWalls.push(bw);
+    }
+  }
+
+  // Openings (doors & windows)
+  const baselineOpenings = new Map(baselineProj.openings.map((o) => [o.id, o]));
+  const targetOpenings = new Map(targetProj.openings.map((o) => [o.id, o]));
+  const addedOpenings: Opening[] = [];
+  const removedOpenings: Opening[] = [];
+  const changedOpenings: ModifiedEntity<Opening>[] = [];
+
+  for (const to of targetProj.openings) {
+    const bo = baselineOpenings.get(to.id);
+    if (!bo) {
+      addedOpenings.push(to);
+      continue;
+    }
+    const changes: string[] = [];
+    if (bo.width !== to.width || bo.height !== to.height) {
+      changes.push(`Dimensions changed ${bo.width}×${bo.height}mm → ${to.width}×${to.height}mm`);
+    }
+    if (bo.sill !== to.sill) {
+      changes.push(`Sill height changed ${bo.sill}mm → ${to.sill}mm`);
+    }
+    if (bo.hinge !== to.hinge) {
+      changes.push(`Hinge orientation ${bo.hinge} → ${to.hinge}`);
+    }
+    if (bo.swing !== to.swing) {
+      changes.push(`Swing direction ${bo.swing} → ${to.swing}`);
+    }
+    if (bo.wallId !== to.wallId) {
+      changes.push("Host wall association changed");
+    }
+    if (bo.tag !== to.tag) {
+      changes.push(`Schedule tag renamed ${bo.tag} → ${to.tag}`);
+    }
+    remainingChanges(bo, to, changes);
+    const baselineLevel = baselineProj.levels.find(l => l.id === baselineProj.walls.find(w => w.id === bo.wallId)?.levelId);
+    const targetLevel = targetProj.levels.find(l => l.id === targetProj.walls.find(w => w.id === to.wallId)?.levelId);
+    if (JSON.stringify(baselineLevel) !== JSON.stringify(targetLevel)) changes.push("Associated level changed");
+    if (changes.length > 0) {
+      changedOpenings.push({
+        id: to.id,
+        name: `${to.kind.toUpperCase()} ${to.tag}`,
+        baseline: bo,
+        target: to,
+        changes,
+      });
+    }
+  }
+
+  for (const bo of baselineProj.openings) {
+    if (!targetOpenings.has(bo.id)) {
+      removedOpenings.push(bo);
+    }
+  }
+
+  // Slabs
+  const baselineSlabs = new Map(baselineProj.slabs.map((s) => [s.id, s]));
+  const targetSlabs = new Map(targetProj.slabs.map((s) => [s.id, s]));
+  const addedSlabs: ArchitectProject["slabs"][number][] = [];
+  const removedSlabs: ArchitectProject["slabs"][number][] = [];
+  const changedSlabs: ModifiedEntity<ArchitectProject["slabs"][number]>[] = [];
+
+  for (const ts of targetProj.slabs) {
+    const bs = baselineSlabs.get(ts.id);
+    if (!bs) {
+      addedSlabs.push(ts);
+      continue;
+    }
+    const changes: string[] = [];
+    if (bs.thickness !== ts.thickness) {
+      changes.push(`Thickness changed ${bs.thickness}mm → ${ts.thickness}mm`);
+    }
+    if (bs.material !== ts.material) {
+      changes.push(`Material changed "${bs.material}" → "${ts.material}"`);
+    }
+    const bArea = area(bs.points) / 1e6;
+    const tArea = area(ts.points) / 1e6;
+    if (Math.abs(bArea - tArea) > 0.01) {
+      changes.push(`Surface area changed ${bArea.toFixed(2)}m² → ${tArea.toFixed(2)}m²`);
+    }
+    remainingChanges(bs, ts, changes);
+    const baselineLevel = baselineProj.levels.find(l => l.id === bs.levelId);
+    const targetLevel = targetProj.levels.find(l => l.id === ts.levelId);
+    if (JSON.stringify(baselineLevel) !== JSON.stringify(targetLevel)) changes.push("Associated level changed");
+    if (changes.length > 0) {
+      changedSlabs.push({
+        id: ts.id,
+        name: ts.name,
+        baseline: bs,
+        target: ts,
+        changes,
+      });
+    }
+  }
+
+  for (const bs of baselineProj.slabs) {
+    if (!targetSlabs.has(bs.id)) {
+      removedSlabs.push(bs);
+    }
+  }
+
+  // Roofs
+  const baselineRoofs = new Map(baselineProj.roofs.map((r) => [r.id, r]));
+  const targetRoofs = new Map(targetProj.roofs.map((r) => [r.id, r]));
+  const addedRoofs: Roof[] = [];
+  const removedRoofs: Roof[] = [];
+  const changedRoofs: ModifiedEntity<Roof>[] = [];
+
+  for (const tr of targetProj.roofs) {
+    const br = baselineRoofs.get(tr.id);
+    if (!br) {
+      addedRoofs.push(tr);
+      continue;
+    }
+    const changes: string[] = [];
+    if (br.eaves !== tr.eaves) {
+      changes.push(`Eaves overhang changed ${br.eaves}mm → ${tr.eaves}mm`);
+    }
+    if (br.gutterEnabled !== tr.gutterEnabled) {
+      changes.push(`Gutter ${tr.gutterEnabled ? "enabled" : "disabled"}`);
+    }
+    const bArea = area(br.points) / 1e6;
+    const tArea = area(tr.points) / 1e6;
+    if (Math.abs(bArea - tArea) > 0.01) {
+      changes.push(`Footprint area changed ${bArea.toFixed(2)}m² → ${tArea.toFixed(2)}m²`);
+    }
+    remainingChanges(br, tr, changes);
+    const baselineLevel = baselineProj.levels.find(l => l.id === br.levelId);
+    const targetLevel = targetProj.levels.find(l => l.id === tr.levelId);
+    if (JSON.stringify(baselineLevel) !== JSON.stringify(targetLevel)) changes.push("Associated level changed");
+    if (changes.length > 0) {
+      changedRoofs.push({
+        id: tr.id,
+        name: tr.name,
+        baseline: br,
+        target: tr,
+        changes,
+      });
+    }
+  }
+
+  for (const br of baselineProj.roofs) {
+    if (!targetRoofs.has(br.id)) {
+      removedRoofs.push(br);
+    }
+  }
+
+  const wallsAdded = addedWalls.length;
+  const wallsRemoved = removedWalls.length;
+  const wallsChanged = changedWalls.length;
+  const openingsAdded = addedOpenings.length;
+  const openingsRemoved = removedOpenings.length;
+  const openingsChanged = changedOpenings.length;
+  const slabsAdded = addedSlabs.length;
+  const slabsRemoved = removedSlabs.length;
+  const slabsChanged = changedSlabs.length;
+  const roofsAdded = addedRoofs.length;
+  const roofsRemoved = removedRoofs.length;
+  const roofsChanged = changedRoofs.length;
+
+  return {
+    walls: { added: addedWalls, removed: removedWalls, changed: changedWalls },
+    openings: { added: addedOpenings, removed: removedOpenings, changed: changedOpenings },
+    slabs: { added: addedSlabs, removed: removedSlabs, changed: changedSlabs },
+    roofs: { added: addedRoofs, removed: removedRoofs, changed: changedRoofs },
+    counts: {
+      totalAdded: wallsAdded + openingsAdded + slabsAdded + roofsAdded,
+      totalRemoved: wallsRemoved + openingsRemoved + slabsRemoved + roofsRemoved,
+      totalChanged: wallsChanged + openingsChanged + slabsChanged + roofsChanged,
+      wallsAdded,
+      wallsRemoved,
+      wallsChanged,
+      openingsAdded,
+      openingsRemoved,
+      openingsChanged,
+      slabsAdded,
+      slabsRemoved,
+      slabsChanged,
+      roofsAdded,
+      roofsRemoved,
+      roofsChanged,
+    },
+  };
+}
+
+/**
+ * Computes the itemised and summary quantity takeoff variance table
+ * between baseline and target designs.
+ */
+export function computeQuantityVariance(
+  baselineProj: ArchitectProject,
+  targetProj: ArchitectProject,
+): QuantityVarianceTable {
+  const qBase = designQuantities(baselineProj);
+  const qTgt = designQuantities(targetProj);
+
+  const baseRowsMap = new Map(qBase.rows.map((r) => [r.id, r]));
+  const tgtRowsMap = new Map(qTgt.rows.map((r) => [r.id, r]));
+
+  const allRowKeys = new Set([...baseRowsMap.keys(), ...tgtRowsMap.keys()]);
+  const tradeRows: QuantityVarianceRow[] = [];
+
+  for (const key of allRowKeys) {
+    const b = baseRowsMap.get(key);
+    const t = tgtRowsMap.get(key);
+    const name = t?.name ?? b?.name ?? key;
+
+    let category: QuantityVarianceRow["category"] = "Wall layer";
+    const layerId = t?.layerId ?? b?.layerId ?? "";
+    if (layerId === "slab") category = "Slab";
+    else if (layerId === "roof") category = "Roof covering";
+    else if (layerId === "fascia") category = "Roof fascia";
+    else if (layerId === "gutter") category = "Roof gutter";
+
+    const baseQty = b ? b.areaM2 : 0;
+    const tgtQty = t ? t.areaM2 : 0;
+    const variance = tgtQty - baseQty;
+
+    let status: QuantityVarianceStatus = "unchanged";
+    if (!b && t) status = "added";
+    else if (b && !t) status = "removed";
+    else if (variance > 1e-4) status = "increased";
+    else if (variance < -1e-4) status = "decreased";
+
+    const percentVariance =
+      baseQty > 1e-6 ? (variance / baseQty) * 100 : null;
+
+    tradeRows.push({
+      id: key,
+      category,
+      name,
+      unit: "m²",
+      baselineQuantity: baseQty,
+      targetQuantity: tgtQty,
+      variance,
+      percentVariance,
+      status,
+    });
+  }
+
+  // Sort trade rows alphabetically by category and name
+  tradeRows.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+
+  // High-level summary indicator rows
+  const bWallLen = baselineProj.walls.reduce((s, w) => s + distance(w.a, w.b) / 1000, 0);
+  const tWallLen = targetProj.walls.reduce((s, w) => s + distance(w.a, w.b) / 1000, 0);
+
+  const bDoors = baselineProj.openings.filter((o) => o.kind === "door").length;
+  const tDoors = targetProj.openings.filter((o) => o.kind === "door").length;
+
+  const bWindows = baselineProj.openings.filter((o) => o.kind === "window").length;
+  const tWindows = targetProj.openings.filter((o) => o.kind === "window").length;
+
+  const bSlabArea = baselineProj.slabs.reduce((s, b) => s + area(b.points) / 1e6, 0);
+  const tSlabArea = targetProj.slabs.reduce((s, b) => s + area(b.points) / 1e6, 0);
+
+  const bRoofArea = baselineProj.roofs.reduce((s, r) => s + area(r.points) / 1e6, 0);
+  const tRoofArea = targetProj.roofs.reduce((s, r) => s + area(r.points) / 1e6, 0);
+
+  const baseNetArea = qBase.rows.reduce((s, r) => s + r.areaM2, 0);
+  const tgtNetArea = qTgt.rows.reduce((s, r) => s + r.areaM2, 0);
+
+  const baseOrderArea = qBase.rows.reduce((s, r) => s + r.orderAreaM2, 0);
+  const tgtOrderArea = qTgt.rows.reduce((s, r) => s + r.orderAreaM2, 0);
+
+  const createSummaryRow = (
+    id: string,
+    name: string,
+    unit: QuantityVarianceRow["unit"],
+    baseQty: number,
+    tgtQty: number,
+  ): QuantityVarianceRow => {
+    const variance = tgtQty - baseQty;
+    let status: QuantityVarianceStatus = "unchanged";
+    if (baseQty === 0 && tgtQty > 0) status = "added";
+    else if (baseQty > 0 && tgtQty === 0) status = "removed";
+    else if (variance > 1e-4) status = "increased";
+    else if (variance < -1e-4) status = "decreased";
+
+    return {
+      id,
+      category: "Summary",
+      name,
+      unit,
+      baselineQuantity: baseQty,
+      targetQuantity: tgtQty,
+      variance,
+      percentVariance: baseQty > 1e-6 ? (variance / baseQty) * 100 : null,
+      status,
+    };
+  };
+
+  const summaryRows: QuantityVarianceRow[] = [
+    createSummaryRow("summary-net-area", "Total Net Design Area", "m²", baseNetArea, tgtNetArea),
+    createSummaryRow("summary-order-area", "Total Order Area (incl. waste)", "m²", baseOrderArea, tgtOrderArea),
+    createSummaryRow("summary-volume", "Known Material Volume", "m³", qBase.knownVolumeM3, qTgt.knownVolumeM3),
+    createSummaryRow("summary-weight", "Known Assembly Weight", "kg", qBase.knownWeightKg, qTgt.knownWeightKg),
+    createSummaryRow("summary-cost", "Known Material Cost", "$", qBase.knownCost, qTgt.knownCost),
+    createSummaryRow("summary-wall-run", "Total Wall Linear Run", "m", bWallLen, tWallLen),
+    createSummaryRow("summary-doors", "Hosted Doors Count", "ea", bDoors, tDoors),
+    createSummaryRow("summary-windows", "Hosted Windows Count", "ea", bWindows, tWindows),
+    createSummaryRow("summary-slabs", "Slabs Footprint Area", "m²", bSlabArea, tSlabArea),
+    createSummaryRow("summary-roofs", "Roofs Footprint Area", "m²", bRoofArea, tRoofArea),
+  ];
+
+  return {
+    summaryRows,
+    tradeRows,
+    allRows: [...summaryRows, ...tradeRows],
+    totals: {
+      baselineNetAreaM2: baseNetArea,
+      targetNetAreaM2: tgtNetArea,
+      varianceNetAreaM2: tgtNetArea - baseNetArea,
+      baselineOrderAreaM2: baseOrderArea,
+      targetOrderAreaM2: tgtOrderArea,
+      varianceOrderAreaM2: tgtOrderArea - baseOrderArea,
+      baselineVolumeM3: qBase.knownVolumeM3,
+      targetVolumeM3: qTgt.knownVolumeM3,
+      varianceVolumeM3: qTgt.knownVolumeM3 - qBase.knownVolumeM3,
+      baselineWeightKg: qBase.knownWeightKg,
+      targetWeightKg: qTgt.knownWeightKg,
+      varianceWeightKg: qTgt.knownWeightKg - qBase.knownWeightKg,
+      baselineCost: qBase.knownCost,
+      targetCost: qTgt.knownCost,
+      varianceCost: qTgt.knownCost - qBase.knownCost,
+    },
+  };
+}
+
+/**
+ * Main entrypoint for D-15: Compares two drawing revisions and produces
+ * a complete, structured RevisionDeltaReport.
+ */
+export function compareDrawingRevisions(
+  baselineSource: IssueRecord | ArchitectProject,
+  targetSource: IssueRecord | ArchitectProject,
+): RevisionDeltaReport {
+  const baselineModel = extractProjectModel(baselineSource);
+  const targetModel = extractProjectModel(targetSource);
+
+  const baselineSheets = extractSheets(baselineSource);
+  const targetSheets = extractSheets(targetSource);
+
+  const sheetDelta = compareSheets(baselineSheets, targetSheets);
+  const geometryDelta = compareGeometry(baselineModel, targetModel);
+  const quantityVariance = computeQuantityVariance(baselineModel, targetModel);
+
+  const isIssue = (s: IssueRecord | ArchitectProject): s is IssueRecord => "purpose" in s && "sheets" in s;
+
+  const baselineMeta = isIssue(baselineSource)
+    ? {
+        id: baselineSource.id,
+        revision: baselineSource.designRevision,
+        designRevision: baselineSource.designRevision,
+        purpose: baselineSource.purpose,
+        issuedAt: baselineSource.issuedAt,
+      }
+    : {
+        id: baselineSource.id,
+        revision: baselineSource.designRevision || String(baselineSource.revision),
+        designRevision: baselineSource.designRevision,
+        purpose: "Active design",
+        issuedAt: new Date().toISOString(),
+      };
+
+  const targetMeta = isIssue(targetSource)
+    ? {
+        id: targetSource.id,
+        revision: targetSource.designRevision,
+        designRevision: targetSource.designRevision,
+        purpose: targetSource.purpose,
+        issuedAt: targetSource.issuedAt,
+      }
+    : {
+        id: targetSource.id,
+        revision: targetSource.designRevision || String(targetSource.revision),
+        designRevision: targetSource.designRevision,
+        purpose: "Active design",
+        issuedAt: new Date().toISOString(),
+      };
+
+  const totalSheetChanges = sheetDelta.counts.added + sheetDelta.counts.removed + sheetDelta.counts.changed;
+  const totalGeomChanges = geometryDelta.counts.totalAdded + geometryDelta.counts.totalRemoved + geometryDelta.counts.totalChanged;
+  const hasChanges = totalSheetChanges > 0 || totalGeomChanges > 0 || quantityVariance.allRows.some(row => row.status !== "unchanged");
+
+  return {
+    baseline: baselineMeta,
+    target: targetMeta,
+    sheets: sheetDelta,
+    geometry: geometryDelta,
+    quantityVariance,
+    summary: {
+      hasChanges,
+      sheetsChangedCount: totalSheetChanges,
+      geometryChangedCount: totalGeomChanges,
+      netAreaVarianceM2: quantityVariance.totals.varianceNetAreaM2,
+      netCostVariance: quantityVariance.totals.varianceCost,
+    },
+  };
+}

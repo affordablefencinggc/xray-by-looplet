@@ -77,10 +77,11 @@ export function SheetBookmarks(){
   }
   const bookmarks=value?.pages.flatMap(page=>(page.bookmarks??[]).map(bookmark=>({page,bookmark})))??[];
   return <section className="sheet-bookmarks" aria-label="Saved source views" data-saved-view-count={bookmarks.length} data-restored-view={restoring?.bookmark.id??""}>
+    <details><summary>Saved views ({bookmarks.length})<span className="sheet-bookmarks-help">Save or return to a detail</span></summary>
     <form onSubmit={e=>{e.preventDefault();save();}}><label>Save this page view<input aria-label="Saved view name" value={name} onChange={e=>setName(e.target.value)} maxLength={120} placeholder={`Page ${sheet+1} detail`} disabled={busy}/></label><button className="pill" type="submit" disabled={!value||!hydrated||busy||!name.trim()}><BookmarkPlus size={15} aria-hidden="true"/>Save view</button></form>
     {(error||readError)&&<p role="alert">{error||readError}<button className="pill" onClick={()=>{reload();setError("");}} disabled={busy}>Reload saved views</button></p>}
     {message&&<p role="status">{message}</p>}
-    <details><summary>Saved views ({bookmarks.length})</summary><p className="sheet-bookmarks-help">Saved locally with this source and included in project backups. A view keeps its original page, zoom and centre when the window size changes.</p>
+    <p className="sheet-bookmarks-help">Saved locally with this source and included in project backups. A view keeps its original page, zoom and centre when the window size changes.</p>
       {!bookmarks.length?<p>No saved views yet. Zoom or pan to a detail, give it a name and save.</p>:<ul>{bookmarks.map(({page,bookmark})=><li key={bookmark.id}><div><strong>{bookmark.name}</strong><span>{page.name} · Original page {page.pageIndex+1} · {Math.round(bookmark.zoom*100)}%{page.archived?" · Archived":""}</span></div><button className="pill" aria-label={`Open saved view ${bookmark.name}`} disabled={busy} onClick={()=>open(page.pageIndex,bookmark)}><Navigation size={14} aria-hidden="true"/>Open</button><button className="pill" aria-label={`Remove saved view ${bookmark.name}`} disabled={busy} onClick={()=>void change({type:"remove-bookmark",pageIndex:page.pageIndex,bookmarkId:bookmark.id})}><Trash2 size={14} aria-hidden="true"/>Remove</button></li>)}</ul>}
     </details>
   </section>;

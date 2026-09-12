@@ -599,6 +599,9 @@
  * lazily from ArchitectWorkspace.tsx and its position is not guaranteed.
  */
 .workspace-rails.workspace-rails[data-pane="sketch"] .studio-layout:has(.architect-workspace) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.workspace-rails.workspace-rails[data-pane="sketch"] .studio-layout:has(.architect-workspace):has(> .studio-right-rail) {
   grid-template-columns: minmax(0, 1fr) var(--right-menu-track) !important;
 }
 .workspace-rails.workspace-rails[data-pane="sketch"]
@@ -892,4 +895,289 @@
 .is-active-inspect {
   background: var(--arch-accent) !important;
   color: #fff !important;
+}
+
+/* D-15: visual and vector revision delta */
+.arch-revision-delta-control {
+  grid-column: 1 / -1;
+  padding: 12px 24px;
+  background: var(--arch-paper);
+  border-bottom: 1px solid var(--arch-line);
+}
+.arch-revision-delta-details {
+  background: var(--arch-surface);
+  border: 1px solid var(--arch-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.arch-revision-delta-details summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.arch-revision-delta-details summary small {
+  color: #6c7a70;
+  font-size: 11px;
+}
+.arch-revision-delta-panel {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.arch-delta-selectors {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8faf8;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--arch-line);
+  flex-wrap: wrap;
+}
+.arch-delta-selectors label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--arch-ink);
+}
+.arch-delta-selectors select {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid #b8c4bc;
+  background: #fff;
+  min-width: 220px;
+}
+.arch-delta-vs {
+  font-weight: 700;
+  font-size: 11px;
+  color: #8a968f;
+  margin-top: 14px;
+}
+.arch-delta-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.arch-delta-kpi-card {
+  background: #fff;
+  border: 1px solid var(--arch-line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.arch-delta-kpi-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #6c7a70;
+  letter-spacing: 0.5px;
+}
+.arch-delta-kpi-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--arch-ink);
+}
+.arch-delta-kpi-value.is-pos {
+  color: #137333;
+}
+.arch-delta-kpi-value.is-neg {
+  color: #c5221f;
+}
+.arch-delta-section {
+  border-top: 1px solid #e0e6e2;
+  padding-top: 10px;
+}
+.arch-delta-section h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--arch-ink);
+}
+.arch-delta-none {
+  font-size: 11px;
+  color: #6c7a70;
+  margin: 4px 0;
+  font-style: italic;
+}
+.arch-delta-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+.arch-delta-card {
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  border: 1px solid #d5ded8;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.arch-delta-card-added {
+  border-left: 4px solid #137333;
+  background: #f6fbf7;
+}
+.arch-delta-card-removed {
+  border-left: 4px solid #c5221f;
+  background: #fdf7f7;
+}
+.arch-delta-card-changed {
+  border-left: 4px solid #b06000;
+  background: #fefdf9;
+}
+.arch-delta-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.arch-delta-badge {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+.arch-delta-badge-added {
+  background: #e6f4ea;
+  color: #137333;
+}
+.arch-delta-badge-removed {
+  background: #fce8e6;
+  color: #c5221f;
+}
+.arch-delta-badge-changed {
+  background: #fef7e0;
+  color: #b06000;
+}
+.arch-delta-change-list {
+  list-style-type: disc;
+  padding-left: 18px;
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  color: #3c4043;
+}
+.arch-delta-geometry-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.arch-delta-geom-category h5 {
+  margin: 4px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+}
+.arch-delta-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.arch-delta-filter-pills {
+  display: flex;
+  gap: 6px;
+}
+.arch-delta-filter-btn {
+  padding: 2px 8px;
+  font-size: 10px;
+  border: 1px solid #c9d1c8;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--arch-ink);
+}
+.arch-delta-filter-btn.is-active {
+  background: var(--arch-accent);
+  color: #fff;
+  border-color: var(--arch-accent);
+}
+.arch-delta-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--arch-line);
+  border-radius: 6px;
+}
+.arch-quantity-variance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.arch-quantity-variance-table th {
+  text-align: left;
+  padding: 7px 10px;
+  background: #f1f5f2;
+  border-bottom: 2px solid #cbd5cf;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #55635b;
+  letter-spacing: 0.5px;
+}
+.arch-quantity-variance-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e3eae5;
+}
+.arch-delta-cell-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.arch-delta-cell-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.arch-delta-variance.is-pos {
+  color: #137333;
+  font-weight: 600;
+}
+.arch-delta-variance.is-neg {
+  color: #c5221f;
+  font-weight: 600;
+}
+.arch-delta-pct-badge {
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-block;
+}
+.arch-delta-pct-badge.is-pos {
+  background: #e6f4ea;
+  color: #137333;
+}
+.arch-delta-pct-badge.is-neg {
+  background: #fce8e6;
+  color: #c5221f;
+}
+.arch-delta-pct-badge.is-zero {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+.arch-delta-summary-tag {
+  font-size: 8px;
+  font-weight: 700;
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.is-row-added {
+  background: #f9fdfa;
+}
+.is-row-removed {
+  background: #fef8f8;
+}
+.is-row-increased {
+  background: #fdfdf9;
+}
+.is-row-decreased {
+  background: #fefbfb;
 }

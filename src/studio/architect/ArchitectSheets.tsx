@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
-import { useEffect } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { type View } from "./drawing";
 import { authoredSheets, changeAuthoredSheets, editActiveSheet, resizeSheetPaper, reviewAuthoredSheetArchive, type AuthoredSheetAction, type AuthoredSheetArchiveReview } from "./authoredSheetSet";
 import { DrawingPrimitives } from "./DrawingPrimitives";
+import { RevisionOverlay } from "./RevisionOverlay.tsx";
 import {
   paperSize,
   sheetViewports,
@@ -16,6 +16,9 @@ import { recordDrawingIssue, issueHistory, type IssueRecord } from "./issueHisto
 import { uuid, type ArchitectProject } from "./model";
 import { titleBlockFields, titleBlockField } from "./titleBlock";
 import { NumberField, TextField } from "./ArchitectInspector";
+import { compareDrawingRevisions, type RevisionDeltaReport } from "./revisionDelta";
+import { issuedDrawing } from "./issuedDrawing";
+import { exportIssuedDrawingPdf } from "./issuedDrawingPdf";
 export function ArchitectSheets({
   project: p,
   onChange,
@@ -39,6 +42,7 @@ export function ArchitectSheets({
     // D-09: issue history and supersession inspection
     [selectedHistoricalIssueId, setSelectedHistoricalIssueId] = useState<string | null>(null),
     [inspectingIssueId, setInspectingIssueId] = useState<string | null>(null),
+    [historicalSheetId, setHistoricalSheetId] = useState<string | null>(null),
     [notice, setNotice] = useState(""),
     [failure, setFailure] = useState(""),
     drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
@@ -48,20 +52,60 @@ export function ArchitectSheets({
     live = set.sheets.filter(sheet => !sheet.archived),
     archived = set.sheets.filter(sheet => sheet.archived),
     issues = issueHistory(p),
+    // D-15: visual and vector revision delta
+    [deltaBaselineId, setDeltaBaselineId] = useState<string>(""),
+    [deltaTargetId, setDeltaTargetId] = useState<string>("active"),
+    [deltaCategoryFilter, setDeltaCategoryFilter] = useState<"all" | "summary" | "walls" | "slabs" | "roofs">("all"),
     inspectingIssue = inspectingIssueId ? issues.find((i) => i.id === inspectingIssueId) ?? null : null,
     inspectingSheet = inspectingIssue
-      ? inspectingIssue.sheets.find((s) => s.sheetId === active.id) ?? inspectingIssue.sheets[0]
+      ? inspectingIssue.sheets.find((s) => s.sheetId === historicalSheetId) ?? inspectingIssue.sheets.find((s) => s.sheetId === active.id) ?? inspectingIssue.sheets[0]
       : null,
+    historical = useMemo(() => {
+      if (!inspectingIssue || !inspectingSheet) return { model: p, error: "" };
+      try { return { model: issuedDrawing(inspectingIssue, inspectingSheet.sheetId), error: "" }; }
+      catch (error) { return { model: null, error: error instanceof Error ? error.message : String(error) }; }
+    }, [p, inspectingIssue, inspectingSheet]),
+    drawingModel = historical.model,
     effectiveLayout = inspectingSheet ? inspectingSheet.layout : p.sheet,
     [w, h] = inspectingSheet
       ? (inspectingSheet.size === "A1" ? [841, 594] : [420, 297])
       : paperSize(p),
     // D-07: linked title block fields, fitted to their columns so a long
     // project name or address cannot overrun the sheet number beside it.
-    titleBlock = titleBlockFields(p, effectiveLayout, w),
-    vs = inspectingSheet ? effectiveLayout.viewports : sheetViewports(p),
+    titleBlock = titleBlockFields(drawingModel ?? { name: "", address: "", revision: 1, designRevision: "" }, effectiveLayout, w),
+    vs = drawingModel ? sheetViewports(drawingModel) : [],
     v = vs.find((v) => v.id === selected);
-  useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId]);
+
+  const baselineSource = issues.find((i) => i.id === deltaBaselineId) ?? (issues.length > 0 ? issues[0] : null);
+  const targetSource = deltaTargetId === "active" ? p : issues.find((i) => i.id === deltaTargetId) ?? p;
+
+  const deltaComparison = useMemo((): { report: RevisionDeltaReport | null; error: string | null } => {
+    if (!baselineSource) return { report: null, error: null };
+    try {
+      return { report: compareDrawingRevisions(baselineSource, targetSource), error: null };
+    } catch (error) {
+      return { report: null, error: error instanceof Error ? error.message : "Revision comparison unavailable." };
+    }
+  }, [baselineSource, targetSource, p]);
+
+  const deltaReport = deltaComparison.report;
+
+  const filteredQuantityRows = useMemo(() => {
+    if (!deltaReport) return [];
+    if (deltaCategoryFilter === "summary") return deltaReport.quantityVariance.summaryRows;
+    if (deltaCategoryFilter === "walls") {
+      return deltaReport.quantityVariance.tradeRows.filter((r) => r.category === "Wall layer");
+    }
+    if (deltaCategoryFilter === "slabs") {
+      return deltaReport.quantityVariance.tradeRows.filter((r) => r.category === "Slab");
+    }
+    if (deltaCategoryFilter === "roofs") {
+      return deltaReport.quantityVariance.tradeRows.filter((r) => r.category.startsWith("Roof"));
+    }
+    return deltaReport.quantityVariance.allRows;
+  }, [deltaReport, deltaCategoryFilter]);
+
+  useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId, inspectingIssueId]);
   function change(action: AuthoredSheetAction, message: string) {
     if (disabled) return;
     setNotice("");
@@ -252,6 +296,7 @@ export function ArchitectSheets({
               {issues.map((issue) => {
                 const isSelected = issue.id === selectedHistoricalIssueId;
                 const isSuperseded = issue.status === "superseded";
+                const isPartial = !isSuperseded && issue.sheets.some(sheet => sheet.status === "superseded");
                 const isInspectingThis = inspectingIssueId === issue.id;
                 return (
                   <div
@@ -264,7 +309,7 @@ export function ArchitectSheets({
                         <small>{issue.issuedAt.slice(0, 10)} · {issue.sheets.length} sheet{issue.sheets.length === 1 ? "" : "s"}</small>
                       </div>
                       <span className={`arch-issue-badge ${isSuperseded ? "arch-issue-badge-superseded" : "arch-issue-badge-current"}`}>
-                        {isSuperseded ? "SUPERSEDED" : "CURRENT"}
+                        {isSuperseded ? "SUPERSEDED" : isPartial ? "PARTIALLY SUPERSEDED" : "CURRENT"}
                       </span>
                     </div>
                     {isSuperseded && (
@@ -323,6 +368,322 @@ export function ArchitectSheets({
           )}
         </details>
       </section>
+      <section className="arch-revision-delta-control" aria-label="Drawing revision comparison and delta">
+        <details className="arch-revision-delta-details" open={Boolean(issues.length > 1 || deltaReport || deltaComparison.error)}>
+          <summary>
+            <strong>Compare revisions (Revision Delta)</strong>
+            <small>
+              {deltaReport
+                ? (deltaReport.summary.hasChanges
+                    ? `${deltaReport.summary.sheetsChangedCount} sheet, ${deltaReport.summary.geometryChangedCount} geometry & ${deltaReport.annotations.items.length} annotation changes`
+                    : deltaReport.annotations.unavailable.length ? "No changes in available data; comparison incomplete" : "No changes detected")
+                : "Select revisions to compare"}
+            </small>
+          </summary>
+          {issues.length === 0 ? (
+            <p className="arch-sheet-empty" style={{ margin: "8px 0", fontSize: "11px", color: "#6c7a70" }}>
+              Issue at least one drawing revision above to compare vector geometry and takeoff variance against revisions.
+            </p>
+          ) : (
+            <div className="arch-revision-delta-panel">
+              <div className="arch-delta-selectors">
+                <label>
+                  <span>Baseline revision</span>
+                  <select
+                    className="arch-delta-baseline-select"
+                    value={baselineSource?.id ?? ""}
+                    onChange={(e) => setDeltaBaselineId(e.target.value)}
+                  >
+                    {issues.map((iss) => (
+                      <option key={iss.id} value={iss.id}>
+                        Rev {iss.designRevision} · {iss.purpose} ({iss.issuedAt.slice(0, 10)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="arch-delta-vs">vs</div>
+                <label>
+                  <span>Target revision</span>
+                  <select
+                    className="arch-delta-target-select"
+                    value={deltaTargetId}
+                    onChange={(e) => setDeltaTargetId(e.target.value)}
+                  >
+                    <option value="active">Current active design (WIP)</option>
+                    {issues.map((iss) => (
+                      <option key={iss.id} value={iss.id} disabled={iss.id === baselineSource?.id}>
+                        Rev {iss.designRevision} · {iss.purpose} ({iss.issuedAt.slice(0, 10)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {deltaComparison.error && <p role="alert">{deltaComparison.error}</p>}
+              <p className="arch-delta-none">Model-derived comparison of sheets, geometry and saved drafting annotations. Quantities and known costs are design values; missing rates are excluded, not priced as zero.</p>
+              {deltaReport && (
+                <div className="arch-delta-content">
+                  {baselineSource && <RevisionOverlay key={`${baselineSource.id}:${targetSource.id}`} baseline={baselineSource} target={targetSource} report={deltaReport} />}
+                  {/* Summary KPI Badges */}
+                  <div className="arch-delta-kpis">
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Sheet changes</span>
+                      <strong className="arch-delta-kpi-value">
+                        +{deltaReport.sheets.counts.added} / -{deltaReport.sheets.counts.removed} / {deltaReport.sheets.counts.changed}
+                      </strong>
+                    </div>
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Geometry elements</span>
+                      <strong className="arch-delta-kpi-value">
+                        +{deltaReport.geometry.counts.totalAdded} / -{deltaReport.geometry.counts.totalRemoved} / {deltaReport.geometry.counts.totalChanged}
+                      </strong>
+                    </div>
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Net area variance</span>
+                      <strong className={`arch-delta-kpi-value ${deltaReport.summary.netAreaVarianceM2 > 0 ? "is-pos" : deltaReport.summary.netAreaVarianceM2 < 0 ? "is-neg" : ""}`}>
+                        {deltaReport.summary.netAreaVarianceM2 >= 0 ? "+" : ""}{deltaReport.summary.netAreaVarianceM2.toFixed(2)} m²
+                      </strong>
+                    </div>
+                    <div className="arch-delta-kpi-card">
+                      <span className="arch-delta-kpi-label">Material cost delta</span>
+                      <strong className={`arch-delta-kpi-value ${deltaReport.summary.netCostVariance > 0 ? "is-pos" : deltaReport.summary.netCostVariance < 0 ? "is-neg" : ""}`}>
+                        {deltaReport.summary.netCostVariance >= 0 ? "+" : ""}${deltaReport.summary.netCostVariance.toFixed(2)}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* 1. Sheets Delta */}
+                  <div className="arch-delta-section">
+                    <h4>Drawing sheets delta ({deltaReport.sheets.counts.added} added, {deltaReport.sheets.counts.removed} removed, {deltaReport.sheets.counts.changed} modified)</h4>
+                    {deltaReport.sheets.counts.added === 0 && deltaReport.sheets.counts.removed === 0 && deltaReport.sheets.counts.changed === 0 ? (
+                      <p className="arch-delta-none">All drawing sheets and layouts are identical between selected revisions.</p>
+                    ) : (
+                      <div className="arch-delta-items-grid">
+                        {deltaReport.sheets.added.map((s) => (
+                          <div key={s.sheetId} className="arch-delta-card arch-delta-card-added">
+                            <span className="arch-delta-badge arch-delta-badge-added">ADDED</span>
+                            <strong>{s.number} · {s.name}</strong>
+                            <small>{s.size} · 1:{s.scale} · {s.viewports} viewport{s.viewports === 1 ? "" : "s"}</small>
+                          </div>
+                        ))}
+                        {deltaReport.sheets.removed.map((s) => (
+                          <div key={s.sheetId} className="arch-delta-card arch-delta-card-removed">
+                            <span className="arch-delta-badge arch-delta-badge-removed">REMOVED</span>
+                            <strong>{s.number} · {s.name}</strong>
+                            <small>{s.size} · 1:{s.scale}</small>
+                          </div>
+                        ))}
+                        {deltaReport.sheets.changed.map((s) => (
+                          <div key={s.sheetId} className="arch-delta-card arch-delta-card-changed">
+                            <div className="arch-delta-card-header">
+                              <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                              <strong>{s.number} · {s.name}</strong>
+                            </div>
+                            <ul className="arch-delta-change-list">
+                              {s.changes.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Vector Geometry Delta */}
+                  <div className="arch-delta-section">
+                    <h4>Vector geometry delta (+{deltaReport.geometry.counts.totalAdded} / -{deltaReport.geometry.counts.totalRemoved} / {deltaReport.geometry.counts.totalChanged} changes)</h4>
+                    {deltaReport.geometry.counts.totalAdded === 0 && deltaReport.geometry.counts.totalRemoved === 0 && deltaReport.geometry.counts.totalChanged === 0 ? (
+                      <p className="arch-delta-none">All walls, openings, slabs, and roofs are identical between selected revisions.</p>
+                    ) : (
+                      <div className="arch-delta-geometry-groups">
+                        {/* Walls */}
+                        {(deltaReport.geometry.walls.added.length > 0 || deltaReport.geometry.walls.removed.length > 0 || deltaReport.geometry.walls.changed.length > 0) && (
+                          <div className="arch-delta-geom-category">
+                            <h5>Walls ({deltaReport.geometry.walls.added.length} added, {deltaReport.geometry.walls.removed.length} removed, {deltaReport.geometry.walls.changed.length} modified)</h5>
+                            <div className="arch-delta-items-grid">
+                              {deltaReport.geometry.walls.added.map((w) => (
+                                <div key={w.id} className="arch-delta-card arch-delta-card-added">
+                                  <span className="arch-delta-badge arch-delta-badge-added">ADDED</span>
+                                  <strong>{w.name}</strong>
+                                  <small>{(Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) / 1000).toFixed(2)}m run · {w.height}mm high · {w.layers.length} layers</small>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.walls.removed.map((w) => (
+                                <div key={w.id} className="arch-delta-card arch-delta-card-removed">
+                                  <span className="arch-delta-badge arch-delta-badge-removed">REMOVED</span>
+                                  <strong>{w.name}</strong>
+                                  <small>{(Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) / 1000).toFixed(2)}m run</small>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.walls.changed.map((w) => (
+                                <div key={w.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{w.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {w.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Openings */}
+                        {(deltaReport.geometry.openings.added.length > 0 || deltaReport.geometry.openings.removed.length > 0 || deltaReport.geometry.openings.changed.length > 0) && (
+                          <div className="arch-delta-geom-category">
+                            <h5>Doors & Windows ({deltaReport.geometry.openings.added.length} added, {deltaReport.geometry.openings.removed.length} removed, {deltaReport.geometry.openings.changed.length} modified)</h5>
+                            <div className="arch-delta-items-grid">
+                              {deltaReport.geometry.openings.added.map((o) => (
+                                <div key={o.id} className="arch-delta-card arch-delta-card-added">
+                                  <span className="arch-delta-badge arch-delta-badge-added">ADDED</span>
+                                  <strong>{o.kind.toUpperCase()} {o.tag}</strong>
+                                  <small>{o.width}×{o.height}mm · sill {o.sill}mm</small>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.openings.removed.map((o) => (
+                                <div key={o.id} className="arch-delta-card arch-delta-card-removed">
+                                  <span className="arch-delta-badge arch-delta-badge-removed">REMOVED</span>
+                                  <strong>{o.kind.toUpperCase()} {o.tag}</strong>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.openings.changed.map((o) => (
+                                <div key={o.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{o.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {o.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Slabs & Roofs */}
+                        {(deltaReport.geometry.slabs.changed.length + deltaReport.geometry.slabs.added.length + deltaReport.geometry.slabs.removed.length + deltaReport.geometry.roofs.changed.length + deltaReport.geometry.roofs.added.length + deltaReport.geometry.roofs.removed.length > 0) && (
+                          <div className="arch-delta-geom-category">
+                            <h5>Slabs & Roofs</h5>
+                            <div className="arch-delta-items-grid">
+                              {(["slabs", "roofs"] as const).flatMap(category =>
+                                (["added", "removed"] as const).flatMap(status =>
+                                  deltaReport.geometry[category][status].map(element => (
+                                    <div key={`${category}-${status}-${element.id}`} className={`arch-delta-card arch-delta-card-${status}`}>
+                                      <span className={`arch-delta-badge arch-delta-badge-${status}`}>{status.toUpperCase()}</span>
+                                      <strong>{element.name}</strong>
+                                      <small>{category === "slabs" ? "Slab" : "Roof"}</small>
+                                    </div>
+                                  ))
+                                )
+                              )}
+                              {deltaReport.geometry.slabs.changed.map((s) => (
+                                <div key={s.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{s.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {s.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                              {deltaReport.geometry.roofs.changed.map((r) => (
+                                <div key={r.id} className="arch-delta-card arch-delta-card-changed">
+                                  <div className="arch-delta-card-header">
+                                    <span className="arch-delta-badge arch-delta-badge-changed">MODIFIED</span>
+                                    <strong>{r.name}</strong>
+                                  </div>
+                                  <ul className="arch-delta-change-list">
+                                    {r.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Quantity Variance Table */}
+                  <div className="arch-delta-section arch-delta-annotations">
+                    <h4>Drafting annotations (+{deltaReport.annotations.counts.added} / -{deltaReport.annotations.counts.removed} / {deltaReport.annotations.counts.changed} changes)</h4>
+                    {deltaReport.annotations.unavailable.map(message => <p role="status" key={message}>{message}</p>)}
+                    {!deltaReport.annotations.items.length && <p>No changes in the available drafting data.</p>}
+                    {deltaReport.annotations.items.map(item => <div className={`arch-delta-card arch-delta-card-${item.status}`} key={item.id}>
+                      <strong>{item.category} · {item.status}</strong>
+                      <ul className="arch-delta-change-list">{item.changes.map((change, index) => <li style={{ overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }} key={index}>{change}</li>)}</ul>
+                    </div>)}
+                  </div>
+                  <div className="arch-delta-section">
+                    <div className="arch-delta-table-header">
+                      <h4>Quantity variance table</h4>
+                      <div className="arch-delta-filter-pills">
+                        {(["all", "summary", "walls", "slabs", "roofs"] as const).map((filter) => (
+                          <button
+                            key={filter}
+                            type="button"
+                            className={`arch-delta-filter-btn ${deltaCategoryFilter === filter ? "is-active" : ""}`}
+                            onClick={() => setDeltaCategoryFilter(filter)}
+                          >
+                            {filter === "all" ? "All items" : filter === "summary" ? "Takeoff summary" : filter.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="arch-delta-table-wrapper">
+                      <table className="arch-quantity-variance-table">
+                        <thead>
+                          <tr>
+                            <th>Item / Trade description</th>
+                            <th>Category</th>
+                            <th>Unit</th>
+                            <th>Baseline ({deltaReport.baseline.revision ? `Rev ${deltaReport.baseline.revision}` : "Base"})</th>
+                            <th>Target ({deltaReport.target.revision ? `Rev ${deltaReport.target.revision}` : "Target"})</th>
+                            <th>Variance (Δ)</th>
+                            <th>% Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredQuantityRows.map((row) => {
+                            const isAdded = row.status === "added";
+                            const isRemoved = row.status === "removed";
+                            const isIncreased = row.status === "increased";
+                            const isDecreased = row.status === "decreased";
+                            const rowClass = isAdded ? "is-row-added" : isRemoved ? "is-row-removed" : isIncreased ? "is-row-increased" : isDecreased ? "is-row-decreased" : "is-row-unchanged";
+                            return (
+                              <tr key={row.id} className={rowClass}>
+                                <td className="arch-delta-cell-name">
+                                  <strong>{row.name}</strong>
+                                  {row.category === "Summary" && <span className="arch-delta-summary-tag">KEY TAKEAWAY</span>}
+                                </td>
+                                <td>{row.category}</td>
+                                <td>{row.unit}</td>
+                                <td className="arch-delta-cell-num">{row.baselineQuantity.toFixed(2)}</td>
+                                <td className="arch-delta-cell-num">{row.targetQuantity.toFixed(2)}</td>
+                                <td className={`arch-delta-cell-num arch-delta-variance ${row.variance > 0 ? "is-pos" : row.variance < 0 ? "is-neg" : ""}`}>
+                                  {row.variance > 0 ? "+" : ""}{row.variance.toFixed(2)}
+                                </td>
+                                <td>
+                                  <span className={`arch-delta-pct-badge ${row.variance > 0 ? "is-pos" : row.variance < 0 ? "is-neg" : "is-zero"}`}>
+                                    {row.percentVariance !== null ? `${row.percentVariance > 0 ? "+" : ""}${row.percentVariance.toFixed(1)}%` : "—"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </details>
+      </section>
       <div>
         <div className="arch-button-row">
           <select
@@ -356,11 +717,15 @@ export function ArchitectSheets({
             ))}
           </select>
           <button
-            disabled={busy || Boolean(inspectingSheet)}
+            disabled={busy || Boolean(historical.error)}
+            title={inspectingSheet ? "Recreate a PDF from the saved issue, including its current superseded status." : undefined}
             onClick={async () => {
               setBusy(true);
               try {
-                saveDownload(await exportDrawingPdf(p), effectiveLayout.number + ".pdf", "application/pdf");
+                if (inspectingIssue && inspectingSheet) {
+                  const result = await exportIssuedDrawingPdf(inspectingIssue, inspectingSheet.sheetId);
+                  saveDownload(result.bytes, result.filename, "application/pdf");
+                } else saveDownload(await exportDrawingPdf(p), effectiveLayout.number + ".pdf", "application/pdf");
               } catch (e) {
                 onError(String(e));
               } finally {
@@ -368,7 +733,7 @@ export function ArchitectSheets({
               }
             }}
           >
-            {busy ? "Preparing vectors…" : "Export vector PDF"}
+            {busy ? "Preparing vectors…" : inspectingSheet ? "Export issued PDF" : "Export vector PDF"}
           </button>
         </div>
         {inspectingSheet && (
@@ -382,21 +747,22 @@ export function ArchitectSheets({
             <span>
               {inspectingSheet.status === "superseded"
                 ? `Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") was superseded by Rev ${inspectingSheet.supersededByRevision ?? inspectingIssue?.supersededByRevision ?? "later"} on ${inspectingSheet.supersededAt ? inspectingSheet.supersededAt.slice(0, 10) : "a later date"}.`
-                : `Viewing frozen layout for Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") issued on ${inspectingIssue ? inspectingIssue.issuedAt.slice(0, 10) : ""}.`}
+                : `Viewing issued drawing for Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") issued on ${inspectingIssue ? inspectingIssue.issuedAt.slice(0, 10) : ""}.`}
             </span>
             <button type="button" onClick={() => setInspectingIssueId(null)}>
               Return to live design
             </button>
           </div>
         )}
-        <svg
+        {historical.error && <p className="arch-history-unavailable" role="alert">{historical.error}</p>}
+        {drawingModel && <svg
           ref={svg}
           className="arch-paper"
           role="img"
           aria-label="Scaled architectural drawing sheet"
           viewBox={`0 0 ${w} ${h}`}
           onPointerMove={(e) => {
-            if (disabled || !drag.current) return;
+            if (disabled || inspectingSheet || !drag.current) return;
             const pt = at(e),
               d = drag.current;
             const g = svg.current?.querySelector(`[data-viewport="${d.id}"]`);
@@ -406,7 +772,7 @@ export function ArchitectSheets({
             );
           }}
           onPointerUp={(e) => {
-            if (disabled || !drag.current) return;
+            if (disabled || inspectingSheet || !drag.current) return;
             const pt = at(e),
               d = drag.current;
             drag.current = null;
@@ -428,14 +794,14 @@ export function ArchitectSheets({
             strokeWidth=".3"
           />
           {vs.map((v) => {
-            const { items, box } = viewportBox(p, v);
+            const { items, box } = viewportBox(drawingModel, v);
             return (
               <g
                 key={v.id}
                 data-viewport={v.id}
                 transform={`translate(${v.x} ${v.y})`}
                 onPointerDown={(e) => {
-                  if (disabled) return;
+                  if (disabled || inspectingSheet) return;
                   e.stopPropagation();
                   setSelected(v.id);
                   const pt = at(e);
@@ -459,7 +825,7 @@ export function ArchitectSheets({
                   <DrawingPrimitives items={items} />
                 </svg>
                 <text x="0" y={v.height - 2} fontSize="2.8">
-                  {v.view.toUpperCase()} / {p.levels.find((l) => l.id === v.levelId)?.name} / 1:
+                  {v.view.toUpperCase()} / {drawingModel.levels.find((l) => l.id === v.levelId)?.name} / 1:
                   {v.scale}
                 </text>
               </g>
@@ -468,11 +834,11 @@ export function ArchitectSheets({
           <path d={`M8 ${h - 42} H${w - 8}`} stroke="#555" strokeWidth=".3" />
           <text x="14" y={h - 31} fontSize="4.5">
             {titleBlockField(titleBlock, "name").text}
-            {titleBlockField(titleBlock, "name").truncated && <title>{p.name}</title>}
+            {titleBlockField(titleBlock, "name").truncated && <title>{drawingModel.name}</title>}
           </text>
           <text x="14" y={h - 24} fontSize="2.7">
             {titleBlockField(titleBlock, "address").text}
-            {titleBlockField(titleBlock, "address").truncated && <title>{p.address}</title>}
+            {titleBlockField(titleBlock, "address").truncated && <title>{drawingModel.address}</title>}
           </text>
           <text x="14" y={h - 16} fontSize="2.7">
             {titleBlockField(titleBlock, "status").text}
@@ -486,19 +852,19 @@ export function ArchitectSheets({
           <text x={w - 100} y={h - 24} fontSize="2.7">
             {titleBlockField(titleBlock, "modelRevision").text}
           </text>
-          <g transform={`translate(${w - 18} ${h - 29}) rotate(${p.sheet.northAngle})`}>
+          <g transform={`translate(${w - 18} ${h - 29}) rotate(${effectiveLayout.northAngle})`}>
             <path d="M0 8V-8M-2 -4L0 -8L2 -4" fill="none" stroke="#333" strokeWidth=".4" />
             <text x="-1" y="-10" fontSize="3">
               N
             </text>
           </g>
           <path
-            d={`M${w - 100} ${h - 14}h${5000 / Number(p.sheet.scale)}`}
+            d={`M${Math.min(w - 100, w - 14 - 5000 / Number(effectiveLayout.scale))} ${h - 14}h${5000 / Number(effectiveLayout.scale)}`}
             stroke="#333"
             strokeWidth=".7"
           />
-          <text x={w - 100} y={h - 10} fontSize="2.2">
-            0 — 5 m / 1:{p.sheet.scale}
+          <text x={Math.min(w - 100, w - 14 - 5000 / Number(effectiveLayout.scale))} y={h - 10} fontSize="2.2">
+            0 — 5 m / 1:{effectiveLayout.scale}
           </text>
           {inspectingSheet?.status === "superseded" && (
             <text
@@ -517,13 +883,18 @@ export function ArchitectSheets({
               SUPERSEDED
             </text>
           )}
-        </svg>
+        </svg>}
         <p className="arch-note">
-          Drag a viewport to position it. Each viewport prints at its labelled scale; content
-          outside its frame is clipped. Changing paper size fits frames to the paper and preserves their scales. Print the PDF at 100%, without fit-to-page.
+          {inspectingSheet ? "Read-only historical issue. Return to the live design to edit." : <>Drag a viewport to position it. Each viewport prints at its labelled scale; content
+          outside its frame is clipped. Changing paper size fits frames to the paper and preserves their scales. Print the PDF at 100%, without fit-to-page.</>}
         </p>
       </div>
-      <aside className="arch-inspector">
+      {inspectingIssue && inspectingSheet ? <aside className="arch-inspector">
+        <h2>Issued drawing</h2>
+        <label>Historical sheet<select aria-label="Historical sheet" value={inspectingSheet.sheetId} onChange={e => setHistoricalSheetId(e.target.value)}>{inspectingIssue.sheets.map(sheet => <option key={sheet.sheetId} value={sheet.sheetId}>{sheet.number} - {sheet.name}</option>)}</select></label>
+        <p>Revision {inspectingIssue.designRevision}</p><p>{inspectingSheet.status === "superseded" ? "Superseded" : "Current issued sheet"}</p>
+        <p>North {effectiveLayout.northAngle}° · Scale 1:{effectiveLayout.scale}</p>
+      </aside> : <aside className="arch-inspector">
         <h2>Drawing sheet</h2>
         <TextField key={active.id} label="Drawing sheet name" value={active.name} onCommit={name => change({ type: "rename", sheetId: active.id, name }, "Drawing sheet name saved.")} />
         <TextField
@@ -640,7 +1011,7 @@ export function ArchitectSheets({
             </button>
           </>
         )}
-      </aside>
+      </aside>}
     </fieldset>
   );
 }

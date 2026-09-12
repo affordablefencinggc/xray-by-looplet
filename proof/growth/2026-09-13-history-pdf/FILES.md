@@ -1,0 +1,9 @@
+- src/studio/AdjustableTopRow.tsx
+- src/studio/adjustableTopRow.css
+- src/studio/WorkflowNavigation.tsx
+- src/studio/workflowNavigation.css
+- src/studio/WorkspaceRails.tsx
+- src/studio/architect/ArchitectSheets.tsx
+- src/studio/architect/sheets.ts
+- src/studio/architect/issuedDrawingPdf.ts
+- src/studio/architect/issuedDrawingPdf.test.ts

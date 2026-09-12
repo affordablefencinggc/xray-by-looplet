@@ -1,0 +1,41 @@
+[
+  [
+    "context",
+    "app"
+  ],
+  [
+    "viewport",
+    "app",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8080/?pane=model"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.source-building')"
+  ],
+  [
+    "eval",
+    "app",
+    "({text:document.body.innerText.slice(0,5000), width:innerWidth, overflow:document.documentElement.scrollWidth, canvases:[...document.querySelectorAll('canvas')].map(c=>({data:c.dataset,width:c.width,height:c.height}))})"
+  ],
+  [
+    "screenshot",
+    "app",
+    "initial.png"
+  ],
+  [
+    "dispose",
+    "app"
+  ]
+]

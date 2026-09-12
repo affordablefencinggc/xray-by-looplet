@@ -1,3 +1,5 @@
+export const RAIL_WIDTHS_CHANGED_EVENT = "xray:rail-widths-changed";
+export const CLOSE_SETTINGS_EVENT = "xray:close-settings";
 export const RAIL_LAYOUT_KEY = "xray.rail-layout.v1";
 export const DEFAULT_RAILS = { left: 260, right: 400 };
 export type RailWidths = typeof DEFAULT_RAILS;
