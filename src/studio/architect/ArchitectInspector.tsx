@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   type ArchitectProject,
   type Layer,
@@ -53,21 +53,25 @@ export function TextField({
   label,
   value,
   onCommit,
+  className,
 }: {
   label: string;
   value: string;
   onCommit: (s: string) => void;
+  className?: string;
 }) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
   return (
-    <label className="arch-field">
+    <label className={`arch-field ${className ?? ""}`.trim()}>
       {label}
       <input
+        className={className}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          if (text !== value) onCommit(text);
+        onBlur={(e) => {
+          const committed = e.currentTarget.value.trim();
+          if (committed !== value) onCommit(committed);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {

@@ -1,5 +1,6 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { sheetLayoutSchema, authoredSheetSetSchema, validateAuthoredSheets } from "./authoredSheetSet.ts";
+import { issueRecordSchema, type IssueRecord, type IssuedSheetRecord } from "./issueHistory.ts";
 export type Point = [number, number];
 const n = z.number().finite().min(-1e6).max(1e6),
   positive = z.number().finite().positive().max(1e6),
@@ -139,10 +140,12 @@ const schema = z
     section: z.object({ a: point, b: point }).strict(),
     sheet: sheetLayoutSchema,
     sheetSet: authoredSheetSetSchema.optional(),
+    issues: z.array(issueRecordSchema).optional(),
     notes: z.string().max(5000),
   })
   .strict();
 export type ArchitectProject = z.infer<typeof schema>;
+export type { IssueRecord, IssuedSheetRecord };
 export type Wall = ArchitectProject["walls"][number];
 export type Opening = ArchitectProject["openings"][number];
 export type Layer = z.infer<typeof layerSchema>;

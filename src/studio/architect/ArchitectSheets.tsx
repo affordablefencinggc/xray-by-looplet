@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useEffect } from "react";
 import { type View } from "./drawing";
 import { authoredSheets, changeAuthoredSheets, editActiveSheet, resizeSheetPaper, reviewAuthoredSheetArchive, type AuthoredSheetAction, type AuthoredSheetArchiveReview } from "./authoredSheetSet";
@@ -12,6 +12,7 @@ import {
   saveDownload,
 } from "./sheets";
 import { reviewIssueSet, issueFileName, type IssueSetReview } from "./issueSet";
+import { recordDrawingIssue, issueHistory, type IssueRecord } from "./issueHistory";
 import { uuid, type ArchitectProject } from "./model";
 import { titleBlockFields, titleBlockField } from "./titleBlock";
 import { NumberField, TextField } from "./ArchitectInspector";
@@ -35,20 +36,31 @@ export function ArchitectSheets({
     [issueSelection, setIssueSelection] = useState<string[]>([]),
     [issuePurpose, setIssuePurpose] = useState("For construction"),
     [issueReview, setIssueReview] = useState<IssueSetReview | null>(null),
+    // D-09: issue history and supersession inspection
+    [selectedHistoricalIssueId, setSelectedHistoricalIssueId] = useState<string | null>(null),
+    [inspectingIssueId, setInspectingIssueId] = useState<string | null>(null),
     [notice, setNotice] = useState(""),
     [failure, setFailure] = useState(""),
     drag = useRef<{ id: string; x: number; y: number; oldX: number; oldY: number } | null>(null),
     svg = useRef<SVGSVGElement>(null),
-    [w, h] = paperSize(p),
-    // D-07: linked title block fields, fitted to their columns so a long
-    // project name or address cannot overrun the sheet number beside it.
-    titleBlock = titleBlockFields(p, p.sheet, w),
-    vs = sheetViewports(p),
-    v = vs.find((v) => v.id === selected),
     set = authoredSheets(p),
     active = set.sheets.find(sheet => sheet.id === set.activeId)!,
     live = set.sheets.filter(sheet => !sheet.archived),
-    archived = set.sheets.filter(sheet => sheet.archived);
+    archived = set.sheets.filter(sheet => sheet.archived),
+    issues = issueHistory(p),
+    inspectingIssue = inspectingIssueId ? issues.find((i) => i.id === inspectingIssueId) ?? null : null,
+    inspectingSheet = inspectingIssue
+      ? inspectingIssue.sheets.find((s) => s.sheetId === active.id) ?? inspectingIssue.sheets[0]
+      : null,
+    effectiveLayout = inspectingSheet ? inspectingSheet.layout : p.sheet,
+    [w, h] = inspectingSheet
+      ? (inspectingSheet.size === "A1" ? [841, 594] : [420, 297])
+      : paperSize(p),
+    // D-07: linked title block fields, fitted to their columns so a long
+    // project name or address cannot overrun the sheet number beside it.
+    titleBlock = titleBlockFields(p, effectiveLayout, w),
+    vs = inspectingSheet ? effectiveLayout.viewports : sheetViewports(p),
+    v = vs.find((v) => v.id === selected);
   useEffect(() => { setSelected(null); drag.current = null; }, [set.activeId]);
   function change(action: AuthoredSheetAction, message: string) {
     if (disabled) return;
@@ -149,6 +161,7 @@ export function ArchitectSheets({
           <label>
             Issue purpose
             <input
+              className="arch-issue-purpose-input"
               value={issuePurpose}
               maxLength={80}
               onChange={event => { setIssuePurpose(event.target.value); setIssueReview(null); }}
@@ -204,7 +217,10 @@ export function ArchitectSheets({
                         issueFileName(issueReview, issuedAt),
                         "application/pdf",
                       );
+                      const updated = recordDrawingIssue(p, issueReview, issuedAt);
+                      onChange(updated);
                       setNotice(`Issued ${issueReview.sheets.length} sheets with an issue register.`);
+                      setIssueReview(null);
                     } catch (error) {
                       const message = error instanceof Error ? error.message : String(error);
                       setFailure(message); onError(message);
@@ -221,11 +237,98 @@ export function ArchitectSheets({
           )}
         </details>
       </section>
+      <section className="arch-issue-history-control" aria-label="Drawing revisions and issue history">
+        <details className="arch-issue-history-details" open={Boolean(selectedHistoricalIssueId || issues.length > 0)}>
+          <summary>
+            <strong>Drawing revisions & history</strong>
+            <small>{issues.length ? `${issues.length} issue${issues.length === 1 ? "" : "s"}` : "No issues yet"}</small>
+          </summary>
+          {issues.length === 0 ? (
+            <p className="arch-sheet-empty" style={{ margin: "8px 0", fontSize: "11px", color: "#6c7a70" }}>
+              No drawing sets have been issued yet for this project.
+            </p>
+          ) : (
+            <div className="arch-issue-history-list">
+              {issues.map((issue) => {
+                const isSelected = issue.id === selectedHistoricalIssueId;
+                const isSuperseded = issue.status === "superseded";
+                const isInspectingThis = inspectingIssueId === issue.id;
+                return (
+                  <div
+                    key={issue.id}
+                    className={`arch-issue-history-card ${isSelected ? "is-selected" : ""} ${isSuperseded ? "is-superseded" : "is-current"}`}
+                  >
+                    <div className="arch-issue-card-header">
+                      <div>
+                        <strong>Rev {issue.designRevision} · {issue.purpose}</strong>
+                        <small>{issue.issuedAt.slice(0, 10)} · {issue.sheets.length} sheet{issue.sheets.length === 1 ? "" : "s"}</small>
+                      </div>
+                      <span className={`arch-issue-badge ${isSuperseded ? "arch-issue-badge-superseded" : "arch-issue-badge-current"}`}>
+                        {isSuperseded ? "SUPERSEDED" : "CURRENT"}
+                      </span>
+                    </div>
+                    {isSuperseded && (
+                      <p className="arch-superseded-notice" role="alert">
+                        Superseded by Rev {issue.supersededByRevision ?? "later"} on {issue.supersededAt ? issue.supersededAt.slice(0, 10) : "later"}.
+                      </p>
+                    )}
+                    <div className="arch-sheet-actions" style={{ marginTop: "6px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedHistoricalIssueId(isSelected ? null : issue.id)}
+                      >
+                        {isSelected ? "Hide register" : "View register"}
+                      </button>
+                      <button
+                        type="button"
+                        className={isInspectingThis ? "is-active-inspect" : ""}
+                        onClick={() => setInspectingIssueId(isInspectingThis ? null : issue.id)}
+                      >
+                        {isInspectingThis ? "Close inspection" : "Inspect layout"}
+                      </button>
+                    </div>
+                    {isSelected && (
+                      <div className="arch-historical-sheet-list">
+                        <h4>Issue register (Rev {issue.designRevision})</h4>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>No.</th>
+                              <th>Name</th>
+                              <th>Size</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {issue.sheets.map((s) => (
+                              <tr key={s.sheetId} className={s.status === "superseded" ? "is-superseded-row" : ""}>
+                                <td>{s.number}</td>
+                                <td>{s.name}</td>
+                                <td>{s.size}</td>
+                                <td>
+                                  <span className={`arch-issue-sheet-status ${s.status === "superseded" ? "is-superseded" : "is-current"}`}>
+                                    {s.status === "superseded" ? "SUPERSEDED" : "CURRENT"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </details>
+      </section>
       <div>
         <div className="arch-button-row">
           <select
             aria-label="Paper size"
-            value={p.sheet.size}
+            disabled={disabled || Boolean(inspectingSheet)}
+            value={effectiveLayout.size}
             onChange={(e) =>
               update((q) => {
                 Object.assign(q.sheet, resizeSheetPaper(q.sheet, e.target.value as "A1" | "A3"));
@@ -237,7 +340,8 @@ export function ArchitectSheets({
           </select>
           <select
             aria-label="Sheet default scale"
-            value={p.sheet.scale}
+            disabled={disabled || Boolean(inspectingSheet)}
+            value={effectiveLayout.scale}
             onChange={(e) =>
               update((q) => {
                 q.sheet.scale = e.target.value as "50";
@@ -252,11 +356,11 @@ export function ArchitectSheets({
             ))}
           </select>
           <button
-            disabled={busy}
+            disabled={busy || Boolean(inspectingSheet)}
             onClick={async () => {
               setBusy(true);
               try {
-                saveDownload(await exportDrawingPdf(p), p.sheet.number + ".pdf", "application/pdf");
+                saveDownload(await exportDrawingPdf(p), effectiveLayout.number + ".pdf", "application/pdf");
               } catch (e) {
                 onError(String(e));
               } finally {
@@ -267,6 +371,24 @@ export function ArchitectSheets({
             {busy ? "Preparing vectors…" : "Export vector PDF"}
           </button>
         </div>
+        {inspectingSheet && (
+          <div
+            className={`arch-superseded-banner ${inspectingSheet.status === "superseded" ? "is-superseded" : "is-current"}`}
+            role="alert"
+          >
+            <span className="arch-superseded-tag">
+              {inspectingSheet.status === "superseded" ? "SUPERSEDED REVISION" : "HISTORICAL ISSUE"}
+            </span>
+            <span>
+              {inspectingSheet.status === "superseded"
+                ? `Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") was superseded by Rev ${inspectingSheet.supersededByRevision ?? inspectingIssue?.supersededByRevision ?? "later"} on ${inspectingSheet.supersededAt ? inspectingSheet.supersededAt.slice(0, 10) : "a later date"}.`
+                : `Viewing frozen layout for Rev ${inspectingIssue?.designRevision} ("${inspectingIssue?.purpose}") issued on ${inspectingIssue ? inspectingIssue.issuedAt.slice(0, 10) : ""}.`}
+            </span>
+            <button type="button" onClick={() => setInspectingIssueId(null)}>
+              Return to live design
+            </button>
+          </div>
+        )}
         <svg
           ref={svg}
           className="arch-paper"
@@ -378,6 +500,23 @@ export function ArchitectSheets({
           <text x={w - 100} y={h - 10} fontSize="2.2">
             0 — 5 m / 1:{p.sheet.scale}
           </text>
+          {inspectingSheet?.status === "superseded" && (
+            <text
+              className="arch-superseded-watermark"
+              x={w / 2}
+              y={h / 2}
+              fill="rgba(196, 48, 48, 0.16)"
+              fontSize={Math.min(w, h) / 7}
+              fontWeight="bold"
+              letterSpacing="6"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(-25 ${w / 2} ${h / 2})`}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              SUPERSEDED
+            </text>
+          )}
         </svg>
         <p className="arch-note">
           Drag a viewport to position it. Each viewport prints at its labelled scale; content
@@ -395,6 +534,14 @@ export function ArchitectSheets({
               q.sheet.number = n;
             })
           }
+        />
+        <TextField
+          className="arch-revision-input"
+          label="Drawing revision"
+          value={p.designRevision}
+          onCommit={(rev) => {
+            onChange({ ...p, designRevision: rev.trim() || "A" });
+          }}
         />
         <NumberField
           label="North rotation °"
