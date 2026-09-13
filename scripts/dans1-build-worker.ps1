@@ -5,6 +5,8 @@ param(
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$NativeHash,
   [ValidatePattern('^[a-f0-9]{12}$')][string]$DependencyCacheRunId,
   [ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedCacheExeSha256,
+  [string]$EnginePackageDir,
+  [ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedEngineSha256,
   [switch]$WebOnly
 )
 $ErrorActionPreference='Stop'
@@ -12,6 +14,7 @@ $ProgressPreference='SilentlyContinue'
 if ($env:COMPUTERNAME -ne 'DANS1') { throw 'This worker is restricted to Dans1.' }
 if ([bool]$DependencyCacheRunId -ne [bool]$ExpectedCacheExeSha256) { throw 'Dependency cache run and expected executable hash must be supplied together.' }
 if ($DependencyCacheRunId -eq $RunId) { throw 'Dependency cache must be a prior run.' }
+if (-not $WebOnly -and (-not $EnginePackageDir -or -not $ExpectedEngineSha256)) { throw 'Native builds require a qualified bundled engine package and expected SHA-256.' }
 . 'C:\Users\danie\XRayBuilds\dans1-resource-policy.ps1'
 $buildRoot='C:\Users\danie\XRayBuilds'
 $incoming=Join-Path $buildRoot "incoming\$RunId"
@@ -50,6 +53,12 @@ function Verify-Sources {
 }
 Verify-Sources
 $env:PATH=$runtime+';'+$env:PATH
+$env:XRAY_BUNDLED_ENGINE_SHA256=$null
+if (-not $WebOnly) {
+  . (Join-Path $source 'scripts\stage-bundled-engine.ps1')
+  $env:XRAY_BUNDLED_ENGINE_SHA256=Invoke-VerifiedBundledEngineStage -PackageDir $EnginePackageDir -ExpectedSha256 $ExpectedEngineSha256 -SourceRoot $source -ProofPath (Join-Path $run 'bundled-engine.json')
+  if ($env:XRAY_BUNDLED_ENGINE_SHA256 -cne $ExpectedEngineSha256) { throw 'Bundled engine staging did not return the qualified digest.' }
+}
 $env:RAYON_NUM_THREADS=[string]$dansWorkers
 $env:CARGO_BUILD_JOBS=[string]$dansWorkers
 $env:VITE_AUTH_ENABLED='false'
@@ -190,7 +199,7 @@ Invoke-Step 'native-build' @($npmCli,'run','tauri:build','--','--bundles','nsis'
 $targets=@((Join-Path $source 'src-tauri\target\release\xray-by-looplet.exe'))+@(Get-ChildItem -LiteralPath (Join-Path $source 'src-tauri\target\release\bundle\nsis') -File | Select-Object -ExpandProperty FullName)
 if ($cacheDecision.mode -eq 'verified-dependency-copy' -and ($SourceHash -ne $cacheDecision.sourceWebSha256 -or $NativeHash -ne $cacheDecision.sourceNativeSha256) -and (Get-FileHash -LiteralPath $targets[0] -Algorithm SHA256).Hash.ToLowerInvariant() -eq $ExpectedCacheExeSha256) { throw 'Changed source produced the prior cached application identity; no current build accepted.' }
 $nativeArtifacts=@($targets | ForEach-Object { @{path=$_;sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant();bytes=(Get-Item -LiteralPath $_).Length} })
-$nativeResult=@{computer=$env:COMPUTERNAME;run=$run;sourceSha256=$SourceHash;nativeSourceSha256=$NativeHash;results=$results;artifacts=$nativeArtifacts}
+$nativeResult=@{computer=$env:COMPUTERNAME;run=$run;sourceSha256=$SourceHash;nativeSourceSha256=$NativeHash;bundledEngineSha256=$env:XRAY_BUNDLED_ENGINE_SHA256;results=$results;artifacts=$nativeArtifacts}
 $nativeResult | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $run 'native-completion.json') -Encoding UTF8
 Verify-Sources
 Write-Output 'BUILD_COMPLETE: web and NSIS artifacts verified; no deployment or installation performed.'

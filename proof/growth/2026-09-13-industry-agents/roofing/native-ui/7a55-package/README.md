@@ -1,0 +1,13 @@
+# Bundled-engine native acceptance
+
+Actual NSIS installer7a55db807d34 SHA13c26fea295ae32318a9d0f3ab470bd15dcc5ec407a2550829f8496d0cef0846 was listed then extracted with official portable7-Zip. Installer was never executed, no registration or installed-user-app changes.
+
+Extracted application SHA19271950158352eeeaea7f75fa2bc9f67b5a2b80c5a8b9e0e250fa14e8583920 differs from releasefe6dbb5ddcb6820f4c209b97af47cf3b21e6c0f502063ebd2b528502a2a64a7e only at three Tauri bundle-marker bytes UNK->NSS. Surrounding token and in-memory normalized digest equality verified; no on-disk binary edit. Official Tauri explanation: https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle.rs . Engine extracted resource SHAe4693d8f2c84f125f87c316505866e23ea57aaf6e5bbc0315b0cc5360d09a49d matches qualified artifact.
+
+Positive visible app used unrelated working directory, child PATH only WindowsSystem32/Windows, no XRAY_ENGINE_PATH/PYTHONPATH/PYTHONHOME. Global environment unchanged. Native status available. Actual full-layout generation request2d87d4bc-5fb4-4766-b9ee-698be72b34b9 returned five component lines:2endposts,2ordinaryposts,6railcuts,10lmrails,9sheets for5m QA span with bay widths2400,2400,200mm. QA operand acceptance is not engineering approval; result unpriced/not sent. Full receipt and visible screenshot in ../7a55-bundled. Reload retained current receipt; screenshots show aligned readable rows. No captured runtime errors.
+
+Separate missing and tampered disposable package copies/fresh profiles both returned actual available=false with empty schemas/rulesets. Original package resources retain expected hashes. An optional process-trace probe was unnecessary and its helper cleanup/exit did not pass; retained evidence is not used to claim startup execution tracing. Fail-closed conclusion rests on actual native status and verified resource absence/mismatch.
+
+All three app processes closed gracefully,9351unused, six owned tasks removed. User installation/profiles unchanged; all isolated QA profiles retained. Harness firstlaunch controller raced creation of launch.json; rerun after actual file creation succeeded. Initial extraction expected releasehash before Tauri marker investigation; mismatch retained and independently resolved as documented.
+
+Screenshot naming clarification: the reused scenario names equal-reload* in7a55-bundled show the CURRENT FULL-layout receipt generated at12:41, not a new equal-layout generation. Read persisted recipe/layout and request ID as authoritative. A replacement character in QA-only layout-attribution text was supplied through the PowerShell harness encoding; this test does not claim all attribution text renders cleanly. No historical saved evidence was rewritten to conceal it.

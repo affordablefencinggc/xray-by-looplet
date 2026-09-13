@@ -1,6 +1,7 @@
 //! Looplet Tauri shell for X-Ray.
 //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
 
+mod bundled_engine;
 mod material_ai;
 mod assistant_ai;
 mod voice;
@@ -23,7 +24,7 @@ use std::sync::{
 use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 use xray_engine_host::{
-    engine_status, run_bom, verify_source_sha256, CancellationToken, TransportError,
+    engine_status_with, run_bom_with, verify_source_sha256, CancellationToken, TransportError, DEFAULT_LIMITS,
 };
 
 const MAX_PLAN_BYTES: u64 = 100 * 1024 * 1024;
@@ -109,7 +110,7 @@ trait BomRunner: Send + Sync + 'static {
     ) -> Result<Value, TransportError>;
 }
 
-struct ProductionBomRunner;
+struct ProductionBomRunner(Arc<bundled_engine::SelectedEngine>);
 
 impl BomRunner for ProductionBomRunner {
     fn run(
@@ -117,7 +118,7 @@ impl BomRunner for ProductionBomRunner {
         request: &[u8],
         cancellation: InvocationCancellation,
     ) -> Result<Value, TransportError> {
-        run_bom(request, cancellation.engine)
+        run_bom_with(self.0.as_ref(), request, cancellation.engine, DEFAULT_LIMITS, &std::env::temp_dir())
     }
 }
 
@@ -127,9 +128,9 @@ struct BomInvocationState {
 }
 
 impl BomInvocationState {
-    fn production() -> Self {
+    fn production(engine: Arc<bundled_engine::SelectedEngine>) -> Self {
         Self {
-            runner: Arc::new(ProductionBomRunner),
+            runner: Arc::new(ProductionBomRunner(engine)),
             active: Mutex::new(HashMap::new()),
         }
     }
@@ -550,10 +551,11 @@ fn xray_cancel_bom(state: State<'_, BomInvocationState>, request_id: String) -> 
 }
 
 #[tauri::command]
-async fn xray_bom_status() -> Value {
+async fn xray_bom_status(app: AppHandle) -> Value {
+    let engine = Arc::clone(app.state::<Arc<bundled_engine::SelectedEngine>>().inner());
     // Frozen engine startup may include runtime extraction. Keep the bounded
     // handshake off the UI thread and report failed workers as unavailable.
-    let status = tauri::async_runtime::spawn_blocking(engine_status)
+    let status = tauri::async_runtime::spawn_blocking(move || engine_status_with(engine.as_ref()))
         .await
         .unwrap_or_else(|_| serde_json::json!({"available": false}));
     bom_status_envelope(&status)
@@ -679,12 +681,19 @@ fn xray_import_plan(app: AppHandle) -> Result<Option<DesktopPlanPayload>, String
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(BomInvocationState::production())
+
         .manage(MaterialAiState::default())
         .manage(assistant_ai::AssistantAiState::default())
         .manage(cad::CadState::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            let engine = Arc::new(bundled_engine::SelectedEngine::new(
+                std::env::var_os("XRAY_ENGINE_PATH"),
+                app.path().resource_dir().ok(),
+                option_env!("XRAY_BUNDLED_ENGINE_SHA256"),
+            ));
+            app.manage(BomInvocationState::production(Arc::clone(&engine)));
+            app.manage(engine);
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
                 window_chrome::apply(&window.as_ref().window());

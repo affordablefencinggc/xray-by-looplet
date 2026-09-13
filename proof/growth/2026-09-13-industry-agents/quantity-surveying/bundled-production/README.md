@@ -1,0 +1,9 @@
+# Bundled-build web production smoke
+
+Final target7a55db807d34: DANS1 Edge raw-CDP19operations PASS; cleanup true, zero observed browser console/runtime errors. Desktop1280x900 and tablet1024x768 screenshots visually inspected: visible Drawings content, no horizontal overflow; all five main tabs selected successfully. This is a navigation/render smoke, not drawing/BOM/provider feature acceptance.
+
+Served actual `.vercel/output` through existing `preview-built.mjs` on loopback8189, owned PID21640. Stopped only that process after matching executable, full command line and creation timestamp; test browser context disposed. Existing user previews and visible assistant/native windows retained. Proof in `7a55db807d34/` includes result, screenshots and owner/cleanup records. Result embeds completion manifest identity: web46c2ea46ab8a5aaaf58767fc7ba2620628d32c6355d3d21e657cdf94482c1c38; native01b8b98d029c7df755e23ec646e7ff0a46421eab6c8f55ab134e783ff1e45c9b. Native build acceptance is separate.
+
+Earlier0d0d16d134ec web completed but root reported explicit cache executable-hash mismatch rejected native packaging. No browser test ran on0d0. Its temporary previewPID16396 was identity-checked and stopped on retargeting; root holds build failure logs. Top-level completion/owner/cleanup files here belong to0d0, not the final7a55 smoke.
+
+Reused `.temp/industry-production.mjs` SHA2562c4fdf1e399b9f70aa4396307c94f340e252933a03741adc9ef50298c7ea76d2 and preview helper812022f53a56f4bcf53bb1826632c4401a2b12be676e3f68b2784bea7f9ff141; remote hashes matched. Existing DANS1 fast-cdp.mjs hashca4831425380d8d0c98b3a56ee434bffa649e5d30258e5b3ff2911156a64ff16. Attempt to copy nonexistent scripts/fast-cdp.mjs failed before execution; existing campaign runner was present and used. No product source changes or provider calls.
