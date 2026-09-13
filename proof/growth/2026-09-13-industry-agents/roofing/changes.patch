@@ -1,0 +1,198 @@
+diff --git a/src/studio/industries/roofing/roofArea.ts b/src/studio/industries/roofing/roofArea.ts
+new file mode 100644
+index 0000000..0936eda
+--- /dev/null
++++ b/src/studio/industries/roofing/roofArea.ts
+@@ -0,0 +1,73 @@
++import { z } from "zod";
++
++const reference = z.string().trim().min(1).max(1000);
++const area = z.number().finite().nonnegative();
++const openingSchema = z.object({
++  id: reference,
++  planAreaM2: area,
++  measurementReference: reference,
++}).strict();
++
++/** Areas are horizontal projections, including openings; pitch is from horizontal.
++ * References identify caller evidence only. This module never validates that evidence.
++ */
++export const roofAreaInputSchema = z.object({
++  planes: z.array(z.object({
++    id: reference,
++    grossPlanAreaM2: area.positive(),
++    measurementReference: reference,
++    pitchDegrees: z.number().finite().min(0).lt(90),
++    pitchReference: reference,
++    openings: z.array(openingSchema),
++  }).strict()).min(1),
++}).strict().superRefine((input, context) => {
++  const planeIds = new Set<string>();
++  input.planes.forEach((plane, index) => {
++    if (planeIds.has(plane.id)) context.addIssue({ code: "custom", path: ["planes", index, "id"], message: "Duplicate roof plane id" });
++    planeIds.add(plane.id);
++    const openingIds = new Set<string>();
++    plane.openings.forEach((opening, openingIndex) => {
++      if (openingIds.has(opening.id)) context.addIssue({ code: "custom", path: ["planes", index, "openings", openingIndex, "id"], message: "Duplicate opening id within roof plane" });
++      openingIds.add(opening.id);
++    });
++    const deduction = plane.openings.reduce((sum, opening) => sum + opening.planAreaM2, 0);
++    if (!Number.isFinite(deduction) || deduction > plane.grossPlanAreaM2) context.addIssue({ code: "custom", path: ["planes", index, "openings"], message: "Opening plan areas exceed gross plan area" });
++  });
++});
++
++export type RoofAreaInput = z.infer<typeof roofAreaInputSchema>;
++
++/** Draft arithmetic only: same-plane net horizontal area / cos(pitch).
++ * The caller must ensure distinct non-overlapping planes and openings, measured in m².
++ * Deliberately no waste, stock, rates, compliance or verified-output promotion.
++ */
++export function calculateDraftRoofArea(input: unknown) {
++  const parsed = roofAreaInputSchema.parse(input);
++  const planes = parsed.planes.map(plane => {
++    const slopeFactor = 1 / Math.cos(plane.pitchDegrees * Math.PI / 180);
++    const openingPlanAreaM2 = plane.openings.reduce((sum, opening) => sum + opening.planAreaM2, 0);
++    const grossTrueAreaM2 = plane.grossPlanAreaM2 * slopeFactor;
++    const openingTrueAreaM2 = openingPlanAreaM2 * slopeFactor;
++    const netTrueAreaM2 = (plane.grossPlanAreaM2 - openingPlanAreaM2) * slopeFactor;
++    if (![slopeFactor, grossTrueAreaM2, openingTrueAreaM2, netTrueAreaM2].every(Number.isFinite)) throw new RangeError("Roof area calculation exceeds finite numeric range");
++    return { ...plane, slopeFactor, openingPlanAreaM2, grossTrueAreaM2, openingTrueAreaM2, netTrueAreaM2 };
++  });
++  const totals = planes.reduce((sum, plane) => ({
++    grossTrueAreaM2: sum.grossTrueAreaM2 + plane.grossTrueAreaM2,
++    openingTrueAreaM2: sum.openingTrueAreaM2 + plane.openingTrueAreaM2,
++    netTrueAreaM2: sum.netTrueAreaM2 + plane.netTrueAreaM2,
++  }), { grossTrueAreaM2: 0, openingTrueAreaM2: 0, netTrueAreaM2: 0 });
++  if (!Object.values(totals).every(Number.isFinite)) throw new RangeError("Roof area totals exceed finite numeric range");
++  return {
++    status: "draft-calculation" as const,
++    verifiedQuoteEligible: false as const,
++    units: "m2" as const,
++    planes,
++    totals,
++    limitations: [
++      "Input references are retained, not validated against source documents or calibration.",
++      "Plane and opening geometry is not available to check overlap or containment.",
++      "No hip, valley, sheet, lap, waste, drainage or compliance calculation is included.",
++    ],
++  };
++}
+diff --git a/src/studio/industries/roofing/roofArea.test.ts b/src/studio/industries/roofing/roofArea.test.ts
+new file mode 100644
+index 0000000..c42b0f6
+--- /dev/null
++++ b/src/studio/industries/roofing/roofArea.test.ts
+@@ -0,0 +1,82 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { calculateDraftRoofArea, type RoofAreaInput } from "./roofArea.ts";
++
++const fixture = (): RoofAreaInput => ({ planes: [{
++  id: "plane-a", grossPlanAreaM2: 80, measurementReference: "Synthetic 10 m × 8 m horizontal plane",
++  pitchDegrees: Math.atan(3 / 4) * 180 / Math.PI, pitchReference: "Synthetic 3:4 rise/run triangle",
++  openings: [{ id: "skylight", planAreaM2: 4, measurementReference: "Synthetic 2 m × 2 m horizontal opening" }],
++}] });
++const near = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
++
++test("3:4:5 slope develops 80 m² to 100 m², with an opening deducted once", () => {
++  const result = calculateDraftRoofArea(fixture());
++  near(result.totals.grossTrueAreaM2, 100);
++  near(result.totals.openingTrueAreaM2, 5);
++  near(result.totals.netTrueAreaM2, 95);
++  near(result.planes[0].slopeFactor, 1.25);
++});
++
++test("different pitches develop separately before totals; flat and 45 degree analytic cases", () => {
++  const input = fixture();
++  input.planes[0].pitchDegrees = 0;
++  input.planes.push({ ...input.planes[0], id: "plane-b", pitchDegrees: 45, openings: [] });
++  const result = calculateDraftRoofArea(input);
++  near(result.planes[0].netTrueAreaM2, 76);
++  near(result.planes[1].netTrueAreaM2, 80 * Math.SQRT2);
++  near(result.totals.netTrueAreaM2, 76 + 80 * Math.SQRT2);
++});
++
++test("empty openings and fully deducted plane have defined results", () => {
++  const input = fixture();
++  input.planes[0].openings = [];
++  near(calculateDraftRoofArea(input).totals.netTrueAreaM2, 100);
++  input.planes[0].openings = [{ id: "whole", planAreaM2: 80, measurementReference: "Synthetic whole-plane opening" }];
++  assert.equal(calculateDraftRoofArea(input).totals.netTrueAreaM2, 0);
++});
++
++test("retains explicit references without mutating input or promoting draft evidence", () => {
++  const input = fixture();
++  const before = structuredClone(input);
++  const result = calculateDraftRoofArea(input);
++  assert.deepEqual(input, before);
++  assert.equal(result.status, "draft-calculation");
++  assert.equal(result.verifiedQuoteEligible, false);
++  assert.equal(result.planes[0].pitchReference, before.planes[0].pitchReference);
++  result.planes[0].openings[0].measurementReference = "changed output";
++  assert.deepEqual(input, before);
++});
++
++test("rejects missing, non-finite, negative and vertical pitch inputs without defaults", () => {
++  for (const pitchDegrees of [undefined, NaN, Infinity, -1, 90, 100]) {
++    const input = fixture();
++    assert.throws(() => calculateDraftRoofArea({ planes: [{ ...input.planes[0], pitchDegrees }] }));
++  }
++  for (const grossPlanAreaM2 of [0, -1, NaN, Infinity]) {
++    assert.throws(() => calculateDraftRoofArea({ planes: [{ ...fixture().planes[0], grossPlanAreaM2 }] }));
++  }
++  assert.throws(() => calculateDraftRoofArea({ planes: [] }));
++  assert.throws(() => calculateDraftRoofArea({ planes: [{ ...fixture().planes[0], pitchReference: " " }] }));
++  assert.throws(() => calculateDraftRoofArea({ ...fixture(), verified: true }));
++});
++
++test("rejects duplicate identities and over-deduction instead of double counting", () => {
++  const input = fixture();
++  assert.throws(() => calculateDraftRoofArea({ planes: [input.planes[0], input.planes[0]] }), /Duplicate roof plane/);
++  input.planes[0].openings.push({ ...input.planes[0].openings[0] });
++  assert.throws(() => calculateDraftRoofArea(input), /Duplicate opening/);
++  input.planes[0].openings = [{ ...input.planes[0].openings[0], planAreaM2: 81 }];
++  assert.throws(() => calculateDraftRoofArea(input), /exceed gross/);
++  input.planes[0].openings[0].planAreaM2 = -1;
++  assert.throws(() => calculateDraftRoofArea(input));
++});
++
++test("rejects both per-plane and combined numeric overflow", () => {
++  const input = fixture();
++  input.planes[0].grossPlanAreaM2 = Number.MAX_VALUE;
++  input.planes[0].pitchDegrees = 60;
++  assert.throws(() => calculateDraftRoofArea(input), /finite numeric range/);
++  input.planes[0].pitchDegrees = 0;
++  input.planes.push({ ...input.planes[0], id: "plane-b" });
++  assert.throws(() => calculateDraftRoofArea(input), /totals exceed/);
++});
+diff --git a/planning/industry-work/roofing.md b/planning/industry-work/roofing.md
+new file mode 100644
+index 0000000..a221caa
+--- /dev/null
++++ b/planning/industry-work/roofing.md
+@@ -0,0 +1,25 @@
++# Roofing worker — IND-29
++
++Approved by user: “spin up an agent for each industry to work without collision”.
++Branch: feat/architect-cad-engine. Shared-file integration belongs to the root agent.
++
++## SC-01 — Draft plan-to-true roof area (helper tested; integration open)
++
++Requirement: roofing T-1, register T-04. Audit found pitch in architect geometry but no isolated estimator area-development helper.
++
++Exclusive writes: `src/studio/industries/roofing/`, this file, and `proof/growth/2026-09-13-industry-agents/roofing/`.
++
++- [x] Read industry specification and inspect existing roof/pitch paths.
++- [x] Implement explicit-input arithmetic with no implicit pitch/product defaults.
++- [x] Run analytic and failure-boundary tests: 7 pass, 0 fail; scoped TypeScript check exit 0.
++- [x] Hand off integration boundary; leave workflow acceptance open.
++
++This slice does not measure a plan, validate calibration, resolve overlapping openings, calculate hip/valley lengths, optimise sheets, price or issue anything. Computed results must remain draft and ineligible for verified quote use.
++
++## Proposed integration (not implemented)
++
++Import `calculateDraftRoofArea` from `src/studio/industries/roofing/roofArea.ts` in a future roofing area worksheet. Supply explicit plane id, horizontal gross plan area in m², measurement reference, pitch in degrees from horizontal, pitch reference, and horizontal opening areas with their references. Show per-plane gross/opening/net true areas and totals, together with the returned draft status and limitations. No default pitch is supplied. This helper does not accept a verified flag and must not feed a verified BOM/quote adapter.
++
++Before workflow acceptance, connect real calibrated area evidence and source identity in the application adapter; check geometric overlap/containment there. Add project save/reload and real browser worksheet tests. Existing authored roof pitch defaults must not silently populate verified measurements. Root owns shared UI/contracts and global ledger updates.
++
++Proof: `proof/growth/2026-09-13-industry-agents/roofing/`. No browser sessions, background helpers or servers were launched; no cleanup needed. No full build or packaged-app claim. No changes to git index or shared files by this worker.

@@ -1,0 +1,294 @@
+diff --git a/src/studio/industries/quantity-surveying/classification.ts b/src/studio/industries/quantity-surveying/classification.ts
+new file mode 100644
+index 0000000..eb3f220
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/classification.ts
+@@ -0,0 +1,129 @@
++import { z } from "zod";
++
++const identifier = z.string().trim().min(1).max(240);
++// Accept ordinary non-negative decimal strings, including 1.0 / 1.20.
++// Canonicalise only redundant fractional zeroes; never round a measurement.
++const quantity = z.string().max(80).regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
++  .transform(value => value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value);
++const evidence = z.enum(["measured", "inferred", "sample", "unverified"]);
++const itemSchema = z.object({
++  id: identifier,
++  quantity,
++  unit: identifier,
++  evidence,
++  source: z.object({
++    documentId: identifier,
++    sha256: z.string().regex(/^[a-f0-9]{64}$/),
++    revision: identifier,
++    sheet: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
++    regionId: identifier.nullable(),
++    calibrationId: identifier.nullable(),
++  }).strict().nullable(),
++}).strict();
++const inputSchema = z.object({
++  hierarchyId: identifier,
++  hierarchyRevision: identifier,
++  nodes: z.array(z.object({
++    id: identifier,
++    label: identifier,
++    parentId: identifier.nullable(),
++  }).strict()).max(1000),
++  items: z.array(itemSchema).max(100000),
++  assignments: z.array(z.object({ itemId: identifier, nodeId: identifier }).strict()).max(100000),
++}).strict();
++
++export type ClassificationInput = z.input<typeof inputSchema>;
++export type QuantitySubtotal = {
++  unit: string;
++  evidence: z.infer<typeof evidence>;
++  quantity: string;
++  itemCount: number;
++};
++type Item = z.infer<typeof itemSchema>;
++
++// Exact decimal addition: quantities are never rounded or converted between units.
++function add(left: string, right: string): string {
++  const [li, lf = ""] = left.split(".");
++  const [ri, rf = ""] = right.split(".");
++  const scale = Math.max(lf.length, rf.length);
++  const value = BigInt(li + lf.padEnd(scale, "0")) + BigInt(ri + rf.padEnd(scale, "0"));
++  if (!scale) return value.toString();
++  const digits = value.toString().padStart(scale + 1, "0");
++  const fraction = digits.slice(-scale).replace(/0+$/, "");
++  return digits.slice(0, -scale) + (fraction ? `.${fraction}` : "");
++}
++
++function accumulate(totals: Map<string, QuantitySubtotal>, item: Item): void {
++  const key = JSON.stringify([item.unit, item.evidence]);
++  const previous = totals.get(key);
++  totals.set(key, {
++    unit: item.unit,
++    evidence: item.evidence,
++    quantity: add(previous?.quantity ?? "0", item.quantity),
++    itemCount: (previous?.itemCount ?? 0) + 1,
++  });
++}
++
++/** Organises declared quantities only. Does not verify source hashes, calibration,
++ * measurement standards, rates, or authority to issue a cost plan. Rollups overlap
++ * their descendants; use the report totals, not a sum of every hierarchy row. */
++export function classifyQuantities(raw: ClassificationInput) {
++  const input = inputSchema.parse(raw);
++  const nodes = new Map(input.nodes.map(node => [node.id, node]));
++  if (nodes.size !== input.nodes.length) throw new Error("Duplicate classification node ID.");
++  const paths = new Map<string, string[]>();
++  for (const node of input.nodes) {
++    const path: string[] = [];
++    const visited = new Set<string>();
++    let current: string | null = node.id;
++    while (current !== null) {
++      if (visited.has(current)) throw new Error("Classification hierarchy contains a cycle.");
++      visited.add(current);
++      const ancestor = nodes.get(current);
++      if (!ancestor) throw new Error(`Missing classification parent: ${current}`);
++      path.push(current);
++      current = ancestor.parentId;
++    }
++    paths.set(node.id, path);
++  }
++  const items = new Map(input.items.map(item => [item.id, item]));
++  if (items.size !== input.items.length) throw new Error("Duplicate measured item ID.");
++  const assigned = new Map<string, string>();
++  for (const assignment of input.assignments) {
++    if (!items.has(assignment.itemId)) throw new Error(`Unknown item: ${assignment.itemId}`);
++    if (!nodes.has(assignment.nodeId)) throw new Error(`Unknown classification: ${assignment.nodeId}`);
++    if (assigned.has(assignment.itemId)) throw new Error(`Duplicate item assignment: ${assignment.itemId}`);
++    assigned.set(assignment.itemId, assignment.nodeId);
++  }
++  const direct = new Map(input.nodes.map(node => [node.id, new Map<string, QuantitySubtotal>()]));
++  const rollup = new Map(input.nodes.map(node => [node.id, new Map<string, QuantitySubtotal>()]));
++  const totals = new Map<string, QuantitySubtotal>();
++  const residue = new Map<string, QuantitySubtotal>();
++  const classified = new Map<string, QuantitySubtotal>();
++  const rows = input.items.map(item => {
++    const nodeId = assigned.get(item.id) ?? null;
++    accumulate(totals, item);
++    if (nodeId === null) accumulate(residue, item);
++    else {
++      accumulate(classified, item);
++      accumulate(direct.get(nodeId)!, item);
++      for (const ancestor of paths.get(nodeId)!) accumulate(rollup.get(ancestor)!, item);
++    }
++    return { ...item, nodeId };
++  });
++  return {
++    status: "draft-classification" as const,
++    verifiedQuoteEligible: false as const,
++    hierarchyId: input.hierarchyId,
++    hierarchyRevision: input.hierarchyRevision,
++    classificationComplete: assigned.size === input.items.length,
++    rows,
++    nodes: input.nodes.map(node => ({
++      ...node, direct: [...direct.get(node.id)!.values()], rollup: [...rollup.get(node.id)!.values()],
++    })),
++    totals: [...totals.values()],
++    classifiedTotals: [...classified.values()],
++    unclassifiedTotals: [...residue.values()],
++    unclassifiedItemIds: rows.filter(row => row.nodeId === null).map(row => row.id),
++  };
++}
+diff --git a/src/studio/industries/quantity-surveying/classification.test.ts b/src/studio/industries/quantity-surveying/classification.test.ts
+new file mode 100644
+index 0000000..7d3847c
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/classification.test.ts
+@@ -0,0 +1,153 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { classifyQuantities, type ClassificationInput } from "./classification.ts";
++
++function fixture(): ClassificationInput {
++  return {
++    hierarchyId: "firm-defined", hierarchyRevision: "1",
++    nodes: [
++      { id: "building", label: "Building", parentId: null },
++      { id: "walls", label: "Walls", parentId: "building" },
++      { id: "roof", label: "Roof", parentId: "building" },
++    ],
++    items: [
++      { id: "a", quantity: "0.1", unit: "m2", evidence: "measured", source: {
++        documentId: "synthetic-test-source", sha256: "a".repeat(64), revision: "B", sheet: 3,
++        regionId: "region-a", calibrationId: "declared-test-calibration",
++      } },
++      { id: "b", quantity: "0.2", unit: "m2", evidence: "measured", source: null },
++    ],
++    assignments: [{ itemId: "a", nodeId: "walls" }, { itemId: "b", nodeId: "roof" }],
++  };
++}
++
++test("exact quantities reconcile once at report and parent levels", () => {
++  const result = classifyQuantities(fixture());
++  assert.equal(result.classificationComplete, true);
++  assert.deepEqual(result.totals, [{ unit: "m2", evidence: "measured", quantity: "0.3", itemCount: 2 }]);
++  assert.deepEqual(result.nodes[0].rollup, result.totals);
++  assert.deepEqual(result.nodes[0].direct, []);
++  assert.equal(result.nodes[1].direct[0].quantity, "0.1");
++  assert.equal(result.nodes[2].direct[0].quantity, "0.2");
++  assert.deepEqual(result.classifiedTotals, result.totals);
++});
++
++test("missing assignment remains explicit residue, with no silent quantity loss", () => {
++  const input = fixture();
++  input.assignments.pop();
++  const result = classifyQuantities(input);
++  assert.equal(result.classificationComplete, false);
++  assert.deepEqual(result.unclassifiedItemIds, ["b"]);
++  assert.equal(result.unclassifiedTotals[0].quantity, "0.2");
++  assert.equal(result.classifiedTotals[0].quantity, "0.1");
++  assert.equal(result.totals[0].quantity, "0.3");
++  assert.equal(result.rows[1].nodeId, null);
++});
++
++test("units and evidence categories cannot be blended into a measured subtotal", () => {
++  const input = fixture();
++  input.items.push(
++    { id: "c", quantity: "3", unit: "lm", evidence: "measured", source: null },
++    { id: "d", quantity: "100", unit: "m2", evidence: "sample", source: null },
++    { id: "e", quantity: "7", unit: "m2", evidence: "inferred", source: null },
++    { id: "f", quantity: "2", unit: "m2", evidence: "unverified", source: null },
++  );
++  input.assignments = input.items.map(item => ({ itemId: item.id, nodeId: "walls" }));
++  const result = classifyQuantities(input);
++  assert.equal(result.totals.length, 5);
++  assert.equal(result.totals.find(row => row.unit === "m2" && row.evidence === "measured")!.quantity, "0.3");
++  assert.deepEqual(result.nodes[0].rollup, result.totals);
++  assert.equal(result.rows[3].evidence, "sample");
++});
++
++test("reclassification preserves every quantity and source without mutating input", () => {
++  const input = fixture();
++  const snapshot = structuredClone(input);
++  const original = classifyQuantities(input);
++  const changed = classifyQuantities({ ...input, assignments: input.items.map(item => ({ itemId: item.id, nodeId: "walls" })) });
++  assert.deepEqual(input, snapshot);
++  assert.deepEqual(changed.totals, original.totals);
++  assert.deepEqual(changed.rows.map(({ nodeId: _node, ...item }) => item), input.items);
++  assert.equal(changed.nodes[1].direct[0].quantity, "0.3");
++  assert.deepEqual(changed.nodes[2].direct, []);
++  changed.rows[0].source!.revision = "mutated-output";
++  assert.equal(input.items[0].source!.revision, "B");
++});
++
++test("large and fine decimal values do not lose precision", () => {
++  const input = fixture();
++  input.items[0].quantity = "9007199254740993.000000000000000001";
++  input.items[1].quantity = "0.999999999999999999";
++  assert.equal(classifyQuantities(input).totals[0].quantity, "9007199254740994");
++});
++
++test("zero quantities and direct parent assignments are accounted for once", () => {
++  const input = fixture();
++  input.items[1].quantity = "0";
++  input.assignments[0].nodeId = "building";
++  const result = classifyQuantities(input);
++  assert.equal(result.nodes[0].direct[0].quantity, "0.1");
++  assert.equal(result.nodes[0].rollup[0].quantity, "0.1");
++  assert.equal(result.nodes[0].rollup[0].itemCount, 2);
++});
++
++test("invalid graphs, duplicate identities and unresolved assignments fail closed", () => {
++  const cases: Array<(input: ClassificationInput) => void> = [
++    input => { input.nodes.push(input.nodes[0]); },
++    input => { input.nodes[0].parentId = "walls"; },
++    input => { input.nodes[1].parentId = "walls"; },
++    input => { input.nodes[1].parentId = "absent"; },
++    input => { input.items.push(input.items[0]); },
++    input => { input.assignments.push(input.assignments[0]); },
++    input => { input.assignments.push({ itemId: "a", nodeId: "roof" }); },
++    input => { input.assignments[0].itemId = "absent"; },
++    input => { input.assignments[0].nodeId = "absent"; },
++  ];
++  for (const mutate of cases) {
++    const input = fixture(); mutate(input);
++    assert.throws(() => classifyQuantities(input));
++  }
++});
++
++test("invalid quantities and malformed source metadata are rejected at runtime", () => {
++  for (const quantity of ["-1", "NaN", "Infinity", "1e3", "00", ".1", "1.", "", "1".repeat(81)]) {
++    const input = fixture(); input.items[0].quantity = quantity;
++    assert.throws(() => classifyQuantities(input));
++  }
++  const input = fixture(); input.items[0].source!.sha256 = "not-a-hash";
++  assert.throws(() => classifyQuantities(input));
++});
++
++test("empty hierarchy exposes all items as unclassified; empty report has no totals", () => {
++  const input = fixture(); input.nodes = []; input.assignments = [];
++  const result = classifyQuantities(input);
++  assert.equal(result.classificationComplete, false);
++  assert.deepEqual(result.unclassifiedTotals, result.totals);
++  input.items = [];
++  const empty = classifyQuantities(input);
++  assert.equal(empty.classificationComplete, true);
++  assert.deepEqual(empty.totals, []);
++});
++
++test("declared measurement status does not confer source verification or issue authority", () => {
++  const result = classifyQuantities(fixture());
++  assert.equal(result.rows[1].source, null);
++  assert.equal(result.rows[1].evidence, "measured");
++  assert.equal("verified" in result, false);
++  assert.equal("readyToIssue" in result, false);
++  assert.equal(result.classificationComplete, true);
++  assert.equal(result.status, "draft-classification");
++  assert.equal(result.verifiedQuoteEligible, false);
++});
++
++test("ordinary fractional zeroes are normalised without changing the quantity", () => {
++  const input = fixture();
++  input.items[0].quantity = "1.20";
++  input.items[1].quantity = "1.0";
++  const result = classifyQuantities(input);
++  assert.deepEqual(result.rows.map(row => row.quantity), ["1.2", "1"]);
++  assert.equal(result.totals[0].quantity, "2.2");
++  assert.equal(input.items[0].quantity, "1.20");
++  input.items[0].quantity = "0.0";
++  assert.equal(classifyQuantities(input).rows[0].quantity, "0");
++});

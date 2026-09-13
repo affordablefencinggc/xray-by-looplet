@@ -1,0 +1,169 @@
+diff --git a/src/studio/industries/hvac/straightDuct.ts b/src/studio/industries/hvac/straightDuct.ts
+new file mode 100644
+index 0000000..c7b5e62
+--- /dev/null
++++ b/src/studio/industries/hvac/straightDuct.ts
+@@ -0,0 +1,74 @@
++import { z } from "zod";
++
++const operand = z.object({
++  value: z.number().finite().positive().max(Number.MAX_SAFE_INTEGER),
++  sourceReference: z.string().trim().min(1),
++}).strict();
++
++const common = {
++  id: z.string().trim().min(1),
++  lengthM: operand,
++  // Supplier-provided sheet mass per developed area; never a guessed density/gauge.
++  sheetMassKgPerM2: operand.optional(),
++};
++
++export const straightDuctScheduleSchema = z.object({
++  sections: z.array(z.discriminatedUnion("shape", [
++    z.object({ ...common, shape: z.literal("rectangular"), widthM: operand, heightM: operand }).strict(),
++    z.object({ ...common, shape: z.literal("round"), diameterM: operand }).strict(),
++  ])).min(1),
++}).strict().superRefine((schedule, context) => {
++  const ids = new Set<string>();
++  schedule.sections.forEach((section, index) => {
++    if (ids.has(section.id)) context.addIssue({ code: "custom", path: ["sections", index, "id"], message: "Section IDs must be unique." });
++    ids.add(section.id);
++  });
++});
++
++export type StraightDuctSchedule = z.infer<typeof straightDuctScheduleSchema>;
++
++function positiveResult(value: number): number {
++  if (!Number.isFinite(value) || value <= 0 || value > Number.MAX_SAFE_INTEGER) {
++    throw new Error("Duct calculation is outside the supported positive finite range.");
++  }
++  return value;
++}
++
++/**
++ * Straight-section lateral surface only, using explicitly entered developed dimensions.
++ * References are retained for subsequent review, not authenticated here. This function
++ * deliberately cannot issue a verified construction quantity or select a duct size.
++ */
++export function calculateStraightDuctDraft(input: unknown) {
++  const schedule = straightDuctScheduleSchema.parse(input);
++  const sections = schedule.sections.map((section) => {
++    const perimeterM = positiveResult(section.shape === "rectangular"
++      ? 2 * (section.widthM.value + section.heightM.value)
++      : Math.PI * section.diameterM.value);
++    const developedAreaM2 = positiveResult(perimeterM * section.lengthM.value);
++    return {
++      id: section.id,
++      inputs: section,
++      perimeterM,
++      developedAreaM2,
++      sheetMassKg: section.sheetMassKgPerM2
++        ? positiveResult(developedAreaM2 * section.sheetMassKgPerM2.value)
++        : null,
++      areaFormula: section.shape === "rectangular"
++        ? "2 × (widthM + heightM) × lengthM"
++        : "π × diameterM × lengthM",
++    };
++  });
++  return {
++    status: "draft-unverified" as const,
++    verifiedQuoteEligible: false as const,
++    ruleset: "hvac-straight-duct-area-v1" as const,
++    sections,
++    developedAreaM2: positiveResult(sections.reduce((sum, section) => sum + section.developedAreaM2, 0)),
++    // A missing mass operand must never look like a zero-mass section in a total.
++    sheetMassKg: sections.every((section) => section.sheetMassKg !== null)
++      ? positiveResult(sections.reduce((sum, section) => sum + section.sheetMassKg!, 0))
++      : null,
++    exclusions: ["fittings", "end caps", "seams and joints", "waste", "insulation", "supports"] as const,
++  };
++}
+diff --git a/src/studio/industries/hvac/straightDuct.test.ts b/src/studio/industries/hvac/straightDuct.test.ts
+new file mode 100644
+index 0000000..270720d
+--- /dev/null
++++ b/src/studio/industries/hvac/straightDuct.test.ts
+@@ -0,0 +1,83 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { calculateStraightDuctDraft } from "./straightDuct.ts";
++
++const value = (value: number, sourceReference = "Synthetic test schedule, revision A") => ({ value, sourceReference });
++const rectangular = () => ({ id: "D-1", shape: "rectangular", lengthM: value(10), widthM: value(0.5), heightM: value(0.3) });
++const round = () => ({ id: "D-2", shape: "round", lengthM: value(2), diameterM: value(0.4) });
++
++test("10 m of 500 × 300 mm duct has 16 m² lateral area without end caps", () => {
++  const result = calculateStraightDuctDraft({ sections: [rectangular()] });
++  assert.equal(result.developedAreaM2, 16);
++  assert.equal(result.sections[0].perimeterM, 1.6);
++  assert.equal(result.sheetMassKg, null);
++  assert.equal(result.status, "draft-unverified");
++  assert.equal(result.verifiedQuoteEligible, false);
++  assert.ok(result.exclusions.includes("end caps"));
++});
++
++test("round section retains π precision and adds to rectangular area", () => {
++  const result = calculateStraightDuctDraft({ sections: [rectangular(), round()] });
++  assert.equal(result.sections[1].developedAreaM2, 0.8 * Math.PI);
++  assert.equal(result.developedAreaM2, 16 + 0.8 * Math.PI);
++});
++
++test("mass requires an explicit kg/m² operand for every section", () => {
++  const section = { ...rectangular(), sheetMassKgPerM2: value(4, "Synthetic sheet mass declaration") };
++  assert.equal(calculateStraightDuctDraft({ sections: [section] }).sheetMassKg, 64);
++  const partial = calculateStraightDuctDraft({ sections: [section, round()] });
++  assert.equal(partial.sections[0].sheetMassKg, 64);
++  assert.equal(partial.sections[1].sheetMassKg, null);
++  assert.equal(partial.sheetMassKg, null);
++});
++
++test("each operand and its reference survive without mutating or aliasing input", () => {
++  const input = { sections: [{ ...rectangular(), sheetMassKgPerM2: value(4) }] };
++  const before = structuredClone(input);
++  const result = calculateStraightDuctDraft(input);
++  assert.deepEqual(input, before);
++  assert.deepEqual(result.sections[0].inputs, input.sections[0]);
++  result.sections[0].inputs.lengthM.value = 99;
++  assert.equal(input.sections[0].lengthM.value, 10);
++});
++
++test("zero, negative, non-finite and numeric-string operands are rejected", () => {
++  for (const invalid of [0, -1, NaN, Infinity, "10", null]) {
++    assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...rectangular(), lengthM: { value: invalid, sourceReference: "Test" } }] }));
++  }
++});
++
++test("all dimensions and sheet mass require positive numbers and references", () => {
++  for (const field of ["widthM", "heightM", "sheetMassKgPerM2"]) {
++    assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...rectangular(), [field]: value(0) }] }));
++  }
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...round(), diameterM: value(-1) }] }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...rectangular(), lengthM: value(10, "  ") }] }));
++});
++
++test("missing, duplicate and whitespace-equivalent IDs cannot double-count silently", () => {
++  assert.throws(() => calculateStraightDuctDraft({ sections: [] }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [rectangular(), { ...round(), id: " D-1 " }] }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...rectangular(), id: "" }] }));
++});
++
++test("unsupported fittings, mixed dimension shapes and implicit unit overrides are rejected", () => {
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...round(), shape: "elbow" }] }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...round(), widthM: value(1) }] }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [rectangular()], unit: "mm" }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...round(), verified: true }] }));
++});
++
++test("overflow and positive-area underflow fail rather than emitting invalid quantities", () => {
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...rectangular(), lengthM: value(Number.MAX_SAFE_INTEGER) }] }));
++  assert.throws(() => calculateStraightDuctDraft({ sections: [{ ...round(), lengthM: value(Number.MIN_VALUE), diameterM: value(Number.MIN_VALUE) }] }));
++});
++
++test("doubling length doubles developed area and supplied sheet mass", () => {
++  const first = { ...rectangular(), sheetMassKgPerM2: value(3.75) };
++  const second = { ...first, lengthM: value(first.lengthM.value * 2) };
++  const a = calculateStraightDuctDraft({ sections: [first] });
++  const b = calculateStraightDuctDraft({ sections: [second] });
++  assert.equal(b.developedAreaM2, a.developedAreaM2 * 2);
++  assert.equal(b.sheetMassKg, a.sheetMassKg! * 2);
++});
