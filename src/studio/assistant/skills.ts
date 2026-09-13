@@ -90,6 +90,7 @@ export const ASSISTANT_OPERATING_MANUAL = `${ASSISTANT_SAFETY_MANUAL} ${ASSISTAN
 
 const VIEW_TOOLS = new Set([
   'calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities',
+  'calculate_draft_roof_sheet_coverage', 'calculate_draft_duct_wrap',
   "read_workflow_route",
   "read_assistant_file",
   "search_standards_library",

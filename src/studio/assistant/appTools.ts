@@ -24,6 +24,8 @@ import type { BackupSummary } from "../projectBackupStorage.ts";
 import { listWorkPackets, readWorkEvents } from "./workPacketStore.ts";
 import * as roofDraftTool from '../industries/roofing/assistantTool.ts';
 import * as ductDraftTool from '../industries/hvac/assistantTool.ts';
+import * as roofSheetTool from '../industries/roofing/sheetCoverageTool.ts';
+import * as ductWrapTool from '../industries/hvac/ductWrapTool.ts';
 import * as quantityDraftTool from '../industries/quantity-surveying/assistantTool.ts';
 
 export type AppToolResult = { content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; isError?: boolean; _meta?: Record<string, unknown> };
@@ -451,7 +453,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
       checkProject(await port.getState(), args.expectedJobId);
       return text({ mounted: false, building: DESIGNED_SCENE_ENTRY.id, origin: "designed", note: "The Model viewer returned to its catalogued source reconstructions." });
     }),
-    ...[roofDraftTool, ductDraftTool, quantityDraftTool].map(adapter => tool(adapter.name, adapter.description,
+    ...[roofDraftTool, ductDraftTool, quantityDraftTool, roofSheetTool, ductWrapTool].map(adapter => tool(adapter.name, adapter.description,
       objectSchema({ expectedJobId: id, input: adapter.inputSchema }, ['expectedJobId', 'input']), async input => {
         const args = z.object({ expectedJobId: idSchema, input: z.unknown() }).strict().parse(input);
         const state = await port.getState();

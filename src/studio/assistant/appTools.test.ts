@@ -28,6 +28,28 @@ function fixture() {
 }
 const message = (result: Awaited<ReturnType<ReturnType<typeof fixture>["execute"]>>) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
 
+test('new coverage and wrap tools bind calculations without saving project data', async () => {
+  const f = fixture(), before = structuredClone(f.state.job);
+  const source = (value: number) => ({ value, sourceReference: 'Explicit synthetic QA' });
+  const cases = [
+    { name: 'calculate_draft_roof_sheet_coverage', input: { developedWidthM: '8', developedRunM: '9', effectiveCoverM: '.8', orderLengthM: '5', endLapM: '.2', measurementReference: 'Synthetic rectangle', supplierReference: 'Synthetic cover/order/lap' } },
+    { name: 'calculate_draft_duct_wrap', input: { duct: { sections: [{ id: 'd', shape: 'rectangular', lengthM: source(10), widthM: source(.5), heightM: source(.3) }] }, wraps: [{ sectionId: 'd', insulationThicknessM: source(.025), longitudinalOverlapM: source(.05) }] } },
+  ];
+  for (const entry of cases) {
+    const result = await f.execute(entry.name, { expectedJobId: f.state.job.id, input: entry.input });
+    assert.notEqual(result.isError, true);
+    const body = JSON.parse(message(result));
+    assert.equal(body.projectId, f.state.job.id);
+    assert.equal(body.verifiedQuoteEligible, false);
+    if (entry.name.includes('sheet')) { assert.equal(body.sheets, 20); assert.equal(body.orderedLinearM, 100); }
+    else assert.ok(Math.abs(body.wrapAreaM2 - 18.5) < 1e-9);
+    assert.equal((await f.execute(entry.name, { expectedJobId: 'foreign', input: entry.input })).isError, true);
+    assert.equal((await f.execute(entry.name, { expectedJobId: f.state.job.id, input: { ...entry.input, verified: true } })).isError, true);
+  }
+  assert.deepEqual(f.state.job, before);
+  assert.equal(f.writes, 0);
+});
+
 test('draft industry tools bind to the current project and preserve draft arithmetic without saving', async () => {
   const f = fixture();
   const before = structuredClone(f.state.job);
@@ -73,6 +95,7 @@ test("SDK-free tools expose strict schemas; project context reports real recover
     "edit_architect_elements", "calibrate_source_sheet", "trace_takeoff_run", "review_takeoff_item", "remove_takeoff_trace", "import_price_book", "export_design_file", "generate_render_visualisation",
     "show_design_in_model", "hide_designed_model",
     'calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities',
+    'calculate_draft_roof_sheet_coverage', 'calculate_draft_duct_wrap',
   ]);
   for (const tool of f.tools) { assert.equal(tool.inputSchema.type, "object"); assert.equal(tool.inputSchema.additionalProperties, false); }
   f.state.hydrationStatus = "error"; f.state.persistenceRecoveryBlocked = true;

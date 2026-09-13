@@ -29,6 +29,9 @@ export function isDiscussionOnlyObjective(objective: string): boolean {
   if (!/\b(?:explain|explanation|correct|corrected|correction|summarise|summarize|summary|review|discuss|discussion)\b/i.test(text)) return false;
   // Remove only explicit prohibitions, not a following affirmative command.
   const remaining = text.replace(/\b(?:do not|don't|never)\s+(?:call|use|run|execute)\s+(?:any\s+)?tools\b/gi, '')
+    // "Read-only discussion" describes the response, not an instruction to read a source.
+    // Limit this to explanation nouns; "read only the source" must still require work.
+    .replace(/\bread(?:-|\s+)only(?=\s+(?:discussion|review|explanation|summary)\b)/gi, '')
     .replace(/\b(?:no tools|without (?:calling|using|running|executing) (?:any )?tools)\b/gi, '')
     .replace(/\b(?:do not|don't|never|or)\s+(?:rerun|repeat)\s+(?:the\s+)?(?:calculator|calculation|tools?|actions?)\b/gi, '')
     // Checking supplied quantities/receipts is discussion, not fresh workspace inspection.

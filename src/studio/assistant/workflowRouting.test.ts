@@ -11,7 +11,7 @@ const readDesign = (s: WorkflowState, ctx = c) => recordWorkflowResult(s, 'read_
 const image = (target = 'source-building') => ({ content: [{ type: 'text', text: JSON.stringify({ target, frame: 4 }) }, { type: 'image', data: 'real-tool-image', mimeType: 'image/png' }] });
 
 test('completed draft arithmetic can finish without workflow bookkeeping while edit and readback gates remain',()=>{
-  const tools=['calculate_draft_roof_area','calculate_draft_duct_material','classify_draft_quantities'];
+  const tools=['calculate_draft_roof_area','calculate_draft_duct_material','classify_draft_quantities','calculate_draft_roof_sheet_coverage','calculate_draft_duct_wrap'];
   for(const tool of tools){
     const result=ok({projectId:c.projectId,projectRevision:c.projectRevision,verifiedQuoteEligible:false});
     const state=recordWorkflowResult(emptyWorkflow(),tool,{},result,c,c);

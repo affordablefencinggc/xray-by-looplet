@@ -2,6 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { describeToolReceipt, summariseReceipt } from "./toolReceipt.ts";
 
+test('new industry receipts show actual draft quantities and reject incomplete outputs', () => {
+  const roof = { status: 'draft-sheet-coverage', verifiedQuoteEligible: false, columns: 10, courses: 2, sheets: 20, orderedLinearM: 100 };
+  assert.match(summariseReceipt('calculate_draft_roof_sheet_coverage', JSON.stringify(roof)), /20 sheets.*100 m/);
+  assert.match(summariseReceipt('calculate_draft_roof_sheet_coverage', JSON.stringify({ ...roof, sheets: 19 })), /incomplete/);
+  assert.match(summariseReceipt('calculate_draft_roof_sheet_coverage', JSON.stringify({ ...roof, verifiedQuoteEligible: true })), /incomplete/);
+  const wrap = { status: 'draft-unverified', verifiedQuoteEligible: false, wrapAreaM2: 18.500000000000004, sections: [{ id: 'd' }] };
+  assert.match(summariseReceipt('calculate_draft_duct_wrap', JSON.stringify(wrap)), /18.5 m² external wrap/);
+  assert.match(summariseReceipt('calculate_draft_duct_wrap', JSON.stringify({ ...wrap, sections: [] })), /incomplete/);
+});
+
 test("app-preflight results retain explicit origin and show parsed context instead of prefix text", () => {
   const text = 'App preflight (not a model call)\n' + JSON.stringify({ projectName: 'QA roof', projectRevision: 1, pane: 'sheets' });
   const view = describeToolReceipt({ toolName: 'read_project_context', text, executionOrigin: 'app-preflight' });

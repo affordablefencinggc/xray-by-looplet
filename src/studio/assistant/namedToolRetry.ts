@@ -2,7 +2,7 @@ import type { AssistantContent, AssistantDeclaration } from './contract.ts';
 import { unsupportedFinalToolClaims, type ToolClaimOutcome, type UnsupportedToolClaim } from './finalToolClaims.ts';
 import { WITHHELD_CANDIDATE_PREFIX } from './shortInteraction.ts';
 
-const CALCULATORS = new Set(['calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities']);
+const CALCULATORS = new Set(['calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities', 'calculate_draft_roof_sheet_coverage', 'calculate_draft_duct_wrap']);
 const CONTEXT_READS = new Set(['read_project_context', 'read_workflow_route']);
 
 /** A focused model retry, not execution authorization or a guarantee of tool use. */

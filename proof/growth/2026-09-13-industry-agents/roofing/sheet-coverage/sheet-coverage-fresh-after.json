@@ -1,0 +1,21 @@
+[
+    {
+        "kind":  "eval",
+        "name":  "wait-draft-response",
+        "expression":  "new Promise(resolve=\u003e{const check=()=\u003e{if(!document.querySelector(\u0027button[aria-label=\"Stop assistant response\"]\u0027)){observer.disconnect();clearTimeout(timer);resolve({complete:true});}};const observer=new MutationObserver(check);observer.observe(document.body,{subtree:true,attributes:true,childList:true,characterData:true});const timer=setTimeout(()=\u003e{observer.disconnect();resolve({complete:false});},45000);check();})"
+    },
+    {
+        "kind":  "eval",
+        "name":  "draft-readback",
+        "expression":  "(async()=\u003e{const {useStudio}=await import(\u0027/src/studio/store.ts\u0027);const {readChatArchive}=await import(\u0027/src/studio/assistant/chatHistory.ts\u0027);const job=useStudio.getState().job;return {job,archive:await readChatArchive(job.id),text:document.body.innerText,alerts:[...document.querySelectorAll(\u0027[role=alert]\u0027)].map(x=\u003ex.innerText)};})()"
+    },
+    {
+        "kind":  "eval",
+        "name":  "show-draft-review",
+        "expression":  "(()=\u003e{const n=[...document.querySelectorAll(\u0027h1,h2,h3,h4,p,strong\u0027)].filter(x=\u003ex.textContent.trim()===\u0027Developer review\u0027).at(-1);n?.scrollIntoView({block:\u0027start\u0027});return {found:!!n};})()"
+    },
+    {
+        "kind":  "screenshot",
+        "name":  "sheet-coverage-fresh-review"
+    }
+]

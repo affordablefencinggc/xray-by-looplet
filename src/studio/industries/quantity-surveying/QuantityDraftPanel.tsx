@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { QuantityReportView } from "./QuantityReportView";
 import type { IndustryDraftPanelProps } from "../draftPanel";
 import { assignQuantityItem, calculateQuantityForm, type QuantityForm } from "./quantityForm";
 
@@ -56,16 +57,6 @@ export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftP
     </fieldset>
     <div className="industry-actions"><button type="button" disabled={disabled || !value.items.length || !value.nodes.length} onClick={calculate}>Calculate classification</button></div>
     {error && <p className="industry-error" role="alert">{error}</p>}
-    {result && <div className="industry-result" aria-live="polite">
-      <p><strong>Draft classification · Not for verified quotes</strong></p>
-      <div className="industry-table-wrap"><table><caption>Quantities by unit and evidence</caption><thead><tr><th>Unit</th><th>Evidence</th><th>Total</th><th>Classified</th><th>Unclassified</th></tr></thead><tbody>
-        {result.totals.map(total => <tr key={JSON.stringify([total.unit, total.evidence])}><th scope="row">{total.unit}</th><td>{total.evidence}</td><td>{total.quantity}</td><td>{result.classifiedTotals.find(row => row.unit === total.unit && row.evidence === total.evidence)?.quantity ?? "0"}</td><td>{result.unclassifiedTotals.find(row => row.unit === total.unit && row.evidence === total.evidence)?.quantity ?? "0"}</td></tr>)}
-      </tbody></table></div>
-      <p><strong>Unassigned quantities ({result.unclassifiedItemIds.length})</strong></p>
-      {result.unclassifiedItemIds.length ? <ul>{result.rows.filter(row => row.nodeId === null).map(row => <li key={row.id}>{row.id}: {row.quantity} {row.unit} · {row.evidence}. Choose a classification in its assignment picker above.</li>)}</ul> : <p>Every quantity is assigned. This does not verify the quantities.</p>}
-      <div className="industry-table-wrap"><table><caption>Classification totals (ancestor rollups overlap)</caption><thead><tr><th>Code</th><th>Unit</th><th>Evidence</th><th>Direct</th><th>Including children</th></tr></thead><tbody>
-        {result.nodes.flatMap(node => node.rollup.map(total => <tr key={JSON.stringify([node.id, total.unit, total.evidence])}><th scope="row">{node.id} · {node.label}</th><td>{total.unit}</td><td>{total.evidence}</td><td>{node.direct.find(row => row.unit === total.unit && row.evidence === total.evidence)?.quantity ?? "0"}</td><td>{total.quantity}</td></tr>))}
-      </tbody></table></div>
-    </div>}
+    {result && <div className="industry-result" aria-live="polite"><QuantityReportView report={result} disabled={disabled} /></div>}
   </section>;
 }

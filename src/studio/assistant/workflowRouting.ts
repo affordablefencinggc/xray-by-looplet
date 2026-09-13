@@ -39,7 +39,7 @@ const evidenceKey = (c: RoutingContext, sheet?: unknown) => JSON.stringify([cont
 const captureKey = (c: RoutingContext) => JSON.stringify([contextKey(c), designKey(c), c.pane, c.renderedSceneSha256]);
 const ARCHITECT_EDITS = new Set(['draw_architect_elements', 'edit_architect_elements', 'undo_architect_change']);
 const TAKEOFF_EDITS = new Set(['calibrate_source_sheet', 'trace_takeoff_run', 'remove_takeoff_trace']);
-const DRAFT_CALCULATIONS = new Set(['calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities']);
+const DRAFT_CALCULATIONS = new Set(['calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities', 'calculate_draft_roof_sheet_coverage', 'calculate_draft_duct_wrap']);
 /**
  * Reads that never need a workflow selected first.
  *
@@ -56,6 +56,7 @@ const DRAFT_CALCULATIONS = new Set(['calculate_draft_roof_area', 'calculate_draf
  */
 const UNBOUND_READS = new Set(['read_project_context', 'read_workbench_structure', 'read_work_packet', 'read_work_packet_event', 'web_search',
   'calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities',
+  'calculate_draft_roof_sheet_coverage', 'calculate_draft_duct_wrap',
   'read_assistant_file', 'read_price_books', 'read_draftsman_status', 'read_source_building']);
 const bound = (c: RoutingContext) => ({ expectedJobId: c.projectId });
 const contextStep = (): RouteStep => ({ tool: 'read_project_context', args: {}, reason: 'Read the current project identity, revision and workspace state.' });

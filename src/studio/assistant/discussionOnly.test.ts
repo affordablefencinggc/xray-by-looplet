@@ -15,6 +15,20 @@ test('action tasks, selective tool bans and ambiguous requests retain normal rou
   for (const text of ['Explain the project.', 'Do not call classify_draft_quantities; call read_project_context and explain it.', 'Do not call any tools, but run the calculator and explain the result.', 'No tools. Draw a wall and explain it.', 'No tools. Explain it, then inspect this project.', 'No tools. Review current values and save the project.', 'No tools. Check current project evidence and explain it.', 'Do not call any tools. Calculate the quantities.', 'No tools except read_project_context. Explain the result.', 'No tools. Explain it; I want you to draw a wall.', 'No tools. Could you inspect this project and explain it?', 'Review the recording.', 'Without editing, inspect the current project.']) assert.equal(isDiscussionOnlyObjective(text), false, text);
 });
 
+test('read-only review modifiers do not become read actions or conceal real reads', () => {
+  for (const prefix of ['Read-only discussion', 'Read only review', 'Read-only explanation', 'Read only summary']) {
+    const text = `${prefix}: review the supplied QS worksheet evidence below, using no tools and taking no actions. Give a concise review of full versus filtered totals, hierarchy overlap, and CSV limits, followed by Developer review of this answer.`;
+    assert.equal(prohibitsAllTools(text), true);
+    assert.equal(isDiscussionOnlyObjective(text), true, text);
+    for (const action of ['Then read the source sheet.', 'Also inspect the current project.', 'Read only the selected source and explain it.']) {
+      assert.equal(isDiscussionOnlyObjective(`${text} ${action}`), false, action);
+    }
+  }
+  for (const text of ['No tools. Read only the supplied source and review it.', 'Read-only discussion: read the source sheet and explain it. No tools.', 'Read only this project. No tools. Give a review.']) {
+    assert.equal(isDiscussionOnlyObjective(text), false, text);
+  }
+});
+
 test('native receipt review checks supplied numbers without treating recipe prose as actions', () => {
   const objective = `Review only: do not call any tools or perform any actions. Do not mutate a project, redraw, regenerate or rerun a calculation.
 Check the generated fencing quantities against the exact supplied inputs and formula/quantity receipts. Check layout consistency only to the extent supported by the supplied geometry or actual image pixels.

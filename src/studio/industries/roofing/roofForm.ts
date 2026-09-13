@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { calculateDraftRoofArea, roofAreaInputSchema } from "./roofArea.ts";
+import { sheetCoverageFormSchema } from "./sheetCoverage.ts";
 
 const text = z.string().max(1000);
 const numericText = z.string().max(80);
 const opening = z.object({ id: text, planAreaM2: numericText, measurementReference: text }).strict();
 const plane = z.object({ id: text, grossPlanAreaM2: numericText, pitchDegrees: numericText,
   measurementReference: text, pitchReference: text, openings: z.array(opening) }).strict();
-export const roofFormSchema = z.object({ planes: z.array(plane), calculated: z.boolean() }).strict();
+export const roofFormSchema = z.object({ planes: z.array(plane), calculated: z.boolean(), sheetCoverage: sheetCoverageFormSchema.optional() }).strict();
 export type RoofForm = z.infer<typeof roofFormSchema>;
 export type RoofPlaneForm = RoofForm["planes"][number];
 export const createEmptyRoofPlane = (): RoofPlaneForm => ({ id: "", grossPlanAreaM2: "", pitchDegrees: "", measurementReference: "", pitchReference: "", openings: [] });

@@ -1,10 +1,12 @@
 import { useId } from "react";
 import type { IndustryDraftPanelProps } from "../draftPanel.ts";
 import { calculateRoofForm, createEmptyRoofPlane, editRoofForm, roofFormError, type RoofForm, type RoofPlaneForm } from "./roofForm.ts";
+import { RoofSheetCoveragePanel } from "./RoofSheetCoveragePanel.tsx";
+import { createEmptySheetCoverage } from "./sheetCoverage.ts";
 
 export function RoofingDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<RoofForm>) {
   const prefix = useId();
-  const edit = (planes: RoofForm["planes"]) => onChange(editRoofForm(planes));
+  const edit = (planes: RoofForm["planes"]) => onChange({ ...value, ...editRoofForm(planes) });
   const changePlane = (index: number, patch: Partial<RoofPlaneForm>) => edit(value.planes.map((plane, i) => i === index ? { ...plane, ...patch } : plane));
   let result: ReturnType<typeof calculateRoofForm> | null = null;
   let error: string | null = null;
@@ -62,5 +64,7 @@ export function RoofingDraftPanel({ value, onChange, disabled }: IndustryDraftPa
       </table></div>
       <ul className="industry-note">{result.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul>
     </section>}
+    <RoofSheetCoveragePanel value={value.sheetCoverage ?? createEmptySheetCoverage()} disabled={disabled}
+      onChange={sheetCoverage => onChange({ ...value, sheetCoverage })} />
   </section>;
 }

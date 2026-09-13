@@ -36,3 +36,31 @@ test("duplicate names and unexpected persisted fields are rejected; drafts round
   assert.equal(ductFormSchema.safeParse({ sections: [], verified: true }).success, false);
   const input = { sections: [section()] }; assert.deepEqual(ductFormSchema.parse(JSON.parse(JSON.stringify(input))), input);
 });
+
+test("legacy saved section remains valid with wrap off and no thickness defaults", () => {
+  const legacy = section(); delete legacy.includeWrap; delete legacy.insulationThicknessM; delete legacy.longitudinalOverlapM;
+  assert.equal(calculateDuctForm({ sections: [legacy] }).wrap, null);
+  assert.equal(createEmptyDuctSection().insulationThicknessM?.value, "");
+});
+test("rectangular external wrap adds thickness and explicit lap without altering metal", () => {
+  const input = { sections: [{ ...section(), includeSheetMass: true, sheetMassKgPerM2: field("4"), includeWrap: true, insulationThicknessM: field(".025"), longitudinalOverlapM: field(".05") }] };
+  const before = JSON.stringify(input); const result = calculateDuctForm(input);
+  assert.equal(result.developedAreaM2, 16); assert.equal(result.sheetMassKg, 64);
+  assert.ok(Math.abs(result.wrap!.wrapAreaM2 - 18.5) < 1e-10);
+  assert.equal(result.wrap!.sections[0].overlapAreaM2, .5);
+  assert.equal(result.wrap!.sections[0].inputs.insulationThicknessM.sourceReference, "User schedule A");
+  assert.equal(result.wrap!.verifiedQuoteEligible, false);
+  assert.equal(JSON.stringify(input), before);
+});
+test("round external wrap accepts referenced zero lap and selects only enabled sections", () => {
+  const result = calculateDuctForm({ sections: [{ ...section(), shape: "round", diameterM: field(".4"), includeWrap: true, insulationThicknessM: field(".05"), longitudinalOverlapM: field("0") }, { ...section(), id: "unwrapped" }] });
+  assert.equal(result.wrap!.sections.length, 1);
+  assert.equal(result.wrap!.wrapAreaM2, Math.PI * .5 * 10);
+  assert.equal(result.sheetMassKg, null);
+});
+test("enabled wrap rejects missing thickness, implicit zero lap and missing references", () => {
+  const good = { ...section(), includeWrap: true, insulationThicknessM: field(".025"), longitudinalOverlapM: field("0") };
+  for (const value of ["", "0", "-1", "Infinity"]) assert.throws(() => calculateDuctForm({ sections: [{ ...good, insulationThicknessM: field(value) }] }));
+  for (const value of ["", "-1", "Infinity"]) assert.throws(() => calculateDuctForm({ sections: [{ ...good, longitudinalOverlapM: field(value) }] }));
+  assert.throws(() => calculateDuctForm({ sections: [{ ...good, longitudinalOverlapM: { value: "0", sourceReference: "" } }] }));
+});

@@ -5,6 +5,8 @@
  */
 const TITLES: Record<string, string> = {
   calculate_draft_roof_area: "Calculated draft roof areas",
+  calculate_draft_roof_sheet_coverage: "Calculated draft roof sheet coverage",
+  calculate_draft_duct_wrap: "Calculated draft duct wrap",
   calculate_draft_duct_material: "Calculated draft duct material",
   classify_draft_quantities: "Classified draft quantities",
   read_project_context: "Read the project context",
@@ -76,6 +78,8 @@ const looksStructured = (text: string) => {
 
 const DRAFT_RECEIPTS: Record<string, string> = {
   calculate_draft_roof_area: "draft-calculation",
+  calculate_draft_roof_sheet_coverage: "draft-sheet-coverage",
+  calculate_draft_duct_wrap: "draft-unverified",
   calculate_draft_duct_material: "draft-unverified",
   classify_draft_quantities: "draft-classification",
 };
@@ -96,6 +100,15 @@ function draftSummary(name: string, r: Record<string, unknown>): string | null {
   if (name === "calculate_draft_duct_material") {
     if (!finiteQuantity(r.developedAreaM2) || (r.sheetMassKg !== null && !finiteQuantity(r.sheetMassKg))) return incomplete;
     return `${prefix}${r.developedAreaM2} m² lateral area · ${r.sheetMassKg === null ? "mass not supplied for all sections" : `${r.sheetMassKg} kg sheet mass`}`;
+  }
+  if (name === "calculate_draft_roof_sheet_coverage") {
+    if (![r.columns, r.courses, r.sheets].every(value => finiteQuantity(value) && Number.isSafeInteger(value) && value > 0)
+      || !finiteQuantity(r.orderedLinearM) || (r.columns as number) * (r.courses as number) !== r.sheets) return incomplete;
+    return `${prefix}${r.sheets} sheets · ${r.columns} columns × ${r.courses} courses · ${r.orderedLinearM} m ordered length`;
+  }
+  if (name === "calculate_draft_duct_wrap") {
+    if (!finiteQuantity(r.wrapAreaM2) || !Array.isArray(r.sections) || !r.sections.length) return incomplete;
+    return `${prefix}${Number(r.wrapAreaM2.toPrecision(12))} m² external wrap · ${r.sections.length} selected sections`;
   }
   if (!Array.isArray(r.totals) || !Array.isArray(r.unclassifiedItemIds)) return incomplete;
   const groups: string[] = [];
