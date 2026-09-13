@@ -5,14 +5,15 @@ import type { ChatEntry } from './useAssistantChat.ts';
 import type { AssistantContent } from './contract.ts';
 import type { WorkEvent } from './workPacketStore.ts';
 
-export type SavedChat = { id: string; updatedAt: string; entries: ChatEntry[]; contents: AssistantContent[]; error: string | null; busy: boolean; workPacket?: WorkPacket };
+export type SavedChat = { id: string; startedAt?: string; updatedAt: string; entries: ChatEntry[]; contents: AssistantContent[]; error: string | null; busy: boolean; workPacket?: WorkPacket; archivedAt?: string };
 export type ChatArchive = { projectId: string; revision: number; activeId: string; threads: SavedChat[] };
 const entrySchema = z.object({ id: z.string(), kind: z.enum(['user','assistant','tool']), text: z.string(),
+  timestamp: z.string().datetime().optional(),
   images: z.array(z.object({data:z.string(),mimeType:z.enum(['image/png','image/jpeg','image/webp'])})).optional(),
   sources:z.array(assistantSourceSchema).optional(),toolName:z.string().optional(),toolCallId:z.string().optional(),failed:z.boolean().optional(),
   projectName:z.string().optional(),projectRevision:z.number().int().positive().optional(),
 }).strict();
-const threadSchema = z.object({ id: z.string(), updatedAt: z.string(), entries: z.array(entrySchema), contents: z.array(assistantContentSchema), error: z.string().nullable(), busy: z.boolean(), workPacket: workPacketSchema.optional() });
+const threadSchema = z.object({ id: z.string(), startedAt: z.string().datetime().optional(), updatedAt: z.string(), entries: z.array(entrySchema), contents: z.array(assistantContentSchema), error: z.string().nullable(), busy: z.boolean(), workPacket: workPacketSchema.optional(), archivedAt: z.string().optional() });
 const archiveSchema = z.object({ projectId: z.string(), revision: z.number().int().nonnegative(), activeId: z.string(), threads: z.array(threadSchema) });
 
 export function parseChatArchive(value: unknown, projectId: string): ChatArchive {
@@ -32,6 +33,16 @@ export function putChat(archive: ChatArchive, thread: SavedChat): ChatArchive {
   return { ...archive, activeId: thread.id, threads: [...archive.threads.filter(t => t.id !== thread.id), thread] };
 }
 export const chatTitle = (thread: Pick<SavedChat, 'entries'>) => thread.entries.find(e => e.kind === 'user')?.text.slice(0, 90) || 'New chat';
+
+/** Archiving hides a thread from the main list; it never deletes its messages. */
+export function archiveChat(archive: ChatArchive, id: string, fallback: SavedChat, now = new Date().toISOString()): ChatArchive {
+  if (!archive.threads.some(t => t.id === id)) throw Error('Chat was not found.');
+  const threads = archive.threads.map(t => t.id === id ? {...t, archivedAt: now} : t);
+  if (archive.activeId !== id) return {...archive, threads};
+  const replacement = threads.slice().reverse().find(t => !t.archivedAt);
+  if (replacement) return {...archive, threads, activeId: replacement.id};
+  return {...archive, threads: [...threads, fallback], activeId: fallback.id};
+}
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve,reject) => {

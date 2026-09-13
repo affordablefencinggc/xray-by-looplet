@@ -45,7 +45,8 @@ test("every provider carries a label and a hint that states its limits", () => {
     assert.match(entry.endpoint, /^\/api\//, "an endpoint must be a same-origin app route");
   }
   const minimax = PROVIDERS.find(entry => entry.provider === "minimax")!;
-  assert.match(minimax.hint, /no image input/i, "the image limitation must be stated before the user picks it");
+  assert.match(minimax.hint, /M3 supports source images/i, "M3 image support must be stated");
+  assert.match(minimax.hint, /M2 models are text only/i, "older model limits must remain explicit");
   assert.match(minimax.hint, /no grounded web search/i, "the search limitation must be stated too");
 });
 

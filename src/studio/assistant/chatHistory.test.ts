@@ -1,7 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseChatArchive, putChat, restoreChat, type ChatArchive, type SavedChat } from './chatHistory.ts';
+import { archiveChat, parseChatArchive, putChat, restoreChat, type ChatArchive, type SavedChat } from './chatHistory.ts';
 const thread = (id:string):SavedChat=>({id,updatedAt:'2026-09-10T00:00:00Z',entries:[{id:id+':u',kind:'user',text:'Keep '+id}],contents:[],error:null,busy:false});
+test('message times and conversation start survive storage and reopening; legacy times stay unknown',()=>{
+  const dated=thread('dated'); dated.startedAt='2026-09-13T05:10:00.000Z';
+  dated.entries[0].timestamp='2026-09-13T05:11:00.000Z';
+  const archive:ChatArchive={projectId:'p',revision:1,activeId:'dated',threads:[dated,thread('legacy')]};
+  const parsed=parseChatArchive(JSON.parse(JSON.stringify(archive)),'p');
+  const reopened=restoreChat(parsed.threads[0]);
+  assert.equal(reopened.startedAt,dated.startedAt);
+  assert.equal(reopened.entries[0].timestamp,dated.entries[0].timestamp);
+  assert.equal(parsed.threads[1].startedAt,undefined);
+  assert.equal(parsed.threads[1].entries[0].timestamp,undefined);
+});
+test('archiving is non-destructive, persists its marker and chooses another active conversation',()=>{
+  const a=thread('a'),b=thread('b');
+  const original:ChatArchive={projectId:'p',revision:0,activeId:'a',threads:[a,b]};
+  const next=archiveChat(original,'a',thread('unused'),'today');
+  assert.equal(next.activeId,'b');assert.equal(next.threads.length,2);
+  assert.deepEqual(next.threads[0].entries,a.entries);
+  assert.equal(parseChatArchive(JSON.parse(JSON.stringify(next)),'p').threads[0].archivedAt,'today');
+  assert.equal(original.threads[0].archivedAt,undefined);
+  const last=archiveChat(next,'b',thread('fresh'));
+  assert.equal(last.activeId,'fresh');assert.equal(last.threads.length,3);
+  assert.throws(()=>archiveChat(next,'missing',thread('x')));
+});
 test('new chats retain prior conversations and switching history preserves every thread',()=>{
   const first=thread('first'),second=thread('second');
   const original:ChatArchive={projectId:'project-a',revision:0,activeId:first.id,threads:[first]};

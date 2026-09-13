@@ -19,9 +19,9 @@ test('register parses all 375 rows with the states the register itself reports',
     verified: 6,
     // 102, + D-07 re-assessed 2026-09-11 (its linked fields were already
     // implemented, so 'gap' was wrong), + D-13 implemented 2026-09-12,
-    // + D-09 implemented 2026-09-12.
-    partial: 105,
-    gap: 244, // 236 + 11 merged rows - D-07 corrected - D-13 implemented - D-09 implemented
+    // + D-09 implemented 2026-09-12, + D-15 implemented 2026-09-12.
+    partial: 106,
+    gap: 243, // 236 + 11 merged rows - D-07 corrected - D-13 implemented - D-09 implemented - D-15 implemented
     'dependency-blocked': 19,
     failed: 1,
   });
@@ -34,7 +34,7 @@ test('the merge disturbed no previously reviewed assessment', () => {
   const tally = {};
   for (const r of rows.values()) tally[r.state] = (tally[r.state] || 0) + 1;
   assert.equal(tally.verified, 6);
-  assert.equal(tally.partial, 105);
+  assert.equal(tally.partial, 106);
   assert.equal(tally['dependency-blocked'], 19);
   assert.equal(tally.failed, 1);
   // Spot-check rows whose reviewed states were expensive to earn.
@@ -47,6 +47,8 @@ test('the merge disturbed no previously reviewed assessment', () => {
   assert.equal(rows.get('D-13').state, 'partial');
   // Implemented 2026-09-12: drawing revisions and supersession.
   assert.equal(rows.get('D-09').state, 'partial');
+  // Implemented 2026-09-12: visual and vector revision delta.
+  assert.equal(rows.get('D-15').state, 'partial');
 });
 
 test('weakest takes the least-ready state, not the most-ready', () => {

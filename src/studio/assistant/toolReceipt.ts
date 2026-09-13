@@ -5,6 +5,9 @@
  */
 const TITLES: Record<string, string> = {
   read_project_context: "Read the project context",
+  read_source_geometry: "Read PDF coordinates with Python",
+  prepare_source_room: "Prepared a source-aligned room overlay",
+  search_standards_library: "Searched NCC and housing references",
   navigate_workspace: "Opened a workspace pane",
   read_architect_design: "Read the architectural design",
   draw_architect_elements: "Drew design elements",

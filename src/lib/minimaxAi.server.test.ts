@@ -144,8 +144,18 @@ test("an aborted request never reaches the provider", async () => {
 test("images are marked as unsent rather than silently dropped", () => {
   const messages = toChatMessages([
     { role: "user", parts: [{ text: "What is this?" }, { inlineData: { mimeType: "image/png", data: "AAAA" } }] },
-  ]);
-  assert.match(messages[0].content, /cannot read images/, "a dropped attachment must be visible to the model, not silent");
+  ], "MiniMax-M2");
+  assert.match(String(messages[0].content), /cannot read images/, "a dropped attachment must be visible to the model, not silent");
+});
+
+test("M3 receives source and captured tool pixels after paired tool receipts", () => {
+  const messages = toChatMessages([
+    { role: "model", parts: [{ functionCall: { id: "capture-1", name: "capture_workspace_image", args: {} } }] },
+    { role: "user", parts: [{ functionResponse: { id: "capture-1", name: "capture_workspace_image", response: { images: 1 } } }, { inlineData: { mimeType: "image/png", data: "AAAA" } }] },
+  ], "MiniMax-M3");
+  assert.equal(messages[1].role, "tool");
+  assert.equal(messages[2].role, "user");
+  assert.deepEqual((messages[2].content as Array<unknown>)[1], { type: "image_url", image_url: { url: "data:image/png;base64,AAAA", detail: "high" } });
 });
 
 test("tool calls and their results pair up even when the contract carries no id", () => {

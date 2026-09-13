@@ -15,6 +15,8 @@ import {
   type SourceBuilding,
 } from "./sourceBuilding";
 import "./sourceBuilding.css";
+import { DocumentPreview } from './DocumentPreview';
+import { useLiveAssistant } from './liveAssistantState';
 import { createModelScope, type ModelScopeOptions } from "./ModelScope";
 import { BuildingVisualSettings } from "./BuildingVisualSettings";
 import { createBuildingEnvironment } from "./BuildingEnvironment";
@@ -44,7 +46,7 @@ type ViewOptions = {
   cutaway: boolean;
   explode: boolean;
   plan: boolean;
-  level: "all" | "ground" | "upper";
+  level: string;
 };
 type SceneApi = {
   navigate: (mode: "fly" | "walk", start?: WalkStart) => Promise<void>;
@@ -301,7 +303,7 @@ function createBuildingScene(
     ) &&
     (!ROOF_CATEGORIES.has(part.category) || options.roof) &&
     (options.level === "all" ||
-      (options.level === "ground"
+      (model.storeys?.some(storey => storey.id === options.level) ? part.storey === options.level : options.level === "ground"
         ? part.level !== "upper" && part.level !== "roof"
         : part.level !== "ground"));
   const fit = (direction?: [number, number, number]) => {
@@ -779,6 +781,7 @@ export function SourceBuildingViewer() {
     [checking, setChecking] = useState(false),
     [selected, setSelected] = useState<string | null>(null),
     [sourceIndex, setSourceIndex] = useState(0),
+    [compareSource, setCompareSource] = useState(false),
     [options, setOptions] = useState<ViewOptions>(
       () =>
         sessionViewOptions.get(binary?.sha256 ?? "") ?? {
@@ -1237,7 +1240,7 @@ export function SourceBuildingViewer() {
                   aria-label={`Open source page ${i + 1}`}
                   onClick={() => {
                     useStudio.getState().setSheet(i);
-                    useStudio.getState().setPane("sheets");
+                    if (!compareSource) useStudio.getState().setPane("sheets");
                   }}
                 >
                   <span className="building-page-number">{String(i + 1).padStart(2, "0")}</span>
@@ -1252,7 +1255,7 @@ export function SourceBuildingViewer() {
             <Link to="/floor-lab" className="floor-lab-launch">One-floor construction studio ↗</Link>
             <div>
               <span className="building-eyebrow">
-                {designed ? "DESIGNED MODEL / INFERRED, NO SOURCE DRAWING" : `SOURCE RECONSTRUCTION / ${config.title.toUpperCase()}`}{/* [SC-21 designed model] */}
+                {designed ? "AUTHORED DESIGN / INFERRED GEOMETRY" : `SOURCE RECONSTRUCTION / ${config.title.toUpperCase()}`}{/* [SC-21 designed model] */}
               </span>
               <h1>{ready ? "The drawing, in three dimensions" : designed ? "Your design, in three dimensions" : `Explore ${modelTitle}`}</h1>{/* [SC-21 designed model] */}
             </div>
@@ -1277,13 +1280,14 @@ export function SourceBuildingViewer() {
                   <span className="building-dot" />
                   Original PDF matched / {model.source.pageCount} sheets
                 </>
-              ) : config.sample ? (
+              ) : designed ? 'Editable design · compare against your source' : config.sample ? (
                 "Sample reconstruction - visual fidelity incomplete"
               ) : (
                 "Curated from your architectural plans"
               )}
             </span>
           </div>
+          {binary && <button type="button" className="building-compare-toggle" aria-pressed={compareSource} onClick={() => setCompareSource(value => !value)}>{compareSource ? 'Model only' : 'Sheet beside model'}</button>}
           {(error || documentError) && (
             <div className="building-error" role="alert">
               {error || documentError}
@@ -1299,6 +1303,12 @@ export function SourceBuildingViewer() {
               </button>
             </div>
           )}
+          <div className={`building-comparison${compareSource && binary ? ' is-comparing' : ''}`}>
+          {compareSource && binary && <section className="building-source-comparison" aria-label="Source sheet beside model">
+            <header><strong>Original sheet</strong><label>Sheet <select aria-label="Comparison source sheet" value={pageIndex} onChange={event => useStudio.getState().setSheet(Number(event.target.value))}>{Array.from({length: activeDocument?.pageCount ?? 1}, (_, index) => <option key={index} value={index}>{index + 1}</option>)}</select></label></header>
+            <button type="button" onClick={() => useLiveAssistant.setState({open:true, draft:`Read the active imported source ${binary.name}, document ID ${binary.documentId}, page ${pageIndex + 1}, using read_assistant_file. Draw an editable draft from that sheet with draw_architect_elements, preserving my existing design. Use a separate named level for the draft. Read the source before drawing; do not substitute a catalog reconstruction. Clearly identify inferred geometry and missing dimensions, then show the result in the wireframe model viewer.`})}>Ask assistant to draw this sheet</button>
+            <DocumentPreview binary={binary} pageIndex={pageIndex} pageCount={activeDocument?.pageCount} className="building-comparison-document" />
+          </section>}
           <div className="building-stage">
           {isDisplayable && (
             <BuildingVisualSettings
@@ -1395,8 +1405,7 @@ export function SourceBuildingViewer() {
                       }
                     >
                       <option value="all">Whole building</option>
-                      <option value="ground">Ground floor</option>
-                      <option value="upper">Upper floor</option>
+                      {designed && model.storeys?.length ? model.storeys.map(storey => <option key={storey.id} value={storey.id}>{storey.label}</option>) : <><option value="ground">Ground floor</option><option value="upper">Upper floor</option></>}
                     </select>
                   )}
                   <button
@@ -1580,6 +1589,7 @@ export function SourceBuildingViewer() {
             </div>
           )}
         </div>
+        </div>
         {isDisplayable && (
               <div ref={controlDock} className="building-toolbar building-control-dock" role="toolbar" aria-label="Model navigation">
                 <div className="building-tool-group" role="group" aria-label="Zoom and standard views">
@@ -1612,11 +1622,11 @@ export function SourceBuildingViewer() {
               </button>
             )}
           </div>
-          <h2>{part?.label ?? "Every part has a source"}</h2>
+          <h2>{part?.label ?? (designed ? "Authored design" : "Every part has a source")}</h2>
           <p className="building-evidence-state">
             {part
               ? `${part.category} · ${part.evidenceState}`
-              : "Select geometry to inspect the original sheet."}
+              : designed ? "Inferred geometry. Compare it against the original sheet before relying on it." : "Select geometry to inspect the original sheet."}
           </p>
           {ready && (
             <label className="building-part-picker">
@@ -1631,7 +1641,7 @@ export function SourceBuildingViewer() {
               </select>
             </label>
           )}
-          {sheet && (
+          {sheet && !designed && (
             <>
               <a
                 className="building-source-image"
@@ -1687,7 +1697,7 @@ export function SourceBuildingViewer() {
             </div>
           )}
           <div className="building-boundary">
-            <b>Curated reconstruction</b>
+            <b>{designed ? 'Authored design · unverified' : 'Curated reconstruction'}</b>
             {model?.source.author && (
               <p>
                 {model.source.title}
@@ -1714,7 +1724,7 @@ export function SourceBuildingViewer() {
             <details>
               <summary>Source and assumptions</summary>
               <p className="building-hash">
-                PDF SHA-256
+                {designed ? 'Design SHA-256' : 'PDF SHA-256'}
                 <br />
                 {model?.source.sha256}
               </p>

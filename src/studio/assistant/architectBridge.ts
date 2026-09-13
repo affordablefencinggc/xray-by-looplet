@@ -18,7 +18,7 @@ const pitch = z.number().min(0).max(89.9);
 const eaves = z.number().min(0).max(3000);
 const gableEdges = z.array(z.number().int().nonnegative().max(199)).max(200);
 export const architectOperationSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("wall"), ...reference, levelId: id, a: point, b: point, heightMm: positive.optional(), name: name.optional(), templateWallId: id.optional() }).strict(),
+  z.object({ kind: z.literal("wall"), ...reference, levelId: id, a: point, b: point, heightMm: positive.optional(), thicknessMm: positive.optional(), name: name.optional(), templateWallId: id.optional() }).strict(),
   z.object({ kind: z.literal("door"), ...opening }).strict(),
   z.object({ kind: z.literal("window"), ...opening, sillMm: z.number().finite().nonnegative().max(1e6) }).strict(),
   z.object({ kind: z.literal("line"), ...reference, levelId: id, a: point, b: point }).strict(),
@@ -67,14 +67,16 @@ function prepareArchitectElementsDraft(project: ArchitectProject, input: unknown
     if (templateWallId && !template) throw Error("Wall assembly template was not found.");
     return { template, layers: (template ? structuredClone(template.layers) : defaultLayers()).map(layer => ({ ...layer, id: makeId() })) };
   };
-  const addWall = (levelId: string, a: Point, b: Point, options: { heightMm?: number; name?: string; templateWallId?: string }) => {
+  const addWall = (levelId: string, a: Point, b: Point, options: { heightMm?: number; thicknessMm?: number; name?: string; templateWallId?: string }) => {
+    if (options.thicknessMm !== undefined && options.templateWallId) throw Error('Choose an explicit wall thickness or an assembly template, not both.');
     const { template, layers } = wallLayers(options.templateWallId);
+    if (options.thicknessMm !== undefined) layers.splice(0, layers.length, { ...layers[0], name: 'Unspecified wall material', thickness: options.thicknessMm, densityKgM3: null, rateM2: null, supplierReference: '', rateRevision: '', hatch: 'none' });
     const wall = newWall(draft, levelId, a, b, layers);
     wall.id = makeId();
     if (options.name) wall.name = options.name;
     if (options.heightMm !== undefined) wall.height = options.heightMm;
     draft.walls.push(wall);
-    if (!template) notices.push(`Wall ${wall.id} uses the existing unpriced default assembly. Review its layers and dimensions.`);
+    if (!template) notices.push(options.thicknessMm !== undefined ? `Wall ${wall.id} uses an explicit thickness with unspecified, unpriced material. Thickness is not verified source measurement.` : `Wall ${wall.id} uses the existing unpriced default assembly. Review its layers and dimensions.`);
     return wall;
   };
   const addLevel = (levelName: string, elevation: number, height: number) => {

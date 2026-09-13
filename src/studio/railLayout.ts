@@ -10,7 +10,7 @@ export function railWidth(
   other: number,
 ): number {
   const min = side === "left" ? 200 : 320,
-    max = side === "left" ? 440 : 600;
+    max = side === "left" ? 440 : 1000;
   return Math.round(
     Math.max(
       min,

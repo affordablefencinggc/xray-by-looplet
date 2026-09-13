@@ -202,7 +202,7 @@ The native package was tested in an isolated profile only and was **not installe
 
 Latest user scope is tablet/laptop/desktop on Windows/macOS/Linux, excluding phone use. Earlier phone evidence is historical. Tablet-specific layouts and macOS/Linux native packages remain unverified; this acceptance covers the stated built-browser and isolated Windows-native scenarios only. No full-register completion percentage, full restoration, live Firecrawl pricing, staff delivery or general industry-readiness claim is made.
 
-## Safe pause after staged pushes � 2026-09-07
+## Safe pause after staged pushes � 2026-09-07
 
 User requested: "pause at next safe point and push changes in stages". Source is frozen; no further feature work is running. Application9db51ed, tablet0dd730e and toolingf72a839 were pushed separately to origin/feat/architect-cad-engine. Evidence/ledger publication is the commit containing this entry.
 
@@ -388,3 +388,52 @@ Verified in existing Edge with an isolated QA project: calibration, area/run, un
 
 ### 2026-09-13 — D-10 authored plan overlay
 Earlier/later plan layers, level choice, changed-only emphasis and preview-only translation/rotation/opacity/visibility/reset verified. Four geometry tests and 26/26 desktop/tablet component interaction operations passed; exact source included in DANS1 build 2f46514c2abd. Scanned-PDF registration and 3D Boolean differences are outside scope. Proof: proof/growth/2026-09-13-revision-overlay/README.md. Commit pending on feat/architect-cad-engine.
+
+### 2026-09-13 � Endpoint joining and visible room proof
+Fixed extension guidance winning over a nearby wall endpoint. Reproduced failure before fix; 24 geometry/regression tests, 41/41 development UI operations and 41/41 compiled UI operations passed. Actual room plan/3D, opening schedule, quantities and saved design captured. DANS1 bd08af9503c0 typecheck, 86 focused tests and web build passed. Edge takeoff edit/undo verified; manual corrected-room follow-up remains open because browser attachment fails. Proof: proof/growth/2026-09-13-visible-working-example/README.md. Branch feat/architect-cad-engine, source fix uncommitted.
+
+### 2026-09-13 — Sheet 3 comparison and actual MiniMax drawing
+Connected the active imported source to the assistant file reader with byte/hash verification. MiniMax read actual PDF page 3 and saved 10 inferred walls and 7 room tags on a separate level, preserving the manually completed QA room. Added Sheet beside model and source-bound drawing prompt; corrected authored-model source labels. 33 focused tests, typecheck, DANS1 web build 07fd5df6fefb and 19/19 compiled comparison operations passed. The MiniMax draft is not a faithful PDF reconstruction; geometry positions and heights remain inferred and openings are absent. Proof: proof/growth/2026-09-13-sheet3-assistant/README.md. Branch feat/architect-cad-engine; source uncommitted.
+
+Final follow-up: fixed duplicate workspace stores across browser module URLs, with subscriptions installed once and server state isolated. 35 focused tests, 10/10 browser identity/navigation operations, DANS1 build 491b4ea42782 and 19/19 compiled comparison operations passed. Activated the real app comparison in this PC's Edge. MiniMax's repetitive checks remain open; stopped that response. Same proof directory; source uncommitted.
+
+
+### 2026-09-13 — M3 image transport and live retry (reconstruction incomplete)
+M3 selected and status verified. Source/tool pixels now reach M3; 34 focused tests and typecheck passed. Live Sheet 3 retry read the image but proposed inconsistent geometry; edit denied and response stopped, preserving revision 18. No production-build claim. Files and proof: proof/growth/2026-09-13-m3-switch/README.md.
+
+## 2026-09-13 ? NCC archive, compact chat and continuity
+
+- [x] Private standards archive uploaded and byte/hash readback verified; local search and reference selection exercised in Edge.
+- [x] Actual MiniMax-M3 library search completed without project edits.
+- [x] One-row assistant controls and History handover; reload, draft, hide-during-response and original-history restoration verified.
+- [x] 57 focused tests and DANS1 web build/typecheck passed; compiled UI inspected and controls exercised.
+- [ ] Hosted/native authenticated standards access and OCR for 26 empty pages remain open.
+- [ ] Full Sheet 3 reconstruction remains unqualified; partial Python WIL drawing saved at revision 19 with assumptions.
+
+Recovery: proof/growth/2026-09-13-ncc-library/README.md and changes.patch; build 4449a46a6959. Branch feat/architect-cad-engine, uncommitted.
+
+- [x] 2026-09-13: NCC search results grouped by document with clickable page pills; removable, refresh-persistent composer references and actual MiniMax source delivery verified in Edge. Eleven tests and DANS1 web build/typecheck e4b7c3253bff passed. Recovery: proof/growth/2026-09-13-ncc-pills/README.md and changes.patch. Uncommitted on feat/architect-cad-engine.
+
+## 2026-09-13 assistant history/maps/copy
+- Implemented and exercised: persistent chat reopen/bottom-follow, expanded history/archive/selected-thread handover, wider Drawings assistant rail and robot seam control, separate top-down map settings, contextual copy controls. DANS1 e19da7744df6 web build and typecheck pass; real Edge interaction proof in proof/growth/2026-09-13-assistant-history-maps/README.md.
+- Pending: automatic government/publisher startup version verification, evidence-backed Verified/date badges, council location-specific applicability. Added research skill includes council planning schemes, zoning, overlays and local laws; it is not an automatic verifier. No document labelled latest from a download date or filename.
+
+2026-09-13 correction: Derive council location from source plans first; use official web council/boundary/property lookup. Do not ask the user for a council by default. MiniMax search transport remains an explicit open dependency; Gemini web_search exists. Updated Check reference library skill and passed its 6 tests.
+
+2026-09-13: Reference workflow expanded to developer covenants, estate design guidelines, lot/stage schedules and project specifications. Discover from plans/attachments and web-search address/lot/plan/estate; verify source and applicability before reference use. Separate from council/NCC; absent public results are not proof of absent restrictions. Skill-only change; search transport/startup verification remains pending.
+
+2026-09-13: Separate optional Guard rails skill identifies the governing factors for the project; applicability itself is not optional. Library currency checking remains a separate skill. Skill tests pass; research execution/search-provider integration still open.
+
+2026-09-13: Monkey see/do and blue slash predictions implemented and exercised in Edge: eight events persisted across close/reload, actual read-only model review, confirmation then named file readback. Inspect project evidence first. 58 tests and DANS1 build/typecheck 6c9a33cd0707 pass; compiled desktop/mobile render checked. Model review is fallible proposed guidance, not automatic replay. Proof: proof/growth/2026-09-13-monkey-workflow/README.md. Uncommitted shared tree; broader pending items unchanged.
+
+- 2026-09-13 assistant developer-review/suggestion refinement: IMPLEMENTED, VISUAL ACCEPTANCE PENDING. Default-on persistent developer toggle; generic footer yields to current reply choices/references and slash suggestions. 42 tests and DANS1 d8f9f32ebb61 build/typecheck pass. Local Edge timeout and remote sandbox infra failure block final UI acceptance. Monkey app counts corrected; model review quality still fallible. See proof/growth/2026-09-13-developer-mode/README.md. No broader checklist item closed.
+
+- 2026-09-13 developer review scope: logic and live-response check passed (18 tests). Recording-only self-review no longer instructed to seek current-state evidence. Proof: proof/growth/2026-09-13-review-scope/README.md. Broader visual acceptance remains separate.
+
+- 2026-09-13 navigation prominence: existing light-theme Edge visual check passes; labels 16px, targets 44px, warm background, saved row height retained. Proof: proof/growth/2026-09-13-navigation-prominence/README.md. Charcoal and production render checks remain unclaimed.
+
+- 2026-09-13 assistant seam controls: desktop visual and drag checked; compact agent tile and adjacent grip. Build/typecheck pass af3c17d22a41. Proof: proof/growth/2026-09-13-seam-controls/README.md. Tablet/compiled-browser acceptance unclaimed.
+
+- 2026-09-13 rail/timestamps: single combined control restored rail in Edge; timestamp persistence tests pass,20 focused tests. Drag render/storage overhead reduced, final performance and timestamp visual acceptance pending Edge recovery. Evidence: proof/growth/2026-09-13-rail-timestamps/README.md.
+
+- [x] 2026-09-13: Single assistant button click-collapse/reopen and full divider drag verified in existing Edge; 17 rail tests + build/typecheck pass. Short performance sample median16.7ms, p9533.4ms (occasional dropped frames remain). proof/growth/2026-09-13-click-rail/README.md

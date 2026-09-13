@@ -48,7 +48,9 @@ export async function runConversation(options: {
       if (required) {
         contents.push({ role: 'user', parts: [{ text: `[xray:workflow-check] ${required}` }] });
         options.checkpoint(contents);
-        if (++finalCorrections > 2) throw Error('Workflow incomplete after two correction attempts. Completed actions and the next required step are saved.');
+        // The caller limits the optional self-review reminder to one. It must not consume
+        // a workflow correction or turn completed project work into a formatting failure.
+        if (!required.startsWith('[xray:developer-review]') && ++finalCorrections > 2) throw Error('Workflow incomplete after two correction attempts. Completed actions and the next required step are saved.');
         continue;
       }
     }

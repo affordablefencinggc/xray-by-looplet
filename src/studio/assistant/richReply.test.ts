@@ -2,10 +2,27 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   MAX_OPTIONS, OPTION_SEND_MAX, SELECT_SHAPE_SUGGESTION, USE_IMAGE_SUGGESTION,
-  latestReplyImage, parseReplyOptions, suggestionsFor,
+  latestReplyImage, parseReplyOptions, suggestionsFor, hasCurrentReplyChoices,
 } from "./richReply.ts";
 
 const sends = (text: string) => parseReplyOptions(text).options.map(option => option.send);
+
+test('fallback suggestions yield to current choices, questions and reference cards, not history', () => {
+  const choice = { kind: 'assistant', text: 'Choose one:\n1. Draw walls\n2. Add windows' };
+  assert.equal(hasCurrentReplyChoices([choice]), true);
+  assert.equal(hasCurrentReplyChoices([{ kind: 'assistant', text: 'Which floor?' }]), true);
+  assert.equal(hasCurrentReplyChoices([{ kind: 'tool', text: '', selectableReference: true }, { kind: 'assistant', text: 'Found two references.' }]), true);
+  assert.equal(hasCurrentReplyChoices([choice, { kind: 'user', text: 'Draw walls' }, { kind: 'assistant', text: 'Walls drawn.' }]), false);
+  assert.equal(hasCurrentReplyChoices([choice, { kind: 'assistant', text: 'Task complete.' }]), false);
+  assert.equal(hasCurrentReplyChoices([]), false);
+});
+
+test('developer self-assessment never becomes a choice or hides fallback suggestions', () => {
+  const review = '\n\n### Developer review\n1. Outcome: offered options.\n2. Improvement: choose shorter explanations.\nWas that useful?';
+  assert.deepEqual(parseReplyOptions('Task complete.' + review), { options: [], questions: [] });
+  assert.deepEqual(sends('Choose one:\n1. Draw walls\n2. Add windows' + review), ['Draw walls', 'Add windows']);
+  assert.equal(hasCurrentReplyChoices([{ kind: 'assistant', text: 'Task complete.' + review }]), false);
+});
 
 test("numbered lists become options without their markers", () => {
   const reply = "I can do this two ways:\n\n1. Draw the walls first, then add openings.\n\n2. Draw the whole footprint as one extrusion.\nWhich do you prefer?";

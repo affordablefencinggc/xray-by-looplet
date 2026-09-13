@@ -11,7 +11,7 @@
   gap: 4px;
   padding: 3px;
   border: 1px solid #cfd7df;
-  border-radius: 6px 999px 999px 6px;
+  border-radius: var(--radius-pill, 6px);
   background: #f3f5f8;
   width: max-content;
   max-width: 100%;
@@ -31,7 +31,7 @@
   min-height: var(--assistant-pill-height, 28px);
   padding: 0 var(--assistant-pill-padding, 10px);
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 6px);
   background: transparent;
   color: #3b4a58;
   font-size: var(--assistant-pill-font-size, 11px);
@@ -80,7 +80,7 @@
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid #cfd7df;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 6px);
   background: #fff;
   color: #28303a;
   font-size: 12px;
@@ -102,3 +102,21 @@
 }
 /* [PROVIDER] Anchors the model menu, so it spans the panel rather than the small button. */
 .assistant-controls-row { position: relative; }
+
+/* One compact toolbar: project, permission mode, model. */
+.assistant-controls-row.is-compact { flex-wrap: nowrap; gap: 5px; }
+.is-compact .assistant-permission { padding: 0; border: 0; border-radius: 0; background: transparent; flex: 0 1 122px; min-width: 0; }
+.live-assistant .is-compact select {
+  width: 100%; min-width: 0; min-height: 28px; height: 28px;
+  padding: 0 4px; border: 1px solid #cfd7df; border-radius: 6px;
+  font-size: 11px; color: #3b4a58; background: #f3f5f8;
+  text-overflow: ellipsis;
+}
+.assistant-project-compact { display: flex; align-items: center; min-width: 0; flex: 1 1 90px; }
+.live-assistant .assistant-project-compact button { width: 20px; min-width: 20px; height: 28px; min-height: 28px; padding: 0; border: 0; background: transparent; }
+.live-assistant .is-compact .assistant-provider-button { height: 28px; min-height: 28px; padding: 0 5px; font-size: 11px; }
+@media (pointer: coarse) {
+  .live-assistant .is-compact select,
+  .live-assistant .assistant-project-compact button,
+  .live-assistant .is-compact .assistant-provider-button { height: 40px; min-height: 40px; }
+}

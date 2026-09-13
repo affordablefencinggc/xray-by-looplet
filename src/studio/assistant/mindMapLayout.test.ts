@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { MIND_MAP, layoutMindMap, truncateLabel } from "./mindMapLayout.ts";
 import { parseMindMap } from "./replyMarkdown.ts";
 
-test("a root with two children lays out left to right with the root centred on its children", () => {
+test("a root with two children lays out top down with the root centred on its children", () => {
   const layout = layoutMindMap(parseMindMap("Building\n  Ground\n  Roof")!);
   const root = layout.nodes.find(node => node.depth === 0)!;
   const children = layout.nodes.filter(node => node.depth === 1);
   assert.equal(children.length, 2);
-  assert.equal(root.x, MIND_MAP.padding);
-  assert.ok(children.every(child => child.x > root.x + root.width));
-  assert.equal(root.y, (children[0].y + children[1].y) / 2);
+  assert.equal(root.y, MIND_MAP.padding);
+  assert.ok(children.every(child => child.y > root.y + root.height));
+  assert.equal(root.x+root.width/2, (children[0].x+children[0].width/2 + children[1].x+children[1].width/2) / 2);
   assert.equal(layout.edges.length, 2);
   assert.ok(layout.edges.every(edge => edge.path.startsWith("M ") && edge.path.includes(" C ")));
   assert.ok(layout.width > 0 && layout.height >= children[1].y + children[1].height);

@@ -1,11 +1,17 @@
-import { getAssistantFile, listAssistantFiles, attachmentImagePreview } from './attachmentFiles.ts';
+import { getAssistantFile, listAssistantFiles, attachmentImagePreview, hashAttachment } from './attachmentFiles.ts';
+import type { PlanBinary } from '../documentContract.ts';
 
-export async function readAttachment(projectId: string, fileId?: string, pageNumber = 1, offset = 0) {
+export async function readAttachment(projectId: string, fileId?: string, pageNumber = 1, offset = 0, source?: PlanBinary | null) {
+  const sourceMetadata = source ? { id: source.documentId, projectId, name: source.name, size: source.sizeBytes, type: source.mimeType, sha256: source.sha256, origin: 'Imported project source' } : null;
   if (!fileId) {
-    const all = await listAssistantFiles(projectId);
+    const all = [...(sourceMetadata ? [sourceMetadata] : []), ...await listAssistantFiles(projectId)];
     return { content: [{ type: 'text' as const, text: JSON.stringify({ files: all.slice(offset, offset + 20), total: all.length, nextOffset: offset + 20 < all.length ? offset + 20 : null, evidence: 'User attachments; governing revision and calibration not established.' }) }] };
   }
-  const { metadata, blob } = await getAssistantFile(projectId, fileId);
+  const importedSource = source && fileId === source.documentId;
+  const { metadata, blob } = importedSource
+    ? { metadata: sourceMetadata!, blob: new Blob([Uint8Array.from(source.bytes)], { type: source.mimeType }) }
+    : await getAssistantFile(projectId, fileId);
+  if (importedSource && (blob.size !== metadata.size || await hashAttachment(blob) !== metadata.sha256)) throw Error('Imported source bytes do not match the registered document. Reopen the source before reading it.');
   const extension = metadata.name.split('.').at(-1)!.toLowerCase();
   if (['png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
     const preview = await attachmentImagePreview(blob);

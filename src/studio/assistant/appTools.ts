@@ -2,6 +2,9 @@ import { ArchitectPreparationRejected, preparationReceipt } from './actionOutcom
 import { WORKFLOWS, WORKFLOW_VERSION, workflowNames, workflowSelectionSchema } from './workflowRouting.ts';
 import { z } from "zod";
 import { readAttachment } from './readAttachment.ts';
+import { readSourceGeometry, sourceGeometryArgs } from './sourceGeometry.ts';
+import { searchStandardsLibrary, standardsOriginalUrl } from './standardsLibrary.ts';
+import { prepareSourceRoom, sourceRoomOverlay, sourceRoomSchema } from './sourceRoom.ts';
 import type { FencingJob } from "../domain.ts";
 import type { Pane } from "../store.ts";
 import { ARCHITECT_BATCH_LIMIT, architectDrawSchema, architectReadSchema, architectRevisionSchema, hasArchitectController, requestArchitectTool } from "./architectBridge.ts";
@@ -24,6 +27,7 @@ export type AppToolResult = { content: Array<{ type: "text"; text: string } | { 
 export type AppTool = { name: string; description: string; inputSchema: { type: "object"; [key: string]: unknown }; execute(args: unknown): Promise<AppToolResult> };
 export const APP_PANES = ["overview", "sheets", "measure", "sketch", "components", "model", "render", "review", "cost", "proof"] as const;
 type AppState = {
+  activePlanBinary?: import('../documentContract.ts').PlanBinary | null;
   job: Pick<FencingJob, "id" | "name" | "revision" | "documents" | "activeDocumentId" | "annotations" | "runs" | "gates" | "calibrations" | "photos">;
   pane: Pane; sheet: number; hydrationStatus: string; persistenceHydrated: boolean; persistenceRecoveryBlocked: boolean;
   persistenceError: string | null; lastSavedJobRevision: number | null;
@@ -74,7 +78,7 @@ const pitchDeg = { type: "number", minimum: 0, maximum: 89.9 }, eavesMm = { type
 const gableEdges = { type: "array", items: { type: "integer", minimum: 0, maximum: 199 }, maxItems: 200 };
 const operations = {
   type: "array", minItems: 1, maxItems: ARCHITECT_BATCH_LIMIT, items: { oneOf: [
-    objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, name, templateWallId: id }, ["kind", "levelId", "a", "b"]),
+    objectSchema({ kind: { const: "wall" }, ref, levelId: id, a: point, b: point, heightMm: positive, thicknessMm: positive, name, templateWallId: id }, ["kind", "levelId", "a", "b"]),
     objectSchema({ kind: { const: "door" }, ...opening }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "tag", "hinge", "swing"]),
     objectSchema({ kind: { const: "window" }, ...opening, sillMm: { type: "number", minimum: 0, maximum: 1e6 } }, ["kind", "wallRef", "offsetMm", "widthMm", "heightMm", "sillMm", "tag", "hinge", "swing"]),
     objectSchema({ kind: { const: "line" }, ref, levelId: id, a: point, b: point }, ["kind", "levelId", "a", "b"]),
@@ -171,17 +175,54 @@ export function createAppTools(port: AppToolPort): AppTool[] {
     },
   });
   return [
+    tool('search_standards_library', 'Search this computer’s downloaded NCC and housing reference PDFs. Returns up to 20 original-page excerpts with document hashes, edition labels and links. Optional edition narrows the search. Summary guides and ZIP archives are excluded. Check the printed document title and jurisdiction; filenames and applicability are unverified. Cite PDF pages and only section identifiers present in source text. Keyword results are not an exhaustive compliance assessment.', objectSchema({expectedJobId:id,topic:{type:'string',minLength:2,maxLength:200},edition:{type:'string',pattern:'^(19|20)[0-9]{2}$'}},['expectedJobId','topic']), async input=>{
+      const args=z.object({expectedJobId:idSchema,topic:z.string().trim().min(2).max(200),edition:z.string().regex(/^(19|20)\d{2}$/).optional()}).strict().parse(input);
+      checkProject(await port.getState(),args.expectedJobId);
+      const matches=await searchStandardsLibrary(args.topic,args.edition);
+      checkProject(await port.getState(),args.expectedJobId);
+      return text({matches:matches.map(match=>({...match,originalUrl:standardsOriginalUrl(match.documentId,match.page)})),scope:'Source excerpts only. Verify printed title, edition, jurisdiction and applicability before relying on a reference.'});
+    }),
     tool("read_workflow_route", "Select the structured process for this task: discussion, inspect, architecture, takeoff, render or export. Returns ordered tool steps; the orchestrator tracks prerequisites and current-revision receipts. Select before task actions. Selection does not grant edit permission or execute geometry. Change the selection only when the user's intended task changes.", objectSchema({ expectedJobId: id, workflow: { enum: [...workflowNames] } }), async input => {
       const args = workflowSelectionSchema.parse(input);
       checkProject(await port.getState(), args.expectedJobId);
       return text({ version: WORKFLOW_VERSION, workflow: args.workflow, steps: WORKFLOWS[args.workflow], scope: "Workflow selection only; no geometry, evidence or authority changed." });
     }),
-    tool("read_assistant_file", "Read project attachments saved through Live assistant. Omit fileId to list files (offset paginates 20 records). For PDF, choose page (1-based): returns a rendered page and extracted text (offset paginates 16000 text characters). For images returns a resized preview. TXT, CSV, JSON, DXF, IFC and SVG return raw text excerpts (offset is a byte offset, nextOffset continues). Original files stay on device; never treat an excerpt as the whole file or CAD text as validated geometry. Hash identifies the stored original, not approval or calibration.", objectSchema({ expectedJobId: id, fileId: id, page: { type: "integer", minimum: 1 }, offset: { type: "integer", minimum: 0 } }, ["expectedJobId"]), async input => {
+    tool("read_assistant_file", "Read the active imported project source PDF as well as files saved through Live assistant. The active document ID from read_project_context is a valid fileId; no duplicate upload is needed. Omit fileId to list files (offset paginates 20 records). For PDF, choose page (1-based): returns a rendered page and extracted text (offset paginates 16000 text characters). For images returns a resized preview. TXT, CSV, JSON, DXF, IFC and SVG return raw text excerpts (offset is a byte offset, nextOffset continues). Original files stay on device; never treat an excerpt as the whole file or CAD text as validated geometry. Hash identifies the stored original, not approval or calibration.", objectSchema({ expectedJobId: id, fileId: id, page: { type: "integer", minimum: 1 }, offset: { type: "integer", minimum: 0 } }, ["expectedJobId"]), async input => {
       const args = z.object({ expectedJobId: idSchema, fileId: idSchema.optional(), page: z.number().int().positive().optional(), offset: z.number().int().nonnegative().optional() }).strict().parse(input);
-      checkProject(await port.getState(), args.expectedJobId);
-      const result = await readAttachment(args.expectedJobId, args.fileId, args.page, args.offset);
-      checkProject(await port.getState(), args.expectedJobId);
+      const state = await port.getState();
+      checkProject(state, args.expectedJobId);
+      const source = state.activePlanBinary;
+      const registered = state.job.documents.find(doc => doc.id === state.job.activeDocumentId);
+      const matchedSource = source && registered?.id === source.documentId && registered.sha256 === source.sha256 ? source : null;
+      const result = await readAttachment(args.expectedJobId, args.fileId, args.page, args.offset, matchedSource);
+      const after = await port.getState();
+      checkProject(after, args.expectedJobId);
+      if (matchedSource && after.job.activeDocumentId !== matchedSource.documentId) throw Error('The active source changed while reading. Read the current source again.');
       return result;
+    }),
+    tool("read_source_geometry", "Read actual PDF line endpoints, stable segment IDs, positioned characters and a source close-up through the local Python engine. Use before reconstructing a PDF. Region is normalized [left,top,width,height], all returned coordinates are full-page top-left PDF points. Start with a small room region and use offset to retrieve additional groups of 200 segments sorted longest first. minimumLengthPt defaults to 2; use 0 to include short details. Page lines include hatching, fixtures and dimensions, not just walls. For engine-computed millimetres, supply a real scaleSegmentId and its printed knownLengthMm; the dimension association remains unverified, not locked calibration. No wall classification or guessed fallback. Returns unavailable if Python is not connected.", objectSchema({ expectedJobId: id, page: { type: 'integer', minimum: 1, maximum: 100 }, region: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, offset: { type: 'integer', minimum: 0, maximum: 600000 }, minimumLengthPt: { type: 'number', minimum: 0, maximum: 1000 }, scaleSegmentId: { type: 'string', maxLength: 200 }, knownLengthMm: { type: 'number', exclusiveMinimum: 0, maximum: 100000 } }, ['expectedJobId', 'page']), async input => {
+      const args = sourceGeometryArgs.parse(input), state = await port.getState(); checkProject(state, args.expectedJobId);
+      const source = state.activePlanBinary, registered = state.job.documents.find(doc => doc.id === state.job.activeDocumentId);
+      if (!source || source.documentId !== registered?.id || source.sha256 !== registered.sha256) throw Error('Open the matching original PDF before extracting coordinates.');
+      const result = await readSourceGeometry(source, args);
+      const after = await port.getState(); checkProject(after, args.expectedJobId);
+      if (after.activePlanBinary?.sha256 !== source.sha256 || after.job.activeDocumentId !== source.documentId) throw Error('Source changed during extraction. Read the current source again.');
+      return result;
+    }),
+    tool('prepare_source_room', 'Prepare an orthogonal room from ordered source wall-face segment IDs and a real door-leaf reference. Python calculates scale; geometry code intersects faces, offsets centerlines by half the stated wall thickness, and places the hosted opening. Returns ready-to-use draw_architect_elements operations plus a blue source overlay for inspection. Does not edit the project. Inspect the overlay before drawing, and use the returned operations unchanged. Caller must identify the correct source faces and printed door-width association; heights and material are unverified.', objectSchema({ expectedJobId:id, page:{type:'integer',minimum:1,maximum:100}, region:{type:'array',items:{type:'number',minimum:0,maximum:1},minItems:4,maxItems:4},
+      boundaryIds:{type:'array',items:{type:'string'},minItems:4,maxItems:12}, doorLeafId:{type:'string'},doorWallIndex:{type:'integer',minimum:0,maximum:11},doorHingeEndpoint:{enum:['a','b']},doorDirection:{enum:['forward','backward']},doorWidthMm:positive,wallThicknessMm:positive,wallHeightMm:positive,doorHeightMm:positive,levelName:name }), async input=>{
+      const raw=input as Record<string,unknown>, {expectedJobId,page,region,...room}=raw;
+      const args=sourceGeometryArgs.parse({expectedJobId,page,region,minimumLengthPt:10,scaleSegmentId:room.doorLeafId,knownLengthMm:room.doorWidthMm});
+      sourceRoomSchema.parse(room);
+      const state=await port.getState();checkProject(state,args.expectedJobId);
+      const source=state.activePlanBinary,registered=state.job.documents.find(d=>d.id===state.job.activeDocumentId);
+      if(!source||source.documentId!==registered?.id||source.sha256!==registered.sha256)throw Error('Open the matching original PDF.');
+      const result=await readSourceGeometry(source,args),geometry=JSON.parse(result.content[0].text!);
+      const prepared=prepareSourceRoom(geometry,room);
+      const overlay=await sourceRoomOverlay(prepared,result.content[1] as {data:string;mimeType:string},geometry.regionPt);
+      const after=await port.getState();checkProject(after,args.expectedJobId);
+      if(after.activePlanBinary?.sha256!==source.sha256||after.job.activeDocumentId!==source.documentId)throw Error('Source changed during preparation.');
+      return {content:[{type:'text' as const,text:JSON.stringify({...prepared,documentId:source.documentId,note:'Blue geometry overlays the original source pixels; this is a proposal, not a saved or verified model.'})},overlay]};
     }),
     tool("read_project_context", "Read the current local project identity/revision, source list and save/recovery status. No external data is fetched.", objectSchema({}), async args => {
       emptySchema.parse(args); const state = await port.getState();

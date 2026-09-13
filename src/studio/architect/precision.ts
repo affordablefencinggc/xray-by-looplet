@@ -120,8 +120,12 @@ export function snapPoint(
         if (inArc(a, pt) && inArc(b, pt)) push(pt, "intersection");
       }
     }
+  // An extension is a guide, not a connection. Near an existing endpoint,
+  // prefer joining it even when the pointer is closer to its extended line.
+  const hasEndpoint = candidates.some(candidate => candidate.kind === "endpoint");
   return (
-    candidates.sort((a, b) => distance(a.point, p) - distance(b.point, p))[0] ?? {
+    candidates.filter(candidate => !hasEndpoint || candidate.kind !== "extension")
+      .sort((a, b) => distance(a.point, p) - distance(b.point, p))[0] ?? {
       point: p,
       kind: null,
     }

@@ -1,6 +1,7 @@
 import { readExecutionBudget } from './executionBudget';
 import { useEffect } from 'react';
 import { create } from 'zustand';
+import { browserSingleton } from '../browserSingleton';
 import { useStudio } from '../store';
 import { assistantTurn } from './transport';
 import { providerSupportsTool, useAssistantProvider } from './provider';
@@ -21,22 +22,37 @@ export const CONTEXT_CARRIED_UNAVAILABLE = 'Carried context (your saved profile 
 // [SC-22 context] end
 // [SC-22 capture] begin
 import { captureTurn } from './contextCapture';
-import { chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
+import { useDeveloperMode } from './developerPreferences';
+import { developerReviewInstruction, hasDeveloperReview } from './developerMode';
+import { archiveChat, chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
 import { listWorkPackets, readWorkEvents, verifyWorkJournal } from './workPacketStore';
 // [SC-22 capture] end
 export type ChatEntry = Omit<ChatEvent, 'kind'> & { id: string; kind: 'user' | 'assistant' | 'tool';
+  timestamp?: string;
   /** [PROVENANCE] The project a tool row acted on, stamped when the row is created. */
   projectName?: string; projectRevision?: number };
 /** `tokens`/`context` are derived from `contents` on every update so the panel can meter the provider transcript. */
 type Conversation = SavedChat & { estimate: ContextMeasure; tokens: number; context: ContextState };
-const empty = (): Conversation => ({ id: crypto.randomUUID(), updatedAt: new Date().toISOString(), entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
+const empty = (): Conversation => ({ id: crypto.randomUUID(), startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), entries: [], contents: [], busy: false, error: null, estimate: { tokens: 0, bytes: 0, count: 0 }, tokens: 0, context: contextState(0) });
 const blank = empty();
-const useChats = create<{ records: Record<string, Conversation>; ready: Record<string, boolean> }>(() => ({ records: {}, ready: {} }));
-const controllers = new Map<string, AbortController>();
-const histories = new Map<string, { archive: ChatArchive; revision: number; queue: Promise<void>; failure: string | null }>();
-const loads = new Map<string, Promise<void>>();
-const changingChats = new Set<string>();
-const saved = (value: Conversation): SavedChat => ({id:value.id,updatedAt:new Date().toISOString(),entries:value.entries,contents:value.contents,busy:value.busy,error:value.error,...(value.workPacket?{workPacket:value.workPacket}:{})});
+// A panel remount or hot module replacement must not create a second, empty chat
+// store while the original model request is still writing to the first one.
+const runtime = browserSingleton('xray.assistant-chat-runtime.v1', () => ({
+  useChats: create<{ records: Record<string, Conversation>; ready: Record<string, boolean> }>(() => ({ records: {}, ready: {} })),
+  controllers: new Map<string, AbortController>(),
+  histories: new Map<string, { archive: ChatArchive; revision: number; queue: Promise<void>; failure: string | null }>(),
+  loads: new Map<string, Promise<void>>(),
+  changingChats: new Set<string>(),
+}));
+const { useChats, controllers, histories, loads, changingChats } = runtime.value;
+if (runtime.created && typeof window !== 'undefined') {
+  useStudio.subscribe(state => {
+    for (const [projectId, controller] of controllers) {
+      if (state.job.id !== projectId || state.persistenceRecoveryBlocked) controller.abort();
+    }
+  });
+}
+const saved = (value: Conversation): SavedChat => ({id:value.id,startedAt:value.startedAt,updatedAt:new Date().toISOString(),entries:value.entries,contents:value.contents,busy:value.busy,error:value.error,...(value.workPacket?{workPacket:value.workPacket}:{})});
 const restored = (value: SavedChat): Conversation => {
   const thread = restoreChat(value), estimate = measureContext(thread.contents);
   return {...thread,estimate,tokens:estimate.tokens,context:contextState(estimate.tokens,{count:estimate.count,bytes:estimate.bytes})};
@@ -87,7 +103,7 @@ async function activateChat(jobId: string, next: Conversation): Promise<boolean>
     const revision=await saveChatArchive(archive,h.revision);
     h.archive={...archive,revision};h.revision=revision;
     // Only replace the visible conversation once the new active thread is durable.
-    useChats.setState(s=>({records:{...s.records,[jobId]:next}}));
+    useChats.setState(s=>({records:{...s.records,[jobId]:restored(next)}}));
     return true;
   } catch(e) { persistenceError(jobId,e);throw e; }
   finally {changingChats.delete(jobId);}
@@ -96,6 +112,11 @@ function update(jobId: string, action: (record: Conversation) => Conversation) {
   useChats.setState(state => {
     const previous = state.records[jobId] || empty();
     const next = action(previous);
+    if (next.entries !== previous.entries) {
+      const existing = new Set(previous.entries.map(entry => entry.id));
+      const now = new Date().toISOString();
+      next.entries = next.entries.map(entry => existing.has(entry.id) || entry.timestamp ? entry : {...entry, timestamp: now});
+    }
     const estimate = next.contents === previous.contents ? previous.estimate : measureContext(next.contents);
     // The QA floor (localStorage) can only raise the estimate; see contextBudget.ts.
     const tokens = applyContextFloor(estimate.tokens, readContextFloor(typeof localStorage === 'undefined' ? null : localStorage));
@@ -105,21 +126,25 @@ function update(jobId: string, action: (record: Conversation) => Conversation) {
 }
 export const HANDOVER_ACKNOWLEDGEMENT = 'Understood. I have the handover; tell me what to do next.';
 export function useAssistantChat(jobId: string) {
+  const workspaceReady = useStudio(state => state.persistenceHydrated && !state.persistenceRecoveryBlocked);
   const record = useChats(state => state.records[jobId] || blank);
-  const historyReady = useChats(state => !!state.ready[jobId]);
-  useEffect(() => { void ensureChat(jobId).catch(()=>{}); },[jobId]);
-  useEffect(() => () => { controllers.get(jobId)?.abort(); }, [jobId]);
+  const historyReady = useChats(state => workspaceReady && !!state.ready[jobId]);
+  useEffect(() => { if (workspaceReady) void ensureChat(jobId).catch(()=>{}); },[jobId, workspaceReady]);
+  // View changes, docking and React refresh can unmount this hook. Only Stop,
+  // a real project switch or recovery may cancel the project-owned request.
   /** `allowProjectEdits` is kept for callers that still pass it; the permission mode (permissions.ts) is what decides. */
-  const send = async (text: string, images: ChatImage[], allowProjectEdits = false, fileContext = '', onAccepted?: () => void) => {
+  const send = async (text: string, images: ChatImage[], allowProjectEdits = false, fileContext = '', onAccepted?: () => void, reviewOnly = false) => {
+    if (!workspaceReady) throw Error('Your saved project and conversation are still opening.');
     const provider = useAssistantProvider.getState().provider;
+    const developerMode = useDeveloperMode.getState().enabled;
     await ensureChat(jobId);
     await flushChat(jobId);
     if(changingChats.has(jobId))throw Error('Wait for the saved conversation to open.');
-    const editsDeclared = allowProjectEdits || usePermissions.getState().mode !== 'readonly';
+    const editsDeclared = !reviewOnly && (allowProjectEdits || usePermissions.getState().mode !== 'readonly');
     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
     const initial = useChats.getState().records[jobId] || empty();
     const controller = new AbortController(); controllers.set(jobId, controller);
-    const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}` }, ...images.map(image => ({ inlineData: image }))] };
+    const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}\n\n${developerMode ? developerReviewInstruction(reviewOnly) : 'Developer mode is OFF for this task. Do not append a Developer review section, regardless of earlier conversation settings.'}` }, ...images.map(image => ({ inlineData: image }))] };
     // [SC-22 context] begin
     // Compact the stored transcript by entries, then carry the saved profile and project digest as
     // one pinned pair at index 0. Both reads are fail-open (readCarriedContext settles rather than
@@ -134,43 +159,58 @@ export function useAssistantChat(jobId: string) {
       carriedCallIds: chosen.compaction.carriedCallIds,
       today,
     });
-    const contents = assembled.contents;
+    // Review only this observation, while retaining the full conversation in durable history.
+    const contents = reviewOnly ? [today] : assembled.contents;
+    const savedContents = (current: AssistantContent[]) => reviewOnly ? [...initial.contents,...current] : current;
     // [SC-22 context] end
     let governed: Awaited<ReturnType<typeof beginGovernedWork>> | undefined;
     let failure: string | null = null;
+    let finalText = '', finalResponse = false, reviewRequested = false;
     // A failed carried-context read is reported, never silent: the message was still sent, so this
     // is a notice rather than an error that would imply nothing happened.
-    update(jobId, value => ({ ...value, busy: true, error: carried.failed ? CONTEXT_CARRIED_UNAVAILABLE : null, contents,
+    update(jobId, value => ({ ...value, busy: true, error: carried.failed ? CONTEXT_CARRIED_UNAVAILABLE : null, contents:savedContents(contents),
       entries: [...value.entries, { id: crypto.randomUUID(), kind: 'user', text, images }] }));
 
     try {
       // The user entry is already visible. Release the composer before any model or tool work.
       onAccepted?.();
       await flushChat(jobId);
-      governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents);
+      governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents, reviewOnly);
       const session = await getAssistantMcp();
       await runConversation({
         contents, signal: controller.signal, execution: readExecutionBudget(localStorage),
-        declarations: session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared) && providerSupportsTool(provider, tool.name)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
+        declarations: reviewOnly ? [] : session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared) && providerSupportsTool(provider, tool.name)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
         turn: async (request, signal) => {
           const prepared = await governed!.prepare(request);
           const response = await assistantTurn(prepared, signal, provider);
+          finalResponse = !response.content.parts.some(part=>part.functionCall);
+          finalText = response.content.parts.filter(part=>!part.thought).map(part=>part.text||'').join('\n');
           await governed!.response(response);
           return response;
         },
         call: async (name, args, signal) => {
+          if (reviewOnly) throw Error('Recording reviews analyse supplied events only; no project tools may run.');
           // Ask / edit freely / read only, plus per-call prompts in ask mode (permissions.ts). A refusal is a tool error the model can read.
-          return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: true, provider }),
+          return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: !reviewOnly, provider }),
             () => allowProjectEdits ? Promise.resolve(null) : gateToolCall(name, args, signal));
         },
         assertContext: () => { const current = useStudio.getState(); if (current.job.id !== jobId || current.persistenceRecoveryBlocked) throw Error('Project changed or recovery is active. Assistant stopped before the next action.'); },
-        beforeFinal: () => governed!.reviewFinal(),
+        beforeFinal: async () => {
+          const required = await governed!.reviewFinal();
+          if (required) return required;
+          if (developerMode && !hasDeveloperReview(finalText) && !reviewRequested) {
+            reviewRequested=true;
+            return `[xray:developer-review] The task answer is ready. Do not repeat any actions. Return that answer with the missing self-assessment appended. ${developerReviewInstruction(reviewOnly)}`;
+          }
+          return null;
+        },
         // [PROVENANCE] Every tool row records the project it acted on and that project's revision
         // afterwards, so the transcript itself proves which job each action touched. Read from the
         // live store at emit time rather than from the closure, so a stale value cannot be recorded.
-        emit: event => update(jobId, value => ({ ...value, entries: appendChatEvent(value.entries, { ...event, id: crypto.randomUUID(),
+        emit: event => update(jobId, value => ({ ...value, entries: appendChatEvent(value.entries, { ...event,
+          ...(developerMode && finalResponse && event.kind==='assistant' && !hasDeveloperReview(event.text||'') ? {text:`${event.text||''}\n\n### Developer review\nThe model did not provide its self-review after a reminder. No performance verdict was inferred.`} : {}), id: crypto.randomUUID(),
           ...(event.kind === 'tool' ? { projectName: useStudio.getState().job.name, projectRevision: useStudio.getState().job.revision } : {}) }) })),
-        checkpoint: history => update(jobId, value => ({ ...value, contents: structuredClone(history) })),
+        checkpoint: history => update(jobId, value => ({ ...value, contents: structuredClone(savedContents(history)) })),
       });
       return true;
     } catch (error) {
@@ -230,14 +270,15 @@ export function useAssistantChat(jobId: string) {
    * receipts, the last reply and any outstanding pause) becomes the first visible entry and a seed
    * user/model exchange in the transcript. Nothing is sent to the provider until the next message.
    */
-  const continueInNewChat = async () => {
+  const continueInNewChat = async (sourceId?: string) => {
     await ensureChat(jobId); await flushChat(jobId);
-    const current = useChats.getState().records[jobId] || empty();
+    const current = sourceId ? histories.get(jobId)?.archive.threads.find(t => t.id === sourceId) : useChats.getState().records[jobId];
+    if (!current) return false;
     if (current.busy || controllers.has(jobId)) return false;
     const handover = buildHandover({ jobId, entries: current.entries, contents: current.contents, reason: current.error });
     const next: Conversation = {
       ...empty(),
-      entries: [{ id: crypto.randomUUID(), kind: 'assistant', text: `${HANDOVER_CONTINUED_PREFIX}\n${handover}` }],
+      entries: [{ id: crypto.randomUUID(), kind: 'assistant', timestamp: new Date().toISOString(), text: `${HANDOVER_CONTINUED_PREFIX}\n${handover}` }],
       contents: [
         { role: 'user', parts: [{ text: `${handover}\n(This handover was carried over automatically; treat it as context, not as a new instruction.)` }] },
         { role: 'model', parts: [{ text: HANDOVER_ACKNOWLEDGEMENT }] },
@@ -247,14 +288,29 @@ export function useAssistantChat(jobId: string) {
   };
   return {
     ...record, send, postLocalExchange, loadingHistory: !historyReady,
-    history: (histories.get(jobId)?.archive.threads || []).slice().reverse().map(t=>({id:t.id,title:chatTitle(t),updatedAt:t.updatedAt,active:t.id===record.id})),
+    latestReply: () => useChats.getState().records[jobId]?.entries.filter(e=>e.kind==='assistant').at(-1)?.text || '',
+    history: (histories.get(jobId)?.archive.threads || []).slice().reverse().map(t=>({id:t.id,title:chatTitle(t),updatedAt:t.updatedAt,active:t.id===record.id,archived:!!t.archivedAt,messages:t.entries.filter(e=>e.kind!=='tool').length,tools:t.entries.filter(e=>e.kind==='tool').length,request:t.entries.find(e=>e.kind==='user')?.text.slice(0,1200)||'',reply:t.entries.filter(e=>e.kind==='assistant').at(-1)?.text.slice(0,1800)||''})),
     restoreHistory: async (id: string) => {
       if(controllers.has(jobId)||record.busy)return false;
       await ensureChat(jobId); await flushChat(jobId);
       const thread=histories.get(jobId)?.archive.threads.find(t=>t.id===id);if(!thread)return false;
-      const ok=await activateChat(jobId,restored(thread));if(ok)usePermissions.getState().resetChatGrants();return ok;
+      const ok=await activateChat(jobId,restored({...thread,archivedAt:undefined}));if(ok)usePermissions.getState().resetChatGrants();return ok;
     },
-    continueInNewChat: async () => { const ok = await continueInNewChat(); if (ok) usePermissions.getState().resetChatGrants(); return ok; },
+    continueInNewChat: async (sourceId?: string) => { const ok = await continueInNewChat(sourceId); if (ok) usePermissions.getState().resetChatGrants(); return ok; },
+    archiveHistory: async (id: string) => {
+      if(controllers.has(jobId)||changingChats.has(jobId))return false;
+      changingChats.add(jobId);
+      try {
+        await ensureChat(jobId); await flushChat(jobId);
+        const h=histories.get(jobId)!;
+        const next=archiveChat(h.archive,id,saved(empty()));
+        const revision=await saveChatArchive(next,h.revision);
+        h.archive={...next,revision};h.revision=revision;
+        useChats.setState(s=>({records:{...s.records,[jobId]:restored(next.threads.find(t=>t.id===next.activeId)!)}}));
+        if(next.activeId!==record.id)usePermissions.getState().resetChatGrants();
+        return true;
+      } finally { changingChats.delete(jobId); }
+    },
     stop: () => controllers.get(jobId)?.abort(),
     clear: async () => { if(record.busy||controllers.has(jobId))return false; await ensureChat(jobId);const ok=await activateChat(jobId,empty());if(ok)usePermissions.getState().resetChatGrants();return ok; },
   };

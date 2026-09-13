@@ -51,21 +51,23 @@
   position: fixed;
   /* With the seam controls (35/36); the panel's own header button covers the case where the floating panel overlaps the seam. */
   z-index: 36;
-  width: 24px;
-  height: 48px;
+  width: 35px;
+  height: 35px;
   padding: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   background: transparent;
   color: var(--assistant-ink, #28303a);
   cursor: pointer;
+  touch-action: none;
 }
 .rail-assistant-toggle::before {
   content: "";
   position: absolute;
-  inset: 2px -10px;
-  border-radius: 8px;
+  inset: 1px;
+  border-radius: 5px;
   background: linear-gradient(180deg, var(--assistant-paper, #fff), var(--assistant-bg, #e2e6eb));
   box-shadow: 0 0 0 1px var(--assistant-edge, #a7afb8), 0 2px 5px #14203624;
 }
@@ -78,18 +80,22 @@
   background: var(--assistant-soft, #edf0f4);
   box-shadow: 0 0 0 2px var(--assistant-edge, #a7afb8), 0 2px 5px #14203624;
 }
-.rail-assistant-toggle[aria-pressed="true"] {
+.rail-assistant-toggle[aria-expanded="true"] {
   color: var(--color-paper, #fff);
 }
-.rail-assistant-toggle[aria-pressed="true"]::before {
+.rail-assistant-toggle[aria-expanded="true"]::before {
   background: var(--assistant-ink, #28303a);
   box-shadow: 0 0 0 1px var(--assistant-edge, #a7afb8), 0 2px 6px #0004;
 }
 /* Both right-rail controls share the assistant palette and the actual column seam. */
 .workspace-rails .rail-controls-right .rail-toggle {
   color: var(--assistant-ink, #28303a);
+  width: 20px;
+  height: 24px;
 }
 .workspace-rails .rail-controls-right .rail-toggle::before {
+  inset: 1px;
+  border-radius: 4px;
   background: linear-gradient(180deg, var(--assistant-paper, #fff), var(--assistant-bg, #e2e6eb));
   border-color: var(--assistant-edge, #a7afb8);
   box-shadow: 0 2px 5px #14203624;
@@ -100,9 +106,11 @@
   box-shadow: 0 0 0 2px var(--assistant-edge, #a7afb8), 0 2px 5px #14203624;
 }
 @media (min-width: 941px) {
-  .workspace-rails[data-right-collapsed="false"] .rail-controls-right .rail-toggle,
   .workspace-rails[data-right-collapsed="false"] .rail-assistant-toggle {
-    left: calc(var(--assistant-seam-left) - 12px) !important;
+    left: calc(var(--assistant-seam-left) - 17.5px) !important;
+  }
+  .workspace-rails[data-right-collapsed="false"] .rail-controls-right .rail-toggle {
+    left: calc(var(--assistant-seam-left) + 12px) !important;
   }
 }
 @media (max-width: 940px) {

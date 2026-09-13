@@ -17,7 +17,7 @@ export const PROVIDER_KEY = "xray:assistant-provider:v2";
 
 /** Native builds only carry the Gemini transport, so the switch is web-only. */
 export const PROVIDERS: ReadonlyArray<{ provider: AssistantProvider; label: string; endpoint: string; hint: string }> = [
-  { provider: "minimax", label: "MiniMax", endpoint: "/api/minimax-ai", hint: "MiniMax. Text and tools only: no image input and no grounded web search." },
+  { provider: "minimax", label: "MiniMax", endpoint: "/api/minimax-ai", hint: "MiniMax. M3 supports source images and screenshots; older M2 models are text only. No grounded web search." },
   { provider: "gemini", label: "Gemini", endpoint: "/api/assistant-ai", hint: "Google Gemini. Supports images and grounded web search." },
 ];
 

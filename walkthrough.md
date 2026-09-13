@@ -674,3 +674,36 @@ Verified in existing Edge with an isolated QA project: calibration, area/run, un
 
 ### 2026-09-13 â€” D-10 authored plan overlay
 Earlier/later plan layers, level choice, changed-only emphasis and preview-only translation/rotation/opacity/visibility/reset verified. Four geometry tests and 26/26 desktop/tablet component interaction operations passed; exact source included in DANS1 build 2f46514c2abd. Scanned-PDF registration and 3D Boolean differences are outside scope. Proof: proof/growth/2026-09-13-revision-overlay/README.md. Commit pending on feat/architect-cad-engine.
+
+
+### 2026-09-13 â€” M3 image transport and live retry (reconstruction incomplete)
+M3 selected and status verified. Source/tool pixels now reach M3; 34 focused tests and typecheck passed. Live Sheet 3 retry read the image but proposed inconsistent geometry; edit denied and response stopped, preserving revision 18. No production-build claim. Files and proof: proof/growth/2026-09-13-m3-switch/README.md.
+
+## 2026-09-13 ? NCC archive, compact chat and continuity
+
+- [x] Private standards archive uploaded and byte/hash readback verified; local search and reference selection exercised in Edge.
+- [x] Actual MiniMax-M3 library search completed without project edits.
+- [x] One-row assistant controls and History handover; reload, draft, hide-during-response and original-history restoration verified.
+- [x] 57 focused tests and DANS1 web build/typecheck passed; compiled UI inspected and controls exercised.
+- [ ] Hosted/native authenticated standards access and OCR for 26 empty pages remain open.
+- [ ] Full Sheet 3 reconstruction remains unqualified; partial Python WIL drawing saved at revision 19 with assumptions.
+
+Recovery: proof/growth/2026-09-13-ncc-library/README.md and changes.patch; build 4449a46a6959. Branch feat/architect-cad-engine, uncommitted.
+
+- [x] 2026-09-13: NCC search results grouped by document with clickable page pills; removable, refresh-persistent composer references and actual MiniMax source delivery verified in Edge. Eleven tests and DANS1 web build/typecheck e4b7c3253bff passed. Recovery: proof/growth/2026-09-13-ncc-pills/README.md and changes.patch. Uncommitted on feat/architect-cad-engine.
+
+2026-09-13: Assistant history/maps/contextual-copy UI pass verified in Edge; see proof/growth/2026-09-13-assistant-history-maps/README.md. Full web build e19da7744df6 passes. Reference research skill now covers official councils as well as NCC/state/publisher sources. Startup checks and latest-version badges remain open; do not confuse original-file SHA verification with currency/applicability.
+
+2026-09-13: Type /monkey for blue command pills above the project row; typo suggestions do not auto-send. /monkeysee records X-Ray actions locally, /monkeydo stops and reviews, Confirm workflow then asks for a name. QA — workspace navigation saved and read back in Edge. Build 6c9a33cd0707 and 58 tests pass; production desktop/mobile inspected. Details and limitations: proof/growth/2026-09-13-monkey-workflow/README.md.
+
+2026-09-13 — Assistant developer review and suggestion cleanup: implementation/executed logic verified; visual acceptance PENDING. Default-on persistent Developer mode, current-exchange choices suppress generic footer buttons, slash suggestions suppress fallback, review commentary excluded from options. Monkey counts computed from events; model-only review isolated from project tools. 42 focused tests pass and DANS1 d8f9f32ebb61 build/typecheck pass. Local Edge reload timed out; separate Edge sandbox qualification failed before app checks. No visual PASS claimed. Actual M3 supplied self-review but its judgment still over-criticised navigation. Evidence/files/cleanup: proof/growth/2026-09-13-developer-mode/README.md. Existing preview and shared dirty tree preserved; no takeoff/source qualification change.
+
+2026-09-13 developer review scope correction: self-assessment now judges the answer against the requested task. Recording reviews explicitly exclude fresh-evidence/readback rituals. Initial and reminder instructions share scope. 18 focused tests pass; real API response confirms improved self-review in this sample. No layout or project mutations. Evidence: proof/growth/2026-09-13-review-scope/README.md.
+
+2026-09-13 navigation prominence: workflowNavigation.css and surfaceContrast.css enlarge primary labels from 13px to 16px with 44px targets; theme-derived warm navigation background replaces white. Existing Edge visual and computed-style check pass, console errors []. Screenshot/evidence: proof/growth/2026-09-13-navigation-prominence/README.md. No user request interruption; no source/data mutations. Charcoal and production render acceptance not exercised.
+
+2026-09-13 compact assistant seam controls: agent visible tile halved to22px and moved to old lower pill midpoint; existing collapse/resize grip sits immediately right. Edge visual and actual drag587?627?587 pass, console[]. DANS1 af3c17d22a41 build/typecheck pass. Files WorkspaceRails.tsx, assistantRail.css. Proof: proof/growth/2026-09-13-seam-controls/README.md. Existing user preview retained.
+
+2026-09-13 single rail button, drag overhead, timestamps: removed separate grip; combined35px bot+arrow opens rail and supports dragging; Edge restored right rail verified before latest updates. Memoized assistant on rail resizes, avoided redundant collapse updates, debounced preference writes/broadcast. New entries get saved times; new conversations get start date/time; legacy missing times labelled unknown. 20 tests pass. Final smoothness/visual check blocked by Edge timeout; do not claim performance acceptance. Files/evidence: proof/growth/2026-09-13-rail-timestamps/README.md. Existing user preview retained.
+
+2026-09-13 click-only rail correction: bot button now collapses/reopens; resize only on vertical divider. Edge exercised collapse/reopen and upper/lower divider drags with full chat preserved. Animation-frame coalescing, memoized assistant and debounced storage reduce drag overhead. Measured median16.7ms/p9533.4ms/max50ms; one51ms long task, no zero-lag guarantee. 17 rail tests and DANS1 958f16173a38 build/typecheck pass. Proof: proof/growth/2026-09-13-click-rail/README.md.

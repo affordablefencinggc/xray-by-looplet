@@ -27,7 +27,15 @@ const markedOption = (line: string) =>
   OPTION_WORD.exec(line)?.[1] ?? BULLET_MARKED.exec(line)?.[1] ?? NUMBERED.exec(line)?.[3] ?? LETTERED.exec(line)?.[3];
 
 export function parseReplyOptions(text: string): ReplyOptions {
-  const lines = text.split(/\r?\n/);
+  // A self-assessment is commentary, never an instruction for the user to select.
+  const lines = text.split(/\r?\n/).filter((() => {
+    let reviewing = false;
+    return (line: string) => {
+      if (/^\s*(?:#{1,6}\s*)?(?:\*\*|__)?Developer review(?:\*\*|__)?\s*:?(?:\*\*|__)?\s*$/i.test(line)) { reviewing = true; return false; }
+      if (reviewing && /^#{1,6}\s+/.test(line)) reviewing = false;
+      return !reviewing;
+    };
+  })());
   const lists: string[][] = [];
   const questions: string[] = [];
   let current: string[] | null = null;
@@ -65,6 +73,22 @@ export function parseReplyOptions(text: string): ReplyOptions {
 }
 
 export const SELECT_SHAPE_SUGGESTION = "Select a shape to reference";
+
+/** Only choices in the current exchange replace fallback suggestions; old history does not. */
+export function hasCurrentReplyChoices(entries: readonly { kind: string; text: string; selectableReference?: boolean }[]): boolean {
+  let inspectedReply = false;
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index];
+    if (entry.kind === 'user') break;
+    if (entry.selectableReference) return true;
+    if (entry.kind === 'assistant' && !inspectedReply) {
+      inspectedReply = true;
+      const reply = parseReplyOptions(entry.text);
+      if (reply.options.length || reply.questions.length) return true;
+    }
+  }
+  return false;
+}
 export const USE_IMAGE_SUGGESTION = "Use this image as a reference";
 export const SUGGESTION_MIN = 3;
 export const SUGGESTION_MAX = 4;

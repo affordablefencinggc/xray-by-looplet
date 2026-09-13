@@ -1,8 +1,11 @@
+import { NccResultCards } from './NccResultCards';
+import type { NccMatch } from './nccReferences';
+import { readNccMatches } from './nccResultReferences';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, LoaderCircle } from 'lucide-react';
 import type { ChatEntry } from './useAssistantChat';
 import type { ChatImage } from './conversation';
-import { SELECT_SHAPE_SUGGESTION, USE_IMAGE_SUGGESTION, latestReplyImage, parseReplyOptions, type ReplyOption } from './richReply';
+import { SELECT_SHAPE_SUGGESTION, USE_IMAGE_SUGGESTION, latestReplyImage, parseReplyOptions, hasCurrentReplyChoices, type ReplyOption } from './richReply';
 import { HANDOVER_CONTINUED_PREFIX } from './contextBudget';
 import { useCanvasPick } from './canvasReference';
 import { ReplyBlocks } from './ReplyBlocks';
@@ -11,7 +14,9 @@ import { quoteIntoComposer, referenceEntityById } from './referenceById';
 import '../liveAssistant.css';
 
 export type ConversationViewProps = {
-  entries: ChatEntry[]; busy: boolean; error: string | null;
+  startedAt?: string;
+  selectedNcc?: NccMatch[]; onSelectNcc?: (match: NccMatch) => void;
+  entries: ChatEntry[]; busy: boolean; error: string | null; loadingHistory?: boolean;
   /** Sends the clicked pill or inline text immediately (same attachments and permission as the composer). */
   onAction?: (text: string) => void;
   /** Adds a chat image to the pending attachments as a "Reference". */
@@ -76,11 +81,18 @@ function ToolRow({ entry }: { entry: ChatEntry }) {
   </div>;
 }
 
-export function ConversationView({ entries, busy, error, onAction, onAttachImage, suggestions, disabled = false }: ConversationViewProps) {
+export function ConversationView({ startedAt, selectedNcc = [], onSelectNcc, entries, busy, error, loadingHistory = false, onAction, onAttachImage, suggestions, disabled = false }: ConversationViewProps) {
   // The seeded handover note is context, never a set of choices to re-send.
   const parsed = useMemo(() => new Map(entries.filter(entry => entry.kind === 'assistant' && !entry.text.startsWith(HANDOVER_CONTINUED_PREFIX)).map(entry => [entry.id, parseReplyOptions(entry.text)] as const)), [entries]);
   const lastAssistantId = [...entries].reverse().find(entry => entry.kind === 'assistant')?.id;
   const replyImage = latestReplyImage(entries);
+  const hasChoices = hasCurrentReplyChoices(entries.map(entry => {
+    let selectableReference = entry.kind !== 'user' && !!onAttachImage && !!entry.images?.length;
+    if (entry.kind === 'tool' && entry.toolName === 'search_standards_library' && !entry.failed && onSelectNcc) {
+      try { selectableReference ||= readNccMatches(JSON.parse(entry.text).matches).length > 0; } catch { /* No rendered references. */ }
+    }
+    return { kind: entry.kind, text: entry.text.startsWith(HANDOVER_CONTINUED_PREFIX) ? '' : entry.text, selectableReference };
+  }));
   const locked = disabled || busy;
   const suggest = (text: string) => {
     if (text === SELECT_SHAPE_SUGGESTION) { useCanvasPick.getState().start({ prompt: SELECT_SHAPE_PROMPT, accept: ['architect-entity', 'source-part'] }); return; }
@@ -89,7 +101,8 @@ export function ConversationView({ entries, busy, error, onAction, onAttachImage
   };
   return <>
   <div className="assistant-conversation" role="log" aria-label="Assistant conversation" aria-live="polite">
-    {!entries.length && <p className="assistant-welcome">Ask about your project, draw a layout, search the web or attach an image. Tool activity and source links appear here.</p>}
+    {!loadingHistory && <p className="assistant-conversation-start">{startedAt ? <>Conversation started <time dateTime={startedAt}>{new Date(startedAt).toLocaleString()}</time></> : 'Conversation start time was not recorded'}</p>}
+    {!entries.length && !loadingHistory && <p className="assistant-welcome">Ask about your project, draw a layout, search the web or attach an image. Tool activity and source links appear here.</p>}
     {entries.map(entry => {
       const reply = entry.kind === 'assistant' ? parsed.get(entry.id) : undefined;
       const last = entry.id === lastAssistantId;
@@ -103,6 +116,7 @@ export function ConversationView({ entries, busy, error, onAction, onAttachImage
               ? <p>{entry.text}</p>
               : <ReplyBlocks text={entry.text} disabled={locked} onReply={quote => quoteIntoComposer(quote)} onReference={id => void referenceEntityById(id)} />}
           </>}
+        {entry.kind === 'tool' && entry.toolName === 'search_standards_library' && !entry.failed && onSelectNcc && <NccResultCards receipt={entry.text} selected={selectedNcc} disabled={locked} onSelect={onSelectNcc} />}
         {entry.images?.map((image, index) => <figure key={index}>
           <img src={`data:${image.mimeType};base64,${image.data}`} alt={entry.kind === 'user' ? `Attached reference ${index + 1}` : `Assistant tool image ${index + 1}`} />
           <figcaption>{entry.kind === 'user' ? 'Attached reference' : 'Image result'}</figcaption>
@@ -110,13 +124,14 @@ export function ConversationView({ entries, busy, error, onAction, onAttachImage
         </figure>)}
         {!!entry.sources?.length && <ul className="assistant-sources" aria-label="Web sources">{entry.sources.map((source, index) => <li key={`${source.url}-${index}`}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}</a></li>)}</ul>}
         {reply && (reply.options.length > 0 || (last && reply.questions.length > 0)) && <ReplyOptions key={`${entry.id}-${last}`} options={reply.options} stale={!last} inline={last} disabled={locked} onAction={onAction} />}
+        {entry.kind !== 'tool' && <small className="assistant-message-time">{entry.timestamp ? <time dateTime={entry.timestamp} title={new Date(entry.timestamp).toLocaleString()}>{new Date(entry.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</time> : 'Time not recorded'}</small>}
       </article>;
     })}
     {busy && <p role="status" className="assistant-working"><LoaderCircle size={14} className="is-spinning" aria-hidden="true" />Assistant is working…</p>}
     {error && <p className="assistant-chat-error" role="alert">{error}</p>}
   </div>
   {/* Suggestions sit outside the live region so screen readers are not re-read every pill after each reply. */}
-  {!busy && !!suggestions?.length && <div className="assistant-suggestions" role="group" aria-label="Suggested next steps">
+  {!busy && !hasChoices && !!suggestions?.length && <div className="assistant-suggestions" role="group" aria-label="Suggested next steps">
     {suggestions.map(text => <button key={text} type="button" className="assistant-pill assistant-suggestion" disabled={text === SELECT_SHAPE_SUGGESTION ? busy : (locked || (text === USE_IMAGE_SUGGESTION && !replyImage))} onClick={() => suggest(text)}>{text}</button>)}
   </div>}
   </>;

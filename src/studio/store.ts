@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { browserSingleton } from './browserSingleton.ts';
 import { SHEETS, type SheetKind } from "./geometry.ts";
 import {
   createDefaultJob,
@@ -800,7 +801,7 @@ const initialJob = createDefaultJob();
 let hydrationFlight: Promise<void> | null = null;
 let documentSelectionVersion = 0;
 
-export const useStudio = create<StudioState>((set, get) => ({
+const studioInstance = browserSingleton('xray.studio.store.v1', () => create<StudioState>((set, get) => ({
   job: initialJob,
   bomState: createBomState(initialJob.id),
   bomPersistenceError: null,
@@ -2437,13 +2438,15 @@ export const useStudio = create<StudioState>((set, get) => ({
       });
     return hydrationFlight;
   },
-}));
+})));
+export const useStudio = studioInstance.value;
 
 /** Test-only reset for the module-level hydration flight. */
 export function resetStudioHydrationForTests() {
   hydrationFlight = null;
 }
 
+if (studioInstance.created) {
 useStudio.subscribe((state, previous) => {
   if (
     state.job === previous.job &&
@@ -2491,6 +2494,8 @@ if (typeof window !== "undefined") {
     if (state.componentInventory === previous.componentInventory && previous.persistenceHydrated) return;
     state.saveCurrentInventory();
   });
+}
+
 }
 
 function reconcileBomStateForJob(state: BomStateEnvelope, job: FencingJob): BomStateEnvelope {

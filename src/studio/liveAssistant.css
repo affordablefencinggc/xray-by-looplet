@@ -27,7 +27,7 @@
   max-width: 100%;
   padding: 0 var(--assistant-pill-padding, 10px);
   border: 1px solid var(--pill-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 6px);
   background: #fff;
   color: var(--pill-ink);
   font-size: var(--assistant-pill-font-size, 11px);
@@ -60,7 +60,7 @@
   box-shadow: none;
 }
 .assistant-pill-option {
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 6px);
   padding: 0 var(--assistant-pill-padding, 10px);
   color: #1f2a35;
 }
@@ -70,7 +70,7 @@
   flex: 0 0 auto;
   width: 18px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 6px);
   background: var(--pill-accent);
   color: #fff;
   font-size: 11px;
@@ -129,7 +129,7 @@
   gap: 6px;
   min-height: 24px;
   padding: 2px 9px;
-  border-radius: 12px;
+  border-radius: var(--radius-pill, 6px);
   background: var(--assistant-soft, #edf0f4);
   color: var(--assistant-muted, #566170);
   font-size: 10px;
@@ -230,7 +230,7 @@ h4.assistant-heading { font-size: 13px; }
 .assistant-block-reply { position: absolute; right: -4px; top: -10px; opacity: 0; transition: opacity 120ms ease; }
 .assistant-block:hover .assistant-block-reply, .assistant-block:focus-within .assistant-block-reply, .assistant-block-reply:focus-visible { opacity: 1; }
 @media (pointer: coarse) { .assistant-block-reply { position: static; opacity: 1; margin-top: 2px; } }
-.assistant-id-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 7px; margin: 0 1px; border: 1px solid #b9c9d8; border-radius: 999px; background: var(--reply-accent-soft); color: var(--reply-accent); font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; cursor: pointer; vertical-align: middle; }
+.assistant-id-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 7px; margin: 0 1px; border: 1px solid #b9c9d8; border-radius: var(--radius-pill, 6px); background: var(--reply-accent-soft); color: var(--reply-accent); font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; cursor: pointer; vertical-align: middle; }
 .assistant-id-chip:hover, .assistant-id-chip:focus-visible { background: var(--reply-accent); color: #fff; }
 .assistant-id-chip:disabled { cursor: default; opacity: 0.7; }
 .assistant-mindmap { margin: 4px 0 0; padding: 8px; border: 1px solid var(--color-line, #d8dde3); border-radius: 10px; background: #fbfcfd; overflow-x: auto; }
@@ -274,3 +274,19 @@ h4.assistant-heading { font-size: 13px; }
 }
 /* [PROVENANCE] The open project name leads the context line and stays legible when truncated. */
 .live-assistant-context-project { font-weight: 600; color: #24313d; }
+
+/* Contextual copy: reserve space so controls never cover the source text. */
+.assistant-block:has(> .assistant-hover-copy), .assistant-copy-target { position: relative; padding-right: 34px; }
+.assistant-hover-copy { position: absolute; right: 0; top: 0; display: inline-flex; align-items: center; justify-content: center; width: 28px; min-height: 28px; padding: 4px; border: 1px solid var(--reply-border, #64748b); border-radius: 6px; background: var(--reply-surface, Canvas); color: inherit; opacity: 0; cursor: pointer; }
+.assistant-block:hover > .assistant-hover-copy, .assistant-copy-target:hover > .assistant-hover-copy, .assistant-map-disclosure:hover > summary > .assistant-hover-copy, .assistant-hover-copy:focus-visible, .assistant-hover-copy:focus { opacity: 1; }
+.assistant-block:has(> .assistant-hover-copy) > .assistant-block-reply { right: 30px; top: -36px; }
+.assistant-map-disclosure > summary { position: relative; padding-right: 36px; }
+.assistant-copy-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (hover: none) { .assistant-hover-copy { opacity: 1; } }
+.live-assistant .assistant-hover-copy { width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 4px; box-shadow: none; background: var(--assistant-paper); color: var(--assistant-ink); border: 1px solid var(--assistant-edge); }
+.live-assistant .assistant-block:has(> .assistant-hover-copy) { padding-right: 64px; }
+.live-assistant .assistant-block:has(> .assistant-hover-copy) > .assistant-block-reply { position: absolute; right: 32px; top: 0; width: 28px; height: 28px; min-height: 28px; padding: 4px; justify-content: center; }
+.live-assistant .assistant-block:has(> .assistant-hover-copy) > .assistant-block-reply::after { content: none; }
+.live-assistant .assistant-map-disclosure > summary { padding-right: 36px; }
+.assistant-conversation-start { text-align: center; color: var(--assistant-muted, #66758a); font-size: 11px; padding: 8px 0; }
+.assistant-message-time { display: block; text-align: right; color: var(--assistant-muted, #66758a); font-size: 10px; margin-top: 6px; }

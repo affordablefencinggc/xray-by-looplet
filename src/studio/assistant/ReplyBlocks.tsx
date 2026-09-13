@@ -3,7 +3,9 @@ import {
   AlertTriangle, BrickWall, Calculator, ClipboardCheck, Compass, Copy, DoorOpen, FileDown, FileText, FolderKanban,
   Grid2x2, Home, Image, Layers, ListChecks, Reply, Ruler, Search, Square, Boxes,
 } from "lucide-react";
-import { layoutMindMap } from "./mindMapLayout";
+import { TopDownMindMap } from "./TopDownMindMap";
+import { CopyAction } from './CopyAction';
+import { useDiagramPreferences } from "./diagramPreferences";
 import { parseReply, quoteForReply, blockText, type Block, type HeadingIcon, type Inline, type MindNode } from "./replyMarkdown";
 
 const ICONS: Record<HeadingIcon, ((props: { size?: number }) => ReactNode) | null> = {
@@ -36,21 +38,6 @@ function Inlines({ inlines, onReference, disabled }: { inlines: Inline[]; onRefe
   </>;
 }
 
-function MindMap({ root, source }: { root: MindNode; source: string }) {
-  const layout = layoutMindMap(root);
-  return <figure className="assistant-mindmap" role="img" aria-label={`Mind map: ${root.label}`}>
-    <svg viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height}>
-      {layout.edges.map(edge => <path key={`${edge.from}-${edge.to}`} d={edge.path} className="assistant-mindmap-edge" />)}
-      {layout.nodes.map(node => <g key={node.id} className={`assistant-mindmap-node depth-${node.depth}`} transform={`translate(${node.x} ${node.y})`}>
-        <title>{node.full}</title>
-        <rect width={node.width} height={node.height} rx={node.depth === 0 ? 13 : 8} />
-        <text x={node.width / 2} y={node.height / 2 + 4} textAnchor="middle">{node.label}</text>
-      </g>)}
-    </svg>
-    <details className="assistant-mindmap-source"><summary>Outline</summary><pre>{source}</pre></details>
-  </figure>;
-}
-
 function CodeBlock({ text, lang }: { text: string; lang: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -65,11 +52,20 @@ function CodeBlock({ text, lang }: { text: string; lang: string }) {
 /** Renders one assistant reply as real headings, lists, code, tables, quotes and mind maps; every text block gets a "Reply" action. */
 export function ReplyBlocks({ text, onReply, onReference, disabled }: ReplyBlocksProps) {
   const blocks = parseReply(text);
+  const explainMap=useDiagramPreferences(state=>state.explanations);
+  const outline:MindNode={label:'Explanation',children:[]};
+  for(const block of blocks){
+    if(outline.children.length>=8)break;
+    if(block.kind==='heading')outline.children.push({label:block.text,children:[]});
+    else if(block.kind==='list'){const parent=outline.children.at(-1)||outline;for(const item of block.items.slice(0,4))parent.children.push({label:item.text.slice(0,100),children:[]});}
+  }
   const reply = (block: Block) => onReply?.(quoteForReply(blockText(block)), block);
-  const replyButton = (block: Block, label: string) => onReply
-    ? <button type="button" className="assistant-block-action assistant-block-reply" aria-label={`Reply to this ${label}`} title="Quote this into your message" data-label="Reply" disabled={disabled} onClick={() => reply(block)}><Reply size={13} /></button>
-    : null;
+  const replyButton = (block: Block, label: string) => <>
+    {block.kind !== 'mindmap' && <CopyAction text={blockText(block)} label={label}/>}
+    {onReply && <button type="button" className="assistant-block-action assistant-block-reply" aria-label={`Reply to this ${label}`} title="Quote this into your message" data-label="Reply" disabled={disabled} onClick={() => reply(block)}><Reply size={13} /></button>}
+  </>;
   return <div className="assistant-reply">
+    {explainMap && (outline.children.length>1 || outline.children.some(node=>node.children.length>1)) && !blocks.some(b=>b.kind==='mindmap') && <TopDownMindMap root={outline} label="Explanation mind map"/>}
     {blocks.map((block, index) => {
       const key = `${block.kind}-${index}`;
       switch (block.kind) {
@@ -85,14 +81,14 @@ export function ReplyBlocks({ text, onReply, onReference, disabled }: ReplyBlock
           return <div key={key} className="assistant-block assistant-block-paragraph"><p><Inlines inlines={block.inlines} onReference={onReference} disabled={disabled} /></p>{replyButton(block, "paragraph")}</div>;
         case "list": {
           const Tag = block.ordered ? "ol" : "ul";
-          return <div key={key} className="assistant-block assistant-block-list"><Tag>{block.items.map((item, itemIndex) => <li key={itemIndex}><Inlines inlines={item.inlines} onReference={onReference} disabled={disabled} /></li>)}</Tag>{replyButton(block, "list")}</div>;
+          return <div key={key} className="assistant-block assistant-block-list"><Tag>{block.items.map((item, itemIndex) => <li key={itemIndex} className="assistant-copy-target"><Inlines inlines={item.inlines} onReference={onReference} disabled={disabled} /><CopyAction text={item.text} label="list item"/></li>)}</Tag>{replyButton(block, "list")}</div>;
         }
         case "quote":
           return <div key={key} className="assistant-block assistant-block-quote"><blockquote><Inlines inlines={block.inlines} onReference={onReference} disabled={disabled} /></blockquote>{replyButton(block, "quote")}</div>;
         case "code":
           return <div key={key} className="assistant-block"><CodeBlock text={block.text} lang={block.lang} /></div>;
         case "mindmap":
-          return <div key={key} className="assistant-block assistant-block-mindmap"><MindMap root={block.root} source={block.text} />{replyButton(block, "mind map")}</div>;
+          return <div key={key} className="assistant-block assistant-block-mindmap"><TopDownMindMap root={block.root} />{replyButton(block, "mind map")}</div>;
         case "table":
           return <div key={key} className="assistant-block assistant-block-table"><div className="assistant-table-scroll"><table><thead><tr>{block.header.map((cell, cellIndex) => <th key={cellIndex}>{cell}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>{replyButton(block, "table")}</div>;
         case "rule":

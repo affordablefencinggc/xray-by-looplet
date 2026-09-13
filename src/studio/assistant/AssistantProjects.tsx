@@ -24,6 +24,7 @@ export function ProjectStrip({
   disabled,
   onSelect,
   onClose,
+  compact = false,
 }: {
   active: { id: string; name: string };
   /** Every open tab, resolved to a name; the active project is selected when it is among them. */
@@ -31,8 +32,16 @@ export function ProjectStrip({
   disabled: boolean;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
+  compact?: boolean;
 }) {
   const activeHasTab = tabs.some((tab) => tab.id === active.id);
+  if (compact) return <div className="assistant-project-compact" data-project-id={active.id}>
+    <select aria-label="Assistant project" title={active.name} value={active.id} disabled={disabled} onChange={event=>onSelect(event.target.value)}>
+      {!activeHasTab && <option value={active.id}>{active.name}</option>}
+      {tabs.map(tab=><option key={tab.id} value={tab.id}>{tab.name}</option>)}
+    </select>
+    {activeHasTab && <button type="button" aria-label="Close project tab" title="Close tab; keep the project" disabled={disabled} onClick={()=>onClose(active.id)}><X size={12}/></button>}
+  </div>;
   return (
     <div className="assistant-project-strip">
       <div className="assistant-project-pill" data-project-id={active.id}>

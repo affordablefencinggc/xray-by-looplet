@@ -31,8 +31,9 @@ const message = (result: Awaited<ReturnType<ReturnType<typeof fixture>["execute"
 test("SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
   const f = fixture();
   assert.deepEqual(f.tools.map(tool => tool.name), [
+    "search_standards_library",
     "read_workflow_route",
-    "read_assistant_file", "read_project_context", "navigate_workspace", "read_work_packet", "read_work_packet_event", "read_architect_design",
+    "read_assistant_file", "read_source_geometry", "prepare_source_room", "read_project_context", "navigate_workspace", "read_work_packet", "read_work_packet_event", "read_architect_design",
     "draw_architect_elements", "undo_architect_change", "capture_workspace_image",
     "save_project", "control_draftsman", "read_draftsman_status",
     "read_workbench_structure", "read_source_building",

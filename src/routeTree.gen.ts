@@ -13,10 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as FloorLabRouteImport } from './routes/floor-lab'
 import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
 import { Route as ApiAssistantAiRouteImport } from './routes/api.assistant-ai'
+import { Route as ApiLoopletSiteRenderRouteImport } from './routes/api.looplet-site-render'
 import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
 import { Route as ApiMinimaxAiRouteImport } from './routes/api.minimax-ai'
 import { Route as ApiPricingResearchRouteImport } from './routes/api.pricing-research'
 import { Route as ApiRenderAiRouteImport } from './routes/api.render-ai'
+import { Route as ApiSourceGeometryRouteImport } from './routes/api.source-geometry'
+import { Route as ApiStandardsLibraryRouteImport } from './routes/api.standards-library'
 import { Route as ApiVoiceRouteImport } from './routes/api.voice'
 
 const IndexRoute = IndexRouteImport.update({
@@ -39,6 +42,11 @@ const ApiAssistantAiRoute = ApiAssistantAiRouteImport.update({
   path: '/api/assistant-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLoopletSiteRenderRoute = ApiLoopletSiteRenderRouteImport.update({
+  id: '/api/looplet-site-render',
+  path: '/api/looplet-site-render',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMaterialAiRoute = ApiMaterialAiRouteImport.update({
   id: '/api/material-ai',
   path: '/api/material-ai',
@@ -59,6 +67,16 @@ const ApiRenderAiRoute = ApiRenderAiRouteImport.update({
   path: '/api/render-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSourceGeometryRoute = ApiSourceGeometryRouteImport.update({
+  id: '/api/source-geometry',
+  path: '/api/source-geometry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStandardsLibraryRoute = ApiStandardsLibraryRouteImport.update({
+  id: '/api/standards-library',
+  path: '/api/standards-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVoiceRoute = ApiVoiceRouteImport.update({
   id: '/api/voice',
   path: '/api/voice',
@@ -70,10 +88,13 @@ export interface FileRoutesByFullPath {
   '/floor-lab': typeof FloorLabRoute
   '/api/architect-ai': typeof ApiArchitectAiRoute
   '/api/assistant-ai': typeof ApiAssistantAiRoute
+  '/api/looplet-site-render': typeof ApiLoopletSiteRenderRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
   '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
+  '/api/source-geometry': typeof ApiSourceGeometryRoute
+  '/api/standards-library': typeof ApiStandardsLibraryRoute
   '/api/voice': typeof ApiVoiceRoute
 }
 export interface FileRoutesByTo {
@@ -81,10 +102,13 @@ export interface FileRoutesByTo {
   '/floor-lab': typeof FloorLabRoute
   '/api/architect-ai': typeof ApiArchitectAiRoute
   '/api/assistant-ai': typeof ApiAssistantAiRoute
+  '/api/looplet-site-render': typeof ApiLoopletSiteRenderRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
   '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
+  '/api/source-geometry': typeof ApiSourceGeometryRoute
+  '/api/standards-library': typeof ApiStandardsLibraryRoute
   '/api/voice': typeof ApiVoiceRoute
 }
 export interface FileRoutesById {
@@ -93,10 +117,13 @@ export interface FileRoutesById {
   '/floor-lab': typeof FloorLabRoute
   '/api/architect-ai': typeof ApiArchitectAiRoute
   '/api/assistant-ai': typeof ApiAssistantAiRoute
+  '/api/looplet-site-render': typeof ApiLoopletSiteRenderRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
   '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
+  '/api/source-geometry': typeof ApiSourceGeometryRoute
+  '/api/standards-library': typeof ApiStandardsLibraryRoute
   '/api/voice': typeof ApiVoiceRoute
 }
 export interface FileRouteTypes {
@@ -106,10 +133,13 @@ export interface FileRouteTypes {
     | '/floor-lab'
     | '/api/architect-ai'
     | '/api/assistant-ai'
+    | '/api/looplet-site-render'
     | '/api/material-ai'
     | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
+    | '/api/source-geometry'
+    | '/api/standards-library'
     | '/api/voice'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,10 +147,13 @@ export interface FileRouteTypes {
     | '/floor-lab'
     | '/api/architect-ai'
     | '/api/assistant-ai'
+    | '/api/looplet-site-render'
     | '/api/material-ai'
     | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
+    | '/api/source-geometry'
+    | '/api/standards-library'
     | '/api/voice'
   id:
     | '__root__'
@@ -128,10 +161,13 @@ export interface FileRouteTypes {
     | '/floor-lab'
     | '/api/architect-ai'
     | '/api/assistant-ai'
+    | '/api/looplet-site-render'
     | '/api/material-ai'
     | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
+    | '/api/source-geometry'
+    | '/api/standards-library'
     | '/api/voice'
   fileRoutesById: FileRoutesById
 }
@@ -140,10 +176,13 @@ export interface RootRouteChildren {
   FloorLabRoute: typeof FloorLabRoute
   ApiArchitectAiRoute: typeof ApiArchitectAiRoute
   ApiAssistantAiRoute: typeof ApiAssistantAiRoute
+  ApiLoopletSiteRenderRoute: typeof ApiLoopletSiteRenderRoute
   ApiMaterialAiRoute: typeof ApiMaterialAiRoute
   ApiMinimaxAiRoute: typeof ApiMinimaxAiRoute
   ApiPricingResearchRoute: typeof ApiPricingResearchRoute
   ApiRenderAiRoute: typeof ApiRenderAiRoute
+  ApiSourceGeometryRoute: typeof ApiSourceGeometryRoute
+  ApiStandardsLibraryRoute: typeof ApiStandardsLibraryRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
 }
 
@@ -177,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAssistantAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/looplet-site-render': {
+      id: '/api/looplet-site-render'
+      path: '/api/looplet-site-render'
+      fullPath: '/api/looplet-site-render'
+      preLoaderRoute: typeof ApiLoopletSiteRenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/material-ai': {
       id: '/api/material-ai'
       path: '/api/material-ai'
@@ -205,6 +251,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRenderAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/source-geometry': {
+      id: '/api/source-geometry'
+      path: '/api/source-geometry'
+      fullPath: '/api/source-geometry'
+      preLoaderRoute: typeof ApiSourceGeometryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/standards-library': {
+      id: '/api/standards-library'
+      path: '/api/standards-library'
+      fullPath: '/api/standards-library'
+      preLoaderRoute: typeof ApiStandardsLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/voice': {
       id: '/api/voice'
       path: '/api/voice'
@@ -220,10 +280,13 @@ const rootRouteChildren: RootRouteChildren = {
   FloorLabRoute: FloorLabRoute,
   ApiArchitectAiRoute: ApiArchitectAiRoute,
   ApiAssistantAiRoute: ApiAssistantAiRoute,
+  ApiLoopletSiteRenderRoute: ApiLoopletSiteRenderRoute,
   ApiMaterialAiRoute: ApiMaterialAiRoute,
   ApiMinimaxAiRoute: ApiMinimaxAiRoute,
   ApiPricingResearchRoute: ApiPricingResearchRoute,
   ApiRenderAiRoute: ApiRenderAiRoute,
+  ApiSourceGeometryRoute: ApiSourceGeometryRoute,
+  ApiStandardsLibraryRoute: ApiStandardsLibraryRoute,
   ApiVoiceRoute: ApiVoiceRoute,
 }
 export const routeTree = rootRouteImport

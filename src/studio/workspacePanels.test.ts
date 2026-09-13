@@ -45,7 +45,7 @@ test("diagonal movement is normalized; opposite keys cancel and walkthrough hold
 test("menu widths reject malformed preferences and retain usable central space", () => {
   for (const raw of [null, "bad", "[]", '{"left":"200","right":400}'])
     assert.deepEqual(readRailWidths(raw), DEFAULT_RAILS);
-  assert.deepEqual(readRailWidths('{"left":1,"right":99999}'), { left: 200, right: 600 });
+  assert.deepEqual(readRailWidths('{"left":1,"right":99999}'), { left: 200, right: 1000 });
   assert.equal(railWidth("right", 600, 1200, 300), 480);
   assert.equal(railWidth("left", NaN, 1600, 400), 260);
 });

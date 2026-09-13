@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent } from "react";
+import { Fragment, memo, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent } from "react";
 import { Bot, ChevronLeft, ChevronRight } from "lucide-react";
 import { LiveAssistant } from "./LiveAssistant";
+const StableLiveAssistant = memo(LiveAssistant);
 import { CanvasContextMenu } from "./CanvasContextMenu.tsx";
 import { useStudio } from "./store";
 import { useLiveAssistant } from "./liveAssistantState";
@@ -78,6 +79,9 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
   };
   const drag = useRef<{ side: keyof RailWidths; x: number; width: number; collapsed: boolean; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
+  const resizeFrame = useRef(0);
+  const pendingResize = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelAnimationFrame(resizeFrame.current), []);
   const [rects, setRects] = useState<
     { side: keyof RailWidths; left: number; top: number; height: number; collapsed: boolean }[]
   >([]);
@@ -99,11 +103,14 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     return () => window.removeEventListener("xray:rail-layout", update);
   }, []);
   useEffect(() => {
+    const timer = window.setTimeout(() => {
     if (ready)
       try {
         localStorage.setItem(RAIL_LAYOUT_KEY, JSON.stringify(widths));
       } catch { /* storage unavailable */ }
     if (ready) window.dispatchEvent(new CustomEvent(RAIL_WIDTHS_CHANGED_EVENT, { detail: widths }));
+    }, 150);
+    return () => clearTimeout(timer);
   }, [widths, ready]);
   useEffect(() => {
     if (ready)
@@ -203,6 +210,12 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
                 });
             }
           }
+        // Drawings has no inspector DOM. Its assistant column still needs the seam controls.
+        if(innerWidth>940 && !next.some(r=>r.side==='right')){
+          const layout=ref.current?.querySelector('.studio-layout')?.getBoundingClientRect();
+          const top=Math.max(0,layout?.top??90),bottom=Math.min(innerHeight,layout?.bottom??innerHeight);
+          next.push({side:'right',left:rightCollapsed?innerWidth-10:innerWidth-widths.right-2,top,height:Math.max(0,bottom-top),collapsed:rightCollapsed});
+        }
         setRects((old) => (JSON.stringify(old) === JSON.stringify(next) ? old : next));
       });
     };
@@ -247,10 +260,20 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     if (start.collapsed && delta <= 0) return;
     const width = (start.collapsed ? 0 : start.width) + delta;
     const shouldCollapse = !start.collapsed && width < 80;
-    setCollapsed(start.side, shouldCollapse);
-    if (!shouldCollapse) change(start.side, width);
+    pendingResize.current = () => {
+      if (collapsed[start.side] !== shouldCollapse) setCollapsed(start.side, shouldCollapse);
+      if (!shouldCollapse) change(start.side, width);
+    };
+    if (!resizeFrame.current) resizeFrame.current = requestAnimationFrame(() => {
+      resizeFrame.current = 0;
+      const resize = pendingResize.current; pendingResize.current = null;
+      resize?.();
+    });
   };
   const pointerEnd = (e: PointerEvent<HTMLElement>) => {
+    cancelAnimationFrame(resizeFrame.current); resizeFrame.current = 0;
+    const resize = pendingResize.current; pendingResize.current = null;
+    resize?.();
     drag.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
@@ -275,7 +298,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     >
       {children}
       {canvasFocus && <button type="button" className="canvas-focus-exit" onClick={() => setCanvasFocus(false)}>Exit canvas</button>}
-      <LiveAssistant />
+      <StableLiveAssistant />
       <CanvasContextMenu />
       {rects.map((r) => (
         <Fragment key={r.side}>
@@ -286,7 +309,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
           aria-label={`Resize ${r.side} menu`}
           aria-orientation="vertical"
           aria-valuemin={r.side === "left" ? 200 : 320}
-          aria-valuemax={r.side === "left" ? 440 : 600}
+          aria-valuemax={r.side === "left" ? 440 : 1000}
           aria-valuenow={widths[r.side]}
           className="rail-resizer"
           title="Drag to resize · arrow keys adjust · double-click resets"
@@ -313,7 +336,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
           onPointerUp={pointerEnd}
           onPointerCancel={pointerEnd}
         />
-        <button
+        {r.side === 'left' && <button
           type="button"
           className="rail-toggle"
           aria-label={`${collapsed[r.side] ? "Expand" : "Collapse"} ${r.side} menu`}
@@ -330,23 +353,26 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
             setCollapsed(r.side, !collapsed[r.side]);
           }}
         >
-          {(r.side === "left") !== collapsed[r.side] ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
-        </button>
+          {!collapsed[r.side] ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+        </button>}
         </div>
         {r.side === "right" && (
           <button
             type="button"
             className="rail-assistant-toggle"
-            aria-label={railMode ? "Exit assistant mode" : "Assistant mode"}
-            aria-pressed={railMode}
-            title={railMode ? "Bring the right menu back" : "Turn the right menu into the Live assistant"}
+            aria-label={rightCollapsed ? 'Expand assistant rail' : 'Collapse assistant rail'}
+            aria-expanded={!rightCollapsed}
+            title={rightCollapsed ? 'Open assistant rail' : 'Collapse rail · drag the vertical divider to resize'}
             style={{
-              left: Math.max(0, Math.min(innerWidth - 24, (railMode && dock ? dock.left - 2 : r.left) - 7)),
-              top: Math.max(0, (railMode && dock ? dock.top + dock.height / 2 : r.top + r.height / 2) - 24 - 56),
+              left: Math.max(0, Math.min(innerWidth - 48, (railMode && dock ? dock.left - 2 : r.left) - 7)),
+              top: Math.max(0, r.top + r.height / 2 - 17.5),
             }}
-            onClick={() => applyRail("toggle-rail")}
+            onClick={() => {
+              if (rightCollapsed) applyRail('toggle-rail');
+              else { applyRail('collapse-right'); useLiveAssistant.setState({open: false}); }
+            }}
           >
-            <Bot size={13} />
+            <Bot size={15} />{rightCollapsed ? <ChevronLeft className="rail-assistant-arrow" size={10} /> : <ChevronRight className="rail-assistant-arrow" size={10} />}
           </button>
         )}
         </Fragment>

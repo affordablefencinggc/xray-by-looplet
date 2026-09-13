@@ -10,7 +10,7 @@ const ICONS: Record<PermissionMode, (props: { size?: number }) => React.ReactNod
  * A hidden mirror checkbox keeps the old automation contract (`.assistant-permission input` checked
  * ⇔ "Edit freely") so existing runner scenarios keep working; people use the visible buttons.
  */
-export function PermissionControls({ disabled = false }: { disabled?: boolean }) {
+export function PermissionControls({ disabled = false, compact = false, projectControl }: { disabled?: boolean; compact?: boolean; projectControl?: React.ReactNode }) {
   const mode = usePermissions((state) => state.mode);
   const pending = usePermissions((state) => state.pending);
   const setMode = usePermissions((state) => state.setMode);
@@ -30,8 +30,9 @@ export function PermissionControls({ disabled = false }: { disabled?: boolean })
       </div>
     )}
     {/* [PROVIDER] The mode group and the model switch share one row: modes left, model right. */}
-    <div className="assistant-controls-row">
-    <div className="assistant-permission" role="radiogroup" aria-label="Permissions">
+    <div className={`assistant-controls-row${compact ? ' is-compact' : ''}`}>
+    {projectControl}
+    <div className="assistant-permission" role={compact ? undefined : 'radiogroup'} aria-label={compact ? undefined : 'Permissions'}>
       <input
         type="checkbox"
         className="assistant-permission-mirror"
@@ -41,7 +42,9 @@ export function PermissionControls({ disabled = false }: { disabled?: boolean })
         disabled={disabled}
         onChange={(event) => setMode(event.target.checked ? "auto" : "ask")}
       />
-      {PERMISSION_MODES.map(({ mode: value, label, hint }) => {
+      {compact ? <select aria-label="Assistant permissions" value={mode} disabled={disabled} title={PERMISSION_MODES.find(value=>value.mode===mode)?.hint} onChange={event=>setMode(event.target.value as PermissionMode)}>
+        {PERMISSION_MODES.map(value=><option key={value.mode} value={value.mode}>{value.label}</option>)}
+      </select> : PERMISSION_MODES.map(({ mode: value, label, hint }) => {
         const Icon = ICONS[value];
         return <button
           key={value}

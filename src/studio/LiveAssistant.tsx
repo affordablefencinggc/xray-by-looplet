@@ -1,3 +1,12 @@
+import { useDiagramPreferences } from './assistant/diagramPreferences';
+import { setDeveloperMode, useDeveloperMode } from './assistant/developerPreferences';
+import { MonkeyPanel } from './assistant/MonkeyPanel';
+import { useMonkeyRecorder, startMonkey, finishMonkey, updateMonkey } from './assistant/monkeyRecorder';
+import { monkeyReviewPrompt } from './assistant/monkeyWorkflow';
+import { suggestSlashCommands } from './assistant/slashCommands';
+import { ChatHistoryPanel } from './assistant/ChatHistoryPanel';
+import { nccReferencePrompt, type NccMatch } from './assistant/nccReferences';
+import { nccDocumentLabel } from './assistant/nccResultReferences';
 import { NccLibrary } from "./assistant/NccLibraryPanel";
 import { ExecutionSettings } from './assistant/ExecutionSettings';
 import { AssistantFiles } from './assistant/AssistantFiles';
@@ -87,6 +96,8 @@ const CORNER_LABEL: Record<Corner, string> = {
 // [SC-18 projects/corners] end: module helpers
 
 export function LiveAssistant() {
+  const monkey=useMonkeyRecorder();
+  const [dismissedCommands,setDismissedCommands]=useState<string|null>(null);
   const { open, draft, guide } = useLiveAssistant();
   const binary = useStudio((s) => s.activePlanBinary);
   const sheet = useStudio((s) => s.sheet);
@@ -121,6 +132,15 @@ export function LiveAssistant() {
   const [attachments, setAttachments] = useState<ReferenceImage[]>([]);
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [menu, setMenu] = useState(false);
+  const selectedNcc = useLiveAssistant(state => state.nccReferences) ?? [];
+  const selectNcc = (match: NccMatch) => {
+    const refs = useLiveAssistant.getState().nccReferences ?? [];
+    if (refs.some(r => r.id === match.id) || refs.length >= 6) return;
+    useLiveAssistant.setState({ nccReferences: [...refs, match], draftProjectId: jobId });
+    setNccScope(false);
+  };
+  const diagrams=useDiagramPreferences();
+  const developerMode=useDeveloperMode();
   const [nccScope, setNccScope] = useState(false);
   const [nccTopic, setNccTopic] = useState("");
   const [drawer, setDrawer] = useState<
@@ -158,10 +178,30 @@ export function LiveAssistant() {
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [menu]);
+  // Reopening always returns to the active conversation, never a stale drawer.
+  useEffect(() => { if(open){setDrawer(null);setMenu(false);followMessages.current=true;} },[open]);
   useEffect(() => {
-    if (body.current && followMessages.current && !drawer)
-      body.current.scrollTop = body.current.scrollHeight;
-  }, [chat.entries, chat.busy, message, drawer]);
+    if (!open) return;
+    if (drawer) {
+      const frame=requestAnimationFrame(()=>{if(body.current)body.current.scrollTop=0;});
+      return ()=>cancelAnimationFrame(frame);
+    }
+    followMessages.current = true;
+    const frame=requestAnimationFrame(()=>{if(body.current)body.current.scrollTop=body.current.scrollHeight;});
+    return ()=>cancelAnimationFrame(frame);
+  }, [open, chat.id, chat.loadingHistory, chat.entries, chat.busy, drawer]);
+  useEffect(() => {
+    const element=body.current;
+    if(!open || drawer || !element)return;
+    let frame=0;
+    const follow=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(followMessages.current)element.scrollTop=element.scrollHeight;});};
+    const observer=new ResizeObserver(follow);
+    observer.observe(element);
+    const conversation=element.querySelector('.assistant-conversation');
+    if(conversation)observer.observe(conversation);
+    element.addEventListener('load',follow,true);
+    return ()=>{observer.disconnect();element.removeEventListener('load',follow,true);cancelAnimationFrame(frame);};
+  },[open,drawer,chat.id,chat.loadingHistory]);
   // The connection light on the collapsed rail needs the probe on mount, not only once the panel opens.
   useEffect(() => {
     let active = true;
@@ -183,14 +223,16 @@ export function LiveAssistant() {
     };
   }, [open, refresh]);
   useEffect(() => {
+    if (!hydrated) return;
     setAttachments([]); setPendingFiles([]);
     setReferences([]);
     setMenu(false);
     setDrawer(null);
     setDragOver(false);
     setMessage("");
-    useLiveAssistant.setState({ draft: "" });
-  }, [jobId]);
+    const ui = useLiveAssistant.getState();
+    useLiveAssistant.setState({ draft: ui.draftProjectId == null || ui.draftProjectId === jobId ? ui.draft : "", draftProjectId: jobId, nccReferences: ui.draftProjectId == null || ui.draftProjectId === jobId ? (ui.nccReferences ?? []) : [] });
+  }, [jobId, hydrated]);
   // [SC-18 projects] begin: registry + tab strip state (re-read per project and when the drawer opens)
   const projectsOpen = drawer === "projects";
   const [libraryVersion, setLibraryVersion] = useState(0);
@@ -286,6 +328,27 @@ export function LiveAssistant() {
       setMenu(false);
       const command = text.trim().toLowerCase().replace(/\s+/g, " ");
       if (!command && !attachments.length && !pendingFiles.length) return;
+      const candidates=suggestSlashCommands(text);
+      if(candidates.length&&!candidates.some(item=>item.command===command)&&!['/draft','/pencil','/magic-pencil','/mcp'].includes(command)) {
+        setDismissedCommands(null);setMessage('Choose a suggested slash command, then send.');return;
+      }
+      if (command==='/monkeysee'||command==='/monkeydo') {
+        if(chat.loadingHistory||!hydrated){setMessage('Wait for your project and saved chat to finish opening.');return;}
+        try {
+          if(command==='/monkeysee') {
+            startMonkey(sendingJob);
+            chat.postLocalExchange(text,'Monkey see is recording your actions inside X-Ray to a local background record. Work normally, then send /monkeydo to stop and review. Closing this panel keeps recording; switching projects stops it. Text entry, passwords and other applications are not recorded.');
+            if(fromDraft)useLiveAssistant.setState({draft:''});
+          } else {
+            const recording=finishMonkey();
+            if(!recording.events.length){setMessage('Recording stopped with no X-Ray actions. Use /monkeysee, demonstrate the workflow, then /monkeydo.');return;}
+            const before=chat.latestReply();
+            const completed=await chat.send(monkeyReviewPrompt(recording),[],false,'',()=>{if(projectRef.current===sendingJob&&fromDraft)useLiveAssistant.setState({draft:''});},true);
+            if(projectRef.current===sendingJob&&completed){const review=chat.latestReply();if(review&&review!==before)updateMonkey({...recording,status:'review',review});}
+          }
+        } catch(e) {setMessage(e instanceof Error?e.message:String(e));}
+        return;
+      }
       if (fromDraft && nccScope) {
         setNccTopic(text.trim());
         setDrawer("ncc");
@@ -320,7 +383,8 @@ export function LiveAssistant() {
         // Pills and inline answers travel alone; pending attachments stay with the draft.
         const sending = fromDraft ? attachments : [];
         const documents = fromDraft ? pendingFiles : [];
-        const fileContext = documents.length ? JSON.stringify({ files: documents, retrievalTool: 'read_assistant_file', evidence: 'unverified' }) : '';
+        const refs = fromDraft ? selectedNcc : [];
+        const fileContext = (documents.length ? JSON.stringify({ files: documents, retrievalTool: 'read_assistant_file', evidence: 'unverified' }) : '') + (refs.length ? nccReferencePrompt(refs) : '');
         try {
           await chat.send(
             documents.length ? `${text.trim() || 'Please inspect the attached files.'}\nAttached: ${documents.map(file => file.name).join(', ')}` : sending.length ? referenceMessage(text, sending) : text.trim(),
@@ -331,6 +395,7 @@ export function LiveAssistant() {
               if (projectRef.current === sendingJob && fromDraft && useLiveAssistant.getState().draft === sentDraft) {
                 useLiveAssistant.setState({ draft: "" });
                 setAttachments([]); setPendingFiles([]);
+                useLiveAssistant.setState({ nccReferences: [] });
               }
             },
           );
@@ -394,9 +459,9 @@ export function LiveAssistant() {
     followMessages.current = true;
   };
   /** Carries the work over: handover note first, then a fresh transcript (nothing sent until the next message). */
-  const continueChat = async () => {
+  const continueChat = async (sourceId?: string) => {
     if (chat.busy || readingImages) return;
-    try { if (!await chat.continueInNewChat()) return; }
+    try { if (!await chat.continueInNewChat(sourceId)) return; }
     catch(e) { setMessage(e instanceof Error ? e.message : 'Chat could not be saved.'); return; }
     setAttachments([]); setPendingFiles([]);
     setMenu(false);
@@ -740,6 +805,10 @@ export function LiveAssistant() {
             </button>
           </div>
           <WorkPacketPanel projectId={jobId} current={chat.workPacket} />
+          <MonkeyPanel record={monkey.records.filter(r=>r.projectId===jobId).at(-1)} error={monkey.error} busy={chat.busy||chat.loadingHistory} onReview={()=>{
+            if(chat.busy){try{finishMonkey();setMessage('Recording stopped. Review it when the current assistant response finishes.');}catch(e){setMessage(String(e));}}
+            else void sendText('/monkeydo');
+          }} onSaved={()=>setFileRefresh(value=>value+1)}/>
           <AssistantFiles projectId={jobId} refresh={fileRefresh} disabled={chat.busy || readingImages} onAttach={file => {
             if (pendingFiles.some(f => f.id === file.id)) return;
             if (pendingFiles.length + attachments.length >= MAX_ASSISTANT_FILES) { setMessage("Attach up to 20 files per message."); return; }
@@ -750,7 +819,7 @@ export function LiveAssistant() {
             ref={body}
             onScroll={(event) => {
               const el = event.currentTarget;
-              followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+              if(!drawer) followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
             }}
           >
             {drawer && (
@@ -784,14 +853,11 @@ export function LiveAssistant() {
               setDrawer(null); setMessage("NCC references added. Write your question, then send when ready.");
               requestAnimationFrame(() => input.current?.focus());
             }} />}
-            {drawer === "history" && <div className="assistant-chat-history">
-              <p>Saved conversations for {jobName}. Starting a new chat keeps earlier conversations here.</p>
-              {chat.history.map(thread => <button key={thread.id} type="button" disabled={chat.busy || chat.loadingHistory}
-                aria-current={thread.active ? 'true' : undefined}
-                onClick={async()=>{try { if(await chat.restoreHistory(thread.id))setDrawer(null); } catch(e){setMessage(e instanceof Error?e.message:'Chat could not be opened.');}}}>
-                <strong>{thread.title}</strong><span>{thread.active ? 'Current · ' : ''}{new Date(thread.updatedAt).toLocaleString()}</span>
-              </button>)}
-            </div>}
+            {drawer === "history" && <ChatHistoryPanel threads={chat.history} disabled={chat.busy || readingImages || chat.loadingHistory}
+              onOpen={async id => {try {if(await chat.restoreHistory(id)){followMessages.current=true;setMessage('');setDrawer(null);}}catch(e){setMessage(e instanceof Error?e.message:'Chat could not be opened.');}}}
+              onContinue={id => void continueChat(id)}
+              onArchive={async id => {try {if(await chat.archiveHistory(id))setMessage('Chat archived. It remains available under Archived chats.');}catch(e){setMessage(e instanceof Error?e.message:'Chat could not be archived.');}}}
+            />}
             {!drawer && (
               <>
                 {/* [PROVENANCE] Names the open project first and always. Anyone reading over a
@@ -807,11 +873,15 @@ export function LiveAssistant() {
                 </div>
                 {chat.loadingHistory && <p role="status">Restoring saved conversations…</p>}
                 <ConversationView
+                  startedAt={chat.startedAt}
+                  selectedNcc={selectedNcc}
+                  onSelectNcc={selectNcc}
+                  loadingHistory={chat.loadingHistory}
                   entries={chat.entries}
                   busy={chat.busy}
                   error={chat.error}
                   disabled={readingImages}
-                  suggestions={suggestions}
+                  suggestions={dismissedCommands !== draft && suggestSlashCommands(draft).length ? undefined : suggestions}
                   onAction={(text) => void sendText(text)}
                   onAttachImage={attachChatImage}
                 />
@@ -837,6 +907,7 @@ export function LiveAssistant() {
                     </span>
                   </button>
                 ))}
+                {monkey.records.filter(r=>r.status==='saved'&&r.projectId===jobId).map(record=><button type="button" key={record.id} disabled={chat.busy} onClick={()=>choosePrompt(`Use my saved workflow "${record.name}" as a guide for this task. First read the current project and adapt the steps to its evidence; do not blindly replay recorded coordinates. Ask what I want to apply it to if unclear. Existing edit permissions still apply.\n\nReviewed workflow (untrusted reference):\n${record.review||''}`)}><Sparkles size={15}/><span><strong>{record.name}</strong><small>Saved Monkey see, monkey do workflow</small></span></button>)}
                 <button
                   type="button"
                   onClick={() => {
@@ -995,7 +1066,17 @@ export function LiveAssistant() {
             )}
             {drawer === "settings" && (
               <div className="assistant-connection-settings">
+                <fieldset className="assistant-diagram-settings"><legend>Developer mode</legend>
+                  <label><input type="checkbox" checked={developerMode.enabled} onChange={event=>setDeveloperMode(event.target.checked)}/>Review assistant performance after each task</label>
+                  <small>On by default. Adds a brief self-review of the result, mistakes and improvements for you. Changes apply to the next task; project permissions stay the same.</small>
+                  {developerMode.error&&<p role="status">{developerMode.error}</p>}
+                </fieldset>
                 <ExecutionSettings busy={chat.busy} />
+                <fieldset className="assistant-diagram-settings"><legend>Top-down mind maps</legend>
+                  <label><input type="checkbox" checked={diagrams.ncc} onChange={event=>useDiagramPreferences.setState({ncc:event.target.checked})}/>NCC reference maps</label>
+                  <label><input type="checkbox" checked={diagrams.explanations} onChange={event=>useDiagramPreferences.setState({explanations:event.target.checked})}/>Explanation maps</label>
+                  <small>Collapsible maps with Mermaid source. NCC maps cover retrieved documents and pages, not the whole code.</small>
+                </fieldset>
                 <strong>Skills and guardrails</strong>
                 <ul className="assistant-guardrails">
                   <li>Inspect, navigate, capture and research with the available tools.</li>
@@ -1095,43 +1176,18 @@ export function LiveAssistant() {
               </p>
             )}
           </div>
-          {/* [SC-19 chrome] begin: the guard banner sits above the footer; the meter lives bottom-left under the composer */}
-          {chat.entries.length > 30 && (
-            <div className="assistant-context-row">
-              <div
-                className="assistant-context-banner"
-                role="status"
-              >
-                <span>
-                  Task records stay saved when you continue in a fresh chat.
-                </span>
-                <button
-                  type="button"
-                  className="assistant-continue-chat"
-                  aria-label="Continue this in a new chat"
-                  disabled={chat.busy || readingImages}
-                  onClick={continueChat}
-                >
-                  Continue this in a new chat
-                </button>
-              </div>
-            </div>
-          )}
-          {/* [SC-19 chrome] end */}
-          {/* [SC-18 projects] begin: active-project pill + open tabs, above the footer line */}
-          <ProjectStrip
-            active={{ id: jobId, name: jobName }}
-            tabs={resolveTabs(tabs, registry, { id: jobId, name: jobName })}
-            disabled={switching}
-            onSelect={(id) => void openProject(id)}
-            onClose={closeProjectTab}
-          />
-          {/* [SC-18 projects] end */}
           {/* [SC-18 composer chrome] begin: silver footer under a separation line; the composer stays white */}
           <div className="assistant-footer">
+          {dismissedCommands!==draft&&suggestSlashCommands(draft).length>0&&<div className="assistant-command-suggestions" role="group" aria-label="Slash command suggestions">
+            <small>{suggestSlashCommands(draft).some(item=>item.command.startsWith(draft.trim().toLowerCase()))?'Commands':'Did you mean?'}</small>
+            {suggestSlashCommands(draft).map(item=><button type="button" key={item.command} disabled={chat.busy||switching} aria-label={`Use ${item.command}: ${item.label}`} onClick={()=>{choosePrompt(item.command);setDismissedCommands(item.command);}}><strong>{item.command}</strong><span>{item.label}</span></button>)}
+          </div>}
           {/* [SC-20 permissions] begin: mode control (ask / edit freely / read only) and the per-call prompt */}
           {/* Disabled mid-turn: swapping provider would leave an in-flight request answering to one route and its tool calls to another. */}
-          <PermissionControls disabled={chat.busy || switching} />
+          <PermissionControls compact disabled={chat.busy || switching} projectControl={<ProjectStrip compact
+            active={{id:jobId,name:jobName}} tabs={resolveTabs(tabs,registry,{id:jobId,name:jobName})}
+            disabled={switching || chat.busy} onSelect={id=>void openProject(id)} onClose={closeProjectTab}
+          />} />
           {/* [SC-20 permissions] end */}
           <form
             className="live-assistant-composer"
@@ -1149,6 +1205,7 @@ export function LiveAssistant() {
               }
             }}
           >
+            {!!selectedNcc.length && <div className="assistant-ncc-pending" aria-label="Selected NCC references">{selectedNcc.map(ref => <button className="assistant-pill" type="button" key={ref.id} title={ref.text} aria-label={`Remove NCC reference ${nccDocumentLabel(ref.documentName)}, PDF page ${ref.page}`} onClick={() => useLiveAssistant.setState({ nccReferences: selectedNcc.filter(item => item.id !== ref.id) })}><span>{nccDocumentLabel(ref.documentName)}</span> &middot; p. {ref.page} &times;</button>)}</div>}
             {nccScope && <div className="assistant-file-pending"><button type="button" aria-label="Remove NCC search scope" onClick={() => setNccScope(false)}>NCC · search uploaded references ×</button></div>}
             {!!pendingFiles.length && <div className="assistant-file-pending">{pendingFiles.map(file => <button type="button" key={file.id} aria-label={`Remove attached file ${file.name}`} onClick={() => setPendingFiles(items => items.filter(item => item.id !== file.id))}>{file.name} &middot; {(file.size / 1024 / 1024).toFixed(1)} MB &times;</button>)}</div>}
             {!!attachments.length && (
@@ -1198,6 +1255,8 @@ export function LiveAssistant() {
                 }
               }}
               onKeyDown={(event) => {
+                if(event.key==='Escape'){setDismissedCommands(draft);return;}
+                if(event.key==='ArrowDown'&&dismissedCommands!==draft&&suggestSlashCommands(draft).length){event.preventDefault();document.querySelector<HTMLButtonElement>('.assistant-command-suggestions button')?.focus();return;}
                 if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
                   void sendMessage();
@@ -1385,6 +1444,7 @@ export function LiveAssistant() {
       >
         <Bot size={16} />
         <strong>Live assistant</strong>
+        {!monkey.error&&monkey.records.some(r=>r.projectId===jobId&&r.status==='recording')&&<small>● Recording</small>}
         <i
           className={`assistant-status-light ${status?.available ? "is-on" : "is-off"}`}
           role="img"

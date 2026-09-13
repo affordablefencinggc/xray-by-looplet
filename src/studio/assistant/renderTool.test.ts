@@ -32,7 +32,7 @@ function fixture() {
   const state: RenderState = {
     job, pane: "model" as Pane, sheet: 2, hydrationStatus: "ready", persistenceHydrated: true, persistenceRecoveryBlocked: false, persistenceError: null, lastSavedJobRevision: job.revision,
     setPane(pane: Pane) { state.pane = pane; }, saveCurrentProject() { return { ok: true, error: null }; },
-    activePlanBinary: { documentId: "doc-1", name: "Fixture plan.pdf", sha256: SOURCE_SHA },
+    activePlanBinary: { documentId: "doc-1", name: "Fixture plan.pdf", sha256: SOURCE_SHA, kind: "pdf", mimeType: "application/pdf", sizeBytes: 1, bytes: new Uint8Array([0]) },
     renderMaterials: { roof: "terracotta", walls: "", windows: "", landscaping: "", lighting: "", style: "", direction: "plain" },
   };
   const captures: string[] = [], sent: RenderAiRequest[] = [];
