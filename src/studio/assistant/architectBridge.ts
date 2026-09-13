@@ -158,6 +158,10 @@ const levelName = z.string().trim().min(1).max(100);
 const nonnegative = z.number().finite().nonnegative().max(1e6);
 /** Edits to existing entities; every operation names the stable ID it changes. Removing is explicit, never bulk. */
 export const architectEditOperationSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("set-lifecycle"), id, lifecycle: z.object({
+    status: z.enum(["existing", "new", "demolished", "repaired"]),
+    reference: z.string().trim().min(1).max(500),
+  }).strict().nullable() }).strict(),
   /** Removes one entity by ID. Removing a wall also removes its hosted openings and dimensions; a level must be empty first. */
   z.object({ kind: z.literal("remove"), id }).strict(),
   z.object({ kind: z.literal("move-wall"), id, a: point.optional(), b: point.optional() }).strict(),
@@ -277,6 +281,15 @@ function prepareArchitectEditsDraft(project: ArchitectProject, input: unknown, m
         roof.edges.forEach((edge, index) => { edge.gable = operation.gableEdges!.includes(index); });
       }
       change("roof", roof.id);
+    } else if (operation.kind === "set-lifecycle") {
+      const key = (["walls", "openings", "slabs", "roofs"] as const)
+        .find(list => draft[list].some(item => item.id === operation.id));
+      if (!key) throw Error("Lifecycle requires an existing wall, opening, slab or roof identity.");
+      const element = draft[key].find(item => item.id === operation.id)!;
+      if (operation.lifecycle === null) delete element.lifecycle;
+      else element.lifecycle = operation.lifecycle;
+      change(ENTITY_KIND[key], element.id);
+      notices.push(`Element ${element.id}: lifecycle ${element.lifecycle?.status ?? "unassigned"}. Authored classification only; quantities are not phase-filtered and this is not verified survey evidence.`);
     } else if (operation.kind === "set-opening") {
       const patch = defined({ offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm, sill: operation.sillMm, tag: operation.tag, hinge: operation.hinge, swing: operation.swing });
       requireChange(patch, "Changing an opening");

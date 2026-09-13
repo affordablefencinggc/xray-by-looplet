@@ -13,6 +13,7 @@ import {
   newWall,
 } from "./model";
 import { rooms, designQuantities } from "./geometry";
+import { AlterationPanel } from "./AlterationPanel";
 export function NumberField({
   label,
   value,
@@ -199,6 +200,7 @@ export function ArchitectInspector({
   }
   return (
     <aside className="arch-inspector">
+      <AlterationPanel project={p} selected={selected} onChange={onChange} onSelect={onSelect} />
       <header>
         <span className="kicker">PARAMETRIC INSPECTOR</span>
         <h2>

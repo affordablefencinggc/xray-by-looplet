@@ -260,3 +260,9 @@ Verified in existing Edge with an isolated QA project: calibration, area/run, un
 
 ### 2026-09-13 — D-10 authored plan overlay
 Earlier/later plan layers, level choice, changed-only emphasis and preview-only translation/rotation/opacity/visibility/reset verified. Four geometry tests and 26/26 desktop/tablet component interaction operations passed; exact source included in DANS1 build 2f46514c2abd. Scanned-PDF registration and 3D Boolean differences are outside scope. Proof: proof/growth/2026-09-13-revision-overlay/README.md. Commit pending on feat/architect-cad-engine.
+
+## Residential lifecycle foundation - 2026-09-14
+
+User priority is now IND-01, executed by three parallel agents with shared lifecycle schema and disjoint files. Existing/new/demolished/repaired assignments require supplied references; legacy records remain unassigned. Added schedule/CSV and revision-bound assistant edit; issue metadata stays frozen. Mixed-phase material sync is blocked because existing combined quantities cannot establish phase quantities.
+
+DANS1: 201 script + 1,265 TypeScript tests, typecheck, web/native NSIS build 20e1cd9705b0 pass. Dev 47/47, corrected charcoal 31/31, production 49/49 browser operations pass; root inspected desktop/tablet screenshots. Actual mounted assistant adapter edit saved and read back; live provider explanation/Developer response remains unverified because the isolated snapshot has no evidenced provider configuration. Native UI/installer acceptance and the whole industry remain open. Recovery: feat/architect-cad-engine after e1813d8; proof/growth/2026-09-14-residential/README.md. Next: before/proposed geometry and read-only stage previews.

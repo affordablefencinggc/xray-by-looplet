@@ -2,19 +2,21 @@
 
 All 68 profiles from planning/professional-coverage/industries.mjs. These are whole-workflow acceptance gates, not claims that existing partial work is absent or complete. Individual slice evidence remains in the linked work reports and INDUSTRY-AGENT-TODO.md.
 
-Active batch: IND-29 roofing, IND-30 HVAC, IND-38 quantity surveying. Fencing IND-43 stock-cutting work is deferred. Remaining profiles are queued; define a bounded implementation slice before starting each.
+Current user priority: IND-01 residential architecture, with parallel agents (2026-09-14). IND-29 roofing, IND-30 HVAC and IND-38 quantity surveying retain their open acceptance items. Fencing IND-43 stock-cutting work is deferred. Remaining profiles are queued; define a bounded implementation slice before starting each.
 
 ## IND-01 - Residential architecture
 
 User workflow: Develop an alteration with existing/new/demolished work.
 Inputs: Survey and client brief. Expected deliverable: Coordinated plans, sections, schedules and issue set.
 
-- [ ] SC-01 Agree bounded scope, explicit inputs, units, source/evidence requirements and exclusions.
+- [x] SC-01 Agree bounded scope, explicit inputs, units, source/evidence requirements and exclusions. First slice: explicit lifecycle classification with supplied references; legacy unassigned; authored mm geometry remains unverified. See planning/industry-work/residential-architecture.md.
 - [ ] SC-02 Implement the workflow with invalid-input handling and checked calculations; retain assumptions.
 - [ ] SC-03 Verify actual entry, edit/invalidation, undo where applicable, project isolation, save and reload.
 - [ ] SC-04 Verify assistant execution and explanation against actual results; check Developer review independently.
 - [ ] SC-05 Verify desktop/tablet behaviour and export contents; preserve source and evidence status.
 - [ ] SC-06 Pass final regression/build and applicable package checks; attach diff/proof and record remaining professional review requirements.
+
+Progress 2026-09-14: lifecycle editor/schedule/CSV, strict assistant operation and material-sync protection implemented. Combined DANS1 regression passes 201 script and 1,265 TypeScript tests plus full typecheck. Lifecycle dev 47/47, corrected charcoal 31/31 and production 49/49 browser operations pass; web/native build 20e1cd9705b0 passes. Remaining gates include live assistant/Developer responses, phase-aware geometry/quantities, native UI and coordinated issue-set acceptance. A classification schedule does not complete this industry.
 
 ## IND-02 - Commercial architecture
 

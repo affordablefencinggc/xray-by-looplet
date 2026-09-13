@@ -9,7 +9,17 @@ import {
   type MaterialSource,
 } from "../construction/projectMaterials.ts";
 export const designPrefix = (p: ArchitectProject) => "design:" + p.id + ":";
-export function designSyncSummary(p: ArchitectProject, register: ProjectMaterials) {
+/** Classification is not a phase-aware quantity calculation or procurement scope. */
+export function designMaterialSyncBlockedReason(p: ArchitectProject): string | null {
+  return [...p.walls, ...p.openings, ...p.slabs, ...p.roofs].some(element => element.lifecycle !== undefined)
+    ? "Alteration quantities require phase-aware review. Phase quantities are not supported yet; classified designs cannot sync to the material register."
+    : null;
+}
+export function designSyncSummary(p: ArchitectProject, register: ProjectMaterials): {
+  add: number; update: number; retire: number; blockedReason?: string;
+} {
+  const blockedReason = designMaterialSyncBlockedReason(p);
+  if (blockedReason) return { add: 0, update: 0, retire: 0, blockedReason };
   const rows = designQuantities(p).rows.filter((r) => r.areaM2 > 1e-9),
     keys = new Set(rows.map((r) => designPrefix(p) + r.id));
   return {
@@ -36,6 +46,8 @@ export function syncDesignMaterials(
   register: ProjectMaterials,
   source: MaterialSource,
 ) {
+  const blockedReason = designMaterialSyncBlockedReason(p);
+  if (blockedReason) throw Error(blockedReason);
   if (register.projectId !== p.id) throw Error("Design and register project differ.");
   let next = attachMaterialSource(register, source);
   const rows = designQuantities(p).rows.filter((r) => r.areaM2 > 1e-9),

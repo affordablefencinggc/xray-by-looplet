@@ -7,6 +7,10 @@ const n = z.number().finite().min(-1e6).max(1e6),
   id = z.string().min(1).max(100),
   point = z.tuple([n, n]);
 const entity = { id, revision: z.number().int().positive() };
+const lifecycle = z.object({
+  status: z.enum(["existing", "new", "demolished", "repaired"]),
+  reference: z.string().trim().min(1).max(500),
+}).strict().optional();
 export const layerSchema = z
   .object({
     id,
@@ -24,6 +28,7 @@ export const layerSchema = z
 const wallSchema = z
   .object({
     ...entity,
+    lifecycle,
     levelId: id,
     name: z.string().min(1).max(120),
     a: point,
@@ -35,6 +40,7 @@ const wallSchema = z
 const openingSchema = z
   .object({
     ...entity,
+    lifecycle,
     wallId: id,
     tag: z.string().min(1).max(30),
     kind: z.enum(["door", "window"]),
@@ -48,6 +54,7 @@ const openingSchema = z
   .strict();
 const boundarySchema = {
   ...entity,
+  lifecycle,
   levelId: id,
   name: z.string().min(1).max(120),
   points: z.array(point).min(3).max(200),

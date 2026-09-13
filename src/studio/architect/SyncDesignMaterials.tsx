@@ -3,7 +3,7 @@ import { useDesignConfirmation } from "./useDesignConfirmation";
 import { restoreMaterialDatabase, saveMaterialDatabase } from "../projectMaterialsPersistence";
 import { inspectPlanBytes } from "../documents";
 import { useStudio } from "../store";
-import { designSyncSummary, syncDesignMaterials } from "./materialBridge";
+import { designMaterialSyncBlockedReason, designSyncSummary, syncDesignMaterials } from "./materialBridge";
 import { exportMaterialSnapshotPdf } from "./sheets";
 import type { ArchitectProject } from "./model";
 export function SyncDesignMaterials({
@@ -18,18 +18,22 @@ export function SyncDesignMaterials({
     [message, setMessage] = useState(""),
     latest = useRef(p);
   latest.current = p;
+  const blockedReason = designMaterialSyncBlockedReason(p);
   return (
     <>
       <button
-        disabled={busy}
+        disabled={busy || !!blockedReason}
         onClick={async () => {
           setBusy(true);
           setMessage("");
           try {
+            const blocked = designMaterialSyncBlockedReason(p);
+            if (blocked) throw Error(blocked);
             const session = await restoreMaterialDatabase(p.id);
             if (session.blocked)
               throw Error(session.error ?? "Material register recovery required.");
             const counts = designSyncSummary(p, session.value);
+            if (counts.blockedReason) throw Error(counts.blockedReason);
             if (!counts.add && !counts.update && !counts.retire) {
               setMessage("Material register already matches this design revision.");
               return;
@@ -66,6 +70,7 @@ export function SyncDesignMaterials({
       >
         {busy ? "Saving evidence and quantities…" : "Sync to project material register"}
       </button>
+      {blockedReason && <p role="status" className="arch-note">{blockedReason}</p>}
       {message && (
         <p role="status" className="arch-note">
           {message}
