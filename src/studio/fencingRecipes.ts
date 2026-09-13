@@ -99,6 +99,7 @@ function candidateRecipes(): BomRecipe[] {
     profile: "Good Neighbour",
     maxBayWidthMm: 2400,
     postSpacingMm: 2400,
+    bayLayout: "full-bays-terminal-cut",
     materialModel: {
       kind: "colorbond",
       effectiveSheetCoverMm: 762,
@@ -133,7 +134,7 @@ function candidateRecipes(): BomRecipe[] {
     supportedRetainingTypes: ["none"],
     supportsSleepers: false,
     assumptions: [
-      unresolvedAssumption("cb-spacing", "post-spacing-mm", "maximum post and bay spacing", "2400", "mm", "the project design and selected product engineering schedule"),
+      unresolvedAssumption("cb-spacing", "post-spacing-mm", "maximum spacing and selected bay division", "2400", "mm", "the project design and selected product engineering schedule"),
       unresolvedAssumption("cb-material", "sheet-cover-and-rail-rows", "762 mm effective sheet cover and two rail rows", "762", "mm", "the selected manufacturer profile data sheet"),
       unresolvedAssumption("cb-footing", "role-footing-dimensions", "role-specific footing diameters and depths", "1", "ratio", "the site classification and engineer-approved footing schedule"),
       unresolvedAssumption("cb-gate", "double-gate-components", "2,000 mm double-gate component schedule", "1", "ratio", "the selected gate supplier schedule"),
@@ -259,6 +260,33 @@ export async function computeRecipeSetDigest(recipeSet: BomRecipeSet): Promise<s
 
 export async function verifyRecipeSetDigest(recipeSet: BomRecipeSet): Promise<boolean> {
   return (await computeRecipeSetDigest(recipeSet)) === recipeSet.digest;
+}
+
+/** A layout change invalidates prior recipe approvals and retained BOM bindings. */
+export async function changeRecipeBayLayout(
+  recipeSet: BomRecipeSet,
+  input: Omit<RecipeAssumptionTransitionInput, "assumptionId"> & { layout: "equal" | "full-bays-terminal-cut" },
+): Promise<BomRecipeSet> {
+  const parsed = bomRecipeSetSchema.parse(recipeSet);
+  if (!(await verifyRecipeSetDigest(parsed))) throw new RecipeSetIntegrityError("Recipe digest does not match.");
+  const recipe = parsed.recipes.find(entry => entry.id === input.recipeId);
+  if (!recipe || parsed.revision !== input.expectedSetRevision || recipe.revision !== input.expectedRecipeRevision)
+    throw new RecipeRevisionConflictError("Recipe changed. Reload before choosing a bay layout.");
+  if (!["equal", "full-bays-terminal-cut"].includes(input.layout)) throw new RecipeAssumptionTransitionError("Unknown bay layout.");
+  if (!input.actor.trim() || !Number.isFinite(Date.parse(input.at)) || !/(?:Z|[+-]\d\d:\d\d)$/.test(input.at))
+    throw new RecipeAssumptionTransitionError("A named estimator and dated decision are required.");
+  if ((recipe.bayLayout ?? "equal") === input.layout) return parsed;
+  const layoutId = `${recipe.id}-bay-layout`;
+  const layoutAssumption = unresolvedAssumption(layoutId, "bay-layout", `bay layout: ${input.layout}`, "1", "ratio",
+    `the selected product schedule; layout selected by ${input.actor.trim()} at ${input.at}`);
+  const updated = {
+    ...recipe, revision: recipe.revision + 1, bayLayout: input.layout,
+    assumptions: [...recipe.assumptions.filter(a => a.id !== layoutId).map(a => ({ ...a, status: "unresolved" as const, acceptedBy: null, acceptedAt: null })), layoutAssumption],
+    components: recipe.components.map(c => ({ ...c, assumptionIds: [...new Set([...c.assumptionIds, layoutId])] })),
+  };
+  const next = bomRecipeSetSchema.parse({ ...parsed, revision: parsed.revision + 1,
+    recipes: parsed.recipes.map(r => r.id === recipe.id ? updated : r), digest: EMPTY_DIGEST });
+  return { ...next, digest: await computeRecipeSetDigest(next) };
 }
 
 export async function createCandidateFencingRecipeSet(): Promise<BomRecipeSet> {

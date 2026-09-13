@@ -49,7 +49,7 @@ import type { EditableFenceRun, PlacedGate } from "./tracing";
 import { BomPanel, type BomEvidenceRef, type BomTransportStatus } from "./BomPanel";
 import { compileBomRequest } from "./bomCompiler";
 import type { BomIssue, BomRecipeSet } from "./bomContract";
-import { acceptRecipeAssumption, createCandidateFencingRecipeSet, reopenRecipeAssumption } from "./fencingRecipes";
+import { acceptRecipeAssumption, changeRecipeBayLayout, createCandidateFencingRecipeSet, reopenRecipeAssumption } from "./fencingRecipes";
 import { createTauriBomAdapter } from "./bomTauriAdapter";
 import { runBomTransport, sameBomSourceBinding } from "./bomTransport";
 import { loadFencingRecipeSet, saveFencingRecipeSet } from "./fencingRecipePersistence";
@@ -1599,6 +1599,7 @@ function CostPane() {
   const [transportStatus, setTransportStatus] = useState<BomTransportStatus>({ phase: "idle" });
   const [recipePersistenceError, setRecipePersistenceError] = useState<string | null>(null);
   const [reviewer, setReviewer] = useState("");
+  const [layoutSaving, setLayoutSaving] = useState(false);
   const buildToken = useRef(0);
   const buildAbort = useRef<AbortController | null>(null);
 
@@ -1646,6 +1647,27 @@ function CostPane() {
   }, [recipeSet, s.job.runs]);
   const recipeAssumptions = activeRecipes.length > 0 ? activeRecipes.flatMap((recipe) => recipe.assumptions) : null;
   const bomHost = detectHost();
+
+  async function chooseBayLayout(recipeId: string, layout: "equal" | "full-bays-terminal-cut") {
+    if (!recipeSet || layoutSaving) return;
+    const recipe = recipeSet.recipes.find(r => r.id === recipeId);
+    if (!recipe) return;
+    const jobId = s.job.id;
+    setLayoutSaving(true);
+    try {
+      const next = await changeRecipeBayLayout(recipeSet, { recipeId, layout,
+        expectedSetRevision: recipeSet.revision, expectedRecipeRevision: recipe.revision,
+        actor: reviewer, at: new Date().toISOString() });
+      const saved = await saveFencingRecipeSet(jobId, next);
+      if (!saved.ok) throw new Error(`Bay layout could not be saved (${saved.reason}).`);
+      if (useStudio.getState().job.id !== jobId) return;
+      setRecipeSet(next);
+      useStudio.getState().reconcileBomRecipeSet(next);
+      setRecipePersistenceError(null);
+    } catch (error) {
+      setRecipePersistenceError(error instanceof Error ? error.message : "Bay layout could not be saved.");
+    } finally { setLayoutSaving(false); }
+  }
 
   async function generateBom() {
     if (!recipeSet) return;
@@ -1820,6 +1842,21 @@ function CostPane() {
           <span className="cost-control-note">Every accepted input is revisioned and remains visible in the calculation trace.</span>
         </div>
       ) : null}
+      {activeRecipes.length > 0 && <section className="specification-panel" aria-label="Fencing bay layout">
+        <h2>Fencing bay layout</h2>
+        <p>Full bays keep the declared spacing and put one cut bay at the end of each span between corners or gates. Equal bays share the remainder across the span.</p>
+        {activeRecipes.map(recipe => <label className="field" key={recipe.id}>
+          <span>{recipe.profile} · bay division</span>
+          <select aria-label={`${recipe.profile} bay division`} value={recipe.bayLayout ?? "equal"}
+            disabled={!reviewer.trim() || layoutSaving || transportStatus.phase === "pending"}
+            onChange={event => void chooseBayLayout(recipe.id, event.currentTarget.value as "equal" | "full-bays-terminal-cut")}>
+            <option value="full-bays-terminal-cut">Full bays + terminal cut</option>
+            <option value="equal">Equal bays within maximum spacing</option>
+          </select>
+          <small>{recipe.bayLayout === undefined ? "Saved legacy rule: equal bays. " : ""}Changing this rule requires the recipe assumptions to be reviewed again.</small>
+        </label>)}
+        {!reviewer.trim() && <p>Enter the responsible estimator above to change the bay rule.</p>}
+      </section>}
       {hasRecipeRuns ? <BomPanel
         state={s.bomState}
         compileIssues={compileIssues}

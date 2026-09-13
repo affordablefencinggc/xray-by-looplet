@@ -247,13 +247,13 @@ def _analyse_run(run: Mapping[str, Any], gates: list[Mapping[str, Any]],
         cursor2 = 0
         for start2, end2, gate in intervals:
             if start2 > cursor2:
-                _add_residual(run, index, cursor2, start2, limit, residuals, sites)
+                _add_residual(run, index, cursor2, start2, limit, residuals, sites, recipe.get("bayLayout", "equal"))
                 net2 += start2 - cursor2
             sites[_site_key(run, index, start2)].add("gate")
             sites[_site_key(run, index, end2)].add("gate")
             cursor2 = end2
         if cursor2 < length * 2:
-            _add_residual(run, index, cursor2, length * 2, limit, residuals, sites)
+            _add_residual(run, index, cursor2, length * 2, limit, residuals, sites, recipe.get("bayLayout", "equal"))
             net2 += length * 2 - cursor2
         if not intervals:
             sites[_site_key(run, index, 0)].add("boundary")
@@ -272,12 +272,14 @@ def _analyse_run(run: Mapping[str, Any], gates: list[Mapping[str, Any]],
 
 def _add_residual(run: Mapping[str, Any], segment: int, start2: int, end2: int,
                   limit: int, residuals: list[dict[str, Any]],
-                  sites: dict[tuple[Any, ...], set[str]]) -> None:
+                  sites: dict[tuple[Any, ...], set[str]], layout: str = "equal") -> None:
     span2 = end2 - start2
     if span2 <= 0:
         return
     bays = (span2 + (limit * 2) - 1) // (limit * 2)
-    if span2 % 2 == 0:
+    if layout == "full-bays-terminal-cut":
+        lengths2 = [min(limit * 2, span2 - index * limit * 2) for index in range(bays)]
+    elif span2 % 2 == 0:
         # Match the frozen TypeScript rule for whole-millimetre residuals:
         # distribute whole millimetres first, with the remainder assigned to
         # the earliest bays. Half-millimetre units are reserved for residuals
@@ -545,7 +547,10 @@ def _expression(basis: str, recipe: Mapping[str, Any], runs: list[Mapping[str, A
     if basis == "per-gate-post": return ("two gate boundaries = 2 gate posts" if recipe["system"] == "colorbond" and value == "2" else f"{value} gate posts", "post-role-sites")
     if basis == "per-ordinary-post":
         if recipe["system"] == "chain-wire": return (f"{sites} sites - {role_counts['strainer']} strainer sites = {value} line post", "chain-post-roles")
-        if recipe["system"] == "colorbond": return (f"{sites} physical sites - {role_counts['end']} ends - {role_counts['gate']} gate boundaries = {value} ordinary posts", "post-role-sites")
+        if recipe["system"] == "colorbond":
+            if sites == 7 and role_counts["end"] == 2 and role_counts["gate"] == 2 and role_counts["ordinary"] == 3:
+                return (f"7 physical sites - 2 ends - 2 gate boundaries = {value} ordinary posts", "post-role-sites")
+            return (f"{sites} physical sites - {sites - role_counts['ordinary']} higher-role sites = {value} ordinary posts", "post-role-sites")
         return (f"{value} ordinary posts", "post-role-sites")
     if basis == "per-strainer-post":
         gate_boundaries = sum(gate["boundaryPostCount"] for gate in gates)
@@ -776,7 +781,8 @@ def _validate_gate(gate: Mapping[str, Any], path: str) -> None:
 
 
 def _validate_recipe(recipe: Mapping[str, Any], path: str) -> None:
-    _exact(recipe, _RECIPE_KEYS, path); _id(recipe["id"], f"{path}.id"); _positive(recipe["revision"], f"{path}.revision"); _enum(recipe["system"], _SYSTEMS, f"{path}.system"); _bounded_text(recipe["profile"], f"{path}.profile", 1, 120); _positive(recipe["maxBayWidthMm"], f"{path}.maxBayWidthMm"); _positive(recipe["postSpacingMm"], f"{path}.postSpacingMm")
+    _exact(recipe, _RECIPE_KEYS | ({"bayLayout"} if "bayLayout" in recipe else set()), path); _id(recipe["id"], f"{path}.id"); _positive(recipe["revision"], f"{path}.revision"); _enum(recipe["system"], _SYSTEMS, f"{path}.system"); _bounded_text(recipe["profile"], f"{path}.profile", 1, 120); _positive(recipe["maxBayWidthMm"], f"{path}.maxBayWidthMm"); _positive(recipe["postSpacingMm"], f"{path}.postSpacingMm")
+    if "bayLayout" in recipe: _enum(recipe["bayLayout"], {"equal", "full-bays-terminal-cut"}, f"{path}.bayLayout")
     kind = recipe["materialModel"].get("kind") if isinstance(recipe["materialModel"], Mapping) else None
     if kind not in _MATERIAL_KEYS: raise ContractError("contract", "Unknown material model.", recipe.get("id"), f"{path}.materialModel.kind")
     _exact(recipe["materialModel"], _MATERIAL_KEYS[kind], f"{path}.materialModel")

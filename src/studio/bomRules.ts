@@ -215,7 +215,9 @@ function analyseRequest(request: BomBuildRequest): RecipeAnalysis[] {
         if (end2 <= start2) continue;
         const span2 = end2 - start2;
         const bayCount = Math.ceil(span2 / (effectiveLimit * 2));
-        const bayLengths2 = span2 % 2 === 0
+        const bayLengths2 = recipe.bayLayout === "full-bays-terminal-cut"
+          ? Array.from({ length: bayCount }, (_, index) => Math.min(effectiveLimit * 2, span2 - index * effectiveLimit * 2))
+          : span2 % 2 === 0
           ? distributeSpanMm(span2 / 2, effectiveLimit).map((lengthMm) => lengthMm * 2)
           : distributeUnits(span2, bayCount);
         const spanMm = span2 / 2;

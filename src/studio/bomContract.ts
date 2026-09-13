@@ -198,6 +198,8 @@ export const bomRecipeSchema = z
     profile: z.string().min(1).max(120),
     maxBayWidthMm: positiveInt,
     postSpacingMm: positiveInt,
+    // Missing on historical recipes: retain their equal-bay calculation exactly.
+    bayLayout: z.enum(["equal", "full-bays-terminal-cut"]).optional(),
     materialModel: materialModelSchema,
     footings: z.array(footingRuleSchema),
     allowances: z.array(allowanceSchema),

@@ -437,3 +437,5 @@ Recovery: proof/growth/2026-09-13-ncc-library/README.md and changes.patch; build
 - 2026-09-13 rail/timestamps: single combined control restored rail in Edge; timestamp persistence tests pass,20 focused tests. Drag render/storage overhead reduced, final performance and timestamp visual acceptance pending Edge recovery. Evidence: proof/growth/2026-09-13-rail-timestamps/README.md.
 
 - [x] 2026-09-13: Single assistant button click-collapse/reopen and full divider drag verified in existing Edge; 17 rail tests + build/typecheck pass. Short performance sample median16.7ms, p9533.4ms (occasional dropped frames remain). proof/growth/2026-09-13-click-rail/README.md
+
+- [x] IND-43 bounded implementation: explicit fencing bay rule, immutable recipe decision and two-kernel edge-case parity; 92 Node / 19 Python tests, Edge save/reload, web build and typecheck pass. SO-01 stays partial until remaining package/workflow gates; fencing remains current. proof/growth/2026-09-13-fencing-bays/README.md
