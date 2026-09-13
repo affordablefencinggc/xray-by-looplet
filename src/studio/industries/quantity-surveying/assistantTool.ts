@@ -9,5 +9,15 @@ export const description = "Group explicitly supplied quantities into an explici
 export const inputSchema = z.toJSONSchema(classificationInputSchema, { io: "input" });
 
 export function execute(input: unknown) {
-  return classifyQuantities(classificationInputSchema.parse(input));
+  try { return classifyQuantities(classificationInputSchema.parse(input)); }
+  catch (error) {
+    if (error instanceof z.ZodError) {
+      const issues = error.issues.map(issue => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ");
+      const nullableField = error.issues.some(issue =>
+        (issue.path[0] === "nodes" && issue.path[2] === "parentId") ||
+        (issue.path[0] === "items" && issue.path[2] === "source"));
+      throw Error(`Invalid tool arguments: ${issues}${nullableField ? " Top-level nodes accept parentId: null. Items without supplied source evidence accept source: null. Preserve the user's explicit JSON null values; do not invent parent nodes, source IDs, hashes or calibration metadata. Empty strings and empty objects are not null." : ""}`);
+    }
+    throw error;
+  }
 }

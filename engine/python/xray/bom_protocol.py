@@ -22,7 +22,7 @@ from .job_bom import BOM_SCHEMA, JOB_SCHEMA, RULESET, build_bom, compute_input_d
 MAX_REQUEST_BYTES = 1_048_576
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 CONTRACT_FILENAME = "xray-job-bom-v1.schema.json"
-CONTRACT_SHA256 = "d394988e89d69e342d53559538367ac21b31e4402d7720b7294e237c4f5722b7"
+CONTRACT_SHA256 = "60ef497fc03a800aba23e7acc6a1974ecf7a48f465f90479a862e195a55b8cd7"
 
 
 class ProtocolError(Exception):

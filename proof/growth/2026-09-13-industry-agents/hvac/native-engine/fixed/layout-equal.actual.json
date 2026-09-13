@@ -1,0 +1,444 @@
+{
+  "schema": "xray.bom/v1",
+  "ok": true,
+  "requestId": "golden-colorbond",
+  "bom": {
+    "jobId": "job-colorbond",
+    "jobRevision": 12,
+    "inputDigest": "22b9cfe6449cd226ab0e1b7ccbe4668435e784cd5ba30bf1fb9371f7ba4ec2ce",
+    "documentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipeSet": {
+      "id": "recipes-colorbond",
+      "revision": 2,
+      "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "ruleset": {
+      "id": "fencing-v1",
+      "version": 1
+    },
+    "status": "review-ready",
+    "lines": [
+      {
+        "id": "bom-cb-end-post",
+        "groupKey": "colorbond|CB-POST-END|ea",
+        "category": "post",
+        "itemCode": "CB-POST-END",
+        "description": "End Colorbond post",
+        "quantity": {
+          "value": "2",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "post-role-sites",
+          "ruleVersion": 1,
+          "expression": "two outer run endpoints = 2 end posts",
+          "operands": [],
+          "result": {
+            "value": "2",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "run",
+            "id": "run-boundary",
+            "revision": 5
+          }
+        ],
+        "assumptionRefs": [
+          "a-spacing"
+        ]
+      },
+      {
+        "id": "bom-cb-gate-post",
+        "groupKey": "colorbond|CB-POST-GATE|ea",
+        "category": "post",
+        "itemCode": "CB-POST-GATE",
+        "description": "Gate boundary post",
+        "quantity": {
+          "value": "2",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "post-role-sites",
+          "ruleVersion": 1,
+          "expression": "two gate boundaries = 2 gate posts",
+          "operands": [],
+          "result": {
+            "value": "2",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "gate",
+            "id": "gate-double",
+            "revision": 3
+          }
+        ],
+        "assumptionRefs": [
+          "a-gate"
+        ]
+      },
+      {
+        "id": "bom-cb-ordinary-post",
+        "groupKey": "colorbond|CB-POST-ORD|ea",
+        "category": "post",
+        "itemCode": "CB-POST-ORD",
+        "description": "Ordinary Colorbond post",
+        "quantity": {
+          "value": "3",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "post-role-sites",
+          "ruleVersion": 1,
+          "expression": "7 physical sites - 2 ends - 2 gate boundaries = 3 ordinary posts",
+          "operands": [],
+          "result": {
+            "value": "3",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "run",
+            "id": "run-boundary",
+            "revision": 5
+          }
+        ],
+        "assumptionRefs": [
+          "a-spacing"
+        ]
+      },
+      {
+        "id": "bom-cb-rail-cut",
+        "groupKey": "colorbond|CB-RAIL-CUT|ea",
+        "category": "rail",
+        "itemCode": "CB-RAIL-CUT",
+        "description": "Colorbond rail cuts",
+        "quantity": {
+          "value": "10",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "rail-cuts",
+          "ruleVersion": 1,
+          "expression": "5 bays \u00c3\u2014 2 rail rows = 10 cuts",
+          "operands": [],
+          "result": {
+            "value": "10",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "run",
+            "id": "run-boundary",
+            "revision": 5
+          }
+        ],
+        "assumptionRefs": [
+          "a-rails"
+        ]
+      },
+      {
+        "id": "bom-cb-rail-lm",
+        "groupKey": "colorbond|CB-RAIL-LM|lm",
+        "category": "rail",
+        "itemCode": "CB-RAIL-LM",
+        "description": "Colorbond rail material",
+        "quantity": {
+          "value": "16",
+          "unit": "lm"
+        },
+        "calculation": {
+          "ruleId": "rail-length",
+          "ruleVersion": 1,
+          "expression": "8 lm net fence \u00c3\u2014 2 rail rows = 16 lm",
+          "operands": [],
+          "result": {
+            "value": "16",
+            "unit": "lm"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "run",
+            "id": "run-boundary",
+            "revision": 5
+          }
+        ],
+        "assumptionRefs": [
+          "a-rails"
+        ]
+      },
+      {
+        "id": "bom-cb-sheet",
+        "groupKey": "colorbond|CB-SHEET|ea",
+        "category": "infill",
+        "itemCode": "CB-SHEET",
+        "description": "Colorbond infill sheets",
+        "quantity": {
+          "value": "13",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "infill-sheets-per-bay",
+          "ruleVersion": 1,
+          "expression": "ceil each bay [1500,1500,1667,1667,1666] / 762 = 13 sheets",
+          "operands": [],
+          "result": {
+            "value": "13",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "run",
+            "id": "run-boundary",
+            "revision": 5
+          }
+        ],
+        "assumptionRefs": [
+          "a-cover"
+        ]
+      },
+      {
+        "id": "bom-gate-drop-bolt",
+        "groupKey": "colorbond|GATE-DROP-BOLT|ea",
+        "category": "gate-hardware",
+        "itemCode": "GATE-DROP-BOLT",
+        "description": "Gate drop bolt",
+        "quantity": {
+          "value": "1",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "typed-gate-hardware",
+          "ruleVersion": 1,
+          "expression": "typed gate model = 1 drop bolt",
+          "operands": [],
+          "result": {
+            "value": "1",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "gate",
+            "id": "gate-double",
+            "revision": 3
+          }
+        ],
+        "assumptionRefs": [
+          "a-gate"
+        ]
+      },
+      {
+        "id": "bom-gate-hinge",
+        "groupKey": "colorbond|GATE-HINGE-SET|ea",
+        "category": "gate-hardware",
+        "itemCode": "GATE-HINGE-SET",
+        "description": "Gate hinge sets",
+        "quantity": {
+          "value": "2",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "typed-gate-hardware",
+          "ruleVersion": 1,
+          "expression": "typed gate model = 2 hinge sets",
+          "operands": [],
+          "result": {
+            "value": "2",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "gate",
+            "id": "gate-double",
+            "revision": 3
+          }
+        ],
+        "assumptionRefs": [
+          "a-gate"
+        ]
+      },
+      {
+        "id": "bom-gate-latch",
+        "groupKey": "colorbond|GATE-LATCH|ea",
+        "category": "gate-hardware",
+        "itemCode": "GATE-LATCH",
+        "description": "Gate latch",
+        "quantity": {
+          "value": "1",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "typed-gate-hardware",
+          "ruleVersion": 1,
+          "expression": "typed gate model = 1 latch",
+          "operands": [],
+          "result": {
+            "value": "1",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "gate",
+            "id": "gate-double",
+            "revision": 3
+          }
+        ],
+        "assumptionRefs": [
+          "a-gate"
+        ]
+      },
+      {
+        "id": "bom-gate-leaf",
+        "groupKey": "colorbond|GATE-LEAF|ea",
+        "category": "gate",
+        "itemCode": "GATE-LEAF",
+        "description": "Gate leaves",
+        "quantity": {
+          "value": "2",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "typed-gate-hardware",
+          "ruleVersion": 1,
+          "expression": "typed double-gate model = 2 leaves",
+          "operands": [],
+          "result": {
+            "value": "2",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "gate",
+            "id": "gate-double",
+            "revision": 3
+          }
+        ],
+        "assumptionRefs": [
+          "a-gate"
+        ]
+      },
+      {
+        "id": "bom-gate-opening",
+        "groupKey": "colorbond|GATE-OPENING|ea",
+        "category": "gate",
+        "itemCode": "GATE-OPENING",
+        "description": "Double gate opening",
+        "quantity": {
+          "value": "1",
+          "unit": "ea"
+        },
+        "calculation": {
+          "ruleId": "gate-opening",
+          "ruleVersion": 1,
+          "expression": "one approved gate opening = 1",
+          "operands": [],
+          "result": {
+            "value": "1",
+            "unit": "ea"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "gate",
+            "id": "gate-double",
+            "revision": 3
+          }
+        ],
+        "assumptionRefs": [
+          "a-gate"
+        ]
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "a-spacing",
+        "key": "post-spacing-mm",
+        "label": "Maximum post spacing",
+        "value": "2400",
+        "unit": "mm",
+        "source": "Approved recipe",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-cover",
+        "key": "effective-sheet-cover-mm",
+        "label": "Effective sheet cover",
+        "value": "762",
+        "unit": "mm",
+        "source": "Manufacturer profile",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-rails",
+        "key": "rail-rows",
+        "label": "Rail rows",
+        "value": "2",
+        "unit": "ea",
+        "source": "Manufacturer profile",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-footing",
+        "key": "role-footing-dimensions",
+        "label": "Role-specific footing dimensions",
+        "value": "1",
+        "unit": "ratio",
+        "source": "Engineer schedule",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-gate",
+        "key": "double-gate-components",
+        "label": "Double gate component set",
+        "value": "1",
+        "unit": "ratio",
+        "source": "Gate schedule",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      }
+    ],
+    "blockers": [],
+    "warnings": [],
+    "summary": {
+      "lineCount": 11,
+      "needsHumanCount": 0,
+      "blockerCount": 0
+    }
+  }
+}

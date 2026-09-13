@@ -1,3 +1,4 @@
+import { isDiscussionOnlyObjective } from './discussionOnly.ts';
 import { z } from 'zod';
 import { completionStep, nextToolStep, type WorkflowState, type RoutingContext, type RouteStep } from './workflowRouting.ts';
 
@@ -29,6 +30,9 @@ export function requestsCurrentProjectInspection(objective: string): boolean {
 
 export function completionStepForObjective(state: WorkflowState, context: RoutingContext, objective: string): RouteStep | null {
   if (state.failure) return null;
+  // Only an untouched route can become bookkeeping-only; actual edits still require readbacks.
+  if (isDiscussionOnlyObjective(objective) && state.selected === null && !state.designChanged && !state.evidenceChanged && state.mutationCount === 0)
+    return null;
   let next = completionStep(state, context);
   const explicitInspection = requestsCurrentProjectInspection(objective);
   // Reuse the router's context-stamp rule without executing a sheet read.

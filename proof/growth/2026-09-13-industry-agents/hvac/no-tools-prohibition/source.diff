@@ -1,0 +1,38 @@
+diff --git a/src/studio/assistant/useAssistantChat.ts b/src/studio/assistant/useAssistantChat.ts
+index 89362cd..ca7314f 100644
+--- a/src/studio/assistant/useAssistantChat.ts
++++ b/src/studio/assistant/useAssistantChat.ts
+@@ -1,4 +1,5 @@
+ import { readExecutionBudget } from './executionBudget';
++import { prohibitsAllTools } from './discussionOnly.ts';
+ import { useEffect } from 'react';
+ import { create } from 'zustand';
+ import { browserSingleton } from '../browserSingleton';
+@@ -140,7 +141,8 @@ export function useAssistantChat(jobId: string) {
+     await ensureChat(jobId);
+     await flushChat(jobId);
+     if(changingChats.has(jobId))throw Error('Wait for the saved conversation to open.');
+-    const editsDeclared = !reviewOnly && (allowProjectEdits || usePermissions.getState().mode !== 'readonly');
++    const noTools = reviewOnly || prohibitsAllTools(text);
++    const editsDeclared = !noTools && (allowProjectEdits || usePermissions.getState().mode !== 'readonly');
+     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
+     const initial = useChats.getState().records[jobId] || empty();
+     const controller = new AbortController(); controllers.set(jobId, controller);
+@@ -179,7 +181,7 @@ export function useAssistantChat(jobId: string) {
+       const session = await getAssistantMcp();
+       await runConversation({
+         contents, signal: controller.signal, execution: readExecutionBudget(localStorage),
+-        declarations: reviewOnly ? [] : session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared) && providerSupportsTool(provider, tool.name)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
++        declarations: noTools ? [] : session.tools.filter(tool => assistantToolAllowed(tool.name, editsDeclared) && providerSupportsTool(provider, tool.name)).map(tool => ({ name: tool.name, description: tool.description || tool.name, parametersJsonSchema: tool.inputSchema })),
+         turn: async (request, signal) => {
+           const prepared = await governed!.prepare(request);
+           const response = await assistantTurn(prepared, signal, provider);
+@@ -189,7 +191,7 @@ export function useAssistantChat(jobId: string) {
+           return response;
+         },
+         call: async (name, args, signal) => {
+-          if (reviewOnly) throw Error('Recording reviews analyse supplied events only; no project tools may run.');
++          if (noTools) throw Error('Tools are prohibited for this request; no project action was executed.');
+           // Ask / edit freely / read only, plus per-call prompts in ask mode (permissions.ts). A refusal is a tool error the model can read.
+           return governed!.call(name, args, () => callAssistantTool(name, args, signal, { allowProjectEdits: !reviewOnly, provider }),
+             () => allowProjectEdits ? Promise.resolve(null) : gateToolCall(name, args, signal));

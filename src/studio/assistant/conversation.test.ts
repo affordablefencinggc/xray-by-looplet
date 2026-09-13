@@ -151,8 +151,10 @@ test('claim correction keeps a fresh pure-calculator request pending and marks r
   const tool = 'classify_draft_quantities', objective = `Execute ${tool} now for supplied fixture A.`;
   let rounds = 0, calls = 0; let raw: AssistantResponse | undefined;
   const events: ChatEvent[] = [];
-  await runConversation({ contents: [{ role: 'user', parts: [{ text: objective }] }], declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
-    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+  let saved: AssistantContent[] = [];
+  const declarations = [{ ...declaration, name: tool }, declaration, { ...declaration, name: 'read_project_context' }];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: objective }] }], declarations, signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: content => { saved = structuredClone(content); }, emit: event => events.push(event),
     turn: async request => {
       if (++rounds === 1) { raw = response(request, [{ text: `${tool} returned 0.3.` }]); return raw; }
       if (rounds === 2) {
@@ -161,15 +163,59 @@ test('claim correction keeps a fresh pure-calculator request pending and marks r
         assert.match(correction, /pure arithmetic may be rerun/);
         assert.match(correction, /already completed THIS turn/);
         assert.ok(correction.includes(objective));
-        assert.match(request.contents.at(-2)?.parts[0].text || '', /^\[xray:withheld-candidate\]/);
+        assert.equal(request.contents.some(entry => entry.parts.some(part => part.text?.startsWith('[xray:withheld-candidate]'))), false);
+        assert.ok(saved.some(entry => entry.parts.some(part => part.text?.startsWith('[xray:withheld-candidate]'))));
+        assert.deepEqual(request.declarations.map(item => item.name), [tool, 'read_project_context']);
         assert.equal(raw?.content.parts[0].text, `${tool} returned 0.3.`);
         return response(request, [{ functionCall: { name: tool, args: {} } }]);
       }
+      assert.deepEqual(request.declarations, declarations);
       return response(request, [{ text: `${tool} returned 0.3 after the requested fresh call.` }]);
     }, call: async () => { calls++; return { content: [{ type: 'text', text: 'Actual result 0.3' }] }; },
   });
   assert.equal(calls, 1);
   assert.equal(events.filter(event => event.kind === 'assistant').length, 1);
+});
+
+test('a focused calculator retry cannot execute an unrelated original mutation declaration', async () => {
+  const tool = 'calculate_draft_roof_area'; let rounds = 0, calls = 0;
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: `Call ${tool} now with supplied operands.` }] }],
+    declarations: [{ ...declaration, name: tool }, declaration], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    turn: async request => {
+      if (++rounds === 1) return response(request, [{ text: `${tool} returned 95.` }]);
+      if (rounds === 2) return response(request, [{ functionCall: { name: 'draw', args: { wall: 'invented' } } }]);
+      assert.equal(request.contents.at(-1)?.parts[0].functionResponse?.response.isError, true);
+      return response(request, [{ text: 'The requested calculator was not executed. No project edit was performed.' }]);
+    }, call: async () => { calls++; return { content: [] }; },
+  });
+  assert.equal(calls, 0);
+  assert.match(events.find(event => event.kind === 'tool' && event.failed)?.text || '', /unpermitted tool in this request/);
+});
+
+test('explicit calculator requests start focused, retain scope across context reads and restore normal declarations after execution', async () => {
+  const tool = 'calculate_draft_roof_area', read = 'read_project_context';
+  const declarations = [declaration, { ...declaration, name: tool }, { ...declaration, name: read }];
+  const initial: AssistantContent[] = [{ role: 'user', parts: [{ text: `Call ${tool} with the supplied 100 gross and 5 opening fixture.` }] }];
+  const original = structuredClone(initial), calls: string[] = [];
+  let round = 0;
+  await runConversation({ contents: initial, declarations, signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: () => {},
+    turn: async request => {
+      if (++round <= 2) {
+        assert.deepEqual(request.declarations.map(item => item.name), [tool, read]);
+        assert.ok(request.contents.at(-1)?.parts.some(part => part.text?.includes('[xray:explicit-calculator]')));
+        return response(request, [{ functionCall: { name: round === 1 ? read : tool, args: round === 1 ? {} : { gross: 100, opening: 5 } } }]);
+      }
+      assert.deepEqual(request.declarations, declarations);
+      assert.equal(request.contents.at(-1)?.parts.length, 1);
+      return response(request, [{ text: `${tool} returned 95.` }]);
+    },
+    call: async (name, args) => { calls.push(name); if (name === tool) assert.deepEqual(args, { gross: 100, opening: 5 }); return { content: [{ type: 'text', text: name === tool ? '95' : 'job-a' }] }; },
+  });
+  assert.deepEqual(calls, [read, tool]);
+  assert.deepEqual(initial, original);
 });
 
 test('failed requested tool cannot be reported successful and is not replayed by the claim guard', async () => {

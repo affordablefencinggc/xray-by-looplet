@@ -73,3 +73,41 @@ test("strict tool JSON schema is generated from the actual input boundary", () =
   assert.ok(!json.includes('"currency"'));
   assert.ok(!json.includes('"rate"'));
 });
+
+test("explicit root/source nulls remain valid and the declaration explains their meaning", () => {
+  const input = example();
+  input.nodes = [{ id: "wall", label: "Walls", parentId: null }];
+  input.items = input.items.slice(0, 2);
+  input.assignments = input.assignments.slice(0, 2);
+  const result = execute(input);
+  assert.equal(result.totals[0].quantity, "0.3");
+  assert.equal(result.classifiedTotals[0].quantity, "0.3");
+  assert.deepEqual(result.unclassifiedItemIds, []);
+  assert.equal(result.nodes[0].parentId, null);
+  assert.deepEqual(result.rows.map(row => row.source), [null, null]);
+  assert.equal(result.verifiedQuoteEligible, false);
+  const schema = inputSchema as any;
+  assert.ok(schema.properties.nodes.items.properties.parentId.anyOf.some((part: any) => part.type === "null"));
+  assert.match(schema.properties.nodes.items.properties.parentId.description, /JSON null.*top-level/);
+  assert.ok(schema.properties.items.items.properties.source.anyOf.some((part: any) => part.type === "null"));
+  assert.match(schema.properties.items.items.properties.source.description, /Do not replace null/);
+});
+
+test("failed live placeholder arguments are rejected with nullable alternatives, never repaired silently", () => {
+  const input: any = example();
+  input.nodes[0].parentId = "";
+  input.items[0].source = {};
+  const before = structuredClone(input);
+  assert.throws(() => execute(input), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /nodes.0.parentId/);
+    assert.match(error.message, /items.0.source.documentId/);
+    assert.match(error.message, /parentId: null/);
+    assert.match(error.message, /source: null/);
+    assert.match(error.message, /do not invent parent nodes, source IDs, hashes or calibration metadata/);
+    return true;
+  });
+  assert.deepEqual(input, before);
+  const invalidGraph = example(); invalidGraph.nodes[0].parentId = "imaginary";
+  assert.throws(() => execute(invalidGraph), /Missing classification parent: imaginary/);
+});

@@ -56,3 +56,8 @@ Use existing color tokens and root-owned classes: industry-form, industry-fields
 ## Manual industry worksheet checkpoint - 2026-09-13
 
 Roofing, HVAC and QS controlled worksheets integrated in Estimate with project-specific saved inputs and backup/restore generation protection. DANS1 1,176 TypeScript tests plus script chain and full typecheck pass. Build 916199981aa8 passes 34 production UI operations plus 55 isolated-project operations; all 830 staged inputs match. Manual entry/edit/reload/tablet checks pass for three forms. HVAC fresh assistant crosscheck passes. Roofing skipped its tool twice (claims withheld); QS fabricated nullable placeholders and failed six calls with a misleading final explanation. These assistant failures remain open; do not promote industry readiness. See proof/growth/2026-09-13-industry-agents/FORMS-INTEGRATION.md. Next work fixes these failures before progressing the industry queue.
+
+
+## Assistant recovery and native qualification - 2026-09-13
+
+Roofing now executes the real 95 m2 comparison with one internal retry. QS executes the supplied-null classification and delivers a corrected receipt explanation; its earlier incorrect advice remains failed evidence. Explicit no-tools requests retain zero tools even with contradictory action intent. Full baseline regression: 201 script and 1,189 TypeScript tests; final prohibition follow-up: 38 focused tests and full typecheck. Build 2f08ad4c8ef1 web/native passes; follow-up build a8a4f707ac43 in progress. Native visible fencing import/calibration/materials QA remains open, including first engine status failure before successful warm status. See proof/growth/2026-09-13-industry-agents/ASSISTANT-RECOVERY.md. No whole-industry readiness promotion.

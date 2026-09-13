@@ -18,7 +18,7 @@ const itemSchema = z.object({
     sheet: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     regionId: identifier.nullable(),
     calibrationId: identifier.nullable(),
-  }).strict().nullable(),
+  }).strict().nullable().describe("Use explicit JSON null when no source reference was supplied. Do not replace null with an empty object, invented document IDs, placeholder hashes or fabricated calibration. Supply a complete source object only for an actual supplied reference."),
 }).strict();
 export const classificationInputSchema = z.object({
   hierarchyId: identifier,
@@ -26,7 +26,7 @@ export const classificationInputSchema = z.object({
   nodes: z.array(z.object({
     id: identifier,
     label: identifier,
-    parentId: identifier.nullable(),
+    parentId: identifier.nullable().describe("Use explicit JSON null for a top-level/root classification. For a child, use the exact ID of an existing parent node. Never use an empty string, a synthetic parent or self-reference to replace null."),
   }).strict()).max(1000),
   items: z.array(itemSchema).max(100000),
   assignments: z.array(z.object({ itemId: identifier, nodeId: identifier }).strict()).max(100000),

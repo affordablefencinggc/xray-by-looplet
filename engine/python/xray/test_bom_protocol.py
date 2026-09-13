@@ -233,6 +233,28 @@ class BomProtocolTests(unittest.TestCase):
         self.assertEqual(missing.stdout, b"")
         self.assertIn(b"no such file", missing.stderr)
 
+    def test_current_contract_accepts_both_explicit_bay_layouts_through_real_cli(self):
+        # The same 3 m and 5 m residuals use five bays in both layouts, but
+        # per-bay sheet rounding differs: equal=13, full/terminal-cut=14.
+        for index, (layout, sheets) in enumerate((("equal", "13"), ("full-bays-terminal-cut", "14"))):
+            request = fixture("colorbond")
+            request["recipeSet"]["recipes"][0]["bayLayout"] = layout
+            request["inputDigest"] = compute_input_digest(request)
+            result = self.directory / f"layout-{index}.json"
+            completed = self.calculate(request, result=result)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            response = json.loads(result.read_bytes())
+            self.assertTrue(response["ok"])
+            lines = {line["id"]: line for line in response["bom"]["lines"]}
+            self.assertEqual(lines["bom-cb-sheet"]["quantity"]["value"], sheets)
+            self.assertEqual(lines["bom-cb-rail-cut"]["quantity"]["value"], "10")
+
+    def test_current_contract_rejects_unrecognised_bay_layout_without_result(self):
+        request = fixture("colorbond")
+        request["recipeSet"]["recipes"][0]["bayLayout"] = "invented-layout"
+        request["inputDigest"] = compute_input_digest(request)
+        self.assert_rejected(self.calculate(request))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

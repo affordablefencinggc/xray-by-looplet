@@ -34,3 +34,12 @@ test('explicit read cannot be waived by discussion routing and a successful curr
   assert.equal(completionStepForObjective(read, { ...context, projectRevision: 3 }, objective)?.tool, 'read_project_context');
   assert.equal(completionStepForObjective({ ...discussion, failure: 'Permission refused' }, context, objective), null);
 });
+
+test('explicit no-tool correction needs no route tool but never erases actual mutation readbacks', () => {
+  const context: RoutingContext = { projectId: 'job-a', projectRevision: 2, designRevision: 1, sourceKey: 'source-a', sheet: 0, architectReady: false, pane: 'sheets', renderedSceneSha256: null };
+  const objective = 'Correction only: do not call any tools. Explain the supplied receipt and correct the prior answer.';
+  assert.equal(completionStepForObjective(emptyWorkflow(), context, objective), null);
+  assert.equal(completionStepForObjective({ ...emptyWorkflow(), selected: 'discussion', evidenceChanged: true, mutationCount: 1 }, context, objective)?.tool, 'read_takeoff_evidence');
+  assert.equal(completionStepForObjective({ ...emptyWorkflow(), selected: 'discussion', designChanged: true, mutationCount: 1 }, context, objective)?.tool, 'read_project_context');
+  assert.equal(completionStepForObjective(emptyWorkflow(), context, 'No tools. Explain it, then inspect this project.')?.tool, 'read_workflow_route');
+});

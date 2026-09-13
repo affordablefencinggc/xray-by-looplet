@@ -1,0 +1,46 @@
+diff --git a/engine/python/xray/bom_protocol.py b/engine/python/xray/bom_protocol.py
+index dbd624a..c9bbc57 100644
+--- a/engine/python/xray/bom_protocol.py
++++ b/engine/python/xray/bom_protocol.py
+@@ -22,7 +22,7 @@ from .job_bom import BOM_SCHEMA, JOB_SCHEMA, RULESET, build_bom, compute_input_d
+ MAX_REQUEST_BYTES = 1_048_576
+ MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+ CONTRACT_FILENAME = "xray-job-bom-v1.schema.json"
+-CONTRACT_SHA256 = "d394988e89d69e342d53559538367ac21b31e4402d7720b7294e237c4f5722b7"
++CONTRACT_SHA256 = "60ef497fc03a800aba23e7acc6a1974ecf7a48f465f90479a862e195a55b8cd7"
+ 
+ 
+ class ProtocolError(Exception):
+diff --git a/engine/python/xray/test_bom_protocol.py b/engine/python/xray/test_bom_protocol.py
+index 7a08f20..03d832f 100644
+--- a/engine/python/xray/test_bom_protocol.py
++++ b/engine/python/xray/test_bom_protocol.py
+@@ -233,6 +233,28 @@ class BomProtocolTests(unittest.TestCase):
+         self.assertEqual(missing.stdout, b"")
+         self.assertIn(b"no such file", missing.stderr)
+ 
++    def test_current_contract_accepts_both_explicit_bay_layouts_through_real_cli(self):
++        # The same 3 m and 5 m residuals use five bays in both layouts, but
++        # per-bay sheet rounding differs: equal=13, full/terminal-cut=14.
++        for index, (layout, sheets) in enumerate((("equal", "13"), ("full-bays-terminal-cut", "14"))):
++            request = fixture("colorbond")
++            request["recipeSet"]["recipes"][0]["bayLayout"] = layout
++            request["inputDigest"] = compute_input_digest(request)
++            result = self.directory / f"layout-{index}.json"
++            completed = self.calculate(request, result=result)
++            self.assertEqual(completed.returncode, 0, completed.stderr)
++            response = json.loads(result.read_bytes())
++            self.assertTrue(response["ok"])
++            lines = {line["id"]: line for line in response["bom"]["lines"]}
++            self.assertEqual(lines["bom-cb-sheet"]["quantity"]["value"], sheets)
++            self.assertEqual(lines["bom-cb-rail-cut"]["quantity"]["value"], "10")
++
++    def test_current_contract_rejects_unrecognised_bay_layout_without_result(self):
++        request = fixture("colorbond")
++        request["recipeSet"]["recipes"][0]["bayLayout"] = "invented-layout"
++        request["inputDigest"] = compute_input_digest(request)
++        self.assert_rejected(self.calculate(request))
++
+ 
+ if __name__ == "__main__":
+     unittest.main(verbosity=2)

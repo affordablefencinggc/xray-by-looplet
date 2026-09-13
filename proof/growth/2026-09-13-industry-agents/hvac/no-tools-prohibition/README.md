@@ -1,0 +1,5 @@
+﻿# Blanket tool prohibition remains binding
+
+The prior discussion-only classifier deliberately excluded compound action requests. Reusing that classifier for tool availability unintentionally reopened tools for an explicit blanket prohibition such as "No tools. Draw a wall and explain it." The new separate prohibitsAllTools predicate keeps zero declarations and execution refusal for that request, while the existing action route remains incomplete. Selective exceptions do not become blanket prohibitions. No mutation/readback gate is removed.
+
+DANS1 focused discussion/completion/conversation38tests passed; full TypeScript exit0. Three source hashes matched local/remote. Tests include blanket/exception predicates, incomplete action route and an actual simulated-provider runConversation attempt to invoke a mutation with zero declarations; execution count remained0. Hook wiring is checked to prevent returning to discussion-only classification for tool availability. No live provider/browser request or full build was run for this patch.

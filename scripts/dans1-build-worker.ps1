@@ -86,19 +86,36 @@ Write-Output 'WEB_READY: production output available for browser QA; native buil
 if ($WebOnly) { Write-Output 'WEB_ONLY_COMPLETE: native packaging was not requested.'; return }
 Verify-Sources
 $cacheRun=Join-Path $buildRoot 'runs\44c9a5bdd386'
-$cacheRecord=Get-Content -LiteralPath (Join-Path $cacheRun 'native-completion.json') -Raw | ConvertFrom-Json
-if (($cacheRecord.results | Where-Object {$_.step -eq 'native-build'}).exitCode -ne 0 -or $cacheRecord.computer -ne 'DANS1' -or $cacheRecord.nativeSourceSha256 -ne $NativeHash) { throw 'Prior compiled cache has a different native source identity.' }
+function Get-VerifiedCargoCache([string]$CacheRun, [string]$ExpectedNativeHash) {
+  $recordPath=Join-Path $CacheRun 'native-completion.json'
+  if (-not (Test-Path -LiteralPath $recordPath -PathType Leaf)) { return @{mode='cold';reason='Prior native completion record is missing.'} }
+  $record=Get-Content -LiteralPath $recordPath -Raw | ConvertFrom-Json
+  $steps=@($record.results | Where-Object {$_.step -eq 'native-build'})
+  if ($record.computer -ne 'DANS1' -or $steps.Count -ne 1 -or $null -eq $steps[0].exitCode -or $steps[0].exitCode -ne 0 -or $record.nativeSourceSha256 -notmatch '^[a-f0-9]{64}$') { throw 'Prior native cache completion record is invalid or unsuccessful.' }
+  if ($record.nativeSourceSha256 -ne $ExpectedNativeHash) { return @{mode='cold';reason='Prior cache native source hash differs from this snapshot.'} }
+  $exe=Join-Path $CacheRun 'source\src-tauri\target\release\xray-by-looplet.exe'
+  if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { return @{mode='cold';reason='Prior compiled executable is missing.'} }
+  $expectedExeHash='b4e7683b095ccc9c04c01c933db70a205c2eaff05ee85ba62355df98eda80a83'
+  $artifacts=@($record.artifacts | Where-Object {$_.path -eq $exe -and $_.sha256 -eq $expectedExeHash})
+  if ($artifacts.Count -ne 1 -or (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedExeHash) { throw 'Prior successful executable identity mismatch.' }
+  return @{mode='verified-copy';reason='Successful prior native build, matching native source and executable identity.';sourceExecutableSha256=$expectedExeHash}
+}
 $cacheSource=[IO.Path]::GetFullPath((Join-Path $cacheRun 'source\src-tauri\target'))
 $cacheTarget=[IO.Path]::GetFullPath((Join-Path $source 'src-tauri\target'))
 if (-not $cacheSource.StartsWith($cacheRun+'\',[StringComparison]::OrdinalIgnoreCase) -or -not $cacheTarget.StartsWith($source+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Cache path outside isolated run.' }
-if (-not (Test-Path -LiteralPath $cacheSource) -or (Test-Path -LiteralPath $cacheTarget)) { throw 'Cache copy requires existing prior target and absent new target.' }
-$cacheExe=Join-Path $cacheSource 'release\xray-by-looplet.exe'
-if ((Get-FileHash -LiteralPath $cacheExe -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'b4e7683b095ccc9c04c01c933db70a205c2eaff05ee85ba62355df98eda80a83') { throw 'Prior successful executable identity mismatch.' }
-$cacheLog=Join-Path $run 'cargo-cache-copy.log'
-& robocopy $cacheSource $cacheTarget /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /NP /NFL /NDL /XJ "/LOG:$cacheLog"
-$cacheCopyExit=$LASTEXITCODE
-if ($cacheCopyExit -ge 8) { throw 'Cargo cache copy failed; prior target preserved.' }
-@{source=$cacheSource;destination=$cacheTarget;nativeSourceSha256=$NativeHash;sourceExecutableSha256='b4e7683b095ccc9c04c01c933db70a205c2eaff05ee85ba62355df98eda80a83';copyExitCode=$cacheCopyExit;mode='copy into independent target; Cargo must rebuild current application'} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'cargo-cache.json') -Encoding UTF8
+if (Test-Path -LiteralPath $cacheTarget) { throw 'New run already contains a Cargo target; original data is preserved.' }
+$cacheDecision=Get-VerifiedCargoCache $cacheRun $NativeHash
+$cacheDecision.source=$cacheSource
+$cacheDecision.destination=$cacheTarget
+$cacheDecision.nativeSourceSha256=$NativeHash
+if ($cacheDecision.mode -eq 'verified-copy') {
+  $cacheLog=Join-Path $run 'cargo-cache-copy.log'
+  & robocopy $cacheSource $cacheTarget /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /NP /NFL /NDL /XJ "/LOG:$cacheLog"
+  $cacheDecision.copyExitCode=$LASTEXITCODE
+  if ($cacheDecision.copyExitCode -ge 8) { throw 'Cargo cache copy failed; prior target preserved.' }
+}
+$cacheDecision | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'cargo-cache.json') -Encoding UTF8
+Write-Output ("CARGO_CACHE: {0}: {1}" -f $cacheDecision.mode,$cacheDecision.reason)
 Invoke-Step 'native-build' @($npmCli,'run','tauri:build','--','--bundles','nsis')
 $targets=@((Join-Path $source 'src-tauri\target\release\xray-by-looplet.exe'))+@(Get-ChildItem -LiteralPath (Join-Path $source 'src-tauri\target\release\bundle\nsis') -File | Select-Object -ExpandProperty FullName)
 $nativeArtifacts=@($targets | ForEach-Object { @{path=$_;sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant();bytes=(Get-Item -LiteralPath $_).Length} })

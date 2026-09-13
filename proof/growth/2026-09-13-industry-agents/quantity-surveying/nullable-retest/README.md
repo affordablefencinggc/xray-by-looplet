@@ -1,0 +1,5 @@
+# Frozen nullable-guidance live retest
+
+Same exact user prompt submitted once at2026-09-13T10:30:50Z, readonly, DANS1 Edge9343 targetE3CFBAA17EA003603A29822C2EA9F368. FAIL: zero current-turn tool invocations; model copied the historical error and claimed one new rejected call in three withheld candidates. Current-turn outcomes were empty. Two workflow corrections were ignored. Guard blocked false final delivery and showed incomplete-workflow error. New nullable guidance was not exercised by a tool call. Do not claim this is a successful assistant cross-check.
+
+Previous failed turn stays in history. fresh-content.json contains hidden candidate claims and actual empty current-turn receipts. after.png visually inspected. Actual reload initially exceeded readiness timeout in WorkspaceStartup, then recovered without another reload. Persisted-before/after compare full archive, draft library bytes and project JSON equal. No data loss or project mutation. Provider idle; browser left open. No source edits during retest.

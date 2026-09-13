@@ -3,6 +3,7 @@ import { DEFAULT_EXECUTION_BUDGET, executionBudgetSchema, type ExecutionBudget }
 import { parseCompletionPreflight, type CompletionRequirement } from './completionPreflight.ts';
 import { unsupportedFinalToolClaims, toolClaimFailure } from './finalToolClaims.ts';
 import { markWithheldCandidate } from './shortInteraction.ts';
+import { createNamedToolRetry, providerContentsWithoutWithheldText } from './namedToolRetry.ts';
 export type ChatImage = { data: string; mimeType: 'image/png' | 'image/jpeg' | 'image/webp' };
 export type ToolResult = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean; _meta?: Record<string, unknown> };
 export type ChatEvent = { kind: 'assistant' | 'tool'; text: string; images?: ChatImage[]; sources?: AssistantResponse['sources']; toolName?: string; toolCallId?: string; failed?: boolean; executionOrigin?: 'app-preflight' | 'model' };
@@ -35,15 +36,31 @@ export async function runConversation(options: {
   let toolCalls = 0;
   let finalCorrections = 0;
   let toolClaimCorrections = 0;
+  let focusedRetry: ReturnType<typeof createNamedToolRetry> = null;
+  let focusedRetryUsed = false;
+  let omitWithheldCandidates = false;
   // Freeze the user's objective before internal correction messages enter the transcript.
   const originalUserRequest = [...contents].reverse().find(entry => entry.role === 'user' && entry.parts.some(part => part.text && !part.thought))
     ?.parts.filter(part => !part.thought && part.text).map(part => part.text).join('\n') || '';
   const currentTurnToolOutcomes: Array<{ name: string; toolCallId: string; origin: 'app-preflight' | 'model'; invoked: boolean; isError: boolean; text: string; truncated: boolean }> = [];
+  // An explicit single pure-calculator request can be scoped before any omission.
+  // This selects declarations only: arguments still come from the model and pass normal validation.
+  const initialCalculatorScope = createNamedToolRetry({ originalUserRequest, declarations: options.declarations,
+    unsupportedClaims: options.declarations.map(tool => ({ name: tool.name, reason: 'not-executed' as const })),
+    currentTurnOutcomes: [], alreadyRetried: false });
   const attemptedPreflights = new Set<string>();
   for (let round = 0; round < budget.maxRounds; round++) {
     options.signal.throwIfAborted(); options.assertContext();
     const requestId = crypto.randomUUID();
-    const response = assistantResponseSchema.parse(await options.turn({ schema: 'xray.assistant-request/v1', requestId, contents, declarations: options.declarations, webSearch: false, execution: budget }, options.signal));
+    const pendingCalculator = initialCalculatorScope && !currentTurnToolOutcomes.some(outcome => outcome.name === initialCalculatorScope.toolName && outcome.invoked);
+    const declarations = focusedRetry?.declarations ?? (pendingCalculator ? initialCalculatorScope.declarations : options.declarations);
+    const modelNames = new Set(declarations.map(tool => tool.name));
+    focusedRetry = null;
+    const providerContents = omitWithheldCandidates || pendingCalculator ? providerContentsWithoutWithheldText(contents) : contents;
+    if (pendingCalculator) providerContents.at(-1)!.parts.push({ text: `[xray:explicit-calculator] This is a fresh request for ${initialCalculatorScope.toolName}. Earlier assistant explanations, schema complaints and numeric results are historical discussion, not evidence of this turn. Use the current user's supplied operands and the currently declared schema. Only the requested calculator and available context reads are exposed until that calculator is attempted. Use a real function call; do not copy an earlier result or invent a failed attempt. If required inputs are missing, ask for them honestly.` });
+    const response = assistantResponseSchema.parse(await options.turn({ schema: 'xray.assistant-request/v1', requestId,
+      contents: providerContents,
+      declarations, webSearch: false, execution: budget }, options.signal));
     options.signal.throwIfAborted(); options.assertContext();
     if (response.requestId !== requestId) throw Error('Assistant response identity mismatch. No response actions executed.');
     const candidateIndex = contents.length;
@@ -57,7 +74,11 @@ export async function runConversation(options: {
       const unsupported = unsupportedFinalToolClaims(originalUserRequest, [...names], text, currentTurnToolOutcomes);
       if (unsupported.length) {
         contents[candidateIndex] = markWithheldCandidate(response.content);
+        focusedRetry = createNamedToolRetry({ originalUserRequest, declarations: options.declarations,
+          unsupportedClaims: unsupported, currentTurnOutcomes: currentTurnToolOutcomes, alreadyRetried: focusedRetryUsed });
+        if (focusedRetry) { focusedRetryUsed = true; omitWithheldCandidates = true; }
         contents.push({ role: 'user', parts: [{ text: `[xray:tool-claim-check] ${unsupported.map(toolClaimFailure).join(' ')} The original user request below is still pending. A tool not invoked in THIS turn has not satisfied this request. If the user supplied its required operands, call the requested available tool with those validated inputs now; user-requested pure arithmetic may be rerun even if an earlier turn calculated the same fixture. If inputs are missing, ask for them; never invent inputs. Do not repeat completed mutations or tool calls already completed THIS turn, or call tools solely for a developer review. Correct the final answer using only current-turn receipts. You may explain missing inputs or non-execution honestly. Do not present mental arithmetic or historical receipts as a tool result. Original user request: ${JSON.stringify(originalUserRequest)} Current-turn outcomes: ${JSON.stringify(currentTurnToolOutcomes)}` }] });
+        if (focusedRetry) contents.at(-1)!.parts.push({ text: focusedRetry.instruction });
         options.checkpoint(contents);
         if (++toolClaimCorrections > 1) throw Error(unsupported.map(toolClaimFailure).join(' '));
         continue;
@@ -120,7 +141,7 @@ ${JSON.stringify({ originalUserRequest, withheldCandidateAnswer: text, currentTu
       try {
         if (++toolCalls > budget.maxToolCalls) result = { isError: true, content: [{ type: 'text', text: 'Tool budget reached; not executed. Review completed actions before continuing.' }] };
         else if (call.id && callIds.has(call.id)) result = { isError: true, content: [{ type: 'text', text: 'Duplicate tool call ID; not executed. Read current state before retrying.' }] };
-        else if (!names.has(call.name)) result = { isError: true, content: [{ type: 'text', text: 'Unknown or unpermitted tool; no action performed.' }] };
+        else if (!names.has(call.name) || (!appPreflight && !modelNames.has(call.name))) result = { isError: true, content: [{ type: 'text', text: 'Unknown or unpermitted tool in this request; no action performed.' }] };
         else {
           if (call.id) callIds.add(call.id);
           invoked = true;

@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xray.looplet.local/contracts/xray-job-bom-v1.schema.json",
+  "title": "X-Ray deterministic fencing job to BOM contract v1",
+  "oneOf": [
+    { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/success" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "positiveInteger": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "nonNegativeInteger": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "decimal": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+    "positiveDecimal": { "type": "string", "pattern": "^(?:[1-9]\\d*)(?:\\.\\d*[1-9])?$|^0\\.\\d*[1-9]$" },
+    "unit": { "enum": ["ea", "lm", "m2", "m3", "kg", "t", "L"] },
+    "operandUnit": { "enum": ["ea", "lm", "m2", "m3", "kg", "t", "L", "mm", "ratio"] },
+    "system": { "enum": ["colorbond", "timber-paling", "pool", "chain-wire", "custom"] },
+    "approval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "entityRevision", "decidedAt", "decidedBy", "note"],
+      "properties": {
+        "status": { "const": "approved" }, "entityRevision": { "$ref": "#/$defs/positiveInteger" },
+        "decidedAt": { "type": "string", "format": "date-time" }, "decidedBy": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "note": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "assumption": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "key", "label", "value", "unit", "source", "effectiveAt", "status", "acceptedBy", "acceptedAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "key": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "label": { "type": "string", "minLength": 1, "maxLength": 300 }, "value": { "$ref": "#/$defs/decimal" },
+        "unit": { "$ref": "#/$defs/operandUnit" }, "source": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "effectiveAt": { "type": "string", "format": "date-time" }, "status": { "enum": ["accepted", "unresolved"] },
+        "acceptedBy": { "type": ["string", "null"], "maxLength": 120 }, "acceptedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "const": "accepted" } } }, "then": { "properties": { "acceptedBy": { "type": "string", "minLength": 1 }, "acceptedAt": { "type": "string", "format": "date-time" } } } },
+        { "if": { "properties": { "status": { "const": "unresolved" } } }, "then": { "properties": { "acceptedBy": { "type": "null" }, "acceptedAt": { "type": "null" } } } }
+      ]
+    },
+    "component": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "itemCode", "description", "unit", "basis", "factor", "assumptionIds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "itemCode": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 300 }, "unit": { "$ref": "#/$defs/unit" },
+        "basis": { "enum": ["per-ordinary-post", "per-end-post", "per-corner-post", "per-junction-post", "per-strainer-post", "per-bay", "per-gate-post", "per-incident-strainer-end", "per-infill-sheet", "per-paling", "rail-cuts", "rail-lm", "mesh-lm", "mesh-m2", "per-gate-opening", "per-gate-leaf", "per-hinge-set", "per-latch", "per-drop-bolt", "concrete-m3", "per-removal-lm", "per-retaining-lm"] },
+        "factor": { "$ref": "#/$defs/decimal" }, "assumptionIds": { "type": "array", "items": { "$ref": "#/$defs/id" } }
+      }
+    },
+    "materialModel": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "effectiveSheetCoverMm", "railRows", "gateBoundaryPostRole", "assumptionIds"], "properties": { "kind": { "const": "colorbond" }, "effectiveSheetCoverMm": { "$ref": "#/$defs/positiveInteger" }, "railRows": { "$ref": "#/$defs/positiveInteger" }, "gateBoundaryPostRole": { "const": "gate" }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "palingCoverMm", "railRows", "gateBoundaryPostRole", "assumptionIds"], "properties": { "kind": { "const": "timber-paling" }, "palingCoverMm": { "$ref": "#/$defs/positiveInteger" }, "railRows": { "$ref": "#/$defs/positiveInteger" }, "gateBoundaryPostRole": { "const": "gate" }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "meshHeightMm", "meshRollLengthMm", "meshRollReusePolicy", "topRailRows", "braceEveryIncidentStrainerEnd", "gateBoundaryPostRole", "assumptionIds"], "properties": { "kind": { "const": "chain-wire" }, "meshHeightMm": { "$ref": "#/$defs/positiveInteger" }, "meshRollLengthMm": { "$ref": "#/$defs/positiveInteger" }, "meshRollReusePolicy": { "enum": ["reuse-across-spans", "separate-roll-per-span"] }, "topRailRows": { "$ref": "#/$defs/nonNegativeInteger" }, "braceEveryIncidentStrainerEnd": { "type": "boolean" }, "gateBoundaryPostRole": { "const": "strainer" }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "system", "ruleKey", "gateBoundaryPostRole", "assumptionIds"], "properties": { "kind": { "const": "explicit" }, "system": { "enum": ["pool", "custom"] }, "ruleKey": { "type": "string", "minLength": 1, "maxLength": 120 }, "gateBoundaryPostRole": { "enum": ["gate", "strainer"] }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } } }
+      ]
+    },
+    "footingRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["postRole", "diameterMm", "depthMm", "assumptionIds"],
+      "properties": { "postRole": { "enum": ["ordinary", "end", "corner", "junction", "strainer", "gate"] }, "diameterMm": { "$ref": "#/$defs/positiveInteger" }, "depthMm": { "$ref": "#/$defs/positiveInteger" }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } }
+    },
+    "allowance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "componentIds", "percent", "roundingIncrement", "roundingUnit", "source", "effectiveAt", "status", "acceptedBy", "acceptedAt", "assumptionIds"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "componentIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }, "percent": { "$ref": "#/$defs/decimal" }, "roundingIncrement": { "$ref": "#/$defs/positiveDecimal" }, "roundingUnit": { "$ref": "#/$defs/unit" }, "source": { "type": "string", "minLength": 1, "maxLength": 500 }, "effectiveAt": { "type": "string", "format": "date-time" }, "status": { "enum": ["accepted", "unresolved"] }, "acceptedBy": { "type": ["string", "null"], "maxLength": 120 }, "acceptedAt": { "type": ["string", "null"], "format": "date-time" }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } },
+      "allOf": [
+        { "if": { "properties": { "status": { "const": "accepted" } } }, "then": { "properties": { "acceptedBy": { "type": "string", "minLength": 1 }, "acceptedAt": { "type": "string", "format": "date-time" } } } },
+        { "if": { "properties": { "status": { "const": "unresolved" } } }, "then": { "properties": { "acceptedBy": { "type": "null" }, "acceptedAt": { "type": "null" } } } }
+      ]
+    },
+    "gateHardwareModel": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "gateType", "widthMm", "leafCount", "boundaryPostCount", "hingeSetCount", "latchCount", "dropBoltCount", "assumptionIds"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "gateType": { "enum": ["single", "double", "sliding", "pedestrian", "custom"] }, "widthMm": { "$ref": "#/$defs/positiveInteger" }, "leafCount": { "$ref": "#/$defs/positiveInteger" }, "boundaryPostCount": { "$ref": "#/$defs/positiveInteger" }, "hingeSetCount": { "$ref": "#/$defs/nonNegativeInteger" }, "latchCount": { "$ref": "#/$defs/nonNegativeInteger" }, "dropBoltCount": { "$ref": "#/$defs/nonNegativeInteger" }, "assumptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } } }
+    },
+    "recipe": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "revision", "system", "profile", "maxBayWidthMm", "postSpacingMm", "materialModel", "footings", "allowances", "gateHardwareModels", "supportedSlopes", "supportedGround", "supportedGateTypes", "supportedRetainingTypes", "supportsSleepers", "assumptions", "components"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "system": { "$ref": "#/$defs/system" },
+        "profile": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "maxBayWidthMm": { "$ref": "#/$defs/positiveInteger" }, "postSpacingMm": { "$ref": "#/$defs/positiveInteger" }, "bayLayout": { "enum": ["equal", "full-bays-terminal-cut"] }, "materialModel": { "$ref": "#/$defs/materialModel" },
+        "footings": { "type": "array", "items": { "$ref": "#/$defs/footingRule" } }, "allowances": { "type": "array", "items": { "$ref": "#/$defs/allowance" } }, "gateHardwareModels": { "type": "array", "items": { "$ref": "#/$defs/gateHardwareModel" } },
+        "supportedSlopes": { "type": "array", "minItems": 1, "items": { "enum": ["level", "stepped", "raked", "mixed"] } },
+        "supportedGround": { "type": "array", "minItems": 1, "items": { "enum": ["soil", "concrete", "rock", "retaining-wall", "mixed"] } },
+        "supportedGateTypes": { "type": "array", "items": { "enum": ["single", "double", "sliding", "pedestrian", "custom"] } },
+        "supportedRetainingTypes": { "type": "array", "items": { "enum": ["none", "timber-sleeper", "concrete-sleeper", "masonry", "existing", "custom"] } },
+        "supportsSleepers": { "type": "boolean" }, "assumptions": { "type": "array", "items": { "$ref": "#/$defs/assumption" } },
+        "components": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/component" } }
+      }
+    },
+    "recipeSet": {
+      "type": "object", "additionalProperties": false, "required": ["id", "revision", "digest", "recipes"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "digest": { "$ref": "#/$defs/sha256" }, "recipes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipe" } } }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "revision", "sheet", "label", "recipeId", "segments", "vertices", "storedLengths", "specification", "photoIds", "approval"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "sheet": { "$ref": "#/$defs/nonNegativeInteger" }, "label": { "type": "string", "minLength": 1, "maxLength": 120 }, "recipeId": { "$ref": "#/$defs/id" },
+        "segments": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["index", "lengthMm"], "properties": { "index": { "$ref": "#/$defs/nonNegativeInteger" }, "lengthMm": { "$ref": "#/$defs/positiveInteger" } } } },
+        "vertices": { "type": "array", "minItems": 2, "items": { "type": "object", "additionalProperties": false, "required": ["index", "topologyNodeId", "cornerTreatment", "postOverride"], "properties": { "index": { "$ref": "#/$defs/nonNegativeInteger" }, "topologyNodeId": { "$ref": "#/$defs/id" }, "cornerTreatment": { "enum": ["standard", "boxed", "mitred", "end", "custom"] }, "postOverride": { "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["postSize", "lengthMm", "embedmentMm", "notes"], "properties": { "postSize": { "type": "string", "minLength": 1, "maxLength": 120 }, "lengthMm": { "oneOf": [{ "$ref": "#/$defs/positiveInteger" }, { "type": "null" }] }, "embedmentMm": { "oneOf": [{ "$ref": "#/$defs/positiveInteger" }, { "type": "null" }] }, "notes": { "type": "string", "maxLength": 500 } } }] } } } },
+        "storedLengths": { "type": "object", "additionalProperties": false, "required": ["grossMm", "gateDeductionMm", "netMm"], "properties": { "grossMm": { "$ref": "#/$defs/nonNegativeInteger" }, "gateDeductionMm": { "$ref": "#/$defs/nonNegativeInteger" }, "netMm": { "$ref": "#/$defs/nonNegativeInteger" } } },
+        "specification": { "$ref": "#/$defs/runSpecification" }, "photoIds": { "type": "array", "items": { "$ref": "#/$defs/id" } }, "approval": { "$ref": "#/$defs/approval" }
+      }
+    },
+    "runSpecification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["system", "customSystem", "profile", "heightMm", "bayWidthMm", "ground", "slope", "removalRequired", "removalMaterial", "removalLengthMm", "disposalRequired", "access", "sleepers", "retainingRequired", "retainingType", "retainingHeightMm", "retainingCondition", "notes"],
+      "properties": {
+        "system": { "$ref": "#/$defs/system" }, "customSystem": { "type": "string", "maxLength": 120 }, "profile": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "heightMm": { "$ref": "#/$defs/positiveInteger" }, "bayWidthMm": { "$ref": "#/$defs/positiveInteger" }, "ground": { "enum": ["soil", "concrete", "rock", "retaining-wall", "mixed"] }, "slope": { "enum": ["level", "stepped", "raked", "mixed"] },
+        "removalRequired": { "type": "boolean" }, "removalMaterial": { "type": "string", "maxLength": 120 }, "removalLengthMm": { "oneOf": [{ "$ref": "#/$defs/positiveInteger" }, { "type": "null" }] }, "disposalRequired": { "type": "boolean" },
+        "access": { "enum": ["clear", "restricted", "hand-carry", "plant-required"] }, "sleepers": { "enum": ["none", "timber", "concrete", "custom"] }, "retainingRequired": { "type": "boolean" }, "retainingType": { "enum": ["none", "timber-sleeper", "concrete-sleeper", "masonry", "existing", "custom"] }, "retainingHeightMm": { "oneOf": [{ "$ref": "#/$defs/nonNegativeInteger" }, { "type": "null" }] }, "retainingCondition": { "type": "string", "maxLength": 500 }, "notes": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "gate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "revision", "sheet", "label", "runId", "segmentIndex", "centreOffsetMm", "widthMm", "heightMm", "type", "customType", "openingDirection", "hingeSide", "hardware", "latch", "postSize", "finish", "clearanceMm", "motorised", "hardwareModelId", "leafCount", "boundaryPostCount", "hingeSetCount", "latchCount", "dropBoltCount", "photoIds", "approval"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "sheet": { "$ref": "#/$defs/nonNegativeInteger" }, "label": { "type": "string", "minLength": 1, "maxLength": 120 }, "runId": { "$ref": "#/$defs/id" }, "segmentIndex": { "$ref": "#/$defs/nonNegativeInteger" }, "centreOffsetMm": { "$ref": "#/$defs/nonNegativeInteger" }, "widthMm": { "$ref": "#/$defs/positiveInteger" }, "heightMm": { "$ref": "#/$defs/positiveInteger" },
+        "type": { "enum": ["single", "double", "sliding", "pedestrian", "custom"] }, "customType": { "type": "string", "maxLength": 120 }, "openingDirection": { "enum": ["inward", "outward", "sliding-left", "sliding-right", "reversible", "not-applicable"] }, "hingeSide": { "enum": ["left", "right", "double", "not-applicable"] }, "hardware": { "type": "string", "minLength": 1, "maxLength": 500 }, "latch": { "type": "string", "minLength": 1, "maxLength": 200 }, "postSize": { "type": "string", "minLength": 1, "maxLength": 120 }, "finish": { "type": "string", "maxLength": 200 }, "clearanceMm": { "oneOf": [{ "$ref": "#/$defs/nonNegativeInteger" }, { "type": "null" }] }, "motorised": { "type": "boolean" }, "hardwareModelId": { "$ref": "#/$defs/id" }, "leafCount": { "$ref": "#/$defs/positiveInteger" }, "boundaryPostCount": { "$ref": "#/$defs/positiveInteger" }, "hingeSetCount": { "$ref": "#/$defs/nonNegativeInteger" }, "latchCount": { "$ref": "#/$defs/nonNegativeInteger" }, "dropBoltCount": { "$ref": "#/$defs/nonNegativeInteger" }, "photoIds": { "type": "array", "items": { "$ref": "#/$defs/id" } }, "approval": { "$ref": "#/$defs/approval" }
+      }
+    },
+    "documentEvidence": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "sha256"], "properties": { "kind": { "const": "document" }, "id": { "$ref": "#/$defs/id" }, "sha256": { "$ref": "#/$defs/sha256" } } },
+    "calibrationEvidence": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "sheet", "candidateId", "digest", "metresPerUnit"], "properties": { "kind": { "const": "calibration" }, "id": { "$ref": "#/$defs/id" }, "sheet": { "$ref": "#/$defs/nonNegativeInteger" }, "candidateId": { "$ref": "#/$defs/id" }, "digest": { "$ref": "#/$defs/sha256" }, "metresPerUnit": { "$ref": "#/$defs/decimal" } } },
+    "photoEvidence": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision", "sha256"], "properties": { "kind": { "const": "photo" }, "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "sha256": { "$ref": "#/$defs/sha256" } } },
+    "request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "requestId", "inputDigest", "job", "document", "verifiedAssets", "calibrations", "runs", "gates", "evidence", "recipeSet"],
+      "properties": {
+        "schema": { "const": "xray.job-to-bom/v1" }, "requestId": { "$ref": "#/$defs/id" }, "inputDigest": { "$ref": "#/$defs/sha256" },
+        "job": { "type": "object", "additionalProperties": false, "required": ["id", "revision"], "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" } } },
+        "document": { "type": "object", "additionalProperties": false, "required": ["id", "name", "kind", "sha256"], "properties": { "id": { "$ref": "#/$defs/id" }, "name": { "type": "string", "minLength": 1, "maxLength": 300 }, "kind": { "enum": ["pdf", "dxf", "svg"] }, "sha256": { "$ref": "#/$defs/sha256" } } },
+        "verifiedAssets": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "sha256"], "properties": { "kind": { "enum": ["document", "photo"] }, "id": { "$ref": "#/$defs/id" }, "sha256": { "$ref": "#/$defs/sha256" } } } },
+        "calibrations": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "sheet", "candidateId", "digest", "metresPerUnit"], "properties": { "id": { "$ref": "#/$defs/id" }, "sheet": { "$ref": "#/$defs/nonNegativeInteger" }, "candidateId": { "$ref": "#/$defs/id" }, "digest": { "$ref": "#/$defs/sha256" }, "metresPerUnit": { "$ref": "#/$defs/decimal" } } } },
+        "runs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/run" } }, "gates": { "type": "array", "items": { "$ref": "#/$defs/gate" } },
+        "evidence": { "type": "array", "items": { "oneOf": [{ "$ref": "#/$defs/documentEvidence" }, { "$ref": "#/$defs/calibrationEvidence" }, { "$ref": "#/$defs/photoEvidence" }] } }, "recipeSet": { "$ref": "#/$defs/recipeSet" }
+      }
+    },
+    "issue": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message", "entityId", "path"],
+      "properties": { "code": { "enum": ["invalid-job", "hydration", "document-original", "photo-original", "document-hash", "calibration", "length-mismatch", "run-specification", "gate-specification", "gate-placement", "gate-overlap", "review", "evidence", "recipe", "assumption", "unsupported-configuration", "contract"] }, "message": { "type": "string", "minLength": 1, "maxLength": 1000 }, "entityId": { "type": ["string", "null"], "maxLength": 240 }, "path": { "type": ["string", "null"], "maxLength": 500 } }
+    },
+    "evidenceRef": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "id", "sha256"], "properties": { "kind": { "const": "document" }, "id": { "$ref": "#/$defs/id" }, "sha256": { "$ref": "#/$defs/sha256" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "id", "digest"], "properties": { "kind": { "const": "calibration" }, "id": { "$ref": "#/$defs/id" }, "digest": { "$ref": "#/$defs/sha256" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "enum": ["run", "gate", "approval"] }, "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision", "sha256"], "properties": { "kind": { "const": "photo" }, "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "sha256": { "$ref": "#/$defs/sha256" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "id"], "properties": { "kind": { "const": "assumption" }, "id": { "$ref": "#/$defs/id" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "const": "recipe" }, "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" } } }
+      ]
+    },
+    "line": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "groupKey", "category", "itemCode", "description", "quantity", "calculation", "confidenceTier", "evidenceRefs", "assumptionRefs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "groupKey": { "type": "string", "minLength": 1, "maxLength": 500 }, "category": { "enum": ["post", "infill", "rail", "gate", "gate-hardware", "footing", "concrete", "retaining", "removal", "other"] }, "itemCode": { "type": ["string", "null"], "maxLength": 120 }, "description": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "quantity": { "type": "object", "additionalProperties": false, "required": ["value", "unit"], "properties": { "value": { "$ref": "#/$defs/decimal" }, "unit": { "$ref": "#/$defs/unit" } } },
+        "calculation": { "type": "object", "additionalProperties": false, "required": ["ruleId", "ruleVersion", "expression", "operands", "result"], "properties": { "ruleId": { "$ref": "#/$defs/id" }, "ruleVersion": { "$ref": "#/$defs/positiveInteger" }, "expression": { "type": "string", "minLength": 1, "maxLength": 1000 }, "operands": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name", "value", "unit", "evidenceRefs"], "properties": { "name": { "$ref": "#/$defs/id" }, "value": { "$ref": "#/$defs/decimal" }, "unit": { "$ref": "#/$defs/operandUnit" }, "evidenceRefs": { "type": "array", "items": { "$ref": "#/$defs/evidenceRef" } } } } }, "result": { "type": "object", "additionalProperties": false, "required": ["value", "unit"], "properties": { "value": { "$ref": "#/$defs/decimal" }, "unit": { "$ref": "#/$defs/unit" } } } } },
+        "confidenceTier": { "enum": ["reconciled", "single-source", "needs-human"] }, "evidenceRefs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidenceRef" } }, "assumptionRefs": { "type": "array", "items": { "$ref": "#/$defs/id" } }
+      }
+    },
+    "success": {
+      "type": "object", "additionalProperties": false, "required": ["schema", "ok", "requestId", "bom"],
+      "properties": {
+        "schema": { "const": "xray.bom/v1" }, "ok": { "const": true }, "requestId": { "$ref": "#/$defs/id" },
+        "bom": { "type": "object", "additionalProperties": false, "required": ["jobId", "jobRevision", "inputDigest", "documentSha256", "recipeSet", "ruleset", "status", "lines", "assumptions", "blockers", "warnings", "summary"], "properties": {
+          "jobId": { "$ref": "#/$defs/id" }, "jobRevision": { "$ref": "#/$defs/positiveInteger" }, "inputDigest": { "$ref": "#/$defs/sha256" }, "documentSha256": { "$ref": "#/$defs/sha256" },
+          "recipeSet": { "type": "object", "additionalProperties": false, "required": ["id", "revision", "digest"], "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/positiveInteger" }, "digest": { "$ref": "#/$defs/sha256" } } },
+          "ruleset": { "type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": { "id": { "const": "fencing-v1" }, "version": { "$ref": "#/$defs/positiveInteger" } } },
+          "status": { "enum": ["draft", "review-ready"] }, "lines": { "type": "array", "items": { "$ref": "#/$defs/line" } }, "assumptions": { "type": "array", "items": { "$ref": "#/$defs/assumption" } }, "blockers": { "type": "array", "items": { "$ref": "#/$defs/issue" } }, "warnings": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
+          "summary": { "type": "object", "additionalProperties": false, "required": ["lineCount", "needsHumanCount", "blockerCount"], "properties": { "lineCount": { "$ref": "#/$defs/nonNegativeInteger" }, "needsHumanCount": { "$ref": "#/$defs/nonNegativeInteger" }, "blockerCount": { "$ref": "#/$defs/nonNegativeInteger" } } }
+        } }
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["schema", "ok", "requestId", "inputDigest", "issues"],
+      "properties": { "schema": { "const": "xray.bom/v1" }, "ok": { "const": false }, "requestId": { "$ref": "#/$defs/id" }, "inputDigest": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }, "issues": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/issue" } } }
+    }
+  }
+}
