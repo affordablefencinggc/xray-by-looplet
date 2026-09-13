@@ -81,3 +81,9 @@ User confirmed roofing, HVAC and quantity surveying must be built concurrently, 
 - [ ] Execute QS report tablet interaction and complete final integration acceptance before advancing the queue.
 
 Recovery: feat/architect-cad-engine; proof/growth/2026-09-13-industry-agents/resume-20260914/. Existing uncommitted industry changes preserved. No whole-industry readiness, quote eligibility or final release claim.
+
+## Shared visual pass and industry checklist index - 2026-09-14
+
+INDUSTRY-CHECKLISTS.md now contains six whole-workflow acceptance gates for each of the 68 industry profiles, with their own source inputs and expected deliverable. These are deliberately unchecked; existing calculator/UI acceptance is narrower and remains recorded above. Roofing, HVAC and QS remain the active batch.
+
+Shared styling: neutral charcoal theme surfaces, deep ocean primary actions with white labels, and theme-aware architect headings/form controls. CSS source changes are applied. Fresh visual verification is open: the DANS1 Fast CDP guard rejected an unsandboxed Network Service in both Edge and Chrome before app operations. No guard or browser security setting was weakened; failed evidence is retained under proof/growth/2026-09-14-charcoal-ocean. Do not claim visual or final build acceptance from this attempt.

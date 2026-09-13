@@ -1,0 +1,663 @@
+Sandbox Status
+Process	Type	Name	Sandbox	Lockdown	Integrity	Mitigations	Component Filter	Lowbox/AppContainer
+2168	GPU	GPU	GPU	Limited	S-1-16-4096 Low	➕01111001010110000100000000010000	00000001	
+17092	Utility	Storage Service	Service	Lockdown	S-1-16-0 Untrusted	➕01111011110110000100000000010000	00000001	
+5420	Utility	Network Service	Not Sandboxed					
+4012	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+16944	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+18612	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+3944	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+18456	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+14248	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+1216	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+9308	Renderer		Renderer	Lockdown	S-1-16-0 Untrusted	➕01111001110110000100000020010000	00000001	S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922
+
+features: [
+  {
+    "enabled": true,
+    "name": "NetworkServiceSandbox"
+  },
+  {
+    "enabled": true,
+    "name": "RendererAppContainer"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxDisableExtensionPoint"
+  },
+  {
+    "enabled": true,
+    "name": "WinSboxZeroAppShim"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxNoFakeGdiInit"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxRestrictCoreSharingOnRenderer"
+  },
+  {
+    "enabled": false,
+    "name": "msWinSboxRepairImports"
+  },
+  {
+    "enabled": false,
+    "name": "EnableCsrssLockdown"
+  },
+  {
+    "enabled": false,
+    "name": "WinSboxModuleTamperingProtection"
+  }
+]
+policies: [
+  {
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-4096 Low",
+    "desiredMitigations": "0000000004af1367",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [],
+    "jobLevel": "Limited User",
+    "lockdownLevel": "Limited",
+    "platformMitigations": "01111001010110000100000000010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "NtCreateFile": [
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtCreateKey": [
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp') -> askBroker",
+        "!(p[1] & 5dfdfee6) && prefix(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp\\') -> askBroker",
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers') -> askBroker"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0x8fc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0x900",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0x910",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0x914",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0x91c",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0x920"
+      ],
+      "NtOpenFile": [
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtOpenKey": [
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp') -> askBroker",
+        "!(p[1] & 5dfdfee6) && prefix(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp\\') -> askBroker",
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers') -> askBroker"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "NtQueryAttributesFile": [
+        "exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtQueryFullAttributesFile": [
+        "exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtSetInfoRename": [
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "Ping1": [],
+      "Ping2": []
+    },
+    "processId": 2168,
+    "tag": "gpu!kGpu",
+    "zeroAppShim": false
+  },
+  {
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004af3b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "\\Device\\DeviceApi"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "platformMitigations": "01111011110110000100000000010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateFile": [
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtCreateKey": [
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp') -> askBroker",
+        "!(p[1] & 5dfdfee6) && prefix(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp\\') -> askBroker",
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers') -> askBroker"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xbb4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xbc0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xbc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xbd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xbd8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xbe0"
+      ],
+      "NtOpenFile": [
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "!(p[1] & 5fedff56) && p[2] == 1 && exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtOpenKey": [
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp') -> askBroker",
+        "!(p[1] & 5dfdfee6) && prefix(p[0], '\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\Srp\\') -> askBroker",
+        "!(p[1] & 5dfdfee6) && exact(p[0], '\\REGISTRY\\MACHINE\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers') -> askBroker"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "NtQueryAttributesFile": [
+        "exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtQueryFullAttributesFile": [
+        "exact(p[0], '\\Device\\SrpDevice') -> askBroker",
+        "exact(p[0], '\\Device\\DeviceApi\\CMApi') -> askBroker",
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "NtSetInfoRename": [
+        "exact(p[0], '\\Device\\KsecDD') -> askBroker"
+      ],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 17092,
+    "tag": "utility!kService",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 9308,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 1216,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 14248,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 3944,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 18612,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 16944,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 4012,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 22180,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  },
+  {
+    "appContainerInitialCapabilities": [
+      "S-1-15-3-1024-2302894289-466761758-1166120688-1039016420-2430351297-4240214049-4028510897-3317428798"
+    ],
+    "appContainerSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "componentFilters": "00000001",
+    "desiredIntegrityLevel": "S-1-16-0 Untrusted",
+    "desiredMitigations": "0000000004ef1b67",
+    "disconnectCsrss": "disabled",
+    "handlesToClose": [
+      "*\\windows_shell_global_counters",
+      "\\Device\\DeviceApi",
+      "\\Device\\KsecDD"
+    ],
+    "jobLevel": "Lockdown",
+    "lockdownLevel": "Lockdown",
+    "lowboxSid": "S-1-15-2-3251537155-1984446955-2931258699-841473695-1938553385-924012159-129201922",
+    "platformMitigations": "01111001110110000100000020010000",
+    "policyRules": {
+      "BaseThreadInitThunk": [
+        " -> fakeSuccess"
+      ],
+      "CreateThread": [],
+      "GdiDllInitialize": [
+        " -> fakeSuccess"
+      ],
+      "GetStockObject": [
+        " -> fakeSuccess"
+      ],
+      "NtCreateSection": [
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge.dll') -> returnConst 0xfb8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\msedge_elf.dll') -> returnConst 0xfbc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Windows\\System32\\dbghelp.dll') -> returnConst 0xfc4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxcompiler.dll') -> returnConst 0xfc8",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\dxil.dll') -> returnConst 0xfd0",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\ffmpeg.dll') -> returnConst 0xfd4",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mip_core_gn.dll') -> returnConst 0xfdc",
+        "exact(p[0], '\\Device\\HarddiskVolume3\\Program Files (x86)\\Microsoft\\Edge\\Application\\152.0.4191.66\\mspdf.dll') -> returnConst 0xfe0"
+      ],
+      "NtOpenProcessTokenEx": [],
+      "NtOpenSection": [],
+      "NtOpenThread": [],
+      "Ping1": [],
+      "Ping2": [],
+      "RegisterClassW": [
+        " -> fakeSuccess"
+      ]
+    },
+    "processId": 18456,
+    "tag": "renderer!kRenderer-ac1-ci",
+    "zeroAppShim": true
+  }
+]
