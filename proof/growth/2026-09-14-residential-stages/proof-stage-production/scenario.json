@@ -1,0 +1,537 @@
+[
+  [
+    "context",
+    "ui"
+  ],
+  [
+    "viewport",
+    "ui",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "ui",
+    "http://127.0.0.1:8081"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.workbench')"
+  ],
+  [
+    "eval",
+    "ui",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Settings').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.workspace-settings')"
+  ],
+  [
+    "eval",
+    "ui",
+    "[...document.querySelectorAll('.workspace-settings button')].find(b=>b.textContent.trim()==='Charcoal').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.workbench')?.dataset.skin==='navy'"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('[aria-label=\"Close settings\"]').click()"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{window.qaErrors=[];addEventListener('error',e=>qaErrors.push(e.message));addEventListener('unhandledrejection',e=>qaErrors.push(String(e.reason)));const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Design');if(!b)throw Error('Design navigation missing');b.click();return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "[...document.querySelectorAll('button')].some(b=>b.textContent==='Architectural workspace')"
+  ],
+  [
+    "eval",
+    "ui",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Architectural workspace').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-panel')"
+  ],
+  [
+    "eval",
+    "ui",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Load demonstration').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-table tbody button')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-preview').open=true;document.querySelector('.alteration-panel').open=true;true"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-blockers')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const key=Object.keys(localStorage).find(k=>k.startsWith('xray:architect:v1:'));const p=JSON.parse(localStorage.getItem(key));window.qaKey=key;window.qaDivider=p.walls.at(-1).id;window.qaWindow=p.openings.find(o=>o.kind==='window').id;window.qaRows=[...p.walls,...p.openings,...p.slabs,...p.roofs].map(e=>({id:e.id,status:e.id===qaDivider?'demolished':e.id===qaWindow?'new':'existing'}));if(document.querySelector('.alteration-stage-drawing'))throw Error('partial stage');document.querySelector('.alteration-stage-review').click();return {synthetic:true,elements:qaRows.length}})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-error')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[0].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[0].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[0].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[1].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[1].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[1].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[2].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[2].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[2].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[3].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[3].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[3].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[4].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[4].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[4].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[5].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[5].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[5].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[6].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[6].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[6].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[7].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[7].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[7].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[8].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[8].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[8].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody button')[9].click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const panel=document.querySelector('.alteration-panel');const s=panel.querySelector('select');s.value=qaRows[9].status;s.dispatchEvent(new Event('change',{bubbles:true}));const t=panel.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Synthetic stage QA survey');t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelectorAll('.alteration-table tbody tr')[9].innerText.includes('Synthetic stage QA survey')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const p=document.querySelector('.alteration-stage-preview'),i=p.querySelector('input:not([type=checkbox])');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Synthetic reviewed basis page 1');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-confirm input').click()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-review').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-drawing')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const svg=document.querySelector('.alteration-stage-drawing');if(!svg.querySelector('[data-entity-id=\"'+qaDivider+'\"]'))throw Error('before divider absent');if(svg.querySelector('[data-entity-id=\"'+qaWindow+'\"]'))throw Error('new window in before');document.querySelector('.alteration-stage-drawing').scrollIntoView({block:'center'});return {before:true}})()"
+  ],
+  [
+    "screenshot",
+    "ui",
+    "stage-before-desktop.png"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview stage\"]');s.value='proposed';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').startsWith('Proposed')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const svg=document.querySelector('.alteration-stage-drawing');if(svg.querySelector('[data-entity-id=\"'+qaDivider+'\"]'))throw Error('demolished divider in proposed');if(!svg.querySelector('[data-entity-id=\"'+qaWindow+'\"]'))throw Error('new window absent proposed');return {proposed:true}})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='section';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('section')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='north';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('north')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='south';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('south')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='east';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('east')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='west';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('west')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='plan';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('plan')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const before=localStorage.getItem(qaKey);document.querySelector('[aria-label=\"Alteration preview view\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true}));if(localStorage.getItem(qaKey)!==before)throw Error('Delete mutated canonical model');return {deleteIsolated:true}})()"
+  ],
+  [
+    "viewport",
+    "ui",
+    820,
+    1180
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing').scrollIntoView({block:'center'});true"
+  ],
+  [
+    "screenshot",
+    "ui",
+    "stage-proposed-tablet.png"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-table tbody button').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-apply')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('.alteration-panel select');s.value='repaired';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-apply').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-blockers') && !document.querySelector('.alteration-stage-drawing')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{if(qaErrors.length)throw Error(qaErrors.join(';'));return {errors:qaErrors,revisionInvalidation:true}})()"
+  ],
+  [
+    "dispose",
+    "ui"
+  ]
+]

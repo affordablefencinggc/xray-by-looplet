@@ -1,6 +1,6 @@
 # IND-01 next slice: before/proposed geometry
 
-Design proposal from the parallel audit; not implemented or accepted. Lifecycle classification alone must not unlock alteration quantities or procurement.
+The first bounded implementation is now a pure before/proposed resolver and read-only six-view preview. Lifecycle classification alone must not unlock alteration quantities or procurement. Broader geometry and export requirements below remain open unless explicitly verified in the implementation checkpoint.
 
 Resolve a derived stage model before calling geometry functions. Keep the saved all-work model and frozen historical issues unchanged. Every output carries its stage, source/baseline reference and unresolved conditions.
 
@@ -32,3 +32,15 @@ Acceptance fixtures:
 - Screenshots, exports, undo, reload and issued history retain exact stage/baseline identity.
 
 Classification, Before alteration and Proposed must be separate labelled views, with status legend and unresolved-condition notices on screen and exported sheets. Disposal/salvage/hazard allowances and repair rates remain later explicit work under PH-02.
+
+## Implementation checkpoint: reviewed read-only preview
+
+- [x] Resolve independently cloned before/proposed geometry; preserve canonical project and issue bytes.
+- [x] Bind an explicit session reference and unchanged-geometry declaration to exact physical geometry, lifecycle and levels; reject missing/stale/wrong-project basis.
+- [x] Reject unassigned elements, conflicting host memberships and ambiguous demolished openings without returning partial geometry.
+- [x] Filter hosted dimensions and openings; recompute room boundaries and all six drawing views from the derived stage.
+- [x] Verify fourteen domain/integration fixtures on DANS1, including replacement ID swaps, exact opening delta, room merge and frozen history. Full regression: 201 script +1,279 TypeScript tests; typecheck passes after a test-only narrowing correction.
+- [x] Verify real desktop/tablet review, switching, invalidation, reload and read-only keyboard boundary: 56/56 DANS1 dev and107/107 built-output operations, screenshots inspected.
+- [x] Build and verify final web/native package source: d83b24da5ade web/typecheck/native NSIS all exit0, final source hashes verified. Native application UI and installer execution remain unclaimed.
+
+The review resets on project revision change or reload. Derived stages are not saved as canonical projects or issued exports. Shared annotations remain identified as orientation only. Explicit infill/retain-void, independent repaired baseline shapes, phase-aware overlap allocation, material synchronization, phase-bearing export/issue history and live assistant/Developer review remain open. Existing canonical opening overlap/tag validation still applies before filtering, so otherwise-invalid replacement opening records are not yet supported.

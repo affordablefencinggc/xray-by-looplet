@@ -2,6 +2,7 @@ import { useDesignConfirmation } from "./useDesignConfirmation";
 import { SyncDesignMaterials } from "./SyncDesignMaterials";
 import { prepareArchitectEdits, prepareArchitectElements, registerArchitectController } from "../assistant/architectBridge.ts";
 import { ArchitectAi } from "./ArchitectAi";
+import { AlterationStagePreview } from "./AlterationStagePreview";
 import { ArchitectSheets } from "./ArchitectSheets";
 import { csv } from "./exchange";
 import { ArchitectCadExchange } from "./ArchitectCadExchange";
@@ -773,6 +774,7 @@ export function ArchitectWorkspace() {
           <Plus size={14} /> Level
         </button>
       </nav>
+      <AlterationStagePreview project={p} />
       {panel === "draw" && (
         <>
           <div className="arch-toolbar" aria-label="Architectural drawing tools">

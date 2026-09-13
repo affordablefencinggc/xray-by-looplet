@@ -1,0 +1,282 @@
+[
+  [
+    "context",
+    "ui"
+  ],
+  [
+    "viewport",
+    "ui",
+    1440,
+    1000
+  ],
+  [
+    "navigate",
+    "ui",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "eval",
+    "ui",
+    "new Promise(resolve=>{let observer,timer;const done=()=>{if(document.querySelector(\".workbench\")){observer?.disconnect();clearTimeout(timer);resolve(true);return true}};if(done())return;observer=new MutationObserver(done);observer.observe(document,{subtree:true,childList:true,attributes:true});timer=setTimeout(()=>{observer.disconnect();resolve(false)},8000)})"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.workbench')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(async()=>{const {useStudio}=await import('/src/studio/store.ts');const {demonstration}=await import('/src/studio/architect/model.ts');const {architectKey}=await import('/src/studio/architect/persistence.ts');const id=useStudio.getState().job.id;localStorage.setItem(architectKey(id),JSON.stringify(demonstration(id)));window.qaKey=architectKey(id);window.qaErrors=[];addEventListener('error',e=>qaErrors.push(e.message));addEventListener('unhandledrejection',e=>qaErrors.push(String(e.reason)));useStudio.getState().setSkin('navy');useStudio.getState().setPane('sketch');return {jobId:id,synthetic:true}})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "[...document.querySelectorAll('button')].some(b=>b.textContent==='Architectural workspace')"
+  ],
+  [
+    "eval",
+    "ui",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Architectural workspace').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-panel')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-preview').open=true;true"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-blockers')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{if(document.querySelector('.alteration-stage-drawing'))throw Error('partial stage drawn');document.querySelector('.alteration-stage-review').click();return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-error')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(async()=>{const {requestArchitectTool}=await import('/src/studio/assistant/architectBridge.ts');const {useStudio}=await import('/src/studio/store.ts');const id=useStudio.getState().job.id;const read=await requestArchitectTool('read',{expectedJobId:id});const p=read.project;window.qaDivider=p.walls.at(-1).id;window.qaWindow=p.openings.find(o=>o.kind==='window').id;const operations=[...p.walls,...p.openings,...p.slabs,...p.roofs].map(e=>({kind:'set-lifecycle',id:e.id,lifecycle:{status:e.id===qaDivider?'demolished':e.id===qaWindow?'new':'existing',reference:'Synthetic stage QA survey'}}));return await requestArchitectTool('edit',{expectedJobId:id,expectedRevision:p.revision,operations})})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!document.querySelector('.alteration-stage-error')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const p=document.querySelector('.alteration-stage-preview'),i=p.querySelector('input:not([type=checkbox])');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Synthetic reviewed basis page 1');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-confirm input').click()"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-review').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-drawing')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const svg=document.querySelector('.alteration-stage-drawing');if(!svg.querySelector('[data-entity-id=\"'+qaDivider+'\"]'))throw Error('before divider absent');if(svg.querySelector('[data-entity-id=\"'+qaWindow+'\"]'))throw Error('new window in before');document.querySelector('.alteration-stage-drawing').scrollIntoView({block:'center'});return {before:true}})()"
+  ],
+  [
+    "screenshot",
+    "ui",
+    "stage-before-desktop.png"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview stage\"]');s.value='proposed';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').startsWith('Proposed')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const svg=document.querySelector('.alteration-stage-drawing');if(svg.querySelector('[data-entity-id=\"'+qaDivider+'\"]'))throw Error('demolished divider in proposed');if(!svg.querySelector('[data-entity-id=\"'+qaWindow+'\"]'))throw Error('new window absent proposed');return {proposed:true}})()"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='section';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('section')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='north';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('north')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='south';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('south')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='east';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('east')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='west';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('west')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const s=document.querySelector('[aria-label=\"Alteration preview view\"]');s.value='plan';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing')?.getAttribute('aria-label').includes('plan')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(()=>{const before=localStorage.getItem(qaKey);document.querySelector('[aria-label=\"Alteration preview view\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true}));if(localStorage.getItem(qaKey)!==before)throw Error('Delete mutated canonical model');return {deleteIsolated:true}})()"
+  ],
+  [
+    "viewport",
+    "ui",
+    820,
+    1180
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-drawing').scrollIntoView({block:'center'});true"
+  ],
+  [
+    "screenshot",
+    "ui",
+    "stage-proposed-tablet.png"
+  ],
+  [
+    "eval",
+    "ui",
+    "(async()=>{const {requestArchitectTool}=await import('/src/studio/assistant/architectBridge.ts');const {useStudio}=await import('/src/studio/store.ts');const id=useStudio.getState().job.id;const read=await requestArchitectTool('read',{expectedJobId:id});return requestArchitectTool('edit',{expectedJobId:id,expectedRevision:read.project.revision,operations:[{kind:'set-lifecycle',id:read.project.walls[0].id,lifecycle:{status:'repaired',reference:'Synthetic revised survey'}}]})})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-blockers') && !document.querySelector('.alteration-stage-drawing')"
+  ],
+  [
+    "navigate",
+    "ui",
+    "http://127.0.0.1:8080"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.workbench')"
+  ],
+  [
+    "eval",
+    "ui",
+    "(async()=>{const {useStudio}=await import('/src/studio/store.ts');useStudio.getState().setPane('sketch');return true})()"
+  ],
+  [
+    "wait",
+    "ui",
+    "[...document.querySelectorAll('button')].some(b=>b.textContent==='Architectural workspace')"
+  ],
+  [
+    "eval",
+    "ui",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Architectural workspace').click()"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-preview')"
+  ],
+  [
+    "eval",
+    "ui",
+    "document.querySelector('.alteration-stage-preview').open=true;true"
+  ],
+  [
+    "wait",
+    "ui",
+    "!!document.querySelector('.alteration-stage-blockers') && !document.querySelector('.alteration-stage-drawing')"
+  ],
+  [
+    "dispose",
+    "ui"
+  ]
+]

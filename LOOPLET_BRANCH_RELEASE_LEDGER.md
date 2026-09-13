@@ -266,3 +266,12 @@ Earlier/later plan layers, level choice, changed-only emphasis and preview-only 
 User priority is now IND-01, executed by three parallel agents with shared lifecycle schema and disjoint files. Existing/new/demolished/repaired assignments require supplied references; legacy records remain unassigned. Added schedule/CSV and revision-bound assistant edit; issue metadata stays frozen. Mixed-phase material sync is blocked because existing combined quantities cannot establish phase quantities.
 
 DANS1: 201 script + 1,265 TypeScript tests, typecheck, web/native NSIS build 20e1cd9705b0 pass. Dev 47/47, corrected charcoal 31/31, production 49/49 browser operations pass; root inspected desktop/tablet screenshots. Actual mounted assistant adapter edit saved and read back; live provider explanation/Developer response remains unverified because the isolated snapshot has no evidenced provider configuration. Native UI/installer acceptance and the whole industry remain open. Recovery: feat/architect-cad-engine after e1813d8; proof/growth/2026-09-14-residential/README.md. Next: before/proposed geometry and read-only stage previews.
+
+## Residential stage preview - 2026-09-14
+
+Parallel implementation adds a referenced, session-bound before/proposed geometry resolver and read-only plan/section/four-elevation preview. Geometry/lifecycle changes invalidate the review; unknown work status and ambiguous opening demolition return blockers without partial geometry. Canonical design and issued snapshots stay immutable; mixed-phase procurement remains blocked.
+
+DANS1 full regression:201 script +1,279 TypeScript tests and typecheck pass; 14 new geometry/integration cases. Dev56/56 and production107/107 browser operations pass, including all10 element classifications through production UI, stage differences, six views, keyboard isolation and review invalidation. Root inspected desktop/tablet screenshots. Source/build d83b24da5ade; proof/growth/2026-09-14-residential-stages/README.md. Branch feat/architect-cad-engine after f3e3a5c. Phase quantities, infill/independent repaired baselines, stage issue exports, live provider/Developer review and native application UI acceptance remain open. This is a bounded feature checkpoint, not whole-industry sign-off.
+
+Final stage build d83b24da5ade web/typecheck/native NSIS passes; final source hashes verified. Production107/107 operations pass. No installation/deployment or whole-industry sign-off. Evidence: proof/growth/2026-09-14-residential-stages/build-d83b24da5ade/native-completion.json.
+

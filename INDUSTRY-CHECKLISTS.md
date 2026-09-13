@@ -16,7 +16,7 @@ Inputs: Survey and client brief. Expected deliverable: Coordinated plans, sectio
 - [ ] SC-05 Verify desktop/tablet behaviour and export contents; preserve source and evidence status.
 - [ ] SC-06 Pass final regression/build and applicable package checks; attach diff/proof and record remaining professional review requirements.
 
-Progress 2026-09-14: lifecycle editor/schedule/CSV, strict assistant operation and material-sync protection implemented. Combined DANS1 regression passes 201 script and 1,265 TypeScript tests plus full typecheck. Lifecycle dev 47/47, corrected charcoal 31/31 and production 49/49 browser operations pass; web/native build 20e1cd9705b0 passes. Remaining gates include live assistant/Developer responses, phase-aware geometry/quantities, native UI and coordinated issue-set acceptance. A classification schedule does not complete this industry.
+Progress 2026-09-14: lifecycle editor/schedule/CSV, strict assistant operation and material-sync protection implemented. Combined DANS1 regression passes 201 script and 1,265 TypeScript tests plus full typecheck. Lifecycle dev 47/47, corrected charcoal 31/31 and production 49/49 browser operations pass; web/native build 20e1cd9705b0 passes. Remaining gates include live assistant/Developer responses, phase-aware geometry/quantities, native UI and coordinated issue-set acceptance. The next slice adds reviewed read-only before/proposed plan, section and elevation geometry; 14 new geometry/integration cases, 56 dev and 107 production UI operations pass. Phase quantities, issued stage exports and whole-industry acceptance remain open.
 
 ## IND-02 - Commercial architecture
 
