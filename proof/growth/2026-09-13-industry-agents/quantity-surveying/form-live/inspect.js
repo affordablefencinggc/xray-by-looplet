@@ -1,0 +1,1 @@
+(async()=>{const {useStudio}=await import('/src/studio/store.ts');const s=useStudio.getState();return {job:s.job,workspace:s.workspace,text:document.body.innerText,buttons:[...document.querySelectorAll('button,summary')].map(x=>({text:x.innerText,label:x.getAttribute('aria-label')}))}})()

@@ -1,3 +1,4 @@
+import { industryDraftKey } from "./industries/draftStorage.ts";
 import { fencingJobSchema, parseFencingJob, type FencingJob } from "./domain.ts";
 import { FENCING_JOB_STORAGE_KEY, LEGACY_FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
 import { architectKey } from "./architect/persistence.ts";
@@ -67,6 +68,7 @@ export async function assessBackupRestore(
       ["components", "Component inventory", inventoryStorageKey(job.id)], ["recipes", "Saved recipes", fencingRecipeStorageKey(job.id)],
       ["sourceTakeoff", "Source-bound takeoff", takeoffKey(job.id)], ["connectionReview", "Source-bound connection review", trialKey(job.id)],
       ["priceBooks", "Supplier price books and worksheet", priceBookKey(job.id)],
+      ["industryDrafts", "Industry drafts", industryDraftKey(job.id)],
     ];
     for (const [record, label, key] of keys) put({ id: local(key), label, storage: "localStorage", key, scope, record, owner: job,
       policy: !incoming ? "preserve" : target.records[record] === undefined ? "unsupported" : "compare", next: incoming ? target.records[record] : undefined });

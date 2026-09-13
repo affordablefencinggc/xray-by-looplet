@@ -446,3 +446,8 @@ Recovery: proof/growth/2026-09-13-ncc-library/README.md and changes.patch; build
 
 
 - 2026-09-13 IND-29/30/38 draft assistant integration: actual live calculator calls, receipt/developer-review comparison and exact reload/project preservation pass. 201+1,151 full DANS1 tests and typecheck pass; production build2b490c637162 has19 passing browser operations. Current-turn checks and hidden-candidate history correction prevent the captured regressions within documented guard limits. Closed Drawings seam corrected with live interaction proof. See proof/growth/2026-09-13-industry-agents/INTEGRATION.md. Whole-industry readiness and native packaging remain open.
+
+
+## Manual industry worksheet checkpoint - 2026-09-13
+
+Roofing, HVAC and QS controlled worksheets integrated in Estimate with project-specific saved inputs and backup/restore generation protection. DANS1 1,176 TypeScript tests plus script chain and full typecheck pass. Build 916199981aa8 passes 34 production UI operations plus 55 isolated-project operations; all 830 staged inputs match. Manual entry/edit/reload/tablet checks pass for three forms. HVAC fresh assistant crosscheck passes. Roofing skipped its tool twice (claims withheld); QS fabricated nullable placeholders and failed six calls with a misleading final explanation. These assistant failures remain open; do not promote industry readiness. See proof/growth/2026-09-13-industry-agents/FORMS-INTEGRATION.md. Next work fixes these failures before progressing the industry queue.

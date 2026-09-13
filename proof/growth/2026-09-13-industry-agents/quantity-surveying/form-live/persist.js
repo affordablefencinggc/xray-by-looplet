@@ -1,0 +1,1 @@
+(async()=>{const {useStudio}=await import('/src/studio/store.ts');const s=useStudio.getState();const {readChatArchive}=await import('/src/studio/assistant/chatHistory.ts');return {job:s.job,archive:await readChatArchive(s.job.id),draft:localStorage.getItem('xray.industry-drafts.v1:'+s.job.id)}})()

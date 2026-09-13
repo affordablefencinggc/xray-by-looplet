@@ -11,6 +11,7 @@ import { inspectPlanBytes } from "./documents.ts";
 import { verifyPhotoContent, type StoredPhotoContent } from "./evidence.ts";
 import type { StoredPlanContent } from "./documentContract.ts";
 import { validateJobSheetMetadata } from "./sheetLifecycle.ts";
+import { parseIndustryDraftLibrary } from "./industries/draftStorage.ts";
 import { parsePriceBookLibrary } from "./pricing/priceBooks.ts";
 
 export const BACKUP_FORMAT = "xray.workspace-backup/v2";
@@ -27,7 +28,7 @@ const raw = z.string().max(30 * 1024 * 1024).nullable();
 export const backupRecordsSchema = z.object({
   architecture: raw, bom: raw, components: raw, recipes: raw,
   sourceTakeoff: raw, connectionReview: raw, materials: raw, referenceRates: raw,
-  sheetMetadata: raw.optional(), priceBooks: raw.optional(),
+  sheetMetadata: raw.optional(), priceBooks: raw.optional(), industryDrafts: raw.optional(),
 }).strict();
 export type BackupRecords = z.infer<typeof backupRecordsSchema>;
 const assetSchema = z.object({
@@ -45,7 +46,7 @@ export type BackupAsset = z.infer<typeof assetSchema>;
 export const emptyBackupRecords = (): BackupRecords => ({
   architecture: null, bom: null, components: null, recipes: null,
   sourceTakeoff: null, connectionReview: null, materials: null, referenceRates: null,
-  sheetMetadata: null, priceBooks: null,
+  sheetMetadata: null, priceBooks: null, industryDrafts: null,
 });
 export function backupPhotos(job: FencingJob): FencingJob["photos"] {
   const photos = new Map<string, FencingJob["photos"][number]>();
@@ -83,6 +84,7 @@ function sameId(actual: string, expected: string, label: string) {
 }
 export async function validateBackupRecords(records: BackupRecords, jobId: string) {
   const parse = (s: string) => JSON.parse(s);
+  if (records.industryDrafts != null) parseIndustryDraftLibrary(records.industryDrafts, jobId);
   if (records.architecture !== null) sameId(validateProject(parse(records.architecture)).id, jobId, "Design");
   if (records.bom !== null) sameId(bomStateEnvelopeSchema.parse(parse(records.bom)).jobId, jobId, "BOM");
   if (records.components !== null) componentInventorySchema.parse(parse(records.components));
@@ -102,8 +104,8 @@ export async function validateBackupRecords(records: BackupRecords, jobId: strin
 }
 export async function validateProjectBackup(input: unknown): Promise<ProjectBackup> {
   const value = payloadSchema.parse(input);
-  if (value.format === BACKUP_LEGACY_FORMAT && (value.records.sheetMetadata !== undefined || value.records.priceBooks !== undefined))
-    throw Error("Sheet and price book records require backup format v2.");
+  if (value.format === BACKUP_LEGACY_FORMAT && (value.records.sheetMetadata !== undefined || value.records.priceBooks !== undefined || value.records.industryDrafts !== undefined))
+    throw Error("Sheet, price book and industry draft records require backup format v2.");
   await validateBackupRecords(value.records, value.job.id);
   validateJobSheetMetadata(value.records.sheetMetadata ?? null, value.job);
   if (value.records.priceBooks != null) parsePriceBookLibrary(value.records.priceBooks, value.job.id);

@@ -1,0 +1,1 @@
+(async()=>{const detail=document.querySelector('.industry-workbench');detail.querySelector('summary').click();detail.querySelector('summary').click();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {result:detail.querySelector('.industry-result').innerText}})()

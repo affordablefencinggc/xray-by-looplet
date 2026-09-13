@@ -1,0 +1,1 @@
+(async()=>{[...document.querySelectorAll('button')].find(x=>x.textContent.trim()==='Estimate').click();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {summaries:[...document.querySelectorAll('summary')].map(x=>x.innerText),text:document.querySelector('main')?.innerText?.slice(0,3500)}})()

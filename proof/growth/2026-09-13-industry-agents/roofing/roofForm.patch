@@ -1,0 +1,178 @@
+diff --git a/src/studio/industries/roofing/RoofingDraftPanel.tsx b/src/studio/industries/roofing/RoofingDraftPanel.tsx
+new file mode 100644
+index 0000000..a7bb182
+--- /dev/null
++++ b/src/studio/industries/roofing/RoofingDraftPanel.tsx
+@@ -0,0 +1,66 @@
++import { useId } from "react";
++import type { IndustryDraftPanelProps } from "../draftPanel.ts";
++import { calculateRoofForm, createEmptyRoofPlane, editRoofForm, roofFormError, type RoofForm, type RoofPlaneForm } from "./roofForm.ts";
++
++export function RoofingDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<RoofForm>) {
++  const prefix = useId();
++  const edit = (planes: RoofForm["planes"]) => onChange(editRoofForm(planes));
++  const changePlane = (index: number, patch: Partial<RoofPlaneForm>) => edit(value.planes.map((plane, i) => i === index ? { ...plane, ...patch } : plane));
++  let result: ReturnType<typeof calculateRoofForm> | null = null;
++  let error: string | null = null;
++  if (value.calculated) {
++    try { result = calculateRoofForm(value); } catch (cause) { error = roofFormError(cause); }
++  }
++  const field = (id: string, label: string, current: string, change: (next: string) => void, numeric = false) => (
++    <label htmlFor={`${prefix}-${id}`}>{label}
++      <input id={`${prefix}-${id}`} type="text" inputMode={numeric ? "decimal" : undefined} value={current}
++        onChange={event => change(event.target.value)} maxLength={numeric ? 80 : 1000} />
++    </label>
++  );
++  return <section className="industry-form" aria-label="Draft roofing areas">
++    <p className="industry-note">Enter horizontal plan areas and each plane’s pitch from horizontal. References record where your inputs came from; this worksheet does not verify the source or scale.</p>
++    <fieldset disabled={disabled}>
++      <legend>Roof planes</legend>
++      {value.planes.map((plane, index) => <fieldset key={index}>
++        <legend>Plane {index + 1}</legend>
++        <div className="industry-fields">
++          {field(`plane-${index}-name`, "Plane name", plane.id, id => changePlane(index, { id }))}
++          {field(`plane-${index}-area`, "Horizontal plan area (m²)", plane.grossPlanAreaM2, grossPlanAreaM2 => changePlane(index, { grossPlanAreaM2 }), true)}
++          {field(`plane-${index}-pitch`, "Pitch from horizontal (degrees)", plane.pitchDegrees, pitchDegrees => changePlane(index, { pitchDegrees }), true)}
++          {field(`plane-${index}-area-ref`, "Area reference", plane.measurementReference, measurementReference => changePlane(index, { measurementReference }))}
++          {field(`plane-${index}-pitch-ref`, "Pitch reference", plane.pitchReference, pitchReference => changePlane(index, { pitchReference }))}
++        </div>
++        <fieldset>
++          <legend>Openings in plane {index + 1}</legend>
++          {!plane.openings.length && <p className="industry-note">No openings added. Add each opening’s horizontal area to deduct it from this plane.</p>}
++          {plane.openings.map((opening, openingIndex) => <fieldset key={openingIndex}>
++            <legend>Opening {openingIndex + 1}</legend>
++            <div className="industry-fields">
++              {field(`plane-${index}-opening-${openingIndex}-name`, "Opening name", opening.id, id => changePlane(index, { openings: plane.openings.map((item, i) => i === openingIndex ? { ...item, id } : item) }))}
++              {field(`plane-${index}-opening-${openingIndex}-area`, "Horizontal opening area (m²)", opening.planAreaM2, planAreaM2 => changePlane(index, { openings: plane.openings.map((item, i) => i === openingIndex ? { ...item, planAreaM2 } : item) }), true)}
++              {field(`plane-${index}-opening-${openingIndex}-ref`, "Opening area reference", opening.measurementReference, measurementReference => changePlane(index, { openings: plane.openings.map((item, i) => i === openingIndex ? { ...item, measurementReference } : item) }))}
++            </div>
++            <button type="button" onClick={() => changePlane(index, { openings: plane.openings.filter((_, i) => i !== openingIndex) })}>Remove opening {openingIndex + 1}</button>
++          </fieldset>)}
++          <button type="button" onClick={() => changePlane(index, { openings: [...plane.openings, { id: "", planAreaM2: "", measurementReference: "" }] })}>Add opening to plane {index + 1}</button>
++        </fieldset>
++        <button type="button" onClick={() => edit(value.planes.filter((_, i) => i !== index))}>Remove plane {index + 1}</button>
++      </fieldset>)}
++      <div className="industry-actions">
++        <button type="button" onClick={() => edit([...value.planes, createEmptyRoofPlane()])}>Add roof plane</button>
++        <button type="button" onClick={() => onChange({ ...value, calculated: true })}>Calculate draft roof areas</button>
++      </div>
++    </fieldset>
++    {error && <p className="industry-error" role="alert">{error}</p>}
++    {result && <section className="industry-result" aria-label="Draft roofing result" aria-live="polite">
++      <p><strong>Draft calculation · not eligible for verified quotes</strong></p>
++      <div className="industry-table-wrap"><table>
++        <caption>True roof areas by plane</caption>
++        <thead><tr><th scope="col">Plane</th><th scope="col">Gross m²</th><th scope="col">Openings m²</th><th scope="col">Net m²</th></tr></thead>
++        <tbody>{result.planes.map(plane => <tr key={plane.id}><th scope="row">{plane.id}</th><td>{plane.grossTrueAreaM2}</td><td>{plane.openingTrueAreaM2}</td><td>{plane.netTrueAreaM2}</td></tr>)}</tbody>
++        <tfoot><tr><th scope="row">Total</th><td>{result.totals.grossTrueAreaM2}</td><td>{result.totals.openingTrueAreaM2}</td><td>{result.totals.netTrueAreaM2}</td></tr></tfoot>
++      </table></div>
++      <ul className="industry-note">{result.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul>
++    </section>}
++  </section>;
++}
+diff --git a/src/studio/industries/roofing/roofForm.ts b/src/studio/industries/roofing/roofForm.ts
+new file mode 100644
+index 0000000..b071fa4
+--- /dev/null
++++ b/src/studio/industries/roofing/roofForm.ts
+@@ -0,0 +1,44 @@
++import { z } from "zod";
++import { calculateDraftRoofArea, roofAreaInputSchema } from "./roofArea.ts";
++
++const text = z.string().max(1000);
++const numericText = z.string().max(80);
++const opening = z.object({ id: text, planAreaM2: numericText, measurementReference: text }).strict();
++const plane = z.object({ id: text, grossPlanAreaM2: numericText, pitchDegrees: numericText,
++  measurementReference: text, pitchReference: text, openings: z.array(opening) }).strict();
++export const roofFormSchema = z.object({ planes: z.array(plane), calculated: z.boolean() }).strict();
++export type RoofForm = z.infer<typeof roofFormSchema>;
++export type RoofPlaneForm = RoofForm["planes"][number];
++export const createEmptyRoofPlane = (): RoofPlaneForm => ({ id: "", grossPlanAreaM2: "", pitchDegrees: "", measurementReference: "", pitchReference: "", openings: [] });
++export const createEmptyRoofForm = (): RoofForm => ({ planes: [createEmptyRoofPlane()], calculated: false });
++
++function number(text: string, label: string): number {
++  const trimmed = text.trim();
++  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) throw Error(`${label}: enter an explicit non-negative decimal value.`);
++  const value = Number(trimmed);
++  if (!Number.isFinite(value)) throw Error(`${label}: value is outside the supported numeric range.`);
++  return value;
++}
++
++/** Empty fields never silently become zero. The existing domain boundary retains
++ * all pitch, area, reference and cross-field validation; no new measurement rules.
++ */
++export function roofFormInput(raw: unknown) {
++  const form = roofFormSchema.parse(raw);
++  return roofAreaInputSchema.parse({ planes: form.planes.map((plane, index) => ({
++    ...plane,
++    grossPlanAreaM2: number(plane.grossPlanAreaM2, `Plane ${index + 1} horizontal area`),
++    pitchDegrees: number(plane.pitchDegrees, `Plane ${index + 1} pitch`),
++    openings: plane.openings.map((opening, openingIndex) => ({ ...opening,
++      planAreaM2: number(opening.planAreaM2, `Plane ${index + 1}, opening ${openingIndex + 1} horizontal area`),
++    })),
++  })) });
++}
++export const calculateRoofForm = (form: unknown) => calculateDraftRoofArea(roofFormInput(form));
++/** Any input edit hides the previous result until the user explicitly recalculates. */
++export const editRoofForm = (planes: RoofForm["planes"]): RoofForm => ({ planes, calculated: false });
++
++export function roofFormError(error: unknown): string {
++  if (error instanceof z.ZodError) return error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("; ");
++  return error instanceof Error ? error.message : "Check the roof inputs.";
++}
+diff --git a/src/studio/industries/roofing/roofForm.test.ts b/src/studio/industries/roofing/roofForm.test.ts
+new file mode 100644
+index 0000000..69ee293
+--- /dev/null
++++ b/src/studio/industries/roofing/roofForm.test.ts
+@@ -0,0 +1,50 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { calculateRoofForm, createEmptyRoofForm, editRoofForm, roofFormInput, roofFormSchema } from "./roofForm.ts";
++
++const qa = () => ({ calculated: false, planes: [{ id: "QA synthetic roof", grossPlanAreaM2: "80", pitchDegrees: "36.86989764584402",
++  measurementReference: "QA supplied 10 by 8 horizontal plane", pitchReference: "QA supplied rise 3 / run 4",
++  openings: [{ id: "QA synthetic opening", planAreaM2: "4", measurementReference: "QA supplied 2 by 2 horizontal opening" }],
++}] });
++
++test("empty draft persists empty strings without fabricating a zero area or flat pitch", () => {
++  const empty = createEmptyRoofForm();
++  assert.deepEqual(roofFormSchema.parse(JSON.parse(JSON.stringify(empty))), empty);
++  assert.equal(empty.planes[0].pitchDegrees, "");
++  assert.equal(empty.planes[0].measurementReference, "");
++  assert.throws(() => calculateRoofForm(empty), /explicit non-negative decimal/);
++  assert.throws(() => calculateRoofForm({ ...qa(), planes: [{ ...qa().planes[0], pitchDegrees: " " }] }), /explicit non-negative decimal/);
++});
++
++test("form converts explicit QA areas/pitch through actual helper to 100 gross, 5 opening, 95 net", () => {
++  const form = qa();
++  const before = structuredClone(form);
++  const result = calculateRoofForm(form);
++  assert.deepEqual(result.totals, { grossTrueAreaM2: 100, openingTrueAreaM2: 5, netTrueAreaM2: 95 });
++  assert.equal(result.verifiedQuoteEligible, false);
++  assert.equal(result.planes[0].measurementReference, form.planes[0].measurementReference);
++  assert.deepEqual(form, before);
++});
++
++test("multiple planes develop with separate pitches and edits require explicit recalculation", () => {
++  const form = qa();
++  form.calculated = true;
++  form.planes.push({ ...form.planes[0], id: "QA flat roof", grossPlanAreaM2: "20", pitchDegrees: "0", openings: [] });
++  assert.equal(calculateRoofForm(form).totals.netTrueAreaM2, 115);
++  const changed = editRoofForm(form.planes.map((plane, index) => index === 0 ? { ...plane, grossPlanAreaM2: "84" } : plane));
++  assert.equal(changed.calculated, false);
++  assert.equal(form.calculated, true);
++  assert.equal(calculateRoofForm(changed).totals.netTrueAreaM2, 120);
++});
++
++test("form rejects coercion traps and retains existing domain validation", () => {
++  for (const bad of ["", " ", "0x50", "80 m2", "1,000", "Infinity", "NaN", "-1"]) {
++    assert.throws(() => roofFormInput({ ...qa(), planes: [{ ...qa().planes[0], grossPlanAreaM2: bad }] }));
++  }
++  assert.throws(() => calculateRoofForm({ ...qa(), planes: [] }));
++  assert.throws(() => calculateRoofForm({ ...qa(), planes: [{ ...qa().planes[0], pitchDegrees: "90" }] }));
++  assert.throws(() => calculateRoofForm({ ...qa(), planes: [{ ...qa().planes[0], pitchReference: "" }] }));
++  assert.throws(() => calculateRoofForm({ ...qa(), planes: [qa().planes[0], qa().planes[0]] }), /Duplicate roof plane/);
++  assert.throws(() => calculateRoofForm({ ...qa(), planes: [{ ...qa().planes[0], openings: [{ ...qa().planes[0].openings[0], planAreaM2: "81" }] }] }), /exceed gross/);
++  assert.throws(() => roofFormSchema.parse({ ...qa(), verified: true }));
++});

@@ -1,3 +1,4 @@
+import { industryDraftKey } from "./industries/draftStorage.ts";
 import { z } from "zod";
 import type { FencingJob } from "./domain.ts";
 import { readJobSheetMetadata } from "./sheetLifecycle.ts";
@@ -36,6 +37,7 @@ export async function readBackupRecords(jobId: string, job: FencingJob): Promise
     materials: materials.raw, referenceRates: localStorage.getItem("xray.price-sheet.v1"),
     sheetMetadata: readJobSheetMetadata(job, localStorage),
     priceBooks: localStorage.getItem(priceBookKey(jobId)),
+    industryDrafts: localStorage.getItem(industryDraftKey(jobId)),
   };
 }
 function openDatabase(): Promise<IDBDatabase> {

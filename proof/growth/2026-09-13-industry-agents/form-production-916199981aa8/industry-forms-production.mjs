@@ -1,0 +1,36 @@
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {hostname} from 'node:os';
+import {FastCdpBatch} from './fast-cdp.mjs';
+if(hostname().toLowerCase()!=='dans1')throw Error('Wrong host');
+const [runId,origin]=process.argv.slice(2);
+if(!/^[a-f0-9]{12}$/.test(runId)||!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin))throw Error('Bad campaign arguments');
+const root=`C:/Users/danie/XRayBuilds/runs/${runId}`;
+const output=root+'/industry-forms-production-browser';await mkdir(output,{recursive:true});
+const version=await(await fetch('http://127.0.0.1:9341/json/version')).json();
+const ws=new WebSocket(version.webSocketDebuggerUrl);await new Promise((yes,no)=>{ws.onopen=yes;ws.onerror=no});
+let id=0;const pending=new Map(),errors=[];
+ws.onmessage=({data})=>{const m=JSON.parse(data),p=pending.get(m.id);if(p){clearTimeout(p.timer);pending.delete(m.id);m.error?p.no(Error(m.error.message)):p.yes(m.result)}else if(m.method==='Runtime.exceptionThrown'||(m.method==='Runtime.consoleAPICalled'&&m.params.type==='error'))errors.push(m)};
+const socket={call(method,params={},sessionId){return new Promise((yes,no)=>{const n=++id;const timer=setTimeout(()=>{pending.delete(n);no(Error(method+' deadline'))},20000);pending.set(n,{yes,no,timer});ws.send(JSON.stringify({id:n,method,params,...(sessionId?{sessionId}:{})}));})},async evaluate(expression,sessionId){const r=await this.call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true,userGesture:true},sessionId);if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value}};
+const batch=new FastCdpBatch(socket,output);
+const commands=[];let error;
+const run=async ops=>{commands.push(...ops);await batch.run(ops)};
+try{
+ const launch=await socket.call('Browser.getBrowserCommandLine');
+ if(launch.arguments.some(x=>/^--(no-sandbox|disable-gpu-sandbox|single-process)/.test(x)))throw Error('Unsafe launch');
+ await run([['context','production'],['viewport','production',1280,900]]);
+ const s=batch.contexts.get('production').sessionId;await socket.call('Runtime.enable',{},s);
+ await run([['navigate','production',origin],['wait','production',`document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'`],['eval','production',`(()=>{if(document.querySelector('.rail-assistant-toggle'))throw Error('Orphan rail button on closed Drawings');return true})()`],['screenshot','production','desktop-drawings.png']]);
+ for(const label of ['Takeoff','Design','Visualise','Estimate','Drawings']){
+  await run([['eval','production',`(()=>{const b=[...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent===${JSON.stringify(label)});if(!b)throw Error('Missingtab');b.click()})()`],['wait','production',`[...document.querySelectorAll('.workflow-main-tabs button')].some(b=>b.textContent===${JSON.stringify(label)}&&b.getAttribute('aria-current')==='page')`]]);
+ }
+ await run([['eval','production',`[...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent==='Estimate').click()`],['wait','production',`!!document.querySelector('.industry-workbench')`],['eval','production',`document.querySelector('.industry-workbench > summary').click()`],['wait','production',`document.querySelector('[data-draft-save]')?.dataset.draftSave==='saved'`],['eval','production',`(()=>{const p=document.querySelector('.industry-workbench');p.scrollIntoView({block:'start'});if(!p.innerText.includes('Horizontal plan area'))throw Error('Roof form missing');return p.innerText})()`],['screenshot','production','desktop-roof-worksheet.png']]);
+ for(const industry of ['hvac','quantity-surveying']){
+  await run([['eval','production',`(()=>{const s=document.querySelector('.industry-picker select');s.value=${JSON.stringify(industry)};s.dispatchEvent(new Event('change',{bubbles:true}))})()`],['wait','production',`document.querySelector('[data-draft-industry="${industry}"]')?.dataset.draftSave==='saved'`],['eval','production',`(()=>{const p=document.querySelector('.industry-form');if(!p||p.querySelectorAll('button').length<2)throw Error('Missing form actions');return p.innerText})()`]]);
+ }
+ await run([['viewport','production',1024,768],['eval','production',`document.querySelector('.industry-workbench').scrollIntoView({block:'start'})`],['screenshot','production','tablet-quantity-worksheet.png']]);
+ await run([['viewport','production',1024,768],['eval','production',`(()=>{if(document.documentElement.scrollWidth>innerWidth+2)throw Error('Horizontal overflow');return {text:document.body.innerText.slice(0,1600),width:innerWidth,height:innerHeight}})()`],['screenshot','production','tablet-drawings.png']]);
+ if(errors.length)throw Error('Browser errors observed: '+errors.length);
+}catch(e){error=e;try{await run([['screenshot','production','failure.png']])}catch{}}
+finally{let cleanup=true;try{await batch.cleanup()}catch(e){cleanup=false;error ||= e}ws.close();await writeFile(output+'/result.json',JSON.stringify({host:hostname(),runId,version,source:JSON.parse((await readFile(root+'/completion.json','utf8')).replace(/^\uFEFF/,'')),verdict:error?'FAIL':'PASS',error:error?.message,cleanup,errors,commands,receipts:batch.receipts},null,2));console.log(JSON.stringify({runId,verdict:error?'FAIL':'PASS',error:error?.message,cleanup,operations:batch.receipts.length}));}
+if(error)process.exitCode=1;
+

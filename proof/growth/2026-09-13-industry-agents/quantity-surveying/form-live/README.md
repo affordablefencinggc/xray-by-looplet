@@ -1,0 +1,9 @@
+# Quantity classification manual form and assistant cross-check
+
+Manual UI PASS on DANS1 Edge target E3CFBAA17EA003603A29822C2EA9F368, port9343. Entered empty hierarchy QA manual hierarchy revision1, walls top level, a=0.1m2 and b=0.2m2 unverified. Assigned a only: exact total0.3/classified0.1/unclassified0.2. Assigned b: stale result disappeared immediately; recalculation0.3/0.3/0. Collapsed/reopened worksheet and actual page reload retained inputs/results. Full project, archive and draft bytes equal across reload. Inspected partial-classification.png and after.png visually.
+
+Assistant cross-check FAIL. Six actual calls all failed after model changed explicit parentId:null to empty string and source:null to empty object, then invented source stubs and parent chains. Final response incorrectly said null roots are impossible; developer review miscounted errors and blamed tool/fixture. No successful tool result. Project and draft bytes remain equal; final archive busy=false. Provider last turn completed around10:22:40Z. Browser remains open.
+
+schema-domain-proof.json executes exact supplied fixture on DANS1 successfully and shows nullable anyOf declarations. Transport inspection confirms declarations passed unchanged (useAssistantChat182/appTools454/minimaxAi174). No evidence of app transport stripping null. Actual initial Zod errors correctly reject changed inputs but do not mention allowed null alternatives. Proposed schema descriptions plus actionable adapter errors, without relaxing validation. Parent coordinates fix before another provider call.
+
+Initial automation had a label-selector miss (React split text nodes); no product issue. Retried remaining input steps using full label text. No project source/evidence/verification invented in manual inputs; evidence stays unverified, source null.

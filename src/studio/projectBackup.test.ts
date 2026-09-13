@@ -27,7 +27,7 @@ describe("portable main workspace backups", () => {
   it("keeps v1 packages readable and version-binds new sheet and pricing records", async () => {
     const { value } = await fixture();
     const legacy = structuredClone(value); legacy.format = "xray.workspace-backup/v1";
-    delete legacy.records.sheetMetadata; delete legacy.records.priceBooks;
+    delete legacy.records.sheetMetadata; delete legacy.records.priceBooks; delete legacy.records.industryDrafts;
     assert.deepEqual(await parseProjectBackup(JSON.stringify(legacy)), legacy);
     await assert.rejects(validateProjectBackup({ ...legacy, records: { ...legacy.records, priceBooks: null } }), /require backup format v2/);
   });
@@ -180,4 +180,18 @@ describe("portable main workspace backups", () => {
     assert.equal(value.name, "Empty study"); assert.equal(backupContents(value).plans, 0);
     await assert.rejects(validateProjectBackup({ ...value, name: " " }));
   });
+});
+
+it("captures industry drafts, validates project identity and retains omitted legacy records", async () => {
+  const { job, records, port } = await fixture();
+  records.industryDrafts = JSON.stringify({ format: "xray.industry-drafts/1", projectId: job.id, revision: 2,
+    drafts: { "quantity-surveying": { revision: 2, form: { items: [{ quantity: "0.1", evidence: "unverified" }] } } } });
+  const backup = await captureProjectBackup(job, "Draft inputs", port);
+  assert.equal(backup.records.industryDrafts, records.industryDrafts);
+  assert.equal((await parseProjectBackup(JSON.stringify(backup))).records.industryDrafts, records.industryDrafts);
+  const wrong = structuredClone(backup);
+  wrong.records.industryDrafts = records.industryDrafts.replace(job.id, "different-project");
+  await assert.rejects(validateProjectBackup(wrong), /another project/);
+  delete backup.records.industryDrafts;
+  assert.equal(Object.hasOwn((await parseProjectBackup(JSON.stringify(backup))).records, "industryDrafts"), false);
 });

@@ -1,3 +1,4 @@
+import { industryDraftKey, parseIndustryDraftLibrary } from "./industries/draftStorage.ts";
 import { fencingJobSchema } from "./domain.ts";
 import { FENCING_JOB_STORAGE_KEY } from "./persistence.ts";
 import { architectKey } from "./architect/persistence.ts";
@@ -14,7 +15,7 @@ import type { RestoreMutation, RestoreOperation } from "./workspaceRestore.ts";
 
 /** One explicit address list serves preparation and replay validation. No arbitrary storage keys. */
 export async function planRestoreMutations(backup: ProjectBackup, includeRates: boolean,
-  read: (storage: RestoreMutation["storage"], key: string) => Promise<string | null>): Promise<RestoreMutation[]> {
+  read: (storage: RestoreMutation["storage"], key: string) => Promise<string | null>, draftGeneration: string = crypto.randomUUID()): Promise<RestoreMutation[]> {
   if (backup.format !== BACKUP_FORMAT) throw Error("This older package can be inspected, but restoration requires a v2 package.");
   const currentRaw = await read("local", FENCING_JOB_STORAGE_KEY);
   if (!currentRaw) throw Error("Save the current workspace before restoring a backup.");
@@ -33,6 +34,16 @@ export async function planRestoreMutations(backup: ProjectBackup, includeRates: 
     [priceBookKey(target.id), "Supplier price books", backup.records.priceBooks ?? null],
   ] as const;
   for (const [key, label, after] of modules) await add("local", key, label, after);
+  // An omitted record belongs to an older package: preserve, never infer deletion.
+  if (backup.records.industryDrafts !== undefined) {
+    const draft = backup.records.industryDrafts === null
+      ? { format: "xray.industry-drafts/1", projectId: target.id, revision: 0, drafts: {} }
+      : parseIndustryDraftLibrary(backup.records.industryDrafts, target.id);
+    // A new generation also tombstones explicit absence so delayed empty-editor saves cannot pass CAS.
+    const after = JSON.stringify({ ...draft, generation: draftGeneration });
+    parseIndustryDraftLibrary(after, target.id);
+    await add("local", industryDraftKey(target.id), "Industry drafts", after);
+  }
   await add("materials", target.id, "Project materials", backup.records.materials);
   const sheets = new Map(validateJobSheetMetadata(backup.records.sheetMetadata ?? null, target).map(v => [sheetLifecycleStorageKey(v.identity), JSON.stringify(v)]));
   const sheetKeys = new Set(sheets.keys());
@@ -64,11 +75,16 @@ export async function validateRestorePlan(operation: RestoreOperation, backup: P
     if (before.has(id)) throw Error("Recovery journal contains duplicate storage addresses.");
     before.set(id, item.before);
   }
+  const draftMutation = operation.plan.mutations.find(item => item.storage === "local" && item.key === industryDraftKey(backup.job.id));
+  const generation = draftMutation?.after == null ? undefined : parseIndustryDraftLibrary(draftMutation.after, backup.job.id).generation;
+  if (backup.records.industryDrafts !== undefined && !generation) throw Error("Recovery journal is missing its industry draft generation.");
+  if (generation && draftMutation?.before != null && parseIndustryDraftLibrary(draftMutation.before, backup.job.id).generation === generation)
+    throw Error("Recovery journal must replace the industry draft generation.");
   const expected = await planRestoreMutations(backup, operation.restoreReferenceRates, async (storage, key) => {
     const id = `${storage}:${key}`;
     if (!before.has(id)) throw Error("Recovery journal is incomplete.");
     return before.get(id)!;
-  });
+  }, generation);
   if (JSON.stringify(expected) !== JSON.stringify(operation.plan.mutations) || operation.plan.targetId !== backup.job.id || operation.plan.targetName !== backup.job.name)
     throw Error("Recovery journal does not match its verified package and allowed storage addresses.");
 }

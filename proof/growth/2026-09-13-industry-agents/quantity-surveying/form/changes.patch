@@ -1,0 +1,254 @@
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.ts b/src/studio/industries/quantity-surveying/quantityForm.ts
+new file mode 100644
+index 0000000..0bda4e5
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/quantityForm.ts
+@@ -0,0 +1,61 @@
++import { z } from "zod";
++import { classifyQuantities, type ClassificationInput } from "./classification.ts";
++
++const text = z.string().max(240);
++const key = z.string().min(1).max(240);
++export const quantityFormSchema = z.object({
++  hierarchyId: text,
++  hierarchyRevision: text,
++  nodes: z.array(z.object({ key, code: text, label: text, parentKey: text }).strict()).max(1000),
++  items: z.array(z.object({
++    key, reference: text, quantity: z.string().max(80), unit: text,
++    evidence: z.enum(["unverified", "inferred", "sample"]), nodeKey: text,
++  }).strict()).max(10000),
++  calculated: z.boolean(),
++}).strict();
++export type QuantityForm = z.infer<typeof quantityFormSchema>;
++
++export function createEmptyQuantityForm(): QuantityForm {
++  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], calculated: false };
++}
++
++/** Form keys are UI identity only; explicit user codes identify the calculation. */
++export function quantityFormInput(raw: QuantityForm): ClassificationInput {
++  const form = quantityFormSchema.parse(raw);
++  if (!form.hierarchyId.trim()) throw Error("Enter a hierarchy name.");
++  if (!form.hierarchyRevision.trim()) throw Error("Enter the hierarchy revision.");
++  if (!form.nodes.length) throw Error("Add at least one classification.");
++  if (!form.items.length) throw Error("Add at least one quantity row.");
++  form.nodes.forEach((node, index) => {
++    if (!node.code.trim() || !node.label.trim()) throw Error(`Enter a code and label for classification ${index + 1}.`);
++  });
++  form.items.forEach((item, index) => {
++    if (!item.reference.trim()) throw Error(`Enter an item reference for quantity ${index + 1}.`);
++    if (!item.unit.trim()) throw Error(`Enter a unit for quantity ${index + 1}.`);
++    if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(item.quantity)) throw Error(`Quantity ${index + 1} needs a non-negative decimal, such as 0.25. Use a decimal point, without commas or unit text.`);
++  });
++  const nodes = new Map(form.nodes.map(node => [node.key, node]));
++  if (nodes.size !== form.nodes.length || new Set(form.items.map(item => item.key)).size !== form.items.length)
++    throw Error("Duplicate form row identity.");
++  const codeFor = (nodeKey: string) => {
++    const node = nodes.get(nodeKey);
++    if (!node) throw Error("A selected classification no longer exists. Choose another classification.");
++    return node.code;
++  };
++  return {
++    hierarchyId: form.hierarchyId, hierarchyRevision: form.hierarchyRevision,
++    nodes: form.nodes.map(node => ({ id: node.code, label: node.label, parentId: node.parentKey ? codeFor(node.parentKey) : null })),
++    items: form.items.map(item => ({ id: item.reference, quantity: item.quantity, unit: item.unit, evidence: item.evidence, source: null })),
++    assignments: form.items.filter(item => item.nodeKey).map(item => ({ itemId: item.reference, nodeId: codeFor(item.nodeKey) })),
++  };
++}
++
++export function calculateQuantityForm(form: QuantityForm) {
++  return classifyQuantities(quantityFormInput(form));
++}
++
++export function assignQuantityItem(form: QuantityForm, itemKey: string, nodeKey: string): QuantityForm {
++  if (!form.items.some(item => item.key === itemKey)) throw Error("Quantity row no longer exists.");
++  if (nodeKey && !form.nodes.some(node => node.key === nodeKey)) throw Error("Classification no longer exists.");
++  return { ...form, calculated: false, items: form.items.map(item => item.key === itemKey ? { ...item, nodeKey } : item) };
++}
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.test.ts b/src/studio/industries/quantity-surveying/quantityForm.test.ts
+new file mode 100644
+index 0000000..7549b65
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/quantityForm.test.ts
+@@ -0,0 +1,104 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { assignQuantityItem, calculateQuantityForm, createEmptyQuantityForm, quantityFormInput, quantityFormSchema, type QuantityForm } from "./quantityForm.ts";
++
++function fixture(): QuantityForm {
++  return {
++    hierarchyId: "User hierarchy", hierarchyRevision: "A", calculated: false,
++    nodes: [
++      { key: "root-key", code: "Building", label: "Building works", parentKey: "" },
++      { key: "wall-key", code: "Walls", label: "Wall finishes", parentKey: "root-key" },
++    ],
++    items: [
++      { key: "a-key", reference: "a", quantity: "0.10", unit: "m2", evidence: "unverified", nodeKey: "wall-key" },
++      { key: "b-key", reference: "b", quantity: "0.20", unit: "m2", evidence: "unverified", nodeKey: "" },
++    ],
++  };
++}
++
++test("empty controlled form contains no invented quantities or source references", () => {
++  const empty = createEmptyQuantityForm();
++  assert.deepEqual(quantityFormSchema.parse(JSON.parse(JSON.stringify(empty))), empty);
++  assert.deepEqual(empty.nodes, []); assert.deepEqual(empty.items, []);
++  assert.equal(empty.calculated, false);
++  assert.throws(() => calculateQuantityForm(empty), /hierarchy name/);
++});
++
++test("manual form resolves hierarchy keys while keeping source null and exact decimal quantities", () => {
++  const form = fixture(), before = structuredClone(form);
++  const input = quantityFormInput(form), report = calculateQuantityForm(form);
++  assert.deepEqual(form, before);
++  assert.deepEqual(input.nodes, [
++    { id: "Building", label: "Building works", parentId: null },
++    { id: "Walls", label: "Wall finishes", parentId: "Building" },
++  ]);
++  assert.deepEqual(input.assignments, [{ itemId: "a", nodeId: "Walls" }]);
++  assert.ok(input.items.every(item => item.source === null && item.evidence === "unverified"));
++  assert.equal(report.totals[0].quantity, "0.3");
++  assert.equal(report.classifiedTotals[0].quantity, "0.1");
++  assert.equal(report.unclassifiedTotals[0].quantity, "0.2");
++  assert.deepEqual(report.unclassifiedItemIds, ["b"]);
++  assert.equal(report.verifiedQuoteEligible, false);
++});
++
++test("reassignment clears the calculated flag and conserves exact totals and source evidence", () => {
++  const form = { ...fixture(), calculated: true }, before = structuredClone(form);
++  const first = calculateQuantityForm(form);
++  const changed = assignQuantityItem(form, "b-key", "wall-key");
++  assert.equal(changed.calculated, false);
++  assert.deepEqual(form, before);
++  const next = calculateQuantityForm(changed);
++  assert.deepEqual(next.totals, first.totals);
++  assert.equal(next.classifiedTotals[0].quantity, "0.3");
++  assert.deepEqual(next.unclassifiedItemIds, []);
++  assert.deepEqual(next.unclassifiedTotals, []);
++  assert.ok(next.rows.every(row => row.source === null && row.evidence === "unverified"));
++  assert.equal(next.classificationComplete, true);
++  assert.equal(next.verifiedQuoteEligible, false);
++  const unassigned = calculateQuantityForm(assignQuantityItem(changed, "a-key", ""));
++  assert.equal(unassigned.unclassifiedTotals[0].quantity, "0.1");
++});
++
++test("editing classification codes preserves parent and item identity through stable form keys", () => {
++  const form = fixture(); form.nodes[1].code = "Wall-package";
++  const report = calculateQuantityForm(form);
++  assert.equal(report.rows[0].nodeId, "Wall-package");
++  assert.equal(report.nodes[1].parentId, "Building");
++  assert.equal(report.nodes[0].rollup[0].quantity, "0.1");
++});
++
++test("form quantities never blend units or evidence and cannot promote manual inputs to measured", () => {
++  const form = fixture();
++  form.items.push({ key: "c-key", reference: "c", quantity: "10", unit: "lm", evidence: "sample", nodeKey: "wall-key" });
++  form.items[1].evidence = "inferred";
++  const report = calculateQuantityForm(form);
++  assert.equal(report.totals.length, 3);
++  assert.deepEqual(report.totals.map(row => [row.unit, row.evidence, row.quantity]), [["m2", "unverified", "0.1"], ["m2", "inferred", "0.2"], ["lm", "sample", "10"]]);
++  assert.throws(() => quantityFormSchema.parse({ ...form, items: [{ ...form.items[0], evidence: "measured" }] }));
++  assert.throws(() => quantityFormSchema.parse({ ...form, items: [{ ...form.items[0], source: { sha256: "a".repeat(64) } }] }));
++});
++
++test("invalid references, duplicate codes/items, cycles and invalid decimals fail without partial totals", () => {
++  const mutations: Array<(form: QuantityForm) => void> = [
++    form => { form.items[0].nodeKey = "missing"; },
++    form => { form.nodes[0].parentKey = "missing"; },
++    form => { form.nodes[0].parentKey = "wall-key"; },
++    form => { form.nodes[1].code = "Building"; },
++    form => { form.items[1].reference = "a"; },
++    form => { form.items[1].key = "a-key"; },
++    form => { form.items[0].quantity = "-1"; },
++    form => { form.items[0].quantity = "1,5"; },
++    form => { form.items[0].quantity = ""; },
++    form => { form.items[0].unit = " "; },
++  ];
++  for (const change of mutations) { const form = fixture(); change(form); assert.throws(() => calculateQuantityForm(form)); }
++  assert.throws(() => assignQuantityItem(fixture(), "missing", "wall-key"));
++  assert.throws(() => assignQuantityItem(fixture(), "a-key", "missing"));
++});
++
++test("JSON draft roundtrip retains unassigned items and recomputes the same report", () => {
++  const form = { ...fixture(), calculated: true };
++  const restored = quantityFormSchema.parse(JSON.parse(JSON.stringify(form)));
++  assert.deepEqual(calculateQuantityForm(restored), calculateQuantityForm(form));
++  assert.equal(restored.items[1].nodeKey, "");
++});
+diff --git a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+new file mode 100644
+index 0000000..88d59b7
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+@@ -0,0 +1,71 @@
++import { useEffect, useMemo, useState } from "react";
++import type { IndustryDraftPanelProps } from "../draftPanel";
++import { assignQuantityItem, calculateQuantityForm, type QuantityForm } from "./quantityForm";
++
++export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<QuantityForm>) {
++  const [error, setError] = useState("");
++  useEffect(() => { setError(""); }, [value]);
++  const result = useMemo(() => {
++    if (!value.calculated) return null;
++    try { return calculateQuantityForm(value); } catch { return null; }
++  }, [value]);
++  const edit = (next: QuantityForm) => { setError(""); onChange({ ...next, calculated: false }); };
++  const nodeName = (key: string) => {
++    const node = value.nodes.find(item => item.key === key);
++    return node ? `${node.code || "Unnamed code"} · ${node.label || "Unnamed classification"}` : "Missing classification";
++  };
++  const calculate = () => {
++    try { calculateQuantityForm(value); setError(""); onChange({ ...value, calculated: true }); }
++    catch (cause) { setError(cause instanceof Error ? cause.message : "Check the classification and quantity inputs."); }
++  };
++  return <section className="industry-form" aria-label="Quantity surveying draft">
++    <p className="industry-note">Manual draft quantities. Source references are not attached and quantities are not verified. Classifications do not create prices or an issued cost plan.</p>
++    <fieldset disabled={disabled}>
++      <legend>Your classification hierarchy</legend>
++      <div className="industry-fields">
++        <label>Hierarchy name<input value={value.hierarchyId} maxLength={240} onChange={event => edit({ ...value, hierarchyId: event.target.value })} /></label>
++        <label>Hierarchy revision<input value={value.hierarchyRevision} maxLength={240} onChange={event => edit({ ...value, hierarchyRevision: event.target.value })} /></label>
++      </div>
++      {value.nodes.map((node, index) => <div className="industry-fields" key={node.key}>
++        <label>Classification code {index + 1}<input value={node.code} maxLength={240} onChange={event => edit({ ...value, nodes: value.nodes.map(item => item.key === node.key ? { ...item, code: event.target.value } : item) })} /></label>
++        <label>Classification label {index + 1}<input value={node.label} maxLength={240} onChange={event => edit({ ...value, nodes: value.nodes.map(item => item.key === node.key ? { ...item, label: event.target.value } : item) })} /></label>
++        <label>Parent classification {index + 1}<select value={node.parentKey} onChange={event => edit({ ...value, nodes: value.nodes.map(item => item.key === node.key ? { ...item, parentKey: event.target.value } : item) })}>
++          <option value="">Top level</option>
++          {value.nodes.filter(item => item.key !== node.key).map(item => <option key={item.key} value={item.key}>{nodeName(item.key)}</option>)}
++        </select></label>
++        <button type="button" aria-label={`Remove classification ${index + 1}`} disabled={value.nodes.some(item => item.parentKey === node.key) || value.items.some(item => item.nodeKey === node.key)} title="Reassign child classifications and quantities before removing this classification" onClick={() => edit({ ...value, nodes: value.nodes.filter(item => item.key !== node.key) })}>Remove classification</button>
++      </div>)}
++      <button type="button" disabled={value.nodes.length >= 1000} onClick={() => edit({ ...value, nodes: [...value.nodes, { key: crypto.randomUUID(), code: "", label: "", parentKey: "" }] })}>Add classification</button>
++    </fieldset>
++    <fieldset disabled={disabled}>
++      <legend>Quantity rows</legend>
++      {!value.items.length && <p className="industry-note">Add a quantity row and enter its quantity and unit.</p>}
++      {value.items.map((item, index) => <div className="industry-fields" key={item.key}>
++        <label>Item reference {index + 1}<input value={item.reference} maxLength={240} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, reference: event.target.value } : row) })} /></label>
++        <label>Quantity {index + 1}<input inputMode="decimal" value={item.quantity} maxLength={80} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, quantity: event.target.value } : row) })} /></label>
++        <label>Unit {index + 1}<input value={item.unit} maxLength={240} placeholder="e.g. m2, lm, ea" onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, unit: event.target.value } : row) })} /></label>
++        <label>Evidence {index + 1}<select value={item.evidence} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, evidence: event.target.value as typeof item.evidence } : row) })}>
++          <option value="unverified">Unverified</option><option value="inferred">Inferred</option><option value="sample">Sample</option>
++        </select></label>
++        <label>Assign item {index + 1}<select value={item.nodeKey} onChange={event => { setError(""); onChange(assignQuantityItem(value, item.key, event.target.value)); }}>
++          <option value="">Unassigned</option>{value.nodes.map(node => <option key={node.key} value={node.key}>{nodeName(node.key)}</option>)}
++        </select></label>
++        <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => edit({ ...value, items: value.items.filter(row => row.key !== item.key) })}>Remove quantity</button>
++      </div>)}
++      <button type="button" disabled={value.items.length >= 10000} onClick={() => edit({ ...value, items: [...value.items, { key: crypto.randomUUID(), reference: "", quantity: "", unit: "", evidence: "unverified", nodeKey: "" }] })}>Add quantity</button>
++    </fieldset>
++    <div className="industry-actions"><button type="button" disabled={disabled || !value.items.length || !value.nodes.length} onClick={calculate}>Calculate classification</button></div>
++    {error && <p className="industry-error" role="alert">{error}</p>}
++    {result && <div className="industry-result" aria-live="polite">
++      <p><strong>Draft classification · Not for verified quotes</strong></p>
++      <div className="industry-table-wrap"><table><caption>Quantities by unit and evidence</caption><thead><tr><th>Unit</th><th>Evidence</th><th>Total</th><th>Classified</th><th>Unclassified</th></tr></thead><tbody>
++        {result.totals.map(total => <tr key={JSON.stringify([total.unit, total.evidence])}><th scope="row">{total.unit}</th><td>{total.evidence}</td><td>{total.quantity}</td><td>{result.classifiedTotals.find(row => row.unit === total.unit && row.evidence === total.evidence)?.quantity ?? "0"}</td><td>{result.unclassifiedTotals.find(row => row.unit === total.unit && row.evidence === total.evidence)?.quantity ?? "0"}</td></tr>)}
++      </tbody></table></div>
++      <p><strong>Unassigned quantities ({result.unclassifiedItemIds.length})</strong></p>
++      {result.unclassifiedItemIds.length ? <ul>{result.rows.filter(row => row.nodeId === null).map(row => <li key={row.id}>{row.id}: {row.quantity} {row.unit} · {row.evidence}. Choose a classification in its assignment picker above.</li>)}</ul> : <p>Every quantity is assigned. This does not verify the quantities.</p>}
++      <div className="industry-table-wrap"><table><caption>Classification totals (ancestor rollups overlap)</caption><thead><tr><th>Code</th><th>Unit</th><th>Evidence</th><th>Direct</th><th>Including children</th></tr></thead><tbody>
++        {result.nodes.flatMap(node => node.rollup.map(total => <tr key={JSON.stringify([node.id, total.unit, total.evidence])}><th scope="row">{node.id} · {node.label}</th><td>{total.unit}</td><td>{total.evidence}</td><td>{node.direct.find(row => row.unit === total.unit && row.evidence === total.evidence)?.quantity ?? "0"}</td><td>{total.quantity}</td></tr>))}
++      </tbody></table></div>
++    </div>}
++  </section>;
++}

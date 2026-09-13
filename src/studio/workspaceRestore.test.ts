@@ -100,3 +100,40 @@ test("planner shelves the previous project, restores absent records and validate
   operation.plan!.mutations.push({ storage: "local", key: "credentials", label: "Injected", before: null, after: "bad" });
   await assert.rejects(validateRestorePlan(operation, backup), /allowed storage/);
 });
+
+test("industry restore distinguishes missing snapshots from explicit absence and exact saved inputs", async () => {
+  const job = createDefaultJob(), key = `xray.industry-drafts.v1:${job.id}`;
+  const incoming = JSON.stringify({ format: "xray.industry-drafts/1", projectId: job.id, revision: 1, drafts: {} });
+  const backup: ProjectBackup = { format: BACKUP_FORMAT, createdAt: new Date().toISOString(), name: "Drafts", job, records: emptyBackupRecords(), assets: [] };
+  const read = async (_storage: string, address: string) => address === FENCING_JOB_STORAGE_KEY ? JSON.stringify(job) : address === key ? "previous draft" : null;
+  delete backup.records.industryDrafts;
+  assert.equal((await planRestoreMutations(backup, false, read)).some(item => item.key === key), false);
+  backup.records.industryDrafts = null;
+  const absent = (await planRestoreMutations(backup, false, read)).find(item => item.key === key)!;
+  assert.equal(absent.before, "previous draft");
+  assert.deepEqual(JSON.parse(absent.after!).drafts, {});
+  assert.match(JSON.parse(absent.after!).generation, /^[a-f0-9-]{36}$/);
+  backup.records.industryDrafts = incoming;
+  const restored = JSON.parse((await planRestoreMutations(backup, false, read)).find(item => item.key === key)!.after!);
+  assert.deepEqual(restored.drafts, JSON.parse(incoming).drafts);
+  assert.notEqual(restored.generation, JSON.parse(absent.after!).generation);
+});
+
+test("restore generation invalidates delayed saves and survives journal verification", async () => {
+  const { updateIndustryDraft } = await import("./industries/draftStorage.ts");
+  const job = createDefaultJob(), key = `xray.industry-drafts.v1:${job.id}`;
+  const prior = JSON.stringify(updateIndustryDraft(null, job.id, "hvac", 0, { note: "Before" }, null));
+  const backup: ProjectBackup = { format: BACKUP_FORMAT, createdAt: new Date().toISOString(), name: "Draft restore", job,
+    records: { ...emptyBackupRecords(), industryDrafts: prior }, assets: [] };
+  const read = async (_storage: string, address: string) => address === FENCING_JOB_STORAGE_KEY ? JSON.stringify(job) : address === key ? prior : null;
+  const mutations = await planRestoreMutations(backup, false, read);
+  const restored = mutations.find(item => item.key === key)!.after!;
+  assert.throws(() => updateIndustryDraft(restored, job.id, "hvac", 1, { note: "Delayed" }, null), /restored or replaced/);
+  const operation: RestoreOperation = { ...harness().saved(), phase: "prepared", backup: JSON.stringify(backup),
+    plan: { mutations, recoveryBackupId: crypto.randomUUID(), targetId: job.id, targetName: job.name } };
+  await validateRestorePlan(operation, backup);
+  const changed = structuredClone(operation);
+  const row = changed.plan!.mutations.find(item => item.key === key)!;
+  row.after = prior;
+  await assert.rejects(validateRestorePlan(changed, backup), /generation/);
+});

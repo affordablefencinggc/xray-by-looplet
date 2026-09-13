@@ -121,12 +121,19 @@ async function readRecord(storage: RestoreMutation["storage"], key: string): Pro
     };
   });
 }
-async function compareWrite(item: RestoreMutation, expected: string | null, value: string | null) {
-  if (item.storage === "local") {
+/** Serialized with draft autosaves; CAS is checked only after acquiring their key lock. */
+export async function compareWriteLocalRestore(item: RestoreMutation, expected: string | null, value: string | null) {
+  const write = () => {
     if (localStorage.getItem(item.key) !== expected) throw Error(`${item.label} changed before restoration.`);
     if (value === null) localStorage.removeItem(item.key); else localStorage.setItem(item.key, value);
-    return;
-  }
+  };
+  if (item.key.startsWith("xray.industry-drafts.v1:")) {
+    if (!navigator.locks) throw Error("This browser cannot protect industry draft restoration.");
+    await navigator.locks.request(item.key, { mode: "exclusive" }, write);
+  } else write();
+}
+async function compareWrite(item: RestoreMutation, expected: string | null, value: string | null) {
+  if (item.storage === "local") return compareWriteLocalRestore(item, expected, value);
   await transaction<void>(MATERIALS_DB, "inventories", undefined, "readwrite", (store, done, fail) => {
     const req = store.get(item.key); req.onsuccess = () => {
       if ((req.result ?? null) !== expected) { fail(Error("Materials changed before restoration.")); return; }

@@ -61,7 +61,7 @@ describe("read-only backup restore impact", () => {
   });
   it("marks legacy omitted sheet/pricing records unsupported instead of assuming deletion", async () => {
     const f = await fixture(); f.backup.format = "xray.workspace-backup/v1";
-    delete f.backup.records.sheetMetadata; delete f.backup.records.priceBooks;
+    delete f.backup.records.sheetMetadata; delete f.backup.records.priceBooks; delete f.backup.records.industryDrafts;
     const result = await assessBackupRestore(f.backup, f.ports);
     assert.equal(result.rows.find(r => r.key === priceBookKey(f.target.id))?.action, "unsupported");
     assert.equal(result.rows.find(r => r.key === sheetLifecycleStorageKey(sheetSourceIdentity(f.target.id, f.plan.revision)!))?.action, "unsupported");
@@ -143,4 +143,21 @@ describe("read-only backup restore impact", () => {
     const unreadable = await assessBackupRestore(f.backup, { ...f.ports, readMaterials: async () => { throw Error("database unavailable"); } });
     assert(unreadable.blockingIssues.some(e => e.includes("storage is unreadable")));
   });
+});
+
+it("includes industry drafts in impact fingerprints and preserves uncaptured older records", async () => {
+  const f = await fixture(), key = `xray.industry-drafts.v1:${f.target.id}`;
+  const draft = (revision: number) => JSON.stringify({ format: "xray.industry-drafts/1", projectId: f.target.id, revision,
+    drafts: { hvac: { revision, form: { label: "Draft only" } } } });
+  f.raw.set(key, draft(1));
+  delete f.backup.records.industryDrafts;
+  const old = await assessBackupRestore(f.backup, f.ports);
+  assert.equal(old.rows.find(row => row.key === key)?.action, "unsupported");
+  f.backup.records.industryDrafts = draft(2);
+  const reviewed = await assessBackupRestore(f.backup, f.ports);
+  assert.equal(reviewed.rows.find(row => row.key === key)?.action, "replace");
+  f.raw.set(key, draft(3));
+  const stale = await assessBackupRestore(f.backup, f.ports, { expectedFingerprint: reviewed.fingerprint });
+  assert.ok(stale.blockingIssues.some(message => message.includes("stale")));
+  assert.equal(f.raw.get(key), draft(3));
 });

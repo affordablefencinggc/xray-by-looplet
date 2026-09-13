@@ -41,3 +41,18 @@ Active bounded fixes: HVAC owns current-turn execution-claim validation; roofing
 ## Accepted integration checkpoint ? 2026-09-13
 
 All three final synthetic assistant workflows pass actual execution, developer-review comparison, unchanged-project checks and reload persistence. Full DANS1 regression:201script+1,151TypeScript tests; full typecheck passes. Build2b490c637162 passes19production browser operations. All623non-test inputs match the final tree; only the improved context-wiring test differs. Closed-Drawings orphan seam and open/collapse/reopen/Takeoff interactions verified. Failed attempts remain in proof. Native packaging, whole-industry acceptance and remaining queue stay open. Next assignments follow the pushed checkpoint.
+
+## Next controlled-form contract — after e7c0c4d
+
+Root owns draftPanel.ts, shared draft persistence/host, industryDrafts.css, Studio/Estimate integration, global checklists and git. Child panels are controlled: IndustryDraftPanelProps<T> = {value:T,onChange:(next:T)=>void,disabled:boolean}. Each module exports a strict Zod form schema, a create-empty-form function and its named React panel. Form values are JSON-serializable strings/booleans/arrays; no runtime project reads or writes inside panels. Root stores each draft by project+industry independently of source measurements. No dependency or shared style edits by workers.
+
+- Roofing: RoofingDraftPanel.tsx + roofForm.ts/test.ts. Multiple explicit horizontal-area/pitch planes/openings/references, actual helper calculation, readable totals.
+- HVAC: HvacDraftPanel.tsx + ductForm.ts/test.ts. Explicit rectangular/round straight sections and optional supplied mass, actual helper results/exclusions.
+- Quantity surveying: QuantityDraftPanel.tsx + quantityForm.ts/test.ts. User hierarchy and quantity rows, explicit assignment/unassigned list, exact unit/evidence totals and residue.
+
+Use existing color tokens and root-owned classes: industry-form, industry-fields, industry-actions, industry-result, industry-table-wrap, industry-note, industry-error. Native labelled fields, fieldsets, buttons and semantic tables; no new top headers. Start empty, no invented measurements/references/rates. Results disappear or are clearly invalidated when inputs change; always draft/quote-ineligible. Scope is a useful manual draft workflow, not source verification or industry readiness. Next tests exercise actual form entry, edit invalidation and project/reload persistence, then compare output with the live assistant.
+
+
+## Manual industry worksheet checkpoint - 2026-09-13
+
+Roofing, HVAC and QS controlled worksheets integrated in Estimate with project-specific saved inputs and backup/restore generation protection. DANS1 1,176 TypeScript tests plus script chain and full typecheck pass. Build 916199981aa8 passes 34 production UI operations plus 55 isolated-project operations; all 830 staged inputs match. Manual entry/edit/reload/tablet checks pass for three forms. HVAC fresh assistant crosscheck passes. Roofing skipped its tool twice (claims withheld); QS fabricated nullable placeholders and failed six calls with a misleading final explanation. These assistant failures remain open; do not promote industry readiness. See proof/growth/2026-09-13-industry-agents/FORMS-INTEGRATION.md. Next work fixes these failures before progressing the industry queue.
