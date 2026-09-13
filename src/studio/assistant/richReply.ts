@@ -17,6 +17,10 @@ const OPTION_WORD = /^\s*(?:[-*•]\s*)?Option\s+(?:[A-Za-z]|\d{1,2})\s*[:.)\-�
 const BULLET_MARKED = /^\s*[-*•]\s+(?:\(?(?:\d{1,2}|[A-Ha-h])[.):])\s+(.+?)\s*$/;
 const BULLET = /^\s*[-*•]\s+(.+?)\s*$/;
 const CUE = /\?\s*$|\boptions?\b|\bchoose\b|\bwould you like\b|\bwhich (?:one|of these|do you)\b|\bpick\b|\bprefer\b|\bselect one\b|\blet me know\b/i;
+const REPORT_HEADING = /\b(?:steps taken|actions (?:actually )?executed|tools? (?:actually )?executed|tool receipts|blockers|prerequisites|observations|results|work completed)\b/i;
+// A following rhetorical heading ("Can a takeoff run?") is not asking the user
+// to choose from the preceding factual list. Require a selection word here.
+const FOLLOWING_CHOICE_CUE = /^(?:please\s+)?(?:which\b|choose\b|pick\b|select\b|(?:do|would) you (?:prefer|like (?:one|any) of these)\b|let me know (?:which|your (?:choice|preference))\b)/i;
 const RECEIPT = /^\s*(?:Running .*…|Tool (?:completed|failed)\.?|Not executed:|\{|\[|"[^"]*"\s*:)/;
 
 const stripMarkdown = (text: string) => text.replace(/\*\*|__|`/g, "").replace(/^\*(.+)\*$/, "$1").trim();
@@ -36,34 +40,37 @@ export function parseReplyOptions(text: string): ReplyOptions {
       return !reviewing;
     };
   })());
-  const lists: string[][] = [];
+  const lists: { items: string[]; selectable: boolean; report: boolean }[] = [];
   const questions: string[] = [];
-  let current: string[] | null = null;
-  let bulletsAllowed = false;
+  let current: typeof lists[number] | null = null;
+  let previousLine = "";
   for (const raw of lines) {
     const line = raw.trimEnd();
     if (!line.trim() || RECEIPT.test(line)) continue; // blank lines and receipts/JSON neither open nor close a list
     const marked = markedOption(line);
-    const body = marked ?? (bulletsAllowed ? BULLET.exec(line)?.[1] : undefined);
+    const body = marked ?? BULLET.exec(line)?.[1];
     if (body !== undefined) {
       if (RECEIPT.test(body)) continue; // a marker in front of JSON or a receipt is still not a choice
-      if (!current) { current = []; lists.push(current); }
+      if (!current) {
+        current = { items: [], selectable: CUE.test(previousLine), report: REPORT_HEADING.test(previousLine) };
+        lists.push(current);
+      }
       const item = stripMarkdown(body);
-      if (item) current.push(item);
+      if (item) current.items.push(item);
       continue;
     }
-    current = null;
-    bulletsAllowed = CUE.test(line);
     const plain = stripMarkdown(line);
+    // A question elsewhere in the response must not activate every earlier list.
+    // Only the immediately adjacent prose can introduce or follow these choices.
+    if (current && FOLLOWING_CHOICE_CUE.test(plain)) current.selectable = true;
+    current = null;
+    previousLine = plain;
     if (/\?$/.test(plain) && !questions.includes(plain)) questions.push(clip(plain, 240));
   }
-  // A list is only a set of choices when the reply asks for one somewhere (before or after it);
-  // "steps taken" recaps, receipts and headings never become clickable instructions.
-  const asksForChoice = lines.some(line => CUE.test(stripMarkdown(line)));
   const options: ReplyOption[] = [];
-  for (const list of asksForChoice ? lists : []) {
-    if (list.length > MAX_OPTIONS) continue;
-    for (const item of list) {
+  for (const list of lists) {
+    if (!list.selectable || list.report || list.items.length > MAX_OPTIONS) continue;
+    for (const item of list.items) {
       const send = item.length > OPTION_SEND_MAX ? item.slice(0, OPTION_SEND_MAX).trimEnd() : item;
       if (!send || options.some(option => option.send === send)) continue;
       options.push({ label: clip(item, OPTION_LABEL_MAX), send });

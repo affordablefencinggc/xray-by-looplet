@@ -1,0 +1,11 @@
+# DANS1 visible chat concurrency regression
+
+User approved visible Edge launches and ongoing testing. Three independent Edge profiles now run in interactive desktop session 1 on DANS1, with guarded loopback CDP ports 9341, 9342 and 9343. They load the current user preview through an owned SSH reverse forward (DANS1 loopback8095 -> local8091). Browsers and tunnel remain user-facing; worker CDP sockets and foreground test processes close after each batch. The failed PowerShell launcher task was removed; three direct Edge tasks are retained with their visible browsers.
+
+Initial simultaneous requests exposed a process-global boolean in both provider transports: HVAC/QS were rejected while roofing ran. Those failed receipts are preserved in the industry live proof folders. The replacement gate allows at most three distinct request IDs across both providers. Duplicate in-flight IDs remain409; exceeding total capacity returns429. Release is idempotent and runs after success, provider failure or cancellation. This is a process-local bound, not distributed rate limiting, authentication or evidence that a provider quota permits arbitrary concurrency.
+
+DANS1 tests:39 passed; TypeScript check exit0. Exact transferred source archive hash and results are in checks.json. No live calls occur in server tests. Existing abort, output validation, provider opt-in and credential redaction tests remain passing.
+
+Live regression: three real composer submissions within10ms at09:10:02Z. Roofing job49e99a2e..., HVAC job279440d5..., QS job1f3f51c1... completed without new running-turn rejection or cross-project identity leakage. Exact before/after project equality confirmed by each worker; projects remain empty QA revision1. See roofing/CONCURRENT-QA.md and HVAC/QS live/concurrent proof for actual model/tool receipts and inspected screenshots.
+
+Only the concurrency/identity regression passes. Model-answer quality FAILED: internal workflow correction replaced useful answers with routing bookkeeping; HVAC/QS reused or claimed prior tool actions as current. Those findings remain open under the separate reporting fix. No takeoff, pricing or complete industry workflow is certified by these tests. No full production/native build was run for this server-only checkpoint.

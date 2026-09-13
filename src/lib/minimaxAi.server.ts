@@ -21,6 +21,7 @@
 import { ASSISTANT_LIMITS, ASSISTANT_SYSTEM_INSTRUCTION, assistantRequestSchema, assistantResponseSchema, type AssistantContent, type AssistantPart, type AssistantResponse } from "../studio/assistant/contract.ts";
 import { DEFAULT_EXECUTION_BUDGET } from "../studio/assistant/executionBudget.ts";
 import { AssistantServiceError, readAssistantBody } from "./assistantAi.server.ts";
+import { assistantTurnGate } from './assistantTurnGate.ts';
 
 type Environment = Record<string, string | undefined>;
 
@@ -151,8 +152,7 @@ export function toAssistantContent(message: { content?: unknown; tool_calls?: un
   return { role: "model", parts };
 }
 
-// Prevent overlapping turns, matching the Gemini route's single-flight rule.
-let running = false;
+// Independent chats may run concurrently under the shared bounded provider gate.
 
 export async function minimaxAiTurn(raw: string, options: { env?: Environment; fetcher?: typeof fetch; signal?: AbortSignal } = {}): Promise<AssistantResponse> {
   const env = options.env ?? process.env, status = minimaxAiStatus(env);
@@ -163,8 +163,10 @@ export async function minimaxAiTurn(raw: string, options: { env?: Environment; f
   // Refused rather than answered without sources: this provider has no grounded search here.
   if (request.webSearch) throw new AssistantServiceError("Grounded web search is not available on MiniMax. Switch the provider to use it.", 400);
   if (options.signal?.aborted) throw new AssistantServiceError("Assistant request cancelled.");
-  if (running) throw new AssistantServiceError("An assistant turn is already running. Wait before retrying.", 409);
-  running = true;
+  const slot = assistantTurnGate.acquire(request.requestId);
+  if (!slot.accepted) throw new AssistantServiceError(slot.reason === 'duplicate'
+    ? "This assistant request is already running. Wait before retrying."
+    : "The assistant is busy with three requests. Wait before retrying.", slot.reason === 'duplicate' ? 409 : 429);
   const budget = request.execution ?? DEFAULT_EXECUTION_BUDGET;
   const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(budget.timeoutMs)]) : AbortSignal.timeout(budget.timeoutMs);
   try {
@@ -211,5 +213,5 @@ export async function minimaxAiTurn(raw: string, options: { env?: Environment; f
     if (signal.aborted) throw new AssistantServiceError("Assistant request cancelled or timed out.");
     if (error instanceof AssistantServiceError) throw error;
     throw new AssistantServiceError("Assistant connection failed or returned invalid data. No action has been confirmed.", 502);
-  } finally { running = false; }
+  } finally { slot.release(); }
 }

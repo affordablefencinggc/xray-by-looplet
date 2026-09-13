@@ -1,0 +1,13 @@
+# Concurrent roofing observation and parser UI verification
+
+Root sent three simultaneous industry prompts at 2026-09-13T09:10:02.519Z after the server concurrency patch. This worker sent **no prompts** and did not reload the browser. Roofing user entry timestamp is 09:10:02.537Z, final assistant entry 09:10:23.404Z.
+
+Roofing concurrency/isolation verdict: **passed this attempt**. Actual saved receipts were `read_project_context` followed by `read_workflow_route` (discussion). The context receipt identifies `job-49e99a2e-4d40-4a80-ba85-40a5b9df1141`, revision 1, No source plan with SHA null. No new lock error, no alert and no busy response remained. The saved archive contains only that job ID. Complete project JSON equals root's `roofing-concurrent-before.json`; no project mutations occurred. This is one observed concurrent attempt, not broad concurrency/load certification.
+
+Answer quality verdict: **failed to answer the complete new request**. User asked for current ID/revision, real-source availability and executed tool. Although the context read contains those facts, the visible final answer only says “Workflow check resolved” and describes the discussion route. Its Developer review claims the prior ID/revision answer remained accurate and was not repeated, with “Improvement: None apparent”. The new turn contains no visible identity/source answer to preserve. This exposes a final-answer problem after workflow-route correction, separate from the concurrency transport fix. Root was notified; no source fix attempted here.
+
+Parser UI verdict: **passed observed regression**. HMR applied the parser fix to the old saved roofing response without reload. A DOM inspection found zero buttons containing its former blocker/tool-list pill text. `old-reply-pills-fixed.png`, visually inspected, shows the old Developer review flowing directly to its timestamp and the next user message, with the eight inappropriate pills gone. `concurrent-review.png`, also inspected, shows the actual latest Developer review and ordinary fallback suggestions; that response has no selectable list.
+
+Evidence: `concurrent-observe.json.result.json` includes full saved conversation/tool results, project and DOM observations; `roofing-concurrent-before.json` is the root-captured baseline; `old-reply-fixed.json.result.json` records zero old choice buttons; screenshot hashes are in `concurrent-hashes.json`.
+
+Host DANS1, existing Edge PID 13316, port9341, target5109CD8477EBCCE9F4120D7C41B7DA12. Last worker browser activity09:11:48.233Z. Browser/root tunnel retained for active viewing. Foreground raw-CDP runner exited and closed its socket. No source, UI implementation or index changes in this observation slice.

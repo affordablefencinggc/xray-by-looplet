@@ -1,6 +1,7 @@
 import { ASSISTANT_LIMITS, ASSISTANT_SYSTEM_INSTRUCTION, assistantRequestSchema, assistantResponseSchema, assistantSourceSchema, type AssistantResponse } from "../studio/assistant/contract.ts";
 import { DEFAULT_EXECUTION_BUDGET } from "../studio/assistant/executionBudget.ts";
 import { materialAiStatus } from "./materialAi.server.ts";
+import { assistantTurnGate } from './assistantTurnGate.ts';
 
 type Environment = Record<string, string | undefined>;
 export class AssistantServiceError extends Error {
@@ -36,8 +37,7 @@ export function assistantFailure(error: unknown): { error: string; status: numbe
     : { error: "Assistant request failed. No action has been confirmed.", status: 400 };
 }
 
-// Prevent overlapping turns; provider quotas are not duplicated with an app daily cap.
-let running = false;
+// Requests from independent chat sessions share a bounded provider gate.
 export async function assistantAiTurn(raw: string, options: { env?: Environment; fetcher?: typeof fetch; signal?: AbortSignal } = {}): Promise<AssistantResponse> {
   const env = options.env ?? process.env, status = assistantAiStatus(env);
   if (!status.available) throw new AssistantServiceError(status.message, 503);
@@ -45,8 +45,10 @@ export async function assistantAiTurn(raw: string, options: { env?: Environment;
   let request;
   try { request = assistantRequestSchema.parse(JSON.parse(raw)); } catch { throw new AssistantServiceError("Invalid assistant request contract."); }
   if (options.signal?.aborted) throw new AssistantServiceError("Assistant request cancelled.");
-  if (running) throw new AssistantServiceError("An assistant turn is already running. Wait before retrying.", 409);
-  running = true;
+  const slot = assistantTurnGate.acquire(request.requestId);
+  if (!slot.accepted) throw new AssistantServiceError(slot.reason === 'duplicate'
+    ? "This assistant request is already running. Wait before retrying."
+    : "The assistant is busy with three requests. Wait before retrying.", slot.reason === 'duplicate' ? 409 : 429);
   const budget = request.execution ?? DEFAULT_EXECUTION_BUDGET;
   const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(budget.timeoutMs)]) : AbortSignal.timeout(budget.timeoutMs);
   try {
@@ -91,5 +93,5 @@ export async function assistantAiTurn(raw: string, options: { env?: Environment;
     if (signal.aborted) throw new AssistantServiceError("Assistant request cancelled or timed out.");
     if (error instanceof AssistantServiceError) throw error;
     throw new AssistantServiceError("Assistant connection failed or returned invalid data. No action has been confirmed.", 502);
-  } finally { running = false; }
+  } finally { slot.release(); }
 }
