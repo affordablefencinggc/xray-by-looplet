@@ -723,6 +723,10 @@ def _validate_request(value: Mapping[str, Any]) -> None:
         if specification["retainingRequired"] and specification["retainingType"] not in recipe["supportedRetainingTypes"]: raise ContractError("unsupported-configuration", "Run retaining type is unsupported by its recipe.", run["id"], f"runs.{index}.specification.retainingType")
         if any(photo_id not in photo_evidence for photo_id in run["photoIds"]): raise ContractError("evidence", "Run references unknown photo evidence.", run["id"], f"runs.{index}.photoIds")
     _ascending_unique([run["id"] for run in value["runs"]], "runs")
+    selected_recipe_ids = {run["recipeId"] for run in value["runs"]}
+    for index, recipe in enumerate(value["recipeSet"]["recipes"]):
+        if recipe["id"] in selected_recipe_ids:
+            _validate_recipe_acceptance(recipe, f"recipeSet.recipes.{index}")
     gate_ids: set[str] = set()
     for index, gate in enumerate(value["gates"]):
         _validate_gate(gate, f"gates.{index}")
@@ -831,6 +835,16 @@ def _validate_recipe(recipe: Mapping[str, Any], path: str) -> None:
     refs = list(recipe["materialModel"]["assumptionIds"])
     refs += [ref for item in recipe["footings"] + recipe["allowances"] + recipe["gateHardwareModels"] + recipe["components"] for ref in item["assumptionIds"]]
     if not set(refs).issubset(assumption_ids): raise ContractError("assumption", "Recipe references an unknown assumption.", recipe["id"], f"{path}.assumptions")
+
+
+def _validate_recipe_acceptance(recipe: Mapping[str, Any], path: str) -> None:
+    """Require acceptance only for recipes used by validated runs.
+
+    Every recipe still passes structural, attribution and reference validation.
+    The complete library remains in the canonical request digest.
+    """
+    refs = list(recipe["materialModel"]["assumptionIds"])
+    refs += [ref for item in recipe["footings"] + recipe["allowances"] + recipe["gateHardwareModels"] + recipe["components"] for ref in item["assumptionIds"]]
     assumptions_by_id = {item["id"]: item for item in recipe["assumptions"]}
     unresolved = [assumption_id for assumption_id in refs if assumptions_by_id[assumption_id]["status"] != "accepted"]
     if unresolved: raise ContractError("assumption", "Every referenced assumption must be accepted.", unresolved[0], f"{path}.assumptions")

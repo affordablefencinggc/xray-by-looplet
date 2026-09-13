@@ -1,0 +1,168 @@
+{
+  "schema": "xray.bom/v1",
+  "ok": true,
+  "requestId": "golden-concrete",
+  "bom": {
+    "jobId": "job-concrete",
+    "jobRevision": 8,
+    "inputDigest": "2bd27cc1647c9d12275c505b4f3c230dc5a3793ec4f1075f8f4c7d549404bd4b",
+    "documentSha256": "6767676767676767676767676767676767676767676767676767676767676767",
+    "recipeSet": {
+      "id": "recipes-concrete",
+      "revision": 1,
+      "digest": "6969696969696969696969696969696969696969696969696969696969696969"
+    },
+    "ruleset": {
+      "id": "fencing-v1",
+      "version": 1
+    },
+    "status": "review-ready",
+    "lines": [
+      {
+        "id": "bom-concrete",
+        "groupKey": "colorbond|CONCRETE|m3",
+        "category": "concrete",
+        "itemCode": "CONCRETE",
+        "description": "Footing concrete",
+        "quantity": {
+          "value": "0.23",
+          "unit": "m3"
+        },
+        "calculation": {
+          "ruleId": "role-footing-concrete",
+          "ruleVersion": 1,
+          "expression": "ROUND_UP_INCREMENT((3\u00d7\u03c0\u00d70.125\u00b2\u00d70.6 + 2\u00d7\u03c0\u00d70.15\u00b2\u00d70.8) \u00d7 1.10, 0.01) = 0.23 m3",
+          "operands": [
+            {
+              "name": "raw-full-precision",
+              "value": "0.201454628911445476125",
+              "unit": "m3",
+              "evidenceRefs": [
+                {
+                  "kind": "assumption",
+                  "id": "a-footing"
+                }
+              ]
+            },
+            {
+              "name": "raw-display-round-half-up-6",
+              "value": "0.201455",
+              "unit": "m3",
+              "evidenceRefs": [
+                {
+                  "kind": "assumption",
+                  "id": "a-footing"
+                }
+              ]
+            },
+            {
+              "name": "allowed-full-precision",
+              "value": "0.2216000918025900237375",
+              "unit": "m3",
+              "evidenceRefs": [
+                {
+                  "kind": "assumption",
+                  "id": "a-allowance"
+                }
+              ]
+            },
+            {
+              "name": "allowed-display-round-half-up-6",
+              "value": "0.2216",
+              "unit": "m3",
+              "evidenceRefs": [
+                {
+                  "kind": "assumption",
+                  "id": "a-allowance"
+                }
+              ]
+            }
+          ],
+          "result": {
+            "value": "0.23",
+            "unit": "m3"
+          }
+        },
+        "confidenceTier": "single-source",
+        "evidenceRefs": [
+          {
+            "kind": "run",
+            "id": "run-concrete",
+            "revision": 3
+          },
+          {
+            "kind": "gate",
+            "id": "gate-concrete",
+            "revision": 2
+          },
+          {
+            "kind": "recipe",
+            "id": "recipe-concrete-case",
+            "revision": 1
+          }
+        ],
+        "assumptionRefs": [
+          "a-footing",
+          "a-allowance"
+        ]
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "a-material",
+        "key": "material-model",
+        "label": "Material model",
+        "value": "1",
+        "unit": "ratio",
+        "source": "Fixture",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-footing",
+        "key": "role-footing-dimensions",
+        "label": "Role footing dimensions",
+        "value": "1",
+        "unit": "ratio",
+        "source": "Engineer schedule",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-allowance",
+        "key": "concrete-allowance",
+        "label": "Concrete allowance and increment",
+        "value": "10",
+        "unit": "ratio",
+        "source": "Project allowance",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      },
+      {
+        "id": "a-gate",
+        "key": "gate-model",
+        "label": "Gate model",
+        "value": "1",
+        "unit": "ratio",
+        "source": "Gate schedule",
+        "effectiveAt": "2026-09-04T00:00:00.000Z",
+        "status": "accepted",
+        "acceptedBy": "Estimator",
+        "acceptedAt": "2026-09-04T00:00:00.000Z"
+      }
+    ],
+    "blockers": [],
+    "warnings": [],
+    "summary": {
+      "lineCount": 1,
+      "needsHumanCount": 0,
+      "blockerCount": 0
+    }
+  }
+}

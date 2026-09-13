@@ -227,6 +227,37 @@ test("SC-07B independently rejects unresolved referenced assumptions and allowan
   }
 });
 
+test("unused unresolved recipes do not block selected work or bypass library integrity", async () => {
+  const request = bomBuildRequestSchema.parse(await fixture("colorbond.request.json"));
+  const baseline = await buildBom(request);
+  assert.equal(baseline.ok, true);
+  const unused = bomBuildRequestSchema.parse(await fixture("timber-paling.request.json")).recipeSet.recipes[0];
+  for (const assumption of unused.assumptions) unresolved(unused.assumptions, assumption.id);
+  for (const allowance of unused.allowances) {
+    allowance.status = "unresolved";
+    allowance.acceptedBy = null;
+    allowance.acceptedAt = null;
+  }
+  request.recipeSet.recipes.push(unused);
+  request.inputDigest = await computeBomInputDigest(request);
+  const actual = await buildBom(request);
+  assert.equal(actual.ok, true);
+  if (actual.ok && baseline.ok) {
+    assert.deepEqual(actual.bom.lines, baseline.bom.lines);
+    assert.deepEqual(actual.bom.assumptions, baseline.bom.assumptions);
+  }
+  const malformed = structuredClone(request);
+  malformed.recipeSet.recipes[1].components[0].assumptionIds = ["missing-assumption"];
+  const rejected = await buildBom(malformed);
+  assert.equal(rejected.ok, false);
+  if (!rejected.ok) assert.equal(rejected.issues[0].code, "contract");
+  unresolved(request.recipeSet.recipes[0].assumptions, "a-cover");
+  request.inputDigest = await computeBomInputDigest(request);
+  const selectedRejected = await buildBom(request);
+  assert.equal(selectedRejected.ok, false);
+  if (!selectedRejected.ok) assert.equal(selectedRejected.issues[0].code, "assumption");
+});
+
 test("SC-07B calculation prose reconciles aggregate multi-run and multi-gate facts", async () => {
   const request = bomBuildRequestSchema.parse(await fixture("colorbond.request.json"));
   request.requestId = "aggregate-formula-proof";

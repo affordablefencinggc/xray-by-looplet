@@ -718,7 +718,9 @@ function addDependencyGroup(target: string[], existing: readonly string[], depen
 
 function referencedAssumptionIssues(request: BomBuildRequest): BomIssue[] {
   const issues: BomIssue[] = [];
+  const selectedRecipes = new Set(request.runs.map((run) => run.recipeId));
   for (const recipe of request.recipeSet.recipes) {
+    if (!selectedRecipes.has(recipe.id)) continue;
     const assumptions = new Map(recipe.assumptions.map((assumption) => [assumption.id, assumption]));
     const references = new Set([
       ...recipe.materialModel.assumptionIds,

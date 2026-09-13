@@ -1,0 +1,15 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {hostname} from 'node:os';
+import {createHash} from 'node:crypto';
+import {buildBom} from './concurrency-source/src/studio/bomRules.ts';
+if(hostname().toLowerCase()!=='dans1')throw Error('Wrong host');
+const input='C:/Users/danie/XRayBuilds/native-industry-e173b12b942c-ui1/derived-request.json';
+const out='C:/Users/danie/XRayBuilds/industry-visible-20260913/selected-recipe-ts-replay';
+await mkdir(out);
+const raw=await readFile(input);
+const request=JSON.parse(raw.toString('utf8').replace(/^\uFEFF/,''));
+const response=await buildBom(request);
+await writeFile(out+'/response.json',JSON.stringify(response,null,2));
+await writeFile(out+'/receipt.json',JSON.stringify({host:hostname(),input,requestId:request.requestId,inputSha256:createHash('sha256').update(raw).digest('hex'),origin:'derived from persisted native UI readback, not intercepted network',at:new Date().toISOString(),ok:response.ok},null,2));
+if(!response.ok)throw Error(JSON.stringify(response.issues));
+console.log(JSON.stringify({ok:true,requestId:request.requestId,lineCount:response.bom.lines.length}));

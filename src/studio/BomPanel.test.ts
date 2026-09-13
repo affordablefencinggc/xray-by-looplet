@@ -193,6 +193,20 @@ describe("SC-07H BOM panel states", () => {
     assert.match(markup, /desktop workbench to regenerate/);
   });
 
+  it("keeps reopened assumptions actionable alongside retained results and preflight issues", () => {
+    const issue: BomIssue = { code: "assumption", message: "Confirm the changed bay layout.", entityId: "run-1", path: "recipeSet.assumptions" };
+    for (const compileIssues of [[], [issue]]) {
+      const markup = render(snapshotState(true), { recipeAssumptions: [assumption("unresolved")], compileIssues });
+      assert.match(markup, /Retained result/);
+      assert.match(markup, /CB-POST-END/);
+      assert.match(markup, /Review recipe assumptions/);
+      assert.match(markup, /Accept assumption/);
+      assert.match(markup, /disabled="">Regenerate BOM/);
+    }
+    const pending = render(snapshotState(true), { recipeAssumptions: [assumption("unresolved")], transportStatus: { phase: "pending" } });
+    assert.doesNotMatch(pending, /Accept assumption/);
+  });
+
   it("does not make commercial, pricing, tax or handoff claims", () => {
     const markup = render(snapshotState());
     assert.doesNotMatch(markup, /\$|subtotal|total cost|tax|GST|supplier rate|sent successfully/i);

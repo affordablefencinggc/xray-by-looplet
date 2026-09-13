@@ -95,14 +95,14 @@ export function BomPanel(props: BomPanelProps) {
           <h2 id="bom-regenerate-heading" className="mt-1 text-lg font-semibold">Rebuild current quantities</h2>
           <p className="mt-2 text-muted">The retained register remains available for comparison, but it cannot represent the current evidence revision.</p>
           {generationAvailable ? (
-            <button type="button" className="button button-primary mt-3 min-h-11" onClick={onGenerate}>Regenerate BOM</button>
+            <button type="button" className="button button-primary mt-3 min-h-11" disabled={unresolved.length > 0} onClick={onGenerate}>Regenerate BOM</button>
           ) : (
             <span className="mt-2 block text-muted">Open this job in the X-Ray desktop workbench to regenerate the retained quantities.</span>
           )}
         </section>
       ) : null}
 
-      {panelState === "assumptions" ? (
+      {unresolved.length > 0 && panelState !== "pending" ? (
         <section className="cost-readiness" aria-labelledby="bom-assumptions-heading">
           <span className="eyebrow">Confirmation required</span>
           <h2 id="bom-assumptions-heading" className="mt-1 text-lg font-semibold">Review recipe assumptions</h2>
