@@ -550,8 +550,12 @@ fn xray_cancel_bom(state: State<'_, BomInvocationState>, request_id: String) -> 
 }
 
 #[tauri::command]
-fn xray_bom_status() -> Value {
-    let status = engine_status();
+async fn xray_bom_status() -> Value {
+    // Frozen engine startup may include runtime extraction. Keep the bounded
+    // handshake off the UI thread and report failed workers as unavailable.
+    let status = tauri::async_runtime::spawn_blocking(engine_status)
+        .await
+        .unwrap_or_else(|_| serde_json::json!({"available": false}));
     bom_status_envelope(&status)
 }
 

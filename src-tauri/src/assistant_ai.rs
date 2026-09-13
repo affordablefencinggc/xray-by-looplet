@@ -499,7 +499,8 @@ mod tests {
     /// inside the crate can catch that, so the exact byte length is pinned here: it moves
     /// whenever the authored Markdown changes, and re-running
     /// `node scripts/build-assistant-context.mjs` prints the new figure to paste in.
-    const SYSTEM_INSTRUCTION_LEN: usize = 13398;
+    // Includes the current authored calculator and receipt guidance (e7c0c4d).
+    const SYSTEM_INSTRUCTION_LEN: usize = 14638;
     #[test]
     fn system_instruction_appends_the_brief_to_the_safety_manual() {
         let instruction: &str = SYSTEM_INSTRUCTION.as_str();

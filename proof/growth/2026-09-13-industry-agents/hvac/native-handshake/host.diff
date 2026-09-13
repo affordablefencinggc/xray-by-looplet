@@ -1,0 +1,227 @@
+diff --git a/engine/host/src/lib.rs b/engine/host/src/lib.rs
+index 3d86be0..e4026d2 100644
+--- a/engine/host/src/lib.rs
++++ b/engine/host/src/lib.rs
+@@ -20,6 +20,8 @@ use std::os::unix::process::CommandExt;
+ #[cfg(windows)]
+ use std::os::windows::io::AsRawHandle;
+ #[cfg(windows)]
++use std::os::windows::process::CommandExt;
++#[cfg(windows)]
+ use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+ #[cfg(windows)]
+ use windows_sys::Win32::System::JobObjects::{
+@@ -159,6 +161,8 @@ impl CommandFactory for ConfiguredRunner {
+     fn command(&self, invocation: &Invocation) -> Result<Command, TransportError> {
+         validate_executable(&self.executable)?;
+         let mut command = Command::new(&self.executable);
++        #[cfg(windows)]
++        command.creation_flags(0x08000000); // CREATE_NO_WINDOW retains redirected stdin/stdout.
+         command.args([
+             "job-to-bom",
+             "--request-stdin",
+@@ -170,6 +174,8 @@ impl CommandFactory for ConfiguredRunner {
+     fn status_command(&self) -> Result<Command, TransportError> {
+         validate_executable(&self.executable)?;
+         let mut command = Command::new(&self.executable);
++        #[cfg(windows)]
++        command.creation_flags(0x08000000);
+         command.args(["contract-status", "--json"]);
+         Ok(command)
+     }
+@@ -347,6 +353,47 @@ fn process_tree_error() -> TransportError {
+     )
+ }
+ 
++#[cfg(windows)]
++fn current_process_user_sid() -> std::io::Result<String> {
++    use windows_sys::Win32::Foundation::{LocalFree, ERROR_INSUFFICIENT_BUFFER};
++    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
++    use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
++    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
++    struct Token(HANDLE);
++    impl Drop for Token { fn drop(&mut self) { unsafe { CloseHandle(self.0); } } }
++    struct SidString(*mut u16);
++    impl Drop for SidString { fn drop(&mut self) { unsafe { LocalFree(self.0.cast()); } } }
++    let mut raw = std::ptr::null_mut();
++    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw) } == 0 {
++        return Err(std::io::Error::last_os_error());
++    }
++    let token = Token(raw);
++    let mut bytes = 0;
++    let first = unsafe { GetTokenInformation(token.0, TokenUser, std::ptr::null_mut(), 0, &mut bytes) };
++    if first != 0 || std::io::Error::last_os_error().raw_os_error() != Some(ERROR_INSUFFICIENT_BUFFER as i32)
++        || bytes < std::mem::size_of::<TOKEN_USER>() as u32 || bytes > 65536 {
++        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Could not inspect process user token."));
++    }
++    // TOKEN_USER includes pointers: usize storage guarantees their required alignment.
++    let mut buffer = vec![0usize; (bytes as usize).div_ceil(std::mem::size_of::<usize>())];
++    if unsafe { GetTokenInformation(token.0, TokenUser, buffer.as_mut_ptr().cast(), bytes, &mut bytes) } == 0 {
++        return Err(std::io::Error::last_os_error());
++    }
++    let user = unsafe { &*buffer.as_ptr().cast::<TOKEN_USER>() };
++    let mut sid = std::ptr::null_mut();
++    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut sid) } == 0 {
++        return Err(std::io::Error::last_os_error());
++    }
++    let sid = SidString(sid);
++    let mut length = 0;
++    while length < 256 && unsafe { *sid.0.add(length) } != 0 { length += 1; }
++    if length == 256 {
++        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Process user SID is too long."));
++    }
++    String::from_utf16(unsafe { std::slice::from_raw_parts(sid.0, length) })
++        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid process user SID."))
++}
++
+ #[cfg(windows)]
+ fn create_private_directory(path: &Path) -> std::io::Result<()> {
+     use std::os::windows::ffi::OsStrExt;
+@@ -358,8 +405,10 @@ fn create_private_directory(path: &Path) -> std::io::Result<()> {
+     use windows_sys::Win32::Storage::FileSystem::CreateDirectoryW;
+ 
+     // Protected DACL: the directory owner and LocalSystem have full control;
+-    // no parent ACE is inherited. OI/CI applies the same boundary to contents.
+-    let sddl: Vec<u16> = "D:P(A;OICI;FA;;;OW)(A;OICI;FA;;;SY)\0"
++    // no parent ACE is inherited. OI/CI inherits these ACEs; child ownership is determined separately.
++    // TokenOwner may be Administrators under an elevated token. Pin the actual
++    // TokenUser owner atomically rather than relying on that default owner.
++    let sddl: Vec<u16> = format!("O:{}D:P(A;OICI;FA;;;OW)(A;OICI;FA;;;SY)\0", current_process_user_sid()?)
+         .encode_utf16()
+         .collect();
+     let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+@@ -1347,16 +1396,28 @@ pub fn resolve_engine_path() -> Option<PathBuf> {
+         .map(|r| r.executable)
+ }
+ pub fn engine_status() -> Value {
++    match ConfiguredRunner::from_environment() {
++        Ok(runner) => engine_status_with(&runner),
++        Err(_) => status_envelope(false),
++    }
++}
++
++fn status_envelope(available: bool) -> Value {
++    json!({"engine":"xray-by-looplet","host":"tauri","available":available,"contract":REQUEST_SCHEMA,"responseContract":RESPONSE_SCHEMA,"ruleset":RULESET_ID})
++}
++
++/// Bounded cold-start allowance for a real frozen runtime, without weakening its handshake.
++pub fn engine_status_with(factory: &dyn CommandFactory) -> Value {
++    engine_status_with_timeout(factory, Duration::from_secs(10))
++}
++
++fn engine_status_with_timeout(factory: &dyn CommandFactory, timeout: Duration) -> Value {
+     let unavailable = || json!({"engine":"xray-by-looplet","host":"tauri","available":false,"contract":REQUEST_SCHEMA,"responseContract":RESPONSE_SCHEMA,"ruleset":RULESET_ID});
+-    let runner = match ConfiguredRunner::from_environment() {
+-        Ok(v) => v,
+-        Err(_) => return unavailable(),
+-    };
+-    let mut command = match runner.status_command() {
++    let mut command = match factory.status_command() {
+         Ok(v) => v,
+         Err(_) => return unavailable(),
+     };
+-    let available = bounded_status_output(&mut command).is_some_and(|output| {
++    let available = bounded_status_output(&mut command, timeout).is_some_and(|output| {
+         serde_json::from_slice::<Value>(&output).is_ok_and(|s| {
+             s.get("requestSchema") == Some(&Value::String(REQUEST_SCHEMA.into()))
+                 && s.get("responseSchema") == Some(&Value::String(RESPONSE_SCHEMA.into()))
+@@ -1366,9 +1427,8 @@ pub fn engine_status() -> Value {
+     json!({"engine":"xray-by-looplet","host":"tauri","available":available,"contract":REQUEST_SCHEMA,"responseContract":RESPONSE_SCHEMA,"ruleset":RULESET_ID})
+ }
+ 
+-fn bounded_status_output(command: &mut Command) -> Option<Vec<u8>> {
++fn bounded_status_output(command: &mut Command, timeout: Duration) -> Option<Vec<u8>> {
+     const STATUS_LIMIT: usize = 4096;
+-    const STATUS_TIMEOUT: Duration = Duration::from_secs(2);
+     command
+         .stdin(Stdio::null())
+         .stderr(Stdio::null())
+@@ -1380,7 +1440,7 @@ fn bounded_status_output(command: &mut Command) -> Option<Vec<u8>> {
+     let (reader, overflow) = bounded_reader(stdout, STATUS_LIMIT);
+     let started = Instant::now();
+     let status = loop {
+-        if overflow.load(Ordering::Acquire) || started.elapsed() >= STATUS_TIMEOUT {
++        if overflow.load(Ordering::Acquire) || started.elapsed() >= timeout {
+             terminate(&mut child, &mut process_tree, Duration::from_millis(100));
+             return None;
+         }
+@@ -1687,7 +1747,7 @@ mod tests {
+             "never" => loop {
+                 thread::sleep(Duration::from_secs(1));
+             },
+-            "tree-timeout" | "tree-cancel" | "tree-stdout-over" => {
++            "tree-timeout" | "tree-cancel" | "tree-stdout-over" | "status-tree-timeout" => {
+                 let marker = PathBuf::from(std::env::var_os("XRAY_TEST_MARKER").unwrap());
+                 let mut descendant = Command::new(std::env::current_exe().unwrap());
+                 descendant
+@@ -2634,13 +2694,68 @@ mod tests {
+     fn transport_br_021_status_probe_is_bounded_and_actually_launches() {
+         let compatible = FixtureFactory::new("status-ok");
+         let mut command = compatible.status_command().unwrap();
+-        let output = bounded_status_output(&mut command).unwrap();
++        let output = bounded_status_output(&mut command, Duration::from_secs(10)).unwrap();
+         assert!(String::from_utf8_lossy(&output).contains(REQUEST_SCHEMA));
+         assert_eq!(compatible.spawned.load(Ordering::SeqCst), 1);
+ 
+         let overflow = FixtureFactory::new("status-over");
+         let mut command = overflow.status_command().unwrap();
+-        assert!(bounded_status_output(&mut command).is_none());
++        assert!(bounded_status_output(&mut command, Duration::from_secs(10)).is_none());
++    }
++
++    struct JsonStatusFactory { delay_ms: u64, fail: bool }
++    impl CommandFactory for JsonStatusFactory {
++        fn command(&self, _: &Invocation) -> Result<Command, TransportError> { self.status_command() }
++        fn status_command(&self) -> Result<Command, TransportError> {
++            let payload = format!("{{\"requestSchema\":\"{REQUEST_SCHEMA}\",\"responseSchema\":\"{RESPONSE_SCHEMA}\",\"ruleset\":\"{RULESET_ID}\"}}");
++            #[cfg(windows)]
++            let mut command = {
++                let mut c = Command::new(PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32/WindowsPowerShell/v1.0/powershell.exe"));
++                c.creation_flags(0x08000000);
++                c.args(["-NoProfile", "-Command", &format!("Start-Sleep -Milliseconds {}; Write-Output '{}'; exit {}", self.delay_ms, payload, if self.fail { 1 } else { 0 })]);
++                c
++            };
++            #[cfg(not(windows))]
++            let mut command = {
++                let mut c = Command::new("/bin/sh");
++                c.args(["-c", &format!("sleep {}; printf '%s' '{}'; exit {}", self.delay_ms as f64 / 1000.0, payload, if self.fail { 1 } else { 0 })]);
++                c
++            };
++            command.stdin(Stdio::null());
++            Ok(command)
++        }
++    }
++
++    #[test]
++    fn transport_status_accepts_real_delayed_handshake_beyond_old_two_second_budget() {
++        let started = Instant::now();
++        let status = engine_status_with(&JsonStatusFactory { delay_ms: 2200, fail: false });
++        assert_eq!(status["available"], true);
++        assert!(started.elapsed() >= Duration::from_millis(2200));
++        assert!(started.elapsed() < Duration::from_secs(10));
++    }
++
++    #[test]
++    fn transport_status_nonzero_and_short_deadline_never_report_available() {
++        assert_eq!(engine_status_with(&JsonStatusFactory { delay_ms: 0, fail: true })["available"], false);
++        let started = Instant::now();
++        assert_eq!(engine_status_with_timeout(&JsonStatusFactory { delay_ms: 3000, fail: false }, Duration::from_millis(100))["available"], false);
++        assert!(started.elapsed() < Duration::from_secs(2));
++    }
++
++    #[test]
++    fn transport_status_deadline_terminates_descendant_tree() {
++        let root = std::env::temp_dir().join(next_diagnostic_id());
++        std::fs::create_dir(&root).unwrap();
++        let marker = root.join("child.marker");
++        let mut factory = FixtureFactory::new("status-tree-timeout");
++        factory.marker = Some(marker.clone());
++        assert_eq!(engine_status_with_timeout(&factory, Duration::from_millis(800))["available"], false);
++        assert!(marker.exists(), "descendant must actually start before cleanup is asserted");
++        let before = std::fs::read(&marker).unwrap();
++        thread::sleep(Duration::from_millis(150));
++        assert_eq!(std::fs::read(&marker).unwrap(), before, "descendant stopped writing after deadline");
++        std::fs::remove_dir_all(root).unwrap();
+     }
+     #[test]
+     fn transport_br_034_035_paths_and_python_fallback_disabled() {

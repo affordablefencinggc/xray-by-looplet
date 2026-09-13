@@ -1,0 +1,367 @@
+{
+  "host": "dans1",
+  "at": "2026-09-13T11:29:37.680Z",
+  "attempt": "provider-status-browser-1132",
+  "origin": "http://127.0.0.1:8095",
+  "processProof": {
+    "ProcessId": 13316,
+    "CreationDate": "/Date(1789289962401)/",
+    "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --new-window --no-first-run --no-default-browser-check --enable-automation --remote-debugging-address=127.0.0.1 --remote-debugging-port=9341 --user-data-dir=C:\\Users\\danie\\XRayBuilds\\industry-visible-20260913\\edge-profile-roofing --window-position=0,0 --window-size=620,900 http://127.0.0.1:8095/?demo=working-example"
+  },
+  "version": {
+    "Browser": "Edg/152.0.4191.66",
+    "Protocol-Version": "1.3",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 Edg/152.0.0.0",
+    "V8-Version": "15.2.23.10",
+    "WebKit-Version": "537.36 (@cc2931e6363af1d70882ad63ee33b0e8cd524de0)",
+    "webSocketDebuggerUrl": "ws://127.0.0.1:9341/devtools/browser/c0d95a30-5063-4f6b-8b3b-27008c4cecfc"
+  },
+  "network": [
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "19352.549"
+    },
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "19352.551"
+    },
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "19352.552"
+    },
+    {
+      "url": "http://127.0.0.1:8095/api/assistant-ai",
+      "method": "GET",
+      "id": "19352.563"
+    },
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "19352.564"
+    }
+  ],
+  "errors": [],
+  "commands": [
+    [
+      "context",
+      "provider"
+    ],
+    [
+      "viewport",
+      "provider",
+      1280,
+      900
+    ],
+    [
+      "navigate",
+      "provider",
+      "http://127.0.0.1:8095"
+    ],
+    [
+      "wait",
+      "provider",
+      "!!document.querySelector('.live-assistant-launcher') && !document.body.innerText.includes('Checking saved work')"
+    ],
+    [
+      "eval",
+      "provider",
+      "document.querySelector('.live-assistant-launcher').click()"
+    ],
+    [
+      "wait",
+      "provider",
+      "document.querySelector('.assistant-provider-button')?.getAttribute('aria-label').startsWith('Provider: MiniMax') && document.querySelector('.assistant-status-light')?.title.includes('MiniMax is configured')"
+    ],
+    [
+      "eval",
+      "provider",
+      "document.querySelector('.assistant-provider-button').click()"
+    ],
+    [
+      "wait",
+      "provider",
+      "!!document.querySelector('.assistant-provider-menu')"
+    ],
+    [
+      "eval",
+      "provider",
+      "(()=>{const button=[...document.querySelectorAll('.assistant-provider-option')].find(n=>n.querySelector('strong')?.textContent.startsWith('Gemini'));if(!button||button.disabled)throw Error('Provider choice unavailable');button.click();})()"
+    ],
+    [
+      "eval",
+      "provider",
+      "(()=>{if(!document.querySelector('.assistant-provider-button').textContent.includes('Gemini'))throw Error('Selection missing');if(document.querySelector('.assistant-status-light').classList.contains('is-on'))throw Error('Previous provider still shown ready');return {selected:'Gemini',staleLightCleared:true};})()"
+    ],
+    [
+      "screenshot",
+      "provider",
+      "gemini-status-pending.png"
+    ],
+    [
+      "eval",
+      "provider",
+      "document.querySelector('.assistant-provider-button').click()"
+    ],
+    [
+      "wait",
+      "provider",
+      "!!document.querySelector('.assistant-provider-menu')"
+    ],
+    [
+      "eval",
+      "provider",
+      "(()=>{const button=[...document.querySelectorAll('.assistant-provider-option')].find(n=>n.querySelector('strong')?.textContent.startsWith('MiniMax'));if(!button||button.disabled)throw Error('Provider choice unavailable');button.click();})()"
+    ],
+    [
+      "wait",
+      "provider",
+      "document.querySelector('.assistant-status-light')?.title.includes('MiniMax is configured')"
+    ],
+    [
+      "eval",
+      "provider",
+      "(()=>{const button=document.querySelector('.assistant-provider-button'),light=document.querySelector('.assistant-status-light');if(!button.textContent.includes('MiniMax')||!light.title.includes('MiniMax is configured'))throw Error('Late response replaced current provider');return {selected:button.textContent,status:light.title,lateResponseIgnored:true};})()"
+    ],
+    [
+      "screenshot",
+      "provider",
+      "minimax-after-stale-response.png"
+    ],
+    [
+      "viewport",
+      "provider",
+      1024,
+      768
+    ],
+    [
+      "eval",
+      "provider",
+      "document.querySelector('.assistant-provider-button').click()"
+    ],
+    [
+      "wait",
+      "provider",
+      "!!document.querySelector('.assistant-provider-menu')"
+    ],
+    [
+      "eval",
+      "provider",
+      "(()=>{if(document.documentElement.scrollWidth>innerWidth+2)throw Error('Horizontal overflow');return document.querySelector('.assistant-provider-menu').innerText;})()"
+    ],
+    [
+      "screenshot",
+      "provider",
+      "tablet-provider-options.png"
+    ]
+  ],
+  "receipts": [
+    {
+      "op": "context",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 103.81569999999999,
+      "value": {
+        "created": "provider"
+      }
+    },
+    {
+      "op": "viewport",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 2.3683999999999514,
+      "value": {}
+    },
+    {
+      "op": "navigate",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 15.408000000000015,
+      "value": {
+        "frameId": "FE10D331F612000CEB62F65E7E220DB1",
+        "loaderId": "36165B6919630DED0F0CFEECD3C20A15",
+        "isDownload": false
+      }
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 3596.9731,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 45.64180000000033
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 39.76470000000063,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 3.628000000000611
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 1.3904999999995198,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 30.758100000000013
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 10.111499999999978,
+      "value": {
+        "selected": "Gemini",
+        "staleLightCleared": true
+      }
+    },
+    {
+      "op": "screenshot",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 52.98449999999957,
+      "value": {
+        "eventId": "4b34fb02-865c-4af5-ad8d-cb9ea1d4fce2",
+        "context": "provider",
+        "targetId": "FE10D331F612000CEB62F65E7E220DB1",
+        "file": "gemini-status-pending.png",
+        "sha256": "d406d99b643162073f273f1a11f6157dc201e0efdb5531a1b37d81dff781805b"
+      }
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 2.5131000000001222
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 1.4056999999993423,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 10.674300000000585
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 11.744799999999486,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 0.5471999999999753,
+      "value": {
+        "selected": "MiniMax",
+        "status": "MiniMax is configured. A request is sent only when you submit a message; configuration does not verify credentials.",
+        "lateResponseIgnored": true
+      }
+    },
+    {
+      "op": "screenshot",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 55.47679999999946,
+      "value": {
+        "eventId": "deaeea81-ce37-474f-bb76-636e0ce367cb",
+        "context": "provider",
+        "targetId": "FE10D331F612000CEB62F65E7E220DB1",
+        "file": "minimax-after-stale-response.png",
+        "sha256": "d315f378b7268a9a97473a8ea4dad3c89a4b9068e7f8e9206aeadbcf6890b536"
+      }
+    },
+    {
+      "op": "viewport",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 8.040399999999863,
+      "value": {}
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 17.228100000000268
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 1.4625999999998385,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 0.5444000000006781,
+      "value": "MiniMax\nM3 supports source images and visible 3D canvas captures, not full-screen screenshots. Older M2 models are text only. No grounded web search.\nGemini\nSupports source images, visible 3D canvas captures and grounded web search. The configured model is shown in connection details."
+    },
+    {
+      "op": "screenshot",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 55.86689999999999,
+      "value": {
+        "eventId": "278ae31c-9f54-4d71-94cc-76d153b099da",
+        "context": "provider",
+        "targetId": "FE10D331F612000CEB62F65E7E220DB1",
+        "file": "tablet-provider-options.png",
+        "sha256": "1b004d6dfdb1caabf877cf73133f62ebe99b116cdbe563c0143427c9a2e06e3c"
+      }
+    }
+  ],
+  "failure": null,
+  "cleanup": true,
+  "verdict": "PASS"
+}

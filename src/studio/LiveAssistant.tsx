@@ -47,6 +47,7 @@ import { inspectPlanBytes } from "./documents";
 import "./assistantPanel.css";
 import { LiveAssistantVoice } from "./LiveAssistantVoice";
 import { assistantStatus } from "./assistant/transport";
+import { providerLabel, useAssistantProvider, type AssistantProvider } from "./assistant/provider";
 import { callAssistantTool, getAssistantMcp, useAssistantConnection } from "./assistant/session";
 import { useAssistantChat } from "./assistant/useAssistantChat";
 import { WorkPacketPanel } from "./assistant/WorkPacketPanel";
@@ -96,6 +97,7 @@ const CORNER_LABEL: Record<Corner, string> = {
 // [SC-18 projects/corners] end: module helpers
 
 export function LiveAssistant() {
+  const selectedProvider = useAssistantProvider(state => state.provider);
   const monkey=useMonkeyRecorder();
   const [dismissedCommands,setDismissedCommands]=useState<string|null>(null);
   const { open, draft, guide } = useLiveAssistant();
@@ -149,7 +151,8 @@ export function LiveAssistant() {
   const [dragOver, setDragOver] = useState(false);
   const [readingImages, setReadingImages] = useState(false);
   const panel = useAssistantPanel();
-  const [status, setStatus] = useState<MaterialAiStatus | null>(null);
+  const [statusResult, setStatusResult] = useState<{ provider: AssistantProvider; value: MaterialAiStatus } | null>(null);
+  const status = statusResult?.provider === selectedProvider ? statusResult.value : null;
   const [message, setMessage] = useState("");
   const [continued, setContinued] = useState(0);
   // Focus the composer after "Continue this in a new chat" once React has re-enabled it.
@@ -205,14 +208,16 @@ export function LiveAssistant() {
   // The connection light on the collapsed rail needs the probe on mount, not only once the panel opens.
   useEffect(() => {
     let active = true;
-    setStatus(null);
-    assistantStatus()
+    setStatusResult(null);
+    assistantStatus(selectedProvider)
       .then((value) => {
-        if (active) setStatus(value);
+        if (active) setStatusResult({ provider: selectedProvider, value });
       })
       .catch(() => {
-        if (active)
-          setMessage("Connection status is unavailable. Open AI review to check configuration.");
+        if (active) setStatusResult({ provider: selectedProvider, value: {
+          provider: providerLabel(selectedProvider), model: "", configured: false, available: false,
+          message: "Provider status is unavailable. Refresh connection details to try again.",
+        } });
       });
     void getAssistantMcp().catch((error) => {
       if (active) setMessage(error instanceof Error ? error.message : "MCP connection failed.");
@@ -221,7 +226,7 @@ export function LiveAssistant() {
     return () => {
       active = false;
     };
-  }, [open, refresh]);
+  }, [open, refresh, selectedProvider]);
   useEffect(() => {
     if (!hydrated) return;
     setAttachments([]); setPendingFiles([]);
@@ -648,7 +653,7 @@ export function LiveAssistant() {
     ? "Working"
     : status?.available
       ? connection.connected
-        ? "Connected"
+        ? "Configured"
         : "Connecting tools"
       : status
         ? "Connection needed"
@@ -1448,8 +1453,8 @@ export function LiveAssistant() {
         <i
           className={`assistant-status-light ${status?.available ? "is-on" : "is-off"}`}
           role="img"
-          aria-label={status?.available ? "Assistant connected" : "Assistant not connected"}
-          title={status?.available ? "Connected" : statusLabel}
+          aria-label={status?.available ? "Assistant provider configured" : "Assistant provider not ready"}
+          title={status?.available ? status.message : statusLabel}
         />
         <ChevronUp size={14} className={open ? "is-flipped" : ""} />
       </button>

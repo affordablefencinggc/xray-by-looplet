@@ -1,14 +1,13 @@
-import { assistantRequestSchema, assistantResponseSchema, type AssistantRequest, type AssistantResponse } from './contract';
-import { providerEndpoint, providerToolError, useAssistantProvider, type AssistantProvider } from './provider';
+import { assistantRequestSchema, assistantResponseSchema, type AssistantRequest, type AssistantResponse } from './contract.ts';
+import { providerEndpoint, providerToolError, useAssistantProvider, type AssistantProvider } from './provider.ts';
 const native = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 /**
  * Use the selected provider; unsupported native providers fail without rerouting.
  */
-const endpoint = () => providerEndpoint(useAssistantProvider.getState().provider);
-export async function assistantStatus() {
-  if (native() && useAssistantProvider.getState().provider === 'minimax') return { provider: 'MiniMax', model: '', configured: false, available: false, message: 'MiniMax is unavailable in this native build. No Gemini request was sent.' };
+export async function assistantStatus(provider: AssistantProvider = useAssistantProvider.getState().provider) {
+  if (native() && provider === 'minimax') return { provider: 'MiniMax', model: '', configured: false, available: false, message: 'MiniMax is unavailable in this native build. No Gemini request was sent.' };
   if (native()) { const { invoke } = await import('@tauri-apps/api/core'); return invoke<{ provider: string; model: string; configured: boolean; available: boolean; message: string }>('xray_assistant_status'); }
-  const response = await fetch(endpoint(), { cache: 'no-store' });
+  const response = await fetch(providerEndpoint(provider), { cache: 'no-store' });
   if (!response.ok) throw Error('Assistant service status unavailable.');
   return response.json() as Promise<{ provider: string; model: string; configured: boolean; available: boolean; message: string }>;
 }

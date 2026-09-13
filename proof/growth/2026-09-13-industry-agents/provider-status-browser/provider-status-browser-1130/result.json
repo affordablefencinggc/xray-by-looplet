@@ -1,0 +1,152 @@
+{
+  "host": "dans1",
+  "at": "2026-09-13T11:28:46.389Z",
+  "attempt": "provider-status-browser-1130",
+  "origin": "http://127.0.0.1:8095",
+  "processProof": {
+    "ProcessId": 13316,
+    "CreationDate": "/Date(1789289962401)/",
+    "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --new-window --no-first-run --no-default-browser-check --enable-automation --remote-debugging-address=127.0.0.1 --remote-debugging-port=9341 --user-data-dir=C:\\Users\\danie\\XRayBuilds\\industry-visible-20260913\\edge-profile-roofing --window-position=0,0 --window-size=620,900 http://127.0.0.1:8095/?demo=working-example"
+  },
+  "version": {
+    "Browser": "Edg/152.0.4191.66",
+    "Protocol-Version": "1.3",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 Edg/152.0.0.0",
+    "V8-Version": "15.2.23.10",
+    "WebKit-Version": "537.36 (@cc2931e6363af1d70882ad63ee33b0e8cd524de0)",
+    "webSocketDebuggerUrl": "ws://127.0.0.1:9341/devtools/browser/c0d95a30-5063-4f6b-8b3b-27008c4cecfc"
+  },
+  "network": [
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "14988.549"
+    },
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "14988.551"
+    },
+    {
+      "url": "http://127.0.0.1:8095/api/minimax-ai",
+      "method": "GET",
+      "id": "14988.552"
+    }
+  ],
+  "errors": [],
+  "commands": [
+    [
+      "context",
+      "provider"
+    ],
+    [
+      "viewport",
+      "provider",
+      1280,
+      900
+    ],
+    [
+      "navigate",
+      "provider",
+      "http://127.0.0.1:8095"
+    ],
+    [
+      "wait",
+      "provider",
+      "!!document.querySelector('.live-assistant-launcher') && !document.body.innerText.includes('Checking saved work')"
+    ],
+    [
+      "eval",
+      "provider",
+      "document.querySelector('.live-assistant-launcher').click()"
+    ],
+    [
+      "wait",
+      "provider",
+      "document.querySelector('.assistant-provider-button')?.getAttribute('aria-label').startsWith('Provider: MiniMax') && document.querySelector('.assistant-status-light')?.title.includes('MiniMax is configured')"
+    ],
+    [
+      "eval",
+      "provider",
+      "(()=>{document.querySelector('.assistant-provider-button').click();const button=[...document.querySelectorAll('.assistant-provider-option')].find(n=>n.querySelector('strong')?.textContent.startsWith('Gemini'));if(!button||button.disabled)throw Error('Provider choice unavailable');button.click();})()"
+    ],
+    [
+      "screenshot",
+      "provider",
+      "failure.png"
+    ]
+  ],
+  "receipts": [
+    {
+      "op": "context",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 91.1848,
+      "value": {
+        "created": "provider"
+      }
+    },
+    {
+      "op": "viewport",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 1.90300000000002,
+      "value": {}
+    },
+    {
+      "op": "navigate",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 12.650600000000054,
+      "value": {
+        "frameId": "FDFBB7C5CFE37D76F361EEBDDCEFA1EF",
+        "loaderId": "746321488C1F2DAD7AE68089F09855A2",
+        "isDownload": false
+      }
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 3578.496,
+      "value": true
+    },
+    {
+      "op": "eval",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 45.49549999999999
+    },
+    {
+      "op": "wait",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 41.70849999999973,
+      "value": true
+    },
+    {
+      "op": "screenshot",
+      "args": [
+        "provider"
+      ],
+      "elapsedMs": 95.56999999999971,
+      "value": {
+        "eventId": "6dd39232-e9ab-44f0-9d7c-779b8edf660f",
+        "context": "provider",
+        "targetId": "FDFBB7C5CFE37D76F361EEBDDCEFA1EF",
+        "file": "failure.png",
+        "sha256": "b072305b87c3cee010dd08304bfdeff52feac541a82dc9487758f898f47d51da"
+      }
+    }
+  ],
+  "failure": "Error: Error: Provider choice unavailable\n    at <anonymous>:1:245\n    at <anonymous>:1:299",
+  "cleanup": true,
+  "verdict": "FAIL"
+}

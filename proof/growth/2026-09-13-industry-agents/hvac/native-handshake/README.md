@@ -1,0 +1,11 @@
+﻿# Native handshake and private scratch owner correction
+
+DANS1 disposable native-handshake-20260913-1105 cloned qualified a8a4f707ac43 source/release target into separate paths; qualified artifacts were not modified. Current source overlay was hash-verified. No production default-engine packaging was added.
+
+Host now exposes engine_status_with(CommandFactory), uses a bounded10-second cold-start budget with unchanged4KB output cap and descendant containment, and applies Windows CREATE_NO_WINDOW to real ConfiguredRunner commands while retaining pipes. Root separately made Tauri status async/spawn_blocking. Three actual-child regressions cover valid2.2-second handshake, nonzero/short-deadline failure, and deadline descendant cleanup.
+
+Initial host suite found existing private-directory owner failure. A fresh-target build of HEAD reproduced EqualSid(owner,TokenUser)=0 with unchanged ACL test. Current default TokenOwner can differ from TokenUser. Fix queries TokenUser with aligned buffer and RAII handles, supplies O:<user SID> atomically in CreateDirectoryW with unchanged protected OW/SY inherited full-control ACEs. No post-create broad permissions or fallback. Independent QS read-only FFI/cleanup review found no blocker. Final host suite37passed/0failed/1ignored; the ignored test is the subprocess fixture entry point. Last source change only clarifies the ACL inheritance comment after these tests.
+
+Initial Tauri tests40pass/1fail exposed stale system-instruction length13398 vs actual14638. Root corrected only the pin; generated assistant-context --check passed and focused test passed. Final Tauri suite41/41 passed with corrected host and async status. Actual new-host engine_status with qualified real Python exe returned available:true five times,1315–1385ms each in SSH session from native source/src-tauri cwd. This does not reproduce or explain the interactive session's intermittent failure; it proves current host can handshake under these conditions. Live native UI readback remains root/roofing-owned.
+
+Logs preserve original failed suites, fresh HEAD baseline, final suites and actual status results. Transfer tars moved to .temp/hvac-native-handshake with hashes recorded; source manifests/diffs retained. No app environment was persistently changed. Test/build processes completed. Source security review: OWNER-AUDIT.md.
