@@ -1,0 +1,69 @@
+diff --git a/src/studio/assistant/contextWiring.test.ts b/src/studio/assistant/contextWiring.test.ts
+index f60da4c..6f507d9 100644
+--- a/src/studio/assistant/contextWiring.test.ts
++++ b/src/studio/assistant/contextWiring.test.ts
+@@ -5,6 +5,7 @@ import { assistantRequestSchema, type AssistantContent } from "./contract.ts";
+ import { isPinnedUserEntry, PINNED_SENTINEL } from "./pinnedContext.ts";
+ import { DEFAULT_TRIGGER_AT } from "./compactTranscript.ts";
+ import type { ContextLogEntry } from "./contextLog.ts";
++import { markWithheldCandidate, shortInteraction } from "./shortInteraction.ts";
+ 
+ /**
+  * The send path in useAssistantChat.ts composes four pieces in a fixed order:
+@@ -39,18 +40,6 @@ function longTranscript(rounds: number): AssistantContent[] {
+   return contents;
+ }
+ 
+-/**
+- * `shortInteraction` lives in workPacketRuntime.ts, which reaches into the React store and cannot
+- * be imported under bare Node. It is a pure function, so it is mirrored here byte-for-byte from
+- * workPacketRuntime.ts and guarded by the drift test below: if the real one changes shape, that
+- * test fails rather than this file quietly testing yesterday's behaviour.
+- */
+-function shortInteraction(contents: AssistantContent[]): AssistantContent[] {
+-  const messages = contents.filter(e => !e.parts.some(p => p.functionCall || p.functionResponse)
+-    && e.parts.some(p => p.text && !p.text.startsWith('[xray:')));
+-  return messages.slice(-4).map(e => ({ role: e.role, parts: [{ text: e.parts.filter(p => !p.thought).map(p => p.text ?? '').join('\n').slice(0, 8000) || '(Previous image is stored with its work packet; retrieve it before relying on it.)' }] }));
+-}
+-
+ /** Exactly what useAssistantChat.send does, so the test breaks when that composition changes. */
+ async function sendPath(
+   stored: AssistantContent[],
+@@ -162,19 +151,24 @@ test("an empty profile and empty log do not spend budget on an empty pair", asyn
+   assert.ok(!isPinnedUserEntry(assembled.contents[0]));
+ });
+ 
+-test("the mirrored shortInteraction still matches the one the send path actually uses", async () => {
+-  const { readFileSync } = await import("node:fs");
+-  const { fileURLToPath } = await import("node:url");
+-  const runtime = readFileSync(fileURLToPath(new URL("./workPacketRuntime.ts", import.meta.url)), "utf8");
+-  const body = runtime.slice(runtime.indexOf("export function shortInteraction"));
+-  const real = body.slice(0, body.indexOf("\n}\n") + 3).replace("export ", "");
+-  const mine = shortInteraction.toString();
+-  const strip = (s: string) => s.replace(/\s+/g, " ").replace(/["']/g, '"').trim();
+-  assert.equal(
+-    strip(mine.slice(mine.indexOf("{"))),
+-    strip(real.slice(real.indexOf("{"))),
+-    "workPacketRuntime.shortInteraction changed; update the mirrored copy in this file to match",
+-  );
++test("the composed send path excludes withheld candidates while retaining delivered context and the current request", async () => {
++  const stored: AssistantContent[] = [
++    userEntry("Run the explicit fixture."),
++    markWithheldCandidate({ role: "model", parts: [{ text: "Unsupported candidate result: 16." }] }),
++    userEntry("[xray:tool-claim-check] No current invocation supports that result."),
++    { role: "model", parts: [{ text: "Delivered answer: the required input is missing." }] },
++  ];
++  const before = structuredClone(stored);
++  const today = userEntry("Here is the missing input; continue.");
++  const { assembled } = await sendPath(stored, today, readers());
++  const text = assembled.contents.flatMap(entry => entry.parts.map(part => part.text ?? "")).join("\n");
++  assert.ok(isPinnedUserEntry(assembled.contents[0]));
++  assert.ok(text.includes("Run the explicit fixture."));
++  assert.ok(text.includes("Delivered answer: the required input is missing."));
++  assert.ok(!text.includes("Unsupported candidate result"));
++  assert.ok(!text.includes("[xray:tool-claim-check]"));
++  assert.deepEqual(assembled.contents.at(-1), today);
++  assert.deepEqual(stored, before, "the original audit transcript must remain unchanged");
+ });
+ 
+ test("a second turn upserts onto the same pinned pair instead of growing a new one", async () => {

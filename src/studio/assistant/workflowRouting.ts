@@ -39,6 +39,7 @@ const evidenceKey = (c: RoutingContext, sheet?: unknown) => JSON.stringify([cont
 const captureKey = (c: RoutingContext) => JSON.stringify([contextKey(c), designKey(c), c.pane, c.renderedSceneSha256]);
 const ARCHITECT_EDITS = new Set(['draw_architect_elements', 'edit_architect_elements', 'undo_architect_change']);
 const TAKEOFF_EDITS = new Set(['calibrate_source_sheet', 'trace_takeoff_run', 'remove_takeoff_trace']);
+const DRAFT_CALCULATIONS = new Set(['calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities']);
 /**
  * Reads that never need a workflow selected first.
  *
@@ -54,6 +55,7 @@ const TAKEOFF_EDITS = new Set(['calibrate_source_sheet', 'trace_takeoff_run', 'r
  * building: all are inspection, and any edit they precede is still gated on its own terms.
  */
 const UNBOUND_READS = new Set(['read_project_context', 'read_workbench_structure', 'read_work_packet', 'read_work_packet_event', 'web_search',
+  'calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities',
   'read_assistant_file', 'read_price_books', 'read_draftsman_status', 'read_source_building']);
 const bound = (c: RoutingContext) => ({ expectedJobId: c.projectId });
 const contextStep = (): RouteStep => ({ tool: 'read_project_context', args: {}, reason: 'Read the current project identity, revision and workspace state.' });
@@ -109,6 +111,10 @@ export function recordWorkflowResult(s: WorkflowState, tool: string, args: Recor
     return next; // Selecting another route cannot erase outstanding verification or failed outcomes.
   }
   if (before.projectId !== after.projectId) return next;
+  // A completed, project-bound arithmetic tool needs no separate navigation or
+  // workflow-selection call. Preserve any already selected process and its checks.
+  if (!next.selected && DRAFT_CALCULATIONS.has(tool) && data.projectId === after.projectId
+    && data.projectRevision === after.projectRevision && data.verifiedQuoteEligible === false) next.selected = 'discussion';
   if (tool === 'read_project_context' && data.projectId === after.projectId && data.projectRevision === after.projectRevision) next.context = contextKey(after);
   if (tool === 'read_architect_design') {
     const project = data.project as { id?: string; revision?: number } | undefined;
@@ -141,9 +147,9 @@ export function recordWorkflowResult(s: WorkflowState, tool: string, args: Recor
 }
 
 export function completionStep(s: WorkflowState, c: RoutingContext): RouteStep | null {
-  if (!s.selected) return { tool: 'read_workflow_route', args: bound(c), reason: 'Select the task workflow before giving the final answer. For a discussion, select discussion; no geometry actions are required.' };
   // A real failure may require a missing input or user decision. Never force a mutation retry.
   if (s.failure) return null;
+  if (!s.selected) return { tool: 'read_workflow_route', args: bound(c), reason: 'Select the task workflow before giving the final answer. For a discussion, select discussion; no geometry actions are required.' };
   if (s.selected !== 'discussion' && s.context !== contextKey(c)) return contextStep();
   if (s.designChanged) {
     const prerequisite = nextToolStep(s, 'export_design_file', { format: 'ifc' }, c);

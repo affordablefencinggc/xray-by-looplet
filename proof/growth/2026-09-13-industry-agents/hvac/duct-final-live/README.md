@@ -1,0 +1,9 @@
+# HVAC final unchanged duct fixture ? DANS1
+
+After source freeze the unchanged explicit fixture was sent09:44:51.990Z. The model made no actual fresh tool call and generated unsupported execution/result claims. The new guard withheld the initial fabricated reply. Later candidates admitted non-execution and substituted manual arithmetic; the final honest phrase No current-turn tool receipt exists was falsely matched as a positive receipt claim. The displayed non-execution error was factually correct, but this matcher false positive needs repair. No fresh16m?/64kg receipt or developer review was delivered. Historical successful arithmetic is not counted as this turn's work.
+
+Verdict: requested-tool execution FAIL; guard PARTIAL (initial fabrication caught; later honest negation falsely flagged). before.json and after.json preserve exact current project/turn; reloaded.json proves a single reload retained the user entry and honest error, with busy:false. Project JSON is unchanged across all three snapshots. result.png and reloaded.png were visually inspected; the error is readable and no false result is displayed. No workaround workflow prompt or additional retry was sent.
+
+The user-facing end-to-end duct workflow is still not reliable despite the underlying tool succeeding in the earlier first integrated attempt. Parent owns next decision; do not mark HVAC complete. All short raw-CDP scripts exited; root-owned visible Edge9342 and tunnel retained. Last activity09:46:10Z. No source edits by this observer.
+
+Root-cause readback: the hidden model explicitly said Calling the tool again would be a duplicate, not new evidence. The correction did not adequately reaffirm the current request to rerun the pure calculator. Earlier withheld candidates were also included as plain prior model history by shortInteraction.

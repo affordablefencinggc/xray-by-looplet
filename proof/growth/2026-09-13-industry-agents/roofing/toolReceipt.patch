@@ -1,0 +1,136 @@
+diff --git a/src/studio/assistant/toolReceipt.test.ts b/src/studio/assistant/toolReceipt.test.ts
+index 9bfc11f..c86b4d2 100644
+--- a/src/studio/assistant/toolReceipt.test.ts
++++ b/src/studio/assistant/toolReceipt.test.ts
+@@ -2,6 +2,57 @@ import test from "node:test";
+ import assert from "node:assert/strict";
+ import { describeToolReceipt, summariseReceipt } from "./toolReceipt.ts";
+ 
++test("roofing receipt exposes actual gross, opening and net quantities with draft restrictions", () => {
++  // Actual result fields captured from the roofing live QA tool: 80 m² at 3:4 pitch, 4 m² opening.
++  const text = JSON.stringify({ projectRevision: 1, status: "draft-calculation", verifiedQuoteEligible: false, units: "m2",
++    totals: { grossTrueAreaM2: 100, openingTrueAreaM2: 5, netTrueAreaM2: 95 },
++    planes: [{ measurementReference: "QA supplied synthetic plane", pitchReference: "QA supplied synthetic pitch" }] });
++  const receipt = describeToolReceipt({ toolName: "calculate_draft_roof_area", text });
++  assert.equal(receipt.title, "Calculated draft roof areas");
++  assert.equal(receipt.summary, "Draft · not for verified quotes · gross 100 m² · openings 5 m² · net 95 m²");
++  assert.equal(receipt.status, "done");
++  assert.equal(JSON.parse(text).planes[0].measurementReference, "QA supplied synthetic plane");
++  assert.equal(receipt.summary.includes("{"), false);
++});
++
++test("duct summaries distinguish supplied sheet mass from missing mass operands", () => {
++  const result = { status: "draft-unverified", verifiedQuoteEligible: false, developedAreaM2: 16, sheetMassKg: null as number | null };
++  assert.equal(summariseReceipt("calculate_draft_duct_material", JSON.stringify(result)), "Draft · not for verified quotes · 16 m² lateral area · mass not supplied for all sections");
++  result.sheetMassKg = 40;
++  assert.equal(summariseReceipt("calculate_draft_duct_material", JSON.stringify(result)), "Draft · not for verified quotes · 16 m² lateral area · 40 kg sheet mass");
++});
++
++test("classification summaries retain exact decimals and separate units/evidence without summing rollups", () => {
++  const result = { status: "draft-classification", verifiedQuoteEligible: false, unclassifiedItemIds: ["b"],
++    totals: [{ quantity: "0.3", unit: "m2", evidence: "sample" }, { quantity: "2", unit: "m", evidence: "measured" }],
++    nodes: [{ rollup: [{ quantity: "99999", unit: "m2", evidence: "sample" }] }] };
++  assert.equal(summariseReceipt("classify_draft_quantities", JSON.stringify(result)), "Draft · not for verified quotes · 0.3 m2 (sample); 2 m (measured) · 1 unclassified");
++  assert.equal(summariseReceipt("classify_draft_quantities", JSON.stringify({ ...result, totals: [], unclassifiedItemIds: [] })), "Draft · not for verified quotes · No quantities · 0 unclassified");
++});
++
++test("large classification receipts stay concise without cutting quantities or units", () => {
++  const result = { status: "draft-classification", verifiedQuoteEligible: false, unclassifiedItemIds: [],
++    totals: Array.from({ length: 20 }, (_, i) => ({ quantity: "0.1234567890123456789", unit: `unit-${i}`, evidence: "unverified" })) };
++  const summary = summariseReceipt("classify_draft_quantities", JSON.stringify(result));
++  assert.ok(summary.length <= 200);
++  assert.match(summary, /0\.1234567890123456789 unit-0 \(unverified\)/);
++  assert.match(summary, /more groups/);
++  assert.match(summary, /not for verified quotes/);
++  assert.equal(summary.includes("…"), false);
++});
++
++test("malformed or verification-promoting calculation payloads do not display trusted totals", () => {
++  for (const result of [
++    { status: "draft-calculation", verifiedQuoteEligible: true, units: "m2", totals: { grossTrueAreaM2: 100, openingTrueAreaM2: 5, netTrueAreaM2: 95 } },
++    { status: "draft-calculation", verifiedQuoteEligible: false, units: "m2", totals: { grossTrueAreaM2: 100, openingTrueAreaM2: 5 } },
++    { status: "draft-calculation", verifiedQuoteEligible: false, units: "ft2", totals: { grossTrueAreaM2: 100, openingTrueAreaM2: 5, netTrueAreaM2: 95 } },
++  ]) assert.equal(summariseReceipt("calculate_draft_roof_area", JSON.stringify(result)), "Calculation receipt incomplete; draft result not verified.");
++  assert.equal(summariseReceipt("calculate_draft_duct_material", JSON.stringify({ status: "draft-unverified", verifiedQuoteEligible: false, developedAreaM2: -1, sheetMassKg: 0 })), "Calculation receipt incomplete; draft result not verified.");
++  const failed = describeToolReceipt({ toolName: "calculate_draft_roof_area", text: "Missing pitch reference.", failed: true });
++  assert.equal(failed.status, "failed");
++  assert.equal(failed.summary, "Missing pitch reference.");
++});
++
+ test("receipts become plain sentences with counts, revisions, files and hashes — never JSON", () => {
+   const draw = describeToolReceipt({ toolName: "draw_architect_elements", text: JSON.stringify({ projectId: "job-1", designRevision: 3, saved: true, readbackVerified: true, created: [{ kind: "wall", id: "a" }, { kind: "wall", id: "b" }] }) });
+   assert.equal(draw.title, "Drew design elements");
+diff --git a/src/studio/assistant/toolReceipt.ts b/src/studio/assistant/toolReceipt.ts
+index cd0994f..edc3cd6 100644
+--- a/src/studio/assistant/toolReceipt.ts
++++ b/src/studio/assistant/toolReceipt.ts
+@@ -4,6 +4,9 @@
+  * Unknown shapes fall back to the tool's title alone — never to the raw text.
+  */
+ const TITLES: Record<string, string> = {
++  calculate_draft_roof_area: "Calculated draft roof areas",
++  calculate_draft_duct_material: "Calculated draft duct material",
++  classify_draft_quantities: "Classified draft quantities",
+   read_project_context: "Read the project context",
+   read_source_geometry: "Read PDF coordinates with Python",
+   prepare_source_room: "Prepared a source-aligned room overlay",
+@@ -65,6 +68,50 @@ const looksStructured = (text: string) => {
+   try { return Array.isArray(JSON.parse(trimmed)); } catch { return false; }
+ };
+ 
++const DRAFT_RECEIPTS: Record<string, string> = {
++  calculate_draft_roof_area: "draft-calculation",
++  calculate_draft_duct_material: "draft-unverified",
++  classify_draft_quantities: "draft-classification",
++};
++const finiteQuantity = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
++const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
++
++/** Summaries use only actual result fields; input references remain in the stored receipt. */
++function draftSummary(name: string, r: Record<string, unknown>): string | null {
++  if (!Object.hasOwn(DRAFT_RECEIPTS, name)) return null;
++  const incomplete = "Calculation receipt incomplete; draft result not verified.";
++  if (r.status !== DRAFT_RECEIPTS[name] || r.verifiedQuoteEligible !== false) return incomplete;
++  const prefix = "Draft · not for verified quotes · ";
++  if (name === "calculate_draft_roof_area") {
++    const totals = r.totals;
++    if (r.units !== "m2" || !object(totals) || ![totals.grossTrueAreaM2, totals.openingTrueAreaM2, totals.netTrueAreaM2].every(finiteQuantity)) return incomplete;
++    return `${prefix}gross ${totals.grossTrueAreaM2} m² · openings ${totals.openingTrueAreaM2} m² · net ${totals.netTrueAreaM2} m²`;
++  }
++  if (name === "calculate_draft_duct_material") {
++    if (!finiteQuantity(r.developedAreaM2) || (r.sheetMassKg !== null && !finiteQuantity(r.sheetMassKg))) return incomplete;
++    return `${prefix}${r.developedAreaM2} m² lateral area · ${r.sheetMassKg === null ? "mass not supplied for all sections" : `${r.sheetMassKg} kg sheet mass`}`;
++  }
++  if (!Array.isArray(r.totals) || !Array.isArray(r.unclassifiedItemIds)) return incomplete;
++  const groups: string[] = [];
++  for (const total of r.totals) {
++    if (!object(total) || typeof total.quantity !== "string" || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(total.quantity)
++      || typeof total.unit !== "string" || !total.unit.trim() || typeof total.evidence !== "string"
++      || !["measured", "inferred", "sample", "unverified"].includes(total.evidence)) return incomplete;
++    // Keep exact decimal strings and unit/evidence groups; never sum ancestor rollups.
++    groups.push(`${total.quantity} ${total.unit} (${total.evidence})`);
++  }
++  const tail = ` · ${r.unclassifiedItemIds.length} unclassified`;
++  const shown: string[] = [];
++  for (const group of groups) {
++    // Do not truncate a quantity or a unit mid-value to fit the compact receipt.
++    if ((prefix + [...shown, group].join("; ") + `; ${groups.length} more groups` + tail).length > 200) break;
++    shown.push(group);
++  }
++  const omitted = groups.length - shown.length;
++  return prefix + (shown.join("; ") || (groups.length ? "Detailed totals retained" : "No quantities"))
++    + (omitted ? `; ${omitted} more ${omitted === 1 ? "group" : "groups"}` : "") + tail;
++}
++
+ /** Sentences a person can read; ids are shortened, numbers kept. */
+ export function summariseReceipt(toolName: string, text: string): string {
+   const r = parse(text);
+@@ -76,6 +123,8 @@ export function summariseReceipt(toolName: string, text: string): string {
+     const first = text.trim().split(/(?<=[.!?])\s|\n/)[0] ?? "";
+     return first.length > 160 ? first.slice(0, 159) + "…" : first;
+   }
++  const calculation = draftSummary(toolName, r);
++  if (calculation !== null) return calculation;
+   const parts: string[] = [];
+   const num = (key: string) => (typeof r[key] === "number" ? (r[key] as number) : null);
+   const arr = (key: string) => (Array.isArray(r[key]) ? (r[key] as unknown[]) : null);

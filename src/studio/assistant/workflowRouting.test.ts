@@ -10,6 +10,29 @@ const contextRead = (s: WorkflowState, ctx = c) => recordWorkflowResult(s, 'read
 const readDesign = (s: WorkflowState, ctx = c) => recordWorkflowResult(s, 'read_architect_design', {}, ok({ project: { id: ctx.projectId, revision: ctx.designRevision }, pendingDraft: false }), ctx, ctx);
 const image = (target = 'source-building') => ({ content: [{ type: 'text', text: JSON.stringify({ target, frame: 4 }) }, { type: 'image', data: 'real-tool-image', mimeType: 'image/png' }] });
 
+test('completed draft arithmetic can finish without workflow bookkeeping while edit and readback gates remain',()=>{
+  const tools=['calculate_draft_roof_area','calculate_draft_duct_material','classify_draft_quantities'];
+  for(const tool of tools){
+    const result=ok({projectId:c.projectId,projectRevision:c.projectRevision,verifiedQuoteEligible:false});
+    const state=recordWorkflowResult(emptyWorkflow(),tool,{},result,c,c);
+    assert.equal(state.selected,'discussion');
+    assert.equal(completionStep(state,c),null);
+    assert.equal(nextToolStep(state,'draw_architect_elements',{},c)?.tool,'read_project_context');
+    assert.equal(nextToolStep(state,'trace_takeoff_run',{},c)?.tool,'read_project_context');
+    const changed={...state,designChanged:true};
+    assert.notEqual(completionStep(changed,c),null);
+    const takeoff=recordWorkflowResult(selected('takeoff'),tool,{},result,c,c);
+    assert.equal(takeoff.selected,'takeoff');
+    assert.notEqual(completionStep(takeoff,c),null);
+    for(const bad of [{...result,isError:true},ok({projectId:'foreign',projectRevision:1,verifiedQuoteEligible:false}),ok({projectId:c.projectId,projectRevision:0,verifiedQuoteEligible:false}),ok({projectId:c.projectId,projectRevision:1,verifiedQuoteEligible:true})]){
+      assert.equal(recordWorkflowResult(emptyWorkflow(),tool,{},bad,c,c).selected,null);
+    }
+    const failed=recordWorkflowResult(emptyWorkflow(),tool,{}, {...ok({error:'Missing required dimension'}),isError:true},c,c);
+    assert.equal(completionStep(failed,c),null);
+    assert.equal(nextToolStep(failed,'draw_architect_elements',{},c)?.tool,'read_workflow_route');
+  }
+});
+
 test('architecture is routed through selection, context, mount and current design before execution', () => {
   assert.equal(nextToolStep(emptyWorkflow(), 'draw_architect_elements', {}, c)?.tool, 'read_workflow_route');
   assert.equal(nextToolStep(selected(), 'draw_architect_elements', {}, c)?.tool, 'read_project_context');

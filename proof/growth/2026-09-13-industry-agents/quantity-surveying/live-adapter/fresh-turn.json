@@ -1,0 +1,38 @@
+[
+  {
+    "class": "assistant-chat-entry is-user",
+    "tool": null,
+    "failed": null,
+    "text": "YouExecute classify_draft_quantities now for this explicitly synthetic arithmetic QA fixture, using the current project ID for expectedJobId binding. Do not create, save or modify project data. Fixture: {\"hierarchyId\":\"qa-user-defined\",\"hierarchyRevision\":\"1\",\"nodes\":[{\"id\":\"building\",\"label\":\"Building\",\"parentId\":null},{\"id\":\"walls\",\"label\":\"Walls\",\"parentId\":\"building\"}],\"items\":[{\"id\":\"a\",\"quantity\":\"0.1\",\"unit\":\"m2\",\"evidence\":\"sample\",\"source\":null},{\"id\":\"b\",\"quantity\":\"0.2\",\"unit\":\"m2\",\"evidence\":\"sample\",\"source\":null}],\"assignments\":[{\"itemId\":\"a\",\"nodeId\":\"walls\"}]}. Item b intentionally remains unclassified. Report the actual tool receipt: exact total, classified amount, unclassified amount/item IDs, and draft/verifiedQuoteEligible status. Do not substitute mental arithmetic for the available tool. Include a concise Developer review based on what actually executed this turn.07:31 pm"
+  },
+  {
+    "class": "assistant-chat-entry is-assistant",
+    "tool": null,
+    "failed": null,
+    "text": "AssistantConcurrent QA \u00e2\u20ac\u201d synthetic arithmetic fixture07:31 pm"
+  },
+  {
+    "class": "assistant-chat-entry is-tool",
+    "tool": "classify_draft_quantities",
+    "failed": null,
+    "text": "classify_draft_quantitiesClassify draft quantitiesrevision 1in New project \u00c2\u00b7 revision 1Tool result{\"projectId\":\"job-1f3f51c1-4210-4d76-820b-4508cdf59918\",\"projectRevision\":1,\"status\":\"draft-classification\",\"verifiedQuoteEligible\":false,\"hierarchyId\":\"qa-user-defined\",\"hierarchyRevision\":\"1\",\"classificationComplete\":false,\"rows\":[{\"id\":\"a\",\"quantity\":\"0.1\",\"unit\":\"m2\",\"evidence\":\"sample\",\"source\":null,\"nodeId\":\"walls\"},{\"id\":\"b\",\"quantity\":\"0.2\",\"unit\":\"m2\",\"evidence\":\"sample\",\"source\":null,\"nodeId\":null}],\"nodes\":[{\"id\":\"building\",\"label\":\"Building\",\"parentId\":null,\"direct\":[],\"rollup\":[{\"unit\":\"m2\",\"evidence\":\"sample\",\"quantity\":\"0.1\",\"itemCount\":1}]},{\"id\":\"walls\",\"label\":\"Walls\",\"parentId\":\"building\",\"direct\":[{\"unit\":\"m2\",\"evidence\":\"sample\",\"quantity\":\"0.1\",\"itemCount\":1}],\"rollup\":[{\"unit\":\"m2\",\"evidence\":\"sample\",\"quantity\":\"0.1\",\"itemCount\":1}]}],\"totals\":[{\"unit\":\"m2\",\"evidence\":\"sample\",\"quantity\":\"0.3\",\"itemCount\":2}],\"classifiedTotals\":[{\"unit\":\"m2\",\"evidence\":\"sample\",\"quantity\":\"0.1\",\"itemCount\":1}],\"unclassifiedTotals\":[{\"unit\":\"m2\",\"evidence\":\"sample\",\"quantity\":\"0.2\",\"itemCount\":1}],\"unclassifiedItemIds\":[\"b\"]}"
+  },
+  {
+    "class": "assistant-chat-entry is-assistant",
+    "tool": null,
+    "failed": null,
+    "text": "AssistantThe workflow reminder asks for read_workflow_route before the final answer.07:31 pm"
+  },
+  {
+    "class": "assistant-chat-entry is-tool",
+    "tool": "read_workflow_route",
+    "failed": null,
+    "text": "read_workflow_routeRead the workflow routeCompletedin New project \u00c2\u00b7 revision 1Tool result{\"version\":\"xray.workflow/1\",\"workflow\":\"discussion\",\"steps\":[\"Discuss capabilities or plans; do not claim project actions occurred.\"],\"scope\":\"Workflow selection only; no geometry, evidence or authority changed.\"}"
+  },
+  {
+    "class": "assistant-chat-entry is-assistant",
+    "tool": null,
+    "failed": null,
+    "text": "AssistantSynthetic arithmetic QA \u00e2\u20ac\u201d classify_draft_quantities receiptAction executed in this turnread_workflow_route \u00e2\u2020\u2019 discussion (capabilities or plans; no geometry, evidence or authority changed).classify_draft_quantities (above receipt) \u00e2\u2020\u2019 successful draft classification, bound to project job-1f3f51c1-4210-4d76-820b-4508cdf59918, revision 1. No project data was created, saved or modified.Reported totals (unit m2, evidence sample)Total of all items: 0.3 m\u00c2\u00b2 across 2 items (a, b).Classified: 0.1 m\u00c2\u00b2 across 1 item (a \u00e2\u2020\u2019 node walls).Unclassified: 0.2 m\u00c2\u00b2 across 1 item; unclassified item id b (nodeId null).Node walls direct: 0.1 m\u00c2\u00b2. Node building direct empty; rollup inherits walls at 0.1 m\u00c2\u00b2.classificationComplete: false (item b intentionally unassigned).Status flagsstatus: draft-classification.verifiedQuoteEligible: false (sample-evidence inputs and tool policy).No save, export, calibration or geometry edit occurred; the tool returned arithmetic only.Developer reviewOutcome: Reported the live receipt \u00e2\u20ac\u201d totals 0.3 / 0.1 / 0.2, unclassified id b, draft-classification, not quote-eligible.Friction: None material; one classify call plus a workflow check answered the fixture.Improvement: None specific; the report stayed inside the QA scope and used the receipt, not mental arithmetic.07:31 pm"
+  }
+]

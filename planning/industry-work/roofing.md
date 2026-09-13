@@ -23,3 +23,9 @@ Import `calculateDraftRoofArea` from `src/studio/industries/roofing/roofArea.ts`
 Before workflow acceptance, connect real calibrated area evidence and source identity in the application adapter; check geometric overlap/containment there. Add project save/reload and real browser worksheet tests. Existing authored roof pitch defaults must not silently populate verified measurements. Root owns shared UI/contracts and global ledger updates.
 
 Proof: `proof/growth/2026-09-13-industry-agents/roofing/`. No browser sessions, background helpers or servers were launched; no cleanup needed. No full build or packaged-app claim. No changes to git index or shared files by this worker.
+
+## SC-02 — Draft assistant adapter (adapter tested; root wiring pending)
+
+Root delegated `assistantTool.ts` and `assistantTool.test.ts` under the roofing directory. Thin pure adapter exposes `calculate_draft_roof_area`, an explicit-input description, strict JSON Schema generated from the runtime Zod schema, and execution through the existing draft helper. The root owns project binding, permission classification and appTools integration.
+
+Three adapter tests pass on DANS1; scoped TypeScript check exits 0. The explicit QA 3:4 pitch fixture produces 100 m² gross, 5 m² openings and 95 m² net; original supplied references remain, input is unchanged and output is quote-ineligible. Missing pitch/reference, extra verified flag, unexpected job-binding input, duplicate plane IDs and over-deductions reject. No model request or live-tool acceptance is claimed yet. Proof: `roofing/ASSISTANT-ADAPTER.md`.

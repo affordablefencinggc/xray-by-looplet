@@ -11,6 +11,7 @@ const entrySchema = z.object({ id: z.string(), kind: z.enum(['user','assistant',
   timestamp: z.string().datetime().optional(),
   images: z.array(z.object({data:z.string(),mimeType:z.enum(['image/png','image/jpeg','image/webp'])})).optional(),
   sources:z.array(assistantSourceSchema).optional(),toolName:z.string().optional(),toolCallId:z.string().optional(),failed:z.boolean().optional(),
+  executionOrigin:z.enum(['app-preflight','model']).optional(),
   projectName:z.string().optional(),projectRevision:z.number().int().positive().optional(),
 }).strict();
 const threadSchema = z.object({ id: z.string(), startedAt: z.string().datetime().optional(), updatedAt: z.string(), entries: z.array(entrySchema), contents: z.array(assistantContentSchema), error: z.string().nullable(), busy: z.boolean(), workPacket: workPacketSchema.optional(), archivedAt: z.string().optional() });
@@ -26,7 +27,7 @@ export function parseChatArchive(value: unknown, projectId: string): ChatArchive
 export function restoreChat(thread: SavedChat): SavedChat {
   if (!thread.busy) return thread;
   return { ...thread, busy: false, error: 'This response was interrupted by a reload. Completed actions remain; review the saved task before continuing.',
-    entries: thread.entries.map(e => e.kind === 'tool' && /^Running .*…$/.test(e.text)
+    entries: thread.entries.map(e => e.kind === 'tool' && /^(?:App preflight: )?Running .*…$/.test(e.text)
       ? { ...e, failed: true, text: 'Response interrupted. Check the saved task and current state before retrying.' } : e) };
 }
 export function putChat(archive: ChatArchive, thread: SavedChat): ChatArchive {

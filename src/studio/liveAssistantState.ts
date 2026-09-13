@@ -1,7 +1,7 @@
 import type { NccMatch } from './assistant/nccReferences';
-import { readNccMatches } from './assistant/nccResultReferences';
+import { readNccMatches } from './assistant/nccResultReferences.ts';
 import { create } from "zustand";
-import { browserSingleton } from './browserSingleton';
+import { browserSingleton } from './browserSingleton.ts';
 
 export type AssistantReviewRequest = {
   id: string;

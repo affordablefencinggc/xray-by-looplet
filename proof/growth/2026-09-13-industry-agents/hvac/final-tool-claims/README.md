@@ -1,0 +1,9 @@
+# Explicit named-tool final-claim guard ? DANS1 proof
+
+The live QS reply claimed a classify_draft_quantities receipt although only read_workflow_route had run and failed. The full original Markdown from that failed reply is embedded in a regression test.
+
+Only an explicit imperative request naming an available declared tool is in scope. Recognizable English execution/receipt/success claims are compared with current invocation outcomes. Historical receipts cannot satisfy this guard. Failed tools cannot support a successful-result claim, and app-preflight-only actions cannot be attributed to a model call. An unsupported final is withheld, receives one correction, and a repeated unsupported claim produces an explicit non-execution/failure error. No synthetic model answer or action replay is introduced. Honest missing-input/non-execution replies, general explanations and non-requested tools remain outside this guard.
+
+DANS1 hostname was established for the ongoing campaign.35 tests passed across conversation.test.ts, completionPreflight.test.ts and finalToolClaims.test.ts. Full staged snapshot TypeScript exited0. Final local/remote hashes match (hashes.json); exact changes.patch and logs included. Existing conversation abort, budget, duplicate action and checkpoint tests remained passing. The failed-tool regression confirms exactly one tool invocation and no replay.
+
+Limitations: this is a conservative English phrase guard, not a general semantic verifier. It does not prove arithmetic values, inspect arbitrary paraphrases, identify every oblique tool reference, or determine whether a successful invocation's returned data is valid. Live model regression is root-owned follow-up; no browser/model requests or full builds were run during this patch. Foreground remote tests/typecheck exited, no persistent process launched.

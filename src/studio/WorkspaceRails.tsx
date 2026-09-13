@@ -210,8 +210,10 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
                 });
             }
           }
-        // Drawings has no inspector DOM. Its assistant column still needs the seam controls.
-        if(innerWidth>940 && !next.some(r=>r.side==='right')){
+        // Drawings has no inspector DOM. Only an open assistant or an explicitly
+        // collapsed rail needs synthetic seam controls; the closed bottom launcher
+        // alone must not leave a floating divider button over the drawing canvas.
+        if(innerWidth>940 && (assistantOpen || railMode || rightCollapsed) && !next.some(r=>r.side==='right')){
           const layout=ref.current?.querySelector('.studio-layout')?.getBoundingClientRect();
           const top=Math.max(0,layout?.top??90),bottom=Math.min(innerHeight,layout?.bottom??innerHeight);
           next.push({side:'right',left:rightCollapsed?innerWidth-10:innerWidth-widths.right-2,top,height:Math.max(0,bottom-top),collapsed:rightCollapsed});
@@ -237,7 +239,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
       window.removeEventListener("scroll", measure, true);
       cancelAnimationFrame(frame);
     };
-  }, [pane, widths, leftCollapsed, rightCollapsed]);
+  }, [pane, widths, leftCollapsed, rightCollapsed, assistantOpen, railMode]);
   const change = (side: keyof RailWidths, value: number) =>
     setWidths((v) => ({
       ...v,

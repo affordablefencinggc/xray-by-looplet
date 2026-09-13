@@ -4,6 +4,9 @@
  * Unknown shapes fall back to the tool's title alone — never to the raw text.
  */
 const TITLES: Record<string, string> = {
+  calculate_draft_roof_area: "Calculated draft roof areas",
+  calculate_draft_duct_material: "Calculated draft duct material",
+  classify_draft_quantities: "Classified draft quantities",
   read_project_context: "Read the project context",
   read_source_geometry: "Read PDF coordinates with Python",
   prepare_source_room: "Prepared a source-aligned room overlay",
@@ -46,6 +49,12 @@ const humanise = (name: string) => name.replace(/_/g, " ").replace(/^\w/, c => c
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const bytes = (value: number) => value >= 1024 * 1024 ? `${(value / 1048576).toFixed(1)} MB` : value >= 1024 ? `${Math.round(value / 1024)} KB` : `${value} B`;
 
+const PREFLIGHT_RESULT = "App preflight (not a model call)\n";
+const PREFLIGHT_PROGRESS = "App preflight: ";
+const receiptBody = (text: string): string => text.startsWith(PREFLIGHT_RESULT)
+  ? text.slice(PREFLIGHT_RESULT.length)
+  : text.startsWith(PREFLIGHT_PROGRESS + "Running ") ? text.slice(PREFLIGHT_PROGRESS.length) : text;
+
 function parse(text: string): Record<string, unknown> | null {
   const trimmed = text.trim();
   if (!trimmed.startsWith("{")) return null;
@@ -65,8 +74,53 @@ const looksStructured = (text: string) => {
   try { return Array.isArray(JSON.parse(trimmed)); } catch { return false; }
 };
 
+const DRAFT_RECEIPTS: Record<string, string> = {
+  calculate_draft_roof_area: "draft-calculation",
+  calculate_draft_duct_material: "draft-unverified",
+  classify_draft_quantities: "draft-classification",
+};
+const finiteQuantity = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
+const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
+
+/** Summaries use only actual result fields; input references remain in the stored receipt. */
+function draftSummary(name: string, r: Record<string, unknown>): string | null {
+  if (!Object.hasOwn(DRAFT_RECEIPTS, name)) return null;
+  const incomplete = "Calculation receipt incomplete; draft result not verified.";
+  if (r.status !== DRAFT_RECEIPTS[name] || r.verifiedQuoteEligible !== false) return incomplete;
+  const prefix = "Draft · not for verified quotes · ";
+  if (name === "calculate_draft_roof_area") {
+    const totals = r.totals;
+    if (r.units !== "m2" || !object(totals) || ![totals.grossTrueAreaM2, totals.openingTrueAreaM2, totals.netTrueAreaM2].every(finiteQuantity)) return incomplete;
+    return `${prefix}gross ${totals.grossTrueAreaM2} m² · openings ${totals.openingTrueAreaM2} m² · net ${totals.netTrueAreaM2} m²`;
+  }
+  if (name === "calculate_draft_duct_material") {
+    if (!finiteQuantity(r.developedAreaM2) || (r.sheetMassKg !== null && !finiteQuantity(r.sheetMassKg))) return incomplete;
+    return `${prefix}${r.developedAreaM2} m² lateral area · ${r.sheetMassKg === null ? "mass not supplied for all sections" : `${r.sheetMassKg} kg sheet mass`}`;
+  }
+  if (!Array.isArray(r.totals) || !Array.isArray(r.unclassifiedItemIds)) return incomplete;
+  const groups: string[] = [];
+  for (const total of r.totals) {
+    if (!object(total) || typeof total.quantity !== "string" || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(total.quantity)
+      || typeof total.unit !== "string" || !total.unit.trim() || typeof total.evidence !== "string"
+      || !["measured", "inferred", "sample", "unverified"].includes(total.evidence)) return incomplete;
+    // Keep exact decimal strings and unit/evidence groups; never sum ancestor rollups.
+    groups.push(`${total.quantity} ${total.unit} (${total.evidence})`);
+  }
+  const tail = ` · ${r.unclassifiedItemIds.length} unclassified`;
+  const shown: string[] = [];
+  for (const group of groups) {
+    // Do not truncate a quantity or a unit mid-value to fit the compact receipt.
+    if ((prefix + [...shown, group].join("; ") + `; ${groups.length} more groups` + tail).length > 200) break;
+    shown.push(group);
+  }
+  const omitted = groups.length - shown.length;
+  return prefix + (shown.join("; ") || (groups.length ? "Detailed totals retained" : "No quantities"))
+    + (omitted ? `; ${omitted} more ${omitted === 1 ? "group" : "groups"}` : "") + tail;
+}
+
 /** Sentences a person can read; ids are shortened, numbers kept. */
 export function summariseReceipt(toolName: string, text: string): string {
+  text = receiptBody(text);
   const r = parse(text);
   if (!r) {
     // Structured but unreadable: say so rather than emitting the data. The no-code rule in the
@@ -76,6 +130,8 @@ export function summariseReceipt(toolName: string, text: string): string {
     const first = text.trim().split(/(?<=[.!?])\s|\n/)[0] ?? "";
     return first.length > 160 ? first.slice(0, 159) + "…" : first;
   }
+  const calculation = draftSummary(toolName, r);
+  if (calculation !== null) return calculation;
   const parts: string[] = [];
   const num = (key: string) => (typeof r[key] === "number" ? (r[key] as number) : null);
   const arr = (key: string) => (Array.isArray(r[key]) ? (r[key] as unknown[]) : null);
@@ -122,21 +178,23 @@ function describeRefusal(r: Record<string, unknown>): string {
   return step ? `${executed}: ${reason}. Next step: ${step.toLowerCase()}.` : `${executed}: ${reason}.`;
 }
 
-export function describeToolReceipt(entry: { toolName?: string; text: string; failed?: boolean }): ToolReceiptView {
+export function describeToolReceipt(entry: { toolName?: string; text: string; failed?: boolean; executionOrigin?: string }): ToolReceiptView {
   const name = entry.toolName ?? "tool";
-  const title = TITLES[name] ?? humanise(name);
-  if (/^Running .*…$/.test(entry.text.trim())) return { title, status: "running", summary: "Working…", detail: null };
+  const body = receiptBody(entry.text);
+  const appPreflight = entry.executionOrigin === "app-preflight" || body !== entry.text;
+  const title = (appPreflight ? "App preflight (not a model call): " : "") + (TITLES[name] ?? humanise(name));
+  if (/^Running .*…$/.test(body.trim())) return { title, status: "running", summary: "Working…", detail: null };
   if (entry.failed) {
-    const r = parse(entry.text);
+    const r = parse(body);
     // A refusal payload is written for the model to read, not for a person. Rendering it verbatim
     // put raw JSON in the chat, which the no-code-in-the-chat rule exists to prevent. Its known
     // fields are turned into a sentence; unknown structured failures never expose the payload.
     const message = r && typeof r.text === "string" ? r.text
       : r && typeof r.reason === "string"
         ? describeRefusal(r)
-        : r || looksStructured(entry.text) ? "This step failed." : entry.text;
+        : r || looksStructured(body) ? "This step failed." : body;
     const line = message.trim().split("\n")[0];
     return { title, status: "failed", summary: line.length > 200 ? line.slice(0, 199) + "…" : line, detail: null };
   }
-  return { title, status: "done", summary: summariseReceipt(name, entry.text) || "Completed", detail: null };
+  return { title, status: "done", summary: summariseReceipt(name, body) || "Completed", detail: null };
 }

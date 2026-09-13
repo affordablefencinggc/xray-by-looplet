@@ -2,6 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { archiveChat, parseChatArchive, putChat, restoreChat, type ChatArchive, type SavedChat } from './chatHistory.ts';
 const thread = (id:string):SavedChat=>({id,updatedAt:'2026-09-10T00:00:00Z',entries:[{id:id+':u',kind:'user',text:'Keep '+id}],contents:[],error:null,busy:false});
+
+test('model and app preflight receipts survive strict archive validation and interrupted restore',()=>{
+  const saved=thread('receipts');saved.busy=true;
+  saved.entries.push(
+    {id:'model',kind:'tool',toolName:'read_project_context',executionOrigin:'model',text:'Project revision 1'},
+    {id:'preflight',kind:'tool',toolName:'read_project_context',executionOrigin:'app-preflight',text:'App preflight: Running read_project_context…'},
+  );
+  const archive:ChatArchive={projectId:'p',revision:1,activeId:saved.id,threads:[saved]};
+  const parsed=parseChatArchive(JSON.parse(JSON.stringify(archive)),'p');
+  const restored=restoreChat(parsed.threads[0]);
+  assert.equal(restored.entries[1].executionOrigin,'model');
+  assert.equal(restored.entries[1].text,'Project revision 1');
+  assert.equal(restored.entries[2].executionOrigin,'app-preflight');
+  assert.equal(restored.entries[2].failed,true);
+  assert.doesNotMatch(restored.entries[2].text,/Running/);
+  assert.equal(restored.entries[0].executionOrigin,undefined);
+  assert.throws(()=>parseChatArchive({...archive,threads:[{...saved,entries:[{...saved.entries[1],executionOrigin:'invented'}]}]},'p'));
+});
 test('message times and conversation start survive storage and reopening; legacy times stay unknown',()=>{
   const dated=thread('dated'); dated.startedAt='2026-09-13T05:10:00.000Z';
   dated.entries[0].timestamp='2026-09-13T05:11:00.000Z';

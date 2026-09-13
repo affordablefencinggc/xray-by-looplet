@@ -20,7 +20,7 @@ const itemSchema = z.object({
     calibrationId: identifier.nullable(),
   }).strict().nullable(),
 }).strict();
-const inputSchema = z.object({
+export const classificationInputSchema = z.object({
   hierarchyId: identifier,
   hierarchyRevision: identifier,
   nodes: z.array(z.object({
@@ -32,7 +32,7 @@ const inputSchema = z.object({
   assignments: z.array(z.object({ itemId: identifier, nodeId: identifier }).strict()).max(100000),
 }).strict();
 
-export type ClassificationInput = z.input<typeof inputSchema>;
+export type ClassificationInput = z.input<typeof classificationInputSchema>;
 export type QuantitySubtotal = {
   unit: string;
   evidence: z.infer<typeof evidence>;
@@ -68,7 +68,7 @@ function accumulate(totals: Map<string, QuantitySubtotal>, item: Item): void {
  * measurement standards, rates, or authority to issue a cost plan. Rollups overlap
  * their descendants; use the report totals, not a sum of every hierarchy row. */
 export function classifyQuantities(raw: ClassificationInput) {
-  const input = inputSchema.parse(raw);
+  const input = classificationInputSchema.parse(raw);
   const nodes = new Map(input.nodes.map(node => [node.id, node]));
   if (nodes.size !== input.nodes.length) throw new Error("Duplicate classification node ID.");
   const paths = new Map<string, string[]>();

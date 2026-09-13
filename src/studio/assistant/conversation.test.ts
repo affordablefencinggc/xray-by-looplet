@@ -7,6 +7,184 @@ const declaration = { name: 'draw', description: 'Draw fixture', parametersJsonS
 const initial: AssistantContent[] = [{ role: 'user', parts: [{ text: 'Draw a wall' }] }];
 const response = (request: AssistantRequest, parts: AssistantResponse['content']['parts']): AssistantResponse => ({ requestId: request.requestId, content: { role: 'model', parts }, model: 'gemini-test', sources: [] });
 
+test('app preflight executes a required safe read through the caller and records honest origin before a consolidated answer', async () => {
+  const events: ChatEvent[] = [];
+  let calls = 0, rounds = 0, history: AssistantContent[] = [];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: 'Read current project context now.' }] }],
+    declarations: [{ ...declaration, name: 'read_project_context' }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: value => { history = structuredClone(value); }, emit: e => events.push(e),
+    beforeFinal: async () => calls ? null : { instruction: 'Read the actual project state.', readOnlyPrerequisite: { tool: 'read_project_context', args: {} } },
+    turn: async request => {
+      if (++rounds === 1) return response(request, [{ text: 'I read the project already.' }]);
+      const hostEntry = request.contents.find(entry => entry.parts.some(part => part.text?.startsWith('[xray:app-preflight]')));
+      assert.equal(hostEntry?.parts[1].functionCall?.name, 'read_project_context');
+      const receipt = request.contents.at(-1)?.parts[0].functionResponse;
+      assert.equal(receipt?.response.executionOrigin, 'app-preflight');
+      assert.equal(receipt?.response.text, 'Project job-a revision 3; source absent.');
+      return response(request, [{ text: 'The app preflight read job-a revision 3; no source is loaded. Developer review: reported the app read, not a model-executed action.' }]);
+    },
+    call: async (name, args) => { calls++; assert.equal(name, 'read_project_context'); assert.deepEqual(args, {}); return { content: [{ type: 'text', text: 'Project job-a revision 3; source absent.' }] }; },
+  });
+  assert.equal(calls, 1);
+  assert.equal(events.filter(e => e.kind === 'assistant').length, 1);
+  const receipt = events.find(e => e.kind === 'tool' && !e.text.includes('Running'));
+  assert.equal(receipt?.executionOrigin, 'app-preflight');
+  assert.match(receipt?.text || '', /App preflight \(not a model call\)/);
+  assert.match(history.at(-1)?.parts[0].text || '', /job-a revision 3/);
+});
+
+test('app preflight cannot execute mutations or undeclared tools', async () => {
+  for (const tool of ['calibrate_source_sheet', 'generate_render_visualisation', 'export_design_file', 'read_project_context']) {
+    let calls = 0;
+    await assert.rejects(runConversation({ contents: initial, declarations: [{ ...declaration, name: 'calibrate_source_sheet' }], signal: new AbortController().signal,
+      assertContext: () => {}, checkpoint: () => {}, emit: () => {},
+      beforeFinal: async () => ({ instruction: 'Required.', readOnlyPrerequisite: { tool, args: {} } }),
+      turn: async request => response(request, [{ text: 'Done.' }]), call: async () => { calls++; return { content: [] }; },
+    }));
+    assert.equal(calls, 0, tool);
+  }
+});
+
+test('failed app preflight returns its real permission refusal and does not replay the read', async () => {
+  let calls = 0, rounds = 0;
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: initial, declarations: [{ ...declaration, name: 'read_project_context' }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: e => events.push(e),
+    beforeFinal: async () => calls ? null : { instruction: 'Read state.', readOnlyPrerequisite: { tool: 'read_project_context', args: {} } },
+    turn: async request => {
+      if (++rounds === 1) return response(request, [{ text: 'Read complete.' }]);
+      assert.equal(request.contents.at(-1)?.parts[0].functionResponse?.response.isError, true);
+      assert.match(String(request.contents.at(-1)?.parts[0].functionResponse?.response.text), /Permission refused/);
+      return response(request, [{ text: 'The app preflight was refused. No project read completed.' }]);
+    },
+    call: async () => { calls++; return { isError: true, content: [{ type: 'text', text: 'Permission refused' }] }; },
+  });
+  assert.equal(calls, 1);
+  assert.equal(events.find(e => e.executionOrigin === 'app-preflight' && e.failed)?.failed, true);
+});
+
+test('unresolved identical app prerequisite is attempted at most once', async () => {
+  let calls = 0;
+  await assert.rejects(runConversation({ contents: initial, declarations: [{ ...declaration, name: 'read_project_context' }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: () => {},
+    beforeFinal: async () => ({ instruction: 'Still missing.', readOnlyPrerequisite: { tool: 'read_project_context', args: {} } }),
+    turn: async request => response(request, [{ text: 'Done.' }]), call: async () => { calls++; return { content: [{ type: 'text', text: 'Read receipt' }] }; },
+  }), /No repeated read/);
+  assert.equal(calls, 1);
+});
+
+test('abort and project changes after required-read selection stop app preflight before execution', async () => {
+  for (const failure of ['abort', 'project'] as const) {
+    const controller = new AbortController(); let changed = false, calls = 0;
+    await assert.rejects(runConversation({ contents: initial, declarations: [{ ...declaration, name: 'read_project_context' }], signal: controller.signal,
+      assertContext: () => { if (changed) throw Error('Project changed'); }, checkpoint: () => {}, emit: () => {},
+      beforeFinal: async () => { if (failure === 'abort') controller.abort(); else changed = true; return { instruction: 'Read state.', readOnlyPrerequisite: { tool: 'read_project_context', args: {} } }; },
+      turn: async request => response(request, [{ text: 'Done.' }]), call: async () => { calls++; return { content: [] }; },
+    }));
+    assert.equal(calls, 0);
+  }
+});
+
+test('app preflight consumes the existing tool budget and checkpoints its receipt before pausing', async () => {
+  let calls = 0; let checkpoint: AssistantContent[] = [];
+  await assert.rejects(runConversation({ contents: initial, declarations: [{ ...declaration, name: 'read_project_context' }], signal: new AbortController().signal,
+    execution: { ...DEFAULT_EXECUTION_BUDGET, maxToolCalls: 1 },
+    assertContext: () => {}, checkpoint: value => { checkpoint = structuredClone(value); }, emit: () => {},
+    beforeFinal: async () => ({ instruction: 'Read state.', readOnlyPrerequisite: { tool: 'read_project_context', args: {} } }),
+    turn: async request => response(request, [{ text: 'Done.' }]), call: async () => { calls++; return { content: [{ type: 'text', text: 'Actual project read' }] }; },
+  }), /1-tool budget/);
+  assert.equal(calls, 1);
+  assert.equal(checkpoint.at(-1)?.parts[0].functionResponse?.response.text, 'Actual project read');
+  assert.equal(checkpoint.at(-1)?.parts[0].functionResponse?.response.executionOrigin, 'app-preflight');
+});
+
+test('developer-only review reminder and observation-only finalisation perform no app preflight', async () => {
+  for (const review of [false, true]) {
+    let rounds = 0, reminded = false, calls = 0;
+    await runConversation({ contents: [{ role: 'user', parts: [{ text: 'Explain this supplied recording.' }] }], declarations: [], signal: new AbortController().signal,
+      assertContext: () => {}, checkpoint: () => {}, emit: () => {},
+      beforeFinal: async () => { if (review && !reminded) { reminded = true; return '[xray:developer-review] Append a self-review.'; } return null; },
+      turn: async request => { rounds++; return response(request, [{ text: 'The recording shows navigation. Developer review: described supplied events only.' }]); },
+      call: async () => { calls++; return { content: [] }; },
+    });
+    assert.equal(calls, 0);
+    assert.equal(rounds, review ? 2 : 1);
+  }
+});
+
+test('explicit tool receipt fabrication is withheld after one correction; historical receipts do not satisfy the guard', async () => {
+  const tool = 'classify_draft_quantities';
+  const history: AssistantContent[] = [
+    { role: 'user', parts: [{ functionResponse: { name: tool, response: { isError: false, text: 'Historical total 0.3' } } }] },
+    { role: 'user', parts: [{ text: `Execute ${tool} now.` }] },
+  ];
+  let rounds = 0, calls = 0; let checkpoint: AssistantContent[] = [];
+  const events: ChatEvent[] = [];
+  await assert.rejects(runConversation({ contents: history, declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: value => { checkpoint = structuredClone(value); }, emit: event => events.push(event),
+    turn: async request => { rounds++; return response(request, [{ text: `### Tool receipt (this turn)\n- Tool: ${tool}\n- Total: 0.3 m².` }]); },
+    call: async () => { calls++; return { content: [] }; },
+  }), /Requested tool classify_draft_quantities was not executed.*no successful result was verified/);
+  assert.equal(rounds, 2);
+  assert.equal(calls, 0);
+  assert.equal(events.length, 0);
+  assert.match(checkpoint.at(-1)?.parts[0].text || '', /xray:tool-claim-check/);
+});
+
+test('claim correction permits honest missing-input response without replaying tools or requiring a tool call', async () => {
+  const tool = 'classify_draft_quantities'; let rounds = 0, calls = 0;
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: `Execute ${tool} now.` }] }], declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    turn: async request => {
+      if (++rounds === 1) return response(request, [{ text: `${tool} returned 0.3 m².` }]);
+      assert.match(request.contents.at(-1)?.parts[0].text || '', /Do not repeat completed mutations or tool calls already completed THIS turn/);
+      return response(request, [{ text: `I have not executed ${tool}; please supply the quantity items and hierarchy. Developer review: identified missing inputs without claiming an execution.` }]);
+    }, call: async () => { calls++; return { content: [] }; },
+  });
+  assert.equal(calls, 0);
+  assert.equal(events.length, 1);
+  assert.match(events[0].text, /have not executed/);
+});
+
+test('claim correction keeps a fresh pure-calculator request pending and marks raw candidate without altering provider response', async () => {
+  const tool = 'classify_draft_quantities', objective = `Execute ${tool} now for supplied fixture A.`;
+  let rounds = 0, calls = 0; let raw: AssistantResponse | undefined;
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: objective }] }], declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    turn: async request => {
+      if (++rounds === 1) { raw = response(request, [{ text: `${tool} returned 0.3.` }]); return raw; }
+      if (rounds === 2) {
+        const correction = request.contents.at(-1)?.parts[0].text || '';
+        assert.match(correction, /original user request below is still pending/);
+        assert.match(correction, /pure arithmetic may be rerun/);
+        assert.match(correction, /already completed THIS turn/);
+        assert.ok(correction.includes(objective));
+        assert.match(request.contents.at(-2)?.parts[0].text || '', /^\[xray:withheld-candidate\]/);
+        assert.equal(raw?.content.parts[0].text, `${tool} returned 0.3.`);
+        return response(request, [{ functionCall: { name: tool, args: {} } }]);
+      }
+      return response(request, [{ text: `${tool} returned 0.3 after the requested fresh call.` }]);
+    }, call: async () => { calls++; return { content: [{ type: 'text', text: 'Actual result 0.3' }] }; },
+  });
+  assert.equal(calls, 1);
+  assert.equal(events.filter(event => event.kind === 'assistant').length, 1);
+});
+
+test('failed requested tool cannot be reported successful and is not replayed by the claim guard', async () => {
+  const tool = 'classify_draft_quantities'; let rounds = 0, calls = 0;
+  const events: ChatEvent[] = [];
+  await assert.rejects(runConversation({ contents: [{ role: 'user', parts: [{ text: `Execute ${tool} now.` }] }], declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    turn: async request => ++rounds === 1 ? response(request, [{ functionCall: { name: tool, args: {} } }]) : response(request, [{ text: `${tool} successfully completed.` }]),
+    call: async () => { calls++; return { isError: true, content: [{ type: 'text', text: 'Missing hierarchy inputs.' }] }; },
+  }), /Requested tool classify_draft_quantities failed.*no successful result was verified/);
+  assert.equal(calls, 1);
+  assert.equal(events.filter(event => event.kind === 'assistant').length, 0);
+  assert.equal(events.filter(event => event.failed).length, 1);
+});
+
 test('repeated tool calls replace their own progress row, including a failed call', async () => {
   let entries: (ChatEvent & { id: string })[] = [], turns = 0, calls = 0;
   const runningIds: string[] = [];
@@ -45,6 +223,79 @@ test('routing suppresses premature final success and returns the required step t
   });
   assert.equal(events.some(e => e.text.includes('trust me')), false);
   assert.equal(events.at(-1)?.text, 'Actual result inspected.');
+});
+
+test('workflow correction retains the user objective and fresh evidence for one consolidated final answer', async () => {
+  const objective = 'Read current project ID, revision and whether a real source is loaded.';
+  const candidate = 'Project current-job is revision 7; no real source is loaded.';
+  const final = `${candidate} Developer review: inspected the current project; no edits.`;
+  const history: AssistantContent[] = [
+    { role: 'user', parts: [{ text: 'Inspect the old project.' }] },
+    { role: 'user', parts: [{ functionResponse: { name: 'read_project_context', response: { text: 'historical-job revision 2' } } }] },
+    { role: 'user', parts: [{ text: objective }] },
+  ];
+  const declarations = ['read_project_context', 'read_workflow_route'].map(name => ({ ...declaration, name }));
+  let round = 0, routeRead = false;
+  const executed: string[] = [], events: ChatEvent[] = [], checkpoints: AssistantContent[][] = [];
+  await runConversation({ contents: history, declarations, signal: new AbortController().signal,
+    assertContext: () => {}, emit: event => events.push(event), checkpoint: contents => checkpoints.push(structuredClone(contents)),
+    beforeFinal: async () => routeRead ? null : 'Read the workflow route before finalising.',
+    turn: async request => {
+      round++;
+      if (round === 1) return response(request, [{ functionCall: { name: 'read_project_context', args: {}, id: 'fresh-read' } }]);
+      if (round === 2) return response(request, [{ text: candidate }]);
+      if (round === 3) {
+        const correction = request.contents.at(-1)?.parts[0].text || '';
+        assert.match(correction, /complete, consolidated answer/);
+        assert.match(correction, /Do not repeat completed actions/);
+        const payload = JSON.parse(correction.slice(correction.lastIndexOf('\n') + 1));
+        assert.equal(payload.originalUserRequest, objective);
+        assert.equal(payload.withheldCandidateAnswer, candidate);
+        assert.equal(payload.currentTurnToolOutcomes.length, 1);
+        assert.equal(payload.currentTurnToolOutcomes[0].name, 'read_project_context');
+        assert.equal(payload.currentTurnToolOutcomes[0].invoked, true);
+        assert.match(payload.currentTurnToolOutcomes[0].text, /current-job/);
+        assert.doesNotMatch(JSON.stringify(payload), /historical-job/);
+        return response(request, [{ functionCall: { name: 'read_workflow_route', args: {}, id: 'fresh-route' } }]);
+      }
+      return response(request, [{ text: final }]);
+    },
+    call: async name => {
+      executed.push(name);
+      if (name === 'read_workflow_route') routeRead = true;
+      return { content: [{ type: 'text', text: name === 'read_project_context' ? '{"projectId":"current-job","revision":7,"realSource":false}' : '{"workflow":"inspect"}' }] };
+    },
+  });
+  assert.deepEqual(executed, ['read_project_context', 'read_workflow_route']);
+  assert.deepEqual(events.filter(event => event.kind === 'assistant').map(event => event.text), [final]);
+  assert.equal(checkpoints.at(-1)?.at(-1)?.parts[0].text, final);
+  assert.ok(checkpoints.some(contents => contents.at(-1)?.parts[0].text?.startsWith('[xray:workflow-check]')));
+  assert.equal(history.length, 3);
+});
+
+test('review-only correction uses this turn failed and unexecuted outcomes without another tool call', async () => {
+  let round = 0, reminder = false, executions = 0;
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: initial, declarations: [declaration], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    beforeFinal: async () => { if (reminder) return null; reminder = true; return '[xray:developer-review] Include an outcome, friction and improvement review.'; },
+    turn: async request => {
+      round++;
+      if (round === 1) return response(request, [{ functionCall: { name: 'draw', args: {} } }, { functionCall: { name: 'unavailable', args: {} } }]);
+      if (round === 2) return response(request, [{ text: 'Drawing was refused.' }]);
+      const correction = request.contents.at(-1)?.parts[0].text || '';
+      assert.match(correction, /review-only reminder requires no additional tool call/);
+      const payload = JSON.parse(correction.slice(correction.lastIndexOf('\n') + 1));
+      assert.deepEqual(payload.currentTurnToolOutcomes.map((outcome: { name: string; invoked: boolean; isError: boolean }) => [outcome.name, outcome.invoked, outcome.isError]), [['draw', true, true], ['unavailable', false, true]]);
+      assert.match(payload.currentTurnToolOutcomes[0].text, /Stale revision/);
+      return response(request, [{ text: 'Drawing was refused. Developer review: stale revision prevented the edit; the unavailable tool did not run.' }]);
+    },
+    call: async () => { executions++; return { isError: true, content: [{ type: 'text', text: 'Stale revision' }] }; },
+  });
+  assert.equal(executions, 1);
+  assert.equal(round, 3);
+  assert.equal(events.filter(event => event.kind === 'assistant').length, 1);
+  assert.match(events.at(-1)?.text || '', /Developer review/);
 });
 
 test('a model that ignores routing stops after two corrections without repeating mutations', async () => {

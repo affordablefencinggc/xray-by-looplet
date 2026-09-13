@@ -12,6 +12,8 @@ import { DEFAULT_EXECUTION_BUDGET } from './executionBudget';
 import type { ToolResult } from './conversation';
 import { hasArchitectController } from './architectBridge';
 import { emptyWorkflow, nextToolStep, recordWorkflowResult, completionStep, routingBrief, type RoutingContext } from './workflowRouting';
+import { parseCompletionPreflight, completionStepForObjective, type CompletionRequirement } from './completionPreflight';
+export { shortInteraction } from './shortInteraction.ts';
 
 function routingContext(snapshot: ProjectSnapshot): RoutingContext {
   const state = useStudio.getState();
@@ -31,13 +33,6 @@ export function readLiveProjectSnapshot(projectId: string): ProjectSnapshot {
     recoveryBlocked: s.persistenceRecoveryBlocked || !s.persistenceHydrated || design.blocked,
     sources: s.job.documents.map(d => ({ id: d.id, name: d.name, sha256: d.sha256, revision: null,
       informationStatus: 'unknown', purpose: null, discipline: null, origin: d.source })) };
-}
-
-/** Only conversational intent is shortened. Tool receipts/images are archived in task events. */
-export function shortInteraction(contents: AssistantContent[]): AssistantContent[] {
-  const messages = contents.filter(e => !e.parts.some(p => p.functionCall || p.functionResponse)
-    && e.parts.some(p => p.text && !p.text.startsWith('[xray:')));
-  return messages.slice(-4).map(e => ({ role: e.role, parts: [{ text: e.parts.filter(p => !p.thought).map(p => p.text ?? '').join('\n').slice(0, 8000) || '(Previous image is stored with its work packet; retrieve it before relying on it.)' }] }));
 }
 
 export async function beginGovernedWork(projectId: string, objective: string, input: AssistantContent, notify: (packet: WorkPacket) => void, priorInteraction: AssistantContent[] = [], observationOnly = false) {
@@ -100,14 +95,19 @@ export async function beginGovernedWork(projectId: string, objective: string, in
       } };
       await write('model-response-unreviewed', response);
     },
-    async reviewFinal(): Promise<string | null> {
+    async reviewFinal(): Promise<CompletionRequirement | null> {
       if (observationOnly) return null; // No tools or project workflow are requested by an event-log review.
       if (packet.pendingAction || uncertain.length) return null; // Existing uncertainty gate owns recovery; never replay edits.
-      const next = completionStep(packet.routing!, routingContext(readLiveProjectSnapshot(projectId)));
+      if (packet.routing?.failure) return null; // Report the actual failed/refused read; never force a retry.
+      const next = completionStepForObjective(packet.routing!, routingContext(readLiveProjectSnapshot(projectId)), objective);
       if (!next) return null;
       packet.nextAction = `${next.reason} Next tool: ${next.tool}.`;
       await write('workflow-incomplete', { next });
-      return `The workflow is not finished. ${JSON.stringify(next)} Use the required tool and inspect its receipt before a final answer. Do not repeat completed mutations. If an actual tool fails or permission is refused, report that result.`;
+      const instruction = `The workflow is not finished. ${JSON.stringify(next)} Use the required tool and inspect its receipt before a final answer. Do not repeat completed mutations. If an actual tool fails or permission is refused, report that result.`;
+      try {
+        const readOnlyPrerequisite = parseCompletionPreflight({ tool: next.tool, args: next.args });
+        return { instruction, readOnlyPrerequisite };
+      } catch { return instruction; } // Missing inputs, UI changes, renders, exports and edits stay model/user controlled.
     },
     async call(tool: string, args: Record<string, unknown>, execute: () => Promise<ToolResult>, authorize?: () => Promise<string | null>): Promise<ToolResult> {
       if (journalFailed) throw Error('Task audit storage failed. No further tools may run.');

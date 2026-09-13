@@ -1,0 +1,9 @@
+# Withheld candidate history and pending-tool correction
+
+The prior live failure showed the assistant treating an explicitly requested repeated pure calculation as a forbidden duplicate. Internal withheld model candidates also leaked into shortened conversation history after their correction messages were removed. An honest statement that no current-turn tool receipt existed was incorrectly matched as a positive receipt claim.
+
+The correction now preserves the original pending user request, distinguishes earlier-turn pure calculations from completed current-turn actions/mutations, and permits requesting missing inputs. Withheld candidates receive an explicit marker in checkpoint history while the original provider object remains unmodified for audit. The extracted shortInteraction helper excludes marked and legacy adjacent withheld candidates, internal controls and tool exchanges while preserving delivered final prose. Receipt-claim matching recognizes scoped negation without accepting a later positive fabricated claim.
+
+DANS1 focused tests: 41/41 passed (conversation, completionPreflight, finalToolClaims, shortInteraction). Full staged snapshot TypeScript: exit 0. tests.txt/typecheck.txt and hashes.json/hash-comparison.json record actual execution and source identity. changes.diff records tracked-file changes; newly added helper/test files are additionally represented by exact hashes and repository source. Root owns integration and full test/build gates.
+
+The live follow-up in ../duct-history-retest passed one actual model tool call, correct receipt/review, exact unchanged project and reload persistence. The guard remains intentionally scoped to explicitly named declared tools and English positive execution claims; it is not a universal semantic verifier. Previously stripped, unmarked legacy candidates cannot all be identified retrospectively.

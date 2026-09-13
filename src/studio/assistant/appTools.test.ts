@@ -28,6 +28,38 @@ function fixture() {
 }
 const message = (result: Awaited<ReturnType<ReturnType<typeof fixture>["execute"]>>) => result.content.filter(row => row.type === "text").map(row => row.text).join("\n");
 
+test('draft industry tools bind to the current project and preserve draft arithmetic without saving', async () => {
+  const f = fixture();
+  const before = structuredClone(f.state.job);
+  const input = { planes: [{ id: 'qa-plane', grossPlanAreaM2: 80, measurementReference: 'User supplied synthetic 80m2',
+    pitchDegrees: Math.atan(3 / 4) * 180 / Math.PI, pitchReference: 'User supplied 3:4 rise/run',
+    openings: [{ id: 'qa-opening', planAreaM2: 4, measurementReference: 'User supplied synthetic 4m2' }] }] };
+  const roof = JSON.parse(message(await f.execute('calculate_draft_roof_area', { expectedJobId: f.state.job.id, input })));
+  assert.ok(Math.abs(roof.totals.netTrueAreaM2 - 95) < 1e-9);
+  assert.equal(roof.projectId, f.state.job.id);
+  assert.equal(roof.verifiedQuoteEligible, false);
+  assert.equal(roof.status, 'draft-calculation');
+  const operand = (value: number) => ({ value, sourceReference: 'Explicit synthetic user input' });
+  const duct = JSON.parse(message(await f.execute('calculate_draft_duct_material', { expectedJobId: f.state.job.id,
+    input: { sections: [{ id: 'qa-duct', shape: 'rectangular', lengthM: operand(10), widthM: operand(.5), heightM: operand(.3) }] } })));
+  assert.equal(duct.developedAreaM2, 16);
+  assert.equal(duct.sheetMassKg, null);
+  assert.equal(duct.verifiedQuoteEligible, false);
+  const classified = JSON.parse(message(await f.execute('classify_draft_quantities', { expectedJobId: f.state.job.id, input: {
+    hierarchyId: 'qa', hierarchyRevision: '1', nodes: [{ id: 'roof', label: 'Roof', parentId: null }],
+    items: [{ id: 'a', quantity: '0.1', unit: 'm2', evidence: 'sample', source: null }, { id: 'b', quantity: '0.2', unit: 'm2', evidence: 'sample', source: null }],
+    assignments: [{ itemId: 'a', nodeId: 'roof' }],
+  } })));
+  assert.equal(classified.totals[0].quantity, '0.3');
+  assert.deepEqual(classified.unclassifiedItemIds, ['b']);
+  assert.equal(classified.verifiedQuoteEligible, false);
+  assert.deepEqual(f.state.job, before);
+  assert.equal(f.writes, 0);
+  assert.equal((await f.execute('calculate_draft_roof_area', { expectedJobId: 'another-project', input })).isError, true);
+  f.state.persistenceRecoveryBlocked = true;
+  assert.equal((await f.execute('calculate_draft_roof_area', { expectedJobId: f.state.job.id, input })).isError, true);
+});
+
 test("SDK-free tools expose strict schemas; project context reports real recovery and save state", async () => {
   const f = fixture();
   assert.deepEqual(f.tools.map(tool => tool.name), [
@@ -40,6 +72,7 @@ test("SDK-free tools expose strict schemas; project context reports real recover
     "read_source_sheets", "manage_source_sheet", "read_takeoff_evidence", "read_price_books", "capture_project_backup",
     "edit_architect_elements", "calibrate_source_sheet", "trace_takeoff_run", "review_takeoff_item", "remove_takeoff_trace", "import_price_book", "export_design_file", "generate_render_visualisation",
     "show_design_in_model", "hide_designed_model",
+    'calculate_draft_roof_area', 'calculate_draft_duct_material', 'classify_draft_quantities',
   ]);
   for (const tool of f.tools) { assert.equal(tool.inputSchema.type, "object"); assert.equal(tool.inputSchema.additionalProperties, false); }
   f.state.hydrationStatus = "error"; f.state.persistenceRecoveryBlocked = true;

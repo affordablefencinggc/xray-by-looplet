@@ -1,12 +1,12 @@
 # App atlas
 
-Every row names real tools in appTools.ts. read_project_context precedes every row and is left out
+read_project_context precedes every row and is left out
 of the columns below.
 
 | Intent | Pane | Tools in order | Must be true first |
 | --- | --- | --- | --- |
 | Know where the project stands | overview | read_project_context | Recovery finished, hydrated |
-| Learn what the app can hold | any | read_workbench_structure | Static reference |
+| Learn what the app can hold | any | read_workbench_structure | Static reference, not fresh project-state readback |
 | Move to another pane | any | navigate_workspace | No pending trace or calibration |
 | Read the authored design | sketch | navigate_workspace, read_architect_design | Workspace mounted |
 | Draw walls, openings, levels, slabs, roofs, footprint, extrude | sketch | read_architect_design, draw_architect_elements, save_project | Current revision; 200 operations a batch; user chose Sketch or Model mode |
@@ -23,7 +23,7 @@ of the columns below.
 | Rename, archive or recover a sheet | sheets | read_source_sheets, manage_source_sheet | documentId and pageIndex from the read |
 | Set the scale of a page | measure | read_takeoff_evidence, calibrate_source_sheet | Two points, the distance the user stated, their own evidence wording; not the sample; a locked page needs replaceLocked |
 | Measure a length | measure | read_takeoff_evidence, trace_takeoff_run | Calibration locked; lengths read back, never computed |
-| Approve or reject a measurement | review | read_takeoff_evidence, review_takeoff_item | Currently blocked by the internal-draft authority gate; a name alone is insufficient |
+| Approve or reject a measurement | review | read_takeoff_evidence, review_takeoff_item | Work packet authority gate blocks approval; reviewer/decision-owner names do not verify authority or unlock it |
 | Delete a measured run | measure | read_takeoff_evidence, remove_takeoff_trace | Run revision current |
 | See imported rates | cost | read_price_books | Price storage present |
 | Import supplier rates | cost | read_price_books, import_price_book | CSV text and metadata from the user; library revision |
