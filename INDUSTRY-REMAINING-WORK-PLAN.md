@@ -123,3 +123,6 @@ This planning-only change requires document/link review, not a product build or 
 ## Queue after the active work
 
 The remaining 63 profiles stay in the existing register. A previous [next-batch proposal](planning/industry-work/next-batch-proposal.md) suggests flooring/finishes (IND-44), concrete/precast (IND-24), and plumbing/gas (IND-31); it is a candidate sequence, not a new active assignment. Before starting any, define its bounded scope, required evidence and exclusions, then apply the same six proof gates. Do not label all 68 industries complete because their checklists or calculators exist.
+
+
+2026-09-14 continuation update: RES-02-SC-01 supported full-infill / before-repair-height editing is verified; overall RES-02 remains open. ROOF-01 and QS-01 failed actual MiniMax acceptance and remain open. Current individual proof links and next steps: [TAKEOVER-TODO.md](TAKEOVER-TODO.md).

@@ -1,0 +1,66 @@
+[
+  [
+    "context",
+    "app"
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8081/"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{if(!document.body.innerText.includes('Open a drawing'))throw Error('Root content absent');return {title:document.title,text:document.body.innerText.slice(0,600)}})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "desktop-production-root.png"
+  ],
+  [
+    "eval",
+    "app",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Design').click();true"
+  ],
+  [
+    "wait",
+    "app",
+    "[...document.querySelectorAll('button,a')].some(b=>b.textContent.includes('Architectural workspace'))"
+  ],
+  [
+    "eval",
+    "app",
+    "[...document.querySelectorAll('button,a')].find(b=>b.textContent.includes('Architectural workspace')).click();true"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.alteration-panel')"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('.alteration-panel').open=true;document.querySelector('.alteration-panel').scrollIntoView({block:'center'});true"
+  ],
+  [
+    "screenshot",
+    "app",
+    "desktop-production-editor.png"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const p=document.querySelector('.alteration-panel');p.scrollIntoView({block:'center'});const r=p.getBoundingClientRect();if(r.left<0||r.right>innerWidth+1)throw Error('Editor outside viewport');return {panel:r.toJSON(),viewport:innerWidth}})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "tablet-production-editor.png"
+  ]
+]

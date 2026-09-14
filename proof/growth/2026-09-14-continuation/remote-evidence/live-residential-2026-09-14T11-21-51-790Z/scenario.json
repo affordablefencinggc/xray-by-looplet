@@ -1,0 +1,131 @@
+[
+  [
+    "context",
+    "app"
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "(async()=>{const s=await import('/src/studio/store.ts');const m=await import('/src/studio/architect/model.ts');const p=await import('/src/studio/architect/persistence.ts');window.__qaId=s.useStudio.getState().job.id;const model=m.emptyProject(window.__qaId);const wall=m.newWall(model,model.levels[0].id,[0,0],[4000,0],[{id:'qa-solid',name:'QA authored solid',thickness:200,kind:'solid',hatch:'concrete',densityKgM3:null,rateM2:null,supplierReference:'',rateRevision:'',wastePercent:0}]);wall.id='qa-wall';wall.name='QA repaired wall';wall.height=2700;wall.lifecycle={status:'repaired',reference:'QA repair brief'};model.walls.push(wall);model.openings.push({id:'qa-window',revision:1,wallId:wall.id,tag:'QA W01',kind:'window',offset:2000,width:900,height:1200,sill:900,hinge:'left',swing:'in',lifecycle:{status:'demolished',reference:'QA remove window'}});const saved=p.saveArchitect(p.loadArchitect(window.__qaId,localStorage),model,localStorage);if(saved.error||saved.blocked)throw Error('Fixture save failed');return {fixture:'synthetic authored 4m x 2.7m x .2m wall, .9m x 1.2m window at .9m sill',projectId:window.__qaId}})()"
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Design\");if(!b||b.disabled)throw Error('Missing enabled button: '+\"Design\");b.click();return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "[...document.querySelectorAll('button,a')].some(b=>b.textContent.includes('Architectural workspace'))"
+  ],
+  [
+    "eval",
+    "app",
+    "[...document.querySelectorAll('button,a')].find(b=>b.textContent.includes('Architectural workspace')).click();true"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('.alteration-panel')"
+  ],
+  [
+    "eval",
+    "app",
+    "(async()=>{const s=await import('/src/studio/store.ts');const b=await import('/src/studio/assistant/architectBridge.ts');window.__qaId=s.useStudio.getState().job.id;window.__read=()=>b.requestArchitectTool('read',{expectedJobId:window.__qaId});window.__edit=async operations=>{const r=await window.__read();return b.requestArchitectTool('edit',{expectedJobId:window.__qaId,expectedRevision:r.project.revision,operations})};window.__saved=()=>JSON.parse(localStorage.getItem('xray:architect:v1:'+encodeURIComponent(window.__qaId)));return true})()"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('.alteration-panel').open=true;true"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"QA W01\");if(!b||b.disabled)throw Error('Missing enabled button: '+\"QA W01\");b.click();return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('[aria-label=\"Opening disposition\"]')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const t=document.querySelector(\"[aria-label=\\\"Opening disposition\\\"]\");if(!t)throw Error('Field absent');Object.getOwnPropertyDescriptor(t.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:t.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(t,\"infill\");t.dispatchEvent(new Event(t.tagName==='SELECT'?'change':'input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Save full infill\");if(!b||b.disabled)throw Error('Missing enabled button: '+\"Save full infill\");b.click();return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('.alteration-error')?.textContent.includes('reference')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const t=document.querySelector(\".alteration-disposition textarea\");if(!t)throw Error('Field absent');Object.getOwnPropertyDescriptor(t.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:t.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(t,\"QA explicit full infill\");t.dispatchEvent(new Event(t.tagName==='SELECT'?'change':'input',{bubbles:true}));return true})()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Save full infill\");if(!b||b.disabled)throw Error('Missing enabled button: '+\"Save full infill\");b.click();return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "window.__saved().openings[0].demolitionDisposition?.kind==='infill'"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Undo design edit\"]').click();true"
+  ],
+  [
+    "wait",
+    "app",
+    "!window.__saved().openings[0].demolitionDisposition"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('[aria-label=\"Redo design edit\"]').click();true"
+  ],
+  [
+    "wait",
+    "app",
+    "window.__saved().openings[0].demolitionDisposition?.kind==='infill'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===\"Clear opening disposition\");if(!b||b.disabled)throw Error('Missing enabled button: '+\"Clear opening disposition\");b.click();return true})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "failure.png"
+  ]
+]

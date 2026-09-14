@@ -1,0 +1,130 @@
+diff --git a/src/studio/industries/quantity-surveying/assistantTool.test.ts b/src/studio/industries/quantity-surveying/assistantTool.test.ts
+index caa7de3..2682eec 100644
+--- a/src/studio/industries/quantity-surveying/assistantTool.test.ts
++++ b/src/studio/industries/quantity-surveying/assistantTool.test.ts
+@@ -1,8 +1,9 @@
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+ import { z } from "zod";
+-import { classificationInputSchema, type ClassificationInput } from "./classification.ts";
+-import { execute, inputSchema, name } from "./assistantTool.ts";
++import { classificationInputSchema, classifyQuantities, type ClassificationInput } from "./classification.ts";
++import { quantityReportCsv } from "./report.ts";
++import { description, execute, inputSchema, name } from "./assistantTool.ts";
+ 
+ function example(): ClassificationInput {
+   return {
+@@ -93,6 +94,51 @@ test("explicit root/source nulls remain valid and the declaration explains their
+   assert.match(schema.properties.items.items.properties.source.description, /Do not replace null/);
+ });
+ 
++// QS-01: both recorded answer failures were inferences the payload never supplied.
++// These bind the explanation to the actual export instead of the model's guess.
++test("result carries the real CSV columns so an explanation never has to infer them", () => {
++  const result = execute(example());
++  const header = quantityReportCsv(classifyQuantities(example())).split("\r\n")[0]
++    .split('","').map(cell => cell.replace(/^"|"$/g, ""));
++  assert.deepEqual(result.reportContract.csvColumns, header,
++    "assistant-visible CSV columns must match the bytes quantityReportCsv actually writes");
++  assert.ok(result.reportContract.csvColumns.includes("Classification path"),
++    "the ancestor path column is the fact the failed answer denied existed");
++  assert.ok(result.reportContract.csvColumns.includes("Classification"));
++});
++
++test("result states item-once aggregation, not disjoint evidence, as why inclusive totals are safe", () => {
++  const contract = execute(example()).reportContract;
++  assert.match(contract.rollupOverlapRule, /INCLUSIVE/);
++  assert.match(contract.rollupOverlapRule, /never be added together/i);
++  assert.match(contract.rollupOverlapRule, /not from units or evidence classes being disjoint/i);
++  assert.match(contract.totalsRule, /exactly once/);
++  assert.match(contract.csvRowRule, /no rollup, subtotal or ancestor records/i);
++  assert.match(contract.csvHierarchyRule, /Classification path/);
++});
++
++// The overlap the explanation must describe: building.rollup re-counts wall's two items.
++test("inclusive rollup demonstrably re-counts descendant items rather than adding new ones", () => {
++  const result = execute(example());
++  const building = result.nodes.find(node => node.id === "building")!;
++  const wall = result.nodes.find(node => node.id === "wall")!;
++  const area = (rows: typeof building.rollup) => rows.find(row => row.unit === "m2")!;
++  assert.equal(area(wall.direct).quantity, "0.3");
++  assert.equal(area(building.rollup).quantity, "0.3");
++  assert.equal(building.direct.some(row => row.unit === "m2"), false,
++    "building holds no direct m2 item, so its 0.3 m2 is entirely wall's items re-counted");
++  assert.equal(result.totals.find(row => row.unit === "m2" && row.evidence === "sample")!.quantity, "0.3",
++    "summing wall 0.3 + building 0.3 would double-count; the item-once total stays 0.3");
++});
++
++test("tool description explains the CSV and overlap mechanism it previously only asserted", () => {
++  assert.match(description, /one record per actual item/i);
++  assert.match(description, /no rollup records/i);
++  assert.match(description, /classification path/i);
++  assert.match(description, /never be added together/i);
++  assert.match(description, /counted exactly once, not because units or evidence classes are disjoint/i);
++});
++
+ test("failed live placeholder arguments are rejected with nullable alternatives, never repaired silently", () => {
+   const input: any = example();
+   input.nodes[0].parentId = "";
+diff --git a/src/studio/industries/quantity-surveying/assistantTool.ts b/src/studio/industries/quantity-surveying/assistantTool.ts
+index 8085e8e..c9e862f 100644
+--- a/src/studio/industries/quantity-surveying/assistantTool.ts
++++ b/src/studio/industries/quantity-surveying/assistantTool.ts
+@@ -1,15 +1,30 @@
+ import { z } from "zod";
+ import { classificationInputSchema, classifyQuantities } from "./classification.ts";
++import { CSV_COLUMNS } from "./report.ts";
++
++/** Facts about the report/CSV that an explanation must not have to infer.
++ * Both recorded answer failures came from guessing these: that the CSV drops parent
++ * labels (it does not — "Classification path" carries the full ancestor path), and
++ * that inclusive totals are safe because evidence classes are disjoint (they are not;
++ * they are safe because every actual item is counted exactly once). */
++const reportContract = {
++  csvColumns: [...CSV_COLUMNS],
++  csvRowRule: "One CSV record per actual item, including an item assigned directly to a nonleaf (parent) classification. There are no rollup, subtotal or ancestor records.",
++  csvHierarchyRule: "Hierarchy fields are retained on every record: 'Classification' is the assigned node and 'Classification path' is the full JSON ancestor path. Evidence, every supplied source-reference field, report status and the quote-ineligible flag are retained too. A manual item with no supplied reference reports 'Unavailable', never an invented ID.",
++  totalsRule: "'totals' counts each actual item exactly once, split by exact unit and declared evidence. That item-once rule is why the report total is safe.",
++  rollupOverlapRule: "Each node's 'rollup' is INCLUSIVE: it re-counts the same items already reported by its descendants' 'direct' and 'rollup' entries. Parent and child rows therefore OVERLAP by construction and must NEVER be added together. Safety comes from item-once aggregation, not from units or evidence classes being disjoint across nodes.",
++  reconciliation: "Reconcile against 'totals'. Summing ancestor rows double-counts every item held below a parent.",
++} as const;
+ 
+ export const name = "classify_draft_quantities";
+-export const description = "Group explicitly supplied quantities into an explicitly supplied user-defined classification hierarchy. Supply hierarchy ID/revision, nodes, measured-item IDs, decimal quantity strings, units, declared evidence status and source metadata (or explicit null), plus one assignment per classified item. Use only quantities, classifications and references actually supplied by the user or read from project evidence; never invent them. Unassigned items remain visible. Returns exact decimal totals separated by unit and declared evidence status, direct node totals and overlapping ancestor rollups; use report totals for reconciliation rather than summing ancestor rows. Preserves source metadata without verifying it. Always draft-classification and verifiedQuoteEligible:false, even with complete classification or caller-declared measured evidence. No project changes, saved classifications, rate application, currency, cost plan issue or approval. Missing required inputs must be requested, not guessed.";
++export const description = "Group explicitly supplied quantities into an explicitly supplied user-defined classification hierarchy. Supply hierarchy ID/revision, nodes, measured-item IDs, decimal quantity strings, units, declared evidence status and source metadata (or explicit null), plus one assignment per classified item. Use only quantities, classifications and references actually supplied by the user or read from project evidence; never invent them. Unassigned items remain visible. Returns exact decimal totals separated by unit and declared evidence status, direct node totals and inclusive ancestor rollups, plus a reportContract field stating the real CSV columns and aggregation rules. When explaining the export or the hierarchy, quote reportContract instead of inferring: the CSV holds one record per actual item (including items assigned directly to a parent classification) with no rollup records, and it retains the classification path and every supplied source-reference field. Inclusive parent rollups re-count their descendants' items, so parent and child rows overlap and must never be added together; totals are safe because each actual item is counted exactly once, not because units or evidence classes are disjoint. Use report totals for reconciliation rather than summing ancestor rows. Preserves source metadata without verifying it. Always draft-classification and verifiedQuoteEligible:false, even with complete classification or caller-declared measured evidence. No project changes, saved classifications, rate application, currency, cost plan issue or approval. Missing required inputs must be requested, not guessed.";
+ 
+ // Input mode preserves accepted decimal syntax before lossless normalisation.
+ // Cross-field graph/assignment checks also run through classifyQuantities.
+ export const inputSchema = z.toJSONSchema(classificationInputSchema, { io: "input" });
+ 
+ export function execute(input: unknown) {
+-  try { return classifyQuantities(classificationInputSchema.parse(input)); }
++  try { return { ...classifyQuantities(classificationInputSchema.parse(input)), reportContract }; }
+   catch (error) {
+     if (error instanceof z.ZodError) {
+       const issues = error.issues.map(issue => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ");
+diff --git a/src/studio/industries/quantity-surveying/report.ts b/src/studio/industries/quantity-surveying/report.ts
+index ecb9501..129eec1 100644
+--- a/src/studio/industries/quantity-surveying/report.ts
++++ b/src/studio/industries/quantity-surveying/report.ts
+@@ -41,13 +41,17 @@ export function csvCell(value: string): string {
+   return `"${safe.replace(/"/g, '""')}"`;
+ }
+ 
++/** The exact CSV columns, in export order. Shared with the assistant boundary so an
++ * explanation of the export is grounded in the real header rather than inferred. */
++export const CSV_COLUMNS = ['Hierarchy', 'Hierarchy revision', 'Item reference', 'Quantity', 'Unit', 'Evidence',
++  'Assignment', 'Classification', 'Classification path', 'Source reference status', 'Document ID',
++  'Source SHA-256', 'Source revision', 'Sheet (1-based)', 'Region ID', 'Calibration ID', 'Report status', 'Verified quote eligible'] as const;
++
+ /** Exactly one row per actual item, including items directly assigned to a parent. No rollup rows. */
+ export function quantityReportCsv(report: QuantityReport): string {
+   // Fail rather than produce a partial export if the caller supplied broken hierarchy/source data.
+   const checked = filterQuantityReport(report, { assignment: 'all', nodeId: '' });
+-  const header = ['Hierarchy', 'Hierarchy revision', 'Item reference', 'Quantity', 'Unit', 'Evidence',
+-    'Assignment', 'Classification', 'Classification path', 'Source reference status', 'Document ID',
+-    'Source SHA-256', 'Source revision', 'Sheet (1-based)', 'Region ID', 'Calibration ID', 'Report status', 'Verified quote eligible'];
++  const header = [...CSV_COLUMNS];
+   const rows = checked.rows.map(row => [checked.hierarchyId, checked.hierarchyRevision, row.id, row.quantity, row.unit,
+     row.evidence, row.nodeId === null ? 'Unassigned' : 'Classified', row.nodeId ?? '',
+     JSON.stringify(classificationPath(checked, row.nodeId)), row.source === null ? 'Unavailable' : 'Supplied reference; not independently verified',

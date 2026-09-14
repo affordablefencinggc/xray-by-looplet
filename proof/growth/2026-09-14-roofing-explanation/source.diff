@@ -1,0 +1,100 @@
+diff --git a/src/studio/industries/roofing/sheetCoverage.test.ts b/src/studio/industries/roofing/sheetCoverage.test.ts
+index 49b13bf..b4c4533 100644
+--- a/src/studio/industries/roofing/sheetCoverage.test.ts
++++ b/src/studio/industries/roofing/sheetCoverage.test.ts
+@@ -29,7 +29,37 @@ test("returned explanation includes first-course coverage and exact source decim
+   assert.equal(tiny.courses, 3);
+   assert.equal(tiny.inputs.developedRunM, "9.800000001");
+   assert.match(tiny.calculation.courses, /9\.800000001/);
+-  assert.match(r.limitations[0], /End laps between courses are included/);
++  assert.match(r.limitations[0], /End lap .* IS included/);
++});
++test("receipt states the exact course boundary instead of leaving it to be extrapolated", () => {
++  const at = (developedRunM: string) => calculateSheetCoverage({ ...fixture(), developedRunM, orderLengthM: "5", endLapM: "0.2" });
++  // The three values ROOF-01 requires: 9.8 is exactly two courses; both larger runs need three.
++  assert.equal(at("9.8").courses, 2);
++  assert.equal(at("9.800000001").courses, 3);
++  assert.equal(at("9.81").courses, 3);
++  const r = at("9.8");
++  // The boundary the earlier Developer review invented wrongly is now a returned fact.
++  assert.equal(r.calculation.maxRunAtThisCourseCountM, 9.8);
++  assert.equal(r.calculation.minRunForAnotherCourseM, 9.800000001);
++  assert.match(r.calculation.courseBoundary, /up to and including exactly 9\.8 m/);
++  assert.match(r.calculation.courseBoundary, /9\.800000001 m or more needs 3 courses/);
++  assert.match(r.calculation.coursesExpanded, /Course 1 covers a full ordered sheet length of 5 m/);
++  assert.match(r.calculation.coursesExpanded, /4\.8 \/ 4\.8/);
++  // The substituted formula the model previously used is named and refuted in the receipt itself.
++  assert.match(r.calculation.wrongFormulaWarning, /would give 3 instead of the correct 2/);
++  const three = at("9.81");
++  assert.equal(three.calculation.maxRunAtThisCourseCountM, 14.6);
++  assert.equal(three.calculation.minRunForAnotherCourseM, 14.600000001);
++  // Side lap and end lap are separate sentences, so neither can be paraphrased into the other.
++  assert.match(r.limitations[0], /transverse lap/);
++  assert.match(r.limitations[0], /Do not describe end laps or transverse laps as excluded/);
++  assert.match(r.limitations[1], /Side lap .* is NOT calculated here/);
++  assert.doesNotMatch(r.limitations[0], /Side lap \(/);
++  // A single-course run applies no end lap and reports no lower bound above zero.
++  const one = at("5");
++  assert.equal(one.courses, 1);
++  assert.match(one.calculation.coursesExpanded, /fits inside one full ordered sheet/);
++  assert.equal(one.calculation.maxRunAtThisCourseCountM, 5);
+ });
+ test("empty, impossible and excessive dimensions fail without implicit values", () => {
+   assert.throws(() => calculateSheetCoverage(createEmptySheetCoverage()));
+diff --git a/src/studio/industries/roofing/sheetCoverage.ts b/src/studio/industries/roofing/sheetCoverage.ts
+index 6788286..e1e928b 100644
+--- a/src/studio/industries/roofing/sheetCoverage.ts
++++ b/src/studio/industries/roofing/sheetCoverage.ts
+@@ -36,22 +36,36 @@ export function calculateSheetCoverage(raw: unknown) {
+   const sheets = columns * courses;
+   if (sheets > 1_000_000n) throw Error("This draft worksheet supports at most 1,000,000 sheets; review the dimensions and units.");
+   const coveredRun = order + (courses - 1n) * (order - lap);
++  const nextCourseRun = coveredRun + 1n; // Exact next representable run at nine decimal places.
++  const runText = input.developedRunM.trim(), orderText = input.orderLengthM.trim(), lapText = input.endLapM.trim();
+   return { status: "draft-sheet-coverage" as const, columns: Number(columns), courses: Number(courses), sheets: Number(sheets),
+     inputs: { ...input },
+     calculation: {
+       columns: `ceil(${input.developedWidthM.trim()} / ${input.effectiveCoverM.trim()}) = ${columns}`,
+       coursesFormula: "run <= ordered length ? 1 : 1 + ceil((run - ordered length) / (ordered length - end lap))",
+-      courses: run <= order ? `${input.developedRunM.trim()} <= ${input.orderLengthM.trim()}: 1 course`
+-        : `1 + ceil((${input.developedRunM.trim()} - ${input.orderLengthM.trim()}) / (${input.orderLengthM.trim()} - ${input.endLapM.trim()})) = ${courses}`,
++      courses: run <= order ? `${runText} <= ${orderText}: 1 course`
++        : `1 + ceil((${runText} - ${orderText}) / (${orderText} - ${lapText})) = ${courses}`,
++      coursesExpanded: run <= order
++        ? `The run ${runText} m fits inside one full ordered sheet of ${orderText} m, so 1 course is used and no end lap is applied.`
++        : `Course 1 covers a full ordered sheet length of ${orderText} m. The remaining ${metres(run - order)} m is covered by further courses that each add ${orderText} - ${lapText} = ${metres(order - lap)} m, so ceil(${metres(run - order)} / ${metres(order - lap)}) = ${courses - 1n} more course(s), giving ${courses} courses in total.`,
++      /** The reviewer must read these bounds, never extrapolate them from the single evaluated case. */
++      courseBoundary: `${courses} course(s) cover any run greater than ${courses === 1n ? 0 : metres(coveredRun - (order - lap))} m and up to and including exactly ${metres(coveredRun)} m. A run of ${metres(nextCourseRun)} m or more needs ${courses + 1n} courses.`,
++      maxRunAtThisCourseCountM: metres(coveredRun),
++      minRunForAnotherCourseM: metres(nextCourseRun),
++      /** Only claim a difference when one exists; a "3 instead of 3" warning would itself mislead. */
++      wrongFormulaWarning: ceil(run, order - lap) === courses
++        ? `Do NOT compute courses as ceil(run / (ordered length - end lap)). It happens to give the correct ${courses} for this particular input, but it is still the wrong rule and gives a different answer for other runs, because the first course is not shortened by an end lap.`
++        : `Do NOT compute courses as ceil(run / (ordered length - end lap)); for this input that would give ${ceil(run, order - lap)} instead of the correct ${courses}, because the first course is not shortened by an end lap.`,
+       sheets: `${columns} columns × ${courses} courses = ${sheets} sheets`,
+-      orderedLength: `${sheets} sheets × ${input.orderLengthM.trim()} m = ${metres(sheets * order)} m`,
++      orderedLength: `${sheets} sheets × ${orderText} m = ${metres(sheets * order)} m`,
+       endLapPolicy: "The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.",
+     },
+     orderedLinearM: metres(sheets * order), coveredWidthM: metres(columns * cover), coveredRunM: metres(coveredRun),
+     excessWidthM: metres(columns * cover - width), excessRunM: metres(coveredRun - run),
+     measurementReference: input.measurementReference, supplierReference: input.supplierReference,
+     verifiedQuoteEligible: false as const,
+-    limitations: ["End laps between courses are included. Effective sheet cover already includes side lap; side lap is not deducted twice.",
++    limitations: ["End lap (the lengthwise lap between courses, also called a transverse lap) IS included in this calculation: every course after the first is shortened by the supplied end lap. Do not describe end laps or transverse laps as excluded.",
++      "Side lap (the lap between adjacent sheets across the width) is NOT calculated here: it is already contained in the supplied effective sheet cover, so it is neither added nor deducted again. Side lap and end lap are separate laps and must be explained separately.",
+       "One rectangular developed surface with identical ordered sheet lengths; no opening deductions, hips, valleys, cutting or reusable offcut schedule.",
+       "No fixings, flashings, product suitability or compliance calculation. References are retained but not validated; draft and not eligible for verified quotes."],
+   };
+diff --git a/src/studio/industries/roofing/sheetCoverageTool.ts b/src/studio/industries/roofing/sheetCoverageTool.ts
+index ff0f0b1..a750e13 100644
+--- a/src/studio/industries/roofing/sheetCoverageTool.ts
++++ b/src/studio/industries/roofing/sheetCoverageTool.ts
+@@ -2,6 +2,6 @@ import { z } from "zod";
+ import { calculateSheetCoverage, sheetCoverageInputSchema } from "./sheetCoverage.ts";
+ 
+ export const name = "calculate_draft_roof_sheet_coverage";
+-export const description = "Calculate draft rectangular roof sheet coverage from explicit developed dimensions, effective cover after side lap, ordered sheet length, end lap and source references. Lengths are decimal strings in metres, up to nine decimal places. End lap must be explicitly supplied, including zero. Explain the returned calculation steps and limitations faithfully: the first course is full length, so courses is NOT generally ceil(run / (ordered length - end lap)). End laps ARE included; fixings and flashings are excluded. No measured project quantities, geometry, orders or quotes are changed.";
++export const description = "Calculate draft rectangular roof sheet coverage from explicit developed dimensions, effective cover after side lap, ordered sheet length, end lap and source references. Lengths are decimal strings in metres, up to nine decimal places. End lap must be explicitly supplied, including zero. Explain the returned calculation steps and limitations faithfully, in the answer and in any self-review: the first course is FULL ordered length, so courses is NOT ceil(run / (ordered length - end lap)); use the returned calculation.coursesExpanded wording. End lap, also called transverse lap, IS included; side lap is already inside the supplied effective cover and is a SEPARATE lap - never state in one answer that end or transverse laps are excluded while also saying end laps are included. Never estimate, extrapolate or reason out where the course count changes: state boundaries only by quoting calculation.courseBoundary, maxRunAtThisCourseCountM and minRunForAnotherCourseM, which are exact for the supplied inputs and apply to no other input. To find the courses for a different run, call this tool again with that run rather than predicting it. No measured project quantities, geometry, orders or quotes are changed.";
+ export const inputSchema = z.toJSONSchema(sheetCoverageInputSchema);
+ export const execute = (input: unknown) => calculateSheetCoverage(sheetCoverageInputSchema.parse(input));

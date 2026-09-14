@@ -99,13 +99,16 @@ const operations = {
 const editOperations = {
   type: "array", minItems: 1, maxItems: ARCHITECT_BATCH_LIMIT, items: { oneOf: [
     objectSchema({ kind: { const: "set-opening-disposition" }, id, disposition: { anyOf: [
-      objectSchema({ kind: { const: "retain-void" }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
+      objectSchema({ kind: { enum: ["retain-void", "infill"] }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
       { type: "null" },
     ] } }),
     objectSchema({ kind: { const: "set-lifecycle" }, id, lifecycle: { anyOf: [
       objectSchema({ status: { enum: ["existing", "new", "demolished", "repaired"] }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
       { type: "null" },
     ] } }, ["kind", "id", "lifecycle"]),
+    objectSchema({ kind: { const: "set-wall-repair-basis" }, id, basis: { anyOf: [
+      objectSchema({ heightMm: positive, reference: { type: "string", minLength: 1, maxLength: 500 } }), { type: "null" },
+    ] } }),
     objectSchema({ kind: { const: "remove" }, id }, ["kind", "id"]),
     objectSchema({ kind: { const: "move-wall" }, id, a: point, b: point }, ["kind", "id"]),
     objectSchema({ kind: { const: "set-wall" }, id, name, heightMm: positive, templateWallId: id }, ["kind", "id"]),
@@ -374,7 +377,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
       if (summary.jobId !== args.expectedJobId || summary.jobRevision !== args.expectedRevision) throw Error("The stored backup does not match the expected project revision.");
       return text({ saved: true, verified: true, backupId: summary.id, name: summary.name, storedAt: summary.storedAt, sha256: summary.sha256, sizeBytes: summary.sizeBytes, plans: summary.plans, photos: summary.photos, records: summary.records, scope: "Stored in this browser's backup database. Download it from Backups to keep a copy outside the app." });
     }),
-    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), set-opening-disposition (demolished door/window only: retain-void plus explicit reference preserves an empty aperture; null clears intent; no inferred infill), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
+    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), set-opening-disposition (demolished door/window only: retain-void preserves an empty aperture; infill explicitly closes the full aperture with the host wall layers; each requires a supplied reference; null clears intent; no partial infill or invented layers), set-wall-repair-basis (repaired walls only: supplied before-repair heightMm and reference; proposed height stays unchanged; null clears the before basis), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
       const args = architectEditSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
       return text(await port.architect("edit", args));
     }),

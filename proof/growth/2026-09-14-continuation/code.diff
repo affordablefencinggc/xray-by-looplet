@@ -1,0 +1,1072 @@
+diff --git a/package.json b/package.json
+index 700b04d..82e9f9b 100644
+--- a/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts src/studio/architect/alterationDrafts.test.ts src/studio/architect/retainedApertureRendering.test.ts src/studio/architect/retainedOpeningLifecycle.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts src/studio/architect/alterationDrafts.test.ts src/studio/architect/retainedApertureRendering.test.ts src/studio/architect/retainedOpeningLifecycle.test.ts src/studio/architect/alterationInfill.test.ts src/studio/architect/alterationEditIntegration.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/architect/AlterationPanel.tsx b/src/studio/architect/AlterationPanel.tsx
+index 21a0727..b6d3a3a 100644
+--- a/src/studio/architect/AlterationPanel.tsx
++++ b/src/studio/architect/AlterationPanel.tsx
+@@ -1,6 +1,6 @@
+ import { useId, useMemo, useState } from "react";
+ import type { ArchitectProject } from "./model";
+-import { alterationSchedule, alterationScheduleCsv, setElementLifecycle, setOpeningDemolitionDisposition } from "./lifecycle";
++import { alterationSchedule, alterationScheduleCsv, setElementLifecycle, setOpeningDemolitionDisposition, setWallRepairBasis } from "./lifecycle";
+ import "./alterationPanel.css";
+ 
+ const statuses = ["existing", "new", "demolished", "repaired"] as const;
+@@ -24,10 +24,25 @@ function AssignmentEditor({ project, row, onChange }: {
+   const [error, setError] = useState("");
+   const dispositionId = useId();
+   const [dispositionReference, setDispositionReference] = useState(row.demolitionDisposition?.reference ?? "");
++  const [dispositionKind, setDispositionKind] = useState<"retain-void" | "infill">(row.demolitionDisposition?.kind ?? "retain-void");
++  const [repairHeight, setRepairHeight] = useState(row.repairBasis ? String(row.repairBasis.height) : "");
++  const [repairReference, setRepairReference] = useState(row.repairBasis?.reference ?? "");
++  const repairReferenceId = useId();
++  const saveRepair = (clear: boolean) => {
++    if (!clear && (!repairReference.trim() || !repairHeight.trim() || !Number.isFinite(Number(repairHeight)) || Number(repairHeight) <= 0)) {
++      setError("Enter a positive before-repair height in millimetres and its reference."); return;
++    }
++    try {
++      if (!onChange(setWallRepairBasis(project, row.id, clear ? null : { height: Number(repairHeight), reference: repairReference.trim() }))) {
++        setError("The before-repair basis was not saved. Check the workspace save message and try again."); return;
++      }
++      setError("");
++    } catch (cause) { setError(cause instanceof Error ? cause.message : "The before-repair basis could not be saved."); }
++  };
+   const retainVoid = (clear: boolean) => {
+-    if (!clear && !dispositionReference.trim()) { setError("Enter a reference confirming that the opening void is retained."); return; }
++    if (!clear && !dispositionReference.trim()) { setError("Enter a reference confirming the selected opening disposition."); return; }
+     try {
+-      if (!onChange(setOpeningDemolitionDisposition(project, row.id, clear ? null : { kind: "retain-void", reference: dispositionReference.trim() }))) {
++      if (!onChange(setOpeningDemolitionDisposition(project, row.id, clear ? null : { kind: dispositionKind, reference: dispositionReference.trim() }))) {
+         setError("The opening disposition was not saved. Check the workspace save message and try again."); return;
+       }
+       setError("");
+@@ -65,15 +80,35 @@ function AssignmentEditor({ project, row, onChange }: {
+       <button type="button" disabled={row.status === "unassigned"} onClick={() => apply(true)}>Clear assignment</button>
+     </div>
+     {row.kind === "opening" && row.status === "demolished" && project.openings.some((opening) => opening.id === row.id && (opening.kind === "door" || opening.kind === "window")) && <div className="alteration-disposition">
+-      <strong>Demolished opening: retained void</strong>
+-      <p>The door or window is removed while the hole in its host wall remains. Record an explicit reference for this intent.</p>
+-      <label htmlFor={dispositionId}>Retained-void reference (required)</label>
++      <strong>Demolished opening disposition</strong>
++      <label>Opening disposition
++        <select aria-label="Opening disposition" value={dispositionKind} onChange={(event) => { setDispositionKind(event.target.value as "retain-void" | "infill"); setError(""); }}>
++          <option value="retain-void">Retain empty aperture</option>
++          <option value="infill">Full infill with host wall layers</option>
++        </select>
++      </label>
++      <p>{dispositionKind === "infill" ? "Close the full aperture in the proposed stage using the host wall's existing authored layers. Partial infill and different infill materials are not supported." : "Remove the door or window while retaining the hole in its host wall."}</p>
++      <label htmlFor={dispositionId}>Opening disposition reference (required)</label>
+       <textarea id={dispositionId} value={dispositionReference} maxLength={500} rows={2} onChange={(event) => { setDispositionReference(event.target.value); setError(""); }} />
+       <div className="alteration-actions">
+-        <button type="button" onClick={() => retainVoid(false)}>Save retained void</button>
+-        <button type="button" disabled={!row.demolitionDisposition} onClick={() => retainVoid(true)}>Clear void disposition</button>
++        <button type="button" onClick={() => retainVoid(false)}>{dispositionKind === "infill" ? "Save full infill" : "Save retained void"}</button>
++        <button type="button" disabled={!row.demolitionDisposition} onClick={() => retainVoid(true)}>Clear opening disposition</button>
++      </div>
++      <p>{row.demolitionDisposition ? `Saved ${row.demolitionDisposition.kind}: ${row.demolitionDisposition.reference}` : "No disposition recorded."}</p>
++    </div>}
++    {row.kind === "wall" && row.status === "repaired" && <div className="alteration-disposition">
++      <strong>Before-repair wall height</strong>
++      <p>Supply the earlier height of this wall. Its proposed height and layer stack stay as authored. Other changes to the before shape are not supported.</p>
++      <label>Before-repair height (mm)
++        <input type="number" min="0.001" max="1000000" step="any" value={repairHeight} onChange={(event) => { setRepairHeight(event.target.value); setError(""); }} />
++      </label>
++      <label htmlFor={repairReferenceId}>Before-repair reference (required)</label>
++      <textarea id={repairReferenceId} value={repairReference} maxLength={500} rows={2} onChange={(event) => { setRepairReference(event.target.value); setError(""); }} />
++      <div className="alteration-actions">
++        <button type="button" onClick={() => saveRepair(false)}>Save before-repair height</button>
++        <button type="button" disabled={!row.repairBasis} onClick={() => saveRepair(true)}>Clear before-repair basis</button>
+       </div>
+-      <p>{row.demolitionDisposition ? `Saved: ${row.demolitionDisposition.reference}` : "No disposition recorded."}</p>
++      <p>{row.repairBasis ? `Saved: ${row.repairBasis.height} mm; ${row.repairBasis.reference}` : "No independent before-repair height recorded."}</p>
+     </div>}
+     {error && <p className="alteration-error" id={errorId} role="alert">{error}</p>}
+   </div>;
+diff --git a/src/studio/architect/AlterationStagePreview.tsx b/src/studio/architect/AlterationStagePreview.tsx
+index 7c55a94..015f6e7 100644
+--- a/src/studio/architect/AlterationStagePreview.tsx
++++ b/src/studio/architect/AlterationStagePreview.tsx
+@@ -50,7 +50,7 @@ function StageReview({ project, onChange }: StageProps) {
+   const confirmBasis = () => {
+     invalidateExport();
+     if (!confirmed || !reference.trim()) {
+-      setError("Enter a reference and confirm the unchanged geometry assumption before reviewing these stages.");
++      setError("Enter a reference and confirm the recorded changes and remaining unchanged geometry before reviewing these stages.");
+       return;
+     }
+     try { setBasis(createAlterationBasis(project, reference.trim())); setError(""); }
+@@ -93,13 +93,13 @@ function StageReview({ project, onChange }: StageProps) {
+   };
+   return <div className="alteration-stage-content">
+     <p>Compare before and proposed geometry using the assigned work statuses. This read-only preview does not change your design.</p>
+-    <p>Existing and repaired elements use the current geometry in both stages. Review that assumption against your survey and brief; a changed shape needs separate before and proposed records.</p>
++    <p>Existing and repaired elements use current geometry in both stages unless a repaired wall has an explicit before-repair height. Full opening infill uses the host wall layers in the proposed stage. Review these authored records against your survey and brief; other changed shapes need separate supported records.</p>
+     <label htmlFor={referenceId}>Survey / brief reference for this review (required)</label>
+     <input id={referenceId} value={reference} maxLength={500} placeholder="Document, revision and page or item"
+       onChange={(event) => { invalidateExport(); setReference(event.target.value); setBasis(null); setConfirmed(false); setError(""); }} />
+     <label className="alteration-stage-confirm">
+       <input type="checkbox" checked={confirmed} onChange={(event) => { invalidateExport(); setConfirmed(event.target.checked); setBasis(null); }} />
+-      <span>I confirm existing and repaired elements have unchanged geometry between before and proposed.</span>
++      <span>I confirm the recorded infill and before-repair heights, and that other existing and repaired geometry is unchanged between stages.</span>
+     </label>
+     <button type="button" className="alteration-stage-review" onClick={confirmBasis}>Review stage geometry</button>
+     {error && <p className="alteration-stage-error" role="alert">{error}</p>}
+diff --git a/src/studio/architect/alterationPanel.css b/src/studio/architect/alterationPanel.css
+index 69c14a8..9f2ed8e 100644
+--- a/src/studio/architect/alterationPanel.css
++++ b/src/studio/architect/alterationPanel.css
+@@ -19,6 +19,7 @@
+ .alteration-editor > p { margin: 0; overflow-wrap: anywhere; }
+ .alteration-editor label { display: grid; gap: var(--alteration-gap); }
+ .architect-workspace .alteration-panel .alteration-editor select,
++.architect-workspace .alteration-panel .alteration-editor input,
+ .architect-workspace .alteration-panel .alteration-editor textarea { width: 100%; min-height: 44px; background: var(--color-field); color: var(--color-field-ink); border: 1px solid var(--color-line); padding: 8px; border-radius: 4px; }
+ .alteration-editor textarea { resize: vertical; }
+ .alteration-actions { display: flex; flex-wrap: wrap; gap: var(--alteration-gap); }
+@@ -41,6 +42,6 @@
+ .architect-workspace .alteration-panel .alteration-table tbody tr:hover { background: var(--color-selected); color: var(--color-ink); }
+ .alteration-table small { display: block; margin-top: 4px; color: var(--color-muted); }
+ .architect-workspace .alteration-panel .alteration-table tr[data-selected="true"] { background: var(--color-selected); color: var(--color-ink); }
+-.architect-workspace .alteration-panel :is(button, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
++.architect-workspace .alteration-panel :is(button, select, input, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+ .alteration-disposition { display: grid; gap: 8px; padding-block: 12px; border-top: 1px solid var(--color-line); overflow-wrap: anywhere; }
+ .alteration-disposition p { margin: 0; color: var(--color-muted); }
+diff --git a/src/studio/architect/alterationStage.ts b/src/studio/architect/alterationStage.ts
+index 8c8bfed..87ccd5a 100644
+--- a/src/studio/architect/alterationStage.ts
++++ b/src/studio/architect/alterationStage.ts
+@@ -30,9 +30,9 @@ function fingerprint(p: ArchitectProject): string {
+   });
+ }
+ 
+-/** Explicit session review: the operator declares that existing/repaired geometry
+- * is unchanged across stages at this signature. It cannot reconstruct an earlier
+- * shape or validate survey evidence. Reloading should require a new review.
++/** Explicit session review of authored dispositions and before-repair heights,
++ * with other existing/repaired geometry unchanged across stages at this signature.
++ * It cannot infer earlier shapes or validate survey evidence. Reload requires review.
+  */
+ export function createAlterationBasis(project: ArchitectProject, reference: string): AlterationBasis {
+   if (typeof reference !== "string" || !reference.trim() || reference.trim().length > 500) {
+@@ -75,6 +75,11 @@ export function resolveAlterationStage(
+       blockers.push({ elementId: opening.id, reason: "A demolished opening in a retained wall needs explicit retain-void or authored infill disposition; this resolver cannot invent it." });
+     }
+   }
++  for (const wall of p.walls) {
++    if (wall.repairBasis && wall.lifecycle?.status !== "repaired") {
++      blockers.push({ elementId: wall.id, reason: "A changed-repair before state belongs to a wall classified as repaired; review the contradictory intent." });
++    }
++  }
+   if (blockers.length) return { ready: false, stage, blockers };
+ 
+   const excludedIds: string[] = [];
+@@ -84,13 +89,30 @@ export function resolveAlterationStage(
+     return included;
+   };
+   p.walls = p.walls.filter(present);
++  // An authored changed-repair before state restores only that wall's own earlier
++  // authored dimensions. The proposed stage keeps the current authored geometry,
++  // and the canonical project and frozen history are never rewritten.
++  for (const wall of p.walls) {
++    if (stage === "before" && wall.repairBasis) wall.height = wall.repairBasis.height;
++    delete wall.repairBasis;
++  }
+   const retainedHosts = new Set(p.walls.map((wall) => wall.id));
+   p.openings = p.openings.filter((opening) => {
+     if (!retainedHosts.has(opening.wallId)) { excludedIds.push(opening.id); return false; }
+-    if (stage === "proposed" && opening.lifecycle!.status === "demolished" && opening.demolitionDisposition?.kind === "retain-void") {
+-      opening.kind = "void";
+-      delete opening.demolitionDisposition;
+-      return true;
++    if (stage === "proposed" && opening.lifecycle!.status === "demolished") {
++      // retain-void keeps the authored cut as an explicit empty aperture.
++      if (opening.demolitionDisposition?.kind === "retain-void") {
++        opening.kind = "void";
++        delete opening.demolitionDisposition;
++        return true;
++      }
++      // Explicit infill closes the aperture: the opening is simply absent, so the
++      // host wall's own authored layers span the former cut. No wall, layer,
++      // assembly or material is invented, and the before stage keeps the fixture.
++      if (opening.demolitionDisposition?.kind === "infill") {
++        excludedIds.push(opening.id);
++        return false;
++      }
+     }
+     return present(opening);
+   });
+diff --git a/src/studio/architect/lifecycle.test.ts b/src/studio/architect/lifecycle.test.ts
+index 238303b..2c85006 100644
+--- a/src/studio/architect/lifecycle.test.ts
++++ b/src/studio/architect/lifecycle.test.ts
+@@ -127,11 +127,13 @@ test("CSV includes every exact schedule row, identity and draft evidence flags",
+   const classified = setElementLifecycle(p, p.walls[0].id, { status: "demolished", reference: "Survey A" });
+   const csv = alterationScheduleCsv(classified);
+   const lines = csv.trimEnd().split("\r\n");
+-  assert.equal(lines[0], '"projectId","revision","id","kind","name","levelId","status","reference","draftOnly","quoteEligible","demolitionDisposition","dispositionReference"');
++  // RES-01 adds explicit changed-repair before-state columns beside the existing
++  // demolition disposition columns; every prior column keeps its position.
++  assert.equal(lines[0], '"projectId","revision","id","kind","name","levelId","status","reference","draftOnly","quoteEligible","demolitionDisposition","dispositionReference","repairBasisReference","repairBasisHeight"');
+   const rows = alterationSchedule(classified).rows;
+   assert.equal(lines.length, rows.length + 1);
+   rows.forEach((row, i) => {
+-    const expected = [classified.id, classified.revision, row.id, row.kind, row.name, row.levelId, row.status, row.reference, true, false, "", ""];
++    const expected = [classified.id, classified.revision, row.id, row.kind, row.name, row.levelId, row.status, row.reference, true, false, "", "", "", ""];
+     assert.equal(lines[i + 1], expected.map((value) => `"${value}"`).join(","));
+   });
+   assert.equal(alterationScheduleCsv(emptyProject("none")), lines[0] + "\r\n");
+diff --git a/src/studio/architect/lifecycle.ts b/src/studio/architect/lifecycle.ts
+index aa6a54f..7686f63 100644
+--- a/src/studio/architect/lifecycle.ts
++++ b/src/studio/architect/lifecycle.ts
+@@ -4,6 +4,10 @@ import { validateProject, type ArchitectProject } from "./model.ts";
+ export type LifecycleStatus = "existing" | "new" | "demolished" | "repaired";
+ export type LifecycleRecord = { status: LifecycleStatus; reference: string };
+ export type AlterationStatus = LifecycleStatus | "unassigned";
++export type OpeningDemolitionDisposition =
++  | { kind: "retain-void"; reference: string }
++  | { kind: "infill"; reference: string };
++export type RepairBasis = { reference: string; height: number };
+ export type AlterationRow = {
+   id: string;
+   kind: "wall" | "opening" | "slab" | "roof";
+@@ -11,7 +15,8 @@ export type AlterationRow = {
+   levelId: string;
+   status: AlterationStatus;
+   reference: string;
+-  demolitionDisposition?: { kind: "retain-void"; reference: string };
++  demolitionDisposition?: OpeningDemolitionDisposition;
++  repairBasis?: RepairBasis;
+ };
+ export type AlterationWarning = {
+   code: "new-opening-demolished-host";
+@@ -41,20 +46,55 @@ export function setElementLifecycle(
+   if (record === null) delete element.lifecycle;
+   else element.lifecycle = record;
+   if ("wallId" in element && record?.status !== "demolished") delete element.demolitionDisposition;
++  // A changed-repair before state only has meaning while the wall is repaired.
++  if ("layers" in element && record?.status !== "repaired") delete element.repairBasis;
+   return validateProject(next);
+ }
+ 
+-/** Explicit removal of the fixture while retaining its authored opening cut. */
++const dispositionSchema = z.discriminatedUnion("kind", [
++  z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict(),
++  z.object({ kind: z.literal("infill"), reference: z.string().trim().min(1).max(500) }).strict(),
++]);
++
++/** Explicit authored disposition for a demolished door or window.
++ * retain-void removes the fixture and keeps its authored cut; infill removes the
++ * fixture and closes the cut using only the host wall's own authored layers.
++ * Neither may be inferred: the operator authors one with an explicit reference.
++ */
+ export function setOpeningDemolitionDisposition(project: ArchitectProject, id: string,
+-  disposition: { kind: "retain-void"; reference: string } | null): ArchitectProject {
++  disposition: OpeningDemolitionDisposition | null): ArchitectProject {
+   const next = validateProject(project);
+   const opening = next.openings.find(item => item.id === id);
+   if (!opening) throw Error("Demolition disposition requires an existing opening.");
+   if (disposition === null) delete opening.demolitionDisposition;
+   else {
+     if (opening.kind === "void" || opening.lifecycle?.status !== "demolished")
+-      throw Error("Assign demolished work status to a door or window before retaining its void.");
+-    opening.demolitionDisposition = z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict().parse(disposition);
++      throw Error("Assign demolished work status to a door or window before retaining or infilling its void.");
++    opening.demolitionDisposition = dispositionSchema.parse(disposition);
++  }
++  return validateProject(next);
++}
++
++const repairBasisInputSchema = z.object({
++  reference: z.string().trim().min(1).max(500),
++  height: z.number().finite().positive().max(1e6),
++}).strict();
++
++/** Explicit authored before-alteration shape for a repair whose geometry changed.
++ * It describes the earlier dimensions of this same wall and is never derived from
++ * the current geometry, a survey or frozen issue history. Without it a repaired
++ * wall keeps its existing unchanged-across-stages meaning.
++ */
++export function setWallRepairBasis(project: ArchitectProject, id: string,
++  basis: RepairBasis | null): ArchitectProject {
++  const next = validateProject(project);
++  const wall = next.walls.find(item => item.id === id);
++  if (!wall) throw Error("A changed-repair before state requires an existing wall.");
++  if (basis === null) delete wall.repairBasis;
++  else {
++    if (wall.lifecycle?.status !== "repaired")
++      throw Error("Assign repaired work status to the wall before recording its changed-repair before state.");
++    wall.repairBasis = repairBasisInputSchema.parse(basis);
+   }
+   return validateProject(next);
+ }
+@@ -91,6 +131,7 @@ export function alterationSchedule(project: ArchitectProject): {
+         status,
+         reference: element.lifecycle?.reference ?? "",
+         ...("wallId" in element && element.demolitionDisposition ? { demolitionDisposition: element.demolitionDisposition } : {}),
++        ...("layers" in element && element.repairBasis ? { repairBasis: element.repairBasis } : {}),
+       });
+       counts[status]++;
+       if (status === "new" && host?.lifecycle?.status === "demolished") {
+@@ -117,12 +158,13 @@ export function alterationScheduleCsv(project: ArchitectProject): string {
+     const safe = /^[\s\u0000-\u001f\u007f-\u009f]*[=+\-@]/u.test(text) ? "'" + text : text;
+     return '"' + safe.replace(/"/g, '""') + '"';
+   };
+-  const headers = ["projectId", "revision", "id", "kind", "name", "levelId", "status", "reference", "draftOnly", "quoteEligible", "demolitionDisposition", "dispositionReference"];
++  const headers = ["projectId", "revision", "id", "kind", "name", "levelId", "status", "reference", "draftOnly", "quoteEligible", "demolitionDisposition", "dispositionReference", "repairBasisReference", "repairBasisHeight"];
+   return [
+     headers.map(cell).join(","),
+     ...schedule.rows.map((row) => [
+       project.id, project.revision, row.id, row.kind, row.name, row.levelId,
+       row.status, row.reference, schedule.draftOnly, schedule.quoteEligible, row.demolitionDisposition?.kind ?? "", row.demolitionDisposition?.reference ?? "",
++      row.repairBasis?.reference ?? "", row.repairBasis?.height ?? "",
+     ].map(cell).join(",")),
+   ].join("\r\n") + "\r\n";
+ }
+diff --git a/src/studio/architect/model.ts b/src/studio/architect/model.ts
+index f7dde0d..c7a2f46 100644
+--- a/src/studio/architect/model.ts
++++ b/src/studio/architect/model.ts
+@@ -27,10 +27,22 @@ export const layerSchema = z
+     wastePercent: z.number().min(0).max(100),
+   })
+   .strict();
++/** Authored before-alteration shape for a repair whose geometry changes.
++ * It records only the earlier dimensions of this same authored wall; it never
++ * reconstructs a survey, rewrites frozen issue history or invents an assembly.
++ * Absent, a repaired element keeps its unchanged-across-stages meaning.
++ */
++export const repairBasisSchema = z
++  .object({
++    reference: z.string().trim().min(1).max(500),
++    height: positive,
++  })
++  .strict();
+ const wallSchema = z
+   .object({
+     ...entity,
+     lifecycle,
++    repairBasis: repairBasisSchema.optional(),
+     levelId: id,
+     name: z.string().min(1).max(120),
+     a: point,
+@@ -43,7 +55,13 @@ const openingSchema = z
+   .object({
+     ...entity,
+     lifecycle,
+-    demolitionDisposition: z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict().optional(),
++    // Explicit authored intent for a demolished door/window in a retained wall.
++    // retain-void keeps the authored cut; infill closes it using only the host
++    // wall's own authored layers. Neither is ever inferred by a resolver.
++    demolitionDisposition: z.discriminatedUnion("kind", [
++      z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict(),
++      z.object({ kind: z.literal("infill"), reference: z.string().trim().min(1).max(500) }).strict(),
++    ]).optional(),
+     wallId: id,
+     tag: z.string().min(1).max(30),
+     kind: z.enum(["door", "window", "void"]),
+@@ -233,6 +251,10 @@ export function validateProject(value: unknown): ArchitectProject {
+     }
+   for (const w of p.walls) {
+     if (distance(w.a, w.b) < 1) throw Error("A wall must be at least 1 mm long.");
++    // A before-alteration shape is meaningless unless the wall is authored as
++    // repaired; it must never silently survive a later classification change.
++    if (w.repairBasis && w.lifecycle?.status !== "repaired")
++      throw Error("A changed-repair before state requires a wall classified as repaired.");
+     if (new Set(w.layers.map((l) => l.id)).size !== w.layers.length)
+       throw Error("Duplicate wall layer.");
+     for (const l of w.layers)
+diff --git a/src/studio/architect/retainedOpeningLifecycle.test.ts b/src/studio/architect/retainedOpeningLifecycle.test.ts
+index 572ede5..48ea632 100644
+--- a/src/studio/architect/retainedOpeningLifecycle.test.ts
++++ b/src/studio/architect/retainedOpeningLifecycle.test.ts
+@@ -52,8 +52,12 @@ test("missing or cleared disposition blocks retained-host stages and invalidates
+ 
+ test("disposition rejects invalid reference, unsupported kind, wrong lifecycle and missing identities atomically", () => {
+   const p = fixture(), original = structuredClone(p);
++  // RES-01 supersedes the earlier assertion that "infill" is unrepresentable:
++  // authored infill is now an explicit member alongside retain-void, proven in
++  // alterationInfill.test.ts. Every other rejection is unchanged, and an
++  // unsupported disposition kind must still be refused.
+   for (const value of [undefined, { ...disposition, reference: " " }, { ...disposition, reference: "x".repeat(501) },
+-    { ...disposition, reference: 42 }, { kind: "infill", reference: "No authored infill" }, { ...disposition, approved: true }]) {
++    { ...disposition, reference: 42 }, { kind: "partial-infill", reference: "Not supported" }, { ...disposition, approved: true }]) {
+     assert.throws(() => setOpeningDemolitionDisposition(p, "removed-door", value as typeof disposition));
+   }
+   assert.throws(() => setOpeningDemolitionDisposition(p, "missing", disposition));
+diff --git a/src/studio/assistant/appTools.ts b/src/studio/assistant/appTools.ts
+index fcd6626..bcb1c3b 100644
+--- a/src/studio/assistant/appTools.ts
++++ b/src/studio/assistant/appTools.ts
+@@ -99,13 +99,16 @@ const operations = {
+ const editOperations = {
+   type: "array", minItems: 1, maxItems: ARCHITECT_BATCH_LIMIT, items: { oneOf: [
+     objectSchema({ kind: { const: "set-opening-disposition" }, id, disposition: { anyOf: [
+-      objectSchema({ kind: { const: "retain-void" }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
++      objectSchema({ kind: { enum: ["retain-void", "infill"] }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
+       { type: "null" },
+     ] } }),
+     objectSchema({ kind: { const: "set-lifecycle" }, id, lifecycle: { anyOf: [
+       objectSchema({ status: { enum: ["existing", "new", "demolished", "repaired"] }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
+       { type: "null" },
+     ] } }, ["kind", "id", "lifecycle"]),
++    objectSchema({ kind: { const: "set-wall-repair-basis" }, id, basis: { anyOf: [
++      objectSchema({ heightMm: positive, reference: { type: "string", minLength: 1, maxLength: 500 } }), { type: "null" },
++    ] } }),
+     objectSchema({ kind: { const: "remove" }, id }, ["kind", "id"]),
+     objectSchema({ kind: { const: "move-wall" }, id, a: point, b: point }, ["kind", "id"]),
+     objectSchema({ kind: { const: "set-wall" }, id, name, heightMm: positive, templateWallId: id }, ["kind", "id"]),
+@@ -374,7 +377,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       if (summary.jobId !== args.expectedJobId || summary.jobRevision !== args.expectedRevision) throw Error("The stored backup does not match the expected project revision.");
+       return text({ saved: true, verified: true, backupId: summary.id, name: summary.name, storedAt: summary.storedAt, sha256: summary.sha256, sizeBytes: summary.sizeBytes, plans: summary.plans, photos: summary.photos, records: summary.records, scope: "Stored in this browser's backup database. Download it from Backups to keep a copy outside the app." });
+     }),
+-    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), set-opening-disposition (demolished door/window only: retain-void plus explicit reference preserves an empty aperture; null clears intent; no inferred infill), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
++    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), set-opening-disposition (demolished door/window only: retain-void preserves an empty aperture; infill explicitly closes the full aperture with the host wall layers; each requires a supplied reference; null clears intent; no partial infill or invented layers), set-wall-repair-basis (repaired walls only: supplied before-repair heightMm and reference; proposed height stays unchanged; null clears the before basis), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
+       const args = architectEditSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("edit", args));
+     }),
+diff --git a/src/studio/assistant/architectBridge.ts b/src/studio/assistant/architectBridge.ts
+index 2d2aa8b..10db6fe 100644
+--- a/src/studio/assistant/architectBridge.ts
++++ b/src/studio/assistant/architectBridge.ts
+@@ -163,7 +163,10 @@ export const architectEditOperationSchema = z.discriminatedUnion("kind", [
+     reference: z.string().trim().min(1).max(500),
+   }).strict().nullable() }).strict(),
+   z.object({ kind: z.literal("set-opening-disposition"), id, disposition: z.object({
+-    kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500),
++    kind: z.enum(["retain-void", "infill"]), reference: z.string().trim().min(1).max(500),
++  }).strict().nullable() }).strict(),
++  z.object({ kind: z.literal("set-wall-repair-basis"), id, basis: z.object({
++    heightMm: positive, reference: z.string().trim().min(1).max(500),
+   }).strict().nullable() }).strict(),
+   /** Removes one entity by ID. Removing a wall also removes its hosted openings and dimensions; a level must be empty first. */
+   z.object({ kind: z.literal("remove"), id }).strict(),
+@@ -292,17 +295,27 @@ function prepareArchitectEditsDraft(project: ArchitectProject, input: unknown, m
+       if (operation.lifecycle === null) delete element.lifecycle;
+       else element.lifecycle = operation.lifecycle;
+       if ("wallId" in element && operation.lifecycle?.status !== "demolished") delete element.demolitionDisposition;
++      if ("layers" in element && operation.lifecycle?.status !== "repaired") delete element.repairBasis;
+       change(ENTITY_KIND[key], element.id);
+       notices.push(`Element ${element.id}: lifecycle ${element.lifecycle?.status ?? "unassigned"}. Authored classification only; quantities are not phase-filtered and this is not verified survey evidence.`);
+     } else if (operation.kind === "set-opening-disposition") {
+       const opening = find("openings", operation.id, "opening");
+       if (operation.disposition === null) delete opening.demolitionDisposition;
+       else {
+-        if (opening.kind === "void" || opening.lifecycle?.status !== "demolished") throw Error("Retain-void requires a demolished door or window.");
++        if (opening.kind === "void" || opening.lifecycle?.status !== "demolished") throw Error("Demolition disposition requires a demolished door or window.");
+         opening.demolitionDisposition = operation.disposition;
+       }
+       change("opening", opening.id);
+-      notices.push(`Opening ${opening.id}: ${operation.disposition ? "retain authored void after fixture demolition" : "demolition disposition cleared"}. No infill, source verification or procurement is inferred.`);
++      notices.push(`Opening ${opening.id}: ${operation.disposition?.kind === "infill" ? "explicit full infill using the host wall's authored layers" : operation.disposition ? "retain authored void after fixture demolition" : "demolition disposition cleared"}. No infill, source verification or procurement is inferred.`);
++    } else if (operation.kind === "set-wall-repair-basis") {
++      const wall = find("walls", operation.id, "wall");
++      if (operation.basis === null) delete wall.repairBasis;
++      else {
++        if (wall.lifecycle?.status !== "repaired") throw Error("A before-repair height requires repaired work status.");
++        wall.repairBasis = { height: operation.basis.heightMm, reference: operation.basis.reference };
++      }
++      change("wall", wall.id);
++      notices.push(`Wall ${wall.id}: ${operation.basis ? "authored before-repair height recorded; proposed height unchanged" : "before-repair basis cleared"}. No survey verification or quantity approval is inferred.`);
+     } else if (operation.kind === "set-opening") {
+       const patch = defined({ offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm, sill: operation.sillMm, tag: operation.tag, hinge: operation.hinge, swing: operation.swing });
+       requireChange(patch, "Changing an opening");
+diff --git a/src/studio/industries/quantity-surveying/assistantTool.test.ts b/src/studio/industries/quantity-surveying/assistantTool.test.ts
+index caa7de3..2682eec 100644
+--- a/src/studio/industries/quantity-surveying/assistantTool.test.ts
++++ b/src/studio/industries/quantity-surveying/assistantTool.test.ts
+@@ -1,8 +1,9 @@
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+ import { z } from "zod";
+-import { classificationInputSchema, type ClassificationInput } from "./classification.ts";
+-import { execute, inputSchema, name } from "./assistantTool.ts";
++import { classificationInputSchema, classifyQuantities, type ClassificationInput } from "./classification.ts";
++import { quantityReportCsv } from "./report.ts";
++import { description, execute, inputSchema, name } from "./assistantTool.ts";
+ 
+ function example(): ClassificationInput {
+   return {
+@@ -93,6 +94,51 @@ test("explicit root/source nulls remain valid and the declaration explains their
+   assert.match(schema.properties.items.items.properties.source.description, /Do not replace null/);
+ });
+ 
++// QS-01: both recorded answer failures were inferences the payload never supplied.
++// These bind the explanation to the actual export instead of the model's guess.
++test("result carries the real CSV columns so an explanation never has to infer them", () => {
++  const result = execute(example());
++  const header = quantityReportCsv(classifyQuantities(example())).split("\r\n")[0]
++    .split('","').map(cell => cell.replace(/^"|"$/g, ""));
++  assert.deepEqual(result.reportContract.csvColumns, header,
++    "assistant-visible CSV columns must match the bytes quantityReportCsv actually writes");
++  assert.ok(result.reportContract.csvColumns.includes("Classification path"),
++    "the ancestor path column is the fact the failed answer denied existed");
++  assert.ok(result.reportContract.csvColumns.includes("Classification"));
++});
++
++test("result states item-once aggregation, not disjoint evidence, as why inclusive totals are safe", () => {
++  const contract = execute(example()).reportContract;
++  assert.match(contract.rollupOverlapRule, /INCLUSIVE/);
++  assert.match(contract.rollupOverlapRule, /never be added together/i);
++  assert.match(contract.rollupOverlapRule, /not from units or evidence classes being disjoint/i);
++  assert.match(contract.totalsRule, /exactly once/);
++  assert.match(contract.csvRowRule, /no rollup, subtotal or ancestor records/i);
++  assert.match(contract.csvHierarchyRule, /Classification path/);
++});
++
++// The overlap the explanation must describe: building.rollup re-counts wall's two items.
++test("inclusive rollup demonstrably re-counts descendant items rather than adding new ones", () => {
++  const result = execute(example());
++  const building = result.nodes.find(node => node.id === "building")!;
++  const wall = result.nodes.find(node => node.id === "wall")!;
++  const area = (rows: typeof building.rollup) => rows.find(row => row.unit === "m2")!;
++  assert.equal(area(wall.direct).quantity, "0.3");
++  assert.equal(area(building.rollup).quantity, "0.3");
++  assert.equal(building.direct.some(row => row.unit === "m2"), false,
++    "building holds no direct m2 item, so its 0.3 m2 is entirely wall's items re-counted");
++  assert.equal(result.totals.find(row => row.unit === "m2" && row.evidence === "sample")!.quantity, "0.3",
++    "summing wall 0.3 + building 0.3 would double-count; the item-once total stays 0.3");
++});
++
++test("tool description explains the CSV and overlap mechanism it previously only asserted", () => {
++  assert.match(description, /one record per actual item/i);
++  assert.match(description, /no rollup records/i);
++  assert.match(description, /classification path/i);
++  assert.match(description, /never be added together/i);
++  assert.match(description, /counted exactly once, not because units or evidence classes are disjoint/i);
++});
++
+ test("failed live placeholder arguments are rejected with nullable alternatives, never repaired silently", () => {
+   const input: any = example();
+   input.nodes[0].parentId = "";
+diff --git a/src/studio/industries/quantity-surveying/assistantTool.ts b/src/studio/industries/quantity-surveying/assistantTool.ts
+index 8085e8e..c9e862f 100644
+--- a/src/studio/industries/quantity-surveying/assistantTool.ts
++++ b/src/studio/industries/quantity-surveying/assistantTool.ts
+@@ -1,15 +1,30 @@
+ import { z } from "zod";
+ import { classificationInputSchema, classifyQuantities } from "./classification.ts";
++import { CSV_COLUMNS } from "./report.ts";
++
++/** Facts about the report/CSV that an explanation must not have to infer.
++ * Both recorded answer failures came from guessing these: that the CSV drops parent
++ * labels (it does not — "Classification path" carries the full ancestor path), and
++ * that inclusive totals are safe because evidence classes are disjoint (they are not;
++ * they are safe because every actual item is counted exactly once). */
++const reportContract = {
++  csvColumns: [...CSV_COLUMNS],
++  csvRowRule: "One CSV record per actual item, including an item assigned directly to a nonleaf (parent) classification. There are no rollup, subtotal or ancestor records.",
++  csvHierarchyRule: "Hierarchy fields are retained on every record: 'Classification' is the assigned node and 'Classification path' is the full JSON ancestor path. Evidence, every supplied source-reference field, report status and the quote-ineligible flag are retained too. A manual item with no supplied reference reports 'Unavailable', never an invented ID.",
++  totalsRule: "'totals' counts each actual item exactly once, split by exact unit and declared evidence. That item-once rule is why the report total is safe.",
++  rollupOverlapRule: "Each node's 'rollup' is INCLUSIVE: it re-counts the same items already reported by its descendants' 'direct' and 'rollup' entries. Parent and child rows therefore OVERLAP by construction and must NEVER be added together. Safety comes from item-once aggregation, not from units or evidence classes being disjoint across nodes.",
++  reconciliation: "Reconcile against 'totals'. Summing ancestor rows double-counts every item held below a parent.",
++} as const;
+ 
+ export const name = "classify_draft_quantities";
+-export const description = "Group explicitly supplied quantities into an explicitly supplied user-defined classification hierarchy. Supply hierarchy ID/revision, nodes, measured-item IDs, decimal quantity strings, units, declared evidence status and source metadata (or explicit null), plus one assignment per classified item. Use only quantities, classifications and references actually supplied by the user or read from project evidence; never invent them. Unassigned items remain visible. Returns exact decimal totals separated by unit and declared evidence status, direct node totals and overlapping ancestor rollups; use report totals for reconciliation rather than summing ancestor rows. Preserves source metadata without verifying it. Always draft-classification and verifiedQuoteEligible:false, even with complete classification or caller-declared measured evidence. No project changes, saved classifications, rate application, currency, cost plan issue or approval. Missing required inputs must be requested, not guessed.";
++export const description = "Group explicitly supplied quantities into an explicitly supplied user-defined classification hierarchy. Supply hierarchy ID/revision, nodes, measured-item IDs, decimal quantity strings, units, declared evidence status and source metadata (or explicit null), plus one assignment per classified item. Use only quantities, classifications and references actually supplied by the user or read from project evidence; never invent them. Unassigned items remain visible. Returns exact decimal totals separated by unit and declared evidence status, direct node totals and inclusive ancestor rollups, plus a reportContract field stating the real CSV columns and aggregation rules. When explaining the export or the hierarchy, quote reportContract instead of inferring: the CSV holds one record per actual item (including items assigned directly to a parent classification) with no rollup records, and it retains the classification path and every supplied source-reference field. Inclusive parent rollups re-count their descendants' items, so parent and child rows overlap and must never be added together; totals are safe because each actual item is counted exactly once, not because units or evidence classes are disjoint. Use report totals for reconciliation rather than summing ancestor rows. Preserves source metadata without verifying it. Always draft-classification and verifiedQuoteEligible:false, even with complete classification or caller-declared measured evidence. No project changes, saved classifications, rate application, currency, cost plan issue or approval. Missing required inputs must be requested, not guessed.";
+ 
+ // Input mode preserves accepted decimal syntax before lossless normalisation.
+ // Cross-field graph/assignment checks also run through classifyQuantities.
+ export const inputSchema = z.toJSONSchema(classificationInputSchema, { io: "input" });
+ 
+ export function execute(input: unknown) {
+-  try { return classifyQuantities(classificationInputSchema.parse(input)); }
++  try { return { ...classifyQuantities(classificationInputSchema.parse(input)), reportContract }; }
+   catch (error) {
+     if (error instanceof z.ZodError) {
+       const issues = error.issues.map(issue => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ");
+diff --git a/src/studio/industries/quantity-surveying/report.ts b/src/studio/industries/quantity-surveying/report.ts
+index ecb9501..129eec1 100644
+--- a/src/studio/industries/quantity-surveying/report.ts
++++ b/src/studio/industries/quantity-surveying/report.ts
+@@ -41,13 +41,17 @@ export function csvCell(value: string): string {
+   return `"${safe.replace(/"/g, '""')}"`;
+ }
+ 
++/** The exact CSV columns, in export order. Shared with the assistant boundary so an
++ * explanation of the export is grounded in the real header rather than inferred. */
++export const CSV_COLUMNS = ['Hierarchy', 'Hierarchy revision', 'Item reference', 'Quantity', 'Unit', 'Evidence',
++  'Assignment', 'Classification', 'Classification path', 'Source reference status', 'Document ID',
++  'Source SHA-256', 'Source revision', 'Sheet (1-based)', 'Region ID', 'Calibration ID', 'Report status', 'Verified quote eligible'] as const;
++
+ /** Exactly one row per actual item, including items directly assigned to a parent. No rollup rows. */
+ export function quantityReportCsv(report: QuantityReport): string {
+   // Fail rather than produce a partial export if the caller supplied broken hierarchy/source data.
+   const checked = filterQuantityReport(report, { assignment: 'all', nodeId: '' });
+-  const header = ['Hierarchy', 'Hierarchy revision', 'Item reference', 'Quantity', 'Unit', 'Evidence',
+-    'Assignment', 'Classification', 'Classification path', 'Source reference status', 'Document ID',
+-    'Source SHA-256', 'Source revision', 'Sheet (1-based)', 'Region ID', 'Calibration ID', 'Report status', 'Verified quote eligible'];
++  const header = [...CSV_COLUMNS];
+   const rows = checked.rows.map(row => [checked.hierarchyId, checked.hierarchyRevision, row.id, row.quantity, row.unit,
+     row.evidence, row.nodeId === null ? 'Unassigned' : 'Classified', row.nodeId ?? '',
+     JSON.stringify(classificationPath(checked, row.nodeId)), row.source === null ? 'Unavailable' : 'Supplied reference; not independently verified',
+diff --git a/src/studio/industries/roofing/sheetCoverage.test.ts b/src/studio/industries/roofing/sheetCoverage.test.ts
+index 49b13bf..cd8dfda 100644
+--- a/src/studio/industries/roofing/sheetCoverage.test.ts
++++ b/src/studio/industries/roofing/sheetCoverage.test.ts
+@@ -29,7 +29,37 @@ test("returned explanation includes first-course coverage and exact source decim
+   assert.equal(tiny.courses, 3);
+   assert.equal(tiny.inputs.developedRunM, "9.800000001");
+   assert.match(tiny.calculation.courses, /9\.800000001/);
+-  assert.match(r.limitations[0], /End laps between courses are included/);
++  assert.match(r.limitations[0], /End lap .* IS included/);
++});
++test("receipt states the exact course boundary instead of leaving it to be extrapolated", () => {
++  const at = (developedRunM: string) => calculateSheetCoverage({ ...fixture(), developedRunM, orderLengthM: "5", endLapM: "0.2" });
++  // The three values ROOF-01 requires: 9.8 is exactly two courses; both larger runs need three.
++  assert.equal(at("9.8").courses, 2);
++  assert.equal(at("9.800000001").courses, 3);
++  assert.equal(at("9.81").courses, 3);
++  const r = at("9.8");
++  // The boundary the earlier Developer review invented wrongly is now a returned fact.
++  assert.equal(r.calculation.maxRunAtThisCourseCountM, 9.8);
++  assert.equal(r.calculation.minRunForAnotherCourseM, 9.800000001);
++  assert.match(r.calculation.courseBoundary, /up to and including exactly 9\.8 m/);
++  assert.match(r.calculation.courseBoundary, /9\.800000001 m or more needs 3 courses/);
++  assert.match(r.calculation.coursesExpanded, /Course 1 covers a full ordered sheet length of 5 m/);
++  assert.match(r.calculation.coursesExpanded, /4\.8 \/ 4\.8/);
++  // The substituted formula the model previously used is named and refuted in the receipt itself.
++  assert.match(r.calculation.wrongFormulaWarning, /would give 3 instead of the correct 2/);
++  const three = at("9.81");
++  assert.equal(three.calculation.maxRunAtThisCourseCountM, 14.6);
++  assert.equal(three.calculation.minRunForAnotherCourseM, 14.600000001);
++  // Side lap and end lap are separate sentences, so neither can be paraphrased into the other.
++  assert.match(r.limitations[0], /transverse lap/);
++  assert.match(r.limitations[0], /Do not describe end laps or transverse laps as excluded/);
++  assert.match(r.limitations[1], /Side lap .* is NOT calculated here/);
++  assert.doesNotMatch(r.limitations[0], /Side lap \(/);
++  // A single-course run applies no end lap and reports no lower bound above zero.
++  const one = at("5");
++  assert.equal(one.courses, 1);
++  assert.match(one.calculation.coursesExpanded, /fits inside one full ordered sheet/);
++  assert.equal(one.calculation.maxRunAtThisCourseCountM, 5);
+ });
+ test("empty, impossible and excessive dimensions fail without implicit values", () => {
+   assert.throws(() => calculateSheetCoverage(createEmptySheetCoverage()));
+@@ -40,6 +70,22 @@ test("empty, impossible and excessive dimensions fail without implicit values",
+   assert.throws(() => calculateSheetCoverage({ ...fixture(), effectiveCoverM: "0.000000001" }), /1,000,000/);
+   assert.throws(() => calculateSheetCoverage({ ...fixture(), supplierReference: " " }));
+ });
++test("coverage excess conserves lap-adjusted run without inventing a cutting schedule", () => {
++  for (const [run, courses, covered, excess] of [["5", 1, 5, 0], ["9.8", 2, 9.8, 0], ["9.81", 3, 14.6, 4.79]] as const) {
++    const { calculated: _, ...input } = { ...fixture(), developedWidthM: "8", effectiveCoverM: "0.8", developedRunM: run, orderLengthM: "5", endLapM: "0.2" };
++    const r = execute(input);
++    assert.equal(r.courses, courses);
++    assert.equal(r.coveredRunM, covered);
++    assert.equal(r.excessRunM, excess);
++    assert.equal(r.orderedLinearM, r.columns * courses * 5);
++    assert.ok(Math.abs(r.orderedLinearM / r.columns - (courses - 1) * 0.2 - Number(run) - excess) < 1e-12);
++    assert.equal(r.cuttingSchedule.status, "not-calculated");
++    assert.equal(r.cuttingSchedule.perSheetWasteM, null);
++    assert.equal(r.cuttingSchedule.reusableOffcuts, null);
++    assert.match(r.calculation.excessRun, new RegExp(`${excess} m excess run`));
++    assert.equal(r.verifiedQuoteEligible, false);
++  }
++});
+ test("legacy roof forms and empty independent coverage retain usable area calculations", () => {
+   const old = { planes: [{ id: "QA", grossPlanAreaM2: "100", pitchDegrees: "0", measurementReference: "QA", pitchReference: "QA", openings: [] }], calculated: true };
+   assert.deepEqual(roofFormSchema.parse(old), old);
+diff --git a/src/studio/industries/roofing/sheetCoverage.ts b/src/studio/industries/roofing/sheetCoverage.ts
+index 6788286..8cef2c7 100644
+--- a/src/studio/industries/roofing/sheetCoverage.ts
++++ b/src/studio/industries/roofing/sheetCoverage.ts
+@@ -36,22 +36,39 @@ export function calculateSheetCoverage(raw: unknown) {
+   const sheets = columns * courses;
+   if (sheets > 1_000_000n) throw Error("This draft worksheet supports at most 1,000,000 sheets; review the dimensions and units.");
+   const coveredRun = order + (courses - 1n) * (order - lap);
++  const nextCourseRun = coveredRun + 1n; // Exact next representable run at nine decimal places.
++  const runText = input.developedRunM.trim(), orderText = input.orderLengthM.trim(), lapText = input.endLapM.trim();
+   return { status: "draft-sheet-coverage" as const, columns: Number(columns), courses: Number(courses), sheets: Number(sheets),
+     inputs: { ...input },
+     calculation: {
+       columns: `ceil(${input.developedWidthM.trim()} / ${input.effectiveCoverM.trim()}) = ${columns}`,
+       coursesFormula: "run <= ordered length ? 1 : 1 + ceil((run - ordered length) / (ordered length - end lap))",
+-      courses: run <= order ? `${input.developedRunM.trim()} <= ${input.orderLengthM.trim()}: 1 course`
+-        : `1 + ceil((${input.developedRunM.trim()} - ${input.orderLengthM.trim()}) / (${input.orderLengthM.trim()} - ${input.endLapM.trim()})) = ${courses}`,
++      courses: run <= order ? `${runText} <= ${orderText}: 1 course`
++        : `1 + ceil((${runText} - ${orderText}) / (${orderText} - ${lapText})) = ${courses}`,
++      coursesExpanded: run <= order
++        ? `The run ${runText} m fits inside one full ordered sheet of ${orderText} m, so 1 course is used and no end lap is applied.`
++        : `Course 1 covers a full ordered sheet length of ${orderText} m. The remaining ${metres(run - order)} m is covered by further courses that each add ${orderText} - ${lapText} = ${metres(order - lap)} m, so ceil(${metres(run - order)} / ${metres(order - lap)}) = ${courses - 1n} more course(s), giving ${courses} courses in total.`,
++      /** The reviewer must read these bounds, never extrapolate them from the single evaluated case. */
++      courseBoundary: `${courses} course(s) cover any run greater than ${courses === 1n ? 0 : metres(coveredRun - (order - lap))} m and up to and including exactly ${metres(coveredRun)} m. A run of ${metres(nextCourseRun)} m or more needs ${courses + 1n} courses.`,
++      maxRunAtThisCourseCountM: metres(coveredRun),
++      minRunForAnotherCourseM: metres(nextCourseRun),
++      /** Only claim a difference when one exists; a "3 instead of 3" warning would itself mislead. */
++      wrongFormulaWarning: ceil(run, order - lap) === courses
++        ? `Do NOT compute courses as ceil(run / (ordered length - end lap)). It happens to give the correct ${courses} for this particular input, but it is still the wrong rule and gives a different answer for other runs, because the first course is not shortened by an end lap.`
++        : `Do NOT compute courses as ceil(run / (ordered length - end lap)); for this input that would give ${ceil(run, order - lap)} instead of the correct ${courses}, because the first course is not shortened by an end lap.`,
+       sheets: `${columns} columns × ${courses} courses = ${sheets} sheets`,
+-      orderedLength: `${sheets} sheets × ${input.orderLengthM.trim()} m = ${metres(sheets * order)} m`,
++      orderedLength: `${sheets} sheets × ${orderText} m = ${metres(sheets * order)} m`,
+       endLapPolicy: "The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.",
++      excessRun: `${metres(coveredRun)} m covered run - ${runText} m requested run = ${metres(coveredRun - run)} m excess run. This is geometric over-coverage along the run, not a per-sheet waste or cutting quantity.`,
+     },
++    cuttingSchedule: { status: "not-calculated" as const, perSheetWasteM: null, reusableOffcuts: null,
++      reason: "No cutting layout, trimming or offcut reuse is supplied. Do not infer per-sheet waste, scrap, usable cut length or reusable offcuts from coverage excess, in either the answer or Developer review." },
+     orderedLinearM: metres(sheets * order), coveredWidthM: metres(columns * cover), coveredRunM: metres(coveredRun),
+     excessWidthM: metres(columns * cover - width), excessRunM: metres(coveredRun - run),
+     measurementReference: input.measurementReference, supplierReference: input.supplierReference,
+     verifiedQuoteEligible: false as const,
+-    limitations: ["End laps between courses are included. Effective sheet cover already includes side lap; side lap is not deducted twice.",
++    limitations: ["End lap (the lengthwise lap between courses, also called a transverse lap) IS included in this calculation: every course after the first is shortened by the supplied end lap. Do not describe end laps or transverse laps as excluded.",
++      "Side lap (the lap between adjacent sheets across the width) is NOT calculated here: it is already contained in the supplied effective sheet cover, so it is neither added nor deducted again. Side lap and end lap are separate laps and must be explained separately.",
+       "One rectangular developed surface with identical ordered sheet lengths; no opening deductions, hips, valleys, cutting or reusable offcut schedule.",
+       "No fixings, flashings, product suitability or compliance calculation. References are retained but not validated; draft and not eligible for verified quotes."],
+   };
+diff --git a/src/studio/industries/roofing/sheetCoverageTool.ts b/src/studio/industries/roofing/sheetCoverageTool.ts
+index ff0f0b1..06faaa2 100644
+--- a/src/studio/industries/roofing/sheetCoverageTool.ts
++++ b/src/studio/industries/roofing/sheetCoverageTool.ts
+@@ -2,6 +2,6 @@ import { z } from "zod";
+ import { calculateSheetCoverage, sheetCoverageInputSchema } from "./sheetCoverage.ts";
+ 
+ export const name = "calculate_draft_roof_sheet_coverage";
+-export const description = "Calculate draft rectangular roof sheet coverage from explicit developed dimensions, effective cover after side lap, ordered sheet length, end lap and source references. Lengths are decimal strings in metres, up to nine decimal places. End lap must be explicitly supplied, including zero. Explain the returned calculation steps and limitations faithfully: the first course is full length, so courses is NOT generally ceil(run / (ordered length - end lap)). End laps ARE included; fixings and flashings are excluded. No measured project quantities, geometry, orders or quotes are changed.";
++export const description = "Calculate draft rectangular roof sheet coverage from explicit developed dimensions, effective cover after side lap, ordered sheet length, end lap and source references. Lengths are decimal strings in metres, up to nine decimal places. End lap must be explicitly supplied, including zero. Explain the returned calculation steps and limitations faithfully, in the answer and in any self-review: the first course is FULL ordered length, so courses is NOT ceil(run / (ordered length - end lap)); use the returned calculation.coursesExpanded wording. End lap, also called transverse lap, IS included; side lap is already inside the supplied effective cover and is a SEPARATE lap - never state in one answer that end or transverse laps are excluded while also saying end laps are included. Never estimate, extrapolate or reason out where the course count changes: state boundaries only by quoting calculation.courseBoundary, maxRunAtThisCourseCountM and minRunForAnotherCourseM, which are exact for the supplied inputs and apply to no other input. To find the courses for a different run, call this tool again with that run rather than predicting it. Explain excessRunM using calculation.excessRun: geometric over-coverage along the run. cuttingSchedule explicitly reports perSheetWasteM and reusableOffcuts as null because no cutting layout is calculated. Do not derive waste, scrap, usable cut lengths or offcut reuse from coverage excess, including in Developer review; report these as not calculated. No measured project quantities, geometry, orders or quotes are changed.";
+ export const inputSchema = z.toJSONSchema(sheetCoverageInputSchema);
+ export const execute = (input: unknown) => calculateSheetCoverage(sheetCoverageInputSchema.parse(input));
+
+diff --git a/src/studio/architect/alterationEditIntegration.test.ts b/src/studio/architect/alterationEditIntegration.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/architect/alterationEditIntegration.test.ts
+@@ -0,0 +1,61 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { emptyProject, newWall, revise, type ArchitectProject } from "./model.ts";
++import { prepareArchitectEdits } from "../assistant/architectBridge.ts";
++import { createAlterationBasis, resolveAlterationStage } from "./alterationStage.ts";
++import { wallSolids } from "./geometry.ts";
++
++function fixture() {
++  const p = emptyProject("alteration-edit-qa");
++  const w = newWall(p, p.levels[0].id, [0, 0], [4000, 0], [{ id: "solid", name: "QA solid", thickness: 200, kind: "solid", hatch: "concrete", densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0 }]);
++  w.height = 2700; w.lifecycle = { status: "existing", reference: "QA survey" }; p.walls.push(w);
++  p.openings.push({ id: "qa-window", revision: 1, wallId: w.id, tag: "W01", kind: "window", offset: 2000, width: 900, height: 1200, sill: 900, hinge: "left", swing: "in", lifecycle: { status: "demolished", reference: "QA demolition" } });
++  return p;
++}
++function edit(p: ArchitectProject, operations: unknown[]) {
++  return prepareArchitectEdits(p, { expectedJobId: p.id, expectedRevision: p.revision, operations });
++}
++test("assistant full infill preserves the authored elevated opening and resolves a closed proposed wall", () => {
++  const p = fixture(), original = structuredClone(p);
++  const operation = { kind: "set-opening-disposition", id: "qa-window", disposition: { kind: "infill", reference: "QA infill instruction" } };
++  const next = revise(p, edit(p, [operation]).draft);
++  assert.deepEqual(p, original);
++  assert.equal(next.openings[0].sill, 900);
++  assert.equal(next.openings[0].revision, 2);
++  const basis = createAlterationBasis(next, "QA review");
++  for (const [stage, expected] of [["before", 1.944], ["proposed", 2.16]] as const) {
++    const r = resolveAlterationStage(next, basis, stage);
++    if (!r.ready) throw Error(JSON.stringify(r.blockers));
++    assert.ok(Math.abs(wallSolids(r.model).reduce((sum, solid) => sum + solid.volumeM3, 0) - expected) < 1e-9);
++  }
++  const cleared = edit(next, [{ ...operation, disposition: null }]).draft;
++  assert.equal(cleared.openings[0].demolitionDisposition, undefined);
++  assert.equal(resolveAlterationStage(cleared, basis, "proposed").ready, false);
++  assert.throws(() => edit(p, [operation, { ...operation, id: "missing" }]));
++  assert.deepEqual(p, original);
++});
++test("assistant before-repair height is explicit, edits independently and clears when status changes", () => {
++  const p = fixture(); p.openings = [];
++  const id = p.walls[0].id;
++  const operation = { kind: "set-wall-repair-basis", id, basis: { heightMm: 2400, reference: "QA earlier height" } };
++  assert.throws(() => edit(p, [operation]), /repaired/);
++  const next = edit(p, [{ kind: "set-lifecycle", id, lifecycle: { status: "repaired", reference: "QA repair" } }, operation]).draft;
++  assert.equal(next.walls[0].height, 2700);
++  assert.deepEqual(next.walls[0].repairBasis, { height: 2400, reference: "QA earlier height" });
++  const basis = createAlterationBasis(next, "QA review");
++  for (const [stage, expected] of [["before", 1.92], ["proposed", 2.16]] as const) {
++    const r = resolveAlterationStage(next, basis, stage);
++    if (!r.ready) throw Error(JSON.stringify(r.blockers));
++    assert.ok(Math.abs(wallSolids(r.model).reduce((sum, solid) => sum + solid.volumeM3, 0) - expected) < 1e-9);
++  }
++  const changed = edit(next, [{ ...operation, basis: { heightMm: 2500, reference: "QA correction" } }]).draft;
++  assert.equal(changed.walls[0].repairBasis?.height, 2500);
++  assert.equal(changed.walls[0].height, 2700);
++  assert.equal(edit(next, [{ ...operation, basis: null }]).draft.walls[0].repairBasis, undefined);
++  for (const lifecycle of [null, { status: "existing", reference: "QA retained" }]) {
++    assert.equal(edit(next, [{ kind: "set-lifecycle", id, lifecycle }]).draft.walls[0].repairBasis, undefined);
++  }
++  for (const bad of [{ heightMm: 0, reference: "QA" }, { heightMm: 2400, reference: " " }, { heightMm: 2400, reference: "QA", approved: true }]) {
++    assert.throws(() => edit(next, [{ ...operation, basis: bad }]));
++  }
++});
+
+diff --git a/src/studio/architect/alterationInfill.test.ts b/src/studio/architect/alterationInfill.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/studio/architect/alterationInfill.test.ts
+@@ -0,0 +1,259 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { emptyProject, newWall, validateProject, type ArchitectProject } from "./model.ts";
++import { setElementLifecycle, setOpeningDemolitionDisposition, setWallRepairBasis, alterationSchedule, alterationScheduleCsv } from "./lifecycle.ts";
++import { createAlterationBasis, resolveAlterationStage, type AlterationStage } from "./alterationStage.ts";
++import { wallSolids } from "./geometry.ts";
++import { primitives } from "./drawing.ts";
++import { buildDesignedScene } from "./designedScene.ts";
++import { exportIfc } from "./ifc.ts";
++
++/** Independent analytic expectations, computed from the authored dimensions
++ * rather than captured from resolver output.
++ * Host wall 4000 x 2700 x 200 mm solid = 4.0 * 2.7 * 0.2 = 2.16 m3.
++ * Door 900 x 2100 cut  = 0.9 * 2.1 * 0.2 = 0.378 m3 -> 1.782 m3 remaining.
++ * Window 900 x 1200 cut = 0.9 * 1.2 * 0.2 = 0.216 m3 -> 1.944 m3 remaining.
++ * Repair before height 2400 = 4.0 * 2.4 * 0.2 = 1.92 m3.
++ */
++const UNCUT = 2.16, DOOR_CUT = 0.378, WINDOW_CUT = 0.216, REPAIR_BEFORE = 1.92;
++
++function host(): ArchitectProject {
++  const p = emptyProject("infill-fixture");
++  const wall = newWall(p, p.levels[0].id, [0, 0], [4000, 0], [{
++    id: "solid", name: "Authored concrete", thickness: 200, kind: "solid", hatch: "concrete",
++    densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0,
++  }]);
++  wall.lifecycle = { status: "existing", reference: "Survey A" };
++  p.walls.push(wall);
++  return p;
++}
++function withOpening(kind: "door" | "window", sill: number, height: number): ArchitectProject {
++  const p = host();
++  p.openings.push({
++    id: "removed-fixture", revision: 1, wallId: p.walls[0].id, tag: "D01", kind,
++    offset: 2000, width: 900, height, sill, hinge: "left", swing: "in",
++    lifecycle: { status: "demolished", reference: "Remove fixture under brief A" },
++  });
++  return validateProject(p);
++}
++const infill = { kind: "infill" as const, reference: "Brief A: close aperture in existing wall" };
++const retainVoid = { kind: "retain-void" as const, reference: "Brief A: keep aperture" };
++const volume = (p: ArchitectProject) => wallSolids(p).reduce((sum, solid) => sum + solid.volumeM3, 0);
++const close = (actual: number, expected: number) =>
++  assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
++function resolved(p: ArchitectProject, stage: AlterationStage, label = "Reviewed unchanged geometry") {
++  const result = resolveAlterationStage(p, createAlterationBasis(p, label), stage);
++  assert.equal(result.ready, true, JSON.stringify(result));
++  if (!result.ready) throw Error("stage did not resolve");
++  return result;
++}
++
++test("F2 explicit infill closes the door aperture using only the host wall's authored layers", () => {
++  const source = withOpening("door", 0, 2100);
++  const p = setOpeningDemolitionDisposition(source, "removed-fixture", infill);
++  const original = structuredClone(p);
++  const before = resolved(p, "before"), proposed = resolved(p, "proposed");
++
++  // Before keeps the authored fixture and its exact cut.
++  assert.equal(before.model.openings.length, 1);
++  assert.equal(before.model.openings[0].kind, "door");
++  close(volume(before.model), UNCUT - DOOR_CUT);
++
++  // Proposed closes the hole: the opening is absent, not relabelled as a void.
++  assert.deepEqual(proposed.model.openings, []);
++  close(volume(proposed.model), UNCUT);
++  close(volume(proposed.model) - volume(before.model), DOOR_CUT);
++  assert.ok(proposed.excludedIds.includes("removed-fixture"));
++
++  // Restored solid is the host's own authored layer stack, byte for byte.
++  assert.equal(proposed.model.walls.length, 1);
++  assert.deepEqual(proposed.model.walls[0].layers, source.walls[0].layers);
++  assert.equal(proposed.model.walls[0].height, source.walls[0].height);
++  assert.deepEqual(p, original);
++});
++
++test("F3 elevated window infill restores its own volume and preserves the authored sill in before", () => {
++  const p = setOpeningDemolitionDisposition(withOpening("window", 900, 1200), "removed-fixture", infill);
++  const before = resolved(p, "before"), proposed = resolved(p, "proposed");
++  assert.equal(before.model.openings[0].sill, 900);
++  assert.equal(before.model.openings[0].height, 1200);
++  close(volume(before.model), UNCUT - WINDOW_CUT);
++  close(volume(proposed.model), UNCUT);
++  close(volume(proposed.model) - volume(before.model), WINDOW_CUT);
++  // Sill/offset/height of the authored record are never rewritten by the disposition.
++  assert.equal(p.openings[0].sill, 900);
++  assert.equal(p.openings[0].offset, 2000);
++});
++
++test("infill is not a retained void in drawings, scene or IFC", () => {
++  const p = setOpeningDemolitionDisposition(withOpening("door", 0, 2100), "removed-fixture", infill);
++  const proposed = resolved(p, "proposed").model;
++  // No VOID label or aperture is produced anywhere by a closed aperture.
++  assert.equal(primitives(proposed, p.levels[0].id, "plan").some(item => item.id === "removed-fixture"), false);
++  for (const view of ["north", "south"] as const) {
++    assert.equal(primitives(proposed, p.levels[0].id, view).some(item => typeof item.text === "string" && item.text.includes("VOID")), false);
++  }
++  const scene = buildDesignedScene(proposed);
++  assert.equal(scene.summary.apertures, undefined);
++  assert.equal(scene.summary.openings, 0);
++  const ifc = exportIfc(proposed);
++  assert.equal((ifc.match(/=IFCOPENINGELEMENT\(/g) ?? []).length, 0);
++  assert.equal((ifc.match(/=IFCRELVOIDSELEMENT\(/g) ?? []).length, 0);
++  assert.equal((ifc.match(/=IFCRELFILLSELEMENT\(/g) ?? []).length, 0);
++});
++
++test("F1 retain-void behaviour is unchanged beside the new infill member", () => {
++  const p = setOpeningDemolitionDisposition(withOpening("door", 0, 2100), "removed-fixture", retainVoid);
++  const before = resolved(p, "before"), proposed = resolved(p, "proposed");
++  assert.equal(proposed.model.openings[0].kind, "void");
++  close(volume(before.model), UNCUT - DOOR_CUT);
++  close(volume(proposed.model), UNCUT - DOOR_CUT);
++  assert.equal(volume(proposed.model) - volume(before.model), 0);
++});
++
++test("F4 a demolished opening with no disposition still blocks both stages", () => {
++  const p = withOpening("door", 0, 2100);
++  for (const stage of ["before", "proposed"] as const) {
++    const result = resolveAlterationStage(p, createAlterationBasis(p, "Review A"), stage);
++    assert.equal(result.ready, false);
++    assert.equal("model" in result, false);
++    if (!result.ready) assert.ok(result.blockers.some(blocker => /retain-void or authored infill/.test(blocker.reason)));
++  }
++});
++
++test("F5 a demolished host wall is never resurrected by an infill disposition", () => {
++  const p = setOpeningDemolitionDisposition(withOpening("door", 0, 2100), "removed-fixture", infill);
++  p.walls[0].lifecycle!.status = "demolished";
++  const proposed = resolved(p, "proposed");
++  assert.deepEqual(proposed.model.walls, []);
++  assert.deepEqual(proposed.model.openings, []);
++  assert.equal(volume(proposed.model), 0);
++});
++
++test("infill rejects invalid references, wrong lifecycle and non-openings atomically", () => {
++  const p = withOpening("door", 0, 2100), original = structuredClone(p);
++  for (const value of [
++    { kind: "infill", reference: " " },
++    { kind: "infill", reference: "x".repeat(501) },
++    { kind: "infill", reference: 42 },
++    { kind: "infill" },
++    { kind: "infill", reference: "ok", approved: true },
++    { kind: "partial-infill", reference: "Not supported in this contract" },
++  ]) {
++    assert.throws(() => setOpeningDemolitionDisposition(p, "removed-fixture", value as typeof infill));
++  }
++  assert.throws(() => setOpeningDemolitionDisposition(p, "missing", infill));
++  assert.throws(() => setOpeningDemolitionDisposition(p, p.walls[0].id, infill));
++  for (const status of ["existing", "new", "repaired"] as const) {
++    const changed = setElementLifecycle(p, "removed-fixture", { status, reference: "Brief B" });
++    assert.throws(() => setOpeningDemolitionDisposition(changed, "removed-fixture", infill), /demolished/);
++  }
++  assert.deepEqual(p, original);
++  const maximum = setOpeningDemolitionDisposition(p, "removed-fixture", { kind: "infill", reference: "x".repeat(500) });
++  assert.equal(maximum.openings[0].demolitionDisposition?.reference.length, 500);
++});
++
++test("clearing or reclassifying removes the infill intent without deleting geometry", () => {
++  const p = setOpeningDemolitionDisposition(withOpening("door", 0, 2100), "removed-fixture", infill);
++  assert.equal(setOpeningDemolitionDisposition(p, "removed-fixture", null).openings[0].demolitionDisposition, undefined);
++  for (const lifecycle of [null, { status: "existing" as const, reference: "Keep fixture" }]) {
++    const changed = setElementLifecycle(p, "removed-fixture", lifecycle);
++    assert.equal(changed.openings[0].demolitionDisposition, undefined);
++    assert.equal(changed.openings[0].kind, "door");
++    assert.equal(changed.openings[0].width, 900);
++  }
++  assert.deepEqual(p.openings[0].demolitionDisposition, infill);
++});
++
++test("F6/F7 changed repair resolves independent before and proposed shapes", () => {
++  const base = host();
++  base.walls[0].lifecycle = { status: "repaired", reference: "Condition survey C01" };
++  const unchanged = validateProject(structuredClone(base));
++
++  // F6 no authored before state: repaired keeps identical geometry in both stages.
++  close(volume(resolved(unchanged, "before").model), UNCUT);
++  close(volume(resolved(unchanged, "proposed").model), UNCUT);
++
++  // F7 authored before state: independent shapes, current geometry stays proposed.
++  const changed = setWallRepairBasis(base, base.walls[0].id, { reference: "Survey C01: original 2400 head height", height: 2400 });
++  const before = resolved(changed, "before"), proposed = resolved(changed, "proposed");
++  assert.equal(before.model.walls[0].height, 2400);
++  assert.equal(proposed.model.walls[0].height, 2700);
++  close(volume(before.model), REPAIR_BEFORE);
++  close(volume(proposed.model), UNCUT);
++  close(volume(proposed.model) - volume(before.model), UNCUT - REPAIR_BEFORE);
++  // The derived stage never leaks the authoring record, and the source is untouched.
++  assert.equal("repairBasis" in before.model.walls[0], false);
++  assert.equal(changed.walls[0].height, 2700);
++  assert.deepEqual(changed.walls[0].repairBasis, { reference: "Survey C01: original 2400 head height", height: 2400 });
++});
++
++test("repair basis requires a repaired wall and is cleared by reclassification", () => {
++  const p = host(), original = structuredClone(p);
++  assert.throws(() => setWallRepairBasis(p, p.walls[0].id, { reference: "No repaired status", height: 2400 }), /repaired/);
++  assert.throws(() => setWallRepairBasis(p, "missing", { reference: "Absent wall", height: 2400 }));
++  const repaired = setElementLifecycle(p, p.walls[0].id, { status: "repaired", reference: "Survey C01" });
++  for (const value of [
++    { reference: " ", height: 2400 },
++    { reference: "ok", height: 0 },
++    { reference: "ok", height: -10 },
++    { reference: "ok", height: Number.NaN },
++    { reference: "ok" },
++    { reference: "ok", height: 2400, approved: true },
++  ]) {
++    assert.throws(() => setWallRepairBasis(repaired, p.walls[0].id, value as { reference: string; height: number }));
++  }
++  const authored = setWallRepairBasis(repaired, p.walls[0].id, { reference: "Survey C01", height: 2400 });
++  // Reclassifying away from repaired drops the now-meaningless before state.
++  const demolished = setElementLifecycle(authored, p.walls[0].id, { status: "demolished", reference: "Brief D01" });
++  assert.equal(demolished.walls[0].repairBasis, undefined);
++  assert.equal(demolished.walls[0].height, 2700);
++  assert.equal(setWallRepairBasis(authored, p.walls[0].id, null).walls[0].repairBasis, undefined);
++  assert.deepEqual(p, original);
++  // A hand-edited project cannot smuggle a before state onto an unrepaired wall.
++  const smuggled = structuredClone(authored);
++  smuggled.walls[0].lifecycle = { status: "existing", reference: "Survey A" };
++  assert.throws(() => validateProject(smuggled), /classified as repaired/);
++});
++
++test("infill and repair outcomes are invariant under identity renaming and array order", () => {
++  const volumes: number[] = [];
++  for (const [wallId, openingId] of [["a-wall", "z-opening"], ["z-wall", "a-opening"]] as const) {
++    const p = withOpening("door", 0, 2100);
++    p.walls[0].id = wallId;
++    p.openings[0].id = openingId;
++    p.openings[0].wallId = wallId;
++    const authored = setOpeningDemolitionDisposition(validateProject(p), openingId, infill);
++    volumes.push(volume(resolved(authored, "proposed").model));
++  }
++  close(volumes[0], UNCUT);
++  assert.equal(volumes[0], volumes[1]);
++});
++
++test("schedule and CSV carry explicit infill and changed-repair records", () => {
++  const p = setOpeningDemolitionDisposition(withOpening("door", 0, 2100), "removed-fixture", infill);
++  const row = alterationSchedule(p).rows.find(item => item.id === "removed-fixture");
++  assert.deepEqual(row?.demolitionDisposition, infill);
++  const csv = alterationScheduleCsv(p);
++  assert.ok(csv.includes("repairBasisReference"));
++  assert.ok(csv.includes("infill"));
++  assert.ok(csv.includes(infill.reference));
++
++  const base = host();
++  base.walls[0].lifecycle = { status: "repaired", reference: "Condition survey C01" };
++  const repaired = setWallRepairBasis(validateProject(base), base.walls[0].id,
++    { reference: "Survey C01: original 2400 head height", height: 2400 });
++  const repairRow = alterationSchedule(repaired).rows.find(item => item.id === base.walls[0].id);
++  assert.deepEqual(repairRow?.repairBasis, { reference: "Survey C01: original 2400 head height", height: 2400 });
++  const repairCsv = alterationScheduleCsv(repaired);
++  assert.ok(repairCsv.includes("Survey C01: original 2400 head height"));
++  assert.ok(repairCsv.includes("2400"));
++});
++
++test("a saved project carrying only retain-void stays valid and readable", () => {
++  // Backward compatibility: the pre-existing disposition shape is unchanged.
++  const legacy = setOpeningDemolitionDisposition(withOpening("door", 0, 2100), "removed-fixture", retainVoid);
++  const reparsed = validateProject(JSON.parse(JSON.stringify(legacy)));
++  assert.deepEqual(reparsed.openings[0].demolitionDisposition, retainVoid);
++  assert.equal("repairBasis" in reparsed.walls[0], false);
++});

@@ -1,0 +1,86 @@
+[
+  [
+    "context",
+    "app"
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "(async()=>{const s=await (await fetch('/api/minimax-ai')).json();if(!s.available||s.model!=='MiniMax-M3')throw Error('Provider unavailable');return s})()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{if(localStorage.getItem('xray:assistant-provider:v2')!=='minimax')throw Error('Wrong provider');const b=[...document.querySelectorAll('button')].find(x=>/live assistant/i.test(x.getAttribute('aria-label')||'')||x.textContent.trim()==='Live assistant');if(b)b.click();return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('textarea[placeholder^=\"Ask anything\"]')"
+  ],
+  [
+    "eval",
+    "app",
+    "(async()=>{const s=await import('/src/studio/store.ts');const h=await import('/src/studio/assistant/chatHistory.ts');window.__qaJob=s.useStudio.getState().job.id;const a=await h.readChatArchive(window.__qaJob);if(a?.threads?.some(t=>t.entries.length))throw Error('Expected isolated empty conversation');return {jobId:window.__qaJob}})()"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const t=document.querySelector('textarea[placeholder^=\"Ask anything\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,\"Execute classify_draft_quantities with this exact synthetic input: {\\\"hierarchyId\\\":\\\"QA\\\",\\\"hierarchyRevision\\\":\\\"A\\\",\\\"nodes\\\":[{\\\"id\\\":\\\"building\\\",\\\"label\\\":\\\"Building\\\",\\\"parentId\\\":null},{\\\"id\\\":\\\"walls\\\",\\\"label\\\":\\\"Walls\\\",\\\"parentId\\\":\\\"building\\\"}],\\\"items\\\":[{\\\"id\\\":\\\"a\\\",\\\"quantity\\\":\\\"0.1\\\",\\\"unit\\\":\\\"m2\\\",\\\"evidence\\\":\\\"sample\\\",\\\"source\\\":null},{\\\"id\\\":\\\"b\\\",\\\"quantity\\\":\\\"0.2\\\",\\\"unit\\\":\\\"m2\\\",\\\"evidence\\\":\\\"sample\\\",\\\"source\\\":null},{\\\"id\\\":\\\"c\\\",\\\"quantity\\\":\\\"3\\\",\\\"unit\\\":\\\"lm\\\",\\\"evidence\\\":\\\"sample\\\",\\\"source\\\":null},{\\\"id\\\":\\\"d\\\",\\\"quantity\\\":\\\"4\\\",\\\"unit\\\":\\\"m2\\\",\\\"evidence\\\":\\\"unverified\\\",\\\"source\\\":null}],\\\"assignments\\\":[{\\\"itemId\\\":\\\"a\\\",\\\"nodeId\\\":\\\"building\\\"},{\\\"itemId\\\":\\\"b\\\",\\\"nodeId\\\":\\\"walls\\\"},{\\\"itemId\\\":\\\"c\\\",\\\"nodeId\\\":\\\"walls\\\"}]}. Explain the actual CSV columns, whether parent labels and parent-direct items are retained, and why report totals are safe while inclusive parent/child totals cannot be added. Include a concise Developer review. Use supplied inputs only; do not change project or worksheet.\");t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('button[aria-label=\"Send assistant message\"]')?.disabled===false"
+  ],
+  [
+    "screenshot",
+    "app",
+    "desktop-composer.png"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('button[aria-label=\"Send assistant message\"]').click();'sent'"
+  ],
+  [
+    "eval",
+    "app",
+    "(async()=>{const h=await import('/src/studio/assistant/chatHistory.ts');const end=Date.now()+300000;while(Date.now()<end){const a=await h.readChatArchive(window.__qaJob);const t=a?.threads.find(t=>t.id===a.activeId);if(t?.error)throw Error(t.error);if(t&&!t.busy&&t.entries.some(e=>e.kind==='assistant')){window.__qaArchive=a;return {entries:t.entries.length,busy:t.busy,error:t.error}}await new Promise(r=>setTimeout(r,500))}throw Error('No completed assistant reply within deadline')})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "desktop-reply.png"
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "(async()=>{const h=await import('/src/studio/assistant/chatHistory.ts');const a=await h.readChatArchive(\"job-fde7d4f3-5943-4cbd-be75-96c56a5648b2\");const entries=a?.threads.find(t=>t.id===\"1a81aae0-a2d8-4f11-a844-3c518b83f677\")?.entries;if(JSON.stringify(entries)!==\"[{\\\"id\\\":\\\"44aeb66c-0a6e-4770-b482-9f58be3d2028\\\",\\\"kind\\\":\\\"user\\\",\\\"text\\\":\\\"Execute classify_draft_quantities with this exact synthetic input: {\\\\\\\"hierarchyId\\\\\\\":\\\\\\\"QA\\\\\\\",\\\\\\\"hierarchyRevision\\\\\\\":\\\\\\\"A\\\\\\\",\\\\\\\"nodes\\\\\\\":[{\\\\\\\"id\\\\\\\":\\\\\\\"building\\\\\\\",\\\\\\\"label\\\\\\\":\\\\\\\"Building\\\\\\\",\\\\\\\"parentId\\\\\\\":null},{\\\\\\\"id\\\\\\\":\\\\\\\"walls\\\\\\\",\\\\\\\"label\\\\\\\":\\\\\\\"Walls\\\\\\\",\\\\\\\"parentId\\\\\\\":\\\\\\\"building\\\\\\\"}],\\\\\\\"items\\\\\\\":[{\\\\\\\"id\\\\\\\":\\\\\\\"a\\\\\\\",\\\\\\\"quantity\\\\\\\":\\\\\\\"0.1\\\\\\\",\\\\\\\"unit\\\\\\\":\\\\\\\"m2\\\\\\\",\\\\\\\"evidence\\\\\\\":\\\\\\\"sample\\\\\\\",\\\\\\\"source\\\\\\\":null},{\\\\\\\"id\\\\\\\":\\\\\\\"b\\\\\\\",\\\\\\\"quantity\\\\\\\":\\\\\\\"0.2\\\\\\\",\\\\\\\"unit\\\\\\\":\\\\\\\"m2\\\\\\\",\\\\\\\"evidence\\\\\\\":\\\\\\\"sample\\\\\\\",\\\\\\\"source\\\\\\\":null},{\\\\\\\"id\\\\\\\":\\\\\\\"c\\\\\\\",\\\\\\\"quantity\\\\\\\":\\\\\\\"3\\\\\\\",\\\\\\\"unit\\\\\\\":\\\\\\\"lm\\\\\\\",\\\\\\\"evidence\\\\\\\":\\\\\\\"sample\\\\\\\",\\\\\\\"source\\\\\\\":null},{\\\\\\\"id\\\\\\\":\\\\\\\"d\\\\\\\",\\\\\\\"quantity\\\\\\\":\\\\\\\"4\\\\\\\",\\\\\\\"unit\\\\\\\":\\\\\\\"m2\\\\\\\",\\\\\\\"evidence\\\\\\\":\\\\\\\"unverified\\\\\\\",\\\\\\\"source\\\\\\\":null}],\\\\\\\"assignments\\\\\\\":[{\\\\\\\"itemId\\\\\\\":\\\\\\\"a\\\\\\\",\\\\\\\"nodeId\\\\\\\":\\\\\\\"building\\\\\\\"},{\\\\\\\"itemId\\\\\\\":\\\\\\\"b\\\\\\\",\\\\\\\"nodeId\\\\\\\":\\\\\\\"walls\\\\\\\"},{\\\\\\\"itemId\\\\\\\":\\\\\\\"c\\\\\\\",\\\\\\\"nodeId\\\\\\\":\\\\\\\"walls\\\\\\\"}]}. Explain the actual CSV columns, whether parent labels and parent-direct items are retained, and why report totals are safe while inclusive parent/child totals cannot be added. Include a concise Developer review. Use supplied inputs only; do not change project or worksheet.\\\",\\\"timestamp\\\":\\\"2026-09-14T11:12:47.190Z\\\",\\\"images\\\":[]},{\\\"id\\\":\\\"203dae38-1305-4f27-8e37-117a151c0b91\\\",\\\"kind\\\":\\\"assistant\\\",\\\"text\\\":\\\"execute the calculator with the supplied synthetic input, then explain what the tool returns about CSV columns, retention, and total safety.\\\\n\\\",\\\"timestamp\\\":\\\"2026-09-14T11:13:06.844Z\\\",\\\"images\\\":[],\\\"sources\\\":[]},{\\\"id\\\":\\\"5b6333c3-8c9b-4b5e-8c00-0b5311310184\\\",\\\"kind\\\":\\\"tool\\\",\\\"text\\\":\\\"Invalid tool arguments: items.0.source.documentId: Too small: expected string to have >=1 characters; items.0.source.sha256: Invalid string: must match pattern /^[a-f0-9]{64}$/; items.0.source.revision: Too small: expected string to have >=1 characters; items.0.source.sheet: Too small: expected number to be >0; items.0.source.regionId: Too small: expected string to have >=1 characters; items.0.source.calibrationId: Too small: expected string to have >=1 characters; items.1.source.documentId: Too small: expected string to have >=1 characters; items.1.source.sha256: Invalid string: must match pattern /^[a-f0-9]{64}$/; items.1.source.revision: Too small: expected string to have >=1 characters; items.1.source.sheet: Too small: expected number to be >0; items.1.source.regionId: Too small: expected string to have >=1 characters; items.1.source.calibrationId: Too small: expected string to have >=1 characters; items.2.source.documentId: Too small: expected string to have >=1 characters; items.2.source.sha256: Invalid string: must match pattern /^[a-f0-9]{64}$/; items.2.source.revision: Too small: expected string to have >=1 characters; items.2.source.sheet: Too small: expected number to be >0; items.2.source.regionId: Too small: expected string to have >=1 characters; items.2.source.calibrationId: Too small: expected string to have >=1 characters; items.3.source.documentId: Too small: expected string to have >=1 characters; items.3.source.sha256: Invalid string: must match pattern /^[a-f0-9]{64}$/; items.3.source.revision: Too small: expected string to have >=1 characters; items.3.source.sheet: Too small: expected number to be >0; items.3.source.regionId: Too small: expected string to have >=1 characters; items.3.source.calibrationId: Too small: expected string to have >=1 characters Top-level nodes accept parentId: null. Items without supplied source evidence accept source: null. Preserve the user's explicit JSON null values; do not invent parent nodes, source IDs, hashes or calibration metadata. Empty strings and empty objects are not null.\\\",\\\"images\\\":[],\\\"sources\\\":[],\\\"toolName\\\":\\\"classify_draft_quantities\\\",\\\"toolCallId\\\":\\\"66f7728c-9e04-4057-b268-8384b6cd4508:0\\\",\\\"failed\\\":true,\\\"executionOrigin\\\":\\\"model\\\",\\\"projectName\\\":\\\"New project\\\",\\\"projectRevision\\\":1},{\\\"id\\\":\\\"a6af0dff-3b67-46ff-a8de-16e944409590\\\",\\\"kind\\\":\\\"assistant\\\",\\\"text\\\":\\\"The first attempt failed because I supplied empty strings instead of explicit JSON `null` for `source`. The tool's schema distinguishes between an explicit null source (no reference supplied) and a populated source object. Retrying with `source: null` as the schema requires for items where no source reference was supplied.\\\\n\\\",\\\"timestamp\\\":\\\"2026-09-14T11:13:15.970Z\\\",\\\"images\\\":[],\\\"sources\\\":[]},{\\\"id\\\":\\\"198d73ee-5687-4bb7-b0f9-e5a65bf6cff0\\\",\\\"kind\\\":\\\"tool\\\",\\\"text\\\":\\\"Invalid tool arguments: nodes.0.parentId: Too small: expected string to have >=1 characters; items.0.source.documentId: Invalid input: expected string, received undefined; items.0.source.sha256: Invalid input: expected string, received undefined; items.0.source.revision: Invalid input: expected string, received undefined; items.0.source.sheet: Invalid input: expected number, received undefined; items.0.source.regionId: Invalid input: expected string, received undefined; items.0.source.calibrationId: Invalid input: expected string, received undefined; items.1.source.documentId: Invalid input: expected string, received undefined; items.1.source.sha256: Invalid input: expected string, received undefined; items.1.source.revision: Invalid input: expected string, received undefined; items.1.source.sheet: Invalid input: expected number, received undefined; items.1.source.regionId: Invalid input: expected string, received undefined; items.1.source.calibrationId: Invalid input: expected string, received undefined; items.2.source.documentId: Invalid input: expected string, received undefined; items.2.source.sha256: Invalid input: expected string, received undefined; items.2.source.revision: Invalid input: expected string, received undefined; items.2.source.sheet: Invalid input: expected number, received undefined; items.2.source.regionId: Invalid input: expected string, received undefined; items.2.source.calibrationId: Invalid input: expected string, received undefined; items.3.source.documentId: Invalid input: expected string, received undefined; items.3.source.sha256: Invalid input: expected string, received undefined; items.3.source.revision: Invalid input: expected string, received undefined; items.3.source.sheet: Invalid input: expected number, received undefined; items.3.source.regionId: Invalid input: expected string, received undefined; items.3.source.calibrationId: Invalid input: expected string, received undefined Top-level nodes accept parentId: null. Items without supplied source evidence accept source: null. Preserve the user's explicit JSON null values; do not invent parent nodes, source IDs, hashes or calibration metadata. Empty strings and empty objects are not null.\\\",\\\"images\\\":[],\\\"sources\\\":[],\\\"toolName\\\":\\\"classify_draft_quantities\\\",\\\"toolCallId\\\":\\\"f7602bdf-04f2-4596-aae2-0d30ffbb28fe:0\\\",\\\"failed\\\":true,\\\"executionOrigin\\\":\\\"model\\\",\\\"projectName\\\":\\\"New project\\\",\\\"projectRevision\\\":1},{\\\"id\\\":\\\"4977b273-408f-4070-b89e-9d0d432047a0\\\",\\\"kind\\\":\\\"assistant\\\",\\\"text\\\":\\\"[xray:answer]\\\\n**Execution outcome:** `classify_draft_quantities` was attempted twice in this turn; both calls were rejected by the tool's argument validator. Neither attempt produced a successful receipt. I cannot claim the tool ran with the supplied synthetic input.\\\\n\\\\n**Why both calls failed**\\\\n\\\\nThe synthetic input's `parentId: null` and `source: null` are the tool's explicit \\\\\\\"no value supplied\\\\\\\" sentinels. Empty strings and empty objects are *not* valid substitutes. The first call passed `\\\\\\\"\\\\\\\"` placeholders; the validator rejected them because documentId, sha256, revision, sheet, regionId, calibrationId, and a top-level `parentId` cannot be empty. The second call dropped the `null` fields entirely; the schema flagged them as `undefined`, and again rejected the input. The tool's guidance text confirms `parentId: null` and `source: null` are accepted and that empty strings/objects must not be substituted. The synthetic input itself is shaped correctly; the failure is in how the parameters were serialised into the tool call.\\\\n\\\\n**What the tool would compute once accepted** (from the tool's documented contract, not from a fresh receipt)\\\\n\\\\n**CSV columns.** The CSV holds exactly one row per classified actual item (items a, b, c). Unassigned item d is not exported. Each row carries, at minimum: hierarchyId, hierarchyRevision, itemId, quantity (exact decimal string), unit, declared evidence status, the supplied source-reference fields when present (documentId, sha256, revision, sheet, regionId, calibrationId), and the item's full classification path through the hierarchy (e.g. `building/walls`). Direct assignments to parent nodes retain the parent's label on the row (so item a's row reads `building`); there are no separate rollup rows. The CSV is therefore item-centric, not node-centric, and includes both parent-direct and child-direct items.\\\\n\\\\n**Why inclusive parent and child totals cannot be added.** Inclusive rollups *re-count* descendants. Item b (0.2 m²) and item c (3 lm) sit under `walls`; they are also included in the inclusive `building` rollup. Adding the two inclusive totals double-counts b and c. Item a is parent-direct, so it appears only once at `building`. Report totals are safe because they are the sum of actual items a + b + c grouped by (unit, evidence) — each item is counted exactly once — not because unit or evidence classes are disjoint. Mixed units (m² and lm) and mixed evidence classes (sample and unverified) stay separated in both per-row and report totals.\\\\n\\\\n**Supplied-input limits.** Item d (4 m², unverified) is excluded from totals because no assignment was supplied; reporting that explicitly is part of the result, not an omission. Sample and unverified evidence are not promoted by the tool; the result is always `draft-classification`, `verifiedQuoteEligible: false`.\\\\n\\\\nDeveloper review\\\\n- Outcome: Both `classify_draft_quantities` calls failed validation; no successful receipt was produced, so the explanation above is from the tool's documented contract, not a fresh run.\\\\n- Friction: Spent two tool calls on parameter serialisation rather than asking up front how to encode explicit `null` through this XML parameter layer.\\\\n- Improvement: On the first validation error, stop and ask the user (or inspect schema) for the exact serialisation form for `null` parentId/source before retrying.\\\",\\\"timestamp\\\":\\\"2026-09-14T11:13:45.944Z\\\",\\\"images\\\":[],\\\"sources\\\":[]}]\")throw Error('Reload archive differs');return {entries:entries.length,identical:true}})()"
+  ],
+  [
+    "screenshot",
+    "app",
+    "tablet-reloaded.png"
+  ]
+]

@@ -1,0 +1,163 @@
+{
+  "status": "draft-classification",
+  "verifiedQuoteEligible": false,
+  "hierarchyId": "user-defined",
+  "hierarchyRevision": "A",
+  "classificationComplete": false,
+  "rows": [
+    {
+      "id": "a",
+      "quantity": "0.1",
+      "unit": "m2",
+      "evidence": "sample",
+      "source": null,
+      "nodeId": "wall"
+    },
+    {
+      "id": "b",
+      "quantity": "0.2",
+      "unit": "m2",
+      "evidence": "sample",
+      "source": null,
+      "nodeId": "wall"
+    },
+    {
+      "id": "c",
+      "quantity": "2",
+      "unit": "lm",
+      "evidence": "sample",
+      "source": null,
+      "nodeId": "building"
+    },
+    {
+      "id": "d",
+      "quantity": "3",
+      "unit": "m2",
+      "evidence": "unverified",
+      "source": null,
+      "nodeId": null
+    }
+  ],
+  "nodes": [
+    {
+      "id": "building",
+      "label": "Building",
+      "parentId": null,
+      "direct": [
+        {
+          "unit": "lm",
+          "evidence": "sample",
+          "quantity": "2",
+          "itemCount": 1
+        }
+      ],
+      "rollup": [
+        {
+          "unit": "m2",
+          "evidence": "sample",
+          "quantity": "0.3",
+          "itemCount": 2
+        },
+        {
+          "unit": "lm",
+          "evidence": "sample",
+          "quantity": "2",
+          "itemCount": 1
+        }
+      ]
+    },
+    {
+      "id": "wall",
+      "label": "Wall package",
+      "parentId": "building",
+      "direct": [
+        {
+          "unit": "m2",
+          "evidence": "sample",
+          "quantity": "0.3",
+          "itemCount": 2
+        }
+      ],
+      "rollup": [
+        {
+          "unit": "m2",
+          "evidence": "sample",
+          "quantity": "0.3",
+          "itemCount": 2
+        }
+      ]
+    }
+  ],
+  "totals": [
+    {
+      "unit": "m2",
+      "evidence": "sample",
+      "quantity": "0.3",
+      "itemCount": 2
+    },
+    {
+      "unit": "lm",
+      "evidence": "sample",
+      "quantity": "2",
+      "itemCount": 1
+    },
+    {
+      "unit": "m2",
+      "evidence": "unverified",
+      "quantity": "3",
+      "itemCount": 1
+    }
+  ],
+  "classifiedTotals": [
+    {
+      "unit": "m2",
+      "evidence": "sample",
+      "quantity": "0.3",
+      "itemCount": 2
+    },
+    {
+      "unit": "lm",
+      "evidence": "sample",
+      "quantity": "2",
+      "itemCount": 1
+    }
+  ],
+  "unclassifiedTotals": [
+    {
+      "unit": "m2",
+      "evidence": "unverified",
+      "quantity": "3",
+      "itemCount": 1
+    }
+  ],
+  "unclassifiedItemIds": [
+    "d"
+  ],
+  "reportContract": {
+    "csvColumns": [
+      "Hierarchy",
+      "Hierarchy revision",
+      "Item reference",
+      "Quantity",
+      "Unit",
+      "Evidence",
+      "Assignment",
+      "Classification",
+      "Classification path",
+      "Source reference status",
+      "Document ID",
+      "Source SHA-256",
+      "Source revision",
+      "Sheet (1-based)",
+      "Region ID",
+      "Calibration ID",
+      "Report status",
+      "Verified quote eligible"
+    ],
+    "csvRowRule": "One CSV record per actual item, including an item assigned directly to a nonleaf (parent) classification. There are no rollup, subtotal or ancestor records.",
+    "csvHierarchyRule": "Hierarchy fields are retained on every record: 'Classification' is the assigned node and 'Classification path' is the full JSON ancestor path. Evidence, every supplied source-reference field, report status and the quote-ineligible flag are retained too. A manual item with no supplied reference reports 'Unavailable', never an invented ID.",
+    "totalsRule": "'totals' counts each actual item exactly once, split by exact unit and declared evidence. That item-once rule is why the report total is safe.",
+    "rollupOverlapRule": "Each node's 'rollup' is INCLUSIVE: it re-counts the same items already reported by its descendants' 'direct' and 'rollup' entries. Parent and child rows therefore OVERLAP by construction and must NEVER be added together. Safety comes from item-once aggregation, not from units or evidence classes being disjoint across nodes.",
+    "reconciliation": "Reconcile against 'totals'. Summing ancestor rows double-counts every item held below a parent."
+  }
+}

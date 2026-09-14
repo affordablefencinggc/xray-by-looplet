@@ -18,3 +18,7 @@ New package test entries for root integration: src/studio/industries/quantity-su
 ## Live QA update
 
 Actual DANS1 desktop filters, nested rollups, real CSV downloads, edit invalidation and saved-input reload passed. See report-upgrade/live/REVIEW.md and captured files. Assistant initial routing failure was narrowly fixed and tested; fresh delivery/reload passed, but answer content and Developer review remain inaccurate about CSV hierarchy fields and why inclusive totals are safe. Do not mark assistant review quality or the whole industry complete. Tablet report QA remains pending.
+
+### QS-01 current qualification, 2026-09-14
+
+One DANS1 MiniMax user turn made two classification attempts, both rejected for malformed or omitted explicit nulls. It then incorrectly excluded unassigned item d from export/totals. QS-01 remains OPEN; no successful live receipt or accurate export explanation is claimed. [QS-01-SC-02 proof](../../proof/growth/2026-09-14-continuation/steps/QS-01-SC-02.md) retains the full archive, reload and screenshots. Existing deterministic CSV/hierarchy tests still pass.
