@@ -174,6 +174,7 @@ export function buildDesignedScene(p: ArchitectProject): SourceBuilding {
     part(`slab-${slab.id}`, "slab", slab.name, surfaceMaterialKey(slab.material), slab.levelId, levelOf(slab.levelId), m, `Authored slab ${slab.thickness} mm thick${slab.material ? `, ${slab.material}` : ""}.`);
   }
   for (const o of p.openings) {
+    if (o.kind === "void") continue; // Apertures are already cut from wall geometry; never invent a fixture.
     const w = p.walls.find((wall) => wall.id === o.wallId);
     if (!w) continue;
     const y = (levelById.get(w.levelId)?.elevation ?? lowest) + o.sill, d = unit(w.a, w.b), t = wallThickness(w),
@@ -246,7 +247,8 @@ export function buildDesignedScene(p: ArchitectProject): SourceBuilding {
     ],
     sourceSheets: [{ page: 1, title: DESIGNED_SCENE_TITLE, image: `/models/${DESIGNED_SCENE_ID}/source-page-1.png`, width: SHEET_WIDTH, height: SHEET_HEIGHT, role: "designed" }],
     summary: {
-      floors: p.levels.length, wallRuns: p.walls.length, openings: p.openings.length, roofFaces: roofFaceCount, objects: objects.length,
+      floors: p.levels.length, wallRuns: p.walls.length, openings: p.openings.filter(o => o.kind !== "void").length, roofFaces: roofFaceCount, objects: objects.length,
+      ...(p.openings.some(o => o.kind === "void") ? { apertures: p.openings.filter(o => o.kind === "void").length } : {}),
       visibleNamedRooms: p.roomTags.length, method: "Designed geometry from the Architectural workspace.", status: "designed",
     },
   };

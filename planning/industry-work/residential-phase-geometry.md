@@ -1,5 +1,18 @@
 # IND-01 next slice: before/proposed geometry
 
+## Active continuation: retained apertures and saved alteration drafts
+
+Authorized by user "continue on please" from baseline be76fab, branch feat/architect-cad-engine. Parallel work splits rendering/review, draft domain/tests, and UI/proof; root integrates and verifies on DANS1. Inputs remain authored millimetre geometry and explicit supplied references. Retain-void removes a fixture while preserving its wall cut. Infill and construction-issued sets remain excluded.
+
+- [x] SC-01 Validate explicit demolished door/window retain-void intent and resolve correct before/proposed geometry.
+- [x] SC-02 Draw and export an empty aperture without a door/window fixture; preserve references and quantity limitations.
+- [x] SC-03 Save bounded frozen draft records; verify integrity, project isolation, reload, later-live edits and undoable removal.
+- [x] SC-04 Verify assistant operation, calculations, invalid inputs and full domain regression/typecheck. [Proof](../../proof/growth/2026-09-14-residential-retained-drafts/steps/SC-04.md)
+- [x] SC-05 Capture separate desktop/tablet screenshots and actual draft PDF proof for each applicable completed step. [Proof](../../proof/growth/2026-09-14-residential-retained-drafts/steps/SC-05.md)
+- [x] SC-06 Verify final production web/native builds and record exact source diff, proof links and remaining industry gaps. [Proof](../../proof/growth/2026-09-14-residential-retained-drafts/steps/SC-06.md)
+
+Verified individual proof: [SC-01](../../proof/growth/2026-09-14-residential-retained-drafts/steps/SC-01.md), [SC-02](../../proof/growth/2026-09-14-residential-retained-drafts/steps/SC-02.md), [SC-03](../../proof/growth/2026-09-14-residential-retained-drafts/steps/SC-03.md). SC-04 through SC-06 link their own proof above. All six bounded steps are verified; whole-industry acceptance remains open.
+
 The first bounded implementation is now a pure before/proposed resolver and read-only six-view preview. Lifecycle classification alone must not unlock alteration quantities or procurement. Broader geometry and export requirements below remain open unless explicitly verified in the implementation checkpoint.
 
 Resolve a derived stage model before calling geometry functions. Keep the saved all-work model and frozen historical issues unchanged. Every output carries its stage, source/baseline reference and unresolved conditions.

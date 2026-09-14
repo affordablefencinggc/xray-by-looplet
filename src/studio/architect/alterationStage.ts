@@ -71,7 +71,7 @@ export function resolveAlterationStage(
     if (host.lifecycle?.status === "new" && opening.lifecycle && opening.lifecycle.status !== "new") {
       blockers.push({ elementId: opening.id, reason: "An opening present before alteration cannot be hosted by a new wall; review the contradictory intent." });
     }
-    if (opening.lifecycle?.status === "demolished" && (host.lifecycle?.status === "existing" || host.lifecycle?.status === "repaired")) {
+    if (opening.lifecycle?.status === "demolished" && !opening.demolitionDisposition && (host.lifecycle?.status === "existing" || host.lifecycle?.status === "repaired")) {
       blockers.push({ elementId: opening.id, reason: "A demolished opening in a retained wall needs explicit retain-void or authored infill disposition; this resolver cannot invent it." });
     }
   }
@@ -87,6 +87,11 @@ export function resolveAlterationStage(
   const retainedHosts = new Set(p.walls.map((wall) => wall.id));
   p.openings = p.openings.filter((opening) => {
     if (!retainedHosts.has(opening.wallId)) { excludedIds.push(opening.id); return false; }
+    if (stage === "proposed" && opening.lifecycle!.status === "demolished" && opening.demolitionDisposition?.kind === "retain-void") {
+      opening.kind = "void";
+      delete opening.demolitionDisposition;
+      return true;
+    }
     return present(opening);
   });
   p.slabs = p.slabs.filter(present);
@@ -99,5 +104,6 @@ export function resolveAlterationStage(
   // Frozen issue history belongs to the original all-work project; exposing it
   // as history of this ephemeral filtered model would imply a false issue basis.
   delete p.issues;
+  delete p.alterationDrafts;
   return { ready: true, stage, model: validateProject(p), basisReference: basis!.reference.trim(), excludedIds };
 }

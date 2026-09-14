@@ -50,6 +50,7 @@ export function ArchitectWalkStart({ project, initialLevel, onClose, onStart }: 
           const wall=walls.find(w=>w.id===o.wallId)!,length=Math.hypot(wall.b[0]-wall.a[0],wall.b[1]-wall.a[1]);
           if(!length)return null;
           const at=(offset:number)=>[wall.a[0]+(wall.b[0]-wall.a[0])*offset/length,wall.a[1]+(wall.b[1]-wall.a[1])*offset/length],a=at(o.offset-o.width/2),b=at(o.offset+o.width/2);
+          if(o.kind==="void")return <text key={o.id} x={(a[0]+b[0])/2} y={(a[1]+b[1])/2-100} textAnchor="middle" fontSize={Math.max(width,height)/64} fill="currentColor">VOID {o.tag}</text>;
           return <line key={o.id} className={`walk-plan-${o.kind}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />;
         })}
         <g className="walk-plan-labels" fontSize={Math.max(width,height)/48}>{project.roomTags.filter(t=>t.levelId===levelId).map(t=><text key={t.id} x={t.point[0]} y={t.point[1]} textAnchor="middle">{t.name}</text>)}</g>

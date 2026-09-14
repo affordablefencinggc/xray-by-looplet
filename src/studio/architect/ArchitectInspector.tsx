@@ -95,7 +95,7 @@ export function ArchitectInspector({
   project: ArchitectProject;
   selected: string | null;
   levelId: string;
-  onChange: (p: ArchitectProject) => void;
+  onChange: (p: ArchitectProject) => boolean;
   onSelect: (id: string | null) => void;
   onDelete: () => void;
 }) {
@@ -320,7 +320,7 @@ export function ArchitectInspector({
             value={o.height}
             onCommit={(v) => change("openings", o.id, { height: v })}
           />
-          {o.kind === "window" && (
+          {o.kind !== "door" && (
             <NumberField
               label="Sill height mm"
               value={o.sill}

@@ -2,6 +2,12 @@
 
 Each completed step has a separate Markdown proof record with screenshots, exact source change and executed evidence. Historical records preserve their original capture identity. A screenshot is not substituted for arithmetic, build or persistence checks.
 
+## IND-01: retained apertures and frozen saved drafts
+
+Completed bounded steps: [SC-01 explicit intent](proof/growth/2026-09-14-residential-retained-drafts/steps/SC-01.md), [SC-02 aperture and PDF](proof/growth/2026-09-14-residential-retained-drafts/steps/SC-02.md), [SC-03 saved draft persistence](proof/growth/2026-09-14-residential-retained-drafts/steps/SC-03.md). Each has separately named screenshots and executed checks.
+
+[SC-04 assistant operation and independent checks](proof/growth/2026-09-14-residential-retained-drafts/steps/SC-04.md), [SC-05 desktop/tablet production](proof/growth/2026-09-14-residential-retained-drafts/steps/SC-05.md) and [SC-06 final build](proof/growth/2026-09-14-residential-retained-drafts/steps/SC-06.md) pass. DANS1 regression201+1314, dev100, production106, mounted adapter20 and web/native build5b80085aab3f pass. Whole-industry acceptance remains open in [the residential checklist](planning/industry-work/residential-phase-geometry.md).
+
 ## IND-01: current solid-wall comparison and draft PDF
 
 | Step | Proof file |

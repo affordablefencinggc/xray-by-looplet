@@ -87,6 +87,9 @@ export async function exportAlterationStagePdf(
   paragraph("Geometry review reference (full): " + resolution.basisReference);
   paragraph("Session review declares existing/repaired geometry unchanged across stages. This reference is not a verified survey or a historical issue basis.");
   paragraph("Shared annotations: notes, room tags, grids, drafting marks and section position come from the current all-work project. They have not been independently classified by alteration stage.");
+  if (resolution.model.openings.some((opening) => opening.kind === "void")) {
+    paragraph("Retained apertures are labelled VOID. They cut the wall but contain no door or window fixture. Explicit demolition disposition references are preserved in attached alteration-review.json; no infill is inferred.");
+  }
   paragraph("No construction quantities, material procurement, disposal allowances, compliance approval or issued-history claim is made. Shared-volume ownership between classifications remains unresolved.");
   paragraph("Text encoding: unsupported glyphs/control characters use explicit Unicode escapes such as \\u{1f600}; literal backslashes are doubled. Full original Unicode identity/reference and drawing labels are preserved in attached alteration-review.json. Long drawing labels are visibly marked [...] when shortened; review the attachment.");
   paragraph("The drawing keeps its declared scale; geometry outside the selected viewport may be clipped. Print at 100%. Review the complete stage model before relying on a detail.");
@@ -144,6 +147,10 @@ export async function exportAlterationStagePdf(
     designRevision: original.designRevision, basisReference: resolution.basisReference,
     levelId: options.levelId, levelName: selectedLevel.name, view: options.view,
     sharedAnnotationsReviewed: false, excludedIds: resolution.excludedIds, displayLabels: labels,
+    openingDispositions: original.openings.filter((opening) => opening.demolitionDisposition).map((opening) => ({
+      openingId: opening.id, ...opening.demolitionDisposition!,
+    })),
+    apertureIds: resolution.model.openings.filter((opening) => opening.kind === "void").map((opening) => opening.id),
   };
   await doc.attach(new TextEncoder().encode(JSON.stringify(attachment, null, 2)), "alteration-review.json", {
     mimeType: "application/json", description: "Original Unicode review reference and identity; authored draft, not issued history.",

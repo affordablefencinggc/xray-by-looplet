@@ -98,6 +98,10 @@ const operations = {
 };
 const editOperations = {
   type: "array", minItems: 1, maxItems: ARCHITECT_BATCH_LIMIT, items: { oneOf: [
+    objectSchema({ kind: { const: "set-opening-disposition" }, id, disposition: { anyOf: [
+      objectSchema({ kind: { const: "retain-void" }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
+      { type: "null" },
+    ] } }),
     objectSchema({ kind: { const: "set-lifecycle" }, id, lifecycle: { anyOf: [
       objectSchema({ status: { enum: ["existing", "new", "demolished", "repaired"] }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
       { type: "null" },
@@ -370,7 +374,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
       if (summary.jobId !== args.expectedJobId || summary.jobRevision !== args.expectedRevision) throw Error("The stored backup does not match the expected project revision.");
       return text({ saved: true, verified: true, backupId: summary.id, name: summary.name, storedAt: summary.storedAt, sha256: summary.sha256, sizeBytes: summary.sizeBytes, plans: summary.plans, photos: summary.photos, records: summary.records, scope: "Stored in this browser's backup database. Download it from Backups to keep a copy outside the app." });
     }),
-    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
+    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), set-opening-disposition (demolished door/window only: retain-void plus explicit reference preserves an empty aperture; null clears intent; no inferred infill), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
       const args = architectEditSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
       return text(await port.architect("edit", args));
     }),
@@ -445,7 +449,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
       if (current.pane !== "model") throw Error("The Model pane could not be selected.");
       if (args.displayMode) await port.setModelDisplay!(args.expectedJobId, read.project.revision, args.displayMode, scene.source.sha256);
       checkProject(await port.getState(), args.expectedJobId);
-      return text({ mounted: true, pane: "model", building: DESIGNED_SCENE_ENTRY.id, objects: scene.objects.length, walls: scene.summary.wallRuns, openings: scene.summary.openings, roofFaces: scene.summary.roofFaces, storeys: scene.storeys?.length ?? scene.summary.floors ?? 1,
+      return text({ mounted: true, pane: "model", building: DESIGNED_SCENE_ENTRY.id, objects: scene.objects.length, walls: scene.summary.wallRuns, openings: scene.summary.openings, ...(scene.summary.apertures === undefined ? {} : { apertures: scene.summary.apertures }), roofFaces: scene.summary.roofFaces, storeys: scene.storeys?.length ?? scene.summary.floors ?? 1,
         ...(args.displayMode ? { displayMode: args.displayMode } : {}),
         evidence: "inferred", origin: "designed", designRevision: read.project.revision, sceneSha256: scene.source.sha256,
         note: "Designed geometry, not measured from a source drawing. control_draftsman animates existing geometry, capture_workspace_image (source-building) captures it, read_source_building (building 'designed') summarises it and hide_designed_model returns the viewer to the catalog." });

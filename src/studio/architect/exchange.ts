@@ -181,7 +181,12 @@ export async function importDxf(text: string, jobId: string) {
         payload = JSON.parse(decodeURIComponent(escape(atob(encoded))));
       if (payload.hash === (await hash(body))) {
         const p = validateProject(payload.project);
-        return { project: { ...p, id: jobId }, warnings: [] as string[], parametric: true };
+        const warnings: string[] = [];
+        if (p.id !== jobId && p.alterationDrafts?.length) {
+          delete p.alterationDrafts;
+          warnings.push("Saved alteration drafts belong to the original project and were not copied into this project. Retain the original project to retrieve them.");
+        }
+        return { project: validateProject({ ...p, id: jobId }), warnings, parametric: true };
       }
     } catch {
       /* External edits invalidate metadata; parse actual geometry below. */

@@ -220,6 +220,7 @@ export function Architect3D({
         return mesh(g, id, color, opacity);
       };
       for (const o of p.openings) {
+        if (o.kind === "void") continue; // Wall solids retain the cut; there is no fixture or interactive leaf.
         const w = p.walls.find((w) => w.id === o.wallId)!;
         if (l !== "all" && w.levelId !== l) continue;
         const y = p.levels.find((l) => l.id === w.levelId)!.elevation + o.sill,

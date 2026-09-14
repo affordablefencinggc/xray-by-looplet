@@ -12,7 +12,7 @@ import type { SourceBuilding } from "../sourceBuilding.ts";
  * "select a shape" chat pills.
  */
 export type ArchitectEntityKind =
-  | "wall" | "door" | "window" | "line" | "circle" | "arc" | "room" | "slab" | "roof" | "level" | "grid" | "dimension";
+  | "wall" | "door" | "window" | "void" | "line" | "circle" | "arc" | "room" | "slab" | "roof" | "level" | "grid" | "dimension";
 export type CanvasReference =
   | { kind: "architect-entity"; entity: ArchitectEntityKind; id: string; levelId: string | null; levelName: string | null; summary: string }
   | { kind: "source-part"; building: string; partId: string; category: string; label: string; storey: string | null; evidenceState: string; summary: string }

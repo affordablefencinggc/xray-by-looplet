@@ -774,7 +774,7 @@ export function ArchitectWorkspace() {
           <Plus size={14} /> Level
         </button>
       </nav>
-      <AlterationStagePreview project={p} />
+      <AlterationStagePreview project={p} onChange={commit} />
       {panel === "draw" && (
         <>
           <div className="arch-toolbar" aria-label="Architectural drawing tools">
@@ -1112,7 +1112,7 @@ export function ArchitectWorkspace() {
       {panel === "schedule" && (
         <div className="arch-table-panel">
           <header>
-            <h2>Opening schedule</h2>
+            <h2>Door and window schedule</h2>
             <p>Live sizes in millimetres. Select a row to edit its host and opening.</p>
             <button
               onClick={() =>
@@ -1130,7 +1130,7 @@ export function ArchitectWorkspace() {
                       "Hinge",
                       "Swing",
                     ],
-                    ...p.openings.map((o) => {
+                    ...p.openings.filter(o => o.kind !== "void").map((o) => {
                       const w = p.walls.find((w) => w.id === o.wallId)!;
                       return [
                         o.tag,
@@ -1166,7 +1166,7 @@ export function ArchitectWorkspace() {
                 </tr>
               </thead>
               <tbody>
-                {p.openings.map((o) => {
+                {p.openings.filter(o => o.kind !== "void").map((o) => {
                   const w = p.walls.find((w) => w.id === o.wallId)!;
                   return (
                     <tr
@@ -1205,9 +1205,13 @@ export function ArchitectWorkspace() {
               </tbody>
             </table>
           </div>
-          {!p.openings.length && (
+          {!p.openings.some(o => o.kind !== "void") && (
             <p className="arch-empty">Place a door or window in a wall to begin the schedule.</p>
           )}
+          {p.openings.some(o => o.kind === "void") && <section aria-label="Apertures without fixtures">
+            <h3>Apertures without fixtures</h3>
+            <ul>{p.openings.filter(o => o.kind === "void").map(o => <li key={o.id}>{o.tag}: {o.width} × {o.height} mm; sill {o.sill} mm. No door or window fixture.</li>)}</ul>
+          </section>}
           <h2>Room schedule</h2>
           <table>
             <thead>

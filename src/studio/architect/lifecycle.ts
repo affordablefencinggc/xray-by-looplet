@@ -11,6 +11,7 @@ export type AlterationRow = {
   levelId: string;
   status: AlterationStatus;
   reference: string;
+  demolitionDisposition?: { kind: "retain-void"; reference: string };
 };
 export type AlterationWarning = {
   code: "new-opening-demolished-host";
@@ -39,6 +40,22 @@ export function setElementLifecycle(
   if (!element) throw Error("Lifecycle requires an existing wall, opening, slab or roof identity.");
   if (record === null) delete element.lifecycle;
   else element.lifecycle = record;
+  if ("wallId" in element && record?.status !== "demolished") delete element.demolitionDisposition;
+  return validateProject(next);
+}
+
+/** Explicit removal of the fixture while retaining its authored opening cut. */
+export function setOpeningDemolitionDisposition(project: ArchitectProject, id: string,
+  disposition: { kind: "retain-void"; reference: string } | null): ArchitectProject {
+  const next = validateProject(project);
+  const opening = next.openings.find(item => item.id === id);
+  if (!opening) throw Error("Demolition disposition requires an existing opening.");
+  if (disposition === null) delete opening.demolitionDisposition;
+  else {
+    if (opening.kind === "void" || opening.lifecycle?.status !== "demolished")
+      throw Error("Assign demolished work status to a door or window before retaining its void.");
+    opening.demolitionDisposition = z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict().parse(disposition);
+  }
   return validateProject(next);
 }
 
@@ -73,6 +90,7 @@ export function alterationSchedule(project: ArchitectProject): {
         levelId: "levelId" in element ? element.levelId : host!.levelId,
         status,
         reference: element.lifecycle?.reference ?? "",
+        ...("wallId" in element && element.demolitionDisposition ? { demolitionDisposition: element.demolitionDisposition } : {}),
       });
       counts[status]++;
       if (status === "new" && host?.lifecycle?.status === "demolished") {
@@ -99,12 +117,12 @@ export function alterationScheduleCsv(project: ArchitectProject): string {
     const safe = /^[\s\u0000-\u001f\u007f-\u009f]*[=+\-@]/u.test(text) ? "'" + text : text;
     return '"' + safe.replace(/"/g, '""') + '"';
   };
-  const headers = ["projectId", "revision", "id", "kind", "name", "levelId", "status", "reference", "draftOnly", "quoteEligible"];
+  const headers = ["projectId", "revision", "id", "kind", "name", "levelId", "status", "reference", "draftOnly", "quoteEligible", "demolitionDisposition", "dispositionReference"];
   return [
     headers.map(cell).join(","),
     ...schedule.rows.map((row) => [
       project.id, project.revision, row.id, row.kind, row.name, row.levelId,
-      row.status, row.reference, schedule.draftOnly, schedule.quoteEligible,
+      row.status, row.reference, schedule.draftOnly, schedule.quoteEligible, row.demolitionDisposition?.kind ?? "", row.demolitionDisposition?.reference ?? "",
     ].map(cell).join(",")),
   ].join("\r\n") + "\r\n";
 }

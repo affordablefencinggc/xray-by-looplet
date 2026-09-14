@@ -126,6 +126,7 @@ export function exportIfc(project: ArchitectProject) {
         `IFCOPENINGELEMENT(${guid(o.id + "void")},$,${str(o.tag + " opening")},$,$,${placement},${geom},$,.OPENING.)`,
       );
     put(`IFCRELVOIDSELEMENT(${guid(o.id + "void-rel")},$,$,$,${walls.get(w.id)},${opening})`);
+    if (o.kind === "void") continue; // Unfilled aperture: no IFC door/window or fill relationship.
     const fillGeom = shape(rectangle(a, b, -20, 20).map((r) => solid(r, base, o.height))),
       fill = put(
         `${o.kind === "door" ? "IFCDOOR" : "IFCWINDOW"}(${guid(o.id)},$,${str(o.tag)},'Nominal opening envelope; hardware unspecified',$,${placement},${fillGeom},${str(o.id)},${num(o.height)},${num(o.width)},${o.kind === "door" ? ".DOOR.,.NOTDEFINED." : ".WINDOW.,.NOTDEFINED."},$)`,

@@ -123,6 +123,10 @@ export function primitives(p: ArchitectProject, levelId: string, view: View = "p
         t = wallThickness(w) / 2;
       line(add(a, mul(n, -t)), add(a, mul(n, t)), o.id, 18);
       line(add(b, mul(n, -t)), add(b, mul(n, t)), o.id, 18);
+      if (o.kind === "void") {
+        text(add(mul(add(a, b), 0.5), mul(n, t + 210)), `VOID ${o.tag}`, 130, o.id);
+        continue;
+      }
       if (o.kind === "window") {
         for (const off of [-t, 0, t]) line(add(a, mul(n, off)), add(b, mul(n, off)), o.id, 8);
       } else {
@@ -362,10 +366,10 @@ export function primitives(p: ArchitectProject, levelId: string, view: View = "p
           ],
         ],
         o.id,
-        o.kind === "window" ? "#b5c6c8" : "#d3d7d2",
+        o.kind === "void" ? "#ffffff" : o.kind === "window" ? "#b5c6c8" : "#d3d7d2",
         9,
       );
-      text([(a + b) / 2, -y - o.sill - o.height / 2], o.tag, 130, o.id);
+      text([(a + b) / 2, -y - o.sill - o.height / 2], o.kind === "void" ? `VOID ${o.tag}` : o.tag, 130, o.id);
     }
   }
   for (const r of p.roofs) {

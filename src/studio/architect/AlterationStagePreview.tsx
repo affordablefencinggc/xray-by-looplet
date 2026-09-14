@@ -6,6 +6,8 @@ import { DrawingPrimitives } from "./DrawingPrimitives";
 import { createAlterationBasis, resolveAlterationStage } from "./alterationStage";
 import { calculateAlterationQuantities } from "./alterationQuantities";
 import { exportAlterationStagePdf } from "./alterationExport";
+import { appendAlterationDraft, createAlterationDraft, exportSavedAlterationDraftPdf, removeAlterationDraft } from "./alterationDrafts";
+import { useDesignConfirmation } from "./useDesignConfirmation";
 import "./alterationStagePreview.css";
 
 const views: { value: View; label: string }[] = [
@@ -14,7 +16,9 @@ const views: { value: View; label: string }[] = [
   { value: "east", label: "East elevation" }, { value: "west", label: "West elevation" },
 ];
 
-function StageReview({ project }: { project: ArchitectProject }) {
+type StageProps = { project: ArchitectProject; onChange: (project: ArchitectProject) => boolean };
+
+function StageReview({ project, onChange }: StageProps) {
   const referenceId = useId();
   const [reference, setReference] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -77,6 +81,16 @@ function StageReview({ project }: { project: ArchitectProject }) {
     } finally { if (mounted.current) setExportBusy(false); }
   };
   const volume = (value: number) => `${value.toLocaleString("en-AU", { maximumFractionDigits: 6 })} m³`;
+  const saveDraft = () => {
+    if (!basis || !resolved.ready) return;
+    try {
+      const record = createAlterationDraft(project, basis, stage, { levelId, view }, { id: crypto.randomUUID(), savedAt: new Date().toISOString() });
+      if (!onChange(appendAlterationDraft(project, record))) {
+        setExportNotice("");
+        setExportError("The stage draft was not saved. Check the workspace save message and try again.");
+      }
+    } catch (cause) { setExportError(cause instanceof Error ? cause.message : "The stage draft could not be saved."); }
+  };
   return <div className="alteration-stage-content">
     <p>Compare before and proposed geometry using the assigned work statuses. This read-only preview does not change your design.</p>
     <p>Existing and repaired elements use the current geometry in both stages. Review that assumption against your survey and brief; a changed shape needs separate before and proposed records.</p>
@@ -97,6 +111,7 @@ function StageReview({ project }: { project: ArchitectProject }) {
     </div>
     <div className="alteration-stage-export">
       <button type="button" className="alteration-stage-download" disabled={!resolved.ready || !basis || exportBusy} onClick={() => void downloadStage()}>{exportBusy ? "Preparing draft PDF…" : "Download current stage PDF"}</button>
+      <button type="button" className="alteration-stage-save" disabled={!resolved.ready || !basis || (project.alterationDrafts?.length ?? 0) >= 5} onClick={saveDraft}>Save reviewed stage draft</button>
       <p className="alteration-stage-note">Draft drawing of the selected stage, level and view. Shared annotations and the reviewed basis remain identified.</p>
       {exportError && <p className="alteration-stage-error" role="alert">{exportError}</p>}
       {exportNotice && <p role="status">{exportNotice}</p>}
@@ -133,9 +148,70 @@ function StageReview({ project }: { project: ArchitectProject }) {
   </div>;
 }
 
-export function AlterationStagePreview({ project }: { project: ArchitectProject }) {
+function SavedStageDrafts({ project, onChange }: StageProps) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const { confirmDesign, confirmation } = useDesignConfirmation();
+  const mounted = useRef(true), currentProject = useRef(project);
+  currentProject.current = project;
+  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const downloadSaved = async (id: string) => {
+    if (busyId) return;
+    const snapshot = project;
+    setBusyId(id); setError(""); setNotice("");
+    try {
+      const bytes = await exportSavedAlterationDraftPdf(snapshot, id);
+      if (!mounted.current) return;
+      if (currentProject.current !== snapshot) { setNotice("The project changed. The earlier download was discarded; choose the saved draft again."); return; }
+      const url = URL.createObjectURL(new Blob([Uint8Array.from(bytes).buffer], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url; link.download = `saved-alteration-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}-draft.pdf`;
+      document.body.appendChild(link);
+      try { link.click(); setNotice("Saved draft PDF prepared from its frozen source."); }
+      finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+    } catch (cause) {
+      if (mounted.current && currentProject.current === snapshot) setError(cause instanceof Error ? cause.message : "The saved draft could not be exported.");
+    } finally { if (mounted.current) setBusyId(null); }
+  };
+  const remove = async (id: string) => {
+    const snapshot = project;
+    if (!(await confirmDesign("Remove this saved stage draft? The project undo command can restore it."))) return;
+    if (!mounted.current || currentProject.current !== snapshot) return;
+    try {
+      if (!onChange(removeAlterationDraft(snapshot, id))) {
+        setNotice(""); setError("The saved draft was not removed. Check the workspace save message and try again."); return;
+      }
+      setError(""); setNotice("Saved stage draft removed. Undo can restore it.");
+    }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "The saved draft could not be removed."); }
+  };
+  const records = project.alterationDrafts ?? [];
+  return <section className="alteration-saved-drafts" aria-label="Saved stage drafts">
+    <strong>Saved stage drafts · {records.length}/5</strong>
+    <p>Each draft preserves its reviewed source, reference and drawing selection. Re-export works after the live review changes. These are frozen drafts, not issued drawings; regenerated PDFs may differ byte for byte.</p>
+    <p>Up to five drafts per project, each limited to 256,000 JSON characters and 512,000 UTF-8 bytes.</p>
+    {records.length === 0 && <p>No stage drafts saved yet.</p>}
+    {records.map((record) => <article key={record.id} className="alteration-saved-row">
+      <strong>{record.stage === "before" ? "Before" : "Proposed"} · {record.selection.view} · model revision {record.projectRevision}</strong>
+      <p>Level: {record.selection.levelId} · Design revision: {record.designRevision || "—"}</p>
+      <p>Reference: {record.basis.reference}</p>
+      <time dateTime={record.savedAt}>{new Date(record.savedAt).toLocaleString("en-AU")}</time>
+      <div className="alteration-saved-actions">
+        <button type="button" disabled={busyId !== null} onClick={() => void downloadSaved(record.id)}>{busyId === record.id ? "Preparing saved PDF…" : "Re-export saved draft"}</button>
+        <button type="button" onClick={() => void remove(record.id)}>Remove saved draft</button>
+      </div>
+    </article>)}
+    {error && <p className="alteration-stage-error" role="alert">{error}</p>}
+    {notice && <p role="status">{notice}</p>}
+    {confirmation}
+  </section>;
+}
+
+export function AlterationStagePreview({ project, onChange }: StageProps) {
   return <details className="alteration-stage-preview" onKeyDown={(event) => event.stopPropagation()}>
     <summary>Before / proposed preview</summary>
-    <StageReview key={`${project.id}:${project.revision}`} project={project} />
+    <StageReview key={`${project.id}:${project.revision}`} project={project} onChange={onChange} />
+    <SavedStageDrafts key={project.id} project={project} onChange={onChange} />
   </details>;
 }

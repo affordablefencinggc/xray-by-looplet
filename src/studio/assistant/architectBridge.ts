@@ -162,6 +162,9 @@ export const architectEditOperationSchema = z.discriminatedUnion("kind", [
     status: z.enum(["existing", "new", "demolished", "repaired"]),
     reference: z.string().trim().min(1).max(500),
   }).strict().nullable() }).strict(),
+  z.object({ kind: z.literal("set-opening-disposition"), id, disposition: z.object({
+    kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500),
+  }).strict().nullable() }).strict(),
   /** Removes one entity by ID. Removing a wall also removes its hosted openings and dimensions; a level must be empty first. */
   z.object({ kind: z.literal("remove"), id }).strict(),
   z.object({ kind: z.literal("move-wall"), id, a: point.optional(), b: point.optional() }).strict(),
@@ -288,8 +291,18 @@ function prepareArchitectEditsDraft(project: ArchitectProject, input: unknown, m
       const element = draft[key].find(item => item.id === operation.id)!;
       if (operation.lifecycle === null) delete element.lifecycle;
       else element.lifecycle = operation.lifecycle;
+      if ("wallId" in element && operation.lifecycle?.status !== "demolished") delete element.demolitionDisposition;
       change(ENTITY_KIND[key], element.id);
       notices.push(`Element ${element.id}: lifecycle ${element.lifecycle?.status ?? "unassigned"}. Authored classification only; quantities are not phase-filtered and this is not verified survey evidence.`);
+    } else if (operation.kind === "set-opening-disposition") {
+      const opening = find("openings", operation.id, "opening");
+      if (operation.disposition === null) delete opening.demolitionDisposition;
+      else {
+        if (opening.kind === "void" || opening.lifecycle?.status !== "demolished") throw Error("Retain-void requires a demolished door or window.");
+        opening.demolitionDisposition = operation.disposition;
+      }
+      change("opening", opening.id);
+      notices.push(`Opening ${opening.id}: ${operation.disposition ? "retain authored void after fixture demolition" : "demolition disposition cleared"}. No infill, source verification or procurement is inferred.`);
     } else if (operation.kind === "set-opening") {
       const patch = defined({ offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm, sill: operation.sillMm, tag: operation.tag, hinge: operation.hinge, swing: operation.swing });
       requireChange(patch, "Changing an opening");

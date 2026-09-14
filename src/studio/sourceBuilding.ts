@@ -155,6 +155,7 @@ const sceneSchema = z
         floors: z.number().int().min(1).max(100).optional(),
         wallRuns: z.number().int().nonnegative(),
         openings: z.number().int().nonnegative(),
+        apertures: z.number().int().nonnegative().optional(),
         roofFaces: z.number().int().nonnegative(),
         objects: z.number().int().positive(),
         visibleNamedRooms: z.number().int().nonnegative(),

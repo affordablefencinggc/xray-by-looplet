@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { sheetLayoutSchema, authoredSheetSetSchema, validateAuthoredSheets } from "./authoredSheetSet.ts";
 import { issueRecordSchema, type IssueRecord, type IssuedSheetRecord } from "./issueHistory.ts";
+import { alterationDraftRecordSchema } from "./alterationDraftSchema.ts";
+import { validateAlterationDrafts } from "./alterationDrafts.ts";
 export type Point = [number, number];
 const n = z.number().finite().min(-1e6).max(1e6),
   positive = z.number().finite().positive().max(1e6),
@@ -41,9 +43,10 @@ const openingSchema = z
   .object({
     ...entity,
     lifecycle,
+    demolitionDisposition: z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict().optional(),
     wallId: id,
     tag: z.string().min(1).max(30),
-    kind: z.enum(["door", "window"]),
+    kind: z.enum(["door", "window", "void"]),
     offset: n,
     width: positive,
     height: positive,
@@ -148,6 +151,7 @@ const schema = z
     sheet: sheetLayoutSchema,
     sheetSet: authoredSheetSetSchema.optional(),
     issues: z.array(issueRecordSchema).optional(),
+    alterationDrafts: z.array(alterationDraftRecordSchema).max(5).optional(),
     notes: z.string().max(5000),
   })
   .strict();
@@ -248,6 +252,8 @@ export function validateProject(value: unknown): ArchitectProject {
     )
       throw Error("Opening must fit within its host wall.");
     if (o.kind === "door" && o.sill !== 0) throw Error("Door sill must be zero.");
+    if (o.demolitionDisposition && (o.lifecycle?.status !== "demolished" || o.kind === "void"))
+      throw Error("Retain-void disposition requires a demolished door or window.");
     if (tags.has(o.tag.toLowerCase())) throw Error("Door/window tags must be unique.");
     tags.add(o.tag.toLowerCase());
     for (const other of p.openings)
@@ -297,6 +303,7 @@ export function validateProject(value: unknown): ArchitectProject {
       throw Error("A roof needs at least one pitched or flat edge.");
   }
   validateAuthoredSheets(p);
+  validateAlterationDrafts(p);
   if (distance(p.section.a, p.section.b) < 1) throw Error("Section line must have a direction.");
   return p;
 }

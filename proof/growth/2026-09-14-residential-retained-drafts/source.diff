@@ -1,0 +1,1220 @@
+diff --git a/package.json b/package.json
+index 909dbbc..700b04d 100644
+--- a/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts src/studio/architect/alterationDrafts.test.ts src/studio/architect/retainedApertureRendering.test.ts src/studio/architect/retainedOpeningLifecycle.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/architect/AlterationPanel.tsx b/src/studio/architect/AlterationPanel.tsx
+index 8b4c100..21a0727 100644
+--- a/src/studio/architect/AlterationPanel.tsx
++++ b/src/studio/architect/AlterationPanel.tsx
+@@ -1,6 +1,6 @@
+ import { useId, useMemo, useState } from "react";
+ import type { ArchitectProject } from "./model";
+-import { alterationSchedule, alterationScheduleCsv, setElementLifecycle } from "./lifecycle";
++import { alterationSchedule, alterationScheduleCsv, setElementLifecycle, setOpeningDemolitionDisposition } from "./lifecycle";
+ import "./alterationPanel.css";
+ 
+ const statuses = ["existing", "new", "demolished", "repaired"] as const;
+@@ -9,7 +9,7 @@ const labels = { unassigned: "Unassigned", existing: "Existing", new: "New", dem
+ type ScheduleRow = ReturnType<typeof alterationSchedule>["rows"][number];
+ type Props = {
+   project: ArchitectProject;
+-  onChange: (next: ArchitectProject) => void;
++  onChange: (next: ArchitectProject) => boolean;
+   onSelect: (id: string | null) => void;
+   selected: string | null;
+ };
+@@ -22,13 +22,26 @@ function AssignmentEditor({ project, row, onChange }: {
+   const [status, setStatus] = useState<Status | "">(row.status === "unassigned" ? "" : row.status);
+   const [reference, setReference] = useState(row.reference);
+   const [error, setError] = useState("");
++  const dispositionId = useId();
++  const [dispositionReference, setDispositionReference] = useState(row.demolitionDisposition?.reference ?? "");
++  const retainVoid = (clear: boolean) => {
++    if (!clear && !dispositionReference.trim()) { setError("Enter a reference confirming that the opening void is retained."); return; }
++    try {
++      if (!onChange(setOpeningDemolitionDisposition(project, row.id, clear ? null : { kind: "retain-void", reference: dispositionReference.trim() }))) {
++        setError("The opening disposition was not saved. Check the workspace save message and try again."); return;
++      }
++      setError("");
++    } catch (cause) { setError(cause instanceof Error ? cause.message : "The opening disposition could not be saved."); }
++  };
+   const apply = (clear: boolean) => {
+     if (!clear && (!status || !reference.trim())) {
+       setError("Choose a work status and enter a survey or client brief reference.");
+       return;
+     }
+     try {
+-      onChange(setElementLifecycle(project, row.id, clear ? null : { status: status as Status, reference: reference.trim() }));
++      if (!onChange(setElementLifecycle(project, row.id, clear ? null : { status: status as Status, reference: reference.trim() }))) {
++        setError("The assignment was not saved. Check the workspace save message and try again."); return;
++      }
+       setError("");
+     } catch (cause) {
+       setError(cause instanceof Error ? cause.message : "The assignment could not be saved.");
+@@ -51,6 +64,17 @@ function AssignmentEditor({ project, row, onChange }: {
+       <button type="button" className="alteration-apply" onClick={() => apply(false)}>Apply work status</button>
+       <button type="button" disabled={row.status === "unassigned"} onClick={() => apply(true)}>Clear assignment</button>
+     </div>
++    {row.kind === "opening" && row.status === "demolished" && project.openings.some((opening) => opening.id === row.id && (opening.kind === "door" || opening.kind === "window")) && <div className="alteration-disposition">
++      <strong>Demolished opening: retained void</strong>
++      <p>The door or window is removed while the hole in its host wall remains. Record an explicit reference for this intent.</p>
++      <label htmlFor={dispositionId}>Retained-void reference (required)</label>
++      <textarea id={dispositionId} value={dispositionReference} maxLength={500} rows={2} onChange={(event) => { setDispositionReference(event.target.value); setError(""); }} />
++      <div className="alteration-actions">
++        <button type="button" onClick={() => retainVoid(false)}>Save retained void</button>
++        <button type="button" disabled={!row.demolitionDisposition} onClick={() => retainVoid(true)}>Clear void disposition</button>
++      </div>
++      <p>{row.demolitionDisposition ? `Saved: ${row.demolitionDisposition.reference}` : "No disposition recorded."}</p>
++    </div>}
+     {error && <p className="alteration-error" id={errorId} role="alert">{error}</p>}
+   </div>;
+ }
+diff --git a/src/studio/architect/AlterationStagePreview.tsx b/src/studio/architect/AlterationStagePreview.tsx
+index c2ed5ca..7c55a94 100644
+--- a/src/studio/architect/AlterationStagePreview.tsx
++++ b/src/studio/architect/AlterationStagePreview.tsx
+@@ -6,6 +6,8 @@ import { DrawingPrimitives } from "./DrawingPrimitives";
+ import { createAlterationBasis, resolveAlterationStage } from "./alterationStage";
+ import { calculateAlterationQuantities } from "./alterationQuantities";
+ import { exportAlterationStagePdf } from "./alterationExport";
++import { appendAlterationDraft, createAlterationDraft, exportSavedAlterationDraftPdf, removeAlterationDraft } from "./alterationDrafts";
++import { useDesignConfirmation } from "./useDesignConfirmation";
+ import "./alterationStagePreview.css";
+ 
+ const views: { value: View; label: string }[] = [
+@@ -14,7 +16,9 @@ const views: { value: View; label: string }[] = [
+   { value: "east", label: "East elevation" }, { value: "west", label: "West elevation" },
+ ];
+ 
+-function StageReview({ project }: { project: ArchitectProject }) {
++type StageProps = { project: ArchitectProject; onChange: (project: ArchitectProject) => boolean };
++
++function StageReview({ project, onChange }: StageProps) {
+   const referenceId = useId();
+   const [reference, setReference] = useState("");
+   const [confirmed, setConfirmed] = useState(false);
+@@ -77,6 +81,16 @@ function StageReview({ project }: { project: ArchitectProject }) {
+     } finally { if (mounted.current) setExportBusy(false); }
+   };
+   const volume = (value: number) => `${value.toLocaleString("en-AU", { maximumFractionDigits: 6 })} m³`;
++  const saveDraft = () => {
++    if (!basis || !resolved.ready) return;
++    try {
++      const record = createAlterationDraft(project, basis, stage, { levelId, view }, { id: crypto.randomUUID(), savedAt: new Date().toISOString() });
++      if (!onChange(appendAlterationDraft(project, record))) {
++        setExportNotice("");
++        setExportError("The stage draft was not saved. Check the workspace save message and try again.");
++      }
++    } catch (cause) { setExportError(cause instanceof Error ? cause.message : "The stage draft could not be saved."); }
++  };
+   return <div className="alteration-stage-content">
+     <p>Compare before and proposed geometry using the assigned work statuses. This read-only preview does not change your design.</p>
+     <p>Existing and repaired elements use the current geometry in both stages. Review that assumption against your survey and brief; a changed shape needs separate before and proposed records.</p>
+@@ -97,6 +111,7 @@ function StageReview({ project }: { project: ArchitectProject }) {
+     </div>
+     <div className="alteration-stage-export">
+       <button type="button" className="alteration-stage-download" disabled={!resolved.ready || !basis || exportBusy} onClick={() => void downloadStage()}>{exportBusy ? "Preparing draft PDF…" : "Download current stage PDF"}</button>
++      <button type="button" className="alteration-stage-save" disabled={!resolved.ready || !basis || (project.alterationDrafts?.length ?? 0) >= 5} onClick={saveDraft}>Save reviewed stage draft</button>
+       <p className="alteration-stage-note">Draft drawing of the selected stage, level and view. Shared annotations and the reviewed basis remain identified.</p>
+       {exportError && <p className="alteration-stage-error" role="alert">{exportError}</p>}
+       {exportNotice && <p role="status">{exportNotice}</p>}
+@@ -133,9 +148,70 @@ function StageReview({ project }: { project: ArchitectProject }) {
+   </div>;
+ }
+ 
+-export function AlterationStagePreview({ project }: { project: ArchitectProject }) {
++function SavedStageDrafts({ project, onChange }: StageProps) {
++  const [busyId, setBusyId] = useState<string | null>(null);
++  const [error, setError] = useState("");
++  const [notice, setNotice] = useState("");
++  const { confirmDesign, confirmation } = useDesignConfirmation();
++  const mounted = useRef(true), currentProject = useRef(project);
++  currentProject.current = project;
++  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
++  const downloadSaved = async (id: string) => {
++    if (busyId) return;
++    const snapshot = project;
++    setBusyId(id); setError(""); setNotice("");
++    try {
++      const bytes = await exportSavedAlterationDraftPdf(snapshot, id);
++      if (!mounted.current) return;
++      if (currentProject.current !== snapshot) { setNotice("The project changed. The earlier download was discarded; choose the saved draft again."); return; }
++      const url = URL.createObjectURL(new Blob([Uint8Array.from(bytes).buffer], { type: "application/pdf" }));
++      const link = document.createElement("a");
++      link.href = url; link.download = `saved-alteration-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}-draft.pdf`;
++      document.body.appendChild(link);
++      try { link.click(); setNotice("Saved draft PDF prepared from its frozen source."); }
++      finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
++    } catch (cause) {
++      if (mounted.current && currentProject.current === snapshot) setError(cause instanceof Error ? cause.message : "The saved draft could not be exported.");
++    } finally { if (mounted.current) setBusyId(null); }
++  };
++  const remove = async (id: string) => {
++    const snapshot = project;
++    if (!(await confirmDesign("Remove this saved stage draft? The project undo command can restore it."))) return;
++    if (!mounted.current || currentProject.current !== snapshot) return;
++    try {
++      if (!onChange(removeAlterationDraft(snapshot, id))) {
++        setNotice(""); setError("The saved draft was not removed. Check the workspace save message and try again."); return;
++      }
++      setError(""); setNotice("Saved stage draft removed. Undo can restore it.");
++    }
++    catch (cause) { setError(cause instanceof Error ? cause.message : "The saved draft could not be removed."); }
++  };
++  const records = project.alterationDrafts ?? [];
++  return <section className="alteration-saved-drafts" aria-label="Saved stage drafts">
++    <strong>Saved stage drafts · {records.length}/5</strong>
++    <p>Each draft preserves its reviewed source, reference and drawing selection. Re-export works after the live review changes. These are frozen drafts, not issued drawings; regenerated PDFs may differ byte for byte.</p>
++    <p>Up to five drafts per project, each limited to 256,000 JSON characters and 512,000 UTF-8 bytes.</p>
++    {records.length === 0 && <p>No stage drafts saved yet.</p>}
++    {records.map((record) => <article key={record.id} className="alteration-saved-row">
++      <strong>{record.stage === "before" ? "Before" : "Proposed"} · {record.selection.view} · model revision {record.projectRevision}</strong>
++      <p>Level: {record.selection.levelId} · Design revision: {record.designRevision || "—"}</p>
++      <p>Reference: {record.basis.reference}</p>
++      <time dateTime={record.savedAt}>{new Date(record.savedAt).toLocaleString("en-AU")}</time>
++      <div className="alteration-saved-actions">
++        <button type="button" disabled={busyId !== null} onClick={() => void downloadSaved(record.id)}>{busyId === record.id ? "Preparing saved PDF…" : "Re-export saved draft"}</button>
++        <button type="button" onClick={() => void remove(record.id)}>Remove saved draft</button>
++      </div>
++    </article>)}
++    {error && <p className="alteration-stage-error" role="alert">{error}</p>}
++    {notice && <p role="status">{notice}</p>}
++    {confirmation}
++  </section>;
++}
++
++export function AlterationStagePreview({ project, onChange }: StageProps) {
+   return <details className="alteration-stage-preview" onKeyDown={(event) => event.stopPropagation()}>
+     <summary>Before / proposed preview</summary>
+-    <StageReview key={`${project.id}:${project.revision}`} project={project} />
++    <StageReview key={`${project.id}:${project.revision}`} project={project} onChange={onChange} />
++    <SavedStageDrafts key={project.id} project={project} onChange={onChange} />
+   </details>;
+ }
+diff --git a/src/studio/architect/Architect3D.tsx b/src/studio/architect/Architect3D.tsx
+index b175a07..eab5641 100644
+--- a/src/studio/architect/Architect3D.tsx
++++ b/src/studio/architect/Architect3D.tsx
+@@ -220,6 +220,7 @@ export function Architect3D({
+         return mesh(g, id, color, opacity);
+       };
+       for (const o of p.openings) {
++        if (o.kind === "void") continue; // Wall solids retain the cut; there is no fixture or interactive leaf.
+         const w = p.walls.find((w) => w.id === o.wallId)!;
+         if (l !== "all" && w.levelId !== l) continue;
+         const y = p.levels.find((l) => l.id === w.levelId)!.elevation + o.sill,
+diff --git a/src/studio/architect/ArchitectInspector.tsx b/src/studio/architect/ArchitectInspector.tsx
+index 4c003b4..700bd55 100644
+--- a/src/studio/architect/ArchitectInspector.tsx
++++ b/src/studio/architect/ArchitectInspector.tsx
+@@ -95,7 +95,7 @@ export function ArchitectInspector({
+   project: ArchitectProject;
+   selected: string | null;
+   levelId: string;
+-  onChange: (p: ArchitectProject) => void;
++  onChange: (p: ArchitectProject) => boolean;
+   onSelect: (id: string | null) => void;
+   onDelete: () => void;
+ }) {
+@@ -320,7 +320,7 @@ export function ArchitectInspector({
+             value={o.height}
+             onCommit={(v) => change("openings", o.id, { height: v })}
+           />
+-          {o.kind === "window" && (
++          {o.kind !== "door" && (
+             <NumberField
+               label="Sill height mm"
+               value={o.sill}
+diff --git a/src/studio/architect/ArchitectWalkStart.tsx b/src/studio/architect/ArchitectWalkStart.tsx
+index d5b41d3..31c8837 100644
+--- a/src/studio/architect/ArchitectWalkStart.tsx
++++ b/src/studio/architect/ArchitectWalkStart.tsx
+@@ -50,6 +50,7 @@ export function ArchitectWalkStart({ project, initialLevel, onClose, onStart }:
+           const wall=walls.find(w=>w.id===o.wallId)!,length=Math.hypot(wall.b[0]-wall.a[0],wall.b[1]-wall.a[1]);
+           if(!length)return null;
+           const at=(offset:number)=>[wall.a[0]+(wall.b[0]-wall.a[0])*offset/length,wall.a[1]+(wall.b[1]-wall.a[1])*offset/length],a=at(o.offset-o.width/2),b=at(o.offset+o.width/2);
++          if(o.kind==="void")return <text key={o.id} x={(a[0]+b[0])/2} y={(a[1]+b[1])/2-100} textAnchor="middle" fontSize={Math.max(width,height)/64} fill="currentColor">VOID {o.tag}</text>;
+           return <line key={o.id} className={`walk-plan-${o.kind}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />;
+         })}
+         <g className="walk-plan-labels" fontSize={Math.max(width,height)/48}>{project.roomTags.filter(t=>t.levelId===levelId).map(t=><text key={t.id} x={t.point[0]} y={t.point[1]} textAnchor="middle">{t.name}</text>)}</g>
+diff --git a/src/studio/architect/ArchitectWorkspace.tsx b/src/studio/architect/ArchitectWorkspace.tsx
+index 4c0a44e..2c83674 100644
+--- a/src/studio/architect/ArchitectWorkspace.tsx
++++ b/src/studio/architect/ArchitectWorkspace.tsx
+@@ -774,7 +774,7 @@ export function ArchitectWorkspace() {
+           <Plus size={14} /> Level
+         </button>
+       </nav>
+-      <AlterationStagePreview project={p} />
++      <AlterationStagePreview project={p} onChange={commit} />
+       {panel === "draw" && (
+         <>
+           <div className="arch-toolbar" aria-label="Architectural drawing tools">
+@@ -1112,7 +1112,7 @@ export function ArchitectWorkspace() {
+       {panel === "schedule" && (
+         <div className="arch-table-panel">
+           <header>
+-            <h2>Opening schedule</h2>
++            <h2>Door and window schedule</h2>
+             <p>Live sizes in millimetres. Select a row to edit its host and opening.</p>
+             <button
+               onClick={() =>
+@@ -1130,7 +1130,7 @@ export function ArchitectWorkspace() {
+                       "Hinge",
+                       "Swing",
+                     ],
+-                    ...p.openings.map((o) => {
++                    ...p.openings.filter(o => o.kind !== "void").map((o) => {
+                       const w = p.walls.find((w) => w.id === o.wallId)!;
+                       return [
+                         o.tag,
+@@ -1166,7 +1166,7 @@ export function ArchitectWorkspace() {
+                 </tr>
+               </thead>
+               <tbody>
+-                {p.openings.map((o) => {
++                {p.openings.filter(o => o.kind !== "void").map((o) => {
+                   const w = p.walls.find((w) => w.id === o.wallId)!;
+                   return (
+                     <tr
+@@ -1205,9 +1205,13 @@ export function ArchitectWorkspace() {
+               </tbody>
+             </table>
+           </div>
+-          {!p.openings.length && (
++          {!p.openings.some(o => o.kind !== "void") && (
+             <p className="arch-empty">Place a door or window in a wall to begin the schedule.</p>
+           )}
++          {p.openings.some(o => o.kind === "void") && <section aria-label="Apertures without fixtures">
++            <h3>Apertures without fixtures</h3>
++            <ul>{p.openings.filter(o => o.kind === "void").map(o => <li key={o.id}>{o.tag}: {o.width} × {o.height} mm; sill {o.sill} mm. No door or window fixture.</li>)}</ul>
++          </section>}
+           <h2>Room schedule</h2>
+           <table>
+             <thead>
+diff --git a/src/studio/architect/alterationDraftSchema.ts b/src/studio/architect/alterationDraftSchema.ts
+new file mode 100644
+index 0000000..b04c67b
+--- /dev/null
++++ b/src/studio/architect/alterationDraftSchema.ts
+@@ -0,0 +1,23 @@
++import { z } from "zod";
++
++/** Leaf schema module: no model, resolver, export or register imports. */
++export const ALTERATION_DRAFT_MAX = 5;
++export const ALTERATION_DRAFT_SOURCE_MAX = 256000;
++export const ALTERATION_DRAFT_SOURCE_BYTES_MAX = 512000;
++const identity = z.string().trim().min(1).max(100);
++export const alterationDraftRecordSchema = z.object({
++  format: z.literal("xray.alteration-draft/v1"),
++  id: identity,
++  savedAt: z.string().datetime({ offset: true }),
++  stage: z.enum(["before", "proposed"]),
++  projectId: z.string().min(1).max(100),
++  projectRevision: z.number().int().positive(),
++  designRevision: z.string().max(40),
++  basis: z.object({ reference: z.string().trim().min(1).max(500), fingerprint: z.string().min(1).max(512000) }).strict(),
++  selection: z.object({ levelId: z.string().min(1).max(100), view: z.enum(["plan", "north", "south", "east", "west", "section"]) }).strict(),
++  sourceJson: z.string().min(1).max(ALTERATION_DRAFT_SOURCE_MAX)
++    .refine((value) => new TextEncoder().encode(value).byteLength <= ALTERATION_DRAFT_SOURCE_BYTES_MAX, "Saved alteration source exceeds the 512000-byte limit."),
++  sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
++  draftOnly: z.literal(true), issued: z.literal(false), quoteEligible: z.literal(false), sharedAnnotationsReviewed: z.literal(false),
++}).strict();
++export type AlterationDraftRecord = z.infer<typeof alterationDraftRecordSchema>;
+diff --git a/src/studio/architect/alterationDrafts.test.ts b/src/studio/architect/alterationDrafts.test.ts
+new file mode 100644
+index 0000000..a1e56f5
+--- /dev/null
++++ b/src/studio/architect/alterationDrafts.test.ts
+@@ -0,0 +1,150 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { PDFDocument } from "pdf-lib";
++import { exportDxf, importDxf } from "./exchange.ts";
++import { demonstration, revise, validateProject } from "./model.ts";
++import { loadArchitect, saveArchitect, architectKey } from "./persistence.ts";
++import { sha256Hex } from "./designedScene.ts";
++import { createAlterationBasis } from "./alterationStage.ts";
++import {
++  createAlterationDraft, appendAlterationDraft, retrieveAlterationDraft, removeAlterationDraft,
++  exportSavedAlterationDraftPdf, alterationDraftRecordSchema, validateAlterationDrafts,
++} from "./alterationDrafts.ts";
++
++function fixture() {
++  const p = demonstration("saved-stage-project");
++  for (const element of [...p.walls, ...p.openings, ...p.slabs, ...p.roofs]) element.lifecycle = { status: "existing", reference: "Survey A" };
++  p.notes = "Original current annotations";
++  return p;
++}
++function record(p = fixture(), id = "draft-1") {
++  return createAlterationDraft(p, createAlterationBasis(p, "Reviewed survey A"), "before", { levelId: p.levels[0].id, view: "plan" }, { id, savedAt: "2026-09-14T08:00:00.000Z" });
++}
++
++test("DXF keeps same-project drafts but excludes archives when importing into another project", async () => {
++  const p = fixture(), saved = appendAlterationDraft(p, record(p));
++  const dxf = await exportDxf(saved);
++  const same = await importDxf(dxf, p.id);
++  assert.deepEqual(same.project.alterationDrafts, saved.alterationDrafts);
++  const other = await importDxf(dxf, "different-project");
++  assert.equal(other.project.id, "different-project");
++  assert.equal(other.project.alterationDrafts, undefined);
++  assert.ok(other.warnings.some((warning) => warning.includes("original project")));
++  assert.deepEqual(validateProject(other.project), other.project);
++  assert.equal(saved.alterationDrafts?.length, 1);
++});
++
++test("saved draft freezes full annotations and geometry while excluding recursive histories", () => {
++  const p = fixture();
++  p.issues = [];
++  const original = structuredClone(p), draft = record(p), next = appendAlterationDraft(p, draft);
++  assert.deepEqual(p, original);
++  const source = JSON.parse(draft.sourceJson);
++  assert.equal(source.notes, p.notes); assert.deepEqual(source.section, p.section);
++  assert.deepEqual(source.roomTags, p.roomTags); assert.deepEqual(source.sheet, p.sheet);
++  assert.equal("issues" in source, false); assert.equal("alterationDrafts" in source, false);
++  assert.equal(draft.sourceSha256, sha256Hex(draft.sourceJson));
++  assert.equal(draft.issued, false); assert.equal(draft.quoteEligible, false);
++  draft.basis.reference = "Caller changed its copy";
++  assert.equal(next.alterationDrafts![0].basis.reference, "Reviewed survey A");
++  const retrieved = retrieveAlterationDraft(next, "draft-1");
++  retrieved.source.notes = "Mutated retrieved copy";
++  retrieved.record.basis.reference = "Mutated record copy";
++  assert.equal(retrieveAlterationDraft(next, "draft-1").source.notes, p.notes);
++  assert.equal(next.alterationDrafts![0].basis.reference, "Reviewed survey A");
++});
++
++test("retrieval and PDF regeneration remain bound to frozen source after live geometry and annotation edits", async () => {
++  const original = fixture();
++  const saved = revise(original, appendAlterationDraft(original, record(original)));
++  saved.name = "Live name changed"; saved.notes = "Live notes changed";
++  saved.walls[0].height += 100; saved.section.a[1] += 100;
++  saved.roomTags[0].name = "Live room label";
++  const { source, record: frozen } = retrieveAlterationDraft(saved, "draft-1");
++  assert.equal(source.name, original.name); assert.equal(source.notes, original.notes);
++  assert.deepEqual(source.walls, original.walls); assert.deepEqual(source.section, original.section);
++  assert.equal(frozen.projectRevision, original.revision);
++  const pdf = await PDFDocument.load(await exportSavedAlterationDraftPdf(saved, "draft-1"));
++  assert.ok(pdf.getTitle()?.includes(original.name));
++  assert.equal(pdf.getTitle()?.includes(saved.name), false);
++  assert.ok(pdf.getSubject()?.includes("model revision 1"));
++});
++
++test("append rejects stale source, duplicate identity and a sixth retained draft", () => {
++  const p = fixture(), draft = record(p);
++  p.notes = "Changed after review capture";
++  assert.throws(() => appendAlterationDraft(p, draft), /changed/);
++  let next = fixture();
++  for (let i = 0; i < 5; i++) next = appendAlterationDraft(next, record(next, "draft-" + i));
++  assert.equal(next.alterationDrafts?.length, 5);
++  assert.throws(() => appendAlterationDraft(next, record(next, "sixth")), /Five/);
++  const one = fixture(), withOne = appendAlterationDraft(one, record(one));
++  assert.throws(() => appendAlterationDraft(withOne, record(withOne)), /already exists/);
++});
++
++test("strict record fields, byte/codeunit limits and timestamps reject invalid data", () => {
++  const draft = record();
++  for (const change of [
++    { id: " " }, { savedAt: "yesterday" }, { issued: true }, { quoteEligible: true },
++    { approved: true }, { sourceJson: "a".repeat(256001) }, { sourceJson: "漢".repeat(180000) },
++  ]) assert.throws(() => alterationDraftRecordSchema.parse({ ...draft, ...change }));
++  assert.throws(() => createAlterationDraft(fixture(), null, "before", { levelId: "absent", view: "plan" }, { id: "x", savedAt: draft.savedAt }), /basis/);
++  const p = fixture();
++  for (let i = 0; i < 3000; i++) p.lines.push({ id: `large-line-${i}-` + "x".repeat(60), revision: 1, levelId: p.levels[0].id, a: [i, 0], b: [i, 1000] });
++  assert.throws(() => record(p), /too large/);
++});
++
++test("hash mismatch, metadata mismatch, stale frozen basis and nested history fail closed", () => {
++  const p = fixture(), saved = appendAlterationDraft(p, record(p));
++  for (const mutate of [
++    (value: typeof saved) => { value.alterationDrafts![0].sourceSha256 = "0".repeat(64); },
++    (value: typeof saved) => { value.alterationDrafts![0].projectRevision += 1; },
++    (value: typeof saved) => { value.alterationDrafts![0].basis.fingerprint = "incorrect"; },
++    (value: typeof saved) => {
++      const draft = value.alterationDrafts![0], source = JSON.parse(draft.sourceJson);
++      source.alterationDrafts = [];
++      draft.sourceJson = JSON.stringify(source); draft.sourceSha256 = sha256Hex(draft.sourceJson);
++    },
++    (value: typeof saved) => {
++      const draft = value.alterationDrafts![0], source = JSON.parse(draft.sourceJson);
++      source.issues = [];
++      draft.sourceJson = JSON.stringify(source); draft.sourceSha256 = sha256Hex(draft.sourceJson);
++    },
++  ]) {
++    const bad = structuredClone(saved); mutate(bad);
++    assert.throws(() => validateAlterationDrafts(bad));
++    assert.throws(() => retrieveAlterationDraft(bad, "draft-1"));
++    assert.throws(() => validateProject(bad));
++  }
++});
++
++test("save/reload preserves frozen drafts, isolates projects and blocks corrupted bytes without overwriting", () => {
++  const values = new Map<string, string>();
++  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
++  const p = fixture(), saved = appendAlterationDraft(p, record(p));
++  const result = saveArchitect(loadArchitect(p.id, storage), saved, storage);
++  assert.equal(result.error, null);
++  const loaded = loadArchitect(p.id, storage);
++  assert.equal(loaded.blocked, false);
++  assert.deepEqual(retrieveAlterationDraft(loaded.value, "draft-1"), retrieveAlterationDraft(saved, "draft-1"));
++  const other = { ...saved, id: "other-project" };
++  assert.throws(() => retrieveAlterationDraft(other, "draft-1"), /another project/);
++  assert.equal(loadArchitect("other-project", storage).value.alterationDrafts, undefined);
++  const corrupt = structuredClone(saved); corrupt.alterationDrafts![0].sourceSha256 = "f".repeat(64);
++  const bytes = JSON.stringify(corrupt); storage.setItem(architectKey(p.id), bytes);
++  const blocked = loadArchitect(p.id, storage);
++  assert.equal(blocked.blocked, true); assert.equal(blocked.raw, bytes);
++  assert.equal(saveArchitect(blocked, saved, storage).blocked, true);
++  assert.equal(storage.getItem(architectKey(p.id)), bytes);
++});
++
++test("removal is pure and undo can restore the exact frozen record", () => {
++  const p = fixture(), saved = appendAlterationDraft(p, record(p)), before = structuredClone(saved);
++  const removed = removeAlterationDraft(saved, "draft-1");
++  assert.deepEqual(saved, before); assert.deepEqual(removed.alterationDrafts, []);
++  assert.equal(removed.revision, saved.revision);
++  assert.throws(() => retrieveAlterationDraft(removed, "draft-1"), /no longer exists/);
++  assert.throws(() => removeAlterationDraft(removed, "draft-1"), /no longer exists/);
++  const restored = validateProject(before);
++  assert.deepEqual(retrieveAlterationDraft(restored, "draft-1").record, before.alterationDrafts![0]);
++});
+diff --git a/src/studio/architect/alterationDrafts.ts b/src/studio/architect/alterationDrafts.ts
+new file mode 100644
+index 0000000..e83f9b3
+--- /dev/null
++++ b/src/studio/architect/alterationDrafts.ts
+@@ -0,0 +1,109 @@
++import { alterationDraftRecordSchema, ALTERATION_DRAFT_MAX, ALTERATION_DRAFT_SOURCE_MAX, ALTERATION_DRAFT_SOURCE_BYTES_MAX, type AlterationDraftRecord } from "./alterationDraftSchema.ts";
++export { alterationDraftRecordSchema, ALTERATION_DRAFT_MAX, ALTERATION_DRAFT_SOURCE_MAX, ALTERATION_DRAFT_SOURCE_BYTES_MAX, type AlterationDraftRecord } from "./alterationDraftSchema.ts";
++import { validateProject, type ArchitectProject } from "./model.ts";
++import { sha256Hex } from "./designedScene.ts";
++import { resolveAlterationStage, type AlterationBasis, type AlterationStage } from "./alterationStage.ts";
++import { exportAlterationStagePdf, type AlterationExportOptions } from "./alterationExport.ts";
++
++/** Snapshots are deliberately nonrecursive and contain no generic issue history.
++ * Original geometry, annotations, view settings and model revision are retained.
++ */
++function sourceSnapshot(project: ArchitectProject): ArchitectProject {
++  const source = structuredClone(project);
++  delete source.issues;
++  delete source.alterationDrafts;
++  return source;
++}
++
++function checkedRecord(value: unknown, projectId: string): { record: AlterationDraftRecord; source: ArchitectProject } {
++  const record = alterationDraftRecordSchema.parse(value);
++  if (record.projectId !== projectId) throw Error("Saved alteration draft belongs to another project.");
++  if (sha256Hex(record.sourceJson) !== record.sourceSha256) throw Error("Saved alteration draft source hash does not match its frozen bytes.");
++  let raw: unknown;
++  try { raw = JSON.parse(record.sourceJson); } catch { throw Error("Saved alteration draft contains invalid source JSON."); }
++  if (!raw || typeof raw !== "object" || Array.isArray(raw) || "issues" in raw || "alterationDrafts" in raw) {
++    throw Error("Saved alteration draft source must be a project without nested issue or alteration histories.");
++  }
++  // Histories were rejected before entering model validation. Its register
++  // validator therefore cannot recurse into another saved source snapshot.
++  const source = validateProject(raw);
++  if (source.id !== record.projectId || source.revision !== record.projectRevision || source.designRevision !== record.designRevision) {
++    throw Error("Saved alteration draft identity/revision does not match its frozen source.");
++  }
++  if (!source.levels.some((level) => level.id === record.selection.levelId)) throw Error("Saved alteration draft refers to a missing source level.");
++  const result = resolveAlterationStage(source, record.basis, record.stage);
++  if (!result.ready) throw Error("Saved alteration draft cannot resolve its frozen basis: " + result.blockers.map((blocker) => blocker.reason).join(" "));
++  return { record, source };
++}
++
++/** Safe hook for validateProject after its outer schema parse. This function
++ * never validates the outer project again; only nonrecursive frozen sources.
++ */
++export function validateAlterationDrafts(project: ArchitectProject): void {
++  const records = project.alterationDrafts ?? [];
++  if (records.length > ALTERATION_DRAFT_MAX) throw Error("A project can retain at most five saved alteration drafts.");
++  const ids = new Set<string>();
++  for (const value of records) {
++    const { record } = checkedRecord(value, project.id);
++    if (ids.has(record.id)) throw Error("Saved alteration draft identities must be unique.");
++    ids.add(record.id);
++  }
++}
++
++export function createAlterationDraft(
++  project: ArchitectProject,
++  basis: AlterationBasis | null,
++  stage: AlterationStage,
++  selection: AlterationExportOptions,
++  metadata: { id: string; savedAt: string },
++): AlterationDraftRecord {
++  const source = sourceSnapshot(validateProject(project));
++  const resolution = resolveAlterationStage(source, basis, stage);
++  if (!resolution.ready) throw Error(resolution.blockers.map((blocker) => blocker.reason).join(" "));
++  const sourceJson = JSON.stringify(source);
++  if (sourceJson.length > ALTERATION_DRAFT_SOURCE_MAX || new TextEncoder().encode(sourceJson).byteLength > ALTERATION_DRAFT_SOURCE_BYTES_MAX) {
++    throw Error("This alteration source is too large to save: maximum 256000 characters and 512000 UTF-8 bytes. Export a PDF instead.");
++  }
++  const record = alterationDraftRecordSchema.parse({
++    format: "xray.alteration-draft/v1", ...metadata, stage,
++    projectId: source.id, projectRevision: source.revision, designRevision: source.designRevision,
++    basis: { reference: resolution.basisReference, fingerprint: basis!.fingerprint },
++    selection, sourceJson, sourceSha256: sha256Hex(sourceJson),
++    draftOnly: true, issued: false, quoteEligible: false, sharedAnnotationsReviewed: false,
++  });
++  return checkedRecord(record, source.id).record;
++}
++
++/** Append only a reviewed snapshot of the current source; editing the register
++ * cannot retroactively change any record. Workspace commit owns undo/revisions.
++ */
++export function appendAlterationDraft(project: ArchitectProject, value: AlterationDraftRecord): ArchitectProject {
++  const next = validateProject(project), { record } = checkedRecord(value, next.id);
++  const records = next.alterationDrafts ?? [];
++  if (records.length >= ALTERATION_DRAFT_MAX) throw Error("Five alteration drafts are already saved. Remove an unneeded draft before saving another.");
++  if (records.some((prior) => prior.id === record.id)) throw Error("Saved alteration draft identity already exists.");
++  if (record.sourceJson !== JSON.stringify(sourceSnapshot(next))) throw Error("The project changed after this alteration snapshot was prepared; review and save it again.");
++  next.alterationDrafts = [...records, structuredClone(record)];
++  return validateProject(next);
++}
++
++export function retrieveAlterationDraft(project: ArchitectProject, id: string): { record: AlterationDraftRecord; source: ArchitectProject } {
++  const value = project.alterationDrafts?.find((record) => record.id === id);
++  if (!value) throw Error("The selected saved alteration draft no longer exists.");
++  return checkedRecord(value, project.id);
++}
++
++export function removeAlterationDraft(project: ArchitectProject, id: string): ArchitectProject {
++  const next = validateProject(project);
++  if (!next.alterationDrafts?.some((record) => record.id === id)) throw Error("The selected saved alteration draft no longer exists.");
++  next.alterationDrafts = next.alterationDrafts.filter((record) => record.id !== id);
++  return validateProject(next);
++}
++
++/** Regenerates a PDF from frozen data, not guaranteed byte-identical to a prior
++ * PDF file. No current source geometry, current basis, or issued history is used.
++ */
++export async function exportSavedAlterationDraftPdf(project: ArchitectProject, id: string): Promise<Uint8Array> {
++  const { record, source } = retrieveAlterationDraft(project, id);
++  return exportAlterationStagePdf(source, record.basis, record.stage, record.selection);
++}
+diff --git a/src/studio/architect/alterationExport.test.ts b/src/studio/architect/alterationExport.test.ts
+index 2f9942a..a5603ac 100644
+--- a/src/studio/architect/alterationExport.test.ts
++++ b/src/studio/architect/alterationExport.test.ts
+@@ -12,6 +12,20 @@ function classified() {
+   }
+   return p;
+ }
++
++test("retained aperture export preserves disposition reference and separates fixture from cut", async () => {
++  const p = classified(), opening = p.openings[0];
++  opening.lifecycle = { status: "demolished", reference: "Remove fixture D1" };
++  opening.demolitionDisposition = { kind: "retain-void", reference: "Client instruction: retain aperture" };
++  const source = structuredClone(p), basis = createAlterationBasis(p, "Survey A unchanged geometry");
++  const options = { levelId: p.levels[0].id, view: "plan" as const };
++  const before = attachedReview(await PDFDocument.load(await exportAlterationStagePdf(p, basis, "before", options)));
++  const proposed = attachedReview(await PDFDocument.load(await exportAlterationStagePdf(p, basis, "proposed", options)));
++  assert.deepEqual(before.apertureIds, []);
++  assert.deepEqual(proposed.apertureIds, [opening.id]);
++  assert.deepEqual(proposed.openingDispositions, [{ openingId: opening.id, ...opening.demolitionDisposition }]);
++  assert.deepEqual(p, source);
++});
+ function pageContent(doc: PDFDocument, index: number): string {
+   const contents = doc.getPage(index).node.Contents();
+   const entries = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
+diff --git a/src/studio/architect/alterationExport.ts b/src/studio/architect/alterationExport.ts
+index c8b4f86..4b31fdb 100644
+--- a/src/studio/architect/alterationExport.ts
++++ b/src/studio/architect/alterationExport.ts
+@@ -87,6 +87,9 @@ export async function exportAlterationStagePdf(
+   paragraph("Geometry review reference (full): " + resolution.basisReference);
+   paragraph("Session review declares existing/repaired geometry unchanged across stages. This reference is not a verified survey or a historical issue basis.");
+   paragraph("Shared annotations: notes, room tags, grids, drafting marks and section position come from the current all-work project. They have not been independently classified by alteration stage.");
++  if (resolution.model.openings.some((opening) => opening.kind === "void")) {
++    paragraph("Retained apertures are labelled VOID. They cut the wall but contain no door or window fixture. Explicit demolition disposition references are preserved in attached alteration-review.json; no infill is inferred.");
++  }
+   paragraph("No construction quantities, material procurement, disposal allowances, compliance approval or issued-history claim is made. Shared-volume ownership between classifications remains unresolved.");
+   paragraph("Text encoding: unsupported glyphs/control characters use explicit Unicode escapes such as \\u{1f600}; literal backslashes are doubled. Full original Unicode identity/reference and drawing labels are preserved in attached alteration-review.json. Long drawing labels are visibly marked [...] when shortened; review the attachment.");
+   paragraph("The drawing keeps its declared scale; geometry outside the selected viewport may be clipped. Print at 100%. Review the complete stage model before relying on a detail.");
+@@ -144,6 +147,10 @@ export async function exportAlterationStagePdf(
+     designRevision: original.designRevision, basisReference: resolution.basisReference,
+     levelId: options.levelId, levelName: selectedLevel.name, view: options.view,
+     sharedAnnotationsReviewed: false, excludedIds: resolution.excludedIds, displayLabels: labels,
++    openingDispositions: original.openings.filter((opening) => opening.demolitionDisposition).map((opening) => ({
++      openingId: opening.id, ...opening.demolitionDisposition!,
++    })),
++    apertureIds: resolution.model.openings.filter((opening) => opening.kind === "void").map((opening) => opening.id),
+   };
+   await doc.attach(new TextEncoder().encode(JSON.stringify(attachment, null, 2)), "alteration-review.json", {
+     mimeType: "application/json", description: "Original Unicode review reference and identity; authored draft, not issued history.",
+diff --git a/src/studio/architect/alterationPanel.css b/src/studio/architect/alterationPanel.css
+index 6672559..69c14a8 100644
+--- a/src/studio/architect/alterationPanel.css
++++ b/src/studio/architect/alterationPanel.css
+@@ -42,3 +42,5 @@
+ .alteration-table small { display: block; margin-top: 4px; color: var(--color-muted); }
+ .architect-workspace .alteration-panel .alteration-table tr[data-selected="true"] { background: var(--color-selected); color: var(--color-ink); }
+ .architect-workspace .alteration-panel :is(button, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
++.alteration-disposition { display: grid; gap: 8px; padding-block: 12px; border-top: 1px solid var(--color-line); overflow-wrap: anywhere; }
++.alteration-disposition p { margin: 0; color: var(--color-muted); }
+diff --git a/src/studio/architect/alterationStage.ts b/src/studio/architect/alterationStage.ts
+index 7dae4e2..8c8bfed 100644
+--- a/src/studio/architect/alterationStage.ts
++++ b/src/studio/architect/alterationStage.ts
+@@ -71,7 +71,7 @@ export function resolveAlterationStage(
+     if (host.lifecycle?.status === "new" && opening.lifecycle && opening.lifecycle.status !== "new") {
+       blockers.push({ elementId: opening.id, reason: "An opening present before alteration cannot be hosted by a new wall; review the contradictory intent." });
+     }
+-    if (opening.lifecycle?.status === "demolished" && (host.lifecycle?.status === "existing" || host.lifecycle?.status === "repaired")) {
++    if (opening.lifecycle?.status === "demolished" && !opening.demolitionDisposition && (host.lifecycle?.status === "existing" || host.lifecycle?.status === "repaired")) {
+       blockers.push({ elementId: opening.id, reason: "A demolished opening in a retained wall needs explicit retain-void or authored infill disposition; this resolver cannot invent it." });
+     }
+   }
+@@ -87,6 +87,11 @@ export function resolveAlterationStage(
+   const retainedHosts = new Set(p.walls.map((wall) => wall.id));
+   p.openings = p.openings.filter((opening) => {
+     if (!retainedHosts.has(opening.wallId)) { excludedIds.push(opening.id); return false; }
++    if (stage === "proposed" && opening.lifecycle!.status === "demolished" && opening.demolitionDisposition?.kind === "retain-void") {
++      opening.kind = "void";
++      delete opening.demolitionDisposition;
++      return true;
++    }
+     return present(opening);
+   });
+   p.slabs = p.slabs.filter(present);
+@@ -99,5 +104,6 @@ export function resolveAlterationStage(
+   // Frozen issue history belongs to the original all-work project; exposing it
+   // as history of this ephemeral filtered model would imply a false issue basis.
+   delete p.issues;
++  delete p.alterationDrafts;
+   return { ready: true, stage, model: validateProject(p), basisReference: basis!.reference.trim(), excludedIds };
+ }
+diff --git a/src/studio/architect/alterationStagePreview.css b/src/studio/architect/alterationStagePreview.css
+index 2a9734b..b3f15fd 100644
+--- a/src/studio/architect/alterationStagePreview.css
++++ b/src/studio/architect/alterationStagePreview.css
+@@ -27,3 +27,15 @@
+ .alteration-volume-values dd { margin: 4px 0 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+ .alteration-stage-quantities ul { margin: 0; padding-left: 16px; }
+ .alteration-quantity-blockers { display: grid; gap: 8px; }
++.architect-workspace .alteration-stage-preview button.alteration-stage-save { min-height: 44px; padding: 8px; white-space: normal; border-radius: 4px; border: 1px solid var(--color-action); background: var(--color-action); color: var(--color-on-action); }
++.architect-workspace .alteration-stage-preview button.alteration-stage-save:hover { background: var(--color-action-hover); color: var(--color-on-action); }
++.architect-workspace .alteration-stage-preview button.alteration-stage-save:disabled { background: var(--color-field); color: var(--color-field-muted); border-color: var(--color-line); cursor: not-allowed; opacity: 0.6; }
++.alteration-saved-drafts { display: grid; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-line); }
++.alteration-saved-drafts p { margin: 0; overflow-wrap: anywhere; }
++.alteration-saved-drafts > p, .alteration-saved-row time { color: var(--color-muted); }
++.alteration-saved-row { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--color-line); border-radius: 4px; background: var(--color-header); color: var(--color-ink); overflow-wrap: anywhere; }
++.alteration-saved-actions { display: flex; flex-wrap: wrap; gap: 8px; }
++.architect-workspace .alteration-stage-preview .alteration-saved-actions button { min-height: 44px; padding: 8px; white-space: normal; border-radius: 4px; border: 1px solid var(--color-line); background: var(--color-field); color: var(--color-field-ink); }
++.architect-workspace .alteration-stage-preview .alteration-saved-actions button:hover { background: var(--color-selected); color: var(--color-ink); }
++.architect-workspace .alteration-stage-preview .alteration-saved-actions button:disabled { background: var(--color-field); color: var(--color-field-muted); cursor: not-allowed; opacity: 0.6; }
++.alteration-saved-drafts .alteration-stage-error { color: var(--color-danger); }
+diff --git a/src/studio/architect/designedScene.ts b/src/studio/architect/designedScene.ts
+index 8fdc2b4..80e740d 100644
+--- a/src/studio/architect/designedScene.ts
++++ b/src/studio/architect/designedScene.ts
+@@ -174,6 +174,7 @@ export function buildDesignedScene(p: ArchitectProject): SourceBuilding {
+     part(`slab-${slab.id}`, "slab", slab.name, surfaceMaterialKey(slab.material), slab.levelId, levelOf(slab.levelId), m, `Authored slab ${slab.thickness} mm thick${slab.material ? `, ${slab.material}` : ""}.`);
+   }
+   for (const o of p.openings) {
++    if (o.kind === "void") continue; // Apertures are already cut from wall geometry; never invent a fixture.
+     const w = p.walls.find((wall) => wall.id === o.wallId);
+     if (!w) continue;
+     const y = (levelById.get(w.levelId)?.elevation ?? lowest) + o.sill, d = unit(w.a, w.b), t = wallThickness(w),
+@@ -246,7 +247,8 @@ export function buildDesignedScene(p: ArchitectProject): SourceBuilding {
+     ],
+     sourceSheets: [{ page: 1, title: DESIGNED_SCENE_TITLE, image: `/models/${DESIGNED_SCENE_ID}/source-page-1.png`, width: SHEET_WIDTH, height: SHEET_HEIGHT, role: "designed" }],
+     summary: {
+-      floors: p.levels.length, wallRuns: p.walls.length, openings: p.openings.length, roofFaces: roofFaceCount, objects: objects.length,
++      floors: p.levels.length, wallRuns: p.walls.length, openings: p.openings.filter(o => o.kind !== "void").length, roofFaces: roofFaceCount, objects: objects.length,
++      ...(p.openings.some(o => o.kind === "void") ? { apertures: p.openings.filter(o => o.kind === "void").length } : {}),
+       visibleNamedRooms: p.roomTags.length, method: "Designed geometry from the Architectural workspace.", status: "designed",
+     },
+   };
+diff --git a/src/studio/architect/drawing.ts b/src/studio/architect/drawing.ts
+index 00711c8..a6219d7 100644
+--- a/src/studio/architect/drawing.ts
++++ b/src/studio/architect/drawing.ts
+@@ -123,6 +123,10 @@ export function primitives(p: ArchitectProject, levelId: string, view: View = "p
+         t = wallThickness(w) / 2;
+       line(add(a, mul(n, -t)), add(a, mul(n, t)), o.id, 18);
+       line(add(b, mul(n, -t)), add(b, mul(n, t)), o.id, 18);
++      if (o.kind === "void") {
++        text(add(mul(add(a, b), 0.5), mul(n, t + 210)), `VOID ${o.tag}`, 130, o.id);
++        continue;
++      }
+       if (o.kind === "window") {
+         for (const off of [-t, 0, t]) line(add(a, mul(n, off)), add(b, mul(n, off)), o.id, 8);
+       } else {
+@@ -362,10 +366,10 @@ export function primitives(p: ArchitectProject, levelId: string, view: View = "p
+           ],
+         ],
+         o.id,
+-        o.kind === "window" ? "#b5c6c8" : "#d3d7d2",
++        o.kind === "void" ? "#ffffff" : o.kind === "window" ? "#b5c6c8" : "#d3d7d2",
+         9,
+       );
+-      text([(a + b) / 2, -y - o.sill - o.height / 2], o.tag, 130, o.id);
++      text([(a + b) / 2, -y - o.sill - o.height / 2], o.kind === "void" ? `VOID ${o.tag}` : o.tag, 130, o.id);
+     }
+   }
+   for (const r of p.roofs) {
+diff --git a/src/studio/architect/exchange.ts b/src/studio/architect/exchange.ts
+index 7f1a121..6ad9fc9 100644
+--- a/src/studio/architect/exchange.ts
++++ b/src/studio/architect/exchange.ts
+@@ -181,7 +181,12 @@ export async function importDxf(text: string, jobId: string) {
+         payload = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+       if (payload.hash === (await hash(body))) {
+         const p = validateProject(payload.project);
+-        return { project: { ...p, id: jobId }, warnings: [] as string[], parametric: true };
++        const warnings: string[] = [];
++        if (p.id !== jobId && p.alterationDrafts?.length) {
++          delete p.alterationDrafts;
++          warnings.push("Saved alteration drafts belong to the original project and were not copied into this project. Retain the original project to retrieve them.");
++        }
++        return { project: validateProject({ ...p, id: jobId }), warnings, parametric: true };
+       }
+     } catch {
+       /* External edits invalidate metadata; parse actual geometry below. */
+diff --git a/src/studio/architect/ifc.ts b/src/studio/architect/ifc.ts
+index 91987e5..146a944 100644
+--- a/src/studio/architect/ifc.ts
++++ b/src/studio/architect/ifc.ts
+@@ -126,6 +126,7 @@ export function exportIfc(project: ArchitectProject) {
+         `IFCOPENINGELEMENT(${guid(o.id + "void")},$,${str(o.tag + " opening")},$,$,${placement},${geom},$,.OPENING.)`,
+       );
+     put(`IFCRELVOIDSELEMENT(${guid(o.id + "void-rel")},$,$,$,${walls.get(w.id)},${opening})`);
++    if (o.kind === "void") continue; // Unfilled aperture: no IFC door/window or fill relationship.
+     const fillGeom = shape(rectangle(a, b, -20, 20).map((r) => solid(r, base, o.height))),
+       fill = put(
+         `${o.kind === "door" ? "IFCDOOR" : "IFCWINDOW"}(${guid(o.id)},$,${str(o.tag)},'Nominal opening envelope; hardware unspecified',$,${placement},${fillGeom},${str(o.id)},${num(o.height)},${num(o.width)},${o.kind === "door" ? ".DOOR.,.NOTDEFINED." : ".WINDOW.,.NOTDEFINED."},$)`,
+diff --git a/src/studio/architect/lifecycle.test.ts b/src/studio/architect/lifecycle.test.ts
+index ebc6365..238303b 100644
+--- a/src/studio/architect/lifecycle.test.ts
++++ b/src/studio/architect/lifecycle.test.ts
+@@ -127,11 +127,11 @@ test("CSV includes every exact schedule row, identity and draft evidence flags",
+   const classified = setElementLifecycle(p, p.walls[0].id, { status: "demolished", reference: "Survey A" });
+   const csv = alterationScheduleCsv(classified);
+   const lines = csv.trimEnd().split("\r\n");
+-  assert.equal(lines[0], '"projectId","revision","id","kind","name","levelId","status","reference","draftOnly","quoteEligible"');
++  assert.equal(lines[0], '"projectId","revision","id","kind","name","levelId","status","reference","draftOnly","quoteEligible","demolitionDisposition","dispositionReference"');
+   const rows = alterationSchedule(classified).rows;
+   assert.equal(lines.length, rows.length + 1);
+   rows.forEach((row, i) => {
+-    const expected = [classified.id, classified.revision, row.id, row.kind, row.name, row.levelId, row.status, row.reference, true, false];
++    const expected = [classified.id, classified.revision, row.id, row.kind, row.name, row.levelId, row.status, row.reference, true, false, "", ""];
+     assert.equal(lines[i + 1], expected.map((value) => `"${value}"`).join(","));
+   });
+   assert.equal(alterationScheduleCsv(emptyProject("none")), lines[0] + "\r\n");
+diff --git a/src/studio/architect/lifecycle.ts b/src/studio/architect/lifecycle.ts
+index 3296381..aa6a54f 100644
+--- a/src/studio/architect/lifecycle.ts
++++ b/src/studio/architect/lifecycle.ts
+@@ -11,6 +11,7 @@ export type AlterationRow = {
+   levelId: string;
+   status: AlterationStatus;
+   reference: string;
++  demolitionDisposition?: { kind: "retain-void"; reference: string };
+ };
+ export type AlterationWarning = {
+   code: "new-opening-demolished-host";
+@@ -39,6 +40,22 @@ export function setElementLifecycle(
+   if (!element) throw Error("Lifecycle requires an existing wall, opening, slab or roof identity.");
+   if (record === null) delete element.lifecycle;
+   else element.lifecycle = record;
++  if ("wallId" in element && record?.status !== "demolished") delete element.demolitionDisposition;
++  return validateProject(next);
++}
++
++/** Explicit removal of the fixture while retaining its authored opening cut. */
++export function setOpeningDemolitionDisposition(project: ArchitectProject, id: string,
++  disposition: { kind: "retain-void"; reference: string } | null): ArchitectProject {
++  const next = validateProject(project);
++  const opening = next.openings.find(item => item.id === id);
++  if (!opening) throw Error("Demolition disposition requires an existing opening.");
++  if (disposition === null) delete opening.demolitionDisposition;
++  else {
++    if (opening.kind === "void" || opening.lifecycle?.status !== "demolished")
++      throw Error("Assign demolished work status to a door or window before retaining its void.");
++    opening.demolitionDisposition = z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict().parse(disposition);
++  }
+   return validateProject(next);
+ }
+ 
+@@ -73,6 +90,7 @@ export function alterationSchedule(project: ArchitectProject): {
+         levelId: "levelId" in element ? element.levelId : host!.levelId,
+         status,
+         reference: element.lifecycle?.reference ?? "",
++        ...("wallId" in element && element.demolitionDisposition ? { demolitionDisposition: element.demolitionDisposition } : {}),
+       });
+       counts[status]++;
+       if (status === "new" && host?.lifecycle?.status === "demolished") {
+@@ -99,12 +117,12 @@ export function alterationScheduleCsv(project: ArchitectProject): string {
+     const safe = /^[\s\u0000-\u001f\u007f-\u009f]*[=+\-@]/u.test(text) ? "'" + text : text;
+     return '"' + safe.replace(/"/g, '""') + '"';
+   };
+-  const headers = ["projectId", "revision", "id", "kind", "name", "levelId", "status", "reference", "draftOnly", "quoteEligible"];
++  const headers = ["projectId", "revision", "id", "kind", "name", "levelId", "status", "reference", "draftOnly", "quoteEligible", "demolitionDisposition", "dispositionReference"];
+   return [
+     headers.map(cell).join(","),
+     ...schedule.rows.map((row) => [
+       project.id, project.revision, row.id, row.kind, row.name, row.levelId,
+-      row.status, row.reference, schedule.draftOnly, schedule.quoteEligible,
++      row.status, row.reference, schedule.draftOnly, schedule.quoteEligible, row.demolitionDisposition?.kind ?? "", row.demolitionDisposition?.reference ?? "",
+     ].map(cell).join(",")),
+   ].join("\r\n") + "\r\n";
+ }
+diff --git a/src/studio/architect/model.ts b/src/studio/architect/model.ts
+index b5209e6..f7dde0d 100644
+--- a/src/studio/architect/model.ts
++++ b/src/studio/architect/model.ts
+@@ -1,6 +1,8 @@
+ import { z } from "zod";
+ import { sheetLayoutSchema, authoredSheetSetSchema, validateAuthoredSheets } from "./authoredSheetSet.ts";
+ import { issueRecordSchema, type IssueRecord, type IssuedSheetRecord } from "./issueHistory.ts";
++import { alterationDraftRecordSchema } from "./alterationDraftSchema.ts";
++import { validateAlterationDrafts } from "./alterationDrafts.ts";
+ export type Point = [number, number];
+ const n = z.number().finite().min(-1e6).max(1e6),
+   positive = z.number().finite().positive().max(1e6),
+@@ -41,9 +43,10 @@ const openingSchema = z
+   .object({
+     ...entity,
+     lifecycle,
++    demolitionDisposition: z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict().optional(),
+     wallId: id,
+     tag: z.string().min(1).max(30),
+-    kind: z.enum(["door", "window"]),
++    kind: z.enum(["door", "window", "void"]),
+     offset: n,
+     width: positive,
+     height: positive,
+@@ -148,6 +151,7 @@ const schema = z
+     sheet: sheetLayoutSchema,
+     sheetSet: authoredSheetSetSchema.optional(),
+     issues: z.array(issueRecordSchema).optional(),
++    alterationDrafts: z.array(alterationDraftRecordSchema).max(5).optional(),
+     notes: z.string().max(5000),
+   })
+   .strict();
+@@ -248,6 +252,8 @@ export function validateProject(value: unknown): ArchitectProject {
+     )
+       throw Error("Opening must fit within its host wall.");
+     if (o.kind === "door" && o.sill !== 0) throw Error("Door sill must be zero.");
++    if (o.demolitionDisposition && (o.lifecycle?.status !== "demolished" || o.kind === "void"))
++      throw Error("Retain-void disposition requires a demolished door or window.");
+     if (tags.has(o.tag.toLowerCase())) throw Error("Door/window tags must be unique.");
+     tags.add(o.tag.toLowerCase());
+     for (const other of p.openings)
+@@ -297,6 +303,7 @@ export function validateProject(value: unknown): ArchitectProject {
+       throw Error("A roof needs at least one pitched or flat edge.");
+   }
+   validateAuthoredSheets(p);
++  validateAlterationDrafts(p);
+   if (distance(p.section.a, p.section.b) < 1) throw Error("Section line must have a direction.");
+   return p;
+ }
+diff --git a/src/studio/architect/retainedApertureRendering.test.ts b/src/studio/architect/retainedApertureRendering.test.ts
+new file mode 100644
+index 0000000..2e4e18d
+--- /dev/null
++++ b/src/studio/architect/retainedApertureRendering.test.ts
+@@ -0,0 +1,73 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { emptyProject, newWall, validateProject } from "./model.ts";
++import { primitives } from "./drawing.ts";
++import { wallSolids } from "./geometry.ts";
++import { buildDesignedScene } from "./designedScene.ts";
++import { exportIfc } from "./ifc.ts";
++
++function aperture(sill = 0, height = 2100) {
++  const p = emptyProject("retained-aperture");
++  p.walls.push({ ...newWall(p, p.levels[0].id, [0, 0], [4000, 0], [{
++    id: "solid", name: "Concrete", thickness: 200, kind: "solid", hatch: "concrete",
++    densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0,
++  }]), lifecycle: { status: "existing", reference: "Survey S01" } });
++  p.openings.push({ id: "retained-hole", revision: 1, wallId: p.walls[0].id, tag: "D01", kind: "void", offset: 2000,
++    width: 900, height, sill, hinge: "left", swing: "in", lifecycle: { status: "demolished", reference: "Remove fixture / retain hole" } });
++  p.section = { a: [2000, -1000], b: [2000, 1000] };
++  return validateProject(p);
++}
++
++test("retained aperture plan has jamb boundaries and explicit void label without fixture swing or glazing bars", () => {
++  const p = aperture(), bytes = JSON.stringify(p);
++  const items = primitives(p, p.levels[0].id, "plan").filter(item => item.id === "retained-hole");
++  assert.equal(items.filter(item => item.kind === "line").length, 2);
++  assert.equal(items.some(item => item.kind === "arc"), false);
++  assert.deepEqual(items.filter(item => item.kind === "text").map(item => item.text), ["VOID D01"]);
++  assert.equal(JSON.stringify(p), bytes);
++});
++
++test("retained aperture elevation is visibly unfilled and labelled instead of a door/window fixture", () => {
++  const p = aperture(900, 1200);
++  for (const view of ["north", "south"] as const) {
++    const items = primitives(p, p.levels[0].id, view).filter(item => item.id === "retained-hole");
++    assert.ok(items.some(item => item.kind === "path" && item.fill === "#ffffff"));
++    assert.ok(items.some(item => item.kind === "text" && item.text === "VOID D01"));
++    assert.equal(items.some(item => item.fill === "#b5c6c8" || item.fill === "#d3d7d2"), false);
++  }
++});
++
++test("door-height and elevated window apertures retain exact solid cuts with no fixture mesh", () => {
++  for (const [sill, height, expected] of [[0, 2100, 1.782], [900, 1200, 1.944]]) {
++    const p = aperture(sill, height), bytes = JSON.stringify(p);
++    const volume = wallSolids(p).reduce((sum, solid) => sum + solid.volumeM3, 0);
++    assert.ok(Math.abs(volume - expected) < 1e-8);
++    const scene = buildDesignedScene(p);
++    assert.equal(scene.summary.openings, 0);
++    assert.equal(scene.summary.apertures, 1);
++    assert.equal(scene.objects.some(part => part.category === "door" || part.category === "window"), false);
++    assert.equal(scene.objects.some(part => part.id === "retained-hole" || part.id === "retained-hole-frame"), false);
++    assert.ok(scene.objects.some(part => part.category === "wall"));
++    assert.equal(JSON.stringify(p), bytes);
++  }
++});
++
++test("IFC aperture emits a semantic wall void without any fixture or fill relation", () => {
++  const p = aperture(), bytes = JSON.stringify(p), ifc = exportIfc(p);
++  assert.equal((ifc.match(/=IFCOPENINGELEMENT\(/g) ?? []).length, 1);
++  assert.equal((ifc.match(/=IFCRELVOIDSELEMENT\(/g) ?? []).length, 1);
++  assert.equal((ifc.match(/=IFCRELFILLSELEMENT\(/g) ?? []).length, 0);
++  assert.equal((ifc.match(/=IFCDOOR\(/g) ?? []).length, 0);
++  assert.equal((ifc.match(/=IFCWINDOW\(/g) ?? []).length, 0);
++  assert.equal(JSON.stringify(p), bytes);
++});
++
++test("legacy doors continue to have fixtures, swing annotations and IFC fill relations", () => {
++  const p = aperture(); p.openings[0].kind = "door";
++  const scene = buildDesignedScene(p);
++  assert.equal(scene.summary.openings, 1);
++  assert.equal(scene.summary.apertures, undefined);
++  assert.ok(scene.objects.some(part => part.id === "retained-hole" && part.category === "door"));
++  assert.ok(primitives(p, p.levels[0].id, "plan").some(item => item.id === "retained-hole" && item.kind === "arc"));
++  assert.equal((exportIfc(p).match(/=IFCRELFILLSELEMENT\(/g) ?? []).length, 1);
++});
+diff --git a/src/studio/architect/retainedOpeningLifecycle.test.ts b/src/studio/architect/retainedOpeningLifecycle.test.ts
+new file mode 100644
+index 0000000..572ede5
+--- /dev/null
++++ b/src/studio/architect/retainedOpeningLifecycle.test.ts
+@@ -0,0 +1,123 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { emptyProject, newWall, revise, validateProject, type ArchitectProject } from "./model.ts";
++import { setElementLifecycle, setOpeningDemolitionDisposition, alterationSchedule } from "./lifecycle.ts";
++import { createAlterationBasis, resolveAlterationStage } from "./alterationStage.ts";
++import { wallSolids } from "./geometry.ts";
++import { prepareArchitectEdits } from "../assistant/architectBridge.ts";
++import { loadArchitect, saveArchitect } from "./persistence.ts";
++import { exportDxf, importDxf } from "./exchange.ts";
++
++function fixture(): ArchitectProject {
++  const p = emptyProject("retained-opening-life");
++  const wall = newWall(p, p.levels[0].id, [0, 0], [4000, 0], [{ id: "solid", name: "Authored wall", thickness: 200,
++    kind: "solid", hatch: "concrete", densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0 }]);
++  wall.lifecycle = { status: "existing", reference: "Survey A" };
++  p.walls.push(wall);
++  p.openings.push({ id: "removed-door", revision: 1, wallId: wall.id, tag: "D01", kind: "door", offset: 2000, width: 900,
++    height: 2100, sill: 0, hinge: "left", swing: "in", lifecycle: { status: "demolished", reference: "Remove door under brief A" } });
++  return p;
++}
++const disposition = { kind: "retain-void" as const, reference: "Keep authored aperture; survey A" };
++const volume = (p: ArchitectProject) => wallSolids(p).reduce((sum, solid) => sum + solid.volumeM3, 0);
++
++test("retain-void preserves the authored cut in both stages without inventing solid, infill or fixture quantities", () => {
++  const source = fixture(), p = setOpeningDemolitionDisposition(source, "removed-door", disposition);
++  const original = structuredClone(p), basis = createAlterationBasis(p, "Reviewed unchanged retained wall");
++  const before = resolveAlterationStage(p, basis, "before"), proposed = resolveAlterationStage(p, basis, "proposed");
++  if (!before.ready || !proposed.ready) throw Error("Both reviewed stages must resolve.");
++  assert.equal(before.model.openings[0].kind, "door");
++  assert.equal(proposed.model.openings[0].kind, "void");
++  assert.equal(proposed.model.openings[0].demolitionDisposition, undefined);
++  assert.ok(Math.abs(volume(before.model) - 1.782) < 1e-9);
++  assert.ok(Math.abs(volume(proposed.model) - 1.782) < 1e-9);
++  assert.equal(volume(before.model) - volume(proposed.model), 0);
++  assert.equal(proposed.model.walls.length, 1);
++  assert.deepEqual(proposed.model.walls[0].layers, source.walls[0].layers);
++  assert.equal(proposed.excludedIds.includes("removed-door"), false);
++  assert.deepEqual(p, original);
++  assert.deepEqual(alterationSchedule(p).rows.find((row) => row.id === "removed-door")?.demolitionDisposition, disposition);
++});
++
++test("missing or cleared disposition blocks retained-host stages and invalidates a previously reviewed basis", () => {
++  const p = fixture();
++  assert.equal(resolveAlterationStage(p, createAlterationBasis(p, "Review A"), "proposed").ready, false);
++  const retained = setOpeningDemolitionDisposition(p, "removed-door", disposition), basis = createAlterationBasis(retained, "Review B");
++  const cleared = setOpeningDemolitionDisposition(retained, "removed-door", null);
++  const result = resolveAlterationStage(cleared, basis, "proposed");
++  assert.equal(result.ready, false);
++  if (!result.ready) assert.ok(result.blockers.some((blocker) => /stale/.test(blocker.reason)));
++  assert.equal("model" in result, false);
++});
++
++test("disposition rejects invalid reference, unsupported kind, wrong lifecycle and missing identities atomically", () => {
++  const p = fixture(), original = structuredClone(p);
++  for (const value of [undefined, { ...disposition, reference: " " }, { ...disposition, reference: "x".repeat(501) },
++    { ...disposition, reference: 42 }, { kind: "infill", reference: "No authored infill" }, { ...disposition, approved: true }]) {
++    assert.throws(() => setOpeningDemolitionDisposition(p, "removed-door", value as typeof disposition));
++  }
++  assert.throws(() => setOpeningDemolitionDisposition(p, "missing", disposition));
++  assert.throws(() => setOpeningDemolitionDisposition(p, p.walls[0].id, disposition));
++  for (const status of ["existing", "new", "repaired"] as const) {
++    const changed = setElementLifecycle(p, "removed-door", { status, reference: "Brief B" });
++    assert.throws(() => setOpeningDemolitionDisposition(changed, "removed-door", disposition), /demolished/);
++  }
++  const alreadyVoid = structuredClone(p); alreadyVoid.openings[0].kind = "void";
++  assert.throws(() => setOpeningDemolitionDisposition(alreadyVoid, "removed-door", disposition), /door or window/);
++  const malformed = structuredClone(p); malformed.openings[0].demolitionDisposition = disposition; malformed.openings[0].kind = "void";
++  assert.throws(() => validateProject(malformed), /demolished door or window/);
++  assert.deepEqual(p, original);
++  const maximum = setOpeningDemolitionDisposition(p, "removed-door", { kind: "retain-void", reference: "x".repeat(500) });
++  assert.equal(maximum.openings[0].demolitionDisposition?.reference.length, 500);
++});
++
++test("changing demolition status clears obsolete void disposition without removing geometry", () => {
++  const p = setOpeningDemolitionDisposition(fixture(), "removed-door", disposition);
++  for (const lifecycle of [null, { status: "existing" as const, reference: "Reviewed retained door" }, { status: "new" as const, reference: "New work" }]) {
++    const changed = setElementLifecycle(p, "removed-door", lifecycle);
++    assert.equal(changed.openings[0].demolitionDisposition, undefined);
++    assert.equal(changed.openings[0].width, 900); assert.equal(changed.openings[0].kind, "door");
++  }
++  assert.deepEqual(p.openings[0].demolitionDisposition, disposition);
++});
++
++test("assistant edit enforces project/revision bindings, atomic failure and explicit disposition notices", () => {
++  const p = fixture(), bytes = JSON.stringify(p);
++  const input = { expectedJobId: p.id, expectedRevision: p.revision, operations: [{ kind: "set-opening-disposition", id: "removed-door", disposition }] };
++  const prepared = prepareArchitectEdits(p, input);
++  assert.deepEqual(prepared.draft.openings[0].demolitionDisposition, disposition);
++  assert.deepEqual(prepared.changed, [{ kind: "opening", id: "removed-door" }]);
++  assert.match(prepared.notices.join(" "), /retain authored void/);
++  assert.match(prepared.notices.join(" "), /No infill/);
++  for (const invalid of [{ ...input, expectedJobId: "other" }, { ...input, expectedRevision: p.revision + 1 },
++    { ...input, operations: [...input.operations, { kind: "set-opening-disposition", id: "missing", disposition }] }]) {
++    assert.throws(() => prepareArchitectEdits(p, invalid));
++  }
++  assert.equal(JSON.stringify(p), bytes);
++  const committed = revise(p, prepared.draft);
++  assert.equal(committed.openings[0].revision, p.openings[0].revision + 1);
++  const cleared = prepareArchitectEdits(committed, { expectedJobId: p.id, expectedRevision: committed.revision,
++    operations: [{ kind: "set-lifecycle", id: "removed-door", lifecycle: { status: "existing", reference: "Keep fixture" } }] });
++  assert.equal(cleared.draft.openings[0].demolitionDisposition, undefined);
++});
++
++test("authored disposition survives project persistence and parametric DXF exchange", async () => {
++  const p = setOpeningDemolitionDisposition(fixture(), "removed-door", disposition);
++  const values = new Map<string, string>(), storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
++  assert.equal(saveArchitect(loadArchitect(p.id, storage), p, storage).error, null);
++  assert.deepEqual(loadArchitect(p.id, storage).value.openings[0], p.openings[0]);
++  const imported = await importDxf(await exportDxf(p), "imported-retained-opening");
++  assert.equal(imported.parametric, true);
++  assert.deepEqual(imported.project.openings[0], p.openings[0]);
++  assert.equal(imported.project.id, "imported-retained-opening");
++  assert.deepEqual(validateProject(imported.project), imported.project);
++});
++
++test("a demolished host removes its aperture despite retained-void intent on the removed fixture", () => {
++  const p = setOpeningDemolitionDisposition(fixture(), "removed-door", disposition);
++  p.walls[0].lifecycle!.status = "demolished";
++  const result = resolveAlterationStage(p, createAlterationBasis(p, "Whole wall demolition"), "proposed");
++  if (!result.ready) throw Error("Reviewed whole-wall demolition should resolve.");
++  assert.deepEqual(result.model.walls, []); assert.deepEqual(result.model.openings, []);
++  assert.equal(volume(result.model), 0);
++});
+diff --git a/src/studio/assistant/appTools.ts b/src/studio/assistant/appTools.ts
+index 5fe2dc7..fcd6626 100644
+--- a/src/studio/assistant/appTools.ts
++++ b/src/studio/assistant/appTools.ts
+@@ -98,6 +98,10 @@ const operations = {
+ };
+ const editOperations = {
+   type: "array", minItems: 1, maxItems: ARCHITECT_BATCH_LIMIT, items: { oneOf: [
++    objectSchema({ kind: { const: "set-opening-disposition" }, id, disposition: { anyOf: [
++      objectSchema({ kind: { const: "retain-void" }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
++      { type: "null" },
++    ] } }),
+     objectSchema({ kind: { const: "set-lifecycle" }, id, lifecycle: { anyOf: [
+       objectSchema({ status: { enum: ["existing", "new", "demolished", "repaired"] }, reference: { type: "string", minLength: 1, maxLength: 500 } }),
+       { type: "null" },
+@@ -370,7 +374,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       if (summary.jobId !== args.expectedJobId || summary.jobRevision !== args.expectedRevision) throw Error("The stored backup does not match the expected project revision.");
+       return text({ saved: true, verified: true, backupId: summary.id, name: summary.name, storedAt: summary.storedAt, sha256: summary.sha256, sizeBytes: summary.sizeBytes, plans: summary.plans, photos: summary.photos, records: summary.records, scope: "Stored in this browser's backup database. Download it from Backups to keep a copy outside the app." });
+     }),
+-    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
++    tool("edit_architect_elements", "Edit, move or remove existing Architectural design entities by stable ID in one validated, undoable batch (max 200 operations): remove (a wall takes its hosted openings and dimensions with it; a level only when empty), move-wall, set-wall, set-level, set-slab, set-roof, set-opening (offsets are measured from the wall's a end; include set-opening in the same batch when a move would leave a door or window outside its wall, otherwise the whole batch is rejected) set-lifecycle (explicit existing/new/demolished/repaired status and supplied survey/client reference; null clears to unassigned; walls/openings/slabs/roofs only; does not filter quantities or verify evidence), set-opening-disposition (demolished door/window only: retain-void plus explicit reference preserves an empty aperture; null clears intent; no inferred infill), and rename-design (the demonstration marker is kept). Read the design first for expectedRevision and IDs.", objectSchema({ ...bound, operations: editOperations }), async input => {
+       const args = architectEditSchema.parse(input); checkProject(await port.getState(), args.expectedJobId);
+       return text(await port.architect("edit", args));
+     }),
+@@ -445,7 +449,7 @@ export function createAppTools(port: AppToolPort): AppTool[] {
+       if (current.pane !== "model") throw Error("The Model pane could not be selected.");
+       if (args.displayMode) await port.setModelDisplay!(args.expectedJobId, read.project.revision, args.displayMode, scene.source.sha256);
+       checkProject(await port.getState(), args.expectedJobId);
+-      return text({ mounted: true, pane: "model", building: DESIGNED_SCENE_ENTRY.id, objects: scene.objects.length, walls: scene.summary.wallRuns, openings: scene.summary.openings, roofFaces: scene.summary.roofFaces, storeys: scene.storeys?.length ?? scene.summary.floors ?? 1,
++      return text({ mounted: true, pane: "model", building: DESIGNED_SCENE_ENTRY.id, objects: scene.objects.length, walls: scene.summary.wallRuns, openings: scene.summary.openings, ...(scene.summary.apertures === undefined ? {} : { apertures: scene.summary.apertures }), roofFaces: scene.summary.roofFaces, storeys: scene.storeys?.length ?? scene.summary.floors ?? 1,
+         ...(args.displayMode ? { displayMode: args.displayMode } : {}),
+         evidence: "inferred", origin: "designed", designRevision: read.project.revision, sceneSha256: scene.source.sha256,
+         note: "Designed geometry, not measured from a source drawing. control_draftsman animates existing geometry, capture_workspace_image (source-building) captures it, read_source_building (building 'designed') summarises it and hide_designed_model returns the viewer to the catalog." });
+diff --git a/src/studio/assistant/architectBridge.ts b/src/studio/assistant/architectBridge.ts
+index 420d467..2d2aa8b 100644
+--- a/src/studio/assistant/architectBridge.ts
++++ b/src/studio/assistant/architectBridge.ts
+@@ -162,6 +162,9 @@ export const architectEditOperationSchema = z.discriminatedUnion("kind", [
+     status: z.enum(["existing", "new", "demolished", "repaired"]),
+     reference: z.string().trim().min(1).max(500),
+   }).strict().nullable() }).strict(),
++  z.object({ kind: z.literal("set-opening-disposition"), id, disposition: z.object({
++    kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500),
++  }).strict().nullable() }).strict(),
+   /** Removes one entity by ID. Removing a wall also removes its hosted openings and dimensions; a level must be empty first. */
+   z.object({ kind: z.literal("remove"), id }).strict(),
+   z.object({ kind: z.literal("move-wall"), id, a: point.optional(), b: point.optional() }).strict(),
+@@ -288,8 +291,18 @@ function prepareArchitectEditsDraft(project: ArchitectProject, input: unknown, m
+       const element = draft[key].find(item => item.id === operation.id)!;
+       if (operation.lifecycle === null) delete element.lifecycle;
+       else element.lifecycle = operation.lifecycle;
++      if ("wallId" in element && operation.lifecycle?.status !== "demolished") delete element.demolitionDisposition;
+       change(ENTITY_KIND[key], element.id);
+       notices.push(`Element ${element.id}: lifecycle ${element.lifecycle?.status ?? "unassigned"}. Authored classification only; quantities are not phase-filtered and this is not verified survey evidence.`);
++    } else if (operation.kind === "set-opening-disposition") {
++      const opening = find("openings", operation.id, "opening");
++      if (operation.disposition === null) delete opening.demolitionDisposition;
++      else {
++        if (opening.kind === "void" || opening.lifecycle?.status !== "demolished") throw Error("Retain-void requires a demolished door or window.");
++        opening.demolitionDisposition = operation.disposition;
++      }
++      change("opening", opening.id);
++      notices.push(`Opening ${opening.id}: ${operation.disposition ? "retain authored void after fixture demolition" : "demolition disposition cleared"}. No infill, source verification or procurement is inferred.`);
+     } else if (operation.kind === "set-opening") {
+       const patch = defined({ offset: operation.offsetMm, width: operation.widthMm, height: operation.heightMm, sill: operation.sillMm, tag: operation.tag, hinge: operation.hinge, swing: operation.swing });
+       requireChange(patch, "Changing an opening");
+diff --git a/src/studio/assistant/canvasReference.ts b/src/studio/assistant/canvasReference.ts
+index 0b17d06..541e19c 100644
+--- a/src/studio/assistant/canvasReference.ts
++++ b/src/studio/assistant/canvasReference.ts
+@@ -12,7 +12,7 @@ import type { SourceBuilding } from "../sourceBuilding.ts";
+  * "select a shape" chat pills.
+  */
+ export type ArchitectEntityKind =
+-  | "wall" | "door" | "window" | "line" | "circle" | "arc" | "room" | "slab" | "roof" | "level" | "grid" | "dimension";
++  | "wall" | "door" | "window" | "void" | "line" | "circle" | "arc" | "room" | "slab" | "roof" | "level" | "grid" | "dimension";
+ export type CanvasReference =
+   | { kind: "architect-entity"; entity: ArchitectEntityKind; id: string; levelId: string | null; levelName: string | null; summary: string }
+   | { kind: "source-part"; building: string; partId: string; category: string; label: string; storey: string | null; evidenceState: string; summary: string }
+diff --git a/src/studio/sourceBuilding.ts b/src/studio/sourceBuilding.ts
+index 45dbe2c..3ddf7e6 100644
+--- a/src/studio/sourceBuilding.ts
++++ b/src/studio/sourceBuilding.ts
+@@ -155,6 +155,7 @@ const sceneSchema = z
+         floors: z.number().int().min(1).max(100).optional(),
+         wallRuns: z.number().int().nonnegative(),
+         openings: z.number().int().nonnegative(),
++        apertures: z.number().int().nonnegative().optional(),
+         roofFaces: z.number().int().nonnegative(),
+         objects: z.number().int().positive(),
+         visibleNamedRooms: z.number().int().nonnegative(),

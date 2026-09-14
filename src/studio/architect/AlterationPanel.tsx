@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import type { ArchitectProject } from "./model";
-import { alterationSchedule, alterationScheduleCsv, setElementLifecycle } from "./lifecycle";
+import { alterationSchedule, alterationScheduleCsv, setElementLifecycle, setOpeningDemolitionDisposition } from "./lifecycle";
 import "./alterationPanel.css";
 
 const statuses = ["existing", "new", "demolished", "repaired"] as const;
@@ -9,7 +9,7 @@ const labels = { unassigned: "Unassigned", existing: "Existing", new: "New", dem
 type ScheduleRow = ReturnType<typeof alterationSchedule>["rows"][number];
 type Props = {
   project: ArchitectProject;
-  onChange: (next: ArchitectProject) => void;
+  onChange: (next: ArchitectProject) => boolean;
   onSelect: (id: string | null) => void;
   selected: string | null;
 };
@@ -22,13 +22,26 @@ function AssignmentEditor({ project, row, onChange }: {
   const [status, setStatus] = useState<Status | "">(row.status === "unassigned" ? "" : row.status);
   const [reference, setReference] = useState(row.reference);
   const [error, setError] = useState("");
+  const dispositionId = useId();
+  const [dispositionReference, setDispositionReference] = useState(row.demolitionDisposition?.reference ?? "");
+  const retainVoid = (clear: boolean) => {
+    if (!clear && !dispositionReference.trim()) { setError("Enter a reference confirming that the opening void is retained."); return; }
+    try {
+      if (!onChange(setOpeningDemolitionDisposition(project, row.id, clear ? null : { kind: "retain-void", reference: dispositionReference.trim() }))) {
+        setError("The opening disposition was not saved. Check the workspace save message and try again."); return;
+      }
+      setError("");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The opening disposition could not be saved."); }
+  };
   const apply = (clear: boolean) => {
     if (!clear && (!status || !reference.trim())) {
       setError("Choose a work status and enter a survey or client brief reference.");
       return;
     }
     try {
-      onChange(setElementLifecycle(project, row.id, clear ? null : { status: status as Status, reference: reference.trim() }));
+      if (!onChange(setElementLifecycle(project, row.id, clear ? null : { status: status as Status, reference: reference.trim() }))) {
+        setError("The assignment was not saved. Check the workspace save message and try again."); return;
+      }
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The assignment could not be saved.");
@@ -51,6 +64,17 @@ function AssignmentEditor({ project, row, onChange }: {
       <button type="button" className="alteration-apply" onClick={() => apply(false)}>Apply work status</button>
       <button type="button" disabled={row.status === "unassigned"} onClick={() => apply(true)}>Clear assignment</button>
     </div>
+    {row.kind === "opening" && row.status === "demolished" && project.openings.some((opening) => opening.id === row.id && (opening.kind === "door" || opening.kind === "window")) && <div className="alteration-disposition">
+      <strong>Demolished opening: retained void</strong>
+      <p>The door or window is removed while the hole in its host wall remains. Record an explicit reference for this intent.</p>
+      <label htmlFor={dispositionId}>Retained-void reference (required)</label>
+      <textarea id={dispositionId} value={dispositionReference} maxLength={500} rows={2} onChange={(event) => { setDispositionReference(event.target.value); setError(""); }} />
+      <div className="alteration-actions">
+        <button type="button" onClick={() => retainVoid(false)}>Save retained void</button>
+        <button type="button" disabled={!row.demolitionDisposition} onClick={() => retainVoid(true)}>Clear void disposition</button>
+      </div>
+      <p>{row.demolitionDisposition ? `Saved: ${row.demolitionDisposition.reference}` : "No disposition recorded."}</p>
+    </div>}
     {error && <p className="alteration-error" id={errorId} role="alert">{error}</p>}
   </div>;
 }

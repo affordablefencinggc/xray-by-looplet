@@ -127,11 +127,11 @@ test("CSV includes every exact schedule row, identity and draft evidence flags",
   const classified = setElementLifecycle(p, p.walls[0].id, { status: "demolished", reference: "Survey A" });
   const csv = alterationScheduleCsv(classified);
   const lines = csv.trimEnd().split("\r\n");
-  assert.equal(lines[0], '"projectId","revision","id","kind","name","levelId","status","reference","draftOnly","quoteEligible"');
+  assert.equal(lines[0], '"projectId","revision","id","kind","name","levelId","status","reference","draftOnly","quoteEligible","demolitionDisposition","dispositionReference"');
   const rows = alterationSchedule(classified).rows;
   assert.equal(lines.length, rows.length + 1);
   rows.forEach((row, i) => {
-    const expected = [classified.id, classified.revision, row.id, row.kind, row.name, row.levelId, row.status, row.reference, true, false];
+    const expected = [classified.id, classified.revision, row.id, row.kind, row.name, row.levelId, row.status, row.reference, true, false, "", ""];
     assert.equal(lines[i + 1], expected.map((value) => `"${value}"`).join(","));
   });
   assert.equal(alterationScheduleCsv(emptyProject("none")), lines[0] + "\r\n");

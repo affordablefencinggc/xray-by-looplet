@@ -12,6 +12,20 @@ function classified() {
   }
   return p;
 }
+
+test("retained aperture export preserves disposition reference and separates fixture from cut", async () => {
+  const p = classified(), opening = p.openings[0];
+  opening.lifecycle = { status: "demolished", reference: "Remove fixture D1" };
+  opening.demolitionDisposition = { kind: "retain-void", reference: "Client instruction: retain aperture" };
+  const source = structuredClone(p), basis = createAlterationBasis(p, "Survey A unchanged geometry");
+  const options = { levelId: p.levels[0].id, view: "plan" as const };
+  const before = attachedReview(await PDFDocument.load(await exportAlterationStagePdf(p, basis, "before", options)));
+  const proposed = attachedReview(await PDFDocument.load(await exportAlterationStagePdf(p, basis, "proposed", options)));
+  assert.deepEqual(before.apertureIds, []);
+  assert.deepEqual(proposed.apertureIds, [opening.id]);
+  assert.deepEqual(proposed.openingDispositions, [{ openingId: opening.id, ...opening.demolitionDisposition }]);
+  assert.deepEqual(p, source);
+});
 function pageContent(doc: PDFDocument, index: number): string {
   const contents = doc.getPage(index).node.Contents();
   const entries = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
