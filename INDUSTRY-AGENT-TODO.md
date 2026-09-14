@@ -1,5 +1,7 @@
 # Industry agent work queue
 
+Current forward plan: [Remaining work for all active industries](INDUSTRY-REMAINING-WORK-PLAN.md), baseline e82433a. Residential is first priority; roofing/HVAC/QS retain their acceptance and implementation work; fencing remains deferred. Historical checkpoints below retain their original status and must be read with later corrections.
+
 Authorized 2026-09-13: “spin up an agent for each industry to work without collision”.
 Baseline d6c39da, branch feat/architect-cad-engine. Uses the X-Ray engine and Ledger proof rules.
 

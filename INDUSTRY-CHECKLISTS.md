@@ -1,5 +1,7 @@
 # Industry acceptance checklists
 
+Execution order, dependencies and separate per-step proof requirements: [Active-industry remaining-work plan](INDUSTRY-REMAINING-WORK-PLAN.md).
+
 All 68 profiles from planning/professional-coverage/industries.mjs. These are whole-workflow acceptance gates, not claims that existing partial work is absent or complete. Individual slice evidence remains in the linked work reports and INDUSTRY-AGENT-TODO.md.
 
 Current user priority: IND-01 residential architecture, with parallel agents (2026-09-14). IND-29 roofing, IND-30 HVAC and IND-38 quantity surveying retain their open acceptance items. Fencing IND-43 stock-cutting work is deferred. Remaining profiles are queued; define a bounded implementation slice before starting each.
