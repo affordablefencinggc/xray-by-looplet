@@ -275,3 +275,11 @@ DANS1 full regression:201 script +1,279 TypeScript tests and typecheck pass; 14 
 
 Final stage build d83b24da5ade web/typecheck/native NSIS passes; final source hashes verified. Production107/107 operations pass. No installation/deployment or whole-industry sign-off. Evidence: proof/growth/2026-09-14-residential-stages/build-d83b24da5ade/native-completion.json.
 
+
+## IND-01 solid-wall comparison, draft PDF and individual proof - 2026-09-14
+
+Three parallel agents added before/proposed wall-solid union volumes and signed geometry delta; unknown assemblies, unresolved reviews and unsupported precision/complexity return blockers. Selected stage/level/view exports a labelled unissued PDF with original identity/reference, full Unicode attachment and shared-annotation limitations. In-flight output is discarded after selection/review/project changes, including change-and-back. Material synchronization remains blocked.
+
+DANS1 full regression201 script +1,293 TypeScript tests passes; test-only PDF stream typing correction then passes14focused/fulltypecheck. Dev58/58, Unicode34/34 and final production52/52 pass; root inspected UI/PDF screenshots. First native LLVM out-of-memory failure f978f9103c26 is preserved. Same-source retry f978f9103c27 web/typecheck/native NSIS passes, final source hashes reverified. Bundle hashes differed, so production checks reran on actual f27 output. No deployment/installation/native UI claim.
+
+User requires a separate screenshot proof file for every completed step. Added project rule, INDUSTRY-PROOF-INDEX.md, six current output step records and twelve labelled historical backfills. Individual records distinguish what screenshots show from executed numerical/build proof. Current proof: proof/growth/2026-09-14-residential-output/steps/SC-01.md through SC-06.md; exact source.diff and actual PDFs retained. Branch feat/architect-cad-engine after a381ca8. Whole-industry acceptance, issued stage history, material/work-category allocation, infill/independent repaired baselines and live assistant/Developer responses remain open.

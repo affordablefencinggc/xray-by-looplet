@@ -32,3 +32,7 @@ Reproduce and verify changes against the local development app using Fast CDP JS
 
 ## Top menu layout (user instruction, 2026-09-09)
 Every top menu/header row must be independently adjustable and collapsible, with a tiny arrow at its right edge. Preserve saved sizes and collapsed states across pages and reloads. Use the shared AdjustableTopRow component for new top-level menu rows.
+
+## Separate proof file for every completed step (user instruction, 2026-09-14)
+
+Each completed checklist step must have its own named proof Markdown file under its campaign's `steps/` directory. Include the requirement, exact source diff or commit, separately named screenshot files for relevant visible states, executed checks, and remaining limits. Link this file from the checklist. Do not substitute a combined campaign summary for individual step records. For nonvisual checks, include executed output and state explicitly what the accompanying screenshot demonstrates. Historical backfills must retain original capture/build identities and must not claim a new screenshot was taken.

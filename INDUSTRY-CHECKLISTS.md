@@ -16,7 +16,7 @@ Inputs: Survey and client brief. Expected deliverable: Coordinated plans, sectio
 - [ ] SC-05 Verify desktop/tablet behaviour and export contents; preserve source and evidence status.
 - [ ] SC-06 Pass final regression/build and applicable package checks; attach diff/proof and record remaining professional review requirements.
 
-Progress 2026-09-14: lifecycle editor/schedule/CSV, strict assistant operation and material-sync protection implemented. Combined DANS1 regression passes 201 script and 1,265 TypeScript tests plus full typecheck. Lifecycle dev 47/47, corrected charcoal 31/31 and production 49/49 browser operations pass; web/native build 20e1cd9705b0 passes. Remaining gates include live assistant/Developer responses, phase-aware geometry/quantities, native UI and coordinated issue-set acceptance. The next slice adds reviewed read-only before/proposed plan, section and elevation geometry; 14 new geometry/integration cases, 56 dev and 107 production UI operations pass. Phase quantities, issued stage exports and whole-industry acceptance remain open.
+Progress 2026-09-14: lifecycle editor/schedule/CSV, strict assistant operation and material-sync protection implemented. Combined DANS1 regression passes 201 script and 1,265 TypeScript tests plus full typecheck. Lifecycle dev 47/47, corrected charcoal 31/31 and production 49/49 browser operations pass; web/native build 20e1cd9705b0 passes. Remaining gates include live assistant/Developer responses, phase-aware geometry/quantities, native UI and coordinated issue-set acceptance. The next slice adds reviewed read-only before/proposed plan, section and elevation geometry; 14 new geometry/integration cases, 56 dev and 107 production UI operations pass. Solid-wall stage comparison and selected-stage draft PDF are now implemented; individual proof is indexed in INDUSTRY-PROOF-INDEX.md. Full regression201+1293, dev58, Unicode34, final production52 and web/native build f978f9103c27 pass. Work-category quantities, issued stage exports and whole-industry acceptance remain open.
 
 ## IND-02 - Commercial architecture
 
@@ -821,4 +821,3 @@ Inputs: Asset survey, material inventory and condition evidence. Expected delive
 - [ ] SC-04 Verify assistant execution and explanation against actual results; check Developer review independently.
 - [ ] SC-05 Verify desktop/tablet behaviour and export contents; preserve source and evidence status.
 - [ ] SC-06 Pass final regression/build and applicable package checks; attach diff/proof and record remaining professional review requirements.
-

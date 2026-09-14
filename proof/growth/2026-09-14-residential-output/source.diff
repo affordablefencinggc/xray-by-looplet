@@ -1,0 +1,641 @@
+diff --git a/package.json b/package.json
+index 6f21dbb..909dbbc 100644
+--- a/package.json
++++ b/package.json
+@@ -27,7 +27,7 @@
+     "mcp:setup": "node scripts/mcp-setup.mjs",
+     "mcp:test": "node --test scripts/mcp-setup.test.mjs",
+     "mcp:serve": "node scripts/mcp-setup.mjs && node scripts/with-app-env.mjs python scripts/mcp-serve.py --transport=sse --port=8000",
+-    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts",
++    "test": "node scripts/verify-master-plan.mjs && node scripts/verify-bom-goldens.mjs && node --test scripts/brand-check.test.mjs scripts/browser-smoke-verdict.test.mjs scripts/check-auth-invariant.test.mjs scripts/grok-pwa-plugin.test.mjs scripts/mcp-setup.test.mjs scripts/migration-plan.test.mjs scripts/preview.test.mjs scripts/sign-out-plan.test.mjs scripts/with-app-env.test.mjs scripts/write-atomic.test.mjs planning/professional-coverage/assessment.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "autopilot": "node scripts/autopilot.mjs",
+diff --git a/src/studio/architect/AlterationStagePreview.tsx b/src/studio/architect/AlterationStagePreview.tsx
+index a18a9fa..c2ed5ca 100644
+--- a/src/studio/architect/AlterationStagePreview.tsx
++++ b/src/studio/architect/AlterationStagePreview.tsx
+@@ -1,9 +1,11 @@
+-import { useId, useMemo, useState } from "react";
++import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import type { ArchitectProject } from "./model";
+ import { primitives, type View } from "./drawing";
+ import { drawingBounds } from "./sheets";
+ import { DrawingPrimitives } from "./DrawingPrimitives";
+ import { createAlterationBasis, resolveAlterationStage } from "./alterationStage";
++import { calculateAlterationQuantities } from "./alterationQuantities";
++import { exportAlterationStagePdf } from "./alterationExport";
+ import "./alterationStagePreview.css";
+ 
+ const views: { value: View; label: string }[] = [
+@@ -21,7 +23,17 @@ function StageReview({ project }: { project: ArchitectProject }) {
+   const [stage, setStage] = useState<"before" | "proposed">("before");
+   const [view, setView] = useState<View>("plan");
+   const [levelId, setLevelId] = useState(project.levels[0].id);
++  const [exportBusy, setExportBusy] = useState(false);
++  const [exportError, setExportError] = useState("");
++  const [exportNotice, setExportNotice] = useState("");
++  const mounted = useRef(true);
++  const selectionEpoch = useRef(0);
++  const currentSelection = useRef({ project, basis, stage, levelId, view });
++  currentSelection.current = { project, basis, stage, levelId, view };
++  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
++  const invalidateExport = () => { selectionEpoch.current += 1; setExportError(""); setExportNotice(""); };
+   const resolved = useMemo(() => resolveAlterationStage(project, basis, stage), [project, basis, stage]);
++  const quantities = useMemo(() => calculateAlterationQuantities(project, basis), [project, basis]);
+   const drawing = useMemo(() => {
+     if (!resolved.ready) return null;
+     const items = primitives(resolved.model, levelId, view);
+@@ -32,6 +44,7 @@ function StageReview({ project }: { project: ArchitectProject }) {
+     return { items, box: [bounds.min[0] - padding, bounds.min[1] - padding, width + 2 * padding, height + 2 * padding].join(" ") };
+   }, [resolved, levelId, view]);
+   const confirmBasis = () => {
++    invalidateExport();
+     if (!confirmed || !reference.trim()) {
+       setError("Enter a reference and confirm the unchanged geometry assumption before reviewing these stages.");
+       return;
+@@ -39,24 +52,72 @@ function StageReview({ project }: { project: ArchitectProject }) {
+     try { setBasis(createAlterationBasis(project, reference.trim())); setError(""); }
+     catch (cause) { setError(cause instanceof Error ? cause.message : "The stage review could not be prepared."); }
+   };
++  const downloadStage = async () => {
++    if (!basis || !resolved.ready || exportBusy) return;
++    const requested = currentSelection.current;
++    const requestedEpoch = selectionEpoch.current;
++    const isCurrent = () => {
++      const current = currentSelection.current;
++      return mounted.current && selectionEpoch.current === requestedEpoch && current.project === requested.project && current.basis === requested.basis &&
++        current.stage === requested.stage && current.levelId === requested.levelId && current.view === requested.view;
++    };
++    setExportBusy(true); setExportError(""); setExportNotice("");
++    try {
++      const bytes = await exportAlterationStagePdf(project, basis, stage, { levelId, view });
++      if (!isCurrent()) { if (mounted.current) setExportNotice("The review or view changed. The earlier PDF was discarded; export the current selection again."); return; }
++      const url = URL.createObjectURL(new Blob([Uint8Array.from(bytes).buffer], { type: "application/pdf" }));
++      const link = document.createElement("a");
++      link.href = url;
++      link.download = `alteration-${stage}-${view}-${project.id.replace(/[^a-zA-Z0-9_-]/g, "_")}-r${project.revision}-draft.pdf`;
++      document.body.appendChild(link);
++      try { link.click(); setExportNotice("Draft stage PDF prepared for download."); }
++      finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
++    } catch (cause) {
++      if (isCurrent()) setExportError(cause instanceof Error ? cause.message : "The draft stage PDF could not be exported.");
++    } finally { if (mounted.current) setExportBusy(false); }
++  };
++  const volume = (value: number) => `${value.toLocaleString("en-AU", { maximumFractionDigits: 6 })} m³`;
+   return <div className="alteration-stage-content">
+     <p>Compare before and proposed geometry using the assigned work statuses. This read-only preview does not change your design.</p>
+     <p>Existing and repaired elements use the current geometry in both stages. Review that assumption against your survey and brief; a changed shape needs separate before and proposed records.</p>
+     <label htmlFor={referenceId}>Survey / brief reference for this review (required)</label>
+     <input id={referenceId} value={reference} maxLength={500} placeholder="Document, revision and page or item"
+-      onChange={(event) => { setReference(event.target.value); setBasis(null); setConfirmed(false); setError(""); }} />
++      onChange={(event) => { invalidateExport(); setReference(event.target.value); setBasis(null); setConfirmed(false); setError(""); }} />
+     <label className="alteration-stage-confirm">
+-      <input type="checkbox" checked={confirmed} onChange={(event) => { setConfirmed(event.target.checked); setBasis(null); }} />
++      <input type="checkbox" checked={confirmed} onChange={(event) => { invalidateExport(); setConfirmed(event.target.checked); setBasis(null); }} />
+       <span>I confirm existing and repaired elements have unchanged geometry between before and proposed.</span>
+     </label>
+     <button type="button" className="alteration-stage-review" onClick={confirmBasis}>Review stage geometry</button>
+     {error && <p className="alteration-stage-error" role="alert">{error}</p>}
+     <p className="alteration-stage-note">This review is held for this session only. Reloading or editing the project requires a fresh review. It does not verify the source or approve quantities, exports or procurement.</p>
+     <div className="alteration-stage-controls">
+-      <label>Stage<select aria-label="Alteration preview stage" value={stage} onChange={(event) => setStage(event.target.value as "before" | "proposed")}><option value="before">Before</option><option value="proposed">Proposed</option></select></label>
+-      <label>Level<select aria-label="Alteration preview level" value={levelId} onChange={(event) => setLevelId(event.target.value)}>{project.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
+-      <label>View<select aria-label="Alteration preview view" value={view} onChange={(event) => setView(event.target.value as View)}>{views.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
++      <label>Stage<select aria-label="Alteration preview stage" value={stage} onChange={(event) => { invalidateExport(); setStage(event.target.value as "before" | "proposed"); }}><option value="before">Before</option><option value="proposed">Proposed</option></select></label>
++      <label>Level<select aria-label="Alteration preview level" value={levelId} onChange={(event) => { invalidateExport(); setLevelId(event.target.value); }}>{project.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
++      <label>View<select aria-label="Alteration preview view" value={view} onChange={(event) => { invalidateExport(); setView(event.target.value as View); }}>{views.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
++    </div>
++    <div className="alteration-stage-export">
++      <button type="button" className="alteration-stage-download" disabled={!resolved.ready || !basis || exportBusy} onClick={() => void downloadStage()}>{exportBusy ? "Preparing draft PDF…" : "Download current stage PDF"}</button>
++      <p className="alteration-stage-note">Draft drawing of the selected stage, level and view. Shared annotations and the reviewed basis remain identified.</p>
++      {exportError && <p className="alteration-stage-error" role="alert">{exportError}</p>}
++      {exportNotice && <p role="status">{exportNotice}</p>}
+     </div>
++    <section className="alteration-stage-quantities" aria-label="Solid wall volume comparison">
++      <strong>Solid wall volume · all project levels</strong>
++      <p className="alteration-stage-note">Solid wall layers only, across all levels. Assembly layers block this comparison. The change is proposed minus before geometry; it is not a disposal, ordering or procurement quantity.</p>
++      {quantities.ready ? <>
++        <dl className="alteration-volume-values">
++          <div><dt>Before</dt><dd>{volume(quantities.beforeWallSolidVolumeM3)}</dd></div>
++          <div><dt>Proposed</dt><dd>{volume(quantities.proposedWallSolidVolumeM3)}</dd></div>
++          <div><dt>Change (proposed − before)</dt><dd>{volume(quantities.deltaWallSolidVolumeM3)}</dd></div>
++        </dl>
++        <p className="alteration-stage-note">Review reference: {quantities.basisReference}</p>
++        <ul>{quantities.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>
++      </> : <div className="alteration-quantity-blockers" role="status">
++        <strong>Volume comparison unavailable</strong>
++        <ul>{quantities.blockers.map((blocker, index) => <li key={`${blocker.elementId}-${index}`}>{blocker.elementId && <span>{blocker.elementId}: </span>}{blocker.reason}</li>)}</ul>
++        <p>Resolve all blockers before totals can be shown.</p>
++      </div>}
++    </section>
+     {!resolved.ready ? <div className="alteration-stage-blockers" role="status">
+       <strong>Stage preview unavailable</strong>
+       <ul>{resolved.blockers.map((blocker, index) => <li key={`${blocker.elementId}-${index}`}>{blocker.elementId && <span>{blocker.elementId}: </span>}{blocker.reason}</li>)}</ul>
+diff --git a/src/studio/architect/alterationExport.test.ts b/src/studio/architect/alterationExport.test.ts
+new file mode 100644
+index 0000000..2f9942a
+--- /dev/null
++++ b/src/studio/architect/alterationExport.test.ts
+@@ -0,0 +1,103 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { PDFDocument, PDFArray, PDFDict, PDFName, PDFRawStream, StandardFonts, decodePDFRawStream } from "pdf-lib";
++import { demonstration } from "./model.ts";
++import { createAlterationBasis } from "./alterationStage.ts";
++import { exportAlterationStagePdf } from "./alterationExport.ts";
++
++function classified() {
++  const p = demonstration("draft-export-source");
++  for (const element of [...p.walls, ...p.openings, ...p.slabs, ...p.roofs]) {
++    element.lifecycle = { status: "existing", reference: "Survey A" };
++  }
++  return p;
++}
++function pageContent(doc: PDFDocument, index: number): string {
++  const contents = doc.getPage(index).node.Contents();
++  const entries = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
++  return entries.map((entry) => {
++    const stream = doc.context.lookup(entry);
++    if (!(stream instanceof PDFRawStream)) throw Error("Expected an encoded PDF page stream.");
++    return new TextDecoder().decode(decodePDFRawStream(stream).decode());
++  }).join("\n");
++}
++function attachedReview(doc: PDFDocument) {
++  const names = doc.catalog.lookup(PDFName.of("Names"), PDFDict);
++  const files = names.lookup(PDFName.of("EmbeddedFiles"), PDFDict);
++  const entries = files.lookup(PDFName.of("Names"), PDFArray);
++  const file = doc.context.lookup(entries.get(1), PDFDict);
++  const embedded = file.lookup(PDFName.of("EF"), PDFDict).lookup(PDFName.of("F"));
++  if (!(embedded instanceof PDFRawStream)) throw Error("Expected an encoded PDF attachment stream.");
++  return JSON.parse(new TextDecoder().decode(decodePDFRawStream(embedded).decode()));
++}
++
++test("draft export labels each drawing and preserves original project/revision/reference without source changes", async () => {
++  const p = classified(), original = structuredClone(p);
++  const basis = createAlterationBasis(p, "Survey A, reviewed unchanged retained geometry");
++  const bytes = await exportAlterationStagePdf(p, basis, "before", { levelId: p.levels[0].id, view: "plan" });
++  const doc = await PDFDocument.load(bytes);
++  assert.equal(doc.getPageCount(), 2);
++  assert.ok(doc.getSubject()?.includes(basis.reference));
++  const font = await doc.embedFont(StandardFonts.Helvetica);
++  const drawing = pageContent(doc, 1);
++  assert.ok(drawing.includes(font.encodeText("BEFORE ALTERATION / DRAFT / NOT ISSUED / NOT FOR CONSTRUCTION / original model revision 1").toString()));
++  assert.ok(drawing.includes(font.encodeText("Project identity: " + p.id).toString()));
++  const attached = attachedReview(doc);
++  assert.equal(attached.projectId, p.id);
++  assert.equal(attached.projectRevision, p.revision);
++  assert.equal(attached.basisReference, basis.reference);
++  assert.equal(attached.stage, "before");
++  assert.equal(attached.draftOnly, true); assert.equal(attached.issued, false); assert.equal(attached.quoteEligible, false);
++  assert.equal(attached.sharedAnnotationsReviewed, false);
++  assert.deepEqual(p, original);
++});
++
++test("maximum-length Unicode reference and drawing labels export with lossless attached originals", async () => {
++  const p = classified();
++  p.name = "住宅 🏠"; p.address = "住所"; p.designRevision = "修訂 A";
++  p.levels[0].name = "地面"; p.roomTags[0].name = "居間 🪑";
++  p.slabs[0].name = "床版";
++  const reference = "漢".repeat(490) + "\\u{1234}尾字";
++  assert.equal(reference.length, 500);
++  const basis = createAlterationBasis(p, reference);
++  const bytes = await exportAlterationStagePdf(p, basis, "proposed", { levelId: p.levels[0].id, view: "plan" });
++  const doc = await PDFDocument.load(bytes), attached = attachedReview(doc);
++  assert.equal(attached.basisReference, reference);
++  assert.equal(attached.projectName, p.name);
++  assert.equal(attached.levelName, p.levels[0].name);
++  assert.ok(doc.getSubject()?.endsWith(reference));
++  assert.ok(attached.displayLabels.some((label: {original:string;display:string}) => label.original === p.roomTags[0].name && label.display.includes("\\u{")));
++  assert.ok(doc.getPageCount() >= 2);
++});
++
++test("stale/unresolved basis and invalid selected view or level reject before returning PDF data", async () => {
++  const p = classified(), basis = createAlterationBasis(p, "Review A");
++  const selection = { levelId: p.levels[0].id, view: "plan" as const };
++  await assert.rejects(exportAlterationStagePdf(p, null, "before", selection), /basis/);
++  await assert.rejects(exportAlterationStagePdf(p, basis, "before", { ...selection, levelId: "absent" }), /existing level/);
++  await assert.rejects(exportAlterationStagePdf(p, basis, "before", { ...selection, view: "invalid" as "plan" }), /supported drawing view/);
++  p.walls[0].height += 1;
++  await assert.rejects(exportAlterationStagePdf(p, basis, "before", selection), /stale/);
++  delete p.walls[0].lifecycle;
++  await assert.rejects(exportAlterationStagePdf(p, createAlterationBasis(p, "Review B"), "proposed", selection), /Unassigned/);
++});
++
++test("selected level/view are bound to draft metadata and distinct review identity", async () => {
++  const p = classified(), basis = createAlterationBasis(p, "Review A");
++  const plan = attachedReview(await PDFDocument.load(await exportAlterationStagePdf(p, basis, "before", { levelId: p.levels[0].id, view: "plan" })));
++  const section = attachedReview(await PDFDocument.load(await exportAlterationStagePdf(p, basis, "proposed", { levelId: p.levels[0].id, view: "section" })));
++  assert.equal(plan.levelId, p.levels[0].id); assert.equal(plan.view, "plan");
++  assert.equal(section.stage, "proposed"); assert.equal(section.view, "section");
++  assert.notEqual(plan.reviewId, section.reviewId);
++});
++
++test("async export snapshots caller-owned options and basis before yielding", async () => {
++  const p = classified(), basis = createAlterationBasis(p, "Original review A");
++  const options = { levelId: p.levels[0].id, view: "plan" as "plan" | "section" };
++  const pending = exportAlterationStagePdf(p, basis, "before", options);
++  options.view = "section"; options.levelId = "different-level";
++  basis.reference = "Changed after click"; basis.fingerprint = "stale";
++  const attached = attachedReview(await PDFDocument.load(await pending));
++  assert.equal(attached.view, "plan"); assert.equal(attached.levelId, p.levels[0].id);
++  assert.equal(attached.basisReference, "Original review A");
++});
+diff --git a/src/studio/architect/alterationExport.ts b/src/studio/architect/alterationExport.ts
+new file mode 100644
+index 0000000..c8b4f86
+--- /dev/null
++++ b/src/studio/architect/alterationExport.ts
+@@ -0,0 +1,155 @@
++import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
++import { validateProject, type ArchitectProject } from "./model.ts";
++import type { View } from "./drawing.ts";
++import { exportDrawingPdf } from "./sheets.ts";
++import { sha256Hex } from "./designedScene.ts";
++import { resolveAlterationStage, type AlterationBasis, type AlterationStage } from "./alterationStage.ts";
++
++export type AlterationExportOptions = { levelId: string; view: View };
++const views: View[] = ["plan", "north", "south", "east", "west", "section"];
++const MM = 72 / 25.4;
++const WARNING = "DRAFT / NOT ISSUED / NOT FOR CONSTRUCTION";
++
++/** Reversible visible notation avoids Helvetica silently losing unsupported
++ * glyphs. Literal backslashes are doubled so Unicode escapes stay unambiguous.
++ */
++function displayText(value: string, font: PDFFont): string {
++  return Array.from(value).map((character) => {
++    if (character === "\\") return "\\\\";
++    const code = character.codePointAt(0)!;
++    if (code < 32 || code === 127) return `\\u{${code.toString(16)}}`;
++    try { font.encodeText(character); return character; }
++    catch { return `\\u{${code.toString(16)}}`; }
++  }).join("");
++}
++
++function lines(value: string, font: PDFFont, size: number, width: number): string[] {
++  const result: string[] = [];
++  let line = "";
++  for (const character of value) {
++    if (line && font.widthOfTextAtSize(line + character, size) > width) {
++      result.push(line); line = "";
++    }
++    line += character;
++  }
++  if (line || !result.length) result.push(line);
++  return result;
++}
++
++/** Export a reviewed, current ephemeral stage. This is deliberately separate
++ * from issue export: no issue record, history, quantity or approval is created.
++ */
++export async function exportAlterationStagePdf(
++  project: ArchitectProject,
++  basis: AlterationBasis | null,
++  stage: AlterationStage,
++  options: AlterationExportOptions,
++): Promise<Uint8Array> {
++  const original = validateProject(project);
++  const resolution = resolveAlterationStage(original, basis, stage);
++  if (!resolution.ready) throw Error(resolution.blockers.map((blocker) => blocker.reason).join(" "));
++  if (!options || !views.includes(options.view) || !original.levels.some((level) => level.id === options.levelId)) {
++    throw Error("Select an existing level and a supported drawing view for the alteration export.");
++  }
++  // Capture caller-owned selection before the first await; later UI mutations
++  // cannot relabel the geometry or its review identity while PDF work runs.
++  options = { levelId: options.levelId, view: options.view };
++  const stageLabel = stage === "before" ? "BEFORE ALTERATION" : "PROPOSED ALTERATION";
++  const selectedLevel = original.levels.find((level) => level.id === options.levelId)!;
++  const reviewId = sha256Hex(JSON.stringify({
++    fingerprint: basis!.fingerprint, reference: resolution.basisReference,
++    stage, levelId: options.levelId, view: options.view,
++  })).slice(0, 20);
++  const doc = await PDFDocument.create();
++  const font = await doc.embedFont(StandardFonts.Helvetica);
++  const safe = (value: string) => displayText(value, font);
++  const width = 420 * MM, height = 297 * MM;
++  let cover = doc.addPage([width, height]);
++  let cursor = height - 42;
++  const coverHeader = () => {
++    cover.drawText(stageLabel + " / REVIEW NOTES", { x: 35, y: cursor, size: 17, font });
++    cursor -= 24;
++    cover.drawText(WARNING + " / Review " + reviewId, { x: 35, y: cursor, size: 10, font, color: rgb(0.55, 0.12, 0.1) });
++    cursor -= 28;
++  };
++  coverHeader();
++  const paragraph = (value: string) => {
++    for (const line of lines(safe(value), font, 10, width - 70)) {
++      if (cursor < 40) { cover = doc.addPage([width, height]); cursor = height - 42; coverHeader(); }
++      cover.drawText(line, { x: 35, y: cursor, size: 10, font }); cursor -= 14;
++    }
++    cursor -= 9;
++  };
++  paragraph("Original project identity: " + original.id);
++  paragraph("Original project name: " + original.name);
++  paragraph(`Original model revision: ${original.revision} / design revision: ${original.designRevision}`);
++  paragraph(`Selected level: ${selectedLevel.name} / identity: ${selectedLevel.id} / view: ${options.view}`);
++  paragraph("Geometry review reference (full): " + resolution.basisReference);
++  paragraph("Session review declares existing/repaired geometry unchanged across stages. This reference is not a verified survey or a historical issue basis.");
++  paragraph("Shared annotations: notes, room tags, grids, drafting marks and section position come from the current all-work project. They have not been independently classified by alteration stage.");
++  paragraph("No construction quantities, material procurement, disposal allowances, compliance approval or issued-history claim is made. Shared-volume ownership between classifications remains unresolved.");
++  paragraph("Text encoding: unsupported glyphs/control characters use explicit Unicode escapes such as \\u{1f600}; literal backslashes are doubled. Full original Unicode identity/reference and drawing labels are preserved in attached alteration-review.json. Long drawing labels are visibly marked [...] when shortened; review the attachment.");
++  paragraph("The drawing keeps its declared scale; geometry outside the selected viewport may be clipped. Print at 100%. Review the complete stage model before relying on a detail.");
++
++  const p = resolution.model;
++  const labels: { field: string; original: string; display: string }[] = [];
++  const label = (field: string, value: string, max: number): string => {
++    const encoded = safe(value);
++    const display = encoded.length > max ? encoded.slice(0, max - 6) + " [...]" : encoded;
++    labels.push({ field, original: value, display });
++    return display;
++  };
++  p.name = stageLabel + " / DRAFT";
++  p.address = "Full project identity and review reference: attached review notes / " + reviewId;
++  p.designRevision = label("designRevision", p.designRevision, 40);
++  for (const level of p.levels) level.name = label(`level/${level.id}`, level.name, 100);
++  for (const tag of p.roomTags) tag.name = label(`roomTag/${tag.id}`, tag.name, 100);
++  for (const slab of p.slabs) slab.name = label(`slab/${slab.id}`, slab.name, 120);
++  for (const grid of p.grids) grid.label = label(`grid/${grid.id}`, grid.label, 20);
++  for (const opening of p.openings) {
++    // Opening tags must remain unique after display conversion. Failing clearly
++    // is preferable to exporting indistinguishable shortened door/window tags.
++    opening.tag = label(`opening/${opening.id}`, opening.tag, 30);
++  }
++  if (new Set(p.openings.map((opening) => opening.tag.toLowerCase())).size !== p.openings.length) {
++    throw Error("Opening labels become ambiguous after PDF text encoding; shorten or distinguish the authored tags before exporting.");
++  }
++  delete p.sheetSet;
++  p.sheet = { size: "A3", scale: original.sheet.scale, number: "DRAFT-" + stage.toUpperCase(), northAngle: original.sheet.northAngle,
++    viewports: [{ id: "alteration-stage-view", levelId: options.levelId, view: options.view, x: 12, y: 35, width: 396, height: 207, scale: original.sheet.scale }] };
++  let drawingBytes: Uint8Array;
++  try { drawingBytes = await exportDrawingPdf(p); }
++  catch (error) {
++    throw Error("The stage drawing could not be exported safely. Review its display labels and geometry: " + (error instanceof Error ? error.message : String(error)));
++  }
++  const rendered = await PDFDocument.load(drawingBytes);
++  const drawingPages = await doc.copyPages(rendered, rendered.getPageIndices());
++  for (const page of drawingPages) {
++    doc.addPage(page);
++    let y = height - 32;
++    const header = [
++      `${stageLabel} / ${WARNING} / original model revision ${original.revision}`,
++      "Project identity: " + safe(original.id),
++      "Review " + reviewId + " / full reference: review notes and attached alteration-review.json",
++      "Shared annotations are current, not stage-reviewed. No issued-history or material-quantity claim.",
++    ];
++    for (const text of header) for (const line of lines(text, font, 8, width - 70)) {
++      if (y < height - 95) throw Error("The original project identity does not fit the reserved drawing header safely.");
++      page.drawText(line, { x: 35, y, size: 8, font }); y -= 10;
++    }
++  }
++  const attachment = {
++    format: "xray.alteration-draft-export/v1", draftOnly: true, issued: false, quoteEligible: false,
++    reviewId, stage, projectId: original.id, projectName: original.name, projectRevision: original.revision,
++    designRevision: original.designRevision, basisReference: resolution.basisReference,
++    levelId: options.levelId, levelName: selectedLevel.name, view: options.view,
++    sharedAnnotationsReviewed: false, excludedIds: resolution.excludedIds, displayLabels: labels,
++  };
++  await doc.attach(new TextEncoder().encode(JSON.stringify(attachment, null, 2)), "alteration-review.json", {
++    mimeType: "application/json", description: "Original Unicode review reference and identity; authored draft, not issued history.",
++  });
++  doc.setTitle(`${stageLabel} / ${original.name} / DRAFT`);
++  doc.setSubject(`DRAFT; NOT ISSUED; project ${original.id}; model revision ${original.revision}; review ${reviewId}; full reference: ${resolution.basisReference}`);
++  doc.setCreator("X-Ray alteration stage draft export");
++  return doc.save();
++}
+diff --git a/src/studio/architect/alterationQuantities.test.ts b/src/studio/architect/alterationQuantities.test.ts
+new file mode 100644
+index 0000000..4073002
+--- /dev/null
++++ b/src/studio/architect/alterationQuantities.test.ts
+@@ -0,0 +1,105 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { emptyProject, newWall, type ArchitectProject } from "./model.ts";
++import { createAlterationBasis } from "./alterationStage.ts";
++import { calculateAlterationQuantities } from "./alterationQuantities.ts";
++
++function single() {
++  const p = emptyProject("quantity-stages");
++  p.walls.push({ ...newWall(p, p.levels[0].id, [0, 0], [4000, 0], [{
++    id: "solid", name: "Concrete", thickness: 200, kind: "solid", hatch: "concrete",
++    densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0,
++  }]), id: "first", lifecycle: { status: "existing", reference: "Survey S01" } });
++  return p;
++}
++const close = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
++function report(p: ArchitectProject) {
++  const result = calculateAlterationQuantities(p, createAlterationBasis(p, "Reviewed unchanged geometry / S01"));
++  assert.equal(result.ready, true, JSON.stringify(result));
++  if (!result.ready) throw Error("Expected ready fixture");
++  assert.equal(result.quoteEligible, false);
++  return result;
++}
++function newDoor(p: ArchitectProject) {
++  p.openings.push({ id: "opening", revision: 1, wallId: p.walls[0].id, tag: "D01", kind: "door", offset: 2000,
++    width: 900, height: 2100, sill: 0, hinge: "left", swing: "in", lifecycle: { status: "new", reference: "Brief D01" } });
++}
++
++test("coincident replacement has 2.16 m3 in each stage and zero geometry delta", () => {
++  const p = single();
++  p.walls[0].lifecycle!.status = "demolished";
++  p.walls.push({ ...structuredClone(p.walls[0]), id: "replacement", lifecycle: { status: "new", reference: "Brief N01" } });
++  const bytes = JSON.stringify(p), result = report(p);
++  close(result.beforeWallSolidVolumeM3, 2.16); close(result.proposedWallSolidVolumeM3, 2.16); close(result.deltaWallSolidVolumeM3, 0);
++  assert.equal(JSON.stringify(p), bytes);
++  assert.match(result.notes.join(" "), /not a demolition/);
++});
++
++test("new opening yields signed geometry delta without treating it as disposal", () => {
++  const p = single(); newDoor(p);
++  const result = report(p);
++  close(result.beforeWallSolidVolumeM3, 2.16); close(result.proposedWallSolidVolumeM3, 1.782); close(result.deltaWallSolidVolumeM3, -0.378);
++});
++
++test("unequal-height crossing walls with a host-only opening give ID-invariant exact union totals", () => {
++  const p = single();
++  p.walls.push({ ...structuredClone(p.walls[0]), id: "second", a: [2000, -2000], b: [2000, 2000], height: 2000 });
++  newDoor(p);
++  const first = report(p);
++  close(first.beforeWallSolidVolumeM3, 3.68); close(first.proposedWallSolidVolumeM3, 3.382); close(first.deltaWallSolidVolumeM3, -0.298);
++  p.walls[0].id = "z-first"; p.walls[1].id = "a-second"; p.openings[0].wallId = "z-first"; p.walls.reverse();
++  const reordered = report(p);
++  close(reordered.beforeWallSolidVolumeM3, first.beforeWallSolidVolumeM3);
++  close(reordered.proposedWallSolidVolumeM3, first.proposedWallSolidVolumeM3);
++});
++
++test("solid over another wall's void is retained independently of wall ownership ordering", () => {
++  const p = single();
++  const mixed = { ...structuredClone(p.walls[0]), id: "a-mixed" };
++  mixed.layers = [{ ...mixed.layers[0], thickness: 100 }, { ...mixed.layers[0], id: "void", kind: "void", thickness: 100 }];
++  p.walls.push(mixed);
++  close(report(p).beforeWallSolidVolumeM3, 2.16);
++  p.walls[0].id = "a-solid"; p.walls[1].id = "z-mixed";
++  close(report(p).beforeWallSolidVolumeM3, 2.16);
++});
++
++test("overlapping absolute elevations count common solid geometry once across levels", () => {
++  const p = single();
++  p.levels.push({ id: "upper", name: "Upper", elevation: 1000, height: 2700 });
++  p.walls.push({ ...structuredClone(p.walls[0]), id: "upper-wall", levelId: "upper" });
++  close(report(p).beforeWallSolidVolumeM3, 2.96);
++});
++
++test("empty stages return finite zero totals", () => {
++  const result = report(emptyProject("empty-stages"));
++  close(result.beforeWallSolidVolumeM3, 0); close(result.proposedWallSolidVolumeM3, 0); close(result.deltaWallSolidVolumeM3, 0);
++});
++
++test("unknown assembly contents and unresolved classifications expose blockers without numbers", () => {
++  for (const variant of ["assembly", "unassigned", "missing-basis", "stale-basis"] as const) {
++    const p = single(), basis = createAlterationBasis(p, "S01");
++    if (variant === "assembly") p.walls[0].layers[0].kind = "assembly";
++    if (variant === "unassigned") delete p.walls[0].lifecycle;
++    if (variant === "stale-basis") p.walls[0].height += 100;
++    const reviewed = variant === "missing-basis" ? null : variant === "stale-basis" ? basis : createAlterationBasis(p, "S01");
++    const result = calculateAlterationQuantities(p, reviewed);
++    assert.equal(result.ready, false, variant); assert.equal(result.quoteEligible, false);
++    assert.equal("beforeWallSolidVolumeM3" in result, false);
++    if (!result.ready) assert.ok(result.blockers.length);
++  }
++});
++
++test("sub-tolerance height bands block instead of silently missing an opening cut", () => {
++  const p = single(); newDoor(p); p.openings[0].height = 0.001;
++  const result = calculateAlterationQuantities(p, createAlterationBasis(p, "S01"));
++  assert.equal(result.ready, false);
++  if (!result.ready) assert.match(result.blockers[0].reason, /opening-cut tolerance/);
++});
++
++test("excessive layer-band work is refused without a partial total", () => {
++  const p = single();
++  p.walls = Array.from({ length: 320 }, (_, i) => ({ ...structuredClone(p.walls[0]), id: `wall-${i}`, height: 1000 + i * 2 }));
++  const result = calculateAlterationQuantities(p, createAlterationBasis(p, "S01"));
++  assert.equal(result.ready, false);
++  if (!result.ready) assert.match(result.blockers[0].reason, /calculation limit/);
++});
+diff --git a/src/studio/architect/alterationQuantities.ts b/src/studio/architect/alterationQuantities.ts
+new file mode 100644
+index 0000000..530fec7
+--- /dev/null
++++ b/src/studio/architect/alterationQuantities.ts
+@@ -0,0 +1,101 @@
++import { polygonArea, union, wallAtHeight, type MultiPolygon } from "./geometry.ts";
++import { wallThickness, type ArchitectProject } from "./model.ts";
++import { resolveAlterationStage, type AlterationBasis } from "./alterationStage.ts";
++
++type Blocker = { elementId: string; reason: string };
++export type AlterationQuantities =
++  | { ready: true; basisReference: string; units: "m3"; beforeWallSolidVolumeM3: number;
++      proposedWallSolidVolumeM3: number; deltaWallSolidVolumeM3: number; notes: string[]; quoteEligible: false }
++  | { ready: false; blockers: Blocker[]; quoteEligible: false };
++
++/** Bounds synchronous clipping work; exceeding this limit must not return a partial total. */
++const MAX_LAYER_BAND_CHECKS = 100_000;
++
++/** Union physical solid layers before assigning any ownership. wallSolids() assigns
++ * overlaps to wall IDs, which cannot define an aggregate across solid/void layers.
++ * Absolute height bands also remove overlap between walls on different levels.
++ */
++function solidVolume(p: ArchitectProject): number {
++  const levels = new Map(p.levels.map(level => [level.id, level]));
++  const walls = p.walls.map(wall => ({ wall, bottom: levels.get(wall.levelId)!.elevation }));
++  const hosts = new Map(walls.map(host => [host.wall.id, host]));
++  const cuts = [...new Set([
++    ...walls.flatMap(({ wall, bottom }) => [bottom, bottom + wall.height]),
++    ...p.openings.flatMap(opening => {
++      const bottom = hosts.get(opening.wallId)!.bottom;
++      return [bottom + opening.sill, bottom + opening.sill + opening.height];
++    }),
++  ])].sort((a, b) => a - b);
++  const layerCount = walls.reduce((sum, { wall }) => sum + wall.layers.length, 0);
++  if (Math.max(0, cuts.length - 1) * layerCount > MAX_LAYER_BAND_CHECKS)
++    throw Error("Stage geometry exceeds the supported layer/height-band calculation limit; no partial volume was returned.");
++  let total = 0;
++  for (let band = 0; band + 1 < cuts.length; band++) {
++    const low = cuts[band], high = cuts[band + 1], mid = low + (high - low) / 2;
++    if (high - low <= 0.002)
++      throw Error("Stage height boundaries are within 0.002 mm; the opening-cut tolerance cannot resolve this band safely.");
++    const polygons: MultiPolygon[] = [];
++    for (const { wall, bottom } of walls) {
++      if (mid <= bottom || mid >= bottom + wall.height) continue;
++      let offset = -wallThickness(wall) / 2;
++      for (const layer of wall.layers) {
++        if (layer.kind === "solid") {
++          const raw = wallAtHeight(wall, p, mid - bottom, offset, offset + layer.thickness);
++          if (raw.length) polygons.push(raw);
++        }
++        offset += layer.thickness;
++      }
++    }
++    // Geometry order, not identity or array order, determines clipping input order.
++    polygons.sort((a, b) => {
++      const left = JSON.stringify(a), right = JSON.stringify(b);
++      return left < right ? -1 : left > right ? 1 : 0;
++    });
++    const volume = polygonArea(union(...polygons)) * (high - low) / 1e9;
++    if (!Number.isFinite(volume) || volume < 0) throw Error("Stage clipping produced an invalid solid volume; review the geometry.");
++    total += volume;
++    if (!Number.isFinite(total)) throw Error("Stage volume exceeded the finite calculation range.");
++  }
++  return total;
++}
++
++/** Authored wall-solid geometry only. Delta is proposed minus before, never
++ * a demolition, disposal, salvage, repair or purchase quantity. Unknown assembly
++ * contents block the report rather than being treated as either solid or empty.
++ */
++export function calculateAlterationQuantities(project: ArchitectProject, basis: AlterationBasis | null): AlterationQuantities {
++  try {
++    const before = resolveAlterationStage(project, basis, "before");
++    const proposed = resolveAlterationStage(project, basis, "proposed");
++    const blockers: Blocker[] = [];
++    for (const result of [before, proposed]) {
++      if (!result.ready) for (const blocker of result.blockers) {
++        if (!blockers.some(existing => existing.elementId === blocker.elementId && existing.reason === blocker.reason)) blockers.push(blocker);
++      }
++    }
++    if (!before.ready || !proposed.ready) return { ready: false, blockers, quoteEligible: false };
++    for (const wall of project.walls) {
++      if (wall.layers.some(layer => layer.kind === "assembly")) blockers.push({
++        elementId: wall.id,
++        reason: "Wall assembly contents are unspecified. Declare physical solid and void layers before calculating wall-solid volume.",
++      });
++    }
++    if (blockers.length) return { ready: false, blockers, quoteEligible: false };
++    const beforeWallSolidVolumeM3 = solidVolume(before.model), proposedWallSolidVolumeM3 = solidVolume(proposed.model);
++    const deltaWallSolidVolumeM3 = proposedWallSolidVolumeM3 - beforeWallSolidVolumeM3;
++    if (!Number.isFinite(deltaWallSolidVolumeM3)) throw Error("Stage volume difference is not finite.");
++    return {
++      ready: true, basisReference: before.basisReference, units: "m3",
++      beforeWallSolidVolumeM3, proposedWallSolidVolumeM3, deltaWallSolidVolumeM3, quoteEligible: false,
++      notes: [
++        "Authored wall solid layers only; void layers excluded. Slabs, roofs, contents and fixtures are outside this calculation.",
++        "Openings cut their own host. Overlapping solid geometry is counted once across walls and levels; no material or lifecycle ownership is assigned.",
++        "Wall outlines use the existing authored miter rule for equal-thickness walls sharing an endpoint, including where wall heights differ; no alternative junction detailing is inferred.",
++        "Delta is proposed minus before geometry, not a demolition, disposal, salvage, repair or procurement quantity.",
++        "Planar clipping uses the model's 0.001 mm coordinate precision. Reviewed authored intent is not verified survey evidence.",
++      ],
++    };
++  } catch (error) {
++    return { ready: false, blockers: [{ elementId: project.id, reason: error instanceof Error ? error.message : "Stage geometry calculation failed." }], quoteEligible: false };
++  }
++}
+diff --git a/src/studio/architect/alterationStagePreview.css b/src/studio/architect/alterationStagePreview.css
+index 896e08c..2a9734b 100644
+--- a/src/studio/architect/alterationStagePreview.css
++++ b/src/studio/architect/alterationStagePreview.css
+@@ -16,3 +16,14 @@
+ .alteration-stage-blockers ul { margin-block: 8px; padding-left: 16px; }
+ .alteration-stage-drawing { display: block; width: 100%; height: 360px; background: var(--arch-paper); color: var(--arch-ink); border: 1px solid var(--color-line); border-radius: 4px; pointer-events: none; }
+ .architect-workspace .alteration-stage-preview :is(button, input, select, summary):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
++.alteration-stage-export { display: grid; gap: 8px; }
++.architect-workspace .alteration-stage-preview button.alteration-stage-download { min-height: 44px; padding: 8px; white-space: normal; border-radius: 4px; border: 1px solid var(--color-line); background: var(--color-field); color: var(--color-field-ink); }
++.architect-workspace .alteration-stage-preview button.alteration-stage-download:hover { background: var(--color-selected); color: var(--color-ink); }
++.architect-workspace .alteration-stage-preview button.alteration-stage-download:disabled { background: var(--color-field); color: var(--color-field-muted); border-color: var(--color-line); cursor: not-allowed; opacity: 0.6; }
++.alteration-stage-quantities { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--color-line); border-radius: 4px; background: var(--color-header); color: var(--color-ink); overflow-wrap: anywhere; }
++.alteration-volume-values { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 0; }
++.alteration-volume-values > div { padding: 8px; border: 1px solid var(--color-line); border-radius: 4px; background: var(--color-card); color: var(--color-ink); }
++.alteration-volume-values dt { color: var(--color-muted); }
++.alteration-volume-values dd { margin: 4px 0 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
++.alteration-stage-quantities ul { margin: 0; padding-left: 16px; }
++.alteration-quantity-blockers { display: grid; gap: 8px; }

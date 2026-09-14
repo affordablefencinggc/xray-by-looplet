@@ -44,3 +44,18 @@ Classification, Before alteration and Proposed must be separate labelled views, 
 - [x] Build and verify final web/native package source: d83b24da5ade web/typecheck/native NSIS all exit0, final source hashes verified. Native application UI and installer execution remain unclaimed.
 
 The review resets on project revision change or reload. Derived stages are not saved as canonical projects or issued exports. Shared annotations remain identified as orientation only. Explicit infill/retain-void, independent repaired baseline shapes, phase-aware overlap allocation, material synchronization, phase-bearing export/issue history and live assistant/Developer review remain open. Existing canonical opening overlap/tag validation still applies before filtering, so otherwise-invalid replacement opening records are not yet supported.
+
+## Active continuation: solid-wall comparison and labelled draft PDF
+
+Authorized by user "proceed" after a381ca8. Three parallel agents own quantity domain/tests, PDF export/tests, and stage preview UI; root owns integration and DANS1 verification. Inputs remain authored millimetre geometry, explicit lifecycle classifications and the current reviewed session basis.
+
+- [x] SC-01 Implement before/proposed solid-wall union volumes and signed proposed-minus-before geometry delta. Exclude void layers, block unknown assembly contents and invalid/unresolved inputs. No lifecycle allocation, disposal or procurement claim.
+- [x] SC-02 Implement selected-stage/level/view draft PDF with visible stage identity on every drawing page, original project/revision, full review reference and shared-annotation limitations. Preserve exact Unicode references through a labelled lossless representation and attachment when the existing PDF font cannot display them.
+- [x] SC-03 Integrate readable results, blockers and export controls; discard stale asynchronous exports after review/selection/project changes.
+- [x] SC-04 Execute arithmetic, ID/order invariance, level/void/overlap and export content/immutability tests; inspect rendered PDF pages.
+- [x] SC-05 Verify actual desktop/tablet actions and final built output, including invalidation and export failure states.
+- [x] SC-06 Run final regression/typecheck/web/native builds, commit exact source/proof, retain whole-industry and issued-set gaps.
+
+Individual historical preview proof follows the seven checked implementation items in order: [SC-01](../../proof/growth/2026-09-14-residential-stages/steps/SC-01.md), [SC-02](../../proof/growth/2026-09-14-residential-stages/steps/SC-02.md), [SC-03](../../proof/growth/2026-09-14-residential-stages/steps/SC-03.md), [SC-04](../../proof/growth/2026-09-14-residential-stages/steps/SC-04.md), [SC-05](../../proof/growth/2026-09-14-residential-stages/steps/SC-05.md), [SC-06](../../proof/growth/2026-09-14-residential-stages/steps/SC-06.md), [SC-07](../../proof/growth/2026-09-14-residential-stages/steps/SC-07.md). Backfilled records identify what the original screenshots show and what only executed tests establish.
+
+Current output-step proof: [SC-01](../../proof/growth/2026-09-14-residential-output/steps/SC-01.md), [SC-02](../../proof/growth/2026-09-14-residential-output/steps/SC-02.md), [SC-03](../../proof/growth/2026-09-14-residential-output/steps/SC-03.md), [SC-04](../../proof/growth/2026-09-14-residential-output/steps/SC-04.md). [SC-05 final production](../../proof/growth/2026-09-14-residential-output/steps/SC-05.md) and [SC-06 final build](../../proof/growth/2026-09-14-residential-output/steps/SC-06.md) are complete for this bounded batch.
