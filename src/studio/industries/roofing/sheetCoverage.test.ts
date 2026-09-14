@@ -42,7 +42,12 @@ test("receipt states the exact course boundary instead of leaving it to be extra
   assert.equal(r.calculation.maxRunAtThisCourseCountM, 9.8);
   assert.equal(r.calculation.minRunForAnotherCourseM, 9.800000001);
   assert.match(r.calculation.courseBoundary, /up to and including exactly 9\.8 m/);
-  assert.match(r.calculation.courseBoundary, /9\.800000001 m or more needs 3 courses/);
+  assert.match(r.calculation.courseBoundary, /9\.800000001 m or more needs at least 3 courses/);
+  assert.match(r.calculation.boundaryPrecision, /does not establish measurement accuracy or PDF coordinate precision/);
+  // Further increases can require more than the immediately next course count.
+  assert.equal(at("14.6").courses, 3);
+  assert.equal(at("14.600000001").courses, 4);
+  assert.equal(at("100").courses, 21);
   assert.match(r.calculation.coursesExpanded, /Course 1 covers a full ordered sheet length of 5 m/);
   assert.match(r.calculation.coursesExpanded, /4\.8 \/ 4\.8/);
   // The substituted formula the model previously used is named and refuted in the receipt itself.

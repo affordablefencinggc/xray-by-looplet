@@ -49,7 +49,8 @@ export function calculateSheetCoverage(raw: unknown) {
         ? `The run ${runText} m fits inside one full ordered sheet of ${orderText} m, so 1 course is used and no end lap is applied.`
         : `Course 1 covers a full ordered sheet length of ${orderText} m. The remaining ${metres(run - order)} m is covered by further courses that each add ${orderText} - ${lapText} = ${metres(order - lap)} m, so ceil(${metres(run - order)} / ${metres(order - lap)}) = ${courses - 1n} more course(s), giving ${courses} courses in total.`,
       /** The reviewer must read these bounds, never extrapolate them from the single evaluated case. */
-      courseBoundary: `${courses} course(s) cover any run greater than ${courses === 1n ? 0 : metres(coveredRun - (order - lap))} m and up to and including exactly ${metres(coveredRun)} m. A run of ${metres(nextCourseRun)} m or more needs ${courses + 1n} courses.`,
+      courseBoundary: `${courses} course(s) cover any run greater than ${courses === 1n ? 0 : metres(coveredRun - (order - lap))} m and up to and including exactly ${metres(coveredRun)} m. A run of ${metres(nextCourseRun)} m or more needs at least ${courses + 1n} courses.`,
+      boundaryPrecision: "The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision.",
       maxRunAtThisCourseCountM: metres(coveredRun),
       minRunForAnotherCourseM: metres(nextCourseRun),
       /** Only claim a difference when one exists; a "3 instead of 3" warning would itself mislead. */

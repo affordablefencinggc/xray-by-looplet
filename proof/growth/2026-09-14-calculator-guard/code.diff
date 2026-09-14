@@ -1,0 +1,124 @@
+diff --git a/src/studio/assistant/conversation.test.ts b/src/studio/assistant/conversation.test.ts
+index ef48233..5a96e6f 100644
+--- a/src/studio/assistant/conversation.test.ts
++++ b/src/studio/assistant/conversation.test.ts
+@@ -225,12 +225,64 @@ test('failed requested tool cannot be reported successful and is not replayed by
+     assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+     turn: async request => ++rounds === 1 ? response(request, [{ functionCall: { name: tool, args: {} } }]) : response(request, [{ text: `${tool} successfully completed.` }]),
+     call: async () => { calls++; return { isError: true, content: [{ type: 'text', text: 'Missing hierarchy inputs.' }] }; },
+-  }), /Requested tool classify_draft_quantities failed.*no successful result was verified/);
++  }), /requested calculation failed.*no successful result was verified/);
+   assert.equal(calls, 1);
+   assert.equal(events.filter(event => event.kind === 'assistant').length, 0);
+   assert.equal(events.filter(event => event.failed).length, 1);
+ });
+ 
++test('failed calculator withholds speculative report details and preserves failures and candidate for audit', async () => {
++  const tool = 'classify_draft_quantities';
++  // Regression from the archived MiniMax turn: admitting failure did not prevent
++  // an invented export rule from being published as the final answer.
++  const candidate = 'Neither attempt produced a successful receipt. What the tool would compute once accepted: Unassigned item d is not exported.';
++  const events: ChatEvent[] = []; let history: AssistantContent[] = [], rounds = 0, calls = 0, reviews = 0;
++  const past: AssistantContent[] = [
++    { role: 'model', parts: [{ functionCall: { name: tool, args: {}, id: 'historical' } }] },
++    { role: 'user', parts: [{ functionResponse: { name: tool, id: 'historical', response: { isError: false, text: 'Historical receipt' } } }] },
++    { role: 'user', parts: [{ text: `Execute ${tool} with the supplied input.` }] },
++  ];
++  await assert.rejects(runConversation({ contents: past, declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
++    assertContext: () => {}, checkpoint: value => { history = structuredClone(value); }, emit: event => events.push(event),
++    beforeFinal: async () => { reviews++; return null; },
++    turn: async request => ++rounds <= 2 ? response(request, [{ functionCall: { name: tool, args: {}, id: `attempt-${rounds}` } }])
++      : response(request, [{ text: candidate }]),
++    call: async () => { calls++; return { isError: true, content: [{ type: 'text', text: 'Invalid source. Supply explicit null when no source is available.' }] }; },
++  }), /requested calculation failed/);
++  assert.equal(calls, 2); assert.equal(rounds, 3); assert.equal(reviews, 0);
++  assert.equal(events.filter(e => e.kind === 'assistant').length, 0);
++  assert.equal(events.filter(e => e.failed).length, 2);
++  assert.ok(history.at(-1)?.parts[0].text?.startsWith('[xray:withheld-candidate]'));
++  assert.ok(history.at(-1)?.parts[0].text?.includes(candidate));
++  assert.equal(history.flatMap(e => e.parts).filter(p => p.functionResponse?.response.isError).length, 2);
++});
++
++test('calculator can correct failed inputs and deliver a successful current-turn result', async () => {
++  const tool = 'classify_draft_quantities'; let calls = 0, rounds = 0;
++  const events: ChatEvent[] = [];
++  await runConversation({ contents: [{ role: 'user', parts: [{ text: `Execute ${tool}.` }] }],
++    declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
++    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
++    turn: async request => ++rounds <= 2 ? response(request, [{ functionCall: { name: tool, args: {}, id: `attempt-${rounds}` } }])
++      : response(request, [{ text: 'The current result retains unassigned item d.' }]),
++    call: async () => ++calls === 1 ? { isError: true, content: [{ type: 'text', text: 'Invalid source' }] }
++      : { content: [{ type: 'text', text: 'Actual receipt including item d' }] },
++  });
++  assert.equal(calls, 2);
++  assert.equal(events.filter(e => e.kind === 'assistant').at(-1)?.text, 'The current result retains unassigned item d.');
++});
++
++test('calculator with missing inputs can still ask a question without an attempted call', async () => {
++  const events: ChatEvent[] = [];
++  await runConversation({ contents: [{ role: 'user', parts: [{ text: 'Execute classify_draft_quantities.' }] }],
++    declarations: [{ ...declaration, name: 'classify_draft_quantities' }], signal: new AbortController().signal,
++    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
++    turn: async request => response(request, [{ text: 'Please supply the hierarchy and quantities.' }]),
++    call: async () => { throw Error('Unexpected call'); },
++  });
++  assert.equal(events.at(-1)?.text, 'Please supply the hierarchy and quantities.');
++});
++
+ test('repeated tool calls replace their own progress row, including a failed call', async () => {
+   let entries: (ChatEvent & { id: string })[] = [], turns = 0, calls = 0;
+   const runningIds: string[] = [];
+diff --git a/src/studio/assistant/conversation.ts b/src/studio/assistant/conversation.ts
+index b00985b..4ca011c 100644
+--- a/src/studio/assistant/conversation.ts
++++ b/src/studio/assistant/conversation.ts
+@@ -71,6 +71,17 @@ export async function runConversation(options: {
+     let appPreflight = false;
+     if (calls.length) finalCorrections = 0;
+     if (!calls.length) {
++      // A failed calculation has no result to explain, even when the model admits
++      // failure before inventing what the report "would" contain. Keep the attempt
++      // and candidate in the audit, but do not publish speculative result details.
++      const calculatorAttempts = initialCalculatorScope
++        ? currentTurnToolOutcomes.filter(outcome => outcome.name === initialCalculatorScope.toolName && outcome.invoked)
++        : [];
++      if (calculatorAttempts.length && calculatorAttempts.every(outcome => outcome.isError)) {
++        contents[candidateIndex] = markWithheldCandidate(response.content);
++        options.checkpoint(contents);
++        throw Error('The requested calculation failed; no successful result was verified. Review the failed calculation details and correct the inputs before trying again.');
++      }
+       const unsupported = unsupportedFinalToolClaims(originalUserRequest, [...names], text, currentTurnToolOutcomes);
+       if (unsupported.length) {
+         contents[candidateIndex] = markWithheldCandidate(response.content);
+diff --git a/src/studio/industries/roofing/sheetCoverage.test.ts b/src/studio/industries/roofing/sheetCoverage.test.ts
+index cd8dfda..9dc76ce 100644
+--- a/src/studio/industries/roofing/sheetCoverage.test.ts
++++ b/src/studio/industries/roofing/sheetCoverage.test.ts
+@@ -42,7 +42,12 @@ test("receipt states the exact course boundary instead of leaving it to be extra
+   assert.equal(r.calculation.maxRunAtThisCourseCountM, 9.8);
+   assert.equal(r.calculation.minRunForAnotherCourseM, 9.800000001);
+   assert.match(r.calculation.courseBoundary, /up to and including exactly 9\.8 m/);
+-  assert.match(r.calculation.courseBoundary, /9\.800000001 m or more needs 3 courses/);
++  assert.match(r.calculation.courseBoundary, /9\.800000001 m or more needs at least 3 courses/);
++  assert.match(r.calculation.boundaryPrecision, /does not establish measurement accuracy or PDF coordinate precision/);
++  // Further increases can require more than the immediately next course count.
++  assert.equal(at("14.6").courses, 3);
++  assert.equal(at("14.600000001").courses, 4);
++  assert.equal(at("100").courses, 21);
+   assert.match(r.calculation.coursesExpanded, /Course 1 covers a full ordered sheet length of 5 m/);
+   assert.match(r.calculation.coursesExpanded, /4\.8 \/ 4\.8/);
+   // The substituted formula the model previously used is named and refuted in the receipt itself.
+diff --git a/src/studio/industries/roofing/sheetCoverage.ts b/src/studio/industries/roofing/sheetCoverage.ts
+index 8cef2c7..4feb963 100644
+--- a/src/studio/industries/roofing/sheetCoverage.ts
++++ b/src/studio/industries/roofing/sheetCoverage.ts
+@@ -49,7 +49,8 @@ export function calculateSheetCoverage(raw: unknown) {
+         ? `The run ${runText} m fits inside one full ordered sheet of ${orderText} m, so 1 course is used and no end lap is applied.`
+         : `Course 1 covers a full ordered sheet length of ${orderText} m. The remaining ${metres(run - order)} m is covered by further courses that each add ${orderText} - ${lapText} = ${metres(order - lap)} m, so ceil(${metres(run - order)} / ${metres(order - lap)}) = ${courses - 1n} more course(s), giving ${courses} courses in total.`,
+       /** The reviewer must read these bounds, never extrapolate them from the single evaluated case. */
+-      courseBoundary: `${courses} course(s) cover any run greater than ${courses === 1n ? 0 : metres(coveredRun - (order - lap))} m and up to and including exactly ${metres(coveredRun)} m. A run of ${metres(nextCourseRun)} m or more needs ${courses + 1n} courses.`,
++      courseBoundary: `${courses} course(s) cover any run greater than ${courses === 1n ? 0 : metres(coveredRun - (order - lap))} m and up to and including exactly ${metres(coveredRun)} m. A run of ${metres(nextCourseRun)} m or more needs at least ${courses + 1n} courses.`,
++      boundaryPrecision: "The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision.",
+       maxRunAtThisCourseCountM: metres(coveredRun),
+       minRunForAnotherCourseM: metres(nextCourseRun),
+       /** Only claim a difference when one exists; a "3 instead of 3" warning would itself mislead. */

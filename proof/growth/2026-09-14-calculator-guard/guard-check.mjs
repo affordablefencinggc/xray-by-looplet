@@ -1,0 +1,46 @@
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { hostname } from 'node:os';
+import { FastCdpBatch } from 'file:///C:/Users/danie/Documents/AtomicLedgerQualification/2026-09-08/qualification/scripts/fast-cdp.mjs';
+if(hostname().toLowerCase()!=='dans1') throw Error('Wrong host');
+const campaign=process.argv[2];
+if(!['dev','production'].includes(campaign)) throw Error('Unknown campaign');
+const base=campaign==='dev'?'http://127.0.0.1:8080/':'http://127.0.0.1:8081/';
+const output='live-'+campaign+'-'+new Date().toISOString().replace(/[:.]/g,'-'); await mkdir(output);
+const [port,path]=(await readFile(process.argv[3]+'/DevToolsActivePort','utf8')).trim().split(/\r?\n/);
+const ws=new WebSocket('ws://127.0.0.1:'+port+path);
+await new Promise((yes,no)=>{ws.onopen=yes;ws.onerror=no});
+let id=0;const pending=new Map(),errors=[],loaded=new Set(),loadWaiters=[];
+ws.onmessage=({data})=>{const m=JSON.parse(data);if(m.method==='Page.lifecycleEvent'&&m.params.name==='DOMContentLoaded'){loaded.add(m.params.loaderId);for(const f of loadWaiters.splice(0))f()}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.exception?.description||m.params.exceptionDetails.text);const p=pending.get(m.id);if(p){clearTimeout(p.timer);pending.delete(m.id);m.error?p.no(Error(m.error.message)):p.yes(m.result)}};
+const socket={call:(method,params={},sessionId)=>new Promise((yes,no)=>{const next=++id,timer=setTimeout(()=>{pending.delete(next);no(Error(method+' deadline'))},330000);pending.set(next,{yes,no,timer});ws.send(JSON.stringify({id:next,method,params,...(sessionId?{sessionId}:{})}))})};
+socket.evaluate=async(expression,sessionId)=>{const r=await socket.call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},sessionId);if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value};
+ws.addEventListener('message',({data})=>{const m=JSON.parse(data);if(m.method==='Runtime.consoleAPICalled'&&m.params.type==='error')errors.push(m.params.args.map(a=>a.value??a.description).join(' '));if(m.method==='Network.loadingFailed'&&!m.params.canceled)errors.push(m.params.errorText)});
+const batch=new FastCdpBatch(socket,output),commands=[];
+async function run(ops){for(const op of ops){commands.push(op);await batch.run([op]);if(op[0]==='navigate'){const loader=batch.receipts.at(-1).value.loaderId;if(!loaded.has(loader))await new Promise((yes,no)=>{const timer=setTimeout(()=>no(Error('DOM navigation deadline')),15000);const check=()=>{if(loaded.has(loader)){clearTimeout(timer);yes()}else loadWaiters.push(check)};loadWaiters.push(check)})}}}
+const ready="document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'";
+let error,session;const version=await socket.call('Browser.getVersion');
+try{
+ for(const scenario of ['qs-failure','roof-boundary']) {
+ await run([['context','app']]);session=batch.contexts.get('app').sessionId;
+ for(const method of ['Runtime.enable','Network.enable'])await socket.call(method,{},session);
+ await socket.call('Page.setLifecycleEventsEnabled',{enabled:true},session);
+ const fixture = scenario==='qs-failure' ? {hierarchyId:'QA',hierarchyRevision:'A',nodes:[{id:'building',label:'Building',parentId:null}],items:[{id:'d',quantity:'4',unit:'m2',evidence:'unverified',source:{}}],assignments:[]} : {developedWidthM:'8',developedRunM:'9.8',effectiveCoverM:'0.8',orderLengthM:'5',endLapM:'0.2',measurementReference:'Synthetic QA rectangle',supplierReference:'Synthetic QA sheet specification'};
+ const tool=scenario==='qs-failure'?'classify_draft_quantities':'calculate_draft_roof_sheet_coverage';
+ // Controlled provider responses; the real app still validates and executes tools.
+ const adapter=`(()=>{localStorage.setItem('xray:assistant-provider:v2','minimax');window.__qaRequests=[];const original=window.fetch.bind(window);window.fetch=async(input,init)=>{if(!String(input).includes('/api/minimax-ai'))return original(input,init);if(init?.method!=='POST')return Response.json({provider:'MiniMax',model:'MiniMax-M3',available:true,configured:true,message:'Controlled QA transport'});const request=JSON.parse(init.body);window.__qaRequests.push(request);const parts=window.__qaRequests.length===1?[{functionCall:{name:${JSON.stringify(tool)},args:{expectedJobId:request.contents.flatMap(e=>e.parts).map(p=>p.text||'').join('\\n').match(/Current X-Ray project ID: ([^\\s]+)/)[1],input:${JSON.stringify(fixture)}},id:'qa-call'}}]:[{text:${scenario==='qs-failure'?JSON.stringify('Neither attempt produced a successful receipt. What the tool would compute once accepted: Unassigned item d is not exported.'):`(()=>{const parts=request.contents.flatMap(e=>e.parts);const result=parts.findLast(p=>p.functionResponse?.name===${JSON.stringify(tool)}).functionResponse.response;if(result.isError)throw Error(result.text);const r=JSON.parse(result.text);return 'Draft coverage: '+r.sheets+' sheets. '+r.calculation.courseBoundary+' '+r.calculation.boundaryPrecision+' '+r.calculation.endLapPolicy+String.fromCharCode(10,10)+'Developer review'+String.fromCharCode(10)+'Controlled QA response using the actual calculation receipt.'})()`}}];return Response.json({requestId:request.requestId,content:{role:'model',parts},model:'MiniMax-controlled-qa',sources:[]})}})()`;
+ await socket.call('Page.addScriptToEvaluateOnNewDocument',{source:adapter},session);
+ await socket.call('Emulation.setDeviceMetricsOverride',{width:1600,height:1000,deviceScaleFactor:1,mobile:false},session);
+ const expected=scenario==='qs-failure'?'The requested calculation failed; no successful result was verified.':'or more needs at least 3 courses.';
+ await run([['navigate','app',base],['wait','app',ready],['eval','app',`(()=>{const b=[...document.querySelectorAll('button')].find(x=>/live assistant/i.test(x.getAttribute('aria-label')||'')||x.textContent.trim()==='Live assistant');if(b)b.click();return true})()`],['wait','app',`!!document.querySelector('textarea[placeholder^="Ask anything"]')`],['eval','app',`(()=>{const t=document.querySelector('textarea[placeholder^="Ask anything"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,${JSON.stringify('Execute '+tool+' with these synthetic QA inputs: '+JSON.stringify(fixture))});t.dispatchEvent(new Event('input',{bubbles:true}));return true})()`],['wait','app',`document.querySelector('button[aria-label="Send assistant message"]')?.disabled===false`],['eval','app',`document.querySelector('button[aria-label="Send assistant message"]').click();true`],['wait','app',`document.body.innerText.includes(${JSON.stringify(expected)})`],['eval','app',`(()=>{if(document.body.innerText.includes('Unassigned item d is not exported.'))throw Error('Speculative result leaked');if(window.__qaRequests.length!==2)throw Error('Unexpected provider retry');return {requests:window.__qaRequests.length,text:document.body.innerText}})()`],['screenshot','app',scenario+'-desktop.png']]);
+ if(campaign==='dev') {
+ const archive=await socket.evaluate(`(async()=>{const s=await import('/src/studio/store.ts');const h=await import('/src/studio/assistant/chatHistory.ts');const deadline=Date.now()+10000;while(Date.now()<deadline){const a=await h.readChatArchive(s.useStudio.getState().job.id);if(a?.threads.some(t=>!t.busy&&(t.error||t.entries.some(e=>e.kind==='assistant'))))return a;await new Promise(r=>setTimeout(r,100))}throw Error('Archive not saved')})()`,session);
+ await writeFile(output+'/'+scenario+'-archive.json',JSON.stringify(archive,null,2));
+ const thread=archive.threads.find(t=>t.id===archive.activeId);
+ if(scenario==='qs-failure'&&(!thread.error?.includes(expected)||!thread.contents.some(e=>e.parts.some(p=>p.text?.startsWith('[xray:withheld-candidate]')))))throw Error('Failure/audit missing');
+ }
+ await socket.call('Emulation.setDeviceMetricsOverride',{width:1024,height:768,deviceScaleFactor:1,mobile:false},session);
+ await run([['navigate','app',base],['wait','app',ready],['wait','app',`document.body.innerText.includes(${JSON.stringify(expected)})`],['eval','app',`(()=>{if(document.body.innerText.includes('Unassigned item d is not exported.'))throw Error('Reload leaked candidate');return {reloaded:true,text:document.body.innerText}})()`],['screenshot','app',scenario+'-tablet-reloaded.png'],['dispose','app']]);
+ }
+ if(errors.length)throw Error('Browser console or network failure');
+}catch(e){error=e;await run([['screenshot','app','failure.png']]).catch(()=>{})}
+finally{try{await batch.cleanup()}catch(e){error??=e}await socket.call('Browser.close').catch(()=>{});ws.close();const report={host:hostname(),version,campaign,verdict:error?'FAIL':'PASS',error:error?.message,errors,cleanup:batch.contexts.size===0,transport:'Controlled QA responses, not live MiniMax acceptance',sourceHash:'b9d170acab1c98c2431d9f12b765b9f03f99ad182197840c3e46947ad94a3e8d',receipts:batch.receipts};await writeFile(output+'/scenario.json',JSON.stringify(commands,null,2));await writeFile(output+'/result.json',JSON.stringify(report,null,2));console.log(JSON.stringify({...report,receipts:undefined}));}
+if(error)process.exitCode=1;

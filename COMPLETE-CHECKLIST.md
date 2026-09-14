@@ -498,3 +498,10 @@ Recovery: feat/architect-cad-engine after be76fab, checkpoint titled "feat(archi
 RES-02-SC-01 supported editing slice complete: referenced full opening infill and independent before-repair wall height are now exposed through the UI and assistant schema/controller. Save/edit/clear, undo/redo, reload and exact before/proposed fixture volumes passed on DANS1. 247 architecture/tool tests and 106 earlier focused tests pass; final web build 09c014abc002 passes typecheck, 87 broader tests and build. Dev and production desktop/tablet browser checks passed and screenshots were inspected. Recovery: existing feat/architect-cad-engine at baseline bcc5c3e plus the exact diff/hash manifest in proof/growth/2026-09-14-continuation. No commit, merge, deployment or native qualification claimed.
 
 Individual requirement, source diff, executed outputs, separately named screenshots and limits: [RES-02-SC-01](proof/growth/2026-09-14-continuation/steps/RES-02-SC-01.md). Overall RES-02 remains open for broader geometry/platform acceptance. ROOF-01 and QS-01 remain open after one real MiniMax turn each failed prose/argument acceptance; preserved failures are linked from TAKEOVER-TODO.md. All newly owned dev/production/browser processes were cleaned; original user-facing local preview retained.
+
+## 2026-09-14 calculator safeguards
+
+- [x] QS failed-calculator final-answer safeguard: [individual proof, tests, screenshots and diff](proof/growth/2026-09-14-calculator-guard/steps/QS-01-SC-03.md).
+- [x] Roofing boundary extent and precision: [individual proof, tests, screenshots and diff](proof/growth/2026-09-14-calculator-guard/steps/ROOF-01-SC-04.md).
+
+These are scoped source/web regression completions. ROOF-01, QS-01 and remaining RES-02 are still open; no live-provider acceptance or native deployment is claimed.

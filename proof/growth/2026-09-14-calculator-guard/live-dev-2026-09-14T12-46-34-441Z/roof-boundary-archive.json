@@ -1,0 +1,188 @@
+{
+  "projectId": "job-55678ccf-16f9-46a8-87f8-46707cb018f1",
+  "revision": 15,
+  "activeId": "0a963ee7-742b-4249-bd50-ea8d4b4bed69",
+  "threads": [
+    {
+      "id": "0a963ee7-742b-4249-bd50-ea8d4b4bed69",
+      "startedAt": "2026-09-14T12:46:38.730Z",
+      "updatedAt": "2026-09-14T12:46:38.909Z",
+      "entries": [
+        {
+          "id": "26fe68cb-c476-4613-9cc0-22ad29064f29",
+          "kind": "user",
+          "text": "Execute calculate_draft_roof_sheet_coverage with these synthetic QA inputs: {\"developedWidthM\":\"8\",\"developedRunM\":\"9.8\",\"effectiveCoverM\":\"0.8\",\"orderLengthM\":\"5\",\"endLapM\":\"0.2\",\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\"}",
+          "timestamp": "2026-09-14T12:46:38.752Z",
+          "images": []
+        },
+        {
+          "id": "450c6c6c-9174-4933-a251-df87a424cd25",
+          "kind": "tool",
+          "text": "{\"projectId\":\"job-55678ccf-16f9-46a8-87f8-46707cb018f1\",\"projectRevision\":1,\"status\":\"draft-sheet-coverage\",\"columns\":10,\"courses\":2,\"sheets\":20,\"inputs\":{\"developedWidthM\":\"8\",\"developedRunM\":\"9.8\",\"effectiveCoverM\":\"0.8\",\"orderLengthM\":\"5\",\"endLapM\":\"0.2\",\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\"},\"calculation\":{\"columns\":\"ceil(8 / 0.8) = 10\",\"coursesFormula\":\"run <= ordered length ? 1 : 1 + ceil((run - ordered length) / (ordered length - end lap))\",\"courses\":\"1 + ceil((9.8 - 5) / (5 - 0.2)) = 2\",\"coursesExpanded\":\"Course 1 covers a full ordered sheet length of 5 m. The remaining 4.8 m is covered by further courses that each add 5 - 0.2 = 4.8 m, so ceil(4.8 / 4.8) = 1 more course(s), giving 2 courses in total.\",\"courseBoundary\":\"2 course(s) cover any run greater than 5 m and up to and including exactly 9.8 m. A run of 9.800000001 m or more needs at least 3 courses.\",\"boundaryPrecision\":\"The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision.\",\"maxRunAtThisCourseCountM\":9.8,\"minRunForAnotherCourseM\":9.800000001,\"wrongFormulaWarning\":\"Do NOT compute courses as ceil(run / (ordered length - end lap)); for this input that would give 3 instead of the correct 2, because the first course is not shortened by an end lap.\",\"sheets\":\"10 columns × 2 courses = 20 sheets\",\"orderedLength\":\"20 sheets × 5 m = 100 m\",\"endLapPolicy\":\"The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.\",\"excessRun\":\"9.8 m covered run - 9.8 m requested run = 0 m excess run. This is geometric over-coverage along the run, not a per-sheet waste or cutting quantity.\"},\"cuttingSchedule\":{\"status\":\"not-calculated\",\"perSheetWasteM\":null,\"reusableOffcuts\":null,\"reason\":\"No cutting layout, trimming or offcut reuse is supplied. Do not infer per-sheet waste, scrap, usable cut length or reusable offcuts from coverage excess, in either the answer or Developer review.\"},\"orderedLinearM\":100,\"coveredWidthM\":8,\"coveredRunM\":9.8,\"excessWidthM\":0,\"excessRunM\":0,\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\",\"verifiedQuoteEligible\":false,\"limitations\":[\"End lap (the lengthwise lap between courses, also called a transverse lap) IS included in this calculation: every course after the first is shortened by the supplied end lap. Do not describe end laps or transverse laps as excluded.\",\"Side lap (the lap between adjacent sheets across the width) is NOT calculated here: it is already contained in the supplied effective sheet cover, so it is neither added nor deducted again. Side lap and end lap are separate laps and must be explained separately.\",\"One rectangular developed surface with identical ordered sheet lengths; no opening deductions, hips, valleys, cutting or reusable offcut schedule.\",\"No fixings, flashings, product suitability or compliance calculation. References are retained but not validated; draft and not eligible for verified quotes.\"]}",
+          "images": [],
+          "sources": [],
+          "toolName": "calculate_draft_roof_sheet_coverage",
+          "toolCallId": "caf64023-bf53-4aa9-8782-f46eb93ac9d9:0",
+          "executionOrigin": "model",
+          "projectName": "New project",
+          "projectRevision": 1
+        },
+        {
+          "id": "e79393f0-dfe8-492e-91e1-11864e3de070",
+          "kind": "assistant",
+          "text": "Draft coverage: 20 sheets. 2 course(s) cover any run greater than 5 m and up to and including exactly 9.8 m. A run of 9.800000001 m or more needs at least 3 courses. The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision. The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.\n\nDeveloper review\nControlled QA response using the actual calculation receipt.",
+          "timestamp": "2026-09-14T12:46:38.881Z",
+          "images": [],
+          "sources": []
+        }
+      ],
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Current X-Ray project ID: job-55678ccf-16f9-46a8-87f8-46707cb018f1\nExecute calculate_draft_roof_sheet_coverage with these synthetic QA inputs: {\"developedWidthM\":\"8\",\"developedRunM\":\"9.8\",\"effectiveCoverM\":\"0.8\",\"orderLengthM\":\"5\",\"endLapM\":\"0.2\",\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\"}\n\nDeveloper mode is ON. After completing this instruction/task, append a short section titled \"Developer review\" with at most three bullets: Outcome, Friction, Improvement. Judge the CURRENT USER-VISIBLE RESPONSE against the user's current requested outcome: did it answer clearly, accurately and without unnecessary repetition? Assess the answer actually delivered, not a hidden candidate answer, prior response or prior work packet. Describe the useful answer or actual result, not internal workflow labels such as \"discussion route\". Assess your own mistakes, verbosity and clarity, not flaws in the user's workflow. Existing supplied evidence is sufficient for an explanation or recording review; absence of new tool calls, fresh evidence, a screenshot or a readback is NOT a shortcoming in those tasks. Recommend verification only when the requested action or a specific unsupported claim actually needs it; never add it as a ritual. An improvement should correct a specific problem in this response, not expand the user's task. If no specific problem is evident, say so briefly rather than manufacturing one. Distinguish context supplied automatically from tools you executed in this turn. Claim current-turn actions only from current-turn execution receipts; prior packet receipts do not prove a new call. read_workbench_structure is a static capability reference, not a fresh project-state readback. Naming a reviewer or decision owner cannot confer verified human authority or unblock review_takeoff_item; respect the current work packet's authority gate and do not recommend a name as its fix. Use only available evidence and actual receipts; do not invent success, user satisfaction, scores or tests. This is your self-assessment, not independent verification. Keep it under 70 words, separate from the answer. Do not call tools or repeat project actions solely to write this review."
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "calculate_draft_roof_sheet_coverage",
+                "args": {
+                  "expectedJobId": "job-55678ccf-16f9-46a8-87f8-46707cb018f1",
+                  "input": {
+                    "developedWidthM": "8",
+                    "developedRunM": "9.8",
+                    "effectiveCoverM": "0.8",
+                    "orderLengthM": "5",
+                    "endLapM": "0.2",
+                    "measurementReference": "Synthetic QA rectangle",
+                    "supplierReference": "Synthetic QA sheet specification"
+                  }
+                },
+                "id": "qa-call"
+              }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "name": "calculate_draft_roof_sheet_coverage",
+                "response": {
+                  "isError": false,
+                  "text": "{\"projectId\":\"job-55678ccf-16f9-46a8-87f8-46707cb018f1\",\"projectRevision\":1,\"status\":\"draft-sheet-coverage\",\"columns\":10,\"courses\":2,\"sheets\":20,\"inputs\":{\"developedWidthM\":\"8\",\"developedRunM\":\"9.8\",\"effectiveCoverM\":\"0.8\",\"orderLengthM\":\"5\",\"endLapM\":\"0.2\",\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\"},\"calculation\":{\"columns\":\"ceil(8 / 0.8) = 10\",\"coursesFormula\":\"run <= ordered length ? 1 : 1 + ceil((run - ordered length) / (ordered length - end lap))\",\"courses\":\"1 + ceil((9.8 - 5) / (5 - 0.2)) = 2\",\"coursesExpanded\":\"Course 1 covers a full ordered sheet length of 5 m. The remaining 4.8 m is covered by further courses that each add 5 - 0.2 = 4.8 m, so ceil(4.8 / 4.8) = 1 more course(s), giving 2 courses in total.\",\"courseBoundary\":\"2 course(s) cover any run greater than 5 m and up to and including exactly 9.8 m. A run of 9.800000001 m or more needs at least 3 courses.\",\"boundaryPrecision\":\"The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision.\",\"maxRunAtThisCourseCountM\":9.8,\"minRunForAnotherCourseM\":9.800000001,\"wrongFormulaWarning\":\"Do NOT compute courses as ceil(run / (ordered length - end lap)); for this input that would give 3 instead of the correct 2, because the first course is not shortened by an end lap.\",\"sheets\":\"10 columns × 2 courses = 20 sheets\",\"orderedLength\":\"20 sheets × 5 m = 100 m\",\"endLapPolicy\":\"The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.\",\"excessRun\":\"9.8 m covered run - 9.8 m requested run = 0 m excess run. This is geometric over-coverage along the run, not a per-sheet waste or cutting quantity.\"},\"cuttingSchedule\":{\"status\":\"not-calculated\",\"perSheetWasteM\":null,\"reusableOffcuts\":null,\"reason\":\"No cutting layout, trimming or offcut reuse is supplied. Do not infer per-sheet waste, scrap, usable cut length or reusable offcuts from coverage excess, in either the answer or Developer review.\"},\"orderedLinearM\":100,\"coveredWidthM\":8,\"coveredRunM\":9.8,\"excessWidthM\":0,\"excessRunM\":0,\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\",\"verifiedQuoteEligible\":false,\"limitations\":[\"End lap (the lengthwise lap between courses, also called a transverse lap) IS included in this calculation: every course after the first is shortened by the supplied end lap. Do not describe end laps or transverse laps as excluded.\",\"Side lap (the lap between adjacent sheets across the width) is NOT calculated here: it is already contained in the supplied effective sheet cover, so it is neither added nor deducted again. Side lap and end lap are separate laps and must be explained separately.\",\"One rectangular developed surface with identical ordered sheet lengths; no opening deductions, hips, valleys, cutting or reusable offcut schedule.\",\"No fixings, flashings, product suitability or compliance calculation. References are retained but not validated; draft and not eligible for verified quotes.\"]}",
+                  "images": 0,
+                  "executionOrigin": "model"
+                },
+                "id": "qa-call"
+              }
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Draft coverage: 20 sheets. 2 course(s) cover any run greater than 5 m and up to and including exactly 9.8 m. A run of 9.800000001 m or more needs at least 3 courses. The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision. The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.\n\nDeveloper review\nControlled QA response using the actual calculation receipt."
+            }
+          ]
+        }
+      ],
+      "error": null,
+      "busy": false,
+      "workPacket": {
+        "schema": "xray.work-packet/v1",
+        "id": "ba89d1cc-ab7b-4051-9983-902b4e7db3e1",
+        "projectId": "job-55678ccf-16f9-46a8-87f8-46707cb018f1",
+        "policyVersion": "xray.internal-draft/1",
+        "objective": "Execute calculate_draft_roof_sheet_coverage with these synthetic QA inputs: {\"developedWidthM\":\"8\",\"developedRunM\":\"9.8\",\"effectiveCoverM\":\"0.8\",\"orderLengthM\":\"5\",\"endLapM\":\"0.2\",\"measurementReference\":\"Synthetic QA rectangle\",\"supplierReference\":\"Synthetic QA sheet specification\"}",
+        "createdAt": "2026-09-14T12:46:38.766Z",
+        "updatedAt": "2026-09-14T12:46:38.892Z",
+        "state": "review-required",
+        "snapshot": {
+          "projectId": "job-55678ccf-16f9-46a8-87f8-46707cb018f1",
+          "projectName": "New project",
+          "projectRevision": 1,
+          "designRevision": 1,
+          "site": null,
+          "activeDocumentId": "doc-sample",
+          "page": 1,
+          "sources": [
+            {
+              "id": "doc-sample",
+              "name": "No source plan",
+              "sha256": null,
+              "revision": null,
+              "informationStatus": "unknown",
+              "purpose": null,
+              "discipline": null,
+              "origin": "sample"
+            }
+          ],
+          "recoveryBlocked": false
+        },
+        "discipline": null,
+        "location": null,
+        "decisionOwner": null,
+        "permittedScope": "internal-draft",
+        "professionalAuthority": "unverified",
+        "unresolved": [
+          "Discipline and task location are unspecified; confirm when needed for the requested action.",
+          "Governing source status/revision is unconfirmed for verified source conclusions. Professional authority and decision owner are unconfirmed for controlled approval or issue."
+        ],
+        "findings": [],
+        "acceptance": [
+          {
+            "name": "Project identity",
+            "result": "pass"
+          },
+          {
+            "name": "Governing revisions and suitability",
+            "result": "unknown"
+          },
+          {
+            "name": "Units, scale, coordinates and datum for source work",
+            "result": "unknown"
+          },
+          {
+            "name": "Professional issue authority",
+            "result": "unknown"
+          }
+        ],
+        "nextAction": "Workflow receipts complete. Review the draft against its sources and acceptance tests; no professional approval or issue recorded.",
+        "pendingAction": null,
+        "routing": {
+          "version": "xray.workflow/1",
+          "selected": "discussion",
+          "context": null,
+          "designRead": null,
+          "sheetsRead": null,
+          "evidenceRead": null,
+          "mounted": null,
+          "sceneSha256": null,
+          "captured": null,
+          "captureView": null,
+          "designChanged": false,
+          "evidenceChanged": false,
+          "mutationCount": 0,
+          "rendered": false,
+          "exported": false,
+          "failure": null
+        },
+        "tokenUsage": {
+          "total": 0,
+          "recordedResponses": 0,
+          "missingResponses": 2
+        },
+        "sequence": 8,
+        "auditHead": "6e0b41374719aa584ffc432b99fde1b6789e712d7d3fce1b8ab6e31f98c0503f"
+      }
+    }
+  ]
+}

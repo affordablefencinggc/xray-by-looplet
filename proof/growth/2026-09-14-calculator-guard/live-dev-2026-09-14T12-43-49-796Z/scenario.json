@@ -1,0 +1,51 @@
+[
+  [
+    "context",
+    "app"
+  ],
+  [
+    "navigate",
+    "app",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(x=>/live assistant/i.test(x.getAttribute('aria-label')||'')||x.textContent.trim()==='Live assistant');if(b)b.click();return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "!!document.querySelector('textarea[placeholder^=\"Ask anything\"]')"
+  ],
+  [
+    "eval",
+    "app",
+    "(()=>{const t=document.querySelector('textarea[placeholder^=\"Ask anything\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,\"Execute classify_draft_quantities with these synthetic QA inputs: {}\");t.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "app",
+    "document.querySelector('button[aria-label=\"Send assistant message\"]')?.disabled===false"
+  ],
+  [
+    "eval",
+    "app",
+    "document.querySelector('button[aria-label=\"Send assistant message\"]').click();true"
+  ],
+  [
+    "wait",
+    "app",
+    "document.body.innerText.includes(\"The requested calculation failed; no successful result was verified.\")"
+  ],
+  [
+    "screenshot",
+    "app",
+    "failure.png"
+  ]
+]

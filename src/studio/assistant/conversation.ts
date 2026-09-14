@@ -71,6 +71,17 @@ export async function runConversation(options: {
     let appPreflight = false;
     if (calls.length) finalCorrections = 0;
     if (!calls.length) {
+      // A failed calculation has no result to explain, even when the model admits
+      // failure before inventing what the report "would" contain. Keep the attempt
+      // and candidate in the audit, but do not publish speculative result details.
+      const calculatorAttempts = initialCalculatorScope
+        ? currentTurnToolOutcomes.filter(outcome => outcome.name === initialCalculatorScope.toolName && outcome.invoked)
+        : [];
+      if (calculatorAttempts.length && calculatorAttempts.every(outcome => outcome.isError)) {
+        contents[candidateIndex] = markWithheldCandidate(response.content);
+        options.checkpoint(contents);
+        throw Error('The requested calculation failed; no successful result was verified. Review the failed calculation details and correct the inputs before trying again.');
+      }
       const unsupported = unsupportedFinalToolClaims(originalUserRequest, [...names], text, currentTurnToolOutcomes);
       if (unsupported.length) {
         contents[candidateIndex] = markWithheldCandidate(response.content);

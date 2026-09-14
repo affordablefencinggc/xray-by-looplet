@@ -225,10 +225,62 @@ test('failed requested tool cannot be reported successful and is not replayed by
     assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
     turn: async request => ++rounds === 1 ? response(request, [{ functionCall: { name: tool, args: {} } }]) : response(request, [{ text: `${tool} successfully completed.` }]),
     call: async () => { calls++; return { isError: true, content: [{ type: 'text', text: 'Missing hierarchy inputs.' }] }; },
-  }), /Requested tool classify_draft_quantities failed.*no successful result was verified/);
+  }), /requested calculation failed.*no successful result was verified/);
   assert.equal(calls, 1);
   assert.equal(events.filter(event => event.kind === 'assistant').length, 0);
   assert.equal(events.filter(event => event.failed).length, 1);
+});
+
+test('failed calculator withholds speculative report details and preserves failures and candidate for audit', async () => {
+  const tool = 'classify_draft_quantities';
+  // Regression from the archived MiniMax turn: admitting failure did not prevent
+  // an invented export rule from being published as the final answer.
+  const candidate = 'Neither attempt produced a successful receipt. What the tool would compute once accepted: Unassigned item d is not exported.';
+  const events: ChatEvent[] = []; let history: AssistantContent[] = [], rounds = 0, calls = 0, reviews = 0;
+  const past: AssistantContent[] = [
+    { role: 'model', parts: [{ functionCall: { name: tool, args: {}, id: 'historical' } }] },
+    { role: 'user', parts: [{ functionResponse: { name: tool, id: 'historical', response: { isError: false, text: 'Historical receipt' } } }] },
+    { role: 'user', parts: [{ text: `Execute ${tool} with the supplied input.` }] },
+  ];
+  await assert.rejects(runConversation({ contents: past, declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: value => { history = structuredClone(value); }, emit: event => events.push(event),
+    beforeFinal: async () => { reviews++; return null; },
+    turn: async request => ++rounds <= 2 ? response(request, [{ functionCall: { name: tool, args: {}, id: `attempt-${rounds}` } }])
+      : response(request, [{ text: candidate }]),
+    call: async () => { calls++; return { isError: true, content: [{ type: 'text', text: 'Invalid source. Supply explicit null when no source is available.' }] }; },
+  }), /requested calculation failed/);
+  assert.equal(calls, 2); assert.equal(rounds, 3); assert.equal(reviews, 0);
+  assert.equal(events.filter(e => e.kind === 'assistant').length, 0);
+  assert.equal(events.filter(e => e.failed).length, 2);
+  assert.ok(history.at(-1)?.parts[0].text?.startsWith('[xray:withheld-candidate]'));
+  assert.ok(history.at(-1)?.parts[0].text?.includes(candidate));
+  assert.equal(history.flatMap(e => e.parts).filter(p => p.functionResponse?.response.isError).length, 2);
+});
+
+test('calculator can correct failed inputs and deliver a successful current-turn result', async () => {
+  const tool = 'classify_draft_quantities'; let calls = 0, rounds = 0;
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: `Execute ${tool}.` }] }],
+    declarations: [{ ...declaration, name: tool }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    turn: async request => ++rounds <= 2 ? response(request, [{ functionCall: { name: tool, args: {}, id: `attempt-${rounds}` } }])
+      : response(request, [{ text: 'The current result retains unassigned item d.' }]),
+    call: async () => ++calls === 1 ? { isError: true, content: [{ type: 'text', text: 'Invalid source' }] }
+      : { content: [{ type: 'text', text: 'Actual receipt including item d' }] },
+  });
+  assert.equal(calls, 2);
+  assert.equal(events.filter(e => e.kind === 'assistant').at(-1)?.text, 'The current result retains unassigned item d.');
+});
+
+test('calculator with missing inputs can still ask a question without an attempted call', async () => {
+  const events: ChatEvent[] = [];
+  await runConversation({ contents: [{ role: 'user', parts: [{ text: 'Execute classify_draft_quantities.' }] }],
+    declarations: [{ ...declaration, name: 'classify_draft_quantities' }], signal: new AbortController().signal,
+    assertContext: () => {}, checkpoint: () => {}, emit: event => events.push(event),
+    turn: async request => response(request, [{ text: 'Please supply the hierarchy and quantities.' }]),
+    call: async () => { throw Error('Unexpected call'); },
+  });
+  assert.equal(events.at(-1)?.text, 'Please supply the hierarchy and quantities.');
 });
 
 test('repeated tool calls replace their own progress row, including a failed call', async () => {
