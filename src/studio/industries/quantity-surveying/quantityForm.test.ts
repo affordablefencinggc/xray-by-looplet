@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assignQuantityItem, calculateQuantityForm, createEmptyQuantityForm, quantityFormInput, quantityFormSchema, type QuantityForm } from "./quantityForm.ts";
+import {
+  assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createEmptyQuantityForm, createQuantityBinding,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema,
+  type QuantityBindingDraft, type QuantityForm,
+} from "./quantityForm.ts";
+import {
+  describeIndustryBinding, isVerifiedEvidenceClass, type IndustrySourceState,
+} from "../sourceBinding.ts";
 
 function fixture(): QuantityForm {
   return {
@@ -101,4 +108,152 @@ test("JSON draft roundtrip retains unassigned items and recomputes the same repo
   const restored = quantityFormSchema.parse(JSON.parse(JSON.stringify(form)));
   assert.deepEqual(calculateQuantityForm(restored), calculateQuantityForm(form));
   assert.equal(restored.items[1].nodeKey, "");
+});
+
+// --- QS-03: binding classified rows to immutable measured evidence ---
+
+const SHA = "a".repeat(64);
+const OTHER_SHA = "b".repeat(64);
+const BOUND_AT = "2026-09-16T02:00:00.000Z";
+const sourceState = (overrides: Partial<IndustrySourceState> = {}): IndustrySourceState => ({
+  projectId: "project-1", sourceRevision: { id: "rev-1", sha256: SHA }, calibrationId: "cal-1", ...overrides,
+});
+const bindingDraft = (overrides: Partial<QuantityBindingDraft> = {}): QuantityBindingDraft => ({
+  pageIndexText: "2", evidenceClass: "traced", reference: "Sheet A-201 north plane", units: "m", ...overrides,
+});
+const boundForm = (
+  form: QuantityForm,
+  source: IndustrySourceState = sourceState(),
+  draft: QuantityBindingDraft = bindingDraft(),
+): QuantityForm => ({ ...form, binding: createQuantityBinding(source, draft, BOUND_AT), calculated: true });
+
+test("an unbound worksheet still classifies and is labelled unverified", () => {
+  const { evaluation, report } = evaluateQuantityFormBinding({ ...fixture(), calculated: true }, sourceState());
+  assert.deepEqual(evaluation, { status: "unbound", reasons: [] });
+  assert.ok(report);
+  assert.equal(report.totals[0].quantity, "0.3");
+  assert.equal(report.verifiedQuoteEligible, false);
+  assert.equal(report.status, "draft-classification");
+  assert.match(describeIndustryBinding(evaluation), /Not bound/);
+  // an uncalculated worksheet has no report to present
+  assert.equal(evaluateQuantityFormBinding(fixture(), sourceState()).report, null);
+  assert.deepEqual(createEmptyQuantityBindingDraft(), { pageIndexText: "", evidenceClass: "", reference: "", units: "" });
+});
+
+test("binding succeeds from explicit inputs and round-trips through the quantity form schema", () => {
+  const form = { ...fixture(), calculated: true };
+  const bound = boundForm(form);
+  const binding = bound.binding!;
+  assert.equal(binding.schema, "xray.industry-source-binding/1");
+  assert.equal(binding.projectId, "project-1");
+  assert.equal(binding.sourceRevisionId, "rev-1");
+  assert.equal(binding.sha256, SHA);
+  assert.equal(binding.sourceName, "rev-1");
+  assert.equal(binding.calibrationId, "cal-1");
+  assert.equal(binding.units, "m");
+  assert.equal(binding.evidenceClass, "traced");
+  assert.equal(binding.reference, "Sheet A-201 north plane");
+  assert.equal(binding.boundAt, BOUND_AT);
+  assert.deepEqual(binding.locator, { kind: "page", pageIndex: 2 });
+  assert.deepEqual(form.nodes, fixture().nodes, "binding must not mutate the original form");
+  const restored = quantityFormSchema.parse(JSON.parse(JSON.stringify(bound)));
+  assert.deepEqual(restored, bound);
+  assert.deepEqual(restored.binding, binding);
+  assert.equal(JSON.parse(JSON.stringify(bound)).binding.reference, "Sheet A-201 north plane");
+});
+
+test("binding identity comes from the live source and the unit is never invented", () => {
+  assert.equal(createQuantityBinding(sourceState(), bindingDraft({ units: "ft" }), BOUND_AT).units, "ft");
+  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ units: "" }), BOUND_AT), /Units/);
+  assert.throws(() => createQuantityBinding(sourceState({ sourceRevision: null }), bindingDraft(), BOUND_AT), /no current source revision/);
+});
+
+test("each change to the bound source withholds the report and names the reason", () => {
+  const form = boundForm({ ...fixture(), calculated: true });
+  const cases: Array<[string, Partial<IndustrySourceState>, RegExp]> = [
+    ["source-revised", { sourceRevision: { id: "rev-1", sha256: OTHER_SHA } }, /was edited/],
+    ["source-replaced", { sourceRevision: { id: "rev-2", sha256: SHA } }, /different source revision/],
+    ["source-missing", { sourceRevision: null }, /no longer in the project/],
+    ["project-changed", { projectId: "project-2" }, /not the project this was bound to/],
+    ["calibration-changed", { calibrationId: "cal-2" }, /calibration changed/],
+  ];
+  for (const [label, change, pattern] of cases) {
+    const { evaluation, report } = evaluateQuantityFormBinding(form, sourceState(change));
+    assert.equal(evaluation.status, "stale", label);
+    assert.equal(report, null, `${label} must withhold the report`);
+    assert.match(describeIndustryBinding(evaluation), pattern, label);
+  }
+  const current = evaluateQuantityFormBinding(form, sourceState());
+  assert.deepEqual(current.evaluation, { status: "current", reasons: [] });
+  assert.ok(current.report);
+});
+
+test("a declared binding stays a supplied reference and never reports verified evidence", () => {
+  const source = sourceState({ calibrationId: null });
+  const binding = createQuantityBinding(source, bindingDraft({ evidenceClass: "declared" }), BOUND_AT);
+  assert.equal(binding.evidenceClass, "declared");
+  assert.equal(binding.calibrationId, null);
+  assert.equal(isVerifiedEvidenceClass(binding.evidenceClass), false);
+  assert.match(describeQuantityBindingEvidence(binding), /Supplied evidence \(declared\)/);
+  assert.match(describeQuantityBindingEvidence(binding), /not verified against the source/);
+  assert.doesNotMatch(describeQuantityBindingEvidence(binding), /Source-derived/);
+  const { evaluation, report } = evaluateQuantityFormBinding({ ...fixture(), calculated: true, binding }, source);
+  assert.deepEqual(evaluation, { status: "current", reasons: [] });
+  assert.ok(report);
+  assert.equal(report.verifiedQuoteEligible, false);
+  assert.equal(report.status, "draft-classification");
+});
+
+test("source-derived evidence without its calibration is refused; a declared binding carries none", () => {
+  const uncalibrated = sourceState({ calibrationId: null });
+  for (const evidenceClass of ["traced", "dimensioned", "inferred"]) {
+    assert.throws(() => createQuantityBinding(uncalibrated, bindingDraft({ evidenceClass }), BOUND_AT), /calibration/, evidenceClass);
+  }
+  assert.equal(createQuantityBinding(uncalibrated, bindingDraft({ evidenceClass: "declared" }), BOUND_AT).calibrationId, null);
+  // a declared reference is not a calibrated measurement, even when the source has a calibration
+  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ evidenceClass: "declared" }), BOUND_AT), /calibrated measurement/);
+});
+
+test("blank user inputs are refused rather than defaulted to a plausible page or class", () => {
+  for (const pageIndexText of ["", "   ", "0.5", "-1", "two", "1e2"]) {
+    assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ pageIndexText }), BOUND_AT), /Page index/, pageIndexText);
+  }
+  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ evidenceClass: "" }), BOUND_AT), /Evidence class/);
+  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ reference: "   " }), BOUND_AT), /Reference/);
+  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ units: " " }), BOUND_AT), /Units/);
+  // page 0 is a real page the user can choose, not a silent default
+  assert.deepEqual(createQuantityBinding(sourceState(), bindingDraft({ pageIndexText: "0" }), BOUND_AT).locator, { kind: "page", pageIndex: 0 });
+});
+
+test("binding never changes exact decimal totals or the unit and evidence separation", () => {
+  const manual = { ...fixture(), calculated: true };
+  manual.items.push({ key: "c-key", reference: "c", quantity: "10", unit: "lm", evidence: "sample", nodeKey: "wall-key" });
+  manual.items[1].evidence = "inferred";
+  const manualReport = evaluateQuantityFormBinding(manual, sourceState()).report!;
+  const boundReport = evaluateQuantityFormBinding(boundForm(manual), sourceState()).report!;
+  assert.deepEqual(boundReport.totals, manualReport.totals);
+  assert.deepEqual(boundReport.totals.map(row => [row.unit, row.evidence, row.quantity]), [
+    ["m2", "unverified", "0.1"], ["m2", "inferred", "0.2"], ["lm", "sample", "10"],
+  ]);
+  assert.deepEqual(boundReport.unclassifiedItemIds, ["b"]);
+  assert.deepEqual(boundReport.rows.map(row => row.source), [null, null, null]);
+  assert.equal(boundReport.verifiedQuoteEligible, false);
+});
+
+test("clearing a binding returns the worksheet to manual and unverified", () => {
+  const cleared = { ...boundForm({ ...fixture(), calculated: true }), binding: null, calculated: false };
+  assert.deepEqual(quantityFormSchema.parse(JSON.parse(JSON.stringify(cleared))), cleared);
+  assert.equal(evaluateQuantityFormBinding({ ...cleared, calculated: true }, sourceState()).evaluation.status, "unbound");
+  assert.equal(createEmptyQuantityForm().binding, null);
+});
+
+test("evidence classes are described as supplied or source-derived, never promoted", () => {
+  assert.match(describeQuantityBindingEvidence(null), /Not bound/);
+  assert.match(describeQuantityBindingEvidence(undefined), /Not bound/);
+  const traced = createQuantityBinding(sourceState(), bindingDraft({ evidenceClass: "traced" }), BOUND_AT);
+  assert.match(describeQuantityBindingEvidence(traced), /Source-derived traced evidence/);
+  assert.match(describeQuantityBindingEvidence(traced), /not eligible for verified quotes/);
+  assert.equal(isVerifiedEvidenceClass("declared"), false);
+  assert.equal(isVerifiedEvidenceClass("inferred"), false);
+  assert.equal(isVerifiedEvidenceClass("dimensioned"), true);
 });

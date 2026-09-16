@@ -1,16 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { QuantityReportView } from "./QuantityReportView";
 import type { IndustryDraftPanelProps } from "../draftPanel";
-import { assignQuantityItem, calculateQuantityForm, type QuantityForm } from "./quantityForm";
+import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
+import {
+  assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, type QuantityBindingDraft, type QuantityForm,
+} from "./quantityForm";
 
-export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<QuantityForm>) {
+/** Rendered when the host cannot supply a live project source: the worksheet stays manual and unbound. */
+const MISSING_SOURCE: IndustrySourceState = { projectId: "", sourceRevision: null, calibrationId: null };
+const EVIDENCE_LABELS: Record<string, string> = {
+  traced: "Traced source geometry", dimensioned: "Dimensioned source geometry",
+  inferred: "Inferred reconstruction", declared: "Declared typed reference",
+};
+
+export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource }: IndustryDraftPanelProps<QuantityForm>) {
   const [error, setError] = useState("");
+  const [draft, setDraft] = useState<QuantityBindingDraft>(() => createEmptyQuantityBindingDraft());
+  const source: IndustrySourceState = reportedSource ?? MISSING_SOURCE;
   useEffect(() => { setError(""); }, [value]);
-  const result = useMemo(() => {
-    if (!value.calculated) return null;
-    try { return calculateQuantityForm(value); } catch { return null; }
-  }, [value]);
+  const { evaluation, report } = useMemo(() => evaluateQuantityFormBinding(value, source), [value, source]);
+  const binding = value.binding ?? null;
+  const canBind = source.sourceRevision !== null;
   const edit = (next: QuantityForm) => { setError(""); onChange({ ...next, calculated: false }); };
+  const bind = () => {
+    try {
+      const next = createQuantityBinding(source, draft, new Date().toISOString());
+      setDraft(createEmptyQuantityBindingDraft());
+      setError("");
+      onChange({ ...value, binding: next, calculated: false });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Check the source binding inputs."); }
+  };
+  const clearBinding = () => { setError(""); onChange({ ...value, binding: null, calculated: false }); };
   const nodeName = (key: string) => {
     const node = value.nodes.find(item => item.key === key);
     return node ? `${node.code || "Unnamed code"} · ${node.label || "Unnamed classification"}` : "Missing classification";
@@ -20,7 +41,42 @@ export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftP
     catch (cause) { setError(cause instanceof Error ? cause.message : "Check the classification and quantity inputs."); }
   };
   return <section className="industry-form" aria-label="Quantity surveying draft">
-    <p className="industry-note">Manual draft quantities. Source references are not attached and quantities are not verified. Classifications do not create prices or an issued cost plan.</p>
+    <p className="industry-note">Manual draft quantities. Binding records the source you pointed at; it does not verify the quantity. Classifications do not create prices or an issued cost plan.</p>
+    <fieldset disabled={disabled}>
+      <legend>Source binding</legend>
+      {binding === null
+        ? <>
+          <div className="industry-fields">
+            <label>Source page index (0-based)<input inputMode="numeric" value={draft.pageIndexText} maxLength={12} onChange={event => { setError(""); setDraft({ ...draft, pageIndexText: event.target.value }); }} /></label>
+            <label>Source units<select value={draft.units} onChange={event => { setError(""); setDraft({ ...draft, units: event.target.value }); }}>
+              <option value="">Choose length unit</option>
+              {industryLengthUnitSchema.options.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+            </select></label>
+            <label>Evidence class<select value={draft.evidenceClass} onChange={event => { setError(""); setDraft({ ...draft, evidenceClass: event.target.value }); }}>
+              <option value="">Choose evidence class</option>
+              {industryEvidenceClassSchema.options.map(option => <option key={option} value={option}>{EVIDENCE_LABELS[option] ?? option}</option>)}
+            </select></label>
+            <label>Reference<input value={draft.reference} maxLength={1000} onChange={event => { setError(""); setDraft({ ...draft, reference: event.target.value }); }} /></label>
+          </div>
+          <div className="industry-actions">
+            <button type="button" disabled={disabled || !canBind} onClick={bind}>Bind to current project source</button>
+          </div>
+          {!canBind && <p className="industry-note">No project source revision is available to bind to. Quantities stay manual and unverified.</p>}
+          <p className="industry-note">{describeIndustryBinding(evaluation)}</p>
+        </>
+        : <>
+          <div className="industry-fields">
+            <p className="industry-note">Reference: {binding.reference}</p>
+            <p className="industry-note">Evidence class: {binding.evidenceClass} · {EVIDENCE_LABELS[binding.evidenceClass] ?? binding.evidenceClass}</p>
+            <p className="industry-note">Units: {binding.units} · Source: {binding.sourceName}</p>
+            <p className="industry-note">{describeQuantityBindingEvidence(binding)}</p>
+          </div>
+          <div className="industry-actions">
+            <button type="button" disabled={disabled} onClick={clearBinding}>Clear binding</button>
+          </div>
+          <p className="industry-note">{describeIndustryBinding(evaluation)}</p>
+        </>}
+    </fieldset>
     <fieldset disabled={disabled}>
       <legend>Your classification hierarchy</legend>
       <div className="industry-fields">
@@ -57,6 +113,7 @@ export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftP
     </fieldset>
     <div className="industry-actions"><button type="button" disabled={disabled || !value.items.length || !value.nodes.length} onClick={calculate}>Calculate classification</button></div>
     {error && <p className="industry-error" role="alert">{error}</p>}
-    {result && <div className="industry-result" aria-live="polite"><QuantityReportView report={result} disabled={disabled} /></div>}
+    {evaluation.status === "stale" && <p className="industry-result" role="status">Classification report withheld — {describeIndustryBinding(evaluation)}</p>}
+    {report && <div className="industry-result" aria-live="polite"><QuantityReportView report={report} disabled={disabled} /></div>}
   </section>;
 }

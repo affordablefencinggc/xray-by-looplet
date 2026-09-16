@@ -1,0 +1,501 @@
+diff --git a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+index b249ac2..4e2e185 100644
+--- a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
++++ b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+@@ -1,16 +1,37 @@
+ import { useEffect, useMemo, useState } from "react";
+ import { QuantityReportView } from "./QuantityReportView";
+ import type { IndustryDraftPanelProps } from "../draftPanel";
+-import { assignQuantityItem, calculateQuantityForm, type QuantityForm } from "./quantityForm";
++import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
++import {
++  assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
++  describeQuantityBindingEvidence, evaluateQuantityFormBinding, type QuantityBindingDraft, type QuantityForm,
++} from "./quantityForm";
+ 
+-export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<QuantityForm>) {
++/** Rendered when the host cannot supply a live project source: the worksheet stays manual and unbound. */
++const MISSING_SOURCE: IndustrySourceState = { projectId: "", sourceRevision: null, calibrationId: null };
++const EVIDENCE_LABELS: Record<string, string> = {
++  traced: "Traced source geometry", dimensioned: "Dimensioned source geometry",
++  inferred: "Inferred reconstruction", declared: "Declared typed reference",
++};
++
++export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource }: IndustryDraftPanelProps<QuantityForm>) {
+   const [error, setError] = useState("");
++  const [draft, setDraft] = useState<QuantityBindingDraft>(() => createEmptyQuantityBindingDraft());
++  const source: IndustrySourceState = reportedSource ?? MISSING_SOURCE;
+   useEffect(() => { setError(""); }, [value]);
+-  const result = useMemo(() => {
+-    if (!value.calculated) return null;
+-    try { return calculateQuantityForm(value); } catch { return null; }
+-  }, [value]);
++  const { evaluation, report } = useMemo(() => evaluateQuantityFormBinding(value, source), [value, source]);
++  const binding = value.binding ?? null;
++  const canBind = source.sourceRevision !== null;
+   const edit = (next: QuantityForm) => { setError(""); onChange({ ...next, calculated: false }); };
++  const bind = () => {
++    try {
++      const next = createQuantityBinding(source, draft, new Date().toISOString());
++      setDraft(createEmptyQuantityBindingDraft());
++      setError("");
++      onChange({ ...value, binding: next, calculated: false });
++    } catch (cause) { setError(cause instanceof Error ? cause.message : "Check the source binding inputs."); }
++  };
++  const clearBinding = () => { setError(""); onChange({ ...value, binding: null, calculated: false }); };
+   const nodeName = (key: string) => {
+     const node = value.nodes.find(item => item.key === key);
+     return node ? `${node.code || "Unnamed code"} · ${node.label || "Unnamed classification"}` : "Missing classification";
+@@ -20,7 +41,42 @@ export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftP
+     catch (cause) { setError(cause instanceof Error ? cause.message : "Check the classification and quantity inputs."); }
+   };
+   return <section className="industry-form" aria-label="Quantity surveying draft">
+-    <p className="industry-note">Manual draft quantities. Source references are not attached and quantities are not verified. Classifications do not create prices or an issued cost plan.</p>
++    <p className="industry-note">Manual draft quantities. Binding records the source you pointed at; it does not verify the quantity. Classifications do not create prices or an issued cost plan.</p>
++    <fieldset disabled={disabled}>
++      <legend>Source binding</legend>
++      {binding === null
++        ? <>
++          <div className="industry-fields">
++            <label>Source page index (0-based)<input inputMode="numeric" value={draft.pageIndexText} maxLength={12} onChange={event => { setError(""); setDraft({ ...draft, pageIndexText: event.target.value }); }} /></label>
++            <label>Source units<select value={draft.units} onChange={event => { setError(""); setDraft({ ...draft, units: event.target.value }); }}>
++              <option value="">Choose length unit</option>
++              {industryLengthUnitSchema.options.map(unit => <option key={unit} value={unit}>{unit}</option>)}
++            </select></label>
++            <label>Evidence class<select value={draft.evidenceClass} onChange={event => { setError(""); setDraft({ ...draft, evidenceClass: event.target.value }); }}>
++              <option value="">Choose evidence class</option>
++              {industryEvidenceClassSchema.options.map(option => <option key={option} value={option}>{EVIDENCE_LABELS[option] ?? option}</option>)}
++            </select></label>
++            <label>Reference<input value={draft.reference} maxLength={1000} onChange={event => { setError(""); setDraft({ ...draft, reference: event.target.value }); }} /></label>
++          </div>
++          <div className="industry-actions">
++            <button type="button" disabled={disabled || !canBind} onClick={bind}>Bind to current project source</button>
++          </div>
++          {!canBind && <p className="industry-note">No project source revision is available to bind to. Quantities stay manual and unverified.</p>}
++          <p className="industry-note">{describeIndustryBinding(evaluation)}</p>
++        </>
++        : <>
++          <div className="industry-fields">
++            <p className="industry-note">Reference: {binding.reference}</p>
++            <p className="industry-note">Evidence class: {binding.evidenceClass} · {EVIDENCE_LABELS[binding.evidenceClass] ?? binding.evidenceClass}</p>
++            <p className="industry-note">Units: {binding.units} · Source: {binding.sourceName}</p>
++            <p className="industry-note">{describeQuantityBindingEvidence(binding)}</p>
++          </div>
++          <div className="industry-actions">
++            <button type="button" disabled={disabled} onClick={clearBinding}>Clear binding</button>
++          </div>
++          <p className="industry-note">{describeIndustryBinding(evaluation)}</p>
++        </>}
++    </fieldset>
+     <fieldset disabled={disabled}>
+       <legend>Your classification hierarchy</legend>
+       <div className="industry-fields">
+@@ -57,6 +113,7 @@ export function QuantityDraftPanel({ value, onChange, disabled }: IndustryDraftP
+     </fieldset>
+     <div className="industry-actions"><button type="button" disabled={disabled || !value.items.length || !value.nodes.length} onClick={calculate}>Calculate classification</button></div>
+     {error && <p className="industry-error" role="alert">{error}</p>}
+-    {result && <div className="industry-result" aria-live="polite"><QuantityReportView report={result} disabled={disabled} /></div>}
++    {evaluation.status === "stale" && <p className="industry-result" role="status">Classification report withheld — {describeIndustryBinding(evaluation)}</p>}
++    {report && <div className="industry-result" aria-live="polite"><QuantityReportView report={report} disabled={disabled} /></div>}
+   </section>;
+ }
+diff --git a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+index 33d3a60..ed51edf 100644
+--- a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
++++ b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+@@ -2,21 +2,24 @@ import { after, test } from 'node:test';
+ import assert from 'node:assert/strict';
+ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+ import { createRequire } from 'node:module';
+-import { dirname, join, resolve } from 'node:path';
++import { basename, dirname, join, resolve } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+ import React from 'react';
+ import { renderToStaticMarkup } from 'react-dom/server';
+ import ts from 'typescript';
++import { INDUSTRY_SOURCE_BINDING_SCHEMA, createIndustrySourceBinding, type IndustrySourceState } from '../sourceBinding.ts';
+ import type { QuantityForm } from './quantityForm.ts';
+ 
+ const here = dirname(fileURLToPath(import.meta.url));
+ mkdirSync(resolve('node_modules/.cache'), { recursive: true });
+ const dir = mkdtempSync(resolve('node_modules/.cache/quantity-report-'));
+-for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx']) {
++// The worksheet panel imports the shared source-binding contract from the parent directory, so that
++// module is transpiled too and its relative require is rewritten alongside the same-directory ones.
++for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts']) {
+   const code = ts.transpileModule(readFileSync(join(here, name), 'utf8'), {
+     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
+-  }).outputText.replace(/require\("\.\/(\w+)(?:\.ts)?"\)/g, 'require("./$1.cjs")');
+-  writeFileSync(join(dir, name.replace(/\.tsx?$/, '.cjs')), code);
++  }).outputText.replace(/require\("(?:\.\/|\.\.\/)(\w+)(?:\.ts)?"\)/g, 'require("./$1.cjs")');
++  writeFileSync(join(dir, basename(name).replace(/\.tsx?$/, '.cjs')), code);
+ }
+ const require = createRequire(import.meta.url);
+ const { QuantityDraftPanel } = require(join(dir, 'QuantityDraftPanel.cjs')) as typeof import('./QuantityDraftPanel');
+@@ -25,7 +28,9 @@ const form: QuantityForm = { hierarchyId: 'QA', hierarchyRevision: '1', calculat
+   nodes: [{ key: 'r', code: 'Building', label: 'Building work', parentKey: '' }, { key: 'w', code: 'Walls', label: 'Wall finishes', parentKey: 'r' }],
+   items: [{ key: 'a', reference: 'Item A', quantity: '0.1', unit: 'm2', evidence: 'unverified', nodeKey: 'w' },
+     { key: 'b', reference: 'Item B', quantity: '0.2', unit: 'm2', evidence: 'unverified', nodeKey: '' }] };
+-const render = (value: QuantityForm, disabled = false) => renderToStaticMarkup(React.createElement(QuantityDraftPanel, { value, disabled, onChange() {} }));
++const render = (value: QuantityForm, disabled = false,
++  source: IndustrySourceState = { projectId: 'p1', sourceRevision: null, calibrationId: null }) =>
++  renderToStaticMarkup(React.createElement(QuantityDraftPanel, { value, disabled, source, onChange() {} }));
+ 
+ test('real worksheet renders separated report totals, item rows, filters and expandable hierarchy', () => {
+   const html = render(form);
+@@ -47,3 +52,50 @@ test('stale or invalid form never exposes a downloadable result', () => {
+ test('locked worksheet cannot download while host writes are unavailable', () => {
+   assert.match(render(form, true), /<button type="button" disabled="">Download shown item rows \(CSV\)<\/button>/);
+ });
++
++// --- QS-03: the source binding block ---
++
++const SHA = 'a'.repeat(64);
++const SOURCE: IndustrySourceState = { projectId: 'p1', sourceRevision: { id: 'rev-1', sha256: SHA }, calibrationId: 'cal-1' };
++const BINDING = createIndustrySourceBinding({ schema: INDUSTRY_SOURCE_BINDING_SCHEMA, projectId: 'p1',
++  sourceRevisionId: 'rev-1', sha256: SHA, sourceName: 'rev-1', locator: { kind: 'page', pageIndex: 2 },
++  calibrationId: 'cal-1', units: 'm', evidenceClass: 'traced', reference: 'Sheet A-201 north plane', boundAt: '2026-09-16T02:00:00.000Z' });
++
++test('a project with no current source revision disables binding with a readable explanation', () => {
++  const html = render(form, false, { projectId: 'p1', sourceRevision: null, calibrationId: null });
++  assert.match(html, /Source binding/);
++  assert.match(html, /No project source revision is available to bind to/);
++  assert.match(html, /<button type="button" disabled="">Bind to current project source<\/button>/);
++});
++
++test('an unbound worksheet shows explicit, unpopulated binding inputs from the live source', () => {
++  const html = render(form, false, SOURCE);
++  assert.match(html, /Source page index \(0-based\)<input inputMode="numeric" maxLength="12" value=""/);
++  assert.match(html, /Choose length unit/);
++  assert.match(html, /Choose evidence class/);
++  assert.match(html, /<button type="button">Bind to current project source<\/button>/);
++  assert.match(html, /Not bound to a project source/);
++});
++
++test('a bound worksheet shows its reference, evidence, source and current status', () => {
++  const html = render({ ...form, binding: BINDING }, false, SOURCE);
++  assert.match(html, /Reference: Sheet A-201 north plane/);
++  assert.match(html, /Evidence class: traced/);
++  assert.match(html, /Source-derived traced evidence/);
++  assert.match(html, /Bound to the current source revision/);
++  assert.match(html, /<button type="button">Clear binding<\/button>/);
++});
++
++test('a stale binding withholds the report and names the reason instead of showing totals', () => {
++  const html = render({ ...form, binding: BINDING }, false, { projectId: 'p1', sourceRevision: null, calibrationId: null });
++  assert.match(html, /Classification report withheld/);
++  assert.match(html, /no longer in the project/);
++  assert.doesNotMatch(html, /Download shown item rows/);
++  assert.doesNotMatch(html, /Whole draft totals/);
++});
++
++test('an unbound worksheet still presents its unverified report exactly as before', () => {
++  const html = render(form, false, SOURCE);
++  assert.match(html, /Whole draft totals/);
++  assert.match(html, /Draft classification · Not for verified quotes/);
++});
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.test.ts b/src/studio/industries/quantity-surveying/quantityForm.test.ts
+index 7549b65..b9f55fe 100644
+--- a/src/studio/industries/quantity-surveying/quantityForm.test.ts
++++ b/src/studio/industries/quantity-surveying/quantityForm.test.ts
+@@ -1,6 +1,13 @@
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import { assignQuantityItem, calculateQuantityForm, createEmptyQuantityForm, quantityFormInput, quantityFormSchema, type QuantityForm } from "./quantityForm.ts";
++import {
++  assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createEmptyQuantityForm, createQuantityBinding,
++  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema,
++  type QuantityBindingDraft, type QuantityForm,
++} from "./quantityForm.ts";
++import {
++  describeIndustryBinding, isVerifiedEvidenceClass, type IndustrySourceState,
++} from "../sourceBinding.ts";
+ 
+ function fixture(): QuantityForm {
+   return {
+@@ -102,3 +109,151 @@ test("JSON draft roundtrip retains unassigned items and recomputes the same repo
+   assert.deepEqual(calculateQuantityForm(restored), calculateQuantityForm(form));
+   assert.equal(restored.items[1].nodeKey, "");
+ });
++
++// --- QS-03: binding classified rows to immutable measured evidence ---
++
++const SHA = "a".repeat(64);
++const OTHER_SHA = "b".repeat(64);
++const BOUND_AT = "2026-09-16T02:00:00.000Z";
++const sourceState = (overrides: Partial<IndustrySourceState> = {}): IndustrySourceState => ({
++  projectId: "project-1", sourceRevision: { id: "rev-1", sha256: SHA }, calibrationId: "cal-1", ...overrides,
++});
++const bindingDraft = (overrides: Partial<QuantityBindingDraft> = {}): QuantityBindingDraft => ({
++  pageIndexText: "2", evidenceClass: "traced", reference: "Sheet A-201 north plane", units: "m", ...overrides,
++});
++const boundForm = (
++  form: QuantityForm,
++  source: IndustrySourceState = sourceState(),
++  draft: QuantityBindingDraft = bindingDraft(),
++): QuantityForm => ({ ...form, binding: createQuantityBinding(source, draft, BOUND_AT), calculated: true });
++
++test("an unbound worksheet still classifies and is labelled unverified", () => {
++  const { evaluation, report } = evaluateQuantityFormBinding({ ...fixture(), calculated: true }, sourceState());
++  assert.deepEqual(evaluation, { status: "unbound", reasons: [] });
++  assert.ok(report);
++  assert.equal(report.totals[0].quantity, "0.3");
++  assert.equal(report.verifiedQuoteEligible, false);
++  assert.equal(report.status, "draft-classification");
++  assert.match(describeIndustryBinding(evaluation), /Not bound/);
++  // an uncalculated worksheet has no report to present
++  assert.equal(evaluateQuantityFormBinding(fixture(), sourceState()).report, null);
++  assert.deepEqual(createEmptyQuantityBindingDraft(), { pageIndexText: "", evidenceClass: "", reference: "", units: "" });
++});
++
++test("binding succeeds from explicit inputs and round-trips through the quantity form schema", () => {
++  const form = { ...fixture(), calculated: true };
++  const bound = boundForm(form);
++  const binding = bound.binding!;
++  assert.equal(binding.schema, "xray.industry-source-binding/1");
++  assert.equal(binding.projectId, "project-1");
++  assert.equal(binding.sourceRevisionId, "rev-1");
++  assert.equal(binding.sha256, SHA);
++  assert.equal(binding.sourceName, "rev-1");
++  assert.equal(binding.calibrationId, "cal-1");
++  assert.equal(binding.units, "m");
++  assert.equal(binding.evidenceClass, "traced");
++  assert.equal(binding.reference, "Sheet A-201 north plane");
++  assert.equal(binding.boundAt, BOUND_AT);
++  assert.deepEqual(binding.locator, { kind: "page", pageIndex: 2 });
++  assert.deepEqual(form.nodes, fixture().nodes, "binding must not mutate the original form");
++  const restored = quantityFormSchema.parse(JSON.parse(JSON.stringify(bound)));
++  assert.deepEqual(restored, bound);
++  assert.deepEqual(restored.binding, binding);
++  assert.equal(JSON.parse(JSON.stringify(bound)).binding.reference, "Sheet A-201 north plane");
++});
++
++test("binding identity comes from the live source and the unit is never invented", () => {
++  assert.equal(createQuantityBinding(sourceState(), bindingDraft({ units: "ft" }), BOUND_AT).units, "ft");
++  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ units: "" }), BOUND_AT), /Units/);
++  assert.throws(() => createQuantityBinding(sourceState({ sourceRevision: null }), bindingDraft(), BOUND_AT), /no current source revision/);
++});
++
++test("each change to the bound source withholds the report and names the reason", () => {
++  const form = boundForm({ ...fixture(), calculated: true });
++  const cases: Array<[string, Partial<IndustrySourceState>, RegExp]> = [
++    ["source-revised", { sourceRevision: { id: "rev-1", sha256: OTHER_SHA } }, /was edited/],
++    ["source-replaced", { sourceRevision: { id: "rev-2", sha256: SHA } }, /different source revision/],
++    ["source-missing", { sourceRevision: null }, /no longer in the project/],
++    ["project-changed", { projectId: "project-2" }, /not the project this was bound to/],
++    ["calibration-changed", { calibrationId: "cal-2" }, /calibration changed/],
++  ];
++  for (const [label, change, pattern] of cases) {
++    const { evaluation, report } = evaluateQuantityFormBinding(form, sourceState(change));
++    assert.equal(evaluation.status, "stale", label);
++    assert.equal(report, null, `${label} must withhold the report`);
++    assert.match(describeIndustryBinding(evaluation), pattern, label);
++  }
++  const current = evaluateQuantityFormBinding(form, sourceState());
++  assert.deepEqual(current.evaluation, { status: "current", reasons: [] });
++  assert.ok(current.report);
++});
++
++test("a declared binding stays a supplied reference and never reports verified evidence", () => {
++  const source = sourceState({ calibrationId: null });
++  const binding = createQuantityBinding(source, bindingDraft({ evidenceClass: "declared" }), BOUND_AT);
++  assert.equal(binding.evidenceClass, "declared");
++  assert.equal(binding.calibrationId, null);
++  assert.equal(isVerifiedEvidenceClass(binding.evidenceClass), false);
++  assert.match(describeQuantityBindingEvidence(binding), /Supplied evidence \(declared\)/);
++  assert.match(describeQuantityBindingEvidence(binding), /not verified against the source/);
++  assert.doesNotMatch(describeQuantityBindingEvidence(binding), /Source-derived/);
++  const { evaluation, report } = evaluateQuantityFormBinding({ ...fixture(), calculated: true, binding }, source);
++  assert.deepEqual(evaluation, { status: "current", reasons: [] });
++  assert.ok(report);
++  assert.equal(report.verifiedQuoteEligible, false);
++  assert.equal(report.status, "draft-classification");
++});
++
++test("source-derived evidence without its calibration is refused; a declared binding carries none", () => {
++  const uncalibrated = sourceState({ calibrationId: null });
++  for (const evidenceClass of ["traced", "dimensioned", "inferred"]) {
++    assert.throws(() => createQuantityBinding(uncalibrated, bindingDraft({ evidenceClass }), BOUND_AT), /calibration/, evidenceClass);
++  }
++  assert.equal(createQuantityBinding(uncalibrated, bindingDraft({ evidenceClass: "declared" }), BOUND_AT).calibrationId, null);
++  // a declared reference is not a calibrated measurement, even when the source has a calibration
++  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ evidenceClass: "declared" }), BOUND_AT), /calibrated measurement/);
++});
++
++test("blank user inputs are refused rather than defaulted to a plausible page or class", () => {
++  for (const pageIndexText of ["", "   ", "0.5", "-1", "two", "1e2"]) {
++    assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ pageIndexText }), BOUND_AT), /Page index/, pageIndexText);
++  }
++  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ evidenceClass: "" }), BOUND_AT), /Evidence class/);
++  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ reference: "   " }), BOUND_AT), /Reference/);
++  assert.throws(() => createQuantityBinding(sourceState(), bindingDraft({ units: " " }), BOUND_AT), /Units/);
++  // page 0 is a real page the user can choose, not a silent default
++  assert.deepEqual(createQuantityBinding(sourceState(), bindingDraft({ pageIndexText: "0" }), BOUND_AT).locator, { kind: "page", pageIndex: 0 });
++});
++
++test("binding never changes exact decimal totals or the unit and evidence separation", () => {
++  const manual = { ...fixture(), calculated: true };
++  manual.items.push({ key: "c-key", reference: "c", quantity: "10", unit: "lm", evidence: "sample", nodeKey: "wall-key" });
++  manual.items[1].evidence = "inferred";
++  const manualReport = evaluateQuantityFormBinding(manual, sourceState()).report!;
++  const boundReport = evaluateQuantityFormBinding(boundForm(manual), sourceState()).report!;
++  assert.deepEqual(boundReport.totals, manualReport.totals);
++  assert.deepEqual(boundReport.totals.map(row => [row.unit, row.evidence, row.quantity]), [
++    ["m2", "unverified", "0.1"], ["m2", "inferred", "0.2"], ["lm", "sample", "10"],
++  ]);
++  assert.deepEqual(boundReport.unclassifiedItemIds, ["b"]);
++  assert.deepEqual(boundReport.rows.map(row => row.source), [null, null, null]);
++  assert.equal(boundReport.verifiedQuoteEligible, false);
++});
++
++test("clearing a binding returns the worksheet to manual and unverified", () => {
++  const cleared = { ...boundForm({ ...fixture(), calculated: true }), binding: null, calculated: false };
++  assert.deepEqual(quantityFormSchema.parse(JSON.parse(JSON.stringify(cleared))), cleared);
++  assert.equal(evaluateQuantityFormBinding({ ...cleared, calculated: true }, sourceState()).evaluation.status, "unbound");
++  assert.equal(createEmptyQuantityForm().binding, null);
++});
++
++test("evidence classes are described as supplied or source-derived, never promoted", () => {
++  assert.match(describeQuantityBindingEvidence(null), /Not bound/);
++  assert.match(describeQuantityBindingEvidence(undefined), /Not bound/);
++  const traced = createQuantityBinding(sourceState(), bindingDraft({ evidenceClass: "traced" }), BOUND_AT);
++  assert.match(describeQuantityBindingEvidence(traced), /Source-derived traced evidence/);
++  assert.match(describeQuantityBindingEvidence(traced), /not eligible for verified quotes/);
++  assert.equal(isVerifiedEvidenceClass("declared"), false);
++  assert.equal(isVerifiedEvidenceClass("inferred"), false);
++  assert.equal(isVerifiedEvidenceClass("dimensioned"), true);
++});
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.ts b/src/studio/industries/quantity-surveying/quantityForm.ts
+index 0bda4e5..8af71ff 100644
+--- a/src/studio/industries/quantity-surveying/quantityForm.ts
++++ b/src/studio/industries/quantity-surveying/quantityForm.ts
+@@ -1,5 +1,16 @@
+ import { z } from "zod";
+ import { classifyQuantities, type ClassificationInput } from "./classification.ts";
++import type { QuantityReport } from "./report.ts";
++import {
++  INDUSTRY_SOURCE_BINDING_SCHEMA,
++  createIndustrySourceBinding,
++  evaluateIndustryBinding,
++  industrySourceBindingSchema,
++  isVerifiedEvidenceClass,
++  type IndustryBindingEvaluation,
++  type IndustrySourceBinding,
++  type IndustrySourceState,
++} from "../sourceBinding.ts";
+ 
+ const text = z.string().max(240);
+ const key = z.string().min(1).max(240);
+@@ -11,12 +22,14 @@ export const quantityFormSchema = z.object({
+     key, reference: text, quantity: z.string().max(80), unit: text,
+     evidence: z.enum(["unverified", "inferred", "sample"]), nodeKey: text,
+   }).strict()).max(10000),
++  // Optional so drafts saved before source binding existed still open; `null` is an explicit unbound worksheet.
++  binding: industrySourceBindingSchema.nullable().optional(),
+   calculated: z.boolean(),
+ }).strict();
+ export type QuantityForm = z.infer<typeof quantityFormSchema>;
+ 
+ export function createEmptyQuantityForm(): QuantityForm {
+-  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], calculated: false };
++  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], binding: null, calculated: false };
+ }
+ 
+ /** Form keys are UI identity only; explicit user codes identify the calculation. */
+@@ -59,3 +72,96 @@ export function assignQuantityItem(form: QuantityForm, itemKey: string, nodeKey:
+   if (nodeKey && !form.nodes.some(node => node.key === nodeKey)) throw Error("Classification no longer exists.");
+   return { ...form, calculated: false, items: form.items.map(item => item.key === itemKey ? { ...item, nodeKey } : item) };
+ }
++
++/** What the user types to bind. Project, revision, hash and calibration are read from the live source
++ * state, never from these fields, so a typed value can never masquerade as source identity. Quantity
++ * rows carry their own units, so the source's length unit is an explicit choice, never an assumed one.
++ */
++export type QuantityBindingDraft = {
++  pageIndexText: string;
++  evidenceClass: string;
++  reference: string;
++  units: string;
++};
++export const createEmptyQuantityBindingDraft = (): QuantityBindingDraft => ({
++  pageIndexText: "", evidenceClass: "", reference: "", units: "",
++});
++
++/** A raw ZodError would reach the panel as serialised issues; name the offending field instead. */
++function bindingError(cause: unknown): Error {
++  if (cause instanceof z.ZodError)
++    return Error(cause.issues.map(issue => `${issue.path.join(".") || "binding"}: ${issue.message}`).join("; "));
++  return cause instanceof Error ? cause : Error("Check the source binding inputs.");
++}
++
++/** Build a binding from the live source state plus the user's explicit inputs. A blank page index,
++ * evidence class or unit is refused rather than defaulted to a plausible-looking page zero or class.
++ */
++export function createQuantityBinding(
++  source: IndustrySourceState,
++  draft: QuantityBindingDraft,
++  boundAt: string,
++): IndustrySourceBinding {
++  const revision = source.sourceRevision;
++  if (revision === null) throw Error("This project has no current source revision. Open or add a source before binding.");
++  const pageIndexText = draft.pageIndexText.trim();
++  if (!/^\d+$/.test(pageIndexText)) throw Error("Page index: enter the page you measured from as a whole number.");
++  const evidenceClass = draft.evidenceClass.trim();
++  if (evidenceClass === "") throw Error("Evidence class: choose how the source evidence was obtained.");
++  const units = draft.units.trim();
++  if (units === "") throw Error("Units: choose the length unit the source drawing is measured in.");
++  if (draft.reference.trim() === "") throw Error("Reference: describe where this evidence came from.");
++  try {
++    return createIndustrySourceBinding({
++      schema: INDUSTRY_SOURCE_BINDING_SCHEMA,
++      projectId: source.projectId,
++      sourceRevisionId: revision.id,
++      sha256: revision.sha256,
++      // The document's own label when the project supplies one; otherwise its revision id.
++      sourceName: revision.name ?? revision.id,
++      locator: { kind: "page", pageIndex: Number(pageIndexText) },
++      calibrationId: source.calibrationId,
++      units,
++      evidenceClass,
++      reference: draft.reference,
++      boundAt,
++    });
++  } catch (cause) { throw bindingError(cause); }
++}
++
++export type QuantityFormBindingEvaluation = {
++  evaluation: IndustryBindingEvaluation;
++  report: QuantityReport | null;
++};
++
++/** Pair the form with the live project state. A stale binding withholds the report entirely: the
++ * worksheet must never present a current-looking total once its source has changed underneath it.
++ * An unbound or current worksheet reports exactly as a manual worksheet always has.
++ */
++export function evaluateQuantityFormBinding(
++  form: QuantityForm,
++  source: IndustrySourceState,
++): QuantityFormBindingEvaluation {
++  const evaluation = evaluateIndustryBinding(form.binding ?? null, source);
++  if (!form.calculated || evaluation.status === "stale") return { evaluation, report: null };
++  try { return { evaluation, report: calculateQuantityForm(form) }; }
++  catch { return { evaluation, report: null }; }
++}
++
++const QUANTITY_EVIDENCE_TEXT: Record<IndustrySourceBinding["evidenceClass"], string> = {
++  traced: "traced source geometry",
++  dimensioned: "dimensioned source geometry",
++  inferred: "an inferred reconstruction",
++  declared: "a typed reference",
++};
++
++/** Evidence classes are never promoted. Only traced and dimensioned evidence is source-derived; a
++ * declared or inferred binding stays supplied and unverified even while its binding is current.
++ */
++export function describeQuantityBindingEvidence(binding: IndustrySourceBinding | null | undefined): string {
++  if (!binding)
++    return "Not bound: quantities and totals use the supplied inputs only and are not verified against any source.";
++  return isVerifiedEvidenceClass(binding.evidenceClass)
++    ? `Source-derived ${binding.evidenceClass} evidence from “${binding.sourceName}”. Quantities remain a draft classification and are not eligible for verified quotes.`
++    : `Supplied evidence (${binding.evidenceClass}): ${QUANTITY_EVIDENCE_TEXT[binding.evidenceClass]} from “${binding.sourceName}”, not verified against the source.`;
++}

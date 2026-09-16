@@ -1,12 +1,28 @@
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import type { ZodType } from 'zod';
 import type { IndustryDraftPanelProps } from './draftPanel.ts';
+import { industrySourceStateFrom } from './sourceBinding.ts';
 import { readIndustryDraftLibrary, saveIndustryDraft, type IndustryDraftId } from './draftStorage.ts';
 
+export type IndustrySourceRecords = {
+  sources: { id: string; sha256: string; name?: string }[];
+  calibrations: { id: string; sourceRevisionId: string }[];
+  /** The project's current source, used only until this worksheet binds a revision of its own. */
+  currentSourceRevisionId: string | null;
+};
+
+/** A worksheet judges its binding against the revision it named, falling back to the project's
+ * current source so an unbound worksheet can still offer to bind. */
+function boundRevisionId(value: unknown, fallback: string | null): string | null {
+  const binding = (value as { binding?: { sourceRevisionId?: unknown } } | null)?.binding;
+  const id = binding?.sourceRevisionId;
+  return typeof id === 'string' && id.length > 0 ? id : fallback;
+}
+
 /** Mount with a project/industry key. Saving continues for accepted edits when panes change. */
-export function IndustryDraftHost<T extends Record<string, unknown>>({ projectId, industry, schema, createEmpty, Panel }: {
+export function IndustryDraftHost<T extends Record<string, unknown>>({ projectId, industry, schema, createEmpty, Panel, sources, calibrations, currentSourceRevisionId }: {
   projectId: string; industry: IndustryDraftId; schema: ZodType<T>; createEmpty: () => T; Panel: ComponentType<IndustryDraftPanelProps<T>>;
-}) {
+} & IndustrySourceRecords) {
   const [value, setValue] = useState<T | null>(null), [error, setError] = useState(''), [pending, setPending] = useState(0);
   const current = useRef({ revision: 0, generation: null as string | null, failed: false, queue: Promise.resolve() });
   const alive = useRef(false);
@@ -21,6 +37,11 @@ export function IndustryDraftHost<T extends Record<string, unknown>>({ projectId
     } catch (failure) { current.current.failed = true; setError(failure instanceof Error ? failure.message : 'Saved draft could not be opened.'); }
     return () => { alive.current = false; };
   }, [projectId, industry, schema, createEmpty]);
+
+  const source = useMemo(
+    () => industrySourceStateFrom({ projectId, sources, calibrations }, boundRevisionId(value, currentSourceRevisionId)),
+    [projectId, sources, calibrations, currentSourceRevisionId, value],
+  );
 
   function change(next: T) {
     const session = current.current;
@@ -48,7 +69,7 @@ export function IndustryDraftHost<T extends Record<string, unknown>>({ projectId
   }
   return <div className="industry-draft-host" data-draft-industry={industry} data-draft-save={error ? 'error' : pending ? 'saving' : value ? 'saved' : 'loading'}>
     {error && <div className="industry-error" role="alert"><p>{error}</p>{value && <button type="button" onClick={downloadInputs}>Download unsaved inputs</button>}</div>}
-    {value ? <><Panel value={value} onChange={change} disabled={!!error} /><p className="industry-note" role="status">{pending ? 'Saving draft inputs…' : error ? 'Draft inputs are not saved.' : current.current.revision ? 'Draft inputs saved on this device for this project.' : 'Inputs will be saved on this device for this project.'}</p></>
+    {value ? <><Panel value={value} onChange={change} disabled={!!error} source={source} /><p className="industry-note" role="status">{pending ? 'Saving draft inputs…' : error ? 'Draft inputs are not saved.' : current.current.revision ? 'Draft inputs saved on this device for this project.' : 'Inputs will be saved on this device for this project.'}</p></>
       : !error && <p role="status">Opening draft inputs…</p>}
   </div>;
 }

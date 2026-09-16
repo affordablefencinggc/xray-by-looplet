@@ -1816,7 +1816,7 @@ function CostPane() {
 
   return (
     <div className="cost-workspace">
-      {s.persistenceHydrated && !s.persistenceError && <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} />}
+      {s.persistenceHydrated && !s.persistenceError && <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.job.activeSheet ?? 0} calibrations={s.job.calibrations} />}
       {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} />
         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">

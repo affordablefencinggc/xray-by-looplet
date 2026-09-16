@@ -1,0 +1,348 @@
+diff --git a/src/studio/industries/hvac/HvacDraftPanel.tsx b/src/studio/industries/hvac/HvacDraftPanel.tsx
+index 7e1fe58..fd6cb97 100644
+--- a/src/studio/industries/hvac/HvacDraftPanel.tsx
++++ b/src/studio/industries/hvac/HvacDraftPanel.tsx
+@@ -1,24 +1,42 @@
+ import { useId, useState } from "react";
+ import type { IndustryDraftPanelProps } from "../draftPanel";
+-import { calculateDuctForm, createEmptyDuctSection, type DuctForm, type DuctSectionForm } from "./ductForm";
++import { describeIndustryBinding, evaluateIndustryBinding } from "../sourceBinding.ts";
++import { createDuctSourceBinding, createEmptyDuctSection, describeEvidenceClass, evaluateDuctFormBinding, EVIDENCE_CLASS_LABELS, type DuctBindingInputs, type DuctForm, type DuctSectionForm } from "./ductForm";
+ 
+-export function HvacDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<DuctForm>) {
++export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDraftPanelProps<DuctForm>) {
+   const prefix = useId();
+-  const [calculation, setCalculation] = useState<{ input: string; result?: ReturnType<typeof calculateDuctForm>; error?: string } | null>(null);
++  const [calculation, setCalculation] = useState<{ input: string; error?: string } | null>(null);
++  const [bindingInputs, setBindingInputs] = useState<DuctBindingInputs>({ pageIndex: "", evidenceClass: "", reference: "" });
++  const [bindingError, setBindingError] = useState("");
+   const current = JSON.stringify(value);
+   const visible = calculation?.input === current ? calculation : null;
++  const binding = value.binding ?? null;
++  const evaluation = evaluateIndustryBinding(binding, source);
++  // Judged against the live source on every render, so a worksheet that is left open while the
++  // source changes stops showing a current-looking total instead of keeping the one it captured.
++  const outcome = visible && !visible.error ? evaluateDuctFormBinding(value, source) : null;
+   const change = (next: DuctForm) => { setCalculation(null); onChange(next); };
+-  const update = (index: number, patch: Partial<DuctSectionForm>) => change({ sections: value.sections.map((section, i) => i === index ? { ...section, ...patch } : section) });
++  const update = (index: number, patch: Partial<DuctSectionForm>) => change({ ...value, sections: value.sections.map((section, i) => i === index ? { ...section, ...patch } : section) });
+   const fields = (section: DuctSectionForm, index: number, key: "lengthM" | "widthM" | "heightM" | "diameterM" | "sheetMassKgPerM2" | "insulationThicknessM" | "longitudinalOverlapM", label: string) => (
+     <div className="industry-fields" key={key}>
+       <label htmlFor={`${prefix}-${index}-${key}`}>{label}<input id={`${prefix}-${index}-${key}`} inputMode="decimal" value={(section[key]?.value ?? "")} onChange={event => update(index, { [key]: { sourceReference: section[key]?.sourceReference ?? "", value: event.target.value } })} /></label>
+       <label htmlFor={`${prefix}-${index}-${key}-ref`}>{label} source reference<input id={`${prefix}-${index}-${key}-ref`} value={(section[key]?.sourceReference ?? "")} onChange={event => update(index, { [key]: { value: section[key]?.value ?? "", sourceReference: event.target.value } })} /></label>
+     </div>
+   );
++  const bind = () => {
++    try {
++      const next = createDuctSourceBinding(bindingInputs, source);
++      setBindingError("");
++      change({ ...value, binding: next });
++    } catch (error) { setBindingError(error instanceof Error ? error.message : "The source binding could not be recorded."); }
++  };
++  const sourceUnavailable = source.sourceRevision === null;
+   return <form className="industry-form" onSubmit={event => {
+     event.preventDefault(); if (disabled) return;
+-    try { setCalculation({ input: current, result: calculateDuctForm(value) }); }
+-    catch (error) { setCalculation({ input: current, error: error instanceof Error ? error.message : "Check the section inputs." }); }
++    try {
++      evaluateDuctFormBinding(value, source);
++      setCalculation({ input: current });
++    } catch (error) { setCalculation({ input: current, error: error instanceof Error ? error.message : "Check the section inputs." }); }
+   }}>
+     <p className="industry-note">Straight duct material draft. Enter dimensions in metres and a reference for each value. This does not select duct sizes or verify a takeoff.</p>
+     <fieldset disabled={disabled}>
+@@ -40,22 +58,56 @@ export function HvacDraftPanel({ value, onChange, disabled }: IndustryDraftPanel
+           {fields(section, index, "longitudinalOverlapM", "Longitudinal overlap (m)")}
+           <p className="industry-note">Enter the specified thickness and one longitudinal lap width, including an explicit zero if no lap is required. Rectangular wrap uses the outside width and height after adding thickness on both sides.</p>
+         </>}
+-        <button type="button" onClick={() => change({ sections: value.sections.filter((_, i) => i !== index) })}>Remove section {index + 1}</button>
++        <button type="button" onClick={() => change({ ...value, sections: value.sections.filter((_, i) => i !== index) })}>Remove section {index + 1}</button>
+       </fieldset>)}
+-      <div className="industry-actions"><button type="button" disabled={value.sections.length >= 100} onClick={() => change({ sections: [...value.sections, createEmptyDuctSection()] })}>Add straight section</button><button type="submit">Calculate duct draft</button></div>
++      <div className="industry-actions"><button type="button" disabled={value.sections.length >= 100} onClick={() => change({ ...value, sections: [...value.sections, createEmptyDuctSection()] })}>Add straight section</button><button type="submit">Calculate duct draft</button></div>
++    </fieldset>
++    <fieldset disabled={disabled}>
++      <legend>Source binding</legend>
++      <p className="industry-note">{describeIndustryBinding(evaluation)}</p>
++      {binding === null ? <>
++        <div className="industry-fields">
++          <label htmlFor={`${prefix}-binding-page`}>Source page index<input id={`${prefix}-binding-page`} inputMode="numeric" value={bindingInputs.pageIndex} aria-describedby={`${prefix}-binding-page-hint`} onChange={event => setBindingInputs({ ...bindingInputs, pageIndex: event.target.value })} /></label>
++          <p className="industry-note" id={`${prefix}-binding-page-hint`}>Pages count from 0. Nothing is recorded until you bind.</p>
++          <label htmlFor={`${prefix}-binding-evidence`}>Evidence class<select id={`${prefix}-binding-evidence`} value={bindingInputs.evidenceClass} onChange={event => setBindingInputs({ ...bindingInputs, evidenceClass: event.target.value as DuctBindingInputs["evidenceClass"] })}>
++            <option value="">Select an evidence class…</option>
++            <option value="traced">{EVIDENCE_CLASS_LABELS.traced}</option>
++            <option value="dimensioned">{EVIDENCE_CLASS_LABELS.dimensioned}</option>
++            <option value="inferred">{EVIDENCE_CLASS_LABELS.inferred}</option>
++            <option value="declared">{EVIDENCE_CLASS_LABELS.declared}</option>
++          </select></label>
++          <label htmlFor={`${prefix}-binding-reference`}>Reference<input id={`${prefix}-binding-reference`} value={bindingInputs.reference} onChange={event => setBindingInputs({ ...bindingInputs, reference: event.target.value })} /></label>
++        </div>
++        <div className="industry-actions"><button type="button" onClick={bind} disabled={disabled || sourceUnavailable} aria-describedby={sourceUnavailable ? `${prefix}-binding-unavailable` : undefined}>Bind to current project source</button></div>
++        {sourceUnavailable && <p className="industry-note" id={`${prefix}-binding-unavailable`}>No project source revision is open, so this worksheet cannot be bound. Enter your measurements and references manually.</p>}
++        {bindingError && <p className="industry-error" role="alert">{bindingError}</p>}
++      </> : <>
++        <div className="industry-fields">
++          <p>Reference: <strong>{binding.reference}</strong></p>
++          <p>Evidence: <strong>{describeEvidenceClass(binding.evidenceClass)}</strong></p>
++          <p>Source: <strong>{binding.sourceName}</strong></p>
++        </div>
++        <div className="industry-actions"><button type="button" onClick={() => { setBindingError(""); change({ ...value, binding: null }); }}>Clear binding</button></div>
++      </>}
+     </fieldset>
+     {visible?.error && <p className="industry-error" role="alert">{visible.error}</p>}
+-    {visible?.result && <section className="industry-result" aria-live="polite" aria-label="Duct draft result">
++    {outcome?.evaluation.status === "stale" && <section className="industry-result" role="alert" aria-label="Withheld duct draft result">
++      <p><strong>Result withheld</strong></p>
++      <p>{describeIndustryBinding(outcome.evaluation)}</p>
++      <p className="industry-note">A stale binding cannot report a total. Rebind or clear the binding, then calculate again.</p>
++    </section>}
++    {outcome?.result && <section className="industry-result" aria-live="polite" aria-label="Duct draft result">
+       <p><strong>Draft · not eligible for a verified quote</strong></p>
+-      <p>Developed area: <strong>{visible.result.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong> · Sheet mass: <strong>{visible.result.sheetMassKg === null ? "Not calculated — supply mass per area for every section" : `${visible.result.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })} kg`}</strong></p>
+-      <div className="industry-table-wrap"><table><caption>Straight-section material quantities</caption><thead><tr><th scope="col">Section</th><th scope="col">Area (m²)</th><th scope="col">Mass (kg)</th></tr></thead><tbody>{visible.result.sections.map(section => <tr key={section.id}><th scope="row">{section.id}</th><td>{section.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.sheetMassKg === null ? "Not supplied" : section.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>
+-      {visible.result.wrap && <section aria-label="External wrap draft result">
++      <p className="industry-note">{describeIndustryBinding(outcome.evaluation)}{binding && ` ${describeEvidenceClass(binding.evidenceClass)}.`}</p>
++      <p>Developed area: <strong>{outcome.result.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong> · Sheet mass: <strong>{outcome.result.sheetMassKg === null ? "Not calculated — supply mass per area for every section" : `${outcome.result.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })} kg`}</strong></p>
++      <div className="industry-table-wrap"><table><caption>Straight-section material quantities</caption><thead><tr><th scope="col">Section</th><th scope="col">Area (m²)</th><th scope="col">Mass (kg)</th></tr></thead><tbody>{outcome.result.sections.map(section => <tr key={section.id}><th scope="row">{section.id}</th><td>{section.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.sheetMassKg === null ? "Not supplied" : section.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>
++      {outcome.result.wrap && <section aria-label="External wrap draft result">
+         <h3>External insulation wrap</h3>
+-        <p>Selected straight sections: <strong>{visible.result.wrap.wrapAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong></p>
+-        <div className="industry-table-wrap"><table><caption>Outer surface plus one longitudinal lap</caption><thead><tr><th scope="col">Section</th><th scope="col">Outer area (m²)</th><th scope="col">Lap area (m²)</th><th scope="col">Wrap area (m²)</th></tr></thead><tbody>{visible.result.wrap.sections.map(section => <tr key={section.id}><th scope="row">{section.id}</th><td>{section.outerAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.overlapAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.wrapAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>
+-        <p className="industry-note">Wrap excludes: {visible.result.wrap.exclusions.join(", ")}. Entered dimensions and references remain unverified.</p>
++        <p>Selected straight sections: <strong>{outcome.result.wrap.wrapAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong></p>
++        <div className="industry-table-wrap"><table><caption>Outer surface plus one longitudinal lap</caption><thead><tr><th scope="col">Section</th><th scope="col">Outer area (m²)</th><th scope="col">Lap area (m²)</th><th scope="col">Wrap area (m²)</th></tr></thead><tbody>{outcome.result.wrap.sections.map(section => <tr key={section.id}><th scope="row">{section.id}</th><td>{section.outerAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.overlapAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.wrapAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>
++        <p className="industry-note">Wrap excludes: {outcome.result.wrap.exclusions.join(", ")}. Entered dimensions and references remain unverified.</p>
+       </section>}
+-      <p className="industry-note">Sheet metal excludes: {visible.result.exclusions.join(", ")}. Entered references are retained in your draft; they have not been verified.</p>
++      <p className="industry-note">Sheet metal excludes: {outcome.result.exclusions.join(", ")}. Entered references are retained in your draft; they have not been verified.</p>
+     </section>}
+   </form>;
+ }
+diff --git a/src/studio/industries/hvac/ductForm.test.ts b/src/studio/industries/hvac/ductForm.test.ts
+index 8c6e948..d516e09 100644
+--- a/src/studio/industries/hvac/ductForm.test.ts
++++ b/src/studio/industries/hvac/ductForm.test.ts
+@@ -1,10 +1,41 @@
+ import assert from "node:assert/strict";
+ import test from "node:test";
+-import { calculateDuctForm, createEmptyDuctForm, createEmptyDuctSection, ductFormSchema, ductFormToSchedule } from "./ductForm.ts";
++import {
++  INDUSTRY_BINDING_REASON_TEXT,
++  INDUSTRY_SOURCE_BINDING_SCHEMA,
++  createIndustrySourceBinding,
++  describeIndustryBinding,
++  isVerifiedEvidenceClass,
++  type IndustryBindingReason,
++  type IndustrySourceState,
++} from "../sourceBinding.ts";
++import { calculateDuctForm, createDuctSourceBinding, createEmptyDuctForm, createEmptyDuctSection, describeEvidenceClass, ductFormSchema, ductFormToSchedule, evaluateDuctFormBinding } from "./ductForm.ts";
+ const field = (value: string) => ({ value, sourceReference: "User schedule A" });
+ const section = () => ({ ...createEmptyDuctSection(), id: "D1", lengthM: field("10"), widthM: field("0.5"), heightM: field(".3") });
++const SHA = "a".repeat(64);
++const OTHER_SHA = "b".repeat(64);
++const source = (overrides: Partial<IndustrySourceState> = {}): IndustrySourceState => ({
++  projectId: "project-hvac",
++  sourceRevision: { id: "rev-duct-1", sha256: SHA },
++  calibrationId: "cal-duct-1",
++  ...overrides,
++});
++const tracedBinding = (overrides: Record<string, unknown> = {}) => createIndustrySourceBinding({
++  schema: INDUSTRY_SOURCE_BINDING_SCHEMA,
++  projectId: "project-hvac",
++  sourceRevisionId: "rev-duct-1",
++  sha256: SHA,
++  sourceName: "rev-duct-1",
++  locator: { kind: "page", pageIndex: 2 },
++  calibrationId: "cal-duct-1",
++  units: "m",
++  evidenceClass: "traced",
++  reference: "Level 3 duct plan",
++  boundAt: "2026-09-16T02:00:00.000Z",
++  ...overrides,
++});
+ test("empty draft has no invented measurements and cannot calculate", () => {
+-  assert.deepEqual(createEmptyDuctForm(), { sections: [] });
++  assert.deepEqual(createEmptyDuctForm(), { sections: [], binding: null });
+   assert.throws(() => calculateDuctForm(createEmptyDuctForm()), /Add a straight section/);
+   assert.equal(createEmptyDuctSection().lengthM.value, "");
+ });
+@@ -64,3 +95,76 @@ test("enabled wrap rejects missing thickness, implicit zero lap and missing refe
+   for (const value of ["", "-1", "Infinity"]) assert.throws(() => calculateDuctForm({ sections: [{ ...good, longitudinalOverlapM: field(value) }] }));
+   assert.throws(() => calculateDuctForm({ sections: [{ ...good, longitudinalOverlapM: { value: "0", sourceReference: "" } }] }));
+ });
++
++test("an unbound worksheet still calculates and is labelled unverified", () => {
++  for (const form of [{ sections: [section()], binding: null }, { sections: [section()] }]) {
++    const { evaluation, result } = evaluateDuctFormBinding(form, source());
++    assert.equal(evaluation.status, "unbound");
++    assert.match(describeIndustryBinding(evaluation), /Not bound/);
++    assert.equal(result!.developedAreaM2, 16);
++    assert.equal(result!.status, "draft-unverified");
++    assert.equal(result!.verifiedQuoteEligible, false);
++  }
++});
++test("incomplete supplied mass stays unknown through the evaluator", () => {
++  const form = { sections: [{ ...section(), includeSheetMass: true, sheetMassKgPerM2: field("4") }, { ...section(), id: "D2" }], binding: null };
++  const { result } = evaluateDuctFormBinding(form, source());
++  assert.equal(result!.developedAreaM2, 32);
++  assert.equal(result!.sheetMassKg, null);
++});
++test("a binding built from explicit inputs round-trips through the duct form schema", () => {
++  const binding = createDuctSourceBinding({ pageIndex: "2", evidenceClass: "traced", reference: "Level 3 duct plan" }, source());
++  assert.equal(binding.projectId, "project-hvac");
++  assert.equal(binding.sourceRevisionId, "rev-duct-1");
++  assert.equal(binding.sha256, SHA);
++  assert.equal(binding.calibrationId, "cal-duct-1");
++  assert.equal(binding.units, "m");
++  assert.deepEqual(binding.locator, { kind: "page", pageIndex: 2 });
++  assert.match(binding.boundAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
++  const form = { sections: [section()], binding };
++  assert.deepEqual(ductFormSchema.parse(JSON.parse(JSON.stringify(form))), form);
++  assert.equal(evaluateDuctFormBinding(form, source()).result!.developedAreaM2, 16);
++});
++test("an empty or non-numeric page index is refused rather than defaulting to 0", () => {
++  for (const pageIndex of ["", " ", "0x10", "2.5", "-1", "two", "1e3"]) {
++    assert.throws(() => createDuctSourceBinding({ pageIndex, evidenceClass: "declared", reference: "Plan" }, source()), /page number/, pageIndex);
++  }
++  assert.throws(() => createDuctSourceBinding({ pageIndex: "3", evidenceClass: "", reference: "Plan" }, source()), /evidence class/);
++  assert.throws(() => createDuctSourceBinding({ pageIndex: "3", evidenceClass: "declared", reference: "Plan" }, source({ sourceRevision: null })), /source revision/);
++  const chosenZero = createDuctSourceBinding({ pageIndex: "0", evidenceClass: "declared", reference: "Supplier sheet" }, source({ calibrationId: null }));
++  assert.deepEqual(chosenZero.locator, { kind: "page", pageIndex: 0 });
++});
++test("a stale binding withholds the result and names every reason", () => {
++  const form = { sections: [section()], binding: tracedBinding() };
++  const cases: Array<[Partial<IndustrySourceState>, IndustryBindingReason]> = [
++    [{ projectId: "project-other" }, "project-changed"],
++    [{ sourceRevision: null }, "source-missing"],
++    [{ sourceRevision: { id: "rev-duct-2", sha256: SHA } }, "source-replaced"],
++    [{ sourceRevision: { id: "rev-duct-1", sha256: OTHER_SHA } }, "source-revised"],
++    [{ calibrationId: "cal-duct-2" }, "calibration-changed"],
++  ];
++  for (const [override, reason] of cases) {
++    const { evaluation, result } = evaluateDuctFormBinding(form, source(override));
++    assert.equal(evaluation.status, "stale", reason);
++    assert.deepEqual(evaluation.reasons, [reason]);
++    assert.equal(result, null, `${reason} must withhold the number`);
++    assert.ok(describeIndustryBinding(evaluation).includes(INDUSTRY_BINDING_REASON_TEXT[reason]));
++  }
++});
++test("a declared binding is never described as source-verified", () => {
++  const binding = tracedBinding({ evidenceClass: "declared", calibrationId: null, locator: { kind: "document", section: "supplier-quote" } });
++  const form = { sections: [section()], binding };
++  const { evaluation, result } = evaluateDuctFormBinding(form, source({ calibrationId: null }));
++  assert.equal(evaluation.status, "current");
++  assert.equal(isVerifiedEvidenceClass(binding.evidenceClass), false);
++  assert.equal(result!.status, "draft-unverified");
++  assert.equal(result!.verifiedQuoteEligible, false);
++  assert.match(describeEvidenceClass("declared"), /not source-verified/);
++  assert.doesNotMatch(describeEvidenceClass("declared"), /source-derived/);
++  assert.match(describeEvidenceClass("traced"), /source-derived/);
++  assert.doesNotMatch(describeEvidenceClass("traced"), /not source-verified/);
++});
++test("source-derived evidence cannot be bound without its calibration", () => {
++  assert.throws(() => createDuctSourceBinding({ pageIndex: "2", evidenceClass: "traced", reference: "Plan" }, source({ calibrationId: null })), /calibration/);
++  assert.throws(() => tracedBinding({ calibrationId: null }), /calibration/);
++});
+diff --git a/src/studio/industries/hvac/ductForm.ts b/src/studio/industries/hvac/ductForm.ts
+index 7e349f5..f7018a8 100644
+--- a/src/studio/industries/hvac/ductForm.ts
++++ b/src/studio/industries/hvac/ductForm.ts
+@@ -1,4 +1,14 @@
+ import { z } from "zod";
++import {
++  INDUSTRY_SOURCE_BINDING_SCHEMA,
++  createIndustrySourceBinding,
++  evaluateIndustryBinding,
++  industrySourceBindingSchema,
++  isVerifiedEvidenceClass,
++  type IndustryBindingEvaluation,
++  type IndustrySourceBinding,
++  type IndustrySourceState,
++} from "../sourceBinding.ts";
+ import { calculateStraightDuctWrapDraft } from "./straightDuctWrap.ts";
+ import { calculateStraightDuctDraft, straightDuctScheduleSchema } from "./straightDuct.ts";
+ 
+@@ -9,10 +19,13 @@ export const ductSectionFormSchema = z.object({
+   includeSheetMass: z.boolean(), sheetMassKgPerM2: field,
+   includeWrap: z.boolean().optional(), insulationThicknessM: field.optional(), longitudinalOverlapM: field.optional(),
+ }).strict();
+-export const ductFormSchema = z.object({ sections: z.array(ductSectionFormSchema).max(100) }).strict();
++export const ductFormSchema = z.object({
++  sections: z.array(ductSectionFormSchema).max(100),
++  binding: industrySourceBindingSchema.nullable().optional(),
++}).strict();
+ export type DuctForm = z.infer<typeof ductFormSchema>;
+ export type DuctSectionForm = z.infer<typeof ductSectionFormSchema>;
+-export function createEmptyDuctForm(): DuctForm { return { sections: [] }; }
++export function createEmptyDuctForm(): DuctForm { return { sections: [], binding: null }; }
+ export function createEmptyDuctSection(): DuctSectionForm {
+   const empty = () => ({ value: "", sourceReference: "" });
+   return { id: "", shape: "rectangular", lengthM: empty(), widthM: empty(), heightM: empty(), diameterM: empty(), includeSheetMass: false, sheetMassKgPerM2: empty(), includeWrap: false, insulationThicknessM: empty(), longitudinalOverlapM: empty() };
+@@ -48,3 +61,67 @@ export function calculateDuctForm(input: DuctForm) {
+   })) }) : null;
+   return { ...calculateStraightDuctDraft(schedule), wrap };
+ }
++
++/** The straight-duct worksheet is defined in metres, so a binding records metres. This is the
++ * worksheet's own unit, not a measurement read from the source. */
++const DUCT_WORKSHEET_UNITS = "m";
++
++export type DuctBindingInputs = {
++  pageIndex: string;
++  evidenceClass: IndustrySourceBinding["evidenceClass"] | "";
++  reference: string;
++};
++
++/** Build a binding from the worksheet's explicit inputs and the live project source. An empty page
++ * index or an unchosen evidence class is refused here rather than defaulted, so a click never
++ * records page 0 or an evidence class the user did not choose. */
++export function createDuctSourceBinding(inputs: DuctBindingInputs, source: IndustrySourceState): IndustrySourceBinding {
++  const pageIndex = inputs.pageIndex.trim();
++  if (!pageIndex) throw new Error("Enter the source page number before binding.");
++  if (!/^\d+$/.test(pageIndex)) throw new Error("Enter the source page number as whole digits.");
++  if (inputs.evidenceClass === "") throw new Error("Choose the evidence class before binding.");
++  if (source.sourceRevision === null) throw new Error("No project source revision is open to bind to.");
++  return createIndustrySourceBinding({
++    schema: INDUSTRY_SOURCE_BINDING_SCHEMA,
++    projectId: source.projectId,
++    sourceRevisionId: source.sourceRevision.id,
++    sha256: source.sourceRevision.sha256,
++    // The document's own label when the project supplies one; otherwise its revision id.
++    sourceName: source.sourceRevision.name ?? source.sourceRevision.id,
++    locator: { kind: "page", pageIndex: Number(pageIndex) },
++    calibrationId: source.calibrationId,
++    units: DUCT_WORKSHEET_UNITS,
++    evidenceClass: inputs.evidenceClass,
++    reference: inputs.reference,
++    boundAt: new Date().toISOString(),
++  });
++}
++
++export const EVIDENCE_CLASS_LABELS: Record<IndustrySourceBinding["evidenceClass"], string> = {
++  traced: "Traced from the source",
++  dimensioned: "Dimensioned on the source",
++  inferred: "Inferred reconstruction",
++  declared: "Declared reference",
++};
++
++/** A typed reference stays a typed reference: only traced/dimensioned evidence is source-derived, and
++ * even then the quantity remains a draft that cannot enter a verified quote. */
++export function describeEvidenceClass(evidenceClass: IndustrySourceBinding["evidenceClass"]): string {
++  return isVerifiedEvidenceClass(evidenceClass)
++    ? `${EVIDENCE_CLASS_LABELS[evidenceClass]} — source-derived, still draft and not eligible for a verified quote`
++    : `${EVIDENCE_CLASS_LABELS[evidenceClass]} — your supplied reference, not source-verified`;
++}
++
++export type DuctFormBindingEvaluation = {
++  evaluation: IndustryBindingEvaluation;
++  result: ReturnType<typeof calculateDuctForm> | null;
++};
++
++/** Pair the form with the live project state. A stale binding withholds the calculation entirely, so
++ * a stale worksheet cannot present a current-looking total, while an unbound worksheet keeps
++ * calculating and stays visibly unverified. */
++export function evaluateDuctFormBinding(form: DuctForm, source: IndustrySourceState): DuctFormBindingEvaluation {
++  const evaluation = evaluateIndustryBinding(form.binding ?? null, source);
++  if (evaluation.status === "stale") return { evaluation, result: null };
++  return { evaluation, result: calculateDuctForm(form) };
++}

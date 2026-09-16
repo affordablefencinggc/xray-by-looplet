@@ -1,0 +1,331 @@
+diff --git a/src/studio/industries/roofing/RoofingDraftPanel.tsx b/src/studio/industries/roofing/RoofingDraftPanel.tsx
+index 5886485..e9c4aee 100644
+--- a/src/studio/industries/roofing/RoofingDraftPanel.tsx
++++ b/src/studio/industries/roofing/RoofingDraftPanel.tsx
+@@ -1,18 +1,39 @@
+-import { useId } from "react";
++import { useId, useState } from "react";
+ import type { IndustryDraftPanelProps } from "../draftPanel.ts";
+-import { calculateRoofForm, createEmptyRoofPlane, editRoofForm, roofFormError, type RoofForm, type RoofPlaneForm } from "./roofForm.ts";
++import { describeIndustryBinding, type IndustrySourceBinding } from "../sourceBinding.ts";
++import {
++  createEmptyRoofBindingDraft, createEmptyRoofPlane, createRoofBinding, describeRoofBindingEvidence,
++  editRoofForm, evaluateRoofFormBinding, roofFormError, type RoofBindingDraft, type RoofForm, type RoofPlaneForm,
++} from "./roofForm.ts";
+ import { RoofSheetCoveragePanel } from "./RoofSheetCoveragePanel.tsx";
+ import { createEmptySheetCoverage } from "./sheetCoverage.ts";
+ 
+-export function RoofingDraftPanel({ value, onChange, disabled }: IndustryDraftPanelProps<RoofForm>) {
++const EVIDENCE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
++  { value: "traced", label: "Traced from the source geometry" },
++  { value: "dimensioned", label: "Dimensioned on the source" },
++  { value: "inferred", label: "Inferred reconstruction" },
++  { value: "declared", label: "Declared / typed reference" },
++];
++
++const locatorText = (locator: IndustrySourceBinding["locator"]): string =>
++  locator.kind === "page" ? `Page index ${locator.pageIndex}`
++    : locator.kind === "model" ? `Model element ${locator.elementId}` : `Document section ${locator.section}`;
++
++export function RoofingDraftPanel({ value, onChange, disabled, source }: IndustryDraftPanelProps<RoofForm>) {
+   const prefix = useId();
++  const [bindingDraft, setBindingDraft] = useState<RoofBindingDraft>(createEmptyRoofBindingDraft);
++  const [bindingError, setBindingError] = useState<string | null>(null);
+   const edit = (planes: RoofForm["planes"]) => onChange({ ...value, ...editRoofForm(planes) });
+   const changePlane = (index: number, patch: Partial<RoofPlaneForm>) => edit(value.planes.map((plane, i) => i === index ? { ...plane, ...patch } : plane));
+-  let result: ReturnType<typeof calculateRoofForm> | null = null;
+-  let error: string | null = null;
+-  if (value.calculated) {
+-    try { result = calculateRoofForm(value); } catch (cause) { error = roofFormError(cause); }
+-  }
++  const binding = value.binding ?? null;
++  const { evaluation, result, error } = evaluateRoofFormBinding(value, source);
++  const bind = () => {
++    try {
++      onChange({ ...value, binding: createRoofBinding(source, bindingDraft, new Date().toISOString()) });
++      setBindingError(null);
++    } catch (cause) { setBindingError(roofFormError(cause)); }
++  };
++  const clearBinding = () => { setBindingError(null); onChange({ ...value, binding: null }); };
+   const field = (id: string, label: string, current: string, change: (next: string) => void, numeric = false) => (
+     <label htmlFor={`${prefix}-${id}`}>{label}
+       <input id={`${prefix}-${id}`} type="text" inputMode={numeric ? "decimal" : undefined} value={current}
+@@ -53,6 +74,51 @@ export function RoofingDraftPanel({ value, onChange, disabled }: IndustryDraftPa
+         <button type="button" onClick={() => onChange({ ...value, calculated: true })}>Calculate draft roof areas</button>
+       </div>
+     </fieldset>
++    <fieldset disabled={disabled}>
++      <legend>Source binding</legend>
++      {evaluation.status === "stale"
++        ? <p className="industry-error" role="alert">Draft total withheld. {describeIndustryBinding(evaluation)}</p>
++        : <p className="industry-note">{describeIndustryBinding(evaluation)}</p>}
++      {binding === null ? <>
++        <div className="industry-fields">
++          <label htmlFor={`${prefix}-binding-page`}>Source page index (0-based)
++            <input id={`${prefix}-binding-page`} type="text" inputMode="numeric" maxLength={80}
++              value={bindingDraft.pageIndexText} onChange={event => setBindingDraft({ ...bindingDraft, pageIndexText: event.target.value })} />
++          </label>
++          <label htmlFor={`${prefix}-binding-evidence`}>Evidence class
++            <select id={`${prefix}-binding-evidence`} value={bindingDraft.evidenceClass}
++              onChange={event => setBindingDraft({ ...bindingDraft, evidenceClass: event.target.value })}>
++              <option value="">Choose how this evidence was obtained…</option>
++              {EVIDENCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
++            </select>
++          </label>
++          {field("binding-reference", "Reference for this evidence", bindingDraft.reference, reference => setBindingDraft({ ...bindingDraft, reference }), false)}
++        </div>
++        <div className="industry-actions">
++          <button type="button" onClick={bind} disabled={source.sourceRevision === null} aria-describedby={`${prefix}-binding-availability`}>Bind to current project source</button>
++        </div>
++        <p className="industry-note" id={`${prefix}-binding-availability`}>{source.sourceRevision === null
++          ? "This project has no current source revision. Open or add a source before binding; the manual inputs still work and stay unverified."
++          : `Binds to “${source.sourceRevision.name ?? source.sourceRevision.id}” as it stands now. Manual inputs still work without a binding and stay unverified.`}</p>
++      </> : <>
++        <div className="industry-table-wrap"><table>
++          <caption>Bound source</caption>
++          <tbody>
++            <tr><th scope="row">Source</th><td>{binding.sourceName}</td></tr>
++            <tr><th scope="row">Evidence class</th><td>{binding.evidenceClass}</td></tr>
++            <tr><th scope="row">Reference</th><td>{binding.reference}</td></tr>
++            <tr><th scope="row">Locator</th><td>{locatorText(binding.locator)}</td></tr>
++            <tr><th scope="row">Units</th><td>{binding.units}</td></tr>
++            <tr><th scope="row">Bound at</th><td>{binding.boundAt}</td></tr>
++          </tbody>
++        </table></div>
++        <p className="industry-note">{describeRoofBindingEvidence(binding)}</p>
++        <div className="industry-actions">
++          <button type="button" onClick={clearBinding}>Clear binding</button>
++        </div>
++      </>}
++      {bindingError && <p className="industry-error" role="alert">{bindingError}</p>}
++    </fieldset>
+     {error && <p className="industry-error" role="alert">{error}</p>}
+     {result && <section className="industry-result" aria-label="Draft roofing result" aria-live="polite">
+       <p><strong>Draft calculation · not eligible for verified quotes</strong></p>
+@@ -64,7 +130,7 @@ export function RoofingDraftPanel({ value, onChange, disabled }: IndustryDraftPa
+       </table></div>
+       <ul className="industry-note">{result.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul>
+     </section>}
+-    <RoofSheetCoveragePanel value={value.sheetCoverage ?? createEmptySheetCoverage()} disabled={disabled}
++    <RoofSheetCoveragePanel value={value.sheetCoverage ?? createEmptySheetCoverage()} disabled={disabled} source={source}
+       onChange={sheetCoverage => onChange({ ...value, sheetCoverage })} />
+   </section>;
+ }
+diff --git a/src/studio/industries/roofing/roofForm.test.ts b/src/studio/industries/roofing/roofForm.test.ts
+index 69ee293..7029d7a 100644
+--- a/src/studio/industries/roofing/roofForm.test.ts
++++ b/src/studio/industries/roofing/roofForm.test.ts
+@@ -1,6 +1,10 @@
+ import assert from "node:assert/strict";
+ import test from "node:test";
+-import { calculateRoofForm, createEmptyRoofForm, editRoofForm, roofFormInput, roofFormSchema } from "./roofForm.ts";
++import { INDUSTRY_SOURCE_BINDING_SCHEMA, describeIndustryBinding, type IndustrySourceState } from "../sourceBinding.ts";
++import {
++  calculateRoofForm, createEmptyRoofBindingDraft, createEmptyRoofForm, createRoofBinding, describeRoofBindingEvidence,
++  editRoofForm, evaluateRoofFormBinding, roofFormInput, roofFormSchema, type RoofBindingDraft,
++} from "./roofForm.ts";
+ 
+ const qa = () => ({ calculated: false, planes: [{ id: "QA synthetic roof", grossPlanAreaM2: "80", pitchDegrees: "36.86989764584402",
+   measurementReference: "QA supplied 10 by 8 horizontal plane", pitchReference: "QA supplied rise 3 / run 4",
+@@ -48,3 +52,93 @@ test("form rejects coercion traps and retains existing domain validation", () =>
+   assert.throws(() => calculateRoofForm({ ...qa(), planes: [{ ...qa().planes[0], openings: [{ ...qa().planes[0].openings[0], planAreaM2: "81" }] }] }), /exceed gross/);
+   assert.throws(() => roofFormSchema.parse({ ...qa(), verified: true }));
+ });
++
++const SHA256 = "a".repeat(64);
++const boundAt = "2026-09-16T02:00:00.000Z";
++const source: IndustrySourceState = {
++  projectId: "project-riverside",
++  sourceRevision: { id: "rev-roof-plan-3", sha256: SHA256 },
++  calibrationId: "cal-roof-plan-3",
++};
++const state = (overrides: Partial<IndustrySourceState> = {}): IndustrySourceState => ({ ...source, ...overrides });
++const bound = (overrides: Partial<RoofBindingDraft> = {}): RoofBindingDraft =>
++  ({ pageIndexText: "2", evidenceClass: "traced", reference: "Sheet A-201 north plane", ...overrides });
++
++test("an unbound worksheet still calculates and is labelled unverified", () => {
++  const { evaluation, result, error } = evaluateRoofFormBinding({ ...qa(), calculated: true }, source);
++  assert.equal(error, null);
++  assert.equal(evaluation.status, "unbound");
++  assert.equal(result?.status, "draft-calculation");
++  assert.equal(result?.totals.netTrueAreaM2, 95);
++  assert.equal(result?.verifiedQuoteEligible, false);
++  assert.match(describeIndustryBinding(evaluation), /Not bound/);
++  assert.match(describeRoofBindingEvidence(null), /Not bound/);
++});
++
++test("a binding built from explicit inputs round-trips through the persisted form schema", () => {
++  assert.equal(createEmptyRoofForm().binding, null);
++  const binding = createRoofBinding(source, bound({ reference: "  Sheet A-201 north plane  " }), boundAt);
++  assert.equal(binding.schema, INDUSTRY_SOURCE_BINDING_SCHEMA);
++  assert.equal(binding.boundAt, boundAt);
++  assert.deepEqual(binding.locator, { kind: "page", pageIndex: 2 });
++  assert.deepEqual(
++    [binding.projectId, binding.sourceRevisionId, binding.sha256, binding.sourceName, binding.calibrationId, binding.units, binding.evidenceClass, binding.reference],
++    ["project-riverside", "rev-roof-plan-3", SHA256, "rev-roof-plan-3", "cal-roof-plan-3", "m", "traced", "Sheet A-201 north plane"],
++  );
++  const form = { ...qa(), calculated: true, binding };
++  const reopened = roofFormSchema.parse(JSON.parse(JSON.stringify(form)));
++  assert.deepEqual(reopened, form);
++  const { evaluation, result, error } = evaluateRoofFormBinding(reopened, source);
++  assert.equal(error, null);
++  assert.equal(evaluation.status, "current");
++  assert.equal(result?.totals.netTrueAreaM2, 95);
++});
++
++test("a stale binding withholds the total and names each reason", () => {
++  const form = { ...qa(), calculated: true, binding: createRoofBinding(source, bound(), boundAt) };
++  const cases: Array<[string, Partial<IndustrySourceState>, RegExp]> = [
++    ["source-revised", { sourceRevision: { id: "rev-roof-plan-3", sha256: "b".repeat(64) } }, /was edited/],
++    ["source-replaced", { sourceRevision: { id: "rev-roof-plan-4", sha256: SHA256 } }, /different source revision/],
++    ["source-missing", { sourceRevision: null }, /no longer in the project/],
++    ["project-changed", { projectId: "project-other" }, /not the project/],
++    ["calibration-changed", { calibrationId: "cal-roof-plan-4" }, /calibration changed/],
++  ];
++  for (const [reason, override, pattern] of cases) {
++    const { evaluation, result, error } = evaluateRoofFormBinding(form, state(override));
++    assert.equal(evaluation.status, "stale", reason);
++    assert.deepEqual(evaluation.reasons, [reason]);
++    assert.equal(result, null, `${reason}: a stale worksheet must not report a number`);
++    assert.equal(error, null, reason);
++    assert.match(describeIndustryBinding(evaluation), pattern, reason);
++  }
++});
++
++test("a declared binding is never described as source-verified", () => {
++  const declared = createRoofBinding(state({ calibrationId: null }), bound({ evidenceClass: "declared", reference: "Supplier quote rev C" }), boundAt);
++  assert.equal(declared.calibrationId, null);
++  const description = describeRoofBindingEvidence(declared);
++  assert.match(description, /declared/);
++  assert.match(description, /not verified against the source/);
++  assert.doesNotMatch(description, /source-derived/i);
++  assert.doesNotMatch(description, /source-verified/i);
++  assert.match(describeRoofBindingEvidence(createRoofBinding(source, bound(), boundAt)), /^Source-derived traced evidence/);
++  const { evaluation, result } = evaluateRoofFormBinding({ ...qa(), calculated: true, binding: declared }, state({ calibrationId: null }));
++  assert.equal(evaluation.status, "current");
++  assert.equal(result?.totals.netTrueAreaM2, 95);
++  assert.equal(result?.verifiedQuoteEligible, false);
++});
++
++test("source-derived evidence without a calibration, and every blank field, is refused", () => {
++  assert.throws(() => createRoofBinding(state({ calibrationId: null }), bound(), boundAt), /calibration/);
++  assert.throws(() => createRoofBinding({ ...source, sourceRevision: null }, bound(), boundAt), /no current source revision/);
++  assert.throws(() => createRoofBinding(source, bound({ evidenceClass: "" }), boundAt), /Evidence class/);
++  assert.throws(() => createRoofBinding(source, bound({ reference: "  " }), boundAt), /Reference/);
++});
++
++test("a blank page index is refused instead of defaulting to page zero", () => {
++  for (const pageIndexText of ["", " ", "-1", "1.5", "page 2", "0x1", "2 0"]) {
++    assert.throws(() => createRoofBinding(source, bound({ pageIndexText }), boundAt), /Page index/);
++  }
++  assert.throws(() => createRoofBinding(source, createEmptyRoofBindingDraft(), boundAt), /Page index/);
++  assert.deepEqual(createRoofBinding(source, bound({ pageIndexText: "0" }), boundAt).locator, { kind: "page", pageIndex: 0 });
++});
+diff --git a/src/studio/industries/roofing/roofForm.ts b/src/studio/industries/roofing/roofForm.ts
+index 77f634c..282349a 100644
+--- a/src/studio/industries/roofing/roofForm.ts
++++ b/src/studio/industries/roofing/roofForm.ts
+@@ -1,17 +1,29 @@
+ import { z } from "zod";
+ import { calculateDraftRoofArea, roofAreaInputSchema } from "./roofArea.ts";
+ import { sheetCoverageFormSchema } from "./sheetCoverage.ts";
++import {
++  INDUSTRY_SOURCE_BINDING_SCHEMA,
++  createIndustrySourceBinding,
++  evaluateIndustryBinding,
++  industrySourceBindingSchema,
++  isVerifiedEvidenceClass,
++  type IndustryBindingEvaluation,
++  type IndustrySourceBinding,
++  type IndustrySourceState,
++} from "../sourceBinding.ts";
+ 
+ const text = z.string().max(1000);
+ const numericText = z.string().max(80);
+ const opening = z.object({ id: text, planAreaM2: numericText, measurementReference: text }).strict();
+ const plane = z.object({ id: text, grossPlanAreaM2: numericText, pitchDegrees: numericText,
+   measurementReference: text, pitchReference: text, openings: z.array(opening) }).strict();
+-export const roofFormSchema = z.object({ planes: z.array(plane), calculated: z.boolean(), sheetCoverage: sheetCoverageFormSchema.optional() }).strict();
++export const roofFormSchema = z.object({ planes: z.array(plane), calculated: z.boolean(), sheetCoverage: sheetCoverageFormSchema.optional(),
++  // Optional so drafts saved before source binding existed still open; `null` is an explicit unbound worksheet.
++  binding: industrySourceBindingSchema.nullable().optional() }).strict();
+ export type RoofForm = z.infer<typeof roofFormSchema>;
+ export type RoofPlaneForm = RoofForm["planes"][number];
+ export const createEmptyRoofPlane = (): RoofPlaneForm => ({ id: "", grossPlanAreaM2: "", pitchDegrees: "", measurementReference: "", pitchReference: "", openings: [] });
+-export const createEmptyRoofForm = (): RoofForm => ({ planes: [createEmptyRoofPlane()], calculated: false });
++export const createEmptyRoofForm = (): RoofForm => ({ planes: [createEmptyRoofPlane()], calculated: false, binding: null });
+ 
+ function number(text: string, label: string): number {
+   const trimmed = text.trim();
+@@ -43,3 +55,71 @@ export function roofFormError(error: unknown): string {
+   if (error instanceof z.ZodError) return error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("; ");
+   return error instanceof Error ? error.message : "Check the roof inputs.";
+ }
++
++/** What the user types to bind. Identity, hash, units and calibration are read from the live source
++ * state, never from these fields, so a typed value can never masquerade as source identity.
++ */
++export type RoofBindingDraft = { pageIndexText: string; evidenceClass: string; reference: string };
++export const createEmptyRoofBindingDraft = (): RoofBindingDraft => ({ pageIndexText: "", evidenceClass: "", reference: "" });
++
++/** Build a binding from the live source state plus the user's explicit inputs. A blank page index or
++ * evidence class is refused rather than defaulted to a plausible-looking page zero or class.
++ */
++export function createRoofBinding(source: IndustrySourceState, draft: RoofBindingDraft, boundAt: string): IndustrySourceBinding {
++  const revision = source.sourceRevision;
++  if (revision === null) throw Error("This project has no current source revision. Open or add a source before binding.");
++  const pageIndexText = draft.pageIndexText.trim();
++  if (!/^\d+$/.test(pageIndexText)) throw Error("Page index: enter the page you measured from as a whole number.");
++  const evidenceClass = draft.evidenceClass.trim();
++  if (evidenceClass === "") throw Error("Evidence class: choose how the source evidence was obtained.");
++  if (draft.reference.trim() === "") throw Error("Reference: describe where this evidence came from.");
++  return createIndustrySourceBinding({
++    schema: INDUSTRY_SOURCE_BINDING_SCHEMA,
++    projectId: source.projectId,
++    sourceRevisionId: revision.id,
++    sha256: revision.sha256,
++    // The document's own label when the project supplies one; otherwise its revision id.
++    sourceName: revision.name ?? revision.id,
++    locator: { kind: "page", pageIndex: Number(pageIndexText) },
++    calibrationId: source.calibrationId,
++    // Roof plan areas are supplied in square metres, so the source length unit is the metre.
++    units: "m",
++    evidenceClass,
++    reference: draft.reference,
++    boundAt,
++  });
++}
++
++export type RoofFormBindingEvaluation = {
++  evaluation: IndustryBindingEvaluation;
++  result: ReturnType<typeof calculateRoofForm> | null;
++  error: string | null;
++};
++
++/** Pair the form with the live project state. A stale binding withholds the total entirely: the
++ * worksheet must never present a current-looking number once its source has changed underneath it.
++ * An unbound or current worksheet still calculates, exactly as a manual worksheet always has.
++ */
++export function evaluateRoofFormBinding(form: RoofForm, source: IndustrySourceState): RoofFormBindingEvaluation {
++  const evaluation = evaluateIndustryBinding(form.binding ?? null, source);
++  if (!form.calculated || evaluation.status === "stale") return { evaluation, result: null, error: null };
++  try { return { evaluation, result: calculateRoofForm(form), error: null }; }
++  catch (cause) { return { evaluation, result: null, error: roofFormError(cause) }; }
++}
++
++const ROOF_EVIDENCE_TEXT: Record<IndustrySourceBinding["evidenceClass"], string> = {
++  traced: "traced source geometry",
++  dimensioned: "dimensioned source geometry",
++  inferred: "an inferred reconstruction",
++  declared: "a typed reference",
++};
++
++/** Evidence classes are never promoted. Only traced and dimensioned evidence is source-derived; a
++ * declared or inferred binding stays supplied and unverified, even while its binding is current.
++ */
++export function describeRoofBindingEvidence(binding: IndustrySourceBinding | null | undefined): string {
++  if (!binding) return "Not bound: totals use the supplied inputs only and are not verified against any source.";
++  return isVerifiedEvidenceClass(binding.evidenceClass)
++    ? `Source-derived ${binding.evidenceClass} evidence from “${binding.sourceName}”. Totals remain a draft calculation and are not eligible for verified quotes.`
++    : `Supplied evidence (${binding.evidenceClass}): ${ROOF_EVIDENCE_TEXT[binding.evidenceClass]} from “${binding.sourceName}”, not verified against the source.`;
++}
