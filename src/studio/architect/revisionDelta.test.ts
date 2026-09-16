@@ -6,7 +6,6 @@ import { reviewIssueSet } from "./issueSet.ts";
 import { changeAuthoredSheets } from "./authoredSheetSet.ts";
 import {
   compareDrawingRevisions,
-  compareSheets,
   compareGeometry,
   computeQuantityVariance,
   extractProjectModel,

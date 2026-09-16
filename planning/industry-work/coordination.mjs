@@ -7,11 +7,19 @@ const active = new Map([
   ['IND-30', 'hvac'],
   ['IND-38', 'quantity-surveying'],
 ]);
+// IND-01 is first priority but owns no directory: its core is shared, so its work is
+// assigned per file and grants no worker a whole tree. IND-43 is retained but deferred
+// and consumes no worker slot. Neither takes a `worker` entry, so both keep the
+// exclusive-path set disjoint.
+const firstPriority = 'IND-01';
+const deferred = new Set(['IND-43']);
 export const assignments = industries.map(({ id, name }) => {
   const worker = active.get(id);
   return {
     id, name, worker: worker ?? null,
-    state: worker ? 'assigned' : id === 'IND-43' ? 'root-verification-pending' : 'queued',
+    state: worker ? 'assigned'
+      : id === firstPriority ? 'first-priority'
+      : deferred.has(id) ? 'deferred' : 'queued',
     writePaths: worker ? [
       `src/studio/industries/${worker}/`,
       `planning/industry-work/${worker}.md`,
