@@ -6,7 +6,12 @@ export type LifecycleRecord = { status: LifecycleStatus; reference: string };
 export type AlterationStatus = LifecycleStatus | "unassigned";
 export type OpeningDemolitionDisposition =
   | { kind: "retain-void"; reference: string }
-  | { kind: "infill"; reference: string };
+  | { kind: "infill"; reference: string }
+  | {
+      kind: "partial-infill";
+      reference: string;
+      remainingVoid: { offset: number; width: number; height: number; sill: number };
+    };
 export type RepairBasis = { reference: string; height: number };
 export type AlterationRow = {
   id: string;
@@ -54,6 +59,16 @@ export function setElementLifecycle(
 const dispositionSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict(),
   z.object({ kind: z.literal("infill"), reference: z.string().trim().min(1).max(500) }).strict(),
+  z.object({
+    kind: z.literal("partial-infill"),
+    reference: z.string().trim().min(1).max(500),
+    remainingVoid: z.object({
+      offset: z.number().finite().min(-1e6).max(1e6),
+      width: z.number().finite().positive().max(1e6),
+      height: z.number().finite().positive().max(1e6),
+      sill: z.number().finite().nonnegative().max(1e6),
+    }).strict(),
+  }).strict(),
 ]);
 
 /** Explicit authored disposition for a demolished door or window.

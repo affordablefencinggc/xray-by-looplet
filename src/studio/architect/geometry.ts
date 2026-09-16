@@ -1,4 +1,4 @@
-﻿import clipping from "polygon-clipping";
+import clipping from "polygon-clipping";
 import {
   add,
   sub,
@@ -33,6 +33,9 @@ export function union(...polygons: MultiPolygon[]): MultiPolygon {
 }
 export function difference(a: MultiPolygon, b: MultiPolygon): MultiPolygon {
   return !a.length ? [] : !b.length ? a : (clipping.difference(canonical(a), canonical(b)) as MultiPolygon);
+}
+export function polygonIntersection(a: MultiPolygon, b: MultiPolygon): MultiPolygon {
+  return !a.length || !b.length ? [] : (clipping.intersection(canonical(a), canonical(b)) as MultiPolygon);
 }
 export const polygonArea = (p: MultiPolygon) =>
   p.reduce((s, r) => s + area(r[0]) - r.slice(1).reduce((a, h) => a + area(h), 0), 0);

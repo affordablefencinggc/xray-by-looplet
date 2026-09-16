@@ -3,6 +3,8 @@ import { sheetLayoutSchema, authoredSheetSetSchema, validateAuthoredSheets } fro
 import { issueRecordSchema, type IssueRecord, type IssuedSheetRecord } from "./issueHistory.ts";
 import { alterationDraftRecordSchema } from "./alterationDraftSchema.ts";
 import { validateAlterationDrafts } from "./alterationDrafts.ts";
+import { alterationIssueRecordSchema } from "./alterationIssueSchema.ts";
+import { validateAlterationIssues } from "./alterationIssues.ts";
 export type Point = [number, number];
 const n = z.number().finite().min(-1e6).max(1e6),
   positive = z.number().finite().positive().max(1e6),
@@ -61,6 +63,16 @@ const openingSchema = z
     demolitionDisposition: z.discriminatedUnion("kind", [
       z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict(),
       z.object({ kind: z.literal("infill"), reference: z.string().trim().min(1).max(500) }).strict(),
+      z.object({
+        kind: z.literal("partial-infill"),
+        reference: z.string().trim().min(1).max(500),
+        remainingVoid: z.object({
+          offset: n,
+          width: positive,
+          height: positive,
+          sill: z.number().finite().nonnegative().max(1e6),
+        }).strict(),
+      }).strict(),
     ]).optional(),
     wallId: id,
     tag: z.string().min(1).max(30),
@@ -170,6 +182,7 @@ const schema = z
     sheetSet: authoredSheetSetSchema.optional(),
     issues: z.array(issueRecordSchema).optional(),
     alterationDrafts: z.array(alterationDraftRecordSchema).max(5).optional(),
+    alterationIssues: z.array(alterationIssueRecordSchema).max(10).optional(),
     notes: z.string().max(5000),
   })
   .strict();
@@ -179,6 +192,7 @@ export type Wall = ArchitectProject["walls"][number];
 export type Opening = ArchitectProject["openings"][number];
 export type Layer = z.infer<typeof layerSchema>;
 export type Roof = ArchitectProject["roofs"][number];
+export type Slab = ArchitectProject["slabs"][number];
 export const uuid = () => crypto.randomUUID();
 export const distance = (a: Point, b: Point) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 export const cross = (a: Point, b: Point) => a[0] * b[1] - a[1] * b[0];
@@ -276,6 +290,16 @@ export function validateProject(value: unknown): ArchitectProject {
     if (o.kind === "door" && o.sill !== 0) throw Error("Door sill must be zero.");
     if (o.demolitionDisposition && (o.lifecycle?.status !== "demolished" || o.kind === "void"))
       throw Error("Retain-void disposition requires a demolished door or window.");
+    if (o.demolitionDisposition?.kind === "partial-infill") {
+      const rv = o.demolitionDisposition.remainingVoid;
+      if (
+        rv.offset - rv.width / 2 < o.offset - o.width / 2 - 0.001 ||
+        rv.offset + rv.width / 2 > o.offset + o.width / 2 + 0.001 ||
+        rv.sill < o.sill - 0.001 ||
+        rv.sill + rv.height > o.sill + o.height + 0.001
+      )
+        throw Error("Partial infill remaining void must fit within the opening.");
+    }
     if (tags.has(o.tag.toLowerCase())) throw Error("Door/window tags must be unique.");
     tags.add(o.tag.toLowerCase());
     for (const other of p.openings)
@@ -285,8 +309,15 @@ export function validateProject(value: unknown): ArchitectProject {
         Math.abs(other.offset - o.offset) < (other.width + o.width) / 2 - 0.001 &&
         other.sill < o.sill + o.height - 0.001 &&
         o.sill < other.sill + other.height - 0.001
-      )
-        throw Error("Hosted openings overlap.");
+      ) {
+        const oStatus = o.lifecycle?.status;
+        const otherStatus = other.lifecycle?.status;
+        const isNonConcurrentReplacement =
+          (oStatus === "demolished" && otherStatus === "new") ||
+          (oStatus === "new" && otherStatus === "demolished");
+        if (!isNonConcurrentReplacement)
+          throw Error("Hosted openings overlap.");
+      }
   }
   for (const d of p.dimensions)
     if (!p.walls.some((w) => w.id === d.wallId)) throw Error("Dimension refers to a missing wall.");
@@ -326,6 +357,7 @@ export function validateProject(value: unknown): ArchitectProject {
   }
   validateAuthoredSheets(p);
   validateAlterationDrafts(p);
+  validateAlterationIssues(p);
   if (distance(p.section.a, p.section.b) < 1) throw Error("Section line must have a direction.");
   return p;
 }

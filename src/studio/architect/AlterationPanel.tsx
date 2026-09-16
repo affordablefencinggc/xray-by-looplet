@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import type { ArchitectProject } from "./model";
-import { alterationSchedule, alterationScheduleCsv, setElementLifecycle, setOpeningDemolitionDisposition, setWallRepairBasis } from "./lifecycle";
+import { alterationSchedule, alterationScheduleCsv, setElementLifecycle, setOpeningDemolitionDisposition, setWallRepairBasis, type OpeningDemolitionDisposition } from "./lifecycle";
 import "./alterationPanel.css";
 
 const statuses = ["existing", "new", "demolished", "repaired"] as const;
@@ -24,7 +24,13 @@ function AssignmentEditor({ project, row, onChange }: {
   const [error, setError] = useState("");
   const dispositionId = useId();
   const [dispositionReference, setDispositionReference] = useState(row.demolitionDisposition?.reference ?? "");
-  const [dispositionKind, setDispositionKind] = useState<"retain-void" | "infill">(row.demolitionDisposition?.kind ?? "retain-void");
+  const [dispositionKind, setDispositionKind] = useState<"retain-void" | "infill" | "partial-infill">(row.demolitionDisposition?.kind ?? "retain-void");
+  const opening = project.openings.find((item) => item.id === row.id);
+  const initialRemaining = row.demolitionDisposition?.kind === "partial-infill" ? row.demolitionDisposition.remainingVoid : null;
+  const [partialOffset, setPartialOffset] = useState(initialRemaining ? String(initialRemaining.offset) : opening ? String(opening.offset) : "");
+  const [partialWidth, setPartialWidth] = useState(initialRemaining ? String(initialRemaining.width) : opening ? String(opening.width) : "");
+  const [partialHeight, setPartialHeight] = useState(initialRemaining ? String(initialRemaining.height) : opening ? String(opening.height) : "");
+  const [partialSill, setPartialSill] = useState(initialRemaining ? String(initialRemaining.sill) : opening ? String(opening.sill) : "");
   const [repairHeight, setRepairHeight] = useState(row.repairBasis ? String(row.repairBasis.height) : "");
   const [repairReference, setRepairReference] = useState(row.repairBasis?.reference ?? "");
   const repairReferenceId = useId();
@@ -41,8 +47,30 @@ function AssignmentEditor({ project, row, onChange }: {
   };
   const retainVoid = (clear: boolean) => {
     if (!clear && !dispositionReference.trim()) { setError("Enter a reference confirming the selected opening disposition."); return; }
+    if (!clear && dispositionKind === "partial-infill") {
+      const offset = Number(partialOffset), width = Number(partialWidth), height = Number(partialHeight), sill = Number(partialSill);
+      if (!Number.isFinite(offset) || !Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0 || !Number.isFinite(sill) || sill < 0) {
+        setError("Enter positive dimensions and a non-negative sill in millimetres for the remaining void."); return;
+      }
+      try {
+        if (!onChange(setOpeningDemolitionDisposition(project, row.id, {
+          kind: "partial-infill",
+          reference: dispositionReference.trim(),
+          remainingVoid: { offset, width, height, sill },
+        }))) {
+          setError("The opening disposition was not saved. Check the workspace save message and try again."); return;
+        }
+        setError("");
+      } catch (cause) { setError(cause instanceof Error ? cause.message : "The opening disposition could not be saved."); }
+      return;
+    }
     try {
-      if (!onChange(setOpeningDemolitionDisposition(project, row.id, clear ? null : { kind: dispositionKind, reference: dispositionReference.trim() }))) {
+      const dispositionPayload: OpeningDemolitionDisposition | null = clear
+        ? null
+        : dispositionKind === "infill"
+        ? { kind: "infill", reference: dispositionReference.trim() }
+        : { kind: "retain-void", reference: dispositionReference.trim() };
+      if (!onChange(setOpeningDemolitionDisposition(project, row.id, dispositionPayload))) {
         setError("The opening disposition was not saved. Check the workspace save message and try again."); return;
       }
       setError("");
@@ -82,19 +110,34 @@ function AssignmentEditor({ project, row, onChange }: {
     {row.kind === "opening" && row.status === "demolished" && project.openings.some((opening) => opening.id === row.id && (opening.kind === "door" || opening.kind === "window")) && <div className="alteration-disposition">
       <strong>Demolished opening disposition</strong>
       <label>Opening disposition
-        <select aria-label="Opening disposition" value={dispositionKind} onChange={(event) => { setDispositionKind(event.target.value as "retain-void" | "infill"); setError(""); }}>
+        <select aria-label="Opening disposition" value={dispositionKind} onChange={(event) => { setDispositionKind(event.target.value as "retain-void" | "infill" | "partial-infill"); setError(""); }}>
           <option value="retain-void">Retain empty aperture</option>
           <option value="infill">Full infill with host wall layers</option>
+          <option value="partial-infill">Partial infill (specify remaining void)</option>
         </select>
       </label>
-      <p>{dispositionKind === "infill" ? "Close the full aperture in the proposed stage using the host wall's existing authored layers. Partial infill and different infill materials are not supported." : "Remove the door or window while retaining the hole in its host wall."}</p>
+      <p>{dispositionKind === "infill" ? "Close the full aperture in the proposed stage using the host wall's existing authored layers. Different infill materials are not supported." : dispositionKind === "partial-infill" ? "Reduce the aperture to a smaller void opening in the proposed stage; the host wall's existing authored layers close the remaining cut." : "Remove the door or window while retaining the hole in its host wall."}</p>
+      {dispositionKind === "partial-infill" && <div className="alteration-partial-void">
+        <label>Remaining void offset (mm)
+          <input type="number" step="any" aria-label="Remaining void offset" value={partialOffset} onChange={(event) => { setPartialOffset(event.target.value); setError(""); }} />
+        </label>
+        <label>Remaining void width (mm)
+          <input type="number" min="1" step="any" aria-label="Remaining void width" value={partialWidth} onChange={(event) => { setPartialWidth(event.target.value); setError(""); }} />
+        </label>
+        <label>Remaining void height (mm)
+          <input type="number" min="1" step="any" aria-label="Remaining void height" value={partialHeight} onChange={(event) => { setPartialHeight(event.target.value); setError(""); }} />
+        </label>
+        <label>Remaining void sill (mm)
+          <input type="number" min="0" step="any" aria-label="Remaining void sill" value={partialSill} onChange={(event) => { setPartialSill(event.target.value); setError(""); }} />
+        </label>
+      </div>}
       <label htmlFor={dispositionId}>Opening disposition reference (required)</label>
       <textarea id={dispositionId} value={dispositionReference} maxLength={500} rows={2} onChange={(event) => { setDispositionReference(event.target.value); setError(""); }} />
       <div className="alteration-actions">
-        <button type="button" onClick={() => retainVoid(false)}>{dispositionKind === "infill" ? "Save full infill" : "Save retained void"}</button>
+        <button type="button" onClick={() => retainVoid(false)}>{dispositionKind === "infill" ? "Save full infill" : dispositionKind === "partial-infill" ? "Save partial infill" : "Save retained void"}</button>
         <button type="button" disabled={!row.demolitionDisposition} onClick={() => retainVoid(true)}>Clear opening disposition</button>
       </div>
-      <p>{row.demolitionDisposition ? `Saved ${row.demolitionDisposition.kind}: ${row.demolitionDisposition.reference}` : "No disposition recorded."}</p>
+      <p>{row.demolitionDisposition ? `Saved ${row.demolitionDisposition.kind}: ${row.demolitionDisposition.reference}${row.demolitionDisposition.kind === "partial-infill" ? ` (remaining void: ${row.demolitionDisposition.remainingVoid.width}×${row.demolitionDisposition.remainingVoid.height} mm, sill ${row.demolitionDisposition.remainingVoid.sill} mm)` : ""}` : "No disposition recorded."}</p>
     </div>}
     {row.kind === "wall" && row.status === "repaired" && <div className="alteration-disposition">
       <strong>Before-repair wall height</strong>

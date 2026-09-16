@@ -113,6 +113,18 @@ export function resolveAlterationStage(
         excludedIds.push(opening.id);
         return false;
       }
+      // Partial infill replaces the fixture with an explicit void opening of the
+      // remaining sub-rectangle; the host wall's own layers close the remaining cut.
+      if (opening.demolitionDisposition?.kind === "partial-infill") {
+        const rv = opening.demolitionDisposition.remainingVoid;
+        opening.kind = "void";
+        opening.offset = rv.offset;
+        opening.width = rv.width;
+        opening.height = rv.height;
+        opening.sill = rv.sill;
+        delete opening.demolitionDisposition;
+        return true;
+      }
     }
     return present(opening);
   });

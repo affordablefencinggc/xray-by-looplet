@@ -1,0 +1,21 @@
+[
+  ["set", "viewport", "1600", "1000"],
+  ["open", "http://127.0.0.1:8080/"],
+  ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"],
+  ["eval", "(async()=>{const s=await import('/src/studio/store.ts');const m=await import('/src/studio/architect/model.ts');const p=await import('/src/studio/architect/persistence.ts');const id=s.useStudio.getState().job.id;const model=m.emptyProject(id);const w1=m.newWall(model,model.levels[0].id,[-2000,0],[2000,0],[{id:'solid-1',name:'Existing Concrete',thickness:200,kind:'solid',hatch:'concrete',densityKgM3:null,rateM2:null,supplierReference:'',rateRevision:'',wastePercent:0}]);w1.id='w-existing';w1.height=2700;w1.lifecycle={status:'existing',reference:'Survey S01'};model.walls.push(w1);const w2=m.newWall(model,model.levels[0].id,[0,0],[0,3000],[{id:'solid-2',name:'New Timber',thickness:200,kind:'solid',hatch:'concrete',densityKgM3:null,rateM2:null,supplierReference:'',rateRevision:'',wastePercent:0}]);w2.id='w-new';w2.height=2700;w2.lifecycle={status:'new',reference:'Brief N01'};model.walls.push(w2);p.saveArchitect(p.loadArchitect(id,localStorage),model,localStorage);return true;})()"],
+  ["reload"],
+  ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"],
+  ["eval", "(()=>{const b=[...document.querySelectorAll('button,a')].find(b=>b.textContent.trim()==='Design');if(b)b.click();return true})()"],
+  ["wait", "--fn", "[...document.querySelectorAll('button,a')].some(b=>b.textContent.includes('Architectural workspace'))"],
+  ["eval", "(()=>{const b=[...document.querySelectorAll('button,a')].find(b=>b.textContent.includes('Architectural workspace'));if(b)b.click();return true})()"],
+  ["wait", "--fn", "!!document.querySelector('.alteration-stage-preview')"],
+  ["eval", "(()=>{const d=document.querySelector('.alteration-stage-preview');if(d){d.open=true;d.scrollIntoView({block:'start'});}return true})()"],
+  ["wait", "--fn", "document.querySelector('.alteration-stage-preview')?.open===true"],
+  ["eval", "(()=>{const t=document.querySelector('.alteration-stage-content input:not([type=\"checkbox\"])');if(!t)throw Error('Stage reference input missing');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(t,'Reviewed Cross-Lifecycle Junction S01');t.dispatchEvent(new Event('input',{bubbles:true}));const c=document.querySelector('.alteration-stage-confirm input');if(!c.checked)c.click();return true})()"],
+  ["eval", "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Review stage geometry');if(!b)throw Error('Review stage geometry button missing');b.click();return true})()"],
+  ["wait", "--fn", "!!document.querySelector('.alteration-breakdown-table')"],
+  ["eval", "(()=>{const q=document.querySelector('.alteration-stage-quantities');if(q)q.scrollIntoView({block:'center'});return true})()"],
+  ["screenshot", "proof/growth/cdp-demo/12-lifecycle-quantities-table.png"],
+  ["eval", "(()=>{const table=document.querySelector('.alteration-breakdown-table');if(!table)throw Error('Lifecycle breakdown table not found in DOM');const notice=document.querySelector('.alteration-shared-notice');if(!notice)throw Error('Shared notice element not found');if(!notice.textContent.includes('Shared junction volume between distinct lifecycle classifications'))throw Error('Expected shared junction notice');return true;})()"],
+  ["errors"]
+]

@@ -59,3 +59,45 @@ test("assistant before-repair height is explicit, edits independently and clears
     assert.throws(() => edit(next, [{ ...operation, basis: bad }]));
   }
 });
+test("assistant partial infill reduces opening to a remaining void and verifies analytic volumes", () => {
+  const p = fixture();
+  const operation = {
+    kind: "set-opening-disposition",
+    id: "qa-window",
+    disposition: {
+      kind: "partial-infill",
+      reference: "QA partial infill instruction",
+      remainingVoid: { offset: 2000, width: 600, height: 900, sill: 1200 },
+    },
+  };
+  const result = edit(p, [operation]);
+  assert.ok(result.notices.some((notice) => notice.includes("partial infill reducing opening to void 600×900 mm")));
+  const next = revise(p, result.draft);
+  const basis = createAlterationBasis(next, "QA review");
+  // Before: window cut = 0.9 * 1.2 * 0.2 = 0.216 m3 -> wall volume 1.944 m3
+  // Proposed: remaining void cut = 0.6 * 0.9 * 0.2 = 0.108 m3 -> wall volume 2.052 m3
+  for (const [stage, expected] of [["before", 1.944], ["proposed", 2.052]] as const) {
+    const r = resolveAlterationStage(next, basis, stage);
+    if (!r.ready) throw Error(JSON.stringify(r.blockers));
+    assert.ok(Math.abs(wallSolids(r.model).reduce((sum, solid) => sum + solid.volumeM3, 0) - expected) < 1e-9);
+  }
+  // Proposed stage has converted the opening to a void with remainingVoid dimensions
+  const propRes = resolveAlterationStage(next, basis, "proposed");
+  assert.equal(propRes.ready, true);
+  if (!propRes.ready) throw Error("proposed not ready");
+  assert.equal(propRes.model.openings.length, 1);
+  assert.equal(propRes.model.openings[0].kind, "void");
+  assert.equal(propRes.model.openings[0].width, 600);
+  assert.equal(propRes.model.openings[0].height, 900);
+  assert.equal(propRes.model.openings[0].sill, 1200);
+
+  // Out-of-bounds remaining void must throw
+  const outOfBounds = {
+    ...operation,
+    disposition: {
+      ...operation.disposition,
+      remainingVoid: { offset: 2000, width: 1200, height: 900, sill: 1200 }, // width 1200 > 900
+    },
+  };
+  assert.throws(() => edit(p, [outOfBounds]), /Partial infill remaining void must fit within the opening/);
+});

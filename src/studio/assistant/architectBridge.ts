@@ -162,9 +162,20 @@ export const architectEditOperationSchema = z.discriminatedUnion("kind", [
     status: z.enum(["existing", "new", "demolished", "repaired"]),
     reference: z.string().trim().min(1).max(500),
   }).strict().nullable() }).strict(),
-  z.object({ kind: z.literal("set-opening-disposition"), id, disposition: z.object({
-    kind: z.enum(["retain-void", "infill"]), reference: z.string().trim().min(1).max(500),
-  }).strict().nullable() }).strict(),
+  z.object({ kind: z.literal("set-opening-disposition"), id, disposition: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("retain-void"), reference: z.string().trim().min(1).max(500) }).strict(),
+    z.object({ kind: z.literal("infill"), reference: z.string().trim().min(1).max(500) }).strict(),
+    z.object({
+      kind: z.literal("partial-infill"),
+      reference: z.string().trim().min(1).max(500),
+      remainingVoid: z.object({
+        offset: coordinate,
+        width: positive,
+        height: positive,
+        sill: nonnegative,
+      }).strict(),
+    }).strict(),
+  ]).nullable() }).strict(),
   z.object({ kind: z.literal("set-wall-repair-basis"), id, basis: z.object({
     heightMm: positive, reference: z.string().trim().min(1).max(500),
   }).strict().nullable() }).strict(),
@@ -306,7 +317,7 @@ function prepareArchitectEditsDraft(project: ArchitectProject, input: unknown, m
         opening.demolitionDisposition = operation.disposition;
       }
       change("opening", opening.id);
-      notices.push(`Opening ${opening.id}: ${operation.disposition?.kind === "infill" ? "explicit full infill using the host wall's authored layers" : operation.disposition ? "retain authored void after fixture demolition" : "demolition disposition cleared"}. No infill, source verification or procurement is inferred.`);
+      notices.push(`Opening ${opening.id}: ${operation.disposition?.kind === "infill" ? "explicit full infill using the host wall's authored layers" : operation.disposition?.kind === "partial-infill" ? `partial infill reducing opening to void ${operation.disposition.remainingVoid.width}×${operation.disposition.remainingVoid.height} mm` : operation.disposition ? "retain authored void after fixture demolition" : "demolition disposition cleared"}. No infill, source verification or procurement is inferred.`);
     } else if (operation.kind === "set-wall-repair-basis") {
       const wall = find("walls", operation.id, "wall");
       if (operation.basis === null) delete wall.repairBasis;
