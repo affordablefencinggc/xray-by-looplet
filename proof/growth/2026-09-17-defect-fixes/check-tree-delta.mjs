@@ -104,20 +104,26 @@ check(
 
 /* 5. The same relation, taken over the paths the change itself touches: an unrestricted `git diff <the
    pinned base>` would also count every file committed on this branch since — the proof bundles among them —
-   which is not what this comparison is about. Over the change's own paths the reading is the note's, and
-   what the tree adds must be exactly the corrections' own hunks and nothing else: while they are
-   uncommitted that is this tree's delta, and once they are committed it is the same two files' diff from
-   the pinned tip. A file that drifted by so much as a line makes the two disagree. */
-const working = git(["diff", BASE, "--", ...committedPaths]);
-const addedBytes = Buffer.byteLength(working) - Buffer.byteLength(committed);
-const correctionBytes = Buffer.byteLength(source);
-console.log(`\ncode.diff ${Buffer.byteLength(codeDiff)} bytes; git diff ${BASE} over the change's own ${committedPaths.length} paths on this tree ${Buffer.byteLength(working)} bytes (+${addedBytes}); the two corrected files' own hunks ${correctionBytes} bytes`);
+   which is not what this comparison is about. Over the change's own paths, what the tree carries must be
+   the committed change plus the two corrected files and nothing else.
+   Counted in lines rather than measured in bytes: a diff's byte length is not additive, because headers and
+   context lines are shared between adjacent hunks, so a byte comparison against the corrections' own
+   standalone diff compares two different quantities and fails on arithmetic instead of on drift. Lines are
+   additive — every added line is counted once, wherever it sits. */
+const numstat = (d) => lines(d).filter((l) => /^\d+\t\d+\t/.test(l)).reduce((a, l) => { const [i, x] = l.split("\t"); return [a[0] + Number(i), a[1] + Number(x)]; }, [0, 0]);
+const treeCount = numstat(git(["diff", "--numstat", BASE, "--", ...committedPaths]));
+const commitCount = numstat(git(["diff", "--numstat", BASE, "HEAD", "--", ...committedPaths]));
+const ownInTree = numstat(git(["diff", "--numstat", "HEAD", "--", ...CORRECTIONS]));
+const ownInCommit = numstat(git(["diff", "--numstat", TIP, "HEAD", "--", ...CORRECTIONS]));
+const drift = [treeCount[0] - commitCount[0], treeCount[1] - commitCount[1]];
+console.log(`\ncode.diff ${Buffer.byteLength(codeDiff)} bytes; over the change's own ${committedPaths.length} paths this tree is +${treeCount[0]}/-${treeCount[1]} against the change's +${commitCount[0]}/-${commitCount[1]}; the two corrected files carry +${ownInTree[0]}/-${ownInTree[1]} in the tree and +${ownInCommit[0]}/-${ownInCommit[1]} in the commit`);
 check(
   clean
-    ? "the change's own paths add exactly the two corrected files' committed hunks and nothing else"
+    ? "the change's own paths carry the committed change and the two corrected files, and nothing else"
     : "the comparison adds nothing when the tree is clean, or only these two files' hunks when it is not",
-  addedBytes === correctionBytes,
-  `+${addedBytes} against the corrections' ${correctionBytes}`,
+  drift[0] === ownInTree[0] && drift[1] === ownInTree[1] && ownInCommit[0] + ownInCommit[1] + ownInTree[0] + ownInTree[1] > 0,
+  `the tree adds +${drift[0]}/-${drift[1]} where the two files' own delta is +${ownInTree[0]}/-${ownInTree[1]}` +
+    (ownInCommit[0] + ownInCommit[1] + ownInTree[0] + ownInTree[1] > 0 ? "" : "; no corrections in the tree or in the commit"),
 );
 
 /* 6. The two files still parse as the language they are, so a comment edit did not break them. */
