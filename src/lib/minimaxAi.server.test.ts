@@ -180,7 +180,7 @@ test("an empty reply still produces valid content rather than an invalid part", 
  */
 test("reasoning blocks are removed so the user never reads the model thinking aloud", () => {
   assert.equal(stripReasoning("<think>Let me consider.</think>READY"), "READY");
-  assert.equal(stripReasoning("<think>one</think>A<think>two</think>B"), "AB");
+  assert.equal(stripReasoning("<think>one</think>A<think>two</think>B"), "A B", "a removed block must not weld the words either side of it");
   assert.equal(stripReasoning("<THINK>upper</THINK>Answer"), "Answer", "the tag match must not be case-sensitive");
   assert.equal(stripReasoning("Plain answer"), "Plain answer", "content without reasoning is untouched");
 });
@@ -203,6 +203,20 @@ test("a tool call still arrives when the text was only reasoning", () => {
   assert.equal(content.parts.some(part => typeof part.text === "string" && part.text.includes("<think>")), false);
 });
 
+test("removing a reasoning block never joins the words on either side of it", () => {
+  // The observed failure was a reply that arrived with words fused at a seam the strip had created.
+  assert.equal(stripReasoning("the right<think>hmm</think>context for the roof"), "the right context for the roof");
+  // More than one block, with real text between and around them: every block goes, every word stays,
+  // and each block leaves exactly one space. Asserted on the exact string on purpose — the word-level
+  // check these replaced split on /\s+/, which normalises the seam away, so it passed for the welding
+  // implementation as readily as for this one and gave the seam fix no cover at all. The doubled
+  // spaces below are the model's own spacing plus the one space each removed block leaves behind.
+  assert.equal(stripReasoning("one <think>r</think>, two <think>s</think> three"), "one  , two   three");
+  assert.equal(stripReasoning("Here is the plan <think>r1</think> - step one <think>r2</think> Done."), "Here is the plan   - step one   Done.");
+  // Only the block is removed: the spacing the model wrote is preserved, not normalised.
+  assert.equal(stripReasoning("right<think>x</think>context"), "right context");
+});
+
 test("a lone closing tag is treated as the end of reasoning, not shown as a bare tag", () => {
   // Observed live on M3 with tool calls: reasoning arrives already open, so only </think> reaches
   // the content. Without this the chat would display a bare "</think>".
@@ -211,4 +225,15 @@ test("a lone closing tag is treated as the end of reasoning, not shown as a bare
   assert.equal(stripReasoning("</think>\n\nREADY"), "READY");
   // A normal reply that merely mentions the word is untouched.
   assert.equal(stripReasoning("I will think about the roof"), "I will think about the roof");
+});
+
+test("two unopened reasoning segments leave neither a stray tag nor the reasoning behind it", () => {
+  // The same M3 shape as above with two segments in one reply: only the closing tags reach the
+  // content, so the last one ends the reasoning and the first one ends nothing the reader should see.
+  // A rule that removed only the first left a bare "</think>" in the chat, with the second segment's
+  // deliberation in front of it — the leak this rule exists to prevent, in the one shape it missed.
+  assert.equal(stripReasoning("The workflow selector must be chosen.</think></think>"), "");
+  assert.equal(
+    stripReasoning("Let me re-check.</think>Selecting inspect so the save has the right context.</think>Now saving."),
+    "Now saving.");
 });

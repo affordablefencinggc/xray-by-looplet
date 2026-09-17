@@ -120,13 +120,22 @@ export function toChatMessages(contents: readonly AssistantContent[], model = DE
  * presenting reasoning as a result.
  */
 export function stripReasoning(text: string): string {
-  const closed = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  // Every removed block leaves one space, never nothing. Deleting a block outright welds the words
+  // on either side of it into one ("the right<think>…</think>context" reads as "rightcontext"), which
+  // is how a stripped reply arrived with words fused together.
+  const closed = text.replace(/<think>[\s\S]*?<\/think>/gi, " ");
   // An opening tag with no close means the reply ended inside its own reasoning.
-  const unterminated = closed.replace(/<think>[\s\S]*$/i, "");
+  const unterminated = closed.replace(/<think>[\s\S]*$/i, " ");
   // Observed live on M3 with tool calls: the reasoning arrives already open, so only the closing
-  // tag reaches the content and neither rule above matches it. Everything up to and including a
-  // lone `</think>` is reasoning, so it is dropped rather than shown as a bare tag in the chat.
-  const orphanClose = unterminated.replace(/^[\s\S]*?<\/think>/i, "");
+  // tag reaches the content and neither rule above matches it. Every such tag terminates a
+  // reasoning segment, so everything up to and including the last of them is reasoning, dropped
+  // rather than shown as a bare tag or as the deliberation behind it.
+  //
+  // Global and greedy on purpose. A reply carrying two unopened segments ("…</think>…</think>…")
+  // has two closing tags, and a rule that removed only the first shipped exactly what this rule
+  // exists to prevent: a bare `</think>` rendered in the chat, with the second segment's reasoning
+  // text in front of it.
+  const orphanClose = unterminated.replace(/^[\s\S]*<\/think>/gi, " ");
   return orphanClose.trim();
 }
 

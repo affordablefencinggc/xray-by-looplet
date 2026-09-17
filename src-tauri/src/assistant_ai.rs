@@ -496,11 +496,18 @@ mod tests {
     /// cannot observe what SYSTEM_INSTRUCTION actually evaluates to; replacing the format! with
     /// a bare `brief` left SAFETY_MANUAL a dead constant and every test still passed, shipping
     /// 8,951 bytes with 20 of the 21 safety clauses deleted (context/WIRING.md). Only a test
-    /// inside the crate can catch that, so the exact byte length is pinned here: it moves
-    /// whenever the authored Markdown changes, and re-running
-    /// `node scripts/build-assistant-context.mjs` prints the new figure to paste in.
-    // Includes the current authored calculator and receipt guidance (e7c0c4d).
-    const SYSTEM_INSTRUCTION_LEN: usize = 14638;
+    /// inside the crate can catch that, so the exact byte lengths are pinned here.
+    ///
+    /// Two figures, because the builder prints only one of them and the other is not derivable
+    /// from it without the Rust side. `node scripts/build-assistant-context.mjs` prints
+    /// `composed brief: N characters` — that N is COMPOSED_BRIEF_LEN. The instruction is that
+    /// brief behind SAFETY_MANUAL and one space, so SYSTEM_INSTRUCTION_LEN is
+    /// SAFETY_MANUAL.len() + 1 + COMPOSED_BRIEF_LEN; the pinned assertion computes exactly that
+    /// right-hand side, so a failure reports the figure to paste as the `left:` value it prints.
+    // Includes the current authored calculator and receipt guidance (e7c0c4d), and the
+    // corrected execution-budget figures in skills-atlas.md.
+    const COMPOSED_BRIEF_LEN: usize = 11994;
+    const SYSTEM_INSTRUCTION_LEN: usize = 14641;
     #[test]
     fn system_instruction_appends_the_brief_to_the_safety_manual() {
         let instruction: &str = SYSTEM_INSTRUCTION.as_str();
@@ -532,12 +539,21 @@ mod tests {
             !instruction.contains("  "),
             "SYSTEM_INSTRUCTION contains a double space; a join separator is wrong"
         );
+        // The figure scripts/build-assistant-context.mjs prints, so the authored Markdown can be
+        // checked against the crate (and against the regenerated contextManual.gen.ts) without
+        // cargo. Pinned separately from the instruction length because the builder never prints
+        // the instruction length, and pasting its figure into SYSTEM_INSTRUCTION_LEN is wrong.
+        assert_eq!(
+            brief.len(),
+            COMPOSED_BRIEF_LEN,
+            "the composed brief moved; re-run node scripts/build-assistant-context.mjs and paste the figure it prints into COMPOSED_BRIEF_LEN"
+        );
         // Pinned length, so a section silently dropped by a filter or a normaliser change is
         // caught even when every structural assertion above still holds.
         assert_eq!(
             instruction.len(),
             SYSTEM_INSTRUCTION_LEN,
-            "SYSTEM_INSTRUCTION length moved; re-run node scripts/build-assistant-context.mjs and update SYSTEM_INSTRUCTION_LEN if the authored Markdown changed"
+            "SYSTEM_INSTRUCTION length moved; it is SAFETY_MANUAL.len() + 1 + COMPOSED_BRIEF_LEN, so update this pin to the `left:` value printed above"
         );
         // Every section must actually reach the instruction, in the fixed composition order
         // build-assistant-context.mjs pins, so a reordered or missing include_str! is caught.

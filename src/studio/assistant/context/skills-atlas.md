@@ -34,7 +34,7 @@ The ASSISTANT_SKILLS entries by category. Categories are headings here, never se
 - Evidence states traced, dimensioned and inferred are per part; keep counts, lengths, areas and
   volumes separate.
 - Demonstration designs keep their marker through rename-design; do not present one as a real job.
-- Twelve rounds per send, then the turn pauses with completed actions retained.
-- Twenty-four tool calls per send; the twenty-fifth is refused rather than executed.
+- 64 rounds per send, then the turn pauses with completed actions retained.
+- 256 tool calls per send; the next is refused, not executed.
 - Permission modes are ask, auto and readonly. Read tools never prompt; ask grants a call once or
-  for the chat; readonly blocks every edit tool.
+  for the chat; readonly blocks edits, navigation, viewer changes and renders.

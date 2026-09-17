@@ -39,6 +39,10 @@ checkout changes what the normaliser sees; either would break byte parity silent
 
 ## Cost is published, not hidden
 
-The composed brief is about 8,950 characters, roughly 2,240 tokens, charged on every round of every
-send on both platforms. `measureContext` counts neither the system instruction nor the tool
-declarations, so the panel's context meter under-reports by that amount.
+The composed brief is 11,994 characters, roughly 2,999 tokens, charged on every round of every send
+on both platforms. `measureContext` counts neither the system instruction nor the tool declarations,
+so the panel's context meter under-reports by that amount.
+
+`node scripts/build-assistant-context.mjs` prints both figures on every run, and
+`system_instruction_appends_the_brief_to_the_safety_manual` in `src-tauri/src/assistant_ai.rs` pins
+them, so a figure written here that contradicts either is stale by definition.

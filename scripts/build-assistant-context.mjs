@@ -242,11 +242,14 @@ function main(argv) {
   );
   if (tokens > BUDGET_TOKENS) {
     // Not a failure: the ceiling is the gate. This is the published cost moving, and it is
-    // charged on all eight rounds of every send on both platforms, uncounted by the meter.
+    // charged on every round of every send on both platforms, uncounted by the meter. The round
+    // count is deliberately not restated here: it is DEFAULT_EXECUTION_BUDGET.maxRounds
+    // (executionBudget.ts), configurable per browser, and the figure that used to sit in this
+    // comment had gone eight times stale against it.
     console.log(
       `[assistant-context] over the published ${BUDGET_TOKENS}-token budget by`
-        + ` ${tokens - BUDGET_TOKENS} tokens; the cost is paid on all eight rounds and`
-        + " measureContext counts none of it",
+        + ` ${tokens - BUDGET_TOKENS} tokens; the cost is paid on every round of every send`
+        + " (DEFAULT_EXECUTION_BUDGET.maxRounds) and measureContext counts none of it",
     );
   }
   // No Rust is executed here. This compares normaliseManualMarkdown against
