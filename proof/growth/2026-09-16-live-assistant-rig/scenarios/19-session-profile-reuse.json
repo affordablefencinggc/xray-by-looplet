@@ -1,0 +1,37 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:8085/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+    "--timeout",
+    "180000"
+  ],
+  [
+    "eval",
+    "(()=>{window.__qaProbe=null;(async()=>{try{\nconst KEY='xray:qa-session-sentinel';\nconst existing=localStorage.getItem(KEY);\nconst row=await new Promise((resolve)=>{const r=indexedDB.open('xray-qa-session',1);\n  r.onupgradeneeded=()=>r.result.createObjectStore('s',{keyPath:'k'});\n  r.onsuccess=()=>{const db=r.result;const q=db.transaction('s').objectStore('s').get('sentinel');\n    q.onsuccess=()=>{db.close();resolve(q.result||null)};q.onerror=()=>{db.close();resolve(null)}};\n  r.onerror=()=>resolve(null)});\nif(existing||row){\n  window.__qaProbe={verdict:'state survived a previous run under this session name',\n    localStorageSentinel:existing,indexedDbSentinel:row?row.v:null,\n    localStorageKeys:Object.keys(localStorage).length,\n    projectKeys:Object.keys(localStorage).filter(k=>/xray:/.test(k)).slice(0,12)};\n  return}\nlocalStorage.setItem(KEY,'written');\nawait new Promise((resolve,reject)=>{const r=indexedDB.open('xray-qa-session',1);\n  r.onupgradeneeded=()=>r.result.createObjectStore('s',{keyPath:'k'});\n  r.onsuccess=()=>{const db=r.result;const tx=db.transaction('s','readwrite');\n    tx.objectStore('s').put({k:'sentinel',v:'written'});\n    tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}};\n  r.onerror=()=>reject(r.error)});\nwindow.__qaProbe={verdict:'fresh profile - nothing was here, a sentinel has now been written',\n  localStorageKeys:Object.keys(localStorage).length};\n}catch(e){window.__qaProbe={verdict:'error',detail:String(e)}}})();return 'probing profile'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!window.__qaProbe",
+    "--timeout",
+    "60000"
+  ],
+  [
+    "eval",
+    "(()=>{const p=window.__qaProbe;if(p.verdict==='error')throw Error(p.detail);return JSON.stringify(p)})()"
+  ],
+  [
+    "errors"
+  ]
+]

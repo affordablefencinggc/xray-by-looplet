@@ -1,0 +1,34 @@
+The push, recorded where the page's scope claims can be read against it.
+
+branch            feat/architect-cad-engine
+pushed at         2026-09-17T10:46:52.201Z  (the terminal's own clock; the repository is the authority)
+
+what the terminal reported for the push itself:
+
+  $ git push origin feat/architect-cad-engine  # checkpoint: assistant-defect-fixes-2026-09-17-push
+  To https://github.com/affordablefencinggc/xray-by-looplet.git
+     26f5deb..09f1771  feat/architect-cad-engine -> feat/architect-cad-engine
+
+the same relation, read back from the remote rather than remembered — these lines are live reads and a
+reader can repeat every one of them:
+
+  $ git rev-parse HEAD
+  09f1771e2111b6df4729a5744df46336ef91bb40
+
+  $ git ls-remote origin refs/heads/feat/architect-cad-engine
+  09f1771e2111b6df4729a5744df46336ef91bb40	refs/heads/feat/architect-cad-engine
+
+  $ git rev-parse origin/feat/architect-cad-engine
+  09f1771e2111b6df4729a5744df46336ef91bb40
+
+  $ git log --oneline -3 HEAD
+  09f1771 fix(assistant): stop the model's own text leaking, and stop the manual lying about it
+  5d0de3a fix(assistant): let the packet's own control flow reach the user
+  88e2e52 fix(assistant): gate every tool that changes the workspace, and say what it changes
+
+  $ git status -sb
+  ## feat/architect-cad-engine...origin/feat/architect-cad-engine
+
+local HEAD, the remote-tracking ref and the remote's own answer are the same commit: yes.
+What this file cannot show is that the remote keeps it: a later force-push would move it, and this
+snapshot would still read as it does. It is a record of the push, not a guarantee about the remote.

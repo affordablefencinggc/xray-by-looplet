@@ -1,0 +1,139 @@
+A. The catalogue: three sets, and the split they make (skills.ts)
+
+   38 names in appTools
+   12 edit tools:            draw_architect_elements, undo_architect_change, save_project, manage_source_sheet, capture_project_backup, edit_architect_elements, calibrate_source_sheet, trace_takeoff_run, review_takeoff_item, remove_takeoff_trace, import_price_book, export_design_file
+   5 effectful, not edits:  navigate_workspace, control_draftsman, generate_render_visualisation, show_design_in_model, hide_designed_model
+   26 declared reads (VIEW_TOOLS), of which 21 are neither edits nor effectful
+   0 in none of the three (never declared, never gated): none
+
+   predicate sources, each located by its own content rather than by a hard-coded number:
+     skills.ts:121  export const isAssistantEditTool = (name: string) => EDIT_TOOLS.has(name);
+     skills.ts:141  export const isAssistantEffectfulTool = (name: string) => EFFECTFUL_TOOLS.has(name);
+     skills.ts:143  export const isAssistantGatedTool = (name: string) => isAssistantEditTool(name) || isAssistantEffectfulTool(name);
+     skills.ts:145  return VIEW_TOOLS.has(name) || (allowProjectEdits && EDIT_TOOLS.has(name));
+     contextBudget.ts:93  export const STATE_CHANGING_TOOL = /^(draw_|edit_|undo_|manage_|calibrate_|trace_|review_|remove_|import_|export_|capture_project_backup|save_project)/;
+     contextBudget.ts:95  export const isStateChangingTool = (name: string) => isAssistantEditTool(name) || STATE_CHANGING_TOOL.test(name);
+     workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable outcome. Reconcile its saved state before another action.');
+     actionOutcome.ts:16  export function isConfirmedRejection(tool: string, result: { isError?: boolean; _meta?: Record<string, unknown> }, snapshot: { projectId: string; designRevision: number | null }): boolean {
+     permissions.ts:32  if (!isAssistantGatedTool(toolName)) return "allowed";
+
+B. Declaration: `assistantToolAllowed(name, allowProjectEdits)`
+
+   name                        allowProjectEdits=false   =true   moves?
+   navigate_workspace           true                     true    no
+   control_draftsman            true                     true    no
+   generate_render_visualisation true                     true    no
+   show_design_in_model         true                     true    no
+   hide_designed_model          true                     true    no
+   save_project                 false                    true    yes
+   draw_architect_elements      false                    true    yes
+
+   The predicate is `VIEW_TOOLS.has(name) || (allowProjectEdits && EDIT_TOOLS.has(name))`
+   (skills.ts:145). Flipping `allowProjectEdits` can only move an answer whose first
+   disjunct is false; if the answer holds, VIEW_TOOLS decided it and no EDIT membership
+   can change it. That is exactly the case for all five.
+
+C. The gate: `permissionVerdict(name, mode, grantedForChat)`
+
+   name                        ask        ask+grant   auto       readonly
+   navigate_workspace           ask        allowed    allowed    blocked   
+   control_draftsman            ask        allowed    allowed    blocked   
+   generate_render_visualisation ask        allowed    allowed    blocked   
+   show_design_in_model         ask        allowed    allowed    blocked   
+   hide_designed_model          ask        allowed    allowed    blocked   
+   save_project                 ask        allowed    allowed    blocked   
+   draw_architect_elements      ask        allowed    allowed    blocked   
+
+   The same function before this change (git show 88e2e52^:src/studio/assistant/permissions.ts):
+     import { isAssistantEditTool } from "./skills.ts";
+     if (!isAssistantEditTool(toolName)) return "allowed";
+     if (mode === "auto" || grantedForChat.has(toolName)) return "allowed";
+
+D. The readers that mean *writes the project record*
+
+   every read of isAssistantEditTool in src, outside tests:
+     src/studio/assistant/contextBudget.ts:95  export const isStateChangingTool = (name: string) => isAssistantEditTool(name) || STATE_CHANGING_TOOL.test(nam
+     src/studio/assistant/skills.ts:143  export const isAssistantGatedTool = (name: string) => isAssistantEditTool(name) || isAssistantEffectfulTool(na
+     src/studio/assistant/workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable outcome. Re
+     src/studio/assistant/workPacketRuntime.ts:125  if (uncertain.length && isAssistantEditTool(tool)) throw Error('A prior action has an unconfirmed outcome. Rea
+     src/studio/assistant/workPacketRuntime.ts:152  const edits = isAssistantEditTool(tool), previousPending = packet.pendingAction;
+
+   workPacket.ts:81 — `if (packet.pendingAction && isAssistantEditTool(tool)) throw`
+   with an unresolved pending action on the packet:
+     navigate_workspace           runs
+     control_draftsman            runs
+     generate_render_visualisation runs
+     show_design_in_model         runs
+     hide_designed_model          runs
+     save_project                 BLOCKED by the pending action
+     draw_architect_elements      BLOCKED by the pending action
+
+   contextBudget.isStateChangingTool(name) — `isAssistantEditTool(name) || STATE_CHANGING_TOOL.test(name)`
+   name                        edit?   prefix-regex?   isStateChangingTool
+   navigate_workspace           false   false           false
+   control_draftsman            false   false           false
+   generate_render_visualisation false   false           false
+   show_design_in_model         false   false           false
+   hide_designed_model          false   false           false
+   save_project                 true    true            true
+   draw_architect_elements      true    true            true
+
+E. What can clear a pending action: `isConfirmedRejection` (actionOutcome.ts:16-19)
+
+   handed the one receipt shape that clears one (the architect-preparation receipt):
+     navigate_workspace           false
+     control_draftsman            false
+     generate_render_visualisation false
+     show_design_in_model         false
+     hide_designed_model          false
+     save_project                 false
+     draw_architect_elements      true
+     edit_architect_elements      true
+
+G. Every file.ext:N token the two documents print — 42 occurrences, 23 distinct — resolved
+
+   ok     index.html  conversation.ts:129  if (!appPreflight && (text.trim() || images.length || response.sources.length)) options.emit({ kind:
+   ok     index.html  contextBudget.ts:93  export const STATE_CHANGING_TOOL = /^(draw_|edit_|undo_|manage_|calibrate_|trace_|review_|remove_|im
+   ok     index.html  workbenchStructure.ts:46  read: ["read_project_context", "read_architect_design", "read_workbench_structure", "read_source_bui
+   ok     index.html  skills.ts:144  export function assistantToolAllowed(name: string, allowProjectEdits: boolean): boolean {
+   ok     index.html  skills.ts:101  "navigate_workspace",
+   ok     index.html  contextBudget.ts:95  export const isStateChangingTool = (name: string) => isAssistantEditTool(name) || STATE_CHANGING_TOO
+   ok     index.html  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     index.html  workPacketRuntime.ts:125  if (uncertain.length && isAssistantEditTool(tool)) throw Error('A prior action has an unconfirmed ou
+   ok     index.html  workPacketRuntime.ts:152  const edits = isAssistantEditTool(tool), previousPending = packet.pendingAction;
+   ok     index.html  workPacketRuntime.ts:172  packet = { ...packet, pendingAction: edits ? (result.isError && !rejected ? packet.pendingAction : n
+   ok     index.html  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     index.html  workPacketRuntime.ts:158  packet = { ...packet, pendingAction: previousPending };
+   ok     index.html  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     index.html  actionOutcome.ts:16  export function isConfirmedRejection(tool: string, result: { isError?: boolean; _meta?: Record<strin
+   ok     index.html  workPacketRuntime.ts:145  const refusal = await authorize?.();
+   ok     index.html  src/studio/assistant/conversation.ts:129  if (!appPreflight && (text.trim() || images.length || response.sources.length)) options.emit({ kind:
+   ok     index.html  build-assistant-context.mjs:149  if (brief.length > MAX_BRIEF_CHARS) {
+   ok     README.md  src/studio/assistant/contextBudget.ts:93  export const STATE_CHANGING_TOOL = /^(draw_|edit_|undo_|manage_|calibrate_|trace_|review_|remove_|im
+   ok     README.md  src/studio/assistant/workbenchStructure.ts:46  read: ["read_project_context", "read_architect_design", "read_workbench_structure", "read_source_bui
+   ok     README.md  skills.ts:144  export function assistantToolAllowed(name: string, allowProjectEdits: boolean): boolean {
+   ok     README.md  skills.ts:101  "navigate_workspace",
+   ok     README.md  contextBudget.ts:95  export const isStateChangingTool = (name: string) => isAssistantEditTool(name) || STATE_CHANGING_TOO
+   ok     README.md  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     README.md  workPacketRuntime.ts:125  if (uncertain.length && isAssistantEditTool(tool)) throw Error('A prior action has an unconfirmed ou
+   ok     README.md  workPacketRuntime.ts:152  const edits = isAssistantEditTool(tool), previousPending = packet.pendingAction;
+   ok     README.md  workPacketRuntime.ts:172  packet = { ...packet, pendingAction: edits ? (result.isError && !rejected ? packet.pendingAction : n
+   ok     README.md  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     README.md  workPacketRuntime.ts:158  packet = { ...packet, pendingAction: previousPending };
+   ok     README.md  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     README.md  actionOutcome.ts:16  export function isConfirmedRejection(tool: string, result: { isError?: boolean; _meta?: Record<strin
+   ok     README.md  workPacketRuntime.ts:145  const refusal = await authorize?.();
+   ok     README.md  workPacketRuntime.ts:125  if (uncertain.length && isAssistantEditTool(tool)) throw Error('A prior action has an unconfirmed ou
+   ok     README.md  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     README.md  workPacketRuntime.ts:151  checkPacketAction(packet, tool, args, readLiveProjectSnapshot(projectId));
+   ok     README.md  skills.ts:145  return VIEW_TOOLS.has(name) || (allowProjectEdits && EDIT_TOOLS.has(name));
+   ok     README.md  workPacket.ts:81  if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable o
+   ok     README.md  scripts/fast-cdp-test.mjs:21  const result=spawnSync(binary,['--session',session,...extra,'batch','--bail'],{input,encoding:'utf8'
+   ok     README.md  src/studio/assistant/conversation.ts:129  if (!appPreflight && (text.trim() || images.length || response.sources.length)) options.emit({ kind:
+   ok     README.md  LiveAssistant.tsx:555  const newChat = async () => {
+   ok     README.md  skills.ts:138  "navigate_workspace", "show_design_in_model", "hide_designed_model", "control_draftsman", "generate_
+   ok     README.md  build-assistant-context.mjs:149  if (brief.length > MAX_BRIEF_CHARS) {
+   ok     README.md  PermissionControls.tsx:15  const pending = usePermissions((state) => state.pending);
+   4 probed lines no document is required to print (recorded above, not asserted)
+
+F. 51 of 51 checks pass.

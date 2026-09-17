@@ -1,0 +1,37 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:8085/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+    "--timeout",
+    "180000"
+  ],
+  [
+    "eval",
+    "(()=>{window.__qaWrite=null;(async()=>{try{\nlocalStorage.setItem('xray:qa-sentinel', 'written-by-18a');\nconst db=await new Promise((resolve,reject)=>{const r=indexedDB.open('xray-qa-sentinel',1);\n  r.onupgradeneeded=()=>r.result.createObjectStore('s',{keyPath:'k'});\n  r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});\nawait new Promise((resolve,reject)=>{const tx=db.transaction('s','readwrite');\n  tx.objectStore('s').put({k:'sentinel',v:'written-by-18a',at:new Date().toISOString()});\n  tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}});\nwindow.__qaWrite={wrote:true,localStorageKeys:Object.keys(localStorage).length};\n}catch(e){window.__qaWrite={wrote:false,error:String(e)}}})();return 'writing sentinels'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!window.__qaWrite",
+    "--timeout",
+    "60000"
+  ],
+  [
+    "eval",
+    "(()=>{const w=window.__qaWrite;if(!w.wrote)throw Error('Could not write a sentinel: '+JSON.stringify(w));return JSON.stringify(w)})()"
+  ],
+  [
+    "errors"
+  ]
+]

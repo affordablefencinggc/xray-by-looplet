@@ -1,0 +1,37 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:8085/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'",
+    "--timeout",
+    "180000"
+  ],
+  [
+    "eval",
+    "(()=>{window.__qaRead=null;(async()=>{try{\nconst ls=localStorage.getItem('xray:qa-sentinel');\nconst row=await new Promise((resolve)=>{const r=indexedDB.open('xray-qa-sentinel',1);\n  r.onupgradeneeded=()=>r.result.createObjectStore('s',{keyPath:'k'});\n  r.onsuccess=()=>{const db=r.result;\n    if(!db.objectStoreNames.contains('s')){db.close();resolve(null);return}\n    const q=db.transaction('s').objectStore('s').get('sentinel');\n    q.onsuccess=()=>{db.close();resolve(q.result||null)};q.onerror=()=>{db.close();resolve(null)}};\n  r.onerror=()=>resolve(null)});\nwindow.__qaRead={localStorageSentinel:ls,indexedDbSentinel:row?row.v:null,\nsurvivedLocalStorage:ls==='written-by-18a',survivedIndexedDb:!!row&&row.v==='written-by-18a',\ntotalKeys:Object.keys(localStorage).length};\n}catch(e){window.__qaRead={error:String(e)}}})();return 'reading sentinels'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!window.__qaRead",
+    "--timeout",
+    "60000"
+  ],
+  [
+    "eval",
+    "(()=>{const r=window.__qaRead;if(r.error)throw Error(r.error);return JSON.stringify(r)})()"
+  ],
+  [
+    "errors"
+  ]
+]

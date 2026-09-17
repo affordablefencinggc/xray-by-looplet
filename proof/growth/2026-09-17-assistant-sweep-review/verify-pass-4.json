@@ -1,0 +1,286 @@
+{
+  "what": "The fourth verify pass over the review page and this record, run as a workflow: four audit lenses in parallel (restart bullets and their counts, defect-register arithmetic, the process record, internal consistency), each finding then handed to an independent refuter instructed to destroy it. A finding is listed as confirmed only where a verdict says so; one whose refuter had not returned when this file was written is counted as pending, not as confirmed.",
+  "runId": "wf_2bd53949-91c",
+  "lenses": [
+    {
+      "lens": "defect-register-arithmetic",
+      "findings": 2
+    },
+    {
+      "lens": "restart-and-counts",
+      "findings": 4
+    },
+    {
+      "lens": "process-record",
+      "findings": 8
+    },
+    {
+      "lens": "internal-consistency",
+      "findings": 4
+    }
+  ],
+  "totals": {
+    "findings": 18,
+    "confirmed": 16,
+    "refuted": 2,
+    "pendingWhenArchived": []
+  },
+  "verdicts": [
+    {
+      "of": "M5-falsification-claim-not-applied",
+      "refuted": false,
+      "why": "Verified directly. D4's defect column (lines 366-370) still reads \"Four of the six branches read a key no tool in the catalogue declares at all; the fifth reads page ... the last two read kind and decision\" — a 4+1+2 partition of six branches summing to seven. Only D4's Where cell (lines 380-391, \"Three branches, one, two — the six in full\") reads 3+1+2, and the source (src/studio/assistant/permissions.ts:64,69,70) confirms three is the correct count of branches reading undeclared keys. The falsification bullet (line 526) says \"D4 said four ... D4 now reads 3 + 1 + 2,\" and the §6 preamble (line 469) says \"Every one is fixed in place\" — but the very defect-column sentence the bullet quotes as \"four\" is still uncorrected. M5 (lines 856-868) independently states three, so the row contradicts itself and contradicts the page's certification of the fix. This is exactly the \"certified a correction it had not made\" failure the page itself names. No nearby text frames the uncorrected sentence as a deliberate disclosure. The finding is real, not a misreading."
+    },
+    {
+      "of": "D4-defect-column-partition",
+      "refuted": true,
+      "why": "The quoted text no longer exists in the artifact. In the current index.html the D4 defect cell (lines 366-370) reads \"Three of the six branches read a key no tool in the catalogue declares at all; the fourth reads page … ; the last two read kind and decision\" — i.e. 3 + 1 + 2, not the finding's \"Four … the fifth\". That matches the row's own Where cell (lines 379-391: three read four keys / a fourth reads page / the last two read kind+decision), M5 (line 860: \"three is the number of branches that read a key no tool in the catalogue declares anywhere\"), and the page's §1 correction entry (lines 525-526: \"D4 now reads 3 + 1 + 2, and the partition is named\"). README.md:137 records the same issue and that a fourth pass closed it. My source check confirms the current wording is the correct one: only permissions.ts:64/69/70 read undeclared keys (sheetIndex, reviewer/decidedBy, knownDistanceM), while page is declared by appTools.ts:207,220,229 and kind/decision by review_takeoff_item (appTools.ts:395, takeoffTools.ts:53). Timing note: index.html's mtime is 2026-09-17 11:24:59, and a fraction earlier my first read still showed the old \"Four … the fifth\" wording — the corrupt version existed when the finding was written, but the bundle was corrected during my review, so the finding describes an already-corrected and explicitly disclosed state rather than a live defect. (The correction is applied; only the finding's premise is stale.)"
+    },
+    {
+      "of": "restart-19-seven-seconds",
+      "refuted": false,
+      "why": "Verified against the artifacts. proof/growth/2026-09-17-assistant-sweep-review/index.html line 671 reads \"Second run, same name, seven seconds later\". The two scenario-19 runs it names are the only two (README.md rows 69-70): 2026-09-17T00-24-35-797Z-qa-live-19-session-profile-reuse.json (seconds 1.9943092) and 2026-09-17T00-24-42-130Z-qa-live-19-session-profile-reuse.json (seconds 0.6184632), both scenarioSha256 7c5803d03bc315b8c01be17a4f214df6600c252022bc9096cd3e3b3e2a47fc5e. scripts/fast-cdp-test.mjs captures the filename timestamp at line 13 (before started=performance.now() at line 18), so the filename is each run's START. Start-to-start = 42.130 - 35.797 = 6.333 s, not 7 s; run-1 end to run-2 start = ~4.34 s. No nearby text qualifies the number, the page nowhere else mentions these timestamps, and the correction is not applied. The page's own corrections register fixes exactly this class of numeric mismatch (158 vs 159 chars, a 384-offset error, \"four\"->\"three\"), so the claim \"seven seconds\" is a real, verifiable inaccuracy on a page whose stated value is that its claims are true. The finding's arithmetic is correct; \"six seconds later\"/\"6.3 seconds later\" is the right fix."
+    },
+    {
+      "of": "restart-guid-relaunch",
+      "refuted": true,
+      "why": "The finding misreads the page's antecedent. The GUID sentence (index.html 712-715) follows the SECOND close/relaunch pair introduced on line 709 (\"close 00-51-16-968Z, relaunch 00-51-19-369Z\"), so \"that close\" = 00-51-16-968Z and \"the relaunch\" = 00-51-19-369Z, not the 00-49-12-852Z close. Verified against the record: process-table.json records the qa-live-10-ask-mode-deny browser (PID 85888) with profile a308e756-...ddbc created 2026-09-17T10:51:19, i.e. run 00-51-19-369Z, the SECOND relaunch. Runner logs confirm the sequence (00-49-12-852Z close -> 00-49-26-029Z relaunch first; 00-51-16-968Z close -> 00-51-19-369Z relaunch second), and 8f23daef is absent from process-table.json exactly as the page states (\"those two were read off the screen, and the second is now archived\") — it is the first relaunch's profile, live before the 00-51-16-968Z close. The page already attributes a308e756 to the second relaunch (creation 10:51:19), which is the finding's own proposed fix; the defect exists only under a misreading of \"that close\"."
+    },
+    {
+      "of": "probe-walk-scope",
+      "refuted": false,
+      "why": "Confirmed against the files. probe-citations.mjs line 30 walks `join(ROOT, \"src\")`, `\"scripts\"`, `\"src-tauri\"`, and `\".temp\"` — the whole `.temp` tree — so README.md line 166's \"it walks `src`, `scripts`, `src-tauri` and `.temp/live-rig`\" is wrong. The same README's corrections table (line 133) says \"The walk covers `.temp` as well\", and index.html §5 (lines 1232-1234) says the probe \"walks `.temp` along with `src`, `scripts` and `src-tauri`\" — both disagree with line 166. The live run (`node .temp/live-rig/probe-citations.mjs`) reports AMBIGUOUS hits at `.temp/library-before/projectSwitch.ts` and `.temp/minimax-before/provider.ts` and `.temp/minimax-before/transport.ts`, i.e. three of the four shared names sit directly under `.temp/`, outside `.temp/live-rig`, so a `.temp/live-rig`-only walk could not surface them. The code's own line-28 comment (\"`.temp/live-rig` is walked too\") is the propagation source the finding names. The defect is real and unrepaired: the README contradicts the page, its own corrections table, and the code."
+    },
+    {
+      "of": "restart-screenshot-provenance",
+      "refuted": false,
+      "why": "Verified against the actual artifacts. Both PNGs are byte-identical (sha256 1b012ff9bf62f2bb481622ad86a7c72f530c141a9f21a726bb5fd361019e84cf, 145572 bytes), but their bytes were written by run 00-51-48-501Z, not the run the page names. The scenario .temp/live-rig/scenarios/21b-restart-read.json writes BOTH screenshots in one run (after-read at step 7, after-ui at step 11), and three runs executed it — 00-50-49-888Z (10:50:49), 00-51-37-351Z (10:51:37), 00-51-48-501Z (10:51:48) — each logging \"Screenshot saved to …after-read.png\" and \"…after-ui.png\". The files' mtime 10:51:49 matches the last run, so the on-disk bytes are 00-51-48-501Z's. index.html line 740 files both captures \"for it\" = run 00-50-49-888Z, under \"Two things about that run are worth stating plainly.\" That attribution is not just loose; it is contradicted by the page's own scenario. In 00-50-49-888Z the panel-open step returned \"opened\" (panel closed at the step-7 capture) and mentionsSentinel:false, whereas the later runs returned \"already-open\". The page's interpretation — \"the capture taken after the panel is opened is the same frame as the one before it\" — only holds for a run that was already-open (00-51-48-501Z); a run going closed→open cannot produce two identical frames, so 00-50-49-888Z cannot have produced the byte-identical pair the page attributes to it. The page never names the later runs (grep finds no reference to 00-51-37-351Z/00-51-48-501Z, \"already-open\", or the UI-half re-runs), and the README's own runner-id table distinguishes the read half from those runs — so this is not already handled. The proposed fix (attribute to 00-51-48-501Z or drop the per-run attribution) is correct."
+    },
+    {
+      "of": "F2",
+      "refuted": false,
+      "why": "Real defect. README.md:192 states the temporary profile dirs are \"gone after its browser closes (18 of 18)\", but process-table.json's summary reads temporaryProfileDirs=20 and temporaryDirsGoneAfterClose=20. I recounted the record directly: 20 distinct temporary userDataDir values (all ...\\Temp\\agent-browser-chrome-*, 20 distinct), all with dirStillExists:false, plus 1 persistent entry (.temp/live-rig/chrome-profile-restart, dirStillExists:true) which exists on disk — so the sentence's second half is correct and the count is wrong. The README itself contradicts 192 twice: line 16 and line 178 both cite the same summary as 20 temporary dirs all gone and 1 persistent dir present. The \"18\" is a stale first-pass-era number (line 134's defect table even shows the count passing through 17/17 en route); it is not scoped to a subset by the sentence, the correction was not already applied, and nothing flags it as deliberate. Fix to \"(20 of 20)\" is correct."
+    },
+    {
+      "of": "F4",
+      "refuted": false,
+      "why": "The defect is real and I verified it directly. README.md:178 (Process record) says \"every directory the record lists is gone\", but the record lists a directory that is not gone: process-table.json:244-252 records session qa-live-21-restart-real, browser PID 84336, userDataDir \"C:/Users/danie/repo/xray-by-looplet/.temp/live-rig/chrome-profile-restart\", dirStillExists: true — and that directory exists on disk (full Chrome profile, Default/, Local State, DevToolsActivePort). The README contradicts itself in the same cell twelve words earlier (\"20 temporary profile directories all gone and the one persistent --profile directory still present\"), and README.md:16 and :192-193 say the same. So no nearby text can make the clause true; the nearby text falsifies it. The rest of the finding checks out: the three live Chrome roots (PIDs 3176, 36652 parent 6476; 40684 parent 3824) use GUID dirs e16404dc/f7d38014/840fa28a, none among the record's 20 GUIDs, and all 20 record GUID dirs are confirmed absent from %LOCALAPPDATA%\\Temp. Only the overbroad \"every directory the record lists is gone\" is wrong, exactly as reported, and the proposed narrowing to directories under %LOCALAPPDATA%\\Temp is the correct fix. Not a deliberate disclosure — it is unflagged and self-contradicting."
+    },
+    {
+      "of": "pass-count",
+      "refuted": false,
+      "why": "Confirmed real. README.md line 91 reads \"attacked three times … once claim-by-claim …, once as a whole …, and once against the corrected page itself\" — three attacks, with pass four omitted from the enumeration. index.html §1 (line 459) says \"Every factual claim was handed to four independent passes\", and enumerates \"Pass three\" (line 465) and \"Pass four\" (line 470) as distinct. README.md's own corrections table contradicts its own intro: line 137 says \"…the fix reached only the row's evidence cell… A fourth pass, comparing the two cells of the same row, closed it.\" So the intro says three while the README table and the page both say four. The only other \"four passes\" in the README (lines 16 and 178) is the browser-close cleanup, unrelated to the review passes, so it does not reconcile. Nothing nearby makes \"three\" correct and the wording is unchanged today (no prior fix applied). The finding quoted the artifacts accurately; README line 91 should read four and name the fourth pass."
+    },
+    {
+      "of": "temp-profile-dir-count",
+      "refuted": false,
+      "why": "The defect is real and present in the current files. Verified by direct reads: process-table.json's summary reads temporaryProfileDirs: 20, temporaryDirsGoneAfterClose: 20, persistentProfileDirs: 1, persistentDirsGoneAfterClose: 0, and a manual count of its 21 sessionsClosed entries gives exactly 20 Temp-profile browsers all with dirStillExists:false plus 1 persistent chrome-profile-restart with dirStillExists:true. README line 16 and line 178 both state the archive's summary reads 20 temporary directories all gone. Yet README line 192 (Limits) says \"(18 of 18)\" and README line 134's corrections-table \"Now\" cell says \"18 temporary directories under %LOCALAPPDATA%\\Temp, all 18 gone after their browser closed\". So the README contradicts both the cited artifact and its own lines 16/178; index.html prints no temporary-dir count anywhere, so it cannot rescue the number, and the 18s have not been corrected on disk. Refutations tried and rejected: not a misread of the artifact (summary is 20), not already applied, and not a deliberate historical scoping — line 192 hedges nothing, and the first-pass subset was 18 sessions of which one is the persistent qa-live-21, i.e. 17 temporary dirs, so 18 does not match a first-pass reading either. Nuance: line 134's cell is a present-tense statement of the unified predicate's output, and its 18 actually matches the loose \"/Temp/i seen: 18\" figure from that row's own 'first written' column rather than any strict count, so the ideal replacement there could be argued as 17 (first pass) rather than the finding's 20. That does not change the verdict: 18 is wrong under every reading and the inconsistency the finding reports is genuine."
+    },
+    {
+      "of": "F8",
+      "refuted": false,
+      "why": "Verified against the files. README.md:91-95 reads \"attacked three times... \" and enumerates exactly three passes. index.html:458-459 says \"four independent passes\" and names Pass one/two/three/four, with 470-472 describing pass four (\"...attacked the corrected page again, one row at a time...\"), and 532 adds \"a fourth reader comparing the two cells of the same row.\" README.md:137 (its own corrections table) explicitly credits \"A fourth pass... closed it.\" So the README intro undercounts and contradicts both the page and the README's own table; the correction was not already applied and no row discloses it. The finding's citations all check out; only its loose \"three rows below\" phrasing is imprecise, which does not affect the defect."
+    },
+    {
+      "of": "F7",
+      "refuted": false,
+      "why": "Verified against the files. The page's own numbered sections are only 1-5 (h2s at index.html:316 \"1 · Defect register\", 548 \"2 · The live campaign\", 805 \"3 · The assistant surface, mapped\", 1131 \"4 · What this sweep does not establish\", 1173 \"5 · Reproducing any of this\"; ids defects/campaign/map/gaps/reproduce; \"How to read this page\"/provenance is unnumbered). The only heading numbered \"6.\" is the reproduced map's own, nested inside §3: index.html:1024 \"6. Corrections — claims the verifiers overturned\", whose body (1024-1095) is C1-C30 app claims, nothing about the restart bullets. The restart-bullet correction statement the README attributes to §6 actually lives in §1's h3 list under <section id=\"defects\">: index.html:511-517 (\"All three are corrected in place in §2 … this list claimed it before it was true: the earlier version of this entry said the sentence had been qualified when §2 still carried it unqualified\"). README.md:136 is quoted correctly: its \"Now\" cell says \"§2 carries the qualifier …; §6's entry says the earlier version of itself claimed the correction before it was made; §1's list carries the whole thing as its own item\". The page's own intro has the same dangling reference at index.html:467 (\"a correction this page's own §6 certified as applied while §2 still carried the uncorrected sentence\"). README elsewhere (lines 120, 137) and its \"What the page contains\" enumeration both put the corrections in §1 and list only five sections, so the bare \"§6\" is inconsistent with the artifact. Corroboration that the numbering is stale: index.html:522 and README:136 say the claim and text \"sat four sections apart\", true only if the corrections list were §6 (its current §1 is one section from §2). No nearby text or map §6 entry redeems the reference, so the defect is real. Minor incompleteness in the proposed fix only: README:136 also has \"§6 certified…\" in its middle cell, and the companion \"four sections apart\" wording in both files would also need correcting."
+    },
+    {
+      "of": "F1",
+      "refuted": false,
+      "why": "Verified against the artifacts. README.md:134's \"Now\" cell does read \"18 temporary directories under %LOCALAPPDATA%\\Temp, all 18 gone... and the single persistent directory still present.\" Both record copies (proof/growth/2026-09-17-assistant-sweep-review/process-table.json and .temp/live-rig/browser-cleanup-record.json) carry summary {temporaryProfileDirs:20, temporaryDirsGoneAfterClose:20, persistentProfileDirs:1, persistentDirsGoneAfterClose:0}, and enumerating sessionsClosed[*].browsers[*].userDataDir gives exactly 20 ...\\Temp\\agent-browser-chrome-<guid> dirs (all dirStillExists:false) plus the one persistent .temp/live-rig/chrome-profile-restart (dirStillExists:true) — so 20/20/1 is correct and the persistent dir is properly excluded by the /\\Temp\\// predicate. README.md:16 and README.md:178 both say 20, so line 134 contradicts two other lines of the same README and the artifact. Refutation attempts fail: the cell is in a \"Now\" column with no point-in-time qualifier and even contradicts its own \"What the check found\" cell (\"17 and 17\") — the first pass it describes had 17 temp dirs, so 18 is not a recoverable historical value either; index.html never states the number, so no page context rescues it; the text is still 18, so it was not already corrected; and the proposed value 20 matches the record and README:16's wording. A companion stale figure survives at README.md:192 (\"18 of 18\"). The defect is real."
+    },
+    {
+      "of": "restart-bullets-distance",
+      "refuted": false,
+      "why": "Verified against C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/index.html. The §2 \"What the harness turned out to be\" list is a single <ul> (opens line 668) with exactly five <li> at lines 669, 685, 703, 723, 748. The sentence at line 679 sits inside the FIRST <li> (669–683), and the persistent-`--profile` experiment is the FOURTH <li> (723, \"Asked properly, the answer is yes\", describing `--profile <dir>`). So from the bullet that carries the sentence the experiment is three bullets later, not two; the page's own intro at line 666 (\"Five facts about the rig\") counts the withdrawn-claim <li> at 685 as one of the five, so \"two\" is not recoverable by the page's own framing either. The identical \"two bullets later\" also appears at line 511 in the §1 falsification list (inside the §1 <li> at 504), verified verbatim. Following \"two bullets later\" from line 679 lands on the third <li> (703), which is the default-profile restart result that CONFIRMS the qualifier, not the counterexample the sentence claims it points to. The correction has not been applied anywhere, no nearby text redefines the bullet count, and it is not listed among the page's own self-recorded corrections. The only reading that rescues \"two\" is anchoring at the second <li> (685) rather than the sentence's own bullet — and the sentence never signals that anchor (its preceding clause, \"The restart experiment below,\" is the third <li> at 703, from which the persistent experiment is one later, not two). The finding's diagnosis is thus accurate; only its proposed wording for the §1 occurrence is debatable, which does not change that the cross-reference count is wrong."
+    },
+    {
+      "of": "F5",
+      "refuted": false,
+      "why": "Read the artifact directly. README.md:177 (Process record) reads \"fifteen runs under `qa-live-10-ask-mode-deny` and three launch lines\". There are verifiably 16 `.log` files under that session name in proof/growth/runner/ (`00-06-09-162Z` … `01-11-40-522Z`), 3 of them containing `launched browser`. index.html:692 says \"Sixteen runs now exist under that session name\" and index.html:697-700 discloses the 15→16 move (\"closing that browser at the end of the sweep is itself a run under the same session name, `01-11-40-522Z`\"). The README's own corrections table (README.md:138) records the same correction: \"Fifteen runs now exist…\" → \"Sixteen logs exist… Sixteen and thirteen\". The Process record is presented as a current end-of-campaign check (README.md:170), and the README was saved after the 16th log was written (log 11:11:40 local; process-table capture 01:12:13Z; README 11:24:14). No nearby text qualifies line 177 or makes \"fifteen\" a deliberate snapshot, and the correction was clearly not applied here. So line 177 is a stale pre-close count, and the proposed 15→16 fix is correct. Refutation attempts (deliberate historical snapshot; already-handled correction; misread) all fail."
+    },
+    {
+      "of": "F6",
+      "refuted": false,
+      "why": "Read process-table.json in full: it has no command-line field. Browser objects carry only pid, name, created, userDataDir, stillAlive, dirStillExists; enumerating all keys, the only command-related one is top-level `shutdownCommand` (the CLI close command), and neither `commandLine` nor `args` appears. The `--profile` argument is not in the record at all — the record holds the resulting resolved profile directory, `userDataDir` = C:/Users/danie/repo/xray-by-looplet/.temp/live-rig/chrome-profile-restart for session qa-live-21-restart-real (browser 84336). index.html:731-732 nevertheless asserts \"the machine's own record of that argument is the browser's command line in process-table.json,\" and README.md:125 repeats \"the browser's command line in the process table, which is the machine's record of it.\" Refutation attempts failed: nearby text (index.html:716-719, 737-739) correctly calls it \"the profile directory the browser was launched against,\" which makes line 731 internally inconsistent rather than true; only one process-table.json exists in the repo and the runner reports/logs for the 21-restart-real runs hold no profile or command-line field either; neither location has been corrected; and it is presented as proof, not disclosed as an approximation. The page's substantive point survives via userDataDir, but the specific claim that the process table records the browser's command line is false, which is a real defect in a page whose value is the truth of its claims."
+    },
+    {
+      "of": "F3",
+      "refuted": false,
+      "why": "Confirmed against the artifacts. README.md:189-191 (Limits) claims process-table.json archives \"the two Chrome profile GUIDs\". Reading the record directly: process-table.json holds exactly 20 GUID-shaped strings (grep -oE of the UUID pattern yields 20 unique values, one occurrence each), and every one of them is embedded inside a browsers[*].userDataDir value of the form ...\\\\Temp\\\\agent-browser-chrome-<guid>. A negative filter for GUIDs not preceded by agent-browser-chrome- returns nothing; the browser-object keys are only pid/name/created/userDataDir/stillAlive/dirStillExists — there is no distinct GUID field and no designated pair anywhere in the file. The only \"two GUIDs\" in the corpus are the ones the page names (index.html:712-716: 8f23daef-… and a308e756-…), and the page itself says \"those two were read off the screen, and the second is now archived\" — i.e. only a308e756 is in the record. A repo-wide grep confirms 8f23daef appears only in index.html:713, nowhere in process-table.json. So the README's clause both miscounts (two vs twenty) and attributes to the record a GUID that is not in it, contradicting the page's own accurate statement. Not already corrected; not a deliberate disclosure; no nearby page text rescues it. Defect is real; the proposed fix (drop the clause or say \"the twenty agent-browser-chrome-<guid> directory names\") is accurate — the record has 20 such temp dirs plus one non-GUID persistent --profile dir."
+    },
+    {
+      "of": "fifteen-runs-process-record",
+      "refuted": false,
+      "why": "Verified against the artifacts and the defect is real. The runner directory holds exactly 16 distinct run ids named `*-qa-live-10-ask-mode-deny` (16 .log files, 48 files total), and exactly 3 of those logs print \"launched browser\" (00-06-09-162Z, 00-49-26-029Z, 00-51-19-369Z) — matching the finding. index.html §2 (lines 692-700) says \"Sixteen runs now exist under that session name… Three logs in them print launched browser… The thirteen in between\", and explicitly counts the campaign's own close run 01-11-40-522Z as \"a run under the same session name\". README.md line 138 says \"Sixteen logs exist under qa-live-10-ask-mode-deny … Still three launch lines and thirteen that print none\". But README.md line 177 (the end-of-campaign Process record) says \"fifteen runs under qa-live-10-ask-mode-deny and three launch lines\" — an internal contradiction of the README's own corrections table and the page. Timing rules out the \"fifteen was the campaign-time count\" defense for this row: process-table.json shows pass one at 01:12:13Z closed the 18 campaign sessions, and the 16th run (01-11-40-522Z, the campaign's own close of the qa-live-10-ask-mode-deny browser) is stamped 01:11:40Z, before that pass; the README's process record reflects four passes/21 sessions, i.e. a snapshot taken after the sixteenth run already existed. So the count was already sixteen when the row was written, and \"fifteen\" is a stale figure (the same 15->16 correction the README documents at line 138 for the page but never propagated to its own Process record). The proposed fix — sixteen runs — matches the page, the corrections table, and the disk."
+    }
+  ],
+  "audits": [
+    {
+      "lens": "defect-register-arithmetic",
+      "findings": [
+        {
+          "id": "D4-defect-column-partition",
+          "claim": "\"Four of the six branches read a key no tool in the catalogue declares at all; the fifth reads page ...; the last two read kind and decision from review_takeoff_item's schema (takeoffTools.ts:53).\"",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/index.html, D4 defect column, lines 366-370",
+          "evidence": "Counted from source, the branches in describeToolIntent (permissions.ts:58,63,64,65,66,67,68,69,70,71,72) that read a key no tool schema declares are only THREE: :64 sheetIndex (no schema declares the key sheetIndex; the takeoff tools and manage_source_sheet use sheet/pageIndex — appTools.ts:385,390, takeoffTools.ts:38,50), :69 reviewer/decidedBy (review_takeoff_item uses actor — takeoffTools.ts:53, appTools.ts:395), and :70 knownDistanceM (calibrate_source_sheet uses knownDistance:{value,unit} — appTools.ts:385). `page` (:65) is NOT such a key: it is declared by read_assistant_file, read_source_geometry and prepare_source_room (appTools.ts:207,220,229). So the sentence names 4 + 1 + 2 = SEVEN branches for a stated total of six (it counts :69's two keys — reviewer and decidedBy — as two branches), and it lists `page` among keys 'no tool declares' when three tools do declare it. D4's own Where cell (lines 380-391) gives the correct partition: 'Three of those six read four keys ... A fourth (:65) reads page ... the last two (:67, :68) ... Three branches, one, two — the six in full' = 3+1+2 = 6. The defect column contradicts the row's own Where cell and M5 (which says 'three ... three is the number of branches that read a key no tool in the catalogue declares anywhere').",
+          "severity": "self-contradiction",
+          "fix": "Change the defect column to: 'Three of the six branches read a key no tool in the catalogue declares at all; the fourth reads page, declared only by the three view tools, which never prompt; the last two read kind and decision from review_takeoff_item's schema.' — i.e. 'Four'→'Three' and 'the fifth'→'the fourth'."
+        },
+        {
+          "id": "M5-falsification-claim-not-applied",
+          "claim": "\"D4 now reads 3 + 1 + 2, and the partition is named.\"",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/index.html, falsification list, line 526 (bullet 'The defect register contradicted the map register on the same six branches')",
+          "evidence": "D4 does not read 3 + 1 + 2. Its defect column (lines 366-370) still reads 'Four of the six branches read a key no tool in the catalogue declares at all; the fifth reads page ... the last two read kind and decision' — a 4+1+2 partition that sums to seven. Only D4's Where cell (lines 380-391, 'Three branches, one, two — the six in full') reads 3+1+2. The correction this bullet certifies as applied was only half applied: the defect-column sentence the bullet is about is still the uncorrected 'four ... fifth' text, so this page commits exactly the failure it names two bullets earlier ('a correction this page's own §6 certified as applied while §2 still carried the uncorrected sentence').",
+          "severity": "drift",
+          "fix": "Apply the defect-column edit above ('Four'→'Three', 'the fifth'→'the fourth') so the row actually reads 3+1+2, or amend line 526 to say only the Where cell was corrected."
+        }
+      ]
+    },
+    {
+      "lens": "restart-and-counts",
+      "findings": [
+        {
+          "id": "restart-19-seven-seconds",
+          "claim": "Second run, same name, seven seconds later",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/index.html — §2 first restart bullet, line 671 (\"Second run, same name, seven seconds later\")",
+          "evidence": "The two scenario-19 runs are 2026-09-17T00-24-35-797Z-qa-live-19-session-profile-reuse.json (seconds 1.9943092) and 2026-09-17T00-24-42-130Z-qa-live-19-session-profile-reuse.json (seconds 0.6184632), both scenarioSha256 7c5803d03bc315b8c01be17a4f214df6600c252022bc9096cd3e3b3e2a47fc5e. The second timestamp is 6.333 s after the first, not 7 s (and the gap between the first run's end and the second's start is ~4.3 s).",
+          "severity": "overstated",
+          "fix": "Change to \"six seconds later\" (or \"6.3 seconds later\")."
+        },
+        {
+          "id": "restart-bullets-distance",
+          "claim": "the persistent-`--profile` experiment two bullets later is the exception that proves the qualifier",
+          "where": "index.html — §2 bullet A line 679 (\"the persistent-`--profile` experiment two bullets later\") and §1 falsification list lines 510-511 (\"which the persistent-profile experiment two bullets later is the counterexample to\")",
+          "evidence": "§2's \"What the harness turned out to be\" body is one <ul> with five <li> at lines 669, 685, 703, 723, 748: (1) profile keyed by session name, (2) the withdrawn restart claim, (3) default profile does not survive a restart, (4) \"Asked properly, the answer is yes\" = the persistent --profile experiment, (5) archive/DOM agreement. The experiment is the fourth listed item, three after the bullet that carries the sentence; it reads as \"two\" only if bullet 2 (the withdrawn-claim note) is discounted.",
+          "severity": "drift",
+          "fix": "Write \"three bullets later\" (or \"the fourth bullet below\") in both places."
+        },
+        {
+          "id": "restart-guid-relaunch",
+          "claim": "the relaunch came up under a different one (a308e756-6d20-4cc3-8b9a-85f98a45…)",
+          "where": "index.html — §2 bullet C, lines 713-715 (GUID sentence following the 00-49-12-852Z close)",
+          "evidence": "process-table.json records GUID a308e756-6d20-4cc3-8b9a-85f98a45ddbc as the qa-live-10-ask-mode-deny browser, PID 85888, created 2026-09-17T10:51:19 — i.e. run 2026-09-17T00-51-19-369Z, the *second* relaunch. The sentence attaches it to the close named immediately before (00-49-12-852Z at 10:49:12, whose relaunch is 00-49-26-029Z at 10:49:26). The first relaunch's GUID is not in the table.",
+          "severity": "drift",
+          "fix": "Attribute a308e756 to the second relaunch (creation 10:51:19), or say \"the relaunches came up under different ones\" and cite the table's creation time."
+        },
+        {
+          "id": "restart-screenshot-provenance",
+          "claim": "the two screenshots filed for it, 21-restart-after-read.png and 21-restart-after-ui.png, are byte-identical (sha256 1b012ff9…)",
+          "where": "index.html — §2 bullet D, lines 740-742 (\"the two screenshots filed for it\" for run 00-50-49-888Z)",
+          "evidence": "Both files carry mtime 2026-09-17 10:51:49, and 2026-09-17T00-51-48-501Z-qa-live-21-restart-real.json ran .temp/live-rig/scenarios/21b-restart-read.json at 10:51:48 (12 commands, 0.6486 s) — a second 21b run wrote those bytes about a minute after the cited 00-50-49-888Z (10:50:49). The byte-identity claim itself holds: both 145572 bytes, sha256 1b012ff9bf62f2bb481622ad86a7c72f530c141a9f21a726bb5fd361019e84cf.",
+          "severity": "drift",
+          "fix": "Attribute the captures to the read run that last wrote them (00-51-48-501Z), or drop the per-run attribution and say \"the read scenario files these two captures\"."
+        }
+      ]
+    },
+    {
+      "lens": "process-record",
+      "findings": [
+        {
+          "id": "F1",
+          "claim": "One predicate, used for both the console line and the record: 18 temporary directories under `%LOCALAPPDATA%\\Temp`, all 18 gone after their browser closed, and the single persistent directory still present",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:134 (corrections table, \"Now\" column)",
+          "evidence": "process-table.json `summary` is {\"sessionsRecorded\":21,\"sessionsWithSessionFileSample\":3,\"temporaryProfileDirs\":20,\"temporaryDirsGoneAfterClose\":20,\"persistentProfileDirs\":1,\"persistentDirsGoneAfterClose\":0}; counting `sessionsClosed[*].browsers[*].userDataDir` gives 20 distinct `...\\Temp\\agent-browser-chrome-<guid>` directories, every one with `dirStillExists:false`. README.md:16 of the same file states the correct figures (\"20 temporary profile directories, all 20 gone after the close\"), so line 134 also contradicts line 16.",
+          "severity": "asserts-false",
+          "fix": "Change the row to \"20 temporary directories under `%LOCALAPPDATA%\\Temp`, all 20 gone after their browser closed, and the single persistent directory still present\"."
+        },
+        {
+          "id": "F2",
+          "claim": "the temporary profile directory is gone after its browser closes (18 of 18), while the `--profile` directory used for the restart test is still there",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:192 (Limits)",
+          "evidence": "process-table.json `summary.temporaryProfileDirs` = 20 and `temporaryDirsGoneAfterClose` = 20; 20 distinct temp `userDataDir` values, all `dirStillExists:false`. The second half of the sentence is correct (the persistent entry `.temp/live-rig/chrome-profile-restart` has `dirStillExists:true` and exists on disk).",
+          "severity": "asserts-false",
+          "fix": "Change \"(18 of 18)\" to \"(20 of 20)\"."
+        },
+        {
+          "id": "F3",
+          "claim": "the profile directory each browser was launched against, whether that directory survived the close, and the two Chrome profile GUIDs",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:190 (Limits)",
+          "evidence": "process-table.json browser objects carry only pid, name, created, userDataDir, stillAlive, dirStillExists. The file holds 20 GUID-shaped strings, all of them inside `sessionsClosed[*].browsers[*].userDataDir` (`...\\Temp\\agent-browser-chrome-<guid>`); there is no GUID field distinct from the profile directory, and no pair of GUIDs anywhere. The \"two\" matches nothing in the record.",
+          "severity": "asserts-false",
+          "fix": "Drop the clause, or replace it with \"and the twenty `agent-browser-chrome-<guid>` directory names\"."
+        },
+        {
+          "id": "F4",
+          "claim": "Three agent-browser Chrome browsers are still running on this machine, and **none** of their profile directories appears anywhere in the record — every directory the record lists is gone — which is how the campaign's own are told apart from what is left.",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:178 (Process record)",
+          "evidence": "The live-machine half is right: three agent-browser Chrome roots (PIDs 3176, 36652 with parent explorer.exe 6476; 40684 with parent 3824, exited) with user-data-dirs ...chrome-e16404dc-54ff-49fc-8eb6-fcf893199f15, ...chrome-f7d38014-1ed0-4421-94cd-b32462fc9ef8, ...chrome-840fa28a-97dc-425c-b083-2eba30f88369 — none of the three appears among the record's 20 GUIDs. But \"every directory the record lists is gone\" is false: the record lists `.temp/live-rig/chrome-profile-restart` with `dirStillExists:true` (and the same sentence, twelve words earlier, says \"its summary counts 20 temporary profile directories all gone and the one persistent `--profile` directory still present\"). README.md:16 and :192 both say the persistent directory is still present, and it exists on disk.",
+          "severity": "self-contradiction",
+          "fix": "Change the clause to \"every directory the record lists under `%LOCALAPPDATA%\\Temp` is gone\"."
+        },
+        {
+          "id": "F5",
+          "claim": "The proof is in the logs — fifteen runs under `qa-live-10-ask-mode-deny` and three launch lines, the first run and the two relaunches this session made deliberately.",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:177 (Process record)",
+          "evidence": "16 `.log` files exist in proof/growth/runner/ under that session name (00-06-09-162Z … 01-11-40-522Z), and 3 of them contain `launched browser` (00-06-09-162Z, 00-49-26-029Z, 00-51-19-369Z). README.md:138 of the same file says \"Sixteen logs exist under `qa-live-10-ask-mode-deny` ... Still three launch lines and thirteen that print none\", and the page says \"Sixteen runs now exist under that session name\" — so line 177 is a leftover of the pre-close count.",
+          "severity": "asserts-false",
+          "fix": "Change \"fifteen runs under `qa-live-10-ask-mode-deny`\" to \"sixteen runs under `qa-live-10-ask-mode-deny`\"."
+        },
+        {
+          "id": "F6",
+          "claim": "the `--profile` argument is cited to this page's own reproduce block and to the browser's command line in the process table, which is the machine's record of it",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:125 (corrections table, \"Now\" column); the page repeats it at index.html:731 — \"the machine's own record of that argument is the browser's command line in `process-table.json`\"",
+          "evidence": "process-table.json has no command-line field: its top-level keys are capturedAt, lastPassAt, what, ownershipRule, shutdownCommand, sessionsClosed, untouched, passes, summary, sessionFileNote, and each browser object carries only pid, name, created, userDataDir, stillAlive, dirStillExists. The only key in the whole file matching command/cmd/arg is `shutdownCommand` (the CLI close command), and the substrings \"commandLine\"/\"args\" do not occur. The `--profile` argument is not in the record at all; what the record holds is the resulting `userDataDir`.",
+          "severity": "asserts-false",
+          "fix": "Rewrite both to \"the profile directory recorded for that browser in the process table (`userDataDir`, `.temp/live-rig/chrome-profile-restart`)\" — and make the same edit at index.html:731."
+        },
+        {
+          "id": "F7",
+          "claim": "§6's entry says the earlier version of itself claimed the correction before it was made",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:136 (corrections table, \"Now\" column)",
+          "evidence": "The page has no §6 of its own: its own numbered sections are 1 · Defect register, 2 · The live campaign, 3 · The assistant surface, mapped, 4 · What this sweep does not establish, 5 · Reproducing any of this (index.html section ids defects, campaign, map, gaps, reproduce). The only \"6.\" on the page is the reproduced map's own \"6. Corrections — claims the verifiers overturned\" (index.html:1024), which covers the app claims C1–C30, not the restart bullets. The statement the row attributes to §6 is in §1's list (index.html:513-515): \"this list claimed it before it was true: the earlier version of this entry said the sentence had been qualified when §2 still carried it unqualified\". The page's own intro carries the same dangling reference: index.html:467, \"a correction this page's own §6 certified as applied while §2 still carried the uncorrected sentence\".",
+          "severity": "asserts-false",
+          "fix": "Change \"§6's entry says...\" to \"§1's list item records that the earlier version of itself claimed the correction before it was made\", and change index.html:467's \"this page's own §6\" to \"§1's list\"."
+        },
+        {
+          "id": "F8",
+          "claim": "The page was written, then attacked three times by readers whose instruction was to destroy its claims — once claim-by-claim against the cited sources (55 claims, six areas: 43 intact, 11 refuted or narrowed, 1 unsettleable), once as a whole against the source, and once against the corrected page itself, which is the pass that found the two worst items below",
+          "where": "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-17-assistant-sweep-review/README.md:91-95 (Corrections after the first build, intro paragraph)",
+          "evidence": "The page says \"Every factual claim was handed to four independent passes\" (index.html:458-461) and describes a fourth: \"Pass four attacked the corrected page again, one row at a time, and found that the second of those fixes had reached only half of its row\" (index.html:470-472). The README's own table agrees — README.md:137: \"A fourth pass, comparing the two cells of the same row, closed it\" — so the intro's \"three times\" and its three-pass enumeration contradict the page and the table three rows below it.",
+          "severity": "self-contradiction",
+          "fix": "Change \"attacked three times\" to \"attacked four times\" and add the fourth pass to the enumeration: \"and once more, comparing the two cells of the same defect row, which is the pass that closed the half-applied D4 fix\"."
+        }
+      ]
+    },
+    {
+      "lens": "internal-consistency",
+      "findings": [
+        {
+          "id": "pass-count",
+          "claim": "README intro: \"The page was written, then attacked three times by readers whose instruction was to destroy its claims — once claim-by-claim against the cited sources (55 claims, six areas: 43 intact, 11 refuted or narrowed, 1 unsettleable), once as a whole against the source, and once against the corrected page itself\"",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/README.md line 91, the word \"three times\"",
+          "evidence": "The page counts four. index.html §1 (\"How much of this register survived an attempt to falsify it\"): \"Every factual claim was handed to four independent passes whose instruction was to destroy it\", then \"Pass one audited 55 claims across six areas against their cited sources.\", \"Pass two took the page as a whole…\", \"Pass three attacked the corrected page itself, and found two of the worst items in this list…\", \"Pass four attacked the corrected page again, one row at a time, and found that the second of those fixes had reached only half of its row: D4's arithmetic was corrected in the evidence cell while the defect sentence above it kept the old wording\". The README's own corrections table agrees with the page and contradicts its own intro: README.md line 137, \"…**and the fix reached only the row's evidence cell** … A fourth pass, comparing the two cells of the same row, closed it\". So README line 91 says three attacks while README line 137 and the page both say four passes.",
+          "severity": "self-contradiction",
+          "fix": "In README.md line 91 change \"attacked three times\" to \"attacked four times\" and add the fourth to the enumeration, e.g. \"…once against the corrected page itself, and once more, one row at a time, which found a fix that had reached only half of its row\"."
+        },
+        {
+          "id": "probe-walk-scope",
+          "claim": "README Builders section: \"`.temp/live-rig/probe-citations.mjs`, `probe-page-corrections.mjs`, `probe-brief-encoding.mjs` — the read-only checks behind the page's §5. The first is the one whose blind spot is recorded above: it walks `src`, `scripts`, `src-tauri` and `.temp/live-rig`, and its own counter had to be fixed.\"",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/README.md lines 164-166, the clause \"it walks `src`, `scripts`, `src-tauri` and `.temp/live-rig`\"",
+          "evidence": "The page says the opposite (index.html §5: \"The probe walks `.temp` along with `src`, `scripts` and `src-tauri`, which is why the snapshots appear as candidates at all; the same check run against the three source directories only … reports one shared name instead of four\"), and so does the README's own corrections table just above: README.md line 133, \"The walk covers `.temp` as well; the out-of-range citation is gone; the counter reads six.\" The probe's code walks all of `.temp`, not a subdirectory: probe-citations.mjs line 30 `const files = [...walk(join(ROOT, \"src\")), ...walk(join(ROOT, \"scripts\")), ...walk(join(ROOT, \"src-tauri\")), ...walk(join(ROOT, \".temp\"))];`. Its live output confirms it (`node .temp/live-rig/probe-citations.mjs`): \"AMBIGUOUS projectSwitch.ts -> src/studio/assistant/projectSwitch.ts … | .temp/library-before/projectSwitch.ts\", \"AMBIGUOUS provider.ts -> src/studio/assistant/provider.ts … | .temp/minimax-before/provider.ts\", \"AMBIGUOUS transport.ts -> … | .temp/minimax-before/transport.ts\", \"names shared by two files: 4\" — two of the four shared names are the `.temp/library-before` and `.temp/minimax-before` snapshots, which a walk of `.temp/live-rig` alone could never surface.",
+          "severity": "asserts-false",
+          "fix": "In README.md line 166 change \"`src`, `scripts`, `src-tauri` and `.temp/live-rig`\" to \"`src`, `scripts`, `src-tauri` and `.temp`\" (and note that probe-citations.mjs's own comment on its line 28, \"`.temp/live-rig` is walked too\", is where that wrong scope came from)."
+        },
+        {
+          "id": "fifteen-runs-process-record",
+          "claim": "README Process record: \"The proof is in the logs — fifteen runs under `qa-live-10-ask-mode-deny` and three launch lines, the first run and the two relaunches this session made deliberately.\"",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/README.md line 177, the count \"fifteen runs\"",
+          "evidence": "The page says sixteen (index.html §2: \"Sixteen runs now exist under that session name. Three logs in them print launched browser : the very first run of the name ( 00-06-09-162Z ) and the two relaunches made for the experiment below.\"), and the README's own corrections table says sixteen: README.md line 138, \"Sixteen logs exist under `qa-live-10-ask-mode-deny`, and the sixteenth is this campaign's own … Still three launch lines and thirteen that print none\". The disk agrees with the page and line 138: `ls proof/growth/runner | grep qa-live-10-ask-mode-deny` yields 16 distinct run ids (16 `.log` files, 48 files total), and exactly 3 of those logs contain \"launched browser\" (2026-09-17T00-06-09-162Z, 2026-09-17T00-49-26-029Z, 2026-09-17T00-51-19-369Z).",
+          "severity": "drift",
+          "fix": "In README.md line 177 change \"fifteen runs under `qa-live-10-ask-mode-deny`\" to \"sixteen runs under `qa-live-10-ask-mode-deny`\"."
+        },
+        {
+          "id": "temp-profile-dir-count",
+          "claim": "README Limits: \"the temporary profile directory is gone after its browser closes (18 of 18), while the `--profile` directory used for the restart test is still there\" — and the corrections table's own resolution for the process-table counter: \"One predicate, used for both the console line and the record: 18 temporary directories under `%LOCALAPPDATA%\\Temp`, all 18 gone after their browser closed, and the single persistent directory still present\"",
+          "where": "proof/growth/2026-09-17-assistant-sweep-review/README.md line 192 (Limits, \"(18 of 18)\") and line 134 (corrections table, \"Now\" column, \"18 temporary directories … all 18 gone\")",
+          "evidence": "The same README states 20 twice: README.md line 16, \"Its own `summary` reads 20 temporary profile directories, all 20 gone after the close, and 1 persistent directory, still present\" and README.md line 178, \"its summary counts 20 temporary profile directories all gone and the one persistent `--profile` directory still present\". The artifact it describes agrees with 20, not 18: process-table.json summary reads {\"sessionsRecorded\":21,\"sessionsWithSessionFileSample\":3,\"temporaryProfileDirs\":20,\"temporaryDirsGoneAfterClose\":20,\"persistentProfileDirs\":1,\"persistentDirsGoneAfterClose\":0}. The 18 is the count from before the three later page-render sessions existed, so it is stale in two places that speak in the present tense.",
+          "severity": "drift",
+          "fix": "Change \"(18 of 18)\" to \"(20 of 20)\" in README.md line 192 and \"18 temporary directories under `%LOCALAPPDATA%\\Temp`, all 18 gone\" to \"20 temporary directories under `%LOCALAPPDATA%\\Temp`, all 20 gone\" in README.md line 134."
+        }
+      ]
+    }
+  ]
+}

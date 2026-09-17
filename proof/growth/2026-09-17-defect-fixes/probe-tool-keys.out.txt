@@ -1,0 +1,97 @@
+38 tools in the catalogue.
+
+read         calculate_draft_duct_material      expectedJobId, input
+read         calculate_draft_duct_wrap          expectedJobId, input
+read         calculate_draft_roof_area          expectedJobId, input
+read         calculate_draft_roof_sheet_coverage expectedJobId, input
+EDIT   GATED calibrate_source_sheet             expectedJobId, expectedRevision, sheet, points, knownDistance, provenance, lock, replaceLocked
+EDIT   GATED capture_project_backup             expectedJobId, expectedRevision, name
+read         capture_workspace_image            expectedJobId, target
+read         classify_draft_quantities          expectedJobId, input
+EFFECT GATED control_draftsman                  expectedJobId, action, progress, speed, storey
+EDIT   GATED draw_architect_elements            expectedJobId, expectedRevision, operations
+EDIT   GATED edit_architect_elements            expectedJobId, expectedRevision, operations
+EDIT   GATED export_design_file                 expectedJobId, expectedRevision, format, sheetId
+EFFECT GATED generate_render_visualisation      expectedJobId, view, direction
+EFFECT GATED hide_designed_model                expectedJobId
+EDIT   GATED import_price_book                  expectedJobId, expectedLibraryRevision, bookId, bookName, csvText, fileName, delimiter, headerRow, mapping, metadata
+EDIT   GATED manage_source_sheet                expectedJobId, documentId, action, pageIndex, name, discipline
+EFFECT GATED navigate_workspace                 expectedJobId, pane
+read         prepare_source_room                expectedJobId, page, region, boundaryIds, doorLeafId, doorWallIndex, doorHingeEndpoint, doorDirection, doorWidthMm, wallThicknessMm, wallHeightMm, doorHeightMm, levelName
+read         read_architect_design              expectedJobId
+read         read_assistant_file                expectedJobId, fileId, page, offset
+read         read_draftsman_status              expectedJobId
+read         read_price_books                   expectedJobId
+read         read_project_context               
+read         read_source_building               expectedJobId, building, floor, category, limit
+read         read_source_geometry               expectedJobId, page, region, offset, minimumLengthPt, scaleSegmentId, knownLengthMm
+read         read_source_sheets                 expectedJobId
+read         read_takeoff_evidence              expectedJobId, sheet
+read         read_work_packet                   expectedJobId, packetId
+read         read_work_packet_event             expectedJobId, packetId, sequence, offset
+read         read_workbench_structure           
+read         read_workflow_route                expectedJobId, workflow
+EDIT   GATED remove_takeoff_trace               expectedJobId, expectedRevision, runId, expectedItemRevision
+EDIT   GATED review_takeoff_item                expectedJobId, expectedRevision, kind, id, expectedItemRevision, decision, actor, note
+EDIT   GATED save_project                       expectedJobId, expectedRevision
+read         search_standards_library           expectedJobId, topic, edition
+EFFECT GATED show_design_in_model               expectedJobId, expectedRevision, displayMode
+EDIT   GATED trace_takeoff_run                  expectedJobId, expectedRevision, sheet, points, specification
+EDIT   GATED undo_architect_change              expectedJobId, expectedRevision
+
+gated (must be judged by the permission mode): 17
+  project edits: 12
+  effectful non-edits: 5 - navigate_workspace, control_draftsman, generate_render_visualisation, show_design_in_model, hide_designed_model
+  effectful tools that are ALSO edits (must be none): (none)
+read-only tools: 21
+
+=== every key describeToolIntent reads, and who declares it ===
+operations         declared by draw_architect_elements, edit_architect_elements
+                     …of which gated: draw_architect_elements, edit_architect_elements
+action             declared by control_draftsman, manage_source_sheet
+                     …of which gated: control_draftsman, manage_source_sheet
+sheet              declared by read_takeoff_evidence, calibrate_source_sheet, trace_takeoff_run
+                     …of which gated: calibrate_source_sheet, trace_takeoff_run
+pageIndex          declared by manage_source_sheet
+                     …of which gated: manage_source_sheet
+name               declared by manage_source_sheet, capture_project_backup
+                     …of which gated: manage_source_sheet, capture_project_backup
+bookName           declared by import_price_book
+                     …of which gated: import_price_book
+format             declared by export_design_file
+                     …of which gated: export_design_file
+kind               declared by review_takeoff_item
+                     …of which gated: review_takeoff_item
+decision           declared by review_takeoff_item
+                     …of which gated: review_takeoff_item
+actor              declared by review_takeoff_item
+                     …of which gated: review_takeoff_item
+knownDistance      declared by calibrate_source_sheet
+                     …of which gated: calibrate_source_sheet
+points             declared by calibrate_source_sheet, trace_takeoff_run
+                     …of which gated: calibrate_source_sheet, trace_takeoff_run
+replaceLocked      declared by calibrate_source_sheet
+                     …of which gated: calibrate_source_sheet
+expectedRevision   declared by draw_architect_elements, undo_architect_change, save_project, capture_project_backup, edit_architect_elements, calibrate_source_sheet, trace_takeoff_run, review_takeoff_item, remove_takeoff_trace, export_design_file, show_design_in_model
+                     …of which gated: draw_architect_elements, undo_architect_change, save_project, capture_project_backup, edit_architect_elements, calibrate_source_sheet, trace_takeoff_run, review_takeoff_item, remove_takeoff_trace, export_design_file, show_design_in_model
+pane               declared by navigate_workspace
+                     …of which gated: navigate_workspace
+view               declared by generate_render_visualisation
+                     …of which gated: generate_render_visualisation
+displayMode        declared by show_design_in_model
+                     …of which gated: show_design_in_model
+direction          declared by generate_render_visualisation
+                     …of which gated: generate_render_visualisation
+
+branches that can never fire (declared by no gated tool): 0
+gated tools with no user-facing title (must be none): (none)
+titles with no gated tool (dead rows, must be none): (none)
+
+=== gated tools that are NOT project edits (D5/D8's new class) ===
+navigate_workspace                 "Move the workspace"
+control_draftsman                  "Drive the drafting animation"
+generate_render_visualisation      "Generate a render illustration"
+show_design_in_model               "Show the design in the 3D model"
+hide_designed_model                "Return the Model viewer to source reconstructions"
+
+PASS — 10 of 10 readings are the ones the note states.

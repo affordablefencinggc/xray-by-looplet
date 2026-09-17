@@ -1,0 +1,1264 @@
+<!doctype html>
+<title>Assistant Surface Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #f2f5f7;
+    --surface: #ffffff;
+    --surface-alt: #e9eef2;
+    --ink: #101820;
+    --ink-soft: #4d5a66;
+    --ink-faint: #74838f;
+    --rule: #d3dbe1;
+    --rule-soft: #e4e9ee;
+    --accent: #0b5f80;
+    --accent-soft: #d7e8ef;
+    --pass: #17663f;
+    --pass-bg: #dcefe3;
+    --defect: #a3231b;
+    --defect-bg: #fbe3e0;
+    --report: #6b4e8f;
+    --report-bg: #eae2f4;
+    --gap: #6d7780;
+    --gap-bg: #e4e8eb;
+    --shadow: 0 1px 2px rgba(16, 24, 32, .06), 0 8px 24px -16px rgba(16, 24, 32, .28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0d1216;
+      --surface: #151c22;
+      --surface-alt: #1c242b;
+      --ink: #e5ecf1;
+      --ink-soft: #a3b1bd;
+      --ink-faint: #7d8b97;
+      --rule: #2a353d;
+      --rule-soft: #212a31;
+      --accent: #58b8d8;
+      --accent-soft: #12303c;
+      --pass: #6fcf9b;
+      --pass-bg: #14301f;
+      --defect: #f28a7f;
+      --defect-bg: #351714;
+      --report: #b9a3dd;
+      --report-bg: #241c33;
+      --gap: #98a4ae;
+      --gap-bg: #1e262c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0d1216;
+    --surface: #151c22;
+    --surface-alt: #1c242b;
+    --ink: #e5ecf1;
+    --ink-soft: #a3b1bd;
+    --ink-faint: #7d8b97;
+    --rule: #2a353d;
+    --rule-soft: #212a31;
+    --accent: #58b8d8;
+    --accent-soft: #12303c;
+    --pass: #6fcf9b;
+    --pass-bg: #14301f;
+    --defect: #f28a7f;
+    --defect-bg: #351714;
+    --report: #b9a3dd;
+    --report-bg: #241c33;
+    --gap: #98a4ae;
+    --gap-bg: #1e262c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+    padding-block: 0 5rem;
+    padding-inline: max(18px, 4vw);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin-inline: auto; }
+
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-block: 2.6rem 1.4rem;
+    margin-bottom: 2rem;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 .7rem;
+  }
+  h1 {
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 5.2vw, 3.1rem);
+    line-height: 1.06;
+    letter-spacing: -.015em;
+    margin: 0 0 .8rem;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 1.06rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .masthead-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.6rem;
+    margin-top: 1.3rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .76rem;
+    color: var(--ink-faint);
+  }
+  .masthead-meta b { color: var(--ink-soft); font-weight: 500; }
+
+  section { margin-block: 3rem 0; }
+  h2 {
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    letter-spacing: -.01em;
+    margin: 0 0 .5rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    text-wrap: balance;
+  }
+  section > h2:first-child { border-top: 0; padding-top: 0; }
+  h3 {
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 1.16rem;
+    margin: 2rem 0 .4rem;
+    color: var(--ink);
+  }
+  h4 { font-size: 1rem; margin: 1.4rem 0 .3rem; }
+  p { margin: 0 0 .95rem; max-width: 78ch; }
+  ul, ol { max-width: 78ch; padding-left: 1.35rem; margin: 0 0 1rem; }
+  li { margin-bottom: .45rem; }
+  li > ul, li > ol { margin-top: .45rem; }
+  strong { font-weight: 600; }
+  mark { background: var(--defect-bg); color: var(--defect); padding: 0 .22em; border-radius: 2px; }
+
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .86em;
+    background: var(--surface-alt);
+    padding: .1em .35em;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+  pre code { background: none; padding: 0; font-size: .8rem; line-height: 1.7; }
+
+  .tablewrap { overflow-x: auto; margin: 0 0 1.2rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+  th {
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: .72rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: var(--surface-alt);
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: bottom;
+  }
+  td { padding: .6rem .75rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td:first-child { font-family: "IBM Plex Mono", monospace; color: var(--ink-soft); white-space: nowrap; }
+  .row-defect td { background: color-mix(in srgb, var(--defect-bg) 55%, transparent); }
+  .row-defect td:first-child { color: var(--defect); font-weight: 600; }
+
+  .tier {
+    display: inline-block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .66rem;
+    font-weight: 500;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: .12rem .42rem;
+    border-radius: 3px;
+    margin: 0 .25rem .2rem 0;
+    white-space: nowrap;
+    vertical-align: .08em;
+  }
+  .t-live { background: var(--accent-soft); color: var(--accent); }
+  .t-source { background: var(--pass-bg); color: var(--pass); }
+  .t-report { background: var(--report-bg); color: var(--report); }
+  .t-gap { background: var(--gap-bg); color: var(--gap); }
+  .t-pass { background: var(--pass-bg); color: var(--pass); }
+  .t-defect { background: var(--defect-bg); color: var(--defect); }
+
+  ul.legend { list-style: none; padding-left: 0; max-width: 82ch; }
+  ul.legend li { padding-left: 0; }
+
+  ol.verbatim { max-width: 82ch; }
+  ol.verbatim li { margin-bottom: .5rem; }
+  .meta { font-family: "IBM Plex Mono", monospace; font-size: .74rem; color: var(--ink-faint); }
+
+  blockquote.leak {
+    margin: 0 0 1rem;
+    padding: .85rem 1.1rem;
+    background: var(--defect-bg);
+    border-left: 3px solid var(--defect);
+    border-radius: 0 5px 5px 0;
+    font-size: .95rem;
+    color: var(--ink);
+    max-width: 70ch;
+  }
+
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2.4rem 0; }
+
+  /* the reproduced map reads as a distinct bound-in document */
+  .mapdoc {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.6rem clamp(1rem, 3vw, 2.2rem) 1.8rem;
+    margin-top: 1.4rem;
+    box-shadow: var(--shadow);
+  }
+  .note {
+    font-size: .9rem;
+    color: var(--ink-soft);
+    border-left: 3px solid var(--rule);
+    padding: .1rem 0 .1rem .9rem;
+    margin: 1.2rem 0 0;
+  }
+
+  .mapdoc h1 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: .7rem;
+    margin-bottom: 1.1rem;
+  }
+  .mapdoc h2 { font-size: 1.3rem; }
+  .mapdoc h3 { font-size: 1.05rem; }
+  .mapdoc p, .mapdoc li { font-size: .92rem; }
+  .mapdoc hr { margin: 1.6rem 0; }
+
+  @media (max-width: 640px) {
+    body { font-size: 15px; }
+    h2 { font-size: 1.35rem; }
+    .mapdoc { padding-inline: .9rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">X-Ray by Looplet &middot; internal audit</p>
+    <h1>Assistant Surface Review</h1>
+    <p class="standfirst">What the in-app Live assistant does when a real model is driving it, and
+    what the source says it does the rest of the time &mdash; with every claim tagged by how it was
+    established, so the weak ones are visible as weak.</p>
+    <div class="masthead-meta">
+      <span><b>Sweep date</b> 2026-09-16 &ndash; 17</span>
+      <span><b>Provider</b> MiniMax-M3</span>
+      <span><b>Scenarios with a live turn</b> 13 &mdash; 7 then 6</span>
+      <span><b>Accepted runs</b> 13 &mdash; one per scenario; every other run kept but excluded</span>
+      <span><b>Source snapshot</b> 26f5debf</span>
+      <span><b>App source changed</b> none</span>
+    </div>
+  </header>
+
+  
+<section id="provenance">
+  <h2>How to read this page</h2>
+  <p>Two instruments produced it, and they are not equally strong.</p>
+  <ul class="legend">
+    <li><span class="tier t-live">live</span> <strong>Executed.</strong> A real provider turn ran
+    through the shipped UI and the result was read from the app's own archive, the DOM, or both.
+    Runner ids and screenshot paths are given so any run can be re-read.</li>
+    <li><span class="tier t-source">source / verified</span> <strong>I read the code.</strong> The
+    claim is grounded in a cited <code>file:line</code> that I opened myself this session.</li>
+    <li><span class="tier t-report">mapped</span> <strong>Reported by the map workflow.</strong> Nine
+    cluster agents built a map of the assistant surface and a tenth critiqued it; a verifier
+    overturned claims lacking source. I did not independently re-verify every row flagged this way.
+    This is the weakest tier and is marked wherever it appears.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>Open.</strong> Named in &sect;4 so the gap is
+    visible rather than implied by silence.</li>
+  </ul>
+  <p>The map is reproduced in full in &sect;3, converted from <code>assistant-map.md</code> in this
+  directory at build time rather than retyped, so the text is the map's own words rather than my
+  transcription of them. That removes transcription drift, not every form of drift &mdash; the
+  conversion is a small hand-written markdown reader rather than a markdown implementation, and a
+  review of this page caught it silently eating the glob asterisks in the map's own code spans
+  (<code>import_*</code>, <code>quote_*</code>). That is fixed. <strong>Where the map and I disagree,
+  or where the map is wrong on its own terms, the disagreement is stated in &sect;3 before the map
+  begins</strong> rather than reconciled silently: a map quietly corrected while being reproduced is a
+  map you cannot trust either way.</p>
+</section>
+
+  
+<section id="defects">
+  <h2>1 &middot; Defect register</h2>
+  <p>Everything here is a claim about the shipped app. The <em>tier</em> column says how it was
+  established, and the tiers are not interchangeable: <span class="tier t-live">live</span> means the
+  behaviour was observed in a real turn or read out of the app's own archive;
+  <span class="tier t-source">source&nbsp;/&nbsp;verified</span> means I read the code and confirmed it;
+  <span class="tier t-report">mapped</span> means it comes from the agent-built map and I did not
+  re-verify it line by line.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>ID</th><th>Defect</th><th>Tier</th><th>Where</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr class="row-defect">
+        <td>D1</td>
+        <td><strong>Internal planning text is shown to the user.</strong> 158 characters of third-person
+        reasoning archived and rendered as an assistant message. (The archived entry is 159 characters:
+        the sentence plus its trailing newline. Earlier drafts of this page quoted the stored length as
+        the length of the reasoning.)</td>
+        <td><span class="tier t-live">live</span><span class="tier t-report">mechanism unproven</span></td>
+        <td><code>src/lib/minimaxAi.server.ts:122-131</code></td>
+        <td>Thread <code>51ccdfa0&hellip;</code> @ 00:16:01; <strong>1 of 5</strong> sending runs &mdash; not reproducible on demand. The one candidate trigger was eliminated against the source (see &sect;2)</td>
+      </tr>
+      <tr class="row-defect">
+        <td>D2</td>
+        <td><strong>Words are welded together where text was removed.</strong> It rendered as
+        <mark>rightcontext</mark> and should read &ldquo;the right context&rdquo;. The observation is the
+        weld; <code>stripReasoning</code> removes a reasoning block by replacing it with <code>""</code>
+        and is one confirmed way this happens &mdash; but no archived provider output distinguishes that
+        from the model writing <em>rightcontext</em> as a single word, so the mechanism is not
+        attributed here.</td>
+        <td><span class="tier t-live">live</span><span class="tier t-report">mechanism unproven</span></td>
+        <td><code>src/lib/minimaxAi.server.ts:122-131</code> &mdash; replaces the block with <code>""</code></td>
+        <td>DOM bubble 3 of run <code>00-20-23-609Z</code></td>
+      </tr>
+      <tr class="row-defect">
+        <td>D3</td>
+        <td><strong>A three-word answer is never delivered.</strong> For an objective that both forbids
+        tools and is not discussion-only, the app strips every tool, keeps demanding a workflow step,
+        then discards the answer it already has after two corrections. The objective was
+        <code>No tools. Reply with exactly: LIVE TURN OK</code>.</td>
+        <td><span class="tier t-live">live</span></td>
+        <td><code>useAssistantChat.ts:144,184,194</code> + <code>conversation.ts:98-127</code></td>
+        <td>Batch 1 scenario 08, <code>11-01-05-965Z</code>; also pre-fix <code>10-49-44-907Z</code></td>
+      </tr>
+      <tr class="row-defect">
+        <td>D4</td>
+        <td><strong>The approval prompt is built from argument keys the prompting tools never send.</strong>
+        Six of the eleven branches in the intent text can never run while a person is looking at the
+        prompt, so the sheet, the page, the named reviewer and the known distance are all absent from
+        what a human approves for the highest-risk edits &mdash; as are the takeoff review&rsquo;s own
+        <code>kind</code> and <code>decision</code>, which belong to the one edit tool refused before
+        the prompt is ever consulted (D6). The prompt is not empty &mdash; it falls back to the tool
+        title and a generic summary &mdash; but the specifics a person would want are missing. Three of
+        the six branches read a key no tool in the catalogue declares at all; the fourth reads
+        <code>page</code>, declared only by the three view tools, which never prompt
+        (<code>permissions.ts:29</code>); the last two read <code>kind</code> and <code>decision</code>
+        from <code>review_takeoff_item</code>&rsquo;s schema (<code>takeoffTools.ts:53</code>). Two of
+        the invented keys (<code>decidedBy</code>, <code>knownDistanceM</code>) are real field names in
+        the tools' <em>result</em> shapes rather than their arguments, and <code>reviewer</code> appears
+        in one tool's <em>description prose</em> (&ldquo;on behalf of a named human reviewer&rdquo;,
+        <code>appTools.ts:395</code>) while the argument is <code>actor</code> &mdash; which is plausibly
+        how those came to be written, and why the prompt reads as correct. <strong>The unit test then
+        asserts the invented keys as the expected wording, so it locks the defect in: fixing the
+        function breaks the test.</strong></td>
+        <td><span class="tier t-source">source / verified</span></td>
+        <td>The eleven branches are <code>permissions.ts:58,63,64,65,66,67,68,69,70,71,72</code>; the six
+        that cannot fire at a prompt are <code>:64,65,67,68,69,70</code>. Three of those six read four
+        keys no tool declares anywhere &mdash; <code>sheetIndex</code> (<code>:64</code>),
+        <code>reviewer</code> and <code>decidedBy</code> (both on <code>:69</code>), and
+        <code>knownDistanceM</code> (<code>:70</code>): the tools declare <code>sheet</code>
+        (<code>appTools.ts:385,390</code>), <code>actor</code> (<code>:395</code>) and
+        <code>knownDistance:{value,unit}</code> (<code>:385</code>) instead. A fourth (<code>:65</code>)
+        reads <code>page</code>, declared only by view tools (<code>appTools.ts:207,220,229</code>), and
+        the last two (<code>:67</code>, <code>:68</code>) read <code>kind</code> and
+        <code>decision</code>, declared only by <code>review_takeoff_item</code>
+        (<code>takeoffTools.ts:53</code>), which throws at <code>workPacket.ts:74</code> before
+        <code>workPacketRuntime.ts:127</code> consults the gate. Three branches, one, two &mdash; the six
+        in full</td>
+        <td><code>permissions.test.ts:24-26</code> feeds <code>sheetIndex: 11</code>, <code>reviewer: "Daniel Sivyer"</code> and <code>decision: "approved"</code> &mdash; none of which the schemas accept</td>
+      </tr>
+      <tr class="row-defect">
+        <td>D5</td>
+        <td><strong>A quota-consuming tool is admitted as a read.</strong> <code>permissionVerdict</code>
+        returns <code>allowed</code> for any non-EDIT tool, so the visualisation generator never
+        prompts and never trips the stale-outcome gate &mdash; under a 30/day server cap.</td>
+        <td><span class="tier t-source">source / verified</span></td>
+        <td><code>permissions.ts:29</code></td>
+        <td>Map &sect;1; confirmed directly</td>
+      </tr>
+      <tr class="row-defect">
+        <td>D6</td>
+        <td><strong>The one edit that most needs a prompt never reaches the gate in ask mode.</strong>
+        <code>checkProfessionalAction</code> throws before <code>authorize</code> is consulted, so in
+        <strong>ask</strong> mode &mdash; where the tool <em>is</em> declared and a prompt is what the mode
+        promises &mdash; <code>review_takeoff_item</code> returns an error instead of a prompt, and the
+        user is never asked. The readonly case is a <em>different</em> path, not this one: in readonly
+        the tool is filtered out of the declarations entirely (<code>allowProjectEdits</code> is false
+        and the mode is readonly, so <code>editsDeclared</code> is false and
+        <code>assistantToolAllowed</code> rejects an EDIT-only tool), so a call is refused earlier as
+        an unpermitted tool and never reaches the work packet at all. An earlier draft of this page
+        described the readonly outcome and cited this mechanism for it &mdash; the two do not connect, and
+        the fix below would leave readonly behaviour unchanged.</td>
+        <td><span class="tier t-source">source / verified</span></td>
+        <td><code>workPacketRuntime.ts:119</code> fires before <code>:127</code> and <code>:145</code>; declaration filter at <code>useAssistantChat.ts:145</code> + <code>skills.ts:122</code>; undeclared call refused at <code>conversation.ts:155</code></td>
+        <td>Map &sect;6 C13; confirmed directly, then corrected against it</td>
+      </tr>
+      <tr class="row-defect">
+        <td>D7</td>
+        <td><strong>The manual the assistant reads about its own limits contradicts itself.</strong>
+        &ldquo;Twelve rounds per send &hellip; Twenty-four tool calls per send; the twenty-fifth is
+        refused&rdquo; against shipped defaults of 64 rounds and 256 tool calls per message. The two
+        statements do not merely coexist in the repo &mdash; <strong>they are concatenated into one
+        string the model receives every turn</strong>, so the assistant is told both: in the generated
+        file, &ldquo;Twelve rounds per send&rdquo; begins at file offset 10&nbsp;598 and the shipped
+        defaults at 10&nbsp;982 &mdash; 384 characters apart in a 12&nbsp;450-character file, which is
+        10&nbsp;142 and 10&nbsp;526 inside the 11&nbsp;991-character <code>ASSISTANT_CONTEXT_BRIEF</code>
+        literal that file exports &mdash; and which it believes is a coin toss. (The atlas also
+        contradicts itself inside those 384 characters: its own &ldquo;Twenty-four tool calls per
+        send&rdquo; sits 80 characters from its &ldquo;Twelve rounds&rdquo;.)</td>
+        <td><span class="tier t-source">source / verified</span></td>
+        <td><code>skills-atlas.md:37-38</code> and <code>budgets.md:3-4</code>, both embedded in the single <code>ASSISTANT_CONTEXT_BRIEF</code> string at <code>contextManual.gen.ts:11</code> &mdash; file offsets 10&nbsp;598 and 10&nbsp;982, literal offsets 10&nbsp;142 and 10&nbsp;526; defaults at <code>executionBudget.ts:12</code></td>
+        <td>Map open question 7</td>
+      </tr>
+      <tr>
+        <td>D8</td>
+        <td><strong>Five tools that change device or viewer state &mdash; or spend provider quota &mdash;
+        are admitted as reads</strong> &mdash; <code>navigate_workspace</code>,
+        <code>show_design_in_model</code>, <code>hide_designed_model</code>,
+        <code>control_draftsman</code>, <code>generate_render_visualisation</code> &mdash; so none prompts in
+        any mode. Four mutate live state; the fifth POSTs to the render service under a 30/day server
+        cap. In read-only mode &mdash; a mode whose name promises no changes &mdash;
+        <code>navigate_workspace</code> was <strong>observed live to switch the user's pane</strong>, so
+        the admit half is executed. The refuse half is not: no scenario has yet put an edit tool in
+        front of read-only mode to watch it refused.</td>
+        <td><span class="tier t-live">live (admit half)</span><span class="tier t-report">mapped (all five names; refuse half)</span></td>
+        <td><code>appTools.ts:252,433,461,316,432</code>; gate at <code>skills.ts:121</code>; cap at <code>renderTool.ts:22</code></td>
+        <td>Pane switch: scenario 09, <code>00-12-55-574Z</code>. Membership and the gate's effect-blindness: map &sect;1 plus ten source claims the audit re-checked below</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p><strong>No application source was changed in this campaign.</strong> Every fix below is a
+  proposal, and D1&ndash;D3 are the ones with live evidence behind them.</p>
+
+  <h3>How much of this register survived an attempt to falsify it</h3>
+  <p>Nothing on this page is here because it was written confidently. Every factual claim was handed to
+  four independent passes whose instruction was to <em>destroy</em> it &mdash; find the citation that does
+  not say what the page says it says, the run that does not show what the page says it shows, the
+  mechanism that cannot work &mdash; and to default to refuted when uncertain.</p>
+  <p><strong>Pass one</strong> audited 55 claims across six areas against their cited sources.
+  Forty-three survived intact, eleven were refuted or narrowed, and one could not be settled either
+  way. <strong>Pass two</strong> took the page as a whole and attacked the load-bearing claims again
+  from the source, which is where the corrections below come from. <strong>Pass three</strong> attacked
+  the corrected page itself, and found two of the worst items in this list: a
+  correction §1&rsquo;s own list certified as applied while §2 still carried the uncorrected
+  sentence, and a defect row whose arithmetic disagreed with the map row three rows below it &mdash;
+  the same failure, on the same six branches, that the row was written to correct.
+  <strong>Pass four</strong> attacked the corrected page again through four lenses at once &mdash; the
+  restart bullets and every count in them, the defect register&rsquo;s arithmetic, the process record,
+  and this page&rsquo;s internal consistency &mdash; and found that the second of those fixes had
+  reached only half of its row: D4&rsquo;s arithmetic was corrected in the evidence cell while the
+  defect sentence above it kept the old wording, under a §1 bullet that had already certified the whole
+  row as reading &ldquo;3 + 1 + 2&rdquo;. That lens and the three beside it produced fifteen items
+  between them; the fourteen that are not the D4 cell are named in the record&rsquo;s corrections
+  table, and five of them are on this page. Every one is fixed
+  in place rather
+  than in an appendix. Eleven cut against this page&rsquo;s own interest, which is the point of
+  recording them:</p>
+  <ul>
+    <li><strong>D8&rsquo;s live tier is withdrawn.</strong> The run cited for it never called an edit
+    tool, so <code>editToolsSucceeded: 0</code> counted zero successes out of zero attempts. D8 is now
+    live for the <em>admit</em> half only.</li>
+    <li><strong>D1&rsquo;s mechanism was eliminated, not just doubted.</strong> The page had proposed
+    that the leaking turn began with a work packet carrying <code>lastFailure</code>. Work packets have
+    no such field; it belongs to routing state, which starts empty for a new chat. The proposed cause
+    <em>cannot happen</em>, and the section above says so.</li>
+    <li><strong>D1&rsquo;s rate was overstated</strong> in an earlier draft as &ldquo;one in three with an
+    identified trigger&rdquo;. Two runs made to test the trigger did not reproduce the leak, so it is one
+    in five with no known trigger.</li>
+    <li><strong>D1&rsquo;s character count was one high.</strong> 159 is the stored entry including its
+    trailing newline; the reasoning sentence is 158.</li>
+    <li><strong>D6 named the wrong mode.</strong> The page described readonly behaviour and cited a
+    mechanism that readonly never reaches. It is an ask-mode defect, and the fix the page proposed
+    would not have changed readonly at all.</li>
+    <li><strong>The <mark>rightcontext</mark> attribution was asserted, not shown.</strong> No raw
+    provider output is archived for that turn, so the page now presents
+    <code>stripReasoning</code> as a confirmed way this weld happens rather than as what happened
+    here.</li>
+    <li><strong>This page&rsquo;s own reading of the map row it calls M5 was wrong in both
+    directions.</strong> It counted four dead branches in <code>describeToolIntent</code> by mixing two
+    rules, and said the map&rsquo;s &ldquo;six&rdquo; could not be reconstructed. Counted by one rule
+    there are three, by the other six, and the map&rsquo;s &ldquo;six&rdquo; is the second of those.
+    <strong>The map&rsquo;s sentence is still incoherent</strong> &mdash; it glues the two counts
+    together &mdash; but this page had no business calling one of its numbers unreconstructable, and
+    &sect;3&rsquo;s M5 row now says so.</li>
+    <li><strong>Three statements in the restart bullets were stronger than their record.</strong> The
+    close/relaunch experiment was described as repeated &ldquo;under a second name&rdquo; when both
+    pairs ran under <code>qa-live-10-ask-mode-deny</code>; the relaunch&rsquo;s new daemon and browser
+    were given as fact from a process table no log holds, when the run&rsquo;s own log carries no
+    <code>launched browser</code> line at all &mdash; the builder that made the run requires one, which
+    is how the discrepancy surfaced; and the sentence that a reused session name carries state only
+    while its browser is still running is true of the <em>default</em> profile only, which the
+    persistent-profile experiment in &sect;2 is the counterexample to. All three are corrected in
+    place in &sect;2, and the process table they needed is now archived with this review
+    (<code>process-table.json</code>). That last correction is worth a line of its own, because this
+    list claimed it before it was true: the earlier version of this entry said the sentence had been
+    qualified when &sect;2 still carried it unqualified, and a third pass over the page caught the
+    claim and the text disagreeing. What &sect;2 says now is the qualified form, and the
+    qualifier names the exception.</li>
+    <li><strong>This page certified a correction it had not made.</strong> That is the same failure as
+    the one above, stated on its own because it is the worst kind this document can commit: a reader
+    who checks the page&rsquo;s honesty has no way to catch a correction that was announced and not
+    applied. The list you are reading said the restart-mechanism sentence had been qualified; &sect;2
+    still carried it unqualified, and the two sat four sections apart until a third reader walked the
+    list against the text. The claim and the wording now agree, and this is the only reason to trust
+    that they do.</li>
+    <li><strong>The defect register contradicted the map register on the same six branches.</strong>
+    D4 said four of the six unreachable branches read a key no tool declares; M5, three rows later in
+    the same page, said three. Both rows were counting something real &mdash; D4 was counting
+    <em>keys</em> and calling them branches, and three branches read four such keys because one branch
+    reads two &mdash; but a page whose headline correction is about a miscount had a second miscount
+    of the same six branches standing in it. The first fix reached only the row&rsquo;s evidence cell:
+    the defect sentence kept its &ldquo;four &hellip; the fifth&rdquo; wording through two further
+    passes, and it took a fourth reader comparing the two cells of the same row to close it. D4 now
+    reads 3 + 1 + 2 in both cells, and the partition is named.</li>
+    <li><strong>The fourth pass found five more errors on this page, all of the same kind.</strong>
+    The restart bullet said the two scenario-19 runs were seven seconds apart; they are 6.333 s apart,
+    and both run ids are now given so the gap can be checked rather than taken. Two sentences pointed
+    at &ldquo;the experiment two bullets later&rdquo; when the item is three bullets away &mdash; and in
+    one of the two, the count was crossing from this list into &sect;2&rsquo;s. The two restart
+    screenshots were attributed to the run that first wrote them, though the corrected re-run
+    overwrote both a minute later; the byte-identity claim was the part that held. The process table
+    was cited for a command line it does not hold &mdash; it holds the directory that argument
+    produced, and nothing else about it. And three references pointed at a &ldquo;&sect;6&rdquo; this
+    page does not have; the page has five sections, and the certification they meant is in this list.
+    None of the five changes a finding. All five are the same failure: a sentence that was true when it
+    was written and was not re-read when the thing it described moved.</li>
+  </ul>
+  <p>Three further corrections were to this page&rsquo;s machinery rather than its findings: the
+  markdown converter was silently eating glob asterisks inside the map&rsquo;s code spans, the
+  batch-2 runner-id column said &ldquo;final&rdquo; where it meant &ldquo;accepted&rdquo; (two later
+  scenario-10 runs exist), and two headings miscounted their own tables. The pass also found three
+  citation errors <em>inside the map</em>, listed at the head of &sect;3 before the map is
+  reproduced.</p>
+  <p>Where a claim could not be settled either way, the page now says that instead of asserting it:
+  &ldquo;two clusters note this mismatch&rdquo; is unanswerable from this directory, because the cluster
+  transcripts are not kept here.</p>
+</section>
+
+  
+<section id="campaign">
+  <h2>2 &middot; The live campaign</h2>
+  <p>The app's own Live assistant was the harness. Each scenario drove a real provider turn through
+  the shipped chat UI on an isolated origin (<code>127.0.0.1:8085</code>, owned dev server), then read
+  the saved conversation back out of the app's own archive and compared it with what the panel
+  rendered. No mock, no recorded fixture: the model in the loop is MiniMax-M3 through the app's own
+  adapter, asserted before every turn.</p>
+
+  <h3>Batch 1 &mdash; the seven behaviours</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Scenario</th><th>Turns</th><th>Result</th><th>Runner id</th></tr></thead>
+    <tbody>
+      <tr><td>02</td><td>Tool execution</td><td>1</td><td><span class="tier t-pass">pass</span></td><td><code>10-58-43-730Z</code></td></tr>
+      <tr><td>03</td><td>No-tool discussion</td><td>1</td><td><span class="tier t-pass">pass</span></td><td><code>10-59-13-048Z</code></td></tr>
+      <tr><td>04</td><td>Failed operation</td><td>1</td><td><span class="tier t-pass">pass</span></td><td><code>10-59-33-715Z</code></td></tr>
+      <tr><td>05</td><td>Reload</td><td>1</td><td><span class="tier t-pass">pass</span></td><td><code>10-59-50-850Z</code></td></tr>
+      <tr><td>06</td><td>Project switch</td><td>1</td><td><span class="tier t-pass">pass</span></td><td><code>11-00-16-916Z</code></td></tr>
+      <tr><td>07</td><td>Switch back</td><td>1</td><td><span class="tier t-pass">pass</span></td><td><code>11-00-39-969Z</code></td></tr>
+      <tr class="row-defect"><td>08</td><td>No-tool, non-discussion objective</td><td>1</td><td><span class="tier t-defect">fail &mdash; app defect</span></td><td><code>11-01-05-965Z</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Batch 2 &mdash; the gates, from the outside</h3>
+  <p>Six further scenarios drove the gate behaviour rather than the happy path. All passed. What
+  each one actually establishes differs, and the difference matters: <strong>only scenario 10 put a
+  model in front of a permission refusal it tried to make.</strong> Scenario 09 never called an edit
+  tool at all (below), and scenario 11's <code>web_search</code> is withheld at declaration time, so
+  the model never had it to try. Those two show the guard holding; they do not show it refusing an
+  attempt. Scenario 12 is a third kind, and an earlier draft of this page missed it: its model
+  <em>did</em> try, twice, to call <code>read_architect_design</code>, and both calls were refused
+  (<code>refusalCount: 2</code>, <code>outcome: "orchestrator-prerequisite"</code>, each
+  <code>"reason":"Workflow prerequisite missing."</code>) &mdash; but a prerequisite deferral that tells
+  the model what to do first is not a permission denial, so it is not the same test as scenario 10's.
+  Read the table with that in mind.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Scenario</th><th>What it drives</th><th>Result</th><th>Runner id (accepted run)</th></tr></thead>
+    <tbody>
+      <tr><td>09</td><td><code>readonly-refuses-edits</code></td><td>Read-only mode, takeoff objective &mdash; mode asserted, <strong>no edit tool attempted</strong></td><td><span class="tier t-pass">pass</span></td><td><code>00-12-55-574Z</code></td></tr>
+      <tr><td>10</td><td><code>ask-mode-deny</code></td><td>Save denied by the human mid-turn &mdash; the one refusal a model really tried to make</td><td><span class="tier t-pass">pass</span></td><td><code>00-20-23-609Z</code></td></tr>
+      <tr><td>11</td><td><code>provider-gated-web-search</code></td><td>Provider gate: MiniMax is never handed <code>web_search</code></td><td><span class="tier t-pass">pass</span></td><td><code>00-13-28-886Z</code></td></tr>
+      <tr><td>12</td><td><code>wrong-pane-precondition</code></td><td>Wrong-pane precondition refusal</td><td><span class="tier t-pass">pass</span></td><td><code>00-11-27-568Z</code></td></tr>
+      <tr><td>13</td><td><code>project-context-ground-truth</code></td><td>Project-context ground truth</td><td><span class="tier t-pass">pass</span></td><td><code>00-06-54-187Z</code></td></tr>
+      <tr><td>14</td><td><code>no-quote-no-contact</code></td><td>No quote, no third-party contact</td><td><span class="tier t-pass">pass</span></td><td><code>00-11-48-265Z</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Every one of these runs asserts <code>conversationEmptyBeforeTurn: true</code> through the app's
+  own New chat control, and records an archive baseline immediately before Send in the same log. The
+  baseline is <code>entries.length</code> at that moment, so on a correctly-empty conversation it
+  reads <code>0</code> &mdash; a <em>non-zero</em> baseline would contradict the emptiness assertion,
+  not strengthen it. The poller accepts only assistant entries appended after that baseline, which is
+  what stops a run passing by reading a previous run's answer. That is exactly what invalidated the
+  first sweep.</p>
+  <p>The <em>accepted run</em> is the one kept as evidence for each scenario, which is not always the
+  last one made. Scenario 10 has two later runs (<code>00-29-42-526Z</code> and
+  <code>00-30-06-182Z</code>), both kept as leak-rate samples; the recount taken after them,
+  <code>00-30-16-967Z</code>, ran the planning-leak scenario rather than scenario 10 at all. The
+  accepted run is the instrumented one &mdash; all three of those scenario-10 runs logged a DOM
+  capture, and <code>00-20-23-609Z</code> is the one whose captured rows match its archive thread
+  exactly. Scenario 09&rsquo;s accepted run (<code>00-12-55-574Z</code>) is its last and only
+  <em>completed</em> one; two earlier attempts aborted before sending, both with &ldquo;No permission
+  mode button: Read only&rdquo;. Scenario 13&rsquo;s accepted run is the only run of its scenario.</p>
+
+  <h3>Scenario 09: what read-only mode actually did</h3>
+  <p>This is the second place an earlier draft of this page claimed more than its evidence, and the
+  correction is worth reading in full because the mistake is an easy one.</p>
+  <p>Scenario 09 ran a takeoff objective in read-only mode (<code>Calibrate the active source sheet
+  using a two-point manual scale of 5 metres…</code>) and reported the expected outcome: the project
+  was untouched (<code>{label: "read-only mode", revision: 1, unchanged: true}</code>), and
+  <code>editToolsSucceeded: 0</code>.</p>
+  <p><strong>But <code>editToolsSucceeded: 0</code> is vacuously true here.</strong> The run's log
+  records every tool the model called, and there were six: four reads
+  (<code>read_workflow_route</code>, <code>read_project_context</code>, <code>read_source_sheets</code>,
+  <code>read_takeoff_evidence</code>), one failed read (<code>read_assistant_file</code> &mdash; &ldquo;File
+  not found in this project&rdquo;), and one view tool:</p>
+  <pre><code>{"projectId":"job-720b5806-…","pane":"measure","selected":true,
+ "note":"Pane selected. Read the active design before drawing."}</code></pre>
+  <p><strong>No edit tool was ever called.</strong> So no edit was refused, the read-only branch never
+  fired, and <code>editToolsSucceeded: 0</code> counts successes out of zero attempts. An earlier
+  draft of this page read that as &ldquo;read-only mode refused every edit and admitted every read&rdquo; and
+  upgraded D8 to live evidence on the strength of it. That was wrong, and it is withdrawn below.</p>
+  <p>What the run <em>does</em> establish is one half of D8, and it is worth keeping: a tool that
+  switches the user's workspace pane ran and succeeded under read-only mode, in a turn where the model
+  was working a takeoff objective. That is the <em>admit</em> half &mdash; view tools are let through in a
+  mode whose name promises no changes. The <em>refuse</em> half is untested by this run, and
+  <code>navigate_workspace</code>'s pane write being admitted is consistent with the source reading
+  rather than proof of it: no scenario has yet put a real edit tool in front of read-only mode to watch
+  it be refused.</p>
+
+  <h3>What the denial actually looked like</h3>
+  <p>Scenario 10 is the one worth reading in full, because it is the only scenario where a human
+  refused the model mid-turn and we can see what the model did next. The DOM capture of the
+  instrumented run (<code>00-20-23-609Z</code>) shows the turn rendering as <strong>ten rows: one user
+  message, five assistant messages, four tool cards</strong>. The five assistant bubbles in order:</p>
+  <ol class="verbatim">
+    <li>&ldquo;I will read the current project state first&hellip;&rdquo; <span class="meta">111 chars</span></li>
+    <li>&ldquo;Good &mdash; the project is hydrated and revision 1&hellip;&rdquo; <span class="meta">140 chars</span></li>
+    <li>&ldquo;The workflow selector must be chosen before the save will execute. Selecting inspect so the save has the <mark>rightcontext</mark>.&rdquo; <span class="meta">135 chars</span></li>
+    <li>&ldquo;Workflow recorded. Re-attempting the save against the current revision.&rdquo; <span class="meta">88 chars</span></li>
+    <li>the final status report <span class="meta">1&nbsp;168 chars</span></li>
+  </ol>
+  <p>Two things follow. First, <strong>the provider does not stream</strong> &mdash; MiniMax returns one
+  complete message per round &mdash; so every provider round becomes a separate user-visible bubble. A
+  five-round turn is five bubbles interleaved with tool cards, not one answer that grows. That is a
+  presentational fact worth deciding on deliberately.</p>
+  <p>Second, <code>stripReasoning</code> (<code>src/lib/minimaxAi.server.ts:122-131</code>) is a
+  confirmed way for words to end up welded: it deletes a closed
+  <code>&lt;think&gt;&hellip;&lt;/think&gt;</code> block by replacing it with the empty string &mdash; no
+  separator, no space &mdash; so the text either side is joined, exactly the shape
+  <mark>rightcontext</mark> has. Whether that is what produced <em>this</em> instance is not
+  established. No raw provider output is archived for the turn, so nothing distinguishes &ldquo;a
+  reasoning block was deleted here&rdquo; from &ldquo;the model wrote <em>rightcontext</em> as one
+  word&rdquo;. The defect is real either way; the attribution is a source-grounded explanation that the
+  evidence cannot close, and it is recorded as such rather than asserted.</p>
+  <p>The gate itself held: <code>denialReachedModel: true</code>, <code>saveToolsSucceeded: 0</code>,
+  the archive revision unchanged after the denial, and the reply withdraws the action rather than
+  claiming it. That is the behaviour the source says should happen, observed under a model that was
+  actively trying to save.</p>
+
+  <h3>What the harness turned out to be</h3>
+  <p>Five facts about the rig were established by direct experiment this session, and each one
+  changes how a result must be read.</p>
+  <ul>
+    <li><strong>The browser profile is keyed by session name.</strong> Scenario 19 writes a sentinel
+    only if none is present. First run of a new session name: <em>&ldquo;fresh profile &mdash; nothing was
+    here&rdquo;</em>. Second run, same name, six and a third seconds after the first
+    (<code>00-24-35-797Z</code> then <code>00-24-42-130Z</code>): <em>&ldquo;state survived a previous
+    run&rdquo;</em> &mdash; the sentinel present in <em>both</em> localStorage and IndexedDB, alongside a real
+    project id. This reconciles two facts that looked contradictory: the first sweep's re-run
+    returned the previous run's identical answer (it reused the name <code>qa-live-03</code>), while
+    scenarios 18a and 18b shared nothing (different names). <strong>A reused session name carries
+    state; a new one starts clean.</strong> The restart experiment below sharpens that: under the
+    harness&rsquo;s default profile a reused name carries state <em>only while its browser is still
+    running</em>, because there the name is a key to a live browser rather than to a directory that
+    outlives it &mdash; and the persistent-<code>--profile</code> experiment three bullets later is the
+    exception that proves the qualifier: with a profile directory the harness is told to keep, the
+    state <em>does</em> outlive the browser. Any scenario that must start empty has
+    to assert emptiness itself, exactly as the corrected harness does &mdash; a fresh-looking run is
+    not evidence of a fresh profile.</li>
+
+    <li><strong>An earlier draft of this bullet claimed the chat archive survives a full browser
+    restart. That claim was wrong, and the way it was caught is worth keeping.</strong> Scenario 17
+    enumerates the chat-history database and originally failed with &ldquo;No archived projects at all&rdquo;
+    &mdash; because it ran under a brand-new session name. The re-run cited for the claim, under
+    <code>qa-live-10-ask-mode-deny</code>, found the archive intact: project <code>job-b9ac9b63&hellip;</code>,
+    revision 115, 6 threads, 11 assistant entries, 3 user entries, 12 tool entries, last user message
+    preserved verbatim. But that run <em>attached to the browser the earlier run had left running</em>.
+    Sixteen runs now exist under that session name. Three logs in them print
+    <code>launched browser</code>: the very first run of the name (<code>00-06-09-162Z</code>) and the
+    two relaunches made for the experiment below. The thirteen in between &mdash; the cited
+    <code>00-24-53-030Z</code> among them &mdash; print none, because each one attached to the browser the
+    first had started. <strong>Nothing had been restarted, so nothing about a restart had been
+    tested.</strong> (The count moved from fifteen to sixteen after this page was first built, and this
+    campaign moved it: closing that browser at the end of the sweep is itself a run under the same
+    session name, <code>01-11-40-522Z</code>, and it is one of the thirteen that print no launch line.
+    Three still launch, thirteen still do not, and the ratio is a property of the session name rather
+    than of the scenario file.)</li>
+
+    <li><strong>A restart does end the state: the harness's default profile does not survive it.</strong>
+    Closing that browser (run <code>00-49-12-852Z</code>, whose log is 19 bytes and reads
+    <code>✓ Browser closed</code> &mdash; that line is the file) and re-running the <em>identical</em>
+    scenario file &mdash; same <code>sha256 5c5432fe&hellip;</code> as the pre-close run &mdash; produced
+    <code>launched browser</code> and then &ldquo;No archived projects at all&rdquo;, where the pre-close run had
+    read 8 threads out of that same database seconds earlier. Repeated a second time under the
+    <em>same</em> session name, same result (close <code>00-51-16-968Z</code>, relaunch
+    <code>00-51-19-369Z</code>, empty archive). The cause is on disk: the default profile is a
+    per-launch temporary directory,
+    <code>%LOCALAPPDATA%&#92;Temp&#92;agent-browser-chrome-&lt;guid&gt;</code>, one per browser. The GUID
+    seen in use before that close (<code>8f23daef-cf67-4a2a-8d40-9043c348&hellip;</code>) was gone
+    afterwards and the relaunch came up under a different one
+    (<code>a308e756-6d20-4cc3-8b9a-85f98a45&hellip;</code>) &mdash; those two were read off the screen, and
+    the second is now archived: the process table kept with this review
+    (<code>process-table.json</code>) records, for each session this campaign ran, its daemon PID,
+    creation time, executable and the profile directory the browser was launched against, and re-checks
+    whether that directory still exists once the browser is closed.
+    <strong>The campaign could not have shown restart persistence this way, and the open gap it claimed
+    to close was still open.</strong></li>
+
+    <li><strong>Asked properly, the answer is yes.</strong> The CLI accepts
+    <code>--profile &lt;dir&gt;</code> for a profile that is allowed to persist, so the same experiment was
+    run against one. Run <code>00-50-26-966Z</code> seeded a project into a persistent profile, sent one
+    live turn carrying the sentinel reference <code>RSTRT-21-A7</code>, and ended with
+    <code>✓ Browser closed</code>. Run <code>00-50-49-888Z</code> then re-ran the read against that
+    session name and that profile directory &mdash; the two commands differ only in which scenario file
+    they pass, and both carry <code>--profile .temp/live-rig/chrome-profile-restart</code> (the commands
+    are written out in the reproduce block below; the runner&rsquo;s report holds no profile field, and the
+    process table records the directory that argument produced rather than the argument itself &mdash;
+    the <code>userDataDir</code> it carries for that browser is
+    <code>.temp/live-rig/chrome-profile-restart</code>, the one entry in the whole record that is not
+    under <code>%LOCALAPPDATA%&#92;Temp</code>) &mdash; and found the sentinel in the archive,
+    thread <code>a73eca33&hellip;</code>, with the app's own conversation view rendering the turn and its
+    tool rows. Two things about that run are worth stating plainly. Its log carries <strong>no</strong>
+    <code>launched browser</code> line, although the builder that made it requires one, so the browser
+    start rests on the process table instead: <code>process-table.json</code> records daemon
+    <code>32024</code> alive since <code>10:50:49</code> with browser <code>84336</code> created at
+    <code>10:50:50</code> under that profile directory &mdash; the relaunch second, and the only session
+    here whose browser is not using a temporary profile. And the two screenshots filed for this
+    experiment, <code>21-restart-after-read.png</code> and <code>21-restart-after-ui.png</code>, are
+    byte-identical (<code>sha256 1b012ff9&hellip;</code>, 145&#8239;572 bytes each, both written at
+    <code>00:51:49</code> &mdash; that is, by the corrected 21b UI run
+    <code>00-51-48-501Z</code>, which runs the same 12-opcode scenario and overwrote the frames the read
+    run above had written a minute earlier, so the pair on disk proves the frame, not that run&rsquo;s
+    frame), which is what a persistent profile restoring the panel
+    already open would produce: the capture taken after the panel is opened is the same frame as the one
+    before it. So persistence across a browser process ending is real for the app's IndexedDB archive;
+    what failed was the harness's default profile, not the app. <strong>This closes the gap the bullet
+    above only appeared to close.</strong></li>
+
+    <li><strong>The archive and the DOM agree, independently.</strong> The thread the instrumented
+    scenario-10 run (<code>00-20-23-609Z</code>, the one whose captured rows match its archive thread)
+    wrote holds 1 user
+    + 5 assistant + 4 tool entries &mdash; the same ten rows the DOM capture counted, by a different
+    instrument. So the archive is a faithful record of what was on screen, which is what lets a
+    read-only archive query stand in for a screenshot.</li>
+  </ul>
+
+  <h3>The planning leak, and its exact provenance</h3>
+  <p>One archived assistant entry is not an answer at all. Thread <code>51ccdfa0-66f3-4884-bd6f-5fb0c4298595</code>,
+  updated <code>2026-09-17T00:16:01.097Z</code>, holds 158 characters of third-person planning stored
+  with <code>kind: 'assistant'</code> (159 with the entry's trailing newline):</p>
+  <blockquote class="leak">The user is asking again to save the project. The prior checkpoint recorded
+  a decline, but the current message is a fresh request &mdash; I&rsquo;ll attempt the save now.</blockquote>
+  <p>Because it is archived as an assistant entry and the archive is the panel&rsquo;s own source, that
+  text was <strong>rendered to the user</strong>, in a commercial estimation tool, as if the assistant
+  had said it. This is the strongest live defect in the sweep.</p>
+  <p>It is also rare, and that matters more than the shock value. Scenario 20 attributes it exactly.
+  Eight threads accumulated under that session name; five of them sent a message. <strong>One of the
+  five leaked.</strong></p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Thread</th><th>Updated</th><th>Entries (u/a/tool)</th><th>Planning narration?</th></tr></thead>
+    <tbody>
+      <tr><td>0, 1, 2</td><td>00:06 &ndash; 00:10</td><td>0 / 0 / 0</td><td>never sent</td></tr>
+      <tr><td><code>04887950&hellip;</code></td><td>00:13:27</td><td>1 / 3 / 4</td><td>no</td></tr>
+      <tr class="row-defect"><td><code>51ccdfa0&hellip;</code></td><td>00:16:01</td><td>1 / 3 / 4</td><td><strong>yes &mdash; 158 chars</strong></td></tr>
+      <tr><td><code>6e5c3565&hellip;</code></td><td>00:20:41</td><td>1 / 5 / 4</td><td>no</td></tr>
+      <tr><td><code>fd78693e&hellip;</code></td><td>00:30:02</td><td>1 / 3 / 3</td><td>no</td></tr>
+      <tr><td><code>dd1bae80&hellip;</code></td><td>00:30:16</td><td>1 / 2 / 3</td><td>no</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>This is where an earlier draft of this page told a tidy story, and both the story and its
+  correction are worth keeping visible.</strong> What the archive shows is an ordering: the leaking
+  thread follows a thread that ended in a <em>denial</em>. That was written up as the trigger &mdash; a
+  turn beginning with a work packet carrying <code>lastFailure</code>, which the model then narrated.
+  Two further runs were made to test it and <strong>neither leaked</strong>. Then the story was checked
+  against the code, where it does not survive at all: <strong><code>lastFailure</code> is not a work
+  packet field.</strong> The packet schema (<code>workPacket.ts:29-40</code>) has no such field. It
+  belongs to the <em>routing</em> state (<code>workflowRouting.ts:24</code>), starts as
+  <code>failure: null</code> (<code>:34</code>), is set only when a tool in <em>that same task</em>
+  returns an error (<code>:106</code>), and reaches the model through the routing brief
+  (<code>:169</code>). A new chat starts that state empty. So the proposed mechanism was not merely
+  unread in the archive &mdash; <strong>it cannot happen</strong>, and the ordering correlation is a
+  coincidence of the one sample that leaked rather than a cause.</p>
+  <p>The honest statement is the weaker one, and it is the one this page makes:
+  <strong>the leak occurs rarely, at roughly one turn in five on this objective, and what makes a turn
+  leak is unknown.</strong> Five is far too small a sample to call that a rate, and no trigger has been
+  identified &mdash; the one candidate proposed has been eliminated on the source.</p>
+  <p>The mechanism is likewise a source-grounded hypothesis, not a proven one: <code>stripReasoning</code>
+  handles a closed block and a dangling close tag, but a reasoning block arriving with <em>no tags at
+  all</em> passes through untouched. The archived text cannot distinguish &ldquo;untagged reasoning&rdquo; from
+  &ldquo;the model wrote planning prose as its answer&rdquo;. Either way the user sees it; the fix differs, so
+  the distinction is recorded rather than assumed.</p>
+</section>
+
+
+  <section id="map">
+    <h2>3 &middot; The assistant surface, mapped</h2>
+    <p>Reproduced in full from the map workflow&rsquo;s own output. Nine cluster agents read the surface
+    independently; a tenth critic looked for what they had missed; a verifier overturned any claim it
+    could not ground in a cited line, and those overturnings are kept as the map&rsquo;s own &sect;6
+    rather than quietly dropped. Read it as a <em>source</em> document: the map executed nothing.</p>
+
+    <h3>What this page changes or contradicts in the map</h3>
+    <p>Six items. All six were found by having a second reader attack this page&rsquo;s claims, and
+    five of them are defects in the map itself &mdash; preserved below exactly as the map wrote them,
+    corrected only here. The sixth was found by counting the map&rsquo;s own enumerations against each
+    other rather than reading them &mdash; and the same pass, counting again, reversed this
+    page&rsquo;s own reading of M5.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Where</th><th>What is wrong</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>M1</td>
+          <td>The map&rsquo;s &sect;5c &mdash; quoted verbatim in the reproduction below</td>
+          <td>Sends the skills-atlas budget contradiction to <em>&ldquo;open question 9&rdquo;</em>. The
+          right item is <strong>open question 7</strong>; item 9 is the carried-context runtime. The
+          cross-reference is off by two. D7 above cites the correct item, so without this note the page
+          would have quietly disagreed with the document it was reproducing.</td>
+        </tr>
+        <tr>
+          <td>M2</td>
+          <td>Map &sect;4, repeated in its &sect;7.3</td>
+          <td>Lists <code>workPacket.ts:82</code> as an <code>isAssistantEditTool</code> consumer and
+          labels it &ldquo;professional action&rdquo;. Line 82 is
+          <code>checkProfessionalAction(tool)</code> &mdash; a different function that tests the tool name
+          against <code>review_takeoff_item</code> and a prefix list, with nothing to do with EDIT
+          membership. The consumer in that file is <strong>line 80</strong>, the pending-action block.
+          The map&rsquo;s own &sect;6 omission note cites line 80 correctly, so it disagrees with
+          itself.</td>
+        </tr>
+        <tr>
+          <td>M3</td>
+          <td>Map &sect;7.3</td>
+          <td>Counts four consumers of <code>isAssistantEditTool</code> and omits
+          <code>workPacket.ts</code> entirely, while counting <code>contextBudget.ts:93</code> &mdash;
+          which is the <code>STATE_CHANGING_TOOL</code> regex, not an
+          <code>isAssistantEditTool</code> call; the call is at <code>:95</code>, where
+          <code>isStateChangingTool</code> composes the two. Every non-test use in the tree was read:
+          <strong>five call sites across four files</strong> &mdash; <code>permissions.ts:29</code>,
+          <code>contextBudget.ts:95</code>, <code>workPacket.ts:80</code>,
+          <code>workPacketRuntime.ts:116</code> and <code>:134</code>.</td>
+        </tr>
+        <tr>
+          <td>M4</td>
+          <td>This page&rsquo;s own D8, until this revision</td>
+          <td>Described all five admitted tools as changing device or viewer state. The map&rsquo;s
+          &sect;1 headline had it right &mdash; &ldquo;mutate live device/viewer state <em>or spend
+          provider quota</em>&rdquo; &mdash; and D8 dropped the qualifier, which is false for
+          <code>generate_render_visualisation</code>; the map&rsquo;s &sect;2 taxonomy classifies that
+          tool&rsquo;s effect as <em>network</em>. Restored.</td>
+        </tr>
+        <tr>
+          <td>M5</td>
+          <td>Map &sect;7, item 1 &mdash; the item D4 is built on</td>
+          <td>Says <strong>&ldquo;Three of six branches are dead&rdquo;</strong> in
+          <code>describeToolIntent</code>. The function has <strong>eleven</strong> conditional
+          branches (<code>permissions.ts:58,63,64,65,66,67,68,69,70,71,72</code>), so &ldquo;six&rdquo;
+          is not the branch count, and the sentence does not survive either reading of it:
+          <em>three</em> is the number of branches that read a key no tool in the catalogue declares
+          anywhere (<code>:64 sheetIndex</code>, <code>:69 reviewer</code>/<code>decidedBy</code>,
+          <code>:70 knownDistanceM</code>), while <em>six</em> is the number that can never run while a
+          prompt is on screen (<code>:64,65,67,68,69,70</code>). Both are real quantities of the same
+          function, but they are counted by different rules, so &ldquo;three of six&rdquo; asserts that
+          three of those six unreachable branches are dead &mdash; which is false.
+          <strong>This page&rsquo;s own first reading of the row was wrong in both directions:</strong>
+          it asserted four dead branches, mixing the two rules, and that the map&rsquo;s
+          &ldquo;six&rdquo; could not be reconstructed. It can &mdash; it is the count D4 now uses.</td>
+        </tr>
+        <tr>
+          <td>M6</td>
+          <td>Map &sect;1, against the map&rsquo;s own &sect;4</td>
+          <td>Counts <strong>&ldquo;nine admission gates&rdquo;</strong> and lists them. The
+          map&rsquo;s &sect;4 heads <strong>ten</strong> gate paragraphs, and the two lists are not the
+          same set: &sect;1 ends with the <em>declaration filter</em>, which &sect;4 does not head, and
+          &sect;4 heads <code>isAssistantEditTool</code> and <code>checkProject</code>, neither of which
+          &sect;1&rsquo;s list names. Three of the ten therefore appear in only one of the two lists,
+          and a reader counting the gates can reach nine or ten. Both readings are defensible &mdash;
+          <code>isAssistantEditTool</code> is the membership rule the other gates consume rather than an
+          admission step, and the declaration filter is gates 2 and 4 applied early &mdash; which is why
+          the disagreement is recorded here rather than reconciled.</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <p class="note">Nothing above changes a map conclusion. M1&ndash;M3 are citation and
+    cross-reference errors inside correct conclusions; M5 and M6 are counts a reader working them
+    through arrives at differently; M4 is this page&rsquo;s error, not the map&rsquo;s &mdash; and so is
+    half of M5, where this page&rsquo;s own first reading was wrong in the other direction until
+    &sect;1&rsquo;s second pass caught it. The map&rsquo;s substantive findings held up under attack
+    &mdash; see the note at the end of &sect;1.</p>
+    <div class="mapdoc">
+<h1 id="x-ray-live-assistant-final-reviewable-map">X-Ray Live assistant — final reviewable map</h1>
+<p><strong>Scope.</strong> The in-app assistant surface of <code>xray-by-looplet</code>: its tools, routes, gates, budgets and prohibitions, assembled from nine independently verified cluster maps plus one completeness critique. Source reading only; see the closing note.</p>
+<p><strong>How this document treats disagreement.</strong> Where a cluster's claim conflicts with a verifier correction backed by a cited <code>file:line</code>, the correction is carried and the overturned claim is recorded in §6 rather than silently deleted. Two counts at the centre of the document were re-verified directly while assembling: <code>VIEW_TOOLS</code> holds <strong>27</strong> names and <code>APP_PANES</code> holds <strong>10</strong> (<code>src/studio/assistant/skills.ts:91-115</code>, <code>src/studio/assistant/appTools.ts:33</code>).</p>
+<hr>
+<h2 id="1-orientation">1. Orientation</h2>
+<p><strong>Tools: 39 callable names.</strong> 38 are registered through <code>createAppTools</code> in <code>src/studio/assistant/appTools.ts</code>; the 39th, <code>web_search</code>, is declared inline at <code>src/studio/assistant/session.ts:16-25</code>. They partition into <code>VIEW_TOOLS</code> (<strong>27</strong>) and <code>EDIT_TOOLS</code> (<strong>12</strong>) at <code>src/studio/assistant/skills.ts:91-119</code>. Five are pure industry calculators with no project access. One — <code>review_takeoff_item</code> — is registered but permanently blocked (see below), so the reachable count is <strong>38</strong>.</p>
+<p><strong>Routes: 6</strong> — <code>discussion</code>, <code>inspect</code>, <code>architecture</code>, <code>takeoff</code>, <code>render</code>, <code>export</code> (<code>src/studio/assistant/workflowRouting.ts:7-14</code>). Route names are declarative rationale; enforcement lives in <code>nextToolStep</code> (<code>workflowRouting.ts:68-98</code>) and <code>completionStep</code> (<code>:150-165</code>).</p>
+<p><strong>Gates: nine admission gates, in evaluation order.</strong></p>
+<ol>
+<li><code>prohibit-all-tools</code> — objective-level ban (<code>useAssistantChat.ts:144,184,194</code>)</li>
+<li><code>providerSupportsTool</code> (<code>provider.ts:38-44</code>)</li>
+<li><code>checkProfessionalAction</code> (<code>workPacket.ts:73-75</code>)</li>
+<li><code>assistantToolAllowed</code> — the VIEW/EDIT allowlist (<code>skills.ts:122-123</code>)</li>
+<li><code>permissionVerdict</code> / <code>gateToolCall</code> — mode + human prompt (<code>permissions.ts:29,125</code>)</li>
+<li><code>workflow router</code> — prerequisite refusal (<code>workPacketRuntime.ts:121-126</code>)</li>
+<li><code>checkPacketAction</code> / <code>workPacketRuntime.call</code> — identity, recovery, pending action, staleness, journal (<code>workPacket.ts:77</code>, <code>workPacketRuntime.ts:43,115,116,165</code>)</li>
+<li><code>session single-active-tool</code> (<code>session.ts:42</code>)</li>
+<li><code>declaration filter</code> — gates 2 and 4 applied early, so a denied tool is usually invisible to the model (<code>useAssistantChat.ts:184</code>)</li>
+</ol>
+<p><strong>Budgets: four surfaces</strong> — execution limits (<code>executionBudget.ts</code>), per-send round and tool-call caps (<code>conversation.ts:153,177,179</code>), transcript context budget (<code>contextBudget.ts:57</code>), and the work-packet context guard (<code>workPacketRuntime.ts:86</code>).</p>
+<h3 id="the-single-most-important-finding">The single most important finding</h3>
+<p><strong>The human permission gate keys off allowlist membership, not actual effect.</strong> Because prompting, the readonly block and the uncertain-outcome replay gate are all driven by <code>isAssistantEditTool</code> (i.e. <code>EDIT_TOOLS</code> membership, <code>skills.ts:121</code>), five tools that demonstrably mutate live device/viewer state or spend provider quota are admitted as <em>reads</em>: <code>navigate_workspace</code> (<code>appTools.ts:252</code>, writes the pane), <code>show_design_in_model</code> (<code>:433</code>, writes <code>designedBuilding</code> and the pane), <code>hide_designed_model</code> (<code>:461</code>), <code>control_draftsman</code> (<code>:316</code>), and <code>generate_render_visualisation</code> (<code>:432</code>, consumes Gemini quota under a 30/day server cap). None of the five prompts in any mode, and none trips the "an earlier tool has no durable outcome" edit gate. Conversely, the one genuine edit whose prompt matters most — <code>review_takeoff_item</code> — never reaches the permission gate at all: <code>checkProfessionalAction</code> fires at <code>workPacketRuntime.ts:119</code>, before the <code>authorize</code> callback at <code>:127</code> and before <code>callAssistantTool</code> at <code>:145</code>, so in readonly mode it returns neither <code>READONLY_MESSAGE</code> nor a prompt. Net effect: <strong>the tools that should ask, don't, and the one that shouldn't run, can't be governed by the mode switch at all.</strong> Two of the three clusters that contain these tools (architect-design, render-capture-draftsman) note the mismatch in their own verdicts; the takeoff verifier confirmed the ordering defect from source.</p>
+<p>A related critic finding — that the approval prompt itself reads argument keys no tool sends — is <strong>not</strong> cluster-verified and is listed as open question 1 rather than folded into the finding above.</p>
+<hr>
+<h2 id="2-every-tool">2. Every tool</h2>
+<p>Effect is the <strong>actual</strong> effect from source, not the declared tier. Gate is the rule that admits it. <code>[tier mismatch]</code> marks a tool admitted as a read that does not behave like one.</p>
+<div class="tablewrap"><table><thead><tr><th>#</th><th>Tool</th><th>Effect</th><th>Gate</th><th>Purpose</th></tr></thead><tbody><tr><td>1</td><td><code>search_standards_library</code></td><td>network</td><td><code>VIEW</code>; workflow-gated</td><td>Fetch standards excerpts for a topic/edition from <code>/api/standards-library</code></td></tr>
+<tr><td>2</td><td><code>read_workflow_route</code></td><td>read</td><td><code>VIEW</code>; router short-circuit (<code>workflowRouting.ts:69</code>)</td><td>Return the static ordered step list for one workflow</td></tr>
+<tr><td>3</td><td><code>read_project_context</code></td><td>read</td><td><code>VIEW</code>; <code>UNBOUND_READS</code>, no id binding</td><td>Return one live project snapshot (id, revision, pane, documents, counts, hydration)</td></tr>
+<tr><td>4</td><td><code>navigate_workspace</code></td><td>device</td><td><code>VIEW</code>; workflow-gated</td><td><code>[tier mismatch]</code> Switch the pane; for <code>sketch</code>, open the Architectural workspace</td></tr>
+<tr><td>5</td><td><code>read_workbench_structure</code></td><td>read</td><td><code>VIEW</code>; <code>UNBOUND_READS</code></td><td>Return the static workbench structure reference (panes, entities, tool list)</td></tr>
+<tr><td>6</td><td><code>read_assistant_file</code></td><td>read</td><td><code>VIEW</code></td><td>Read a stored attachment or the active source bytes, with paging</td></tr>
+<tr><td>7</td><td><code>read_work_packet</code></td><td>read</td><td><code>VIEW</code></td><td>Return one stored work packet in full, or up to 20 recent summaries</td></tr>
+<tr><td>8</td><td><code>read_work_packet_event</code></td><td>read</td><td><code>VIEW</code></td><td>Return packet journal metadata, or one paged event</td></tr>
+<tr><td>9</td><td><code>capture_project_backup</code></td><td>project-edit</td><td><code>EDIT</code>; prompts "Save a workspace backup"</td><td>Capture and store a revision-bound workspace backup</td></tr>
+<tr><td>10</td><td><code>read_source_geometry</code></td><td>network + device</td><td><code>VIEW</code></td><td>POST the active PDF to <code>/api/source-geometry</code> for lines, text, region close-up</td></tr>
+<tr><td>11</td><td><code>prepare_source_room</code></td><td>network + device</td><td><code>VIEW</code></td><td>Turn selected segments + one door into drawable room operations and an overlay</td></tr>
+<tr><td>12</td><td><code>read_source_building</code></td><td>read</td><td><code>VIEW</code></td><td>Summarise a Model-viewer scene's parts, storeys, evidence tallies</td></tr>
+<tr><td>13</td><td><code>read_source_sheets</code></td><td>read</td><td><code>VIEW</code></td><td>Return the active source's sheet register from the lifecycle sidecar</td></tr>
+<tr><td>14</td><td><code>manage_source_sheet</code></td><td>device</td><td><code>EDIT</code>; prompts "Change a sheet"</td><td>Rename, archive or recover one sheet in the localStorage sidecar</td></tr>
+<tr><td>15</td><td><code>read_architect_design</code></td><td>read</td><td><code>VIEW</code></td><td>Return the live architect project plus workspace flags</td></tr>
+<tr><td>16</td><td><code>draw_architect_elements</code></td><td>project-edit</td><td><code>EDIT</code></td><td>Append a bounded batch of design operations, commit, read back</td></tr>
+<tr><td>17</td><td><code>undo_architect_change</code></td><td>project-edit</td><td><code>EDIT</code></td><td>Pop the workspace undo stack and commit</td></tr>
+<tr><td>18</td><td><code>edit_architect_elements</code></td><td>project-edit</td><td><code>EDIT</code>; prompts "Edit design elements"</td><td>Apply ID-addressed edits and commit</td></tr>
+<tr><td>19</td><td><code>show_design_in_model</code></td><td>device</td><td><code>VIEW</code></td><td><code>[tier mismatch]</code> Build a designed scene, mount it in Model, select the pane</td></tr>
+<tr><td>20</td><td><code>hide_designed_model</code></td><td>device</td><td><code>VIEW</code></td><td><code>[tier mismatch]</code> Clear the mounted designed scene</td></tr>
+<tr><td>21</td><td><code>read_takeoff_evidence</code></td><td>read</td><td><code>VIEW</code></td><td>Return per-sheet calibration, traces, items, readiness blockers</td></tr>
+<tr><td>22</td><td><code>calibrate_source_sheet</code></td><td>project-edit</td><td><code>EDIT</code></td><td>Two-point manual calibration of one source page</td></tr>
+<tr><td>23</td><td><code>trace_takeoff_run</code></td><td>project-edit</td><td><code>EDIT</code></td><td>Draw one 2–500-vertex length trace on a locked-calibration page</td></tr>
+<tr><td>24</td><td><code>review_takeoff_item</code></td><td>project-edit</td><td><strong>blocked</strong> by <code>checkProfessionalAction</code> before every other gate</td><td>Approve/reject one run or item as a named reviewer — unreachable</td></tr>
+<tr><td>25</td><td><code>remove_takeoff_trace</code></td><td>project-edit</td><td><code>EDIT</code></td><td>Remove one measured run and the items placed on it</td></tr>
+<tr><td>26</td><td><code>read_price_books</code></td><td>read</td><td><code>VIEW</code></td><td>Return a library-level summary of imported price books</td></tr>
+<tr><td>27</td><td><code>import_price_book</code></td><td>device</td><td><code>EDIT</code>; prompts "Import a price book"</td><td>Parse, validate and append a price book or a new revision</td></tr>
+<tr><td>28</td><td><code>export_design_file</code></td><td>device</td><td><code>EDIT</code>; prompts "Export a design file"</td><td>Generate one export (dxf/ifc/drawing-pdf/material-pdf/sheet-register) and download</td></tr>
+<tr><td>29</td><td><code>generate_render_visualisation</code></td><td>network</td><td><code>VIEW</code> + <strong>Gemini only</strong></td><td><code>[tier mismatch]</code> Capture the viewer, POST <code>/api/render-ai</code>, return receipt + image</td></tr>
+<tr><td>30</td><td><code>capture_workspace_image</code></td><td>read</td><td><code>VIEW</code></td><td>Capture the live 3D canvas as a downscaled PNG</td></tr>
+<tr><td>31</td><td><code>control_draftsman</code></td><td>device</td><td><code>VIEW</code></td><td><code>[tier mismatch]</code> Drive the mounted Model viewer's draftsman playback</td></tr>
+<tr><td>32</td><td><code>read_draftsman_status</code></td><td>read</td><td><code>VIEW</code></td><td>Return draftsman status, model identity, active flag</td></tr>
+<tr><td>33</td><td><code>save_project</code></td><td>project-edit</td><td><code>EDIT</code></td><td>Compare-and-swap save of the main job record with storage readback</td></tr>
+<tr><td>34</td><td><code>calculate_draft_roof_area</code></td><td>read</td><td><code>VIEW</code></td><td>Draft roof-plane slope/gross/opening/net areas</td></tr>
+<tr><td>35</td><td><code>calculate_draft_duct_material</code></td><td>read</td><td><code>VIEW</code></td><td>Draft straight-duct lateral area and optional sheet mass</td></tr>
+<tr><td>36</td><td><code>classify_draft_quantities</code></td><td>read</td><td><code>VIEW</code></td><td>Organise measured items into a hierarchy with inclusive rollups</td></tr>
+<tr><td>37</td><td><code>calculate_draft_roof_sheet_coverage</code></td><td>read</td><td><code>VIEW</code></td><td>Draft rectangular sheet columns, courses and sheet count</td></tr>
+<tr><td>38</td><td><code>calculate_draft_duct_wrap</code></td><td>read</td><td><code>VIEW</code></td><td>Draft insulation wrap area for straight duct sections</td></tr>
+<tr><td>39</td><td><code>web_search</code></td><td>network</td><td><code>VIEW</code> + <strong>Gemini only</strong></td><td>Run a grounded nested web search; return answer + sources</td></tr></tbody></table></div>
+<p>Provider note: only <code>web_search</code> and <code>generate_render_visualisation</code> are provider-restricted (<code>provider.ts:38-39</code>). In the native Tauri build MiniMax is denied entirely (<code>transport.ts:16</code>).</p>
+<hr>
+<h2 id="3-the-six-routes">3. The six routes</h2>
+<p>Route step lists are surfaced verbatim to the model by <code>routingBrief</code> (<code>workflowRouting.ts:167-171</code>); they are instruction strings, not tool calls. "Complete" = <code>completionStep</code> returns <code>null</code>.</p>
+<p><strong><code>discussion</code></strong> (<code>workflowRouting.ts:8</code>) — Explain or correct supplied information without calling tools; claim no project action. <strong>Completes</strong> with no context stamp at all: <code>workflowRouting.ts:154</code> exempts <code>discussion</code> from the context check, so it falls straight to <code>return null</code>. Auto-selected for discussion-only objectives and for completed project-bound calculator calls (<code>:117-118</code>).</p>
+<p><strong><code>inspect</code></strong> (<code>:9</code>) — Ordered: read project context → retrieve the relevant design / source sheets / attachments / evidence → answer with source and revision, naming unknowns. <strong>Completes</strong> after selection plus a matching context stamp; <code>read_architect_design</code> / <code>read_source_sheets</code> / <code>read_takeoff_evidence</code> requested first are refused with <code>next=read_project_context</code>.</p>
+<p><strong><code>architecture</code></strong> (<code>:10</code>) — Ordered: read project context → open Sketch when the controller is absent → read the current design and IDs → draw or edit a bounded batch → read back the new revision → mount in Model and capture actual pixels → inspect the image, correct or report. <strong>Completes</strong> only after an edit's invalidation is repaired: <code>ARCHITECT_EDITS</code> sets <code>designChanged</code>, nulls <code>designRead</code>/<code>mounted</code>/<code>captured</code> and increments <code>mutationCount</code> (<code>:131</code>); <code>mounted</code> is keyed to <code>designKey([projectId,designRevision])</code> and <code>captured</code> requires a real image part.</p>
+<p><strong><code>takeoff</code></strong> (<code>:11</code>) — Ordered: read context and source sheets → read evidence on the target sheet → use calibration/trace tools with their real inputs and permissions → re-read the evidence; report exclusions and unknowns. <strong>Completes</strong> after <code>TAKEOFF_EDIT</code> (<code>:133</code>) nulls <code>evidenceRead</code>, so <code>read_takeoff_evidence</code> is mandatory first (<code>:159-160</code>); evidence is keyed by <code>evidenceKey(context + sheet)</code>.</p>
+<p><strong><code>render</code></strong> (<code>:12</code>) — Ordered: read context → for newly authored geometry, read and mount the current revision → capture the requested view → generate a visualisation of that view (explicitly not new geometry or verified evidence). <strong>Completes</strong> only on a real <code>generate_render_visualisation</code> receipt (<code>:134</code>); <code>captured</code> is keyed to <code>captureKey(context + designKey + pane + renderedSceneSha256)</code> and is nulled by <code>navigate_workspace</code>, <code>control_draftsman</code> and <code>hide_designed_model</code> (<code>:146</code>).</p>
+<p><strong><code>export</code></strong> (<code>:13</code>) — Ordered: read context → read the current authored design, or source sheets for a sheet register → finish any outstanding design readback and capture → export the format and inspect the delivery receipt. <strong>Completes</strong> only when the receipt's <code>downloaded === true</code> (<code>:136-137</code>); otherwise a delivery failure is recorded.</p>
+<hr>
+<h2 id="4-gates-and-exact-membership-rules">4. Gates and exact membership rules</h2>
+<p><strong><code>prohibit-all-tools</code></strong> (<code>useAssistantChat.ts:144</code>) — <code>noTools = reviewOnly || prohibitsAllTools(text)</code>. One detection, three consequences: declarations emptied (<code>:184</code>), <code>editsDeclared</code> forced false (<code>:145</code>), any emitted call throws (<code>:194</code>).</p>
+<p><strong><code>providerSupportsTool</code></strong> (<code>provider.ts:38-44</code>) — Gemini admits all. MiniMax is denied exactly <code>web_search</code> and <code>generate_render_visualisation</code>. Native build denies MiniMax outright (<code>transport.ts:16</code>).</p>
+<p><strong><code>checkProfessionalAction</code></strong> (<code>workPacket.ts:73-75</code>) — refuses unconditionally: the name <code>review_takeoff_item</code>, or any name matching <code>/^(send_|issue_|approve_|certify_|publish_)/</code>. Independent of provider, permission mode and <code>allowProjectEdits</code>. Called on three paths: <code>session.ts:38</code>, <code>mcp.ts:23</code>, and <code>workPacket.ts:82</code> via <code>checkPacketAction</code> inside <code>governed.call</code> (<code>workPacketRuntime.ts:119</code>).</p>
+<p><strong><code>assistantToolAllowed(name, allowProjectEdits)</code></strong> (<code>skills.ts:122-123</code>) — <code>VIEW_TOOLS.has(name) || (allowProjectEdits &amp;&amp; EDIT_TOOLS.has(name))</code>. Closed on both sides: a name in neither set is denied even with edits allowed.</p>
+<p><strong><code>isAssistantEditTool</code></strong> (<code>skills.ts:121</code>) — <code>EDIT_TOOLS.has(name)</code>. The single definition of "state-changing", consumed in four places: <code>permissions.ts:29</code> (verdict), <code>contextBudget.ts:93,95</code> (handover, plus the <code>STATE_CHANGING_TOOL</code> regex superset), <code>workPacket.ts:82</code> (professional action), <code>workPacketRuntime.ts:116,134</code> (pending-action gate).</p>
+<p><strong><code>permissionVerdict</code> / <code>gateToolCall</code></strong> (<code>permissions.ts:29,125</code>) — non-edit → <code>allowed</code>; edit → <code>blocked</code> in readonly (<code>READONLY_MESSAGE</code>), <code>allowed</code> in auto or when granted for the chat, else <code>ask</code>. In ask mode one prompt resolves to Allow once / Allow for this chat / Deny; a superseded prompt is treated as a denial, not queued. <code>useAssistantChat.ts:197</code> bypasses <code>gateToolCall</code> entirely when <code>allowProjectEdits</code> is true — the mode path is the live gate and the flag is the legacy shortcut.</p>
+<p><strong>Workflow router</strong> (<code>workPacketRuntime.ts:121-126</code>) — returns, without executing, <code>{status:"not-executed", reason:"Workflow prerequisite missing.", requestedTool, next}</code> when <code>nextToolStep</code> yields a step. Exempt: <code>read_workflow_route</code> (short-circuit <code>:69</code>) and the <code>UNBOUND_READS</code> set (<code>workflowRouting.ts:57-60</code>, confirmed members include <code>read_project_context</code> and <code>read_workbench_structure</code>). <code>search_standards_library</code> and <code>navigate_workspace</code> are <strong>not</strong> exempt. When no route is selected, a first mutation auto-derives one (<code>:70-74</code>).</p>
+<p><strong><code>checkProject</code></strong> (<code>appTools.ts:124-127</code>; <code>takeoffTools.ts:67</code>) — <code>persistenceHydrated &amp;&amp; !persistenceRecoveryBlocked &amp;&amp; hydrationStatus === 'ready'</code>; then <code>job.id === expectedJobId</code>; then, where the tool takes it, <code>job.revision === expectedRevision</code>.</p>
+<p><strong><code>checkPacketAction</code></strong> (<code>workPacket.ts:77-82</code>) — packet identity, recovery not blocked, <code>pendingAction === null</code> whenever <code>isAssistantEditTool</code> is true, and exact equality of project revision, design revision and the source-set JSON. <code>workPacketRuntime.call</code> adds the uncertain-prior-packet refusal (<code>:116</code>), journal verification (<code>:43</code>), and the audit-storage refusals (<code>:115</code>, <code>:165</code>).</p>
+<p><strong><code>session</code> single-active-tool</strong> (<code>session.ts:42</code>) — a second concurrent tool call gets <code>"Another assistant tool is running. Wait before retrying."</code></p>
+<p><strong>Budgets.</strong></p>
+<ul>
+<li>Execution limits (<code>executionBudget.ts:3,11-12</code>): <code>maxRounds</code> 1..512 (default 64), <code>maxToolCalls</code> 1..4096 (default 256), <code>maxOutputTokens</code> 1024..65536 (default 32768), <code>timeoutMs</code> 10000..600000 (default 300000), <code>contextTokens</code> 16000..900000 (default 600000). Corrupt or absent storage silently yields the defaults.</li>
+<li>Enforced in <code>conversation.ts</code>: rounds (<code>:52</code>, throw <code>:179</code>), tool calls (<code>:153</code> per-call refusal, throw <code>:177</code>). <code>maxOutputTokens</code> and <code>timeoutMs</code> are enforced downstream (<code>assistantAi.server.ts:59</code>, <code>minimaxAi.server.ts:181</code>, <code>src-tauri/src/assistant_ai.rs:340,403</code>) — <strong>not</strong> in <code>conversation.ts</code>.</li>
+<li>Transcript context (<code>contextBudget.ts:57</code>): <code>full</code> at 300,000 tokens <strong>or</strong> 36 contents <strong>or</strong> 10 MB; <code>warn</code> at 240,000 / 30 / 8 MB. QA lever <code>xray:assistant-context-floor</code> raises the estimate only (<code>:69-82</code>).</li>
+<li>Work-packet context (<code>workPacketRuntime.ts:86</code>): trims at 7 MB or 65% of <code>contextTokens</code>; blocks the packet at 10 MB or 100%. The full request is archived before any reduction, and the trim can never remove the message being answered.</li>
+</ul>
+<hr>
+<h2 id="5-prohibitions-by-how-they-are-actually-enforced">5. Prohibitions, by how they are actually enforced</h2>
+<p>This split is the document's most important output: only one column can fail loudly.</p>
+<h3 id="5a-enforced-by-removed-declarations-the-tool-does-not-exist-in-the-registry">5a. Enforced by removed declarations (the tool does not exist in the registry)</h3>
+<p>A model cannot call what is not declared. Confirmed against <code>createAppTools</code> (<code>appTools.ts:187-477</code>) plus <code>web_search</code>: no <code>import_*</code>, <code>quote_*</code>/<code>bom_*</code>, restore/delete, <code>place_*</code>, vertex-edit, source-mutation or model-space-authoring tool is registered.</p>
+<div class="tablewrap"><table><thead><tr><th>Prohibition (source: <code>context/app-atlas.md</code>)</th><th>What is absent</th><th>Note</th></tr></thead><tbody><tr><td>Importing a plan is UI-only (<code>:35</code>)</td><td>any <code>import_*</code> tool</td><td><code>read_assistant_file</code> reads already-persisted sources; it does not import</td></tr>
+<tr><td>No quote or bill-of-materials tool (<code>:35</code>)</td><td>any <code>quote_*</code>/<code>bom_*</code> tool</td><td>rates can be imported/read, never quoted</td></tr>
+<tr><td>Backups are captured but never restored or deleted (<code>:35</code>)</td><td>any restore/delete backup tool</td><td>the capture half is a real, gated tool</td></tr>
+<tr><td>Trace vertices cannot be edited one by one; located items cannot be placed (<code>:36</code>)</td><td>any vertex-edit or <code>place_located_item</code> tool</td><td><code>trace_takeoff_run</code> takes a whole 2–500-point polyline; <code>remove_takeoff_trace</code> removes a whole run</td></tr>
+<tr><td>Source identity, hashes and classes cannot be changed (<code>:37</code>)</td><td>any identity/hash/class mutation tool</td><td><code>read_source_geometry</code> detects change but cannot forbid it</td></tr>
+<tr><td>Geometry is authored through Sketch tools only (<code>:37</code>)</td><td>any direct model-space authoring tool</td><td><code>show_design_in_model</code> only mounts a scene</td></tr>
+<tr><td><em>(runtime mechanism)</em> no tools for this message</td><td><code>declarations: []</code> when <code>noTools</code> (<code>useAssistantChat.ts:184</code>)</td><td>the only one that can be exercised against a model mid-turn</td></tr></tbody></table></div>
+<h3 id="5b-enforced-by-a-thrown-error">5b. Enforced by a thrown error</h3>
+<div class="tablewrap"><table><thead><tr><th>Prohibition / limit</th><th>Exact message</th><th>Site</th></tr></thead><tbody><tr><td>Rendering is web-only (atlas <code>:37</code>) — <strong>the only atlas item with a runtime throw</strong></td><td><code>Rendering is unavailable in this native build; use the web app.</code></td><td><code>renderTool.ts:99</code> and <code>:174</code></td></tr>
+<tr><td>No tool calls for a prohibited objective</td><td><code>Tools are prohibited for this request; no project action was executed.</code></td><td><code>useAssistantChat.ts:194</code></td></tr>
+<tr><td>Professional approval / external issue</td><td><code>Professional approval or external issue requires verified human authority. This work packet permits internal drafts only.</code></td><td><code>workPacket.ts:74</code></td></tr>
+<tr><td>Workflow correction cap (2)</td><td><code>Workflow incomplete after two correction attempts. Completed actions and the next required step are saved.</code></td><td><code>conversation.ts:124</code></td></tr>
+<tr><td>Final-claim correction cap (1)</td><td>concatenated <code>toolClaimFailure</code> text</td><td><code>conversation.ts:94</code></td></tr>
+<tr><td>Speculative calculator result</td><td><code>The requested calculation failed; no successful result was verified. Review the failed calculation details and correct the inputs before trying again.</code></td><td><code>conversation.ts:83</code></td></tr>
+<tr><td>Round budget</td><td><code>Paused after &lt;N&gt; assistant steps. …</code></td><td><code>conversation.ts:179</code></td></tr>
+<tr><td>Tool-call budget</td><td><code>Paused at the &lt;N&gt;-tool budget. …</code></td><td><code>conversation.ts:177</code></td></tr>
+<tr><td>VIEW/EDIT allowlist</td><td><code>This tool is not permitted for this message. No action performed.</code></td><td><code>session.ts:39</code></td></tr>
+<tr><td>Permission mode / prompt</td><td><code>READONLY_MESSAGE</code>, <code>DENIED_MESSAGE</code>, <code>STOPPED_MESSAGE</code></td><td><code>permissions.ts:20-21</code></td></tr>
+<tr><td>App preflight unavailable / repeated</td><td><code>App preflight tool is unavailable in this session; no action executed.</code> / <code>…did not resolve the prerequisite…</code></td><td><code>conversation.ts:111,113</code></td></tr></tbody></table></div>
+<h3 id="5c-instruction-text-only-no-machine-check">5c. Instruction text only (no machine check)</h3>
+<div class="tablewrap"><table><thead><tr><th>Rule</th><th>Where stated</th><th>Machine backstop</th></tr></thead><tbody><tr><td>21-clause safety manual — no destructive bulk changes, no issuing/sending quotes, no publishing, no third-party contact, no changing source classes or hashes, no bypassing permissions, never claim without a receipt (<code>skills.ts:78</code>)</td><td>prompt content, sent every request</td><td>receipt claims partly caught by <code>unsupportedFinalToolClaims</code></td></tr>
+<tr><td>"Never do these things" — seven prohibitions (<code>context/README.md:60-66</code>)</td><td>prompt content</td><td>as above; nothing catches "treated an image as an order"</td></tr>
+<tr><td>Carried context grants no permission and sets no rule (<code>README.md:56</code>)</td><td>prompt content</td><td>app enforces only that a failed read is <em>visible</em> (<code>useAssistantChat.ts:22</code>, fail-open)</td></tr>
+<tr><td><code>skills-atlas.md</code> budget prose ("Twelve rounds… Twenty-four tool calls…")</td><td>prompt content</td><td><strong>contradicts</strong> the shipped 64/256 defaults — see open question 9</td></tr>
+<tr><td>Source-identity / vertex-edit / item-placement / quote / import rules, restated</td><td>atlas prose</td><td>absent declarations are the real enforcement; the prose is reinforcement</td></tr></tbody></table></div>
+<hr>
+<h2 id="6-corrections-claims-the-verifiers-overturned">6. Corrections — claims the verifiers overturned</h2>
+<p>30 overturned claims, grouped by cluster. Every one carries the verifier's cited source. Where a cluster and its verifier disagreed and the verifier cited source, the verifier wins here.</p>
+<p><strong>context-routing (3/5 entries intact)</strong></p>
+<ul>
+<li><strong>C1</strong> <code>navigate_workspace</code> precondition "nine panes" → <strong>ten</strong>: <code>overview, sheets, measure, sketch, components, model, render, review, cost, proof</code>. Verified directly: <code>appTools.ts:33</code>.</li>
+<li><strong>C2</strong> <code>search_standards_library</code> keyDetail claiming the "up to 20 excerpts" and edition-narrowing guarantees are unenforced → <strong>both are enforced by this repo's host chain</strong>, so the tool description is accurate and the map's criticism was wrong: <code>scripts/search_standards_library.py:64</code> (<code>ORDER BY rank LIMIT 20</code>), <code>:61-63</code> (edition filter); <code>src/routes/api.standards-library.ts:26</code>; <code>src/lib/standardsLibrary.server.ts:29-38</code>. The route is <strong>in-repo</strong>, not out-of-tree as the entry's precondition implied.</li>
+</ul>
+<p><strong>files-packets-backup (3/4 intact)</strong></p>
+<ul>
+<li><strong>C3</strong> <code>read_work_packet</code> keyDetail "<code>verifyWorkJournal</code> … invoked only when a new packet starts (<code>workPacketRuntime.ts:43</code>)" → <strong>false</strong>: also called at <code>useAssistantChat.ts:75</code> during chat-history rebuild. (The narrower claim — that <code>read_work_packet</code> itself never verifies the chain — stands.)</li>
+<li><strong>C4</strong> the same error restated in the cluster notes. Same evidence.</li>
+</ul>
+<p><strong>source-and-sheets (1/5 fully clean)</strong></p>
+<ul>
+<li><strong>C5</strong> <code>read_source_geometry</code> failureModes listing Python <code>WireframeError</code> text as surfaced → <strong>never surfaced</strong>: <code>src/lib/sourceGeometry.server.ts:54</code> collapses any engine error to <code>Unsupported or invalid source; Python extraction failed.</code> (422).</li>
+<li><strong>C6</strong> <code>prepare_source_room</code> "inherits Python WireframeError text verbatim" → <strong>same defect</strong>, same evidence.</li>
+<li><strong>C7</strong> <code>manage_source_sheet</code> keyDetail cites <code>appTools.ts:50</code> for truthy-discipline forwarding → the code is at <strong><code>workbenchTools.ts:50</code></strong>; <code>appTools.ts:50</code> is a port type line.</li>
+<li><strong>C8 &amp; C9</strong> <code>read_source_building</code> "checkProject, twice for designed scenes" → <strong>twice for every building</strong>, catalog or designed: <code>appTools.ts:343</code> and <code>:346</code>.</li>
+<li><em>Omissions:</em> <code>read_assistant_file</code> (the other active-source VIEW tool, <code>appTools.ts:207</code>); <code>parseSourceBuilding</code> also throws <code>Source trace is outside the original sheet.</code> (<code>src/studio/sourceBuilding.ts:226</code>); return shapes omit <code>shortSegmentsExcluded</code>/<code>totalSegments</code>/<code>minimumLengthPt</code>/<code>omissions</code> and <code>internalAreaMm2</code>/<code>innerBoundaryPt</code>/<code>centerlinePt</code>/<code>sourceSegmentIds</code>/<code>scaleMapping</code>.</li>
+</ul>
+<p><strong>architect-design (5/6 intact)</strong></p>
+<ul>
+<li><strong>C10</strong> <code>read_architect_design</code> attributes the short <code>"The active project changed…"</code> to <code>controller.read</code> → the controller throws the longer <code>"The active architectural project changed. Read project context again."</code> at <code>ArchitectWorkspace.tsx:529</code>.</li>
+<li><strong>C11</strong> notes: "<code>prepareArchitectElements</code>/<code>prepareArchitectEdits</code> are pure and append-only" → <strong>only the first is append-only</strong>; <code>prepareArchitectEdits</code> splices and object-assigns (<code>architectBridge.ts:252</code>).</li>
+<li><strong>C12</strong> notes: "if it is unmounted every design tool throws" → <strong>false for two of six</strong>: <code>hide_designed_model</code> needs no controller (<code>appTools.ts:462-464</code>); <code>show_design_in_model</code> opens the workspace instead (<code>:438-441</code>).</li>
+<li><em>Omissions:</em> <code>export_design_file</code> (<code>appTools.ts:414</code>, an EDIT tool operating on the same design), <code>read_workbench_structure</code>, and <code>read_source_building</code> with <code>building:"designed"</code>.</li>
+</ul>
+<p><strong>takeoff (3/5 intact)</strong></p>
+<ul>
+<li><strong>C13</strong> <code>review_takeoff_item</code> permissionClass: "<code>checkProfessionalAction</code> … before the permission gate" in a way that still permits <code>gateToolCall</code> → <strong>the professional-action throw at <code>workPacketRuntime.ts:119</code> pre-empts <code>authorize</code> (<code>:127</code>) and <code>callAssistantTool</code> (<code>:145</code>)</strong>, so no <code>READONLY_MESSAGE</code> and no prompt ever occur for this name.</li>
+<li><strong>C14</strong> <code>review_takeoff_item</code> keyDetail attributes the refusal to <code>session.ts:38</code> → it is reached from <code>checkPacketAction</code> (<code>workPacket.ts:82</code>) inside <code>governed.call</code>; <code>session.ts:38</code> is never reached for this tool.</li>
+<li><strong>C15</strong> <code>review_takeoff_item</code> failureModes listing the allowlist message → <strong>unreachable</strong> (<code>session.ts:39</code> never runs).</li>
+<li><strong>C16</strong> <code>review_takeoff_item</code> keyDetail claiming it is uniquely missing <code>requireImportedPage</code> while "the other three writers enforce it" → <strong><code>removeTrace</code> also never calls it</strong> (<code>takeoffTools.ts:265-275</code>); only <code>calibrateSheet</code> (<code>:126</code>) and <code>traceRun</code> (<code>:184</code>) enforce sample/page-range/busy-pane.</li>
+<li><strong>C17</strong> <code>remove_takeoff_trace</code> "the only takeoff mutator with no <code>requireImportedPage</code> call" → <strong>false</strong>; <code>reviewTakeoffItem</code> also lacks it (<code>:239-240</code>).</li>
+<li><em>Omissions:</em> the readonly declaration filter that hides <code>review_takeoff_item</code> entirely; <code>storeError</code> fallback strings <code>Calibration capture did not start.</code> (<code>:138</code>) and <code>Calibration point N was not captured.</code> (<code>:143</code>); the <code>governed.call</code> layer in the gate-order note.</li>
+</ul>
+<p><strong>pricing-export (3/3 intact)</strong></p>
+<ul>
+<li><strong>C18</strong> notes group <code>port.architect</code> with optionally-undefined ports producing "unavailable in this session" → <strong><code>architect</code> is a required port</strong> (<code>appTools.ts:44</code>, wired <code>:510</code>); the real message when no controller is mounted is <code>Open Sketch → Architectural workspace before using this design tool.</code> (<code>architectBridge.ts:367</code>).</li>
+</ul>
+<p><strong>render-capture-draftsman (4/5 intact)</strong></p>
+<ul>
+<li><strong>C19</strong> <code>save_project</code> keyDetail: "there is no readback … the verification is of store bookkeeping, not of persisted bytes" → <strong>refuted</strong>: <code>saveFencingJob</code> re-reads the stored string and compares it to the serialized value, returning <code>ok:false</code> on mismatch (<code>src/studio/persistence.ts:120</code>, via <code>store.ts:2226</code>). The description's "readback-verify" is accurate.</li>
+<li><em>Omissions:</em> <code>capture_project_backup</code>; <code>control_draftsman</code>'s controller-level messages <code>Open the model preview or its matching source before using drawing playback.</code> and <code>The model viewer is not ready. Wait for it to finish loading.</code> (<code>SourceBuildingViewer.tsx:933,935</code>).</li>
+</ul>
+<p><strong>industry-calculators (4/5 intact)</strong></p>
+<ul>
+<li><strong>C20</strong> <code>classify_draft_quantities</code> permissionClass cites <code>skills.ts:93</code> → it is on <strong>line 92</strong> (verified directly).</li>
+<li><strong>C21</strong> <code>web_search</code> purpose and keyDetail quote <code>{answer, sources}</code> as the return → the handler returns an MCP envelope <code>{ content:[{type:"text", text: JSON.stringify({answer, sources})}] }</code> (<code>session.ts:23</code>).</li>
+<li><em>Omission:</em> none of the five calculators rejects the caller; every listed failure is an <code>isError</code> result produced by the <code>appTools.ts:191</code> wrapper, not an exception.</li>
+</ul>
+<p><strong>workflow-routes (9/11 intact)</strong></p>
+<ul>
+<li><strong>C22</strong> <code>workflow:discussion</code> failureModes[0]: "any mutation attempted while <code>selected='discussion'</code> is refused; the router re-derives a real route (<code>:70-74</code>)" → <strong>neither half holds</strong>: <code>:70-74</code> is guarded by <code>if (!s.selected)</code>, and <code>nextToolStep</code> has no discussion branch — with matching context and <code>designRead</code>, a mutation <strong>executes</strong> under <code>discussion</code> (<code>workflowRouting.ts:70,78,97</code>).</li>
+<li><strong>C23</strong> <code>behaviour:completionStep</code> keyDetail: every selected route requires the context stamp → <strong>false</strong>: <code>:154</code> explicitly exempts <code>discussion</code>, which completes with no <code>read_project_context</code>.</li>
+<li><em>Omissions:</em> <code>nextToolStep</code> (<code>:68</code>, the actual enforcement predicate), <code>routingBrief</code> (<code>:167</code>), <code>completionStepForObjective</code> (<code>completionPreflight.ts:31</code>).</li>
+</ul>
+<p><strong>gates-budgets (23 intact)</strong></p>
+<ul>
+<li><strong>C24</strong> <code>gate:view-tool-allowlist</code> "26 read/inspection tools" → <strong>27</strong> (<code>skills.ts:91-115</code>, verified directly).</li>
+<li><strong>C25</strong> <code>gate:assistant-tool-allowlist</code> keyDetail restating "VIEW_TOOLS (26 names)" → same. <code>EDIT_TOOLS</code> = 12 is correct.</li>
+<li><strong>C26</strong> <code>gate:permission-controls-ui</code> providerSupport cites <code>ProviderSwitch.tsx:64</code> for the render → the render is at <strong><code>PermissionControls.tsx:64</code></strong>; <code>ProviderSwitch.tsx:64</code> is the close of an unrelated effect.</li>
+<li><strong>C27</strong> <code>budget:execution-budget</code> permissionClass (and the cluster notes) say the five-field budget is "enforced in <code>conversation.ts:28</code>" → <code>:28</code> only <strong>parses</strong>; the file enforces <code>maxRounds</code> (<code>:52</code>) and <code>maxToolCalls</code> (<code>:153,177,179</code>) only.</li>
+<li><em>Omissions:</em> work-journal storage gates (<code>workPacketRuntime.ts:52,115,165</code>); <code>assertContext</code> (<code>useAssistantChat.ts:199</code>; <code>conversation.ts:53,64,100</code>); the app-preflight gates (<code>conversation.ts:83,111,113</code>); the single-in-flight send gate (<code>useAssistantChat.ts:146</code>).</li>
+</ul>
+<p><strong>prohibitions-and-limits (26/29 intact)</strong></p>
+<ul>
+<li><strong>C28</strong> <code>short-interaction-window</code> failureModes: "an image-only entry is replaced by the placeholder" → <strong>it is dropped</strong>: <code>:27</code> keeps an entry only if a part has non-<code>[xray:</code> text, and an <code>{inlineData}</code>-only part can carry nothing else (<code>contract.ts:43-46</code>); the fallback at <code>:29</code> fires only for a thought-only entry. Test asserts <code>shortInteraction([imageOnlyMarked]) === []</code> (<code>shortInteraction.test.ts:41</code>).</li>
+<li><strong>C29</strong> <code>atlas-geometry-authored-in-sketch</code> failureModes attribute <code>"Finish or cancel the current architectural draft before leaving Sketch."</code> and <code>"…pending draft before showing the design in Model."</code> to draw/edit → they belong to <code>navigate_workspace</code> (<code>appTools.ts:257</code>) and <code>show_design_in_model</code> (<code>:445</code>); neither draw nor edit contains a <code>pendingDraft</code> check.</li>
+<li><strong>C30</strong> <code>tool-call-budget</code> keyDetail: the budget branch is "the only one of the three in-loop refusals that records <code>invoked=false</code> and is phrased 'not executed'" → <strong>all three</strong> leave <code>invoked</code> false, and the duplicate-ID refusal is also phrased "not executed" (<code>conversation.ts:153,154,155,158</code>).</li>
+<li><em>Omissions:</em> the professional-action / internal-draft authority gate (the reason <code>review_takeoff_item</code> is declared unavailable — <code>workPacket.ts:73-74</code>), and the pending-action edit block (<code>workPacket.ts:80</code>).</li>
+</ul>
+<hr>
+<h2 id="7-open-questions-the-critic-s-gaps">7. Open questions — the critic's gaps</h2>
+<p>Each is a critic finding. Items 1, 3, 8 and 9 are stated from source by the critic but not ratified by a cluster verifier; treat those four as leads to confirm before acting.</p>
+<ol>
+<li><strong>The human approval prompt reads argument keys no tool sends.</strong> <code>describeToolIntent</code> (<code>permissions.ts:52-75</code>) reads <code>sheetIndex</code> (line 64) but the takeoff tools send <code>sheet</code> (<code>appTools.ts:385,390</code>) and <code>manage_source_sheet</code> sends <code>pageIndex</code> (<code>:354</code>); reads <code>reviewer</code>/<code>decidedBy</code> (line 69) but <code>review_takeoff_item</code> sends <code>actor</code> (<code>:395</code>); reads <code>knownDistanceM</code> (line 70) but <code>calibrate_source_sheet</code> sends <code>knownDistance:{value,unit}</code> (<code>:385</code>). The unit test passes only because it feeds the invented keys (<code>permissions.test.ts:25-27</code>). Three of six branches are dead — the sheet/page, the named reviewer and the known distance are absent from the text a user approves for the highest-risk edits.</li>
+<li><strong>VIEW_TOOLS miscounted as 26</strong> in the allowlist cluster; it is 27 (now corrected in §5/§6, listed here because the critic raised it).</li>
+<li><strong>The EDIT set has a second, wider consumer axis than the map described.</strong> <code>isAssistantEditTool</code> is re-imported by <code>permissions.ts:2,29</code>, <code>contextBudget.ts:3,93,95</code> and <code>workPacketRuntime.ts:5,116,134</code> — "is this an edit?" is answered in four places.</li>
+<li><strong><code>generate_render_visualisation</code> is a VIEW tool and therefore ungated</strong> — <code>permissions.ts:29</code> always returns <code>allowed</code> for it, the readonly block never fires, and <code>workPacketRuntime.ts:134</code> never treats it as a mutation, despite it consuming quota and being singled out by the provider gate.</li>
+<li><strong>Tool-name knowledge is hand-duplicated in at least eight places with no parity test.</strong> <code>skills.ts:91-119</code>; <code>permissions.ts:35-48</code>; <code>toolReceipt.ts:6-46</code> + <code>DRAFT_RECEIPTS:79-85</code>; <code>workflowRouting.ts:40-42,57-60</code>; <code>contextBudget.ts:93</code>; <code>completionPreflight.ts:8-14</code>; <code>workbenchStructure.ts:52</code>; the generated <code>contextManual.gen.ts</code>. <code>toolReceipt.test.ts</code> never asserts <code>TITLES</code> covers the registry, so a new tool silently falls back to a humanised name (<code>toolReceipt.ts:198</code>) and no test fails.</li>
+<li><strong>Context-budget numbers disagree between prompt and guard.</strong> <code>contextBudget.ts:11-18,20</code> guards on 300,000 tokens / 36 contents / 10 MB, while <code>budgets.md</code> and <code>contextManual.gen.ts</code> tell the model "600,000 estimated tokens (configurable to 900,000)" per <code>executionBudget.ts:12</code>. The QA lever <code>xray:assistant-context-floor</code> (<code>contextBudget.ts:69-82</code>) is uncovered.</li>
+<li><strong><code>skills-atlas.md:37-38</code> contradicts the shipped budget</strong> — "Twelve rounds per send / Twenty-four tool calls; the twenty-fifth is refused" vs the 64/256 defaults, with both texts embedded in <code>contextManual.gen.ts</code>. This is the material the assistant reads about its own limits.</li>
+<li><strong>The correction limits are four distinct caps, not "two corrections".</strong> <code>conversation.ts:124</code> (workflow, <code>&gt; 2</code>), <code>:94</code> (tool-claim, <code>&gt; 1</code>), <code>:80-84</code> (speculative calculator, no correction), and <code>:111-117</code> (single app-preflight read attempt), supported by <code>finalToolClaims.ts</code>, <code>namedToolRetry.ts</code>, <code>shortInteraction.ts</code>, <code>completionPreflight.ts</code>.</li>
+<li><strong>The carried-context runtime sits outside <code>context/</code>.</strong> The directory holds only docs; the machinery is <code>contextTurn.ts</code>, <code>contextCapture.ts</code>, <code>contextLog.ts</code>, <code>contextLogStore.ts</code>, <code>contextProfile.ts</code>, <code>pinnedContext.ts</code>, <code>compactTranscript.ts</code>. The reviewer-critical contracts are the Rust byte-parity (<code>skills.ts:73-75</code> ↔ <code>src-tauri/src/assistant_ai.rs:13</code>) and the replay guard re-seeded by marker receipts (<code>contextTurn.ts:22-58</code>).</li>
+<li><strong>Persistence is uncovered beyond chat-history restore.</strong> <code>projectSwitch.ts:77-161</code> (busy/not-ready refusal, CAS save, plan, rollback-on-CAS-loss, autosave block, re-hydrate, <code>SWITCH_BUSY_MESSAGE</code>); the cross-tab CAS revision in <code>chatHistory.ts:66-84</code> and <code>recoverTaskChat</code> (<code>:87-106</code>); the hash-chained journal CAS in <code>workPacketStore.ts:35-59</code> and <code>verifyWorkJournal:9-18</code>.</li>
+<li><strong>Developer review is more than <code>developerMode.ts</code>.</strong> The marker is special-cased in the correction loop (<code>conversation.ts:124</code> skips the two-correction cap for any <code>[xray:developer-review]</code> requirement); the authority caveat is at <code>developerMode.ts:5</code> and the toggle store at <code>developerPreferences.ts:4-9</code>.</li>
+<li><strong>UI surfaces named by the map have no cluster coverage</strong>: <code>TopDownMindMap.tsx</code> (+ <code>mindMapLayout.ts</code>), <code>MonkeyPanel.tsx</code> + <code>monkeyRecorder.ts</code>/<code>monkeyWorkflow.ts</code>, <code>NccLibraryPanel.tsx</code> (+ <code>nccLibrary.ts</code>, <code>standardsLibrary.ts</code>; publisher check <code>NccLibraryPanel.tsx:47-57</code>), <code>ChatHistoryPanel.tsx</code>, <code>AssistantProjects.tsx</code>, <code>ExecutionSettings.tsx</code>, <code>ProviderSwitch.tsx</code>, and <code>LiveAssistant.tsx</code> itself (1464 lines; the map cites only <code>:129</code>). <code>ConversationView.tsx</code> is only partly covered (reply-options/suggestion/NCC logic <code>:33-58,84-137</code>).</li>
+<li><strong><code>review_takeoff_item</code> is declared-but-gated</strong>, so "39 callable tools" is really "38 callable + 1 permanently blocked" — yet it still carries a VIEW/EDIT membership, a permission title (<code>permissions.ts:44</code>) and a receipt title (<code>toolReceipt.ts:34</code>).</li>
+<li><strong>The handover regex and drop rules are unstated.</strong> <code>contextBudget.ts:98</code> matches <code>Paused after (?:\d+|eight|twelve) assistant steps</code> while <code>conversation.ts:179</code> emits numerals only; the handover builder drops oldest requests then oldest receipts (<code>:127-135</code>).</li>
+<li><strong><code>context/</code> docs are generated, not hand-authored</strong> — <code>contextManual.gen.ts</code> is composed from the five Markdown files by <code>build-assistant-context.mjs</code>, so a doc edit only reaches the model through a rebuild.</li>
+<li><strong>The <code>review_takeoff_item</code> description, the block site and <code>workbenchStructure.ts:52</code> are three copies of the same claim</strong>; none is derived from the gate, so a future unblocking would not update them.</li>
+</ol>
+<hr>
+<h2 id="8-what-this-map-does-not-establish">8. What this map does not establish</h2>
+<ul>
+<li><strong>It is a source reading, not a live-turn result.</strong> No turn was executed. Nothing here proves a tool returns what its code appears to return, that the mount order holds at runtime, or that a gate fires as written. Where a claim rests on a comment or a schema rather than an executed path, it is stated as source, not as behaviour.</li>
+<li><strong>It covers no UI surface unless a cluster explicitly read one.</strong> The permission controls, provider switch, execution settings, conversation view, mind map, monkey panel and NCC panel were read only to the extent a cluster cited a specific line. There is no screenshot, no interaction, no DOM verification.</li>
+<li><strong>Counts and line numbers are as of this reading.</strong> <code>skills.ts:91-115</code> (27) and <code>appTools.ts:33</code> (10 panes) were re-verified while assembling; the rest come from the nine cluster verifications and were not all re-read here.</li>
+<li><strong>The Corrections section is the trust boundary.</strong> Everything in §2–§5 reflects a corrected claim; anything a verifier overturned is in §6 and is no longer relied on. Where the critic's finding is uncorroborated by a verifier, §7 says so.</li>
+<li><strong>Nothing here was run or fixed.</strong> This is a map for deciding what to fix, not evidence that anything works.</li>
+</ul>
+    </div>
+  </section>
+
+  
+<section id="gaps">
+  <h2>4 &middot; What this sweep does not establish</h2>
+  <ul>
+    <li><span class="tier t-gap">not tested</span> <strong>One provider only.</strong> MiniMax-M3
+    through the app's own adapter. Gemini and the native Rust path were never driven, so nothing here
+    is a statement about assistant behaviour on any other model.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>Real drawings, real money.</strong> Every
+    project is a synthetic QA fixture with a locked manual calibration. No customer drawing, quantity
+    or price appears in any scenario.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>Most of the surface.</strong> Thirteen
+    scenarios cover tool execution, honest failure, discussion, persistence, project switching and six
+    gate behaviours &mdash; and of the six gate scenarios, only one put a model in front of a
+    <em>permission</em> refusal it tried to make. Scenario 12's model tried twice and was deferred by a
+    workflow prerequisite instead, which is a different mechanism. The map names sixteen open questions
+    and a list of UI surfaces &mdash; mind map,
+    monkey panel, NCC library, execution settings, conversation view, the Live assistant itself &mdash;
+    that no scenario drove and no cluster read beyond a cited line.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>Tablet width.</strong> One batch-1 scenario
+    (05, reload) set 1024&nbsp;&times;&nbsp;768 and reloaded there; every other assistant scenario in both
+    batches and in the harness runs ran at desktop 1600&nbsp;&times;&nbsp;1000 only. Phones are excluded by
+    project instruction.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>The other thirty-odd tools.</strong> The map
+    covers all 39 from source; live turns exercised a handful. A tool that reads correctly can still
+    return something else at runtime, and the map says so itself in its closing section.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>What makes a turn leak.</strong> D1 was
+    observed once in five attempts on one objective. Two deliberate re-runs made to test the suspected
+    trigger did not reproduce it, and the trigger itself was then eliminated against the source &mdash;
+    the mechanism proposed cannot happen. So there is no candidate left, no known trigger and no
+    usable rate. Saying how often a user sees planning text needs a much larger sample, and it is the
+    gap I would close first.</li>
+    <li><span class="tier t-gap">not tested</span> <strong>Every refusal in a turn.</strong> The shipped
+    scenario-12 assertion throws only when <em>no</em> refused read carries a recognized refusal text,
+    so a turn that refused the same read twice &mdash; once with the orchestrator's prerequisite message
+    and once with something unrecognized &mdash; passes it. The cited run refused that read twice, and
+    re-running the shipped assertion against the cited run is what exposed the rule: the mutation meant
+    to test it rewrote one refusal and the assertion still passed. Strengthening the shipped text would
+    invalidate the recorded run's <code>scenarioSha256</code>, so the rule is recorded here rather than
+    changed, and the mutation now strips every refused read.</li>
+  </ul>
+</section>
+
+  
+<section id="reproduce">
+  <h2>5 &middot; Reproducing any of this</h2>
+  <p>The dev server must be up on the isolated origin first (an owned process, identity-checked before
+  any stop). Then every result on this page comes from one of these:</p>
+  <pre><code># a live turn through the app, driven from a declarative opcode array
+node scripts/fast-cdp-test.mjs &lt;session-name&gt; proof/growth/2026-09-16-live-assistant-rig/scenarios/&lt;scenario&gt;.json
+
+# harness facts: profile reuse (run 19 twice under ONE name), the archive read (17), leak
+# provenance (20). Note what 17 under this name does NOT do - it attaches to the browser the
+# previous run left running, which is why an earlier draft mistook it for a restart test.
+node .temp/live-rig/build-19.mjs &amp;&amp; node scripts/fast-cdp-test.mjs qa-live-19-session-profile-reuse proof/growth/2026-09-16-live-assistant-rig/scenarios/19-session-profile-reuse.json
+node scripts/fast-cdp-test.mjs qa-live-10-ask-mode-deny proof/growth/2026-09-16-live-assistant-rig/scenarios/17-restart-persistence.json
+node scripts/fast-cdp-test.mjs qa-live-10-ask-mode-deny proof/growth/2026-09-16-live-assistant-rig/scenarios/20-planning-leak-provenance.json
+
+# the restart test, done properly: end the browser, then relaunch against a profile that is
+# allowed to persist. Without --profile the relaunch comes up under a fresh temporary profile
+# and the archive is empty - which is the finding, not a bug in the app.
+node .temp/live-rig/build-21.mjs
+node scripts/fast-cdp-test.mjs qa-live-10-ask-mode-deny .temp/live-rig/scenarios/r-close-browser.json
+# ...then re-run scenario 17 under that name: "launched browser", then an empty archive.
+node scripts/fast-cdp-test.mjs qa-live-21-restart-real .temp/live-rig/scenarios/21a-restart-write.json --profile .temp/live-rig/chrome-profile-restart
+node scripts/fast-cdp-test.mjs qa-live-21-restart-real .temp/live-rig/scenarios/21b-restart-read.json --profile .temp/live-rig/chrome-profile-restart
+
+# the process table the restart bullets rest on: each session's daemon PID, creation time,
+# executable and the profile directory its browser was launched against, re-checked after the
+# close - then every campaign session stopped through the CLI's own close, leaving the dev
+# server and the three sessions this campaign did not create untouched
+node .temp/live-rig/close-campaign-browsers.mjs --apply
+
+# every archive-only assertion, executed offline against the run this page cites for it, plus
+# mutations that must throw and controls that must not - so an over-eager assertion cannot hide
+node .temp/live-rig/run-assertions-offline.mjs
+
+# rebuild this page from the map
+node .temp/live-rig/build-review-page.mjs</code></pre>
+  <p>Runner reports, logs and screenshots are under <code>proof/growth/runner/</code> and
+  <code>screenshots/growth/</code>; the process table is <code>process-table.json</code> in this
+  directory. The batch-1 record is
+  <code>proof/growth/2026-09-16-live-assistant-rig/README.md</code>.</p>
+  <p>Three checks over this page itself are mechanical, and they are the only statements here that a
+  script makes rather than a reader:</p>
+  <ul>
+    <li><strong>The map reproduction.</strong> Every heading, table row, bullet and numbered line in
+    <code>assistant-map.md</code> appears in this page, and the count is the builder&rsquo;s rather than
+    this page&rsquo;s: the converter counts each quantity twice &mdash; once from the markdown, once
+    from what it wrote &mdash; and throws rather than emitting a page when the two disagree. It prints
+    <code>13 headings, 4 tables with 62 body rows (66 rows including the header rows), 46 bullets,
+    25 numbered lines</code>. The earlier version of this bullet said &ldquo;66 table rows&rdquo; and
+    left 4 of them unaccounted for; they are the header rows, and a reader cannot reproduce the figure
+    from the map without knowing that. Two rendering differences are expected rather
+    than lossy: the page escapes <code>&lt;N&gt;</code>, and an ordered list&rsquo;s ordinals are drawn
+    by the browser, so those digits are not in the text.</li>
+    <li><strong>The citations.</strong> 51 distinct files are cited, with 139 line references. Every
+    file exists and every cited line is inside its file. Four names are each shared by two files, and in
+    all four cases both candidates are long enough to contain the cited lines, so the name alone does not
+    settle which was meant: <code>contract.ts</code>, in <code>src/studio/assistant/</code> and in
+    <code>src/studio/construction/</code> &mdash; the surrounding text is about the assistant contract;
+    and <code>projectSwitch.ts</code>, <code>provider.ts</code> and <code>transport.ts</code>, each of
+    which also exists as a pre-change snapshot this campaign made of its own source on 11 September under
+    <code>.temp/library-before/</code> or <code>.temp/minimax-before/</code> &mdash; those three citations
+    mean the live <code>src/studio/assistant/</code> file. The probe walks <code>.temp</code> along with
+    <code>src</code>, <code>scripts</code> and <code>src-tauri</code>, which is why the snapshots appear
+    as candidates at all; the same check run against the three source directories only &mdash; as it was
+    for the earlier version of this page &mdash; reports one shared name instead of four.</li>
+    <li><strong>The assertions.</strong> The suite below, which executes each scenario&rsquo;s own
+    assertion text against the run this page cites for it &mdash; each one passing on its archive and
+    throwing on every mutation.</li>
+  </ul>
+</section>
+
+</div>

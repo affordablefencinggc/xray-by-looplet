@@ -1,0 +1,14 @@
+[
+  ["open", "http://127.0.0.1:8085/"],
+  ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"],
+  ["eval", "JSON.stringify({url:location.href,evidence:[...document.querySelectorAll('[data-hydration-status]')].map(e=>e.getAttribute('data-hydration-status'))})"],
+  ["eval", "(async()=>{const r=await fetch('/api/minimax-ai');const s=await r.json();window.__qaProvider=s;return 'kicked'})()"],
+  ["wait", "--fn", "!!window.__qaProvider"],
+  ["eval", "JSON.stringify(window.__qaProvider)"],
+  ["eval", "JSON.stringify([...document.querySelectorAll('button')].map(b=>({label:b.getAttribute('aria-label'),text:b.textContent.trim().slice(0,40)})).filter(b=>/assistant|live|developer/i.test((b.label||'')+(b.text||''))))"],
+  ["eval", "localStorage.setItem('xray:assistant-provider:v2','minimax'); 'provider-set'"],
+  ["reload"],
+  ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"],
+  ["eval", "JSON.stringify({provider:localStorage.getItem('xray:assistant-provider:v2')})"],
+  ["errors"]
+]

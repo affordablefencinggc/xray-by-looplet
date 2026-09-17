@@ -1,0 +1,422 @@
+<title>X-Ray Remaining Work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* ── Light palette (complete; every colour has its definition here) ───────── */
+  :root{
+    --paper:#F2F4F5;
+    --card:#FFFFFF;
+    --card-sunk:#EAEDEF;
+    --ink:#161C22;
+    --ink-soft:#3B454F;
+    --muted:#5C6874;
+    --line:#D7DCE1;
+    --line-soft:#E6EAED;
+    --accent:#1D5A82;
+    --accent-soft:#E2EDF4;
+    --verified:#2C6B4E;
+    --verified-soft:#E3F0E9;
+    --partial:#93610F;
+    --partial-soft:#F6EDDC;
+    --blocked:#3F5B8A;
+    --blocked-soft:#E5EAF3;
+    --failed:#9E3A2C;
+    --failed-soft:#F7E6E3;
+    --gap:#5B6570;
+    --gap-soft:#E8EAEC;
+    --shadow:0 1px 2px rgba(22,28,34,.06), 0 8px 24px -16px rgba(22,28,34,.28);
+    --sans:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --display:"Archivo", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#101519;
+      --card:#181F26;
+      --card-sunk:#1E262E;
+      --ink:#E7ECF1;
+      --ink-soft:#C2CBD4;
+      --muted:#93A0AC;
+      --line:#2A343D;
+      --line-soft:#222B33;
+      --accent:#74B6DE;
+      --accent-soft:#17303F;
+      --verified:#74C79B;
+      --verified-soft:#15291F;
+      --partial:#D9A44E;
+      --partial-soft:#2E2516;
+      --blocked:#8FAAD8;
+      --blocked-soft:#1B2434;
+      --failed:#E08C7C;
+      --failed-soft:#2E1B18;
+      --gap:#9AA5B0;
+      --gap-soft:#232A31;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101519;
+    --card:#181F26;
+    --card-sunk:#1E262E;
+    --ink:#E7ECF1;
+    --ink-soft:#C2CBD4;
+    --muted:#93A0AC;
+    --line:#2A343D;
+    --line-soft:#222B33;
+    --accent:#74B6DE;
+    --accent-soft:#17303F;
+    --verified:#74C79B;
+    --verified-soft:#15291F;
+    --partial:#D9A44E;
+    --partial-soft:#2E2516;
+    --blocked:#8FAAD8;
+    --blocked-soft:#1B2434;
+    --failed:#E08C7C;
+    --failed-soft:#2E1B18;
+    --gap:#9AA5B0;
+    --gap-soft:#232A31;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    padding:0 20px 72px;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sheet{max-width:1080px;margin:0 auto}
+
+  /* ── Header ──────────────────────────────────────────────────────────────── */
+  header.top{padding:44px 0 26px;border-bottom:2px solid var(--ink)}
+  .eyebrow{
+    font-family:var(--mono);font-size:11.5px;font-weight:500;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:16px;
+  }
+  .eyebrow b{color:var(--accent);font-weight:600}
+  h1{
+    font-family:var(--display);font-weight:700;font-size:clamp(30px,5.2vw,50px);
+    line-height:1.04;letter-spacing:-.022em;margin:0 0 14px;text-wrap:balance;
+  }
+  .standfirst{font-size:17.5px;color:var(--ink-soft);max-width:62ch;margin:0}
+  .standfirst strong{color:var(--ink);font-weight:600}
+
+  /* ── Sections ────────────────────────────────────────────────────────────── */
+  section{padding-top:44px}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:-.012em;
+    margin:0 0 6px;display:flex;align-items:baseline;gap:10px;text-wrap:balance;
+  }
+  h2 .n{
+    font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent);
+    letter-spacing:.06em;
+  }
+  .lede{color:var(--muted);margin:0 0 20px;max-width:76ch;font-size:15px}
+  h3{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.005em;margin:0 0 8px}
+
+  /* ── Figures row ─────────────────────────────────────────────────────────── */
+  .figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .fig{background:var(--card);padding:16px 18px}
+  .fig .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:8px}
+  .fig .v{display:block;font-family:var(--display);font-weight:700;font-size:29px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .fig .s{display:block;font-size:12.5px;color:var(--muted);margin-top:7px;font-variant-numeric:tabular-nums}
+
+  /* ── Coverage bar ────────────────────────────────────────────────────────── */
+  .coverage{background:var(--card);border:1px solid var(--line);border-radius:3px;padding:20px;box-shadow:var(--shadow)}
+  .bar{display:flex;height:32px;border-radius:2px;overflow:hidden;margin-bottom:16px}
+  .bar span{display:block;height:100%}
+  .seg-verified{background:var(--verified)}
+  .seg-partial{background:var(--partial)}
+  .seg-blocked{background:var(--blocked)}
+  .seg-failed{background:var(--failed)}
+  .seg-gap{background:var(--gap-soft);border-left:1px solid var(--line)}
+  .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 20px;margin:0;padding:0;list-style:none}
+  .legend li{display:flex;align-items:baseline;gap:9px;font-size:13.5px}
+  .legend .sw{width:10px;height:10px;border-radius:2px;flex:none;transform:translateY(1px)}
+  .legend .num{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums;margin-left:auto;font-size:13px}
+  .legend .lbl{color:var(--ink-soft)}
+
+  /* ── Cards and lists ─────────────────────────────────────────────────────── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:3px;padding:18px 20px}
+  .card p{margin:0 0 10px;font-size:14.5px;color:var(--ink-soft)}
+  .card p:last-child{margin-bottom:0}
+  .card ul{margin:0;padding-left:18px;font-size:14.5px;color:var(--ink-soft)}
+  .card li{margin-bottom:7px}
+  .card li:last-child{margin-bottom:0}
+
+  .pill{
+    display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:2px;
+    vertical-align:2px;white-space:nowrap;
+  }
+  .p-verified{background:var(--verified-soft);color:var(--verified)}
+  .p-partial{background:var(--partial-soft);color:var(--partial)}
+  .p-blocked{background:var(--blocked-soft);color:var(--blocked)}
+  .p-failed{background:var(--failed-soft);color:var(--failed)}
+  .p-gap{background:var(--gap-soft);color:var(--gap)}
+  .p-open{background:var(--accent-soft);color:var(--accent)}
+
+  code,.mono{font-family:var(--mono);font-size:.9em}
+  code{background:var(--card-sunk);padding:1px 5px;border-radius:2px;color:var(--ink-soft)}
+
+  /* ── Queue table ─────────────────────────────────────────────────────────── */
+  .queue{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--card);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .queue th{
+    text-align:left;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .queue td{padding:13px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--ink-soft)}
+  .queue tr:last-child td{border-bottom:none}
+  .queue td:first-child{color:var(--ink);font-weight:500}
+  .queue .why{display:block;color:var(--muted);font-size:13px;margin-top:3px}
+  .tbl-scroll{overflow-x:auto}
+
+  /* ── Waves (a real sequence, so numbered) ────────────────────────────────── */
+  ol.waves{list-style:none;counter-reset:w;margin:0;padding:0;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  ol.waves li{counter-increment:w;background:var(--card);padding:16px 20px 16px 62px;position:relative}
+  ol.waves li::before{
+    content:counter(w,decimal-leading-zero);position:absolute;left:20px;top:16px;
+    font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);
+  }
+  ol.waves strong{font-family:var(--display);font-weight:600;font-size:15px;color:var(--ink);display:block;margin-bottom:4px}
+  ol.waves p{margin:0;font-size:14px;color:var(--ink-soft)}
+
+  /* ── Callout ─────────────────────────────────────────────────────────────── */
+  .callout{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--card);border-radius:3px;padding:18px 20px}
+  .callout.warn{border-left-color:var(--failed)}
+  .callout p{margin:0 0 10px;font-size:14.5px;color:var(--ink-soft)}
+  .callout p:last-child{margin-bottom:0}
+
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px}
+  footer ul{margin:10px 0 0;padding-left:18px}
+  footer li{margin-bottom:6px}
+  a{color:var(--accent)}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+  @media (prefers-reduced-motion:no-preference){a{transition:color .15s}}
+  @media (max-width:560px){
+    body{padding:0 16px 56px}
+    header.top{padding-top:30px}
+    .fig{padding:14px}
+    .fig .v{font-size:25px}
+    ol.waves li{padding:15px 16px 15px 16px}
+    ol.waves li::before{position:static;display:block;margin-bottom:5px}
+    .queue th,.queue td{padding:11px 12px}
+  }
+</style>
+
+<div class="sheet">
+  <header class="top">
+    <div class="eyebrow">
+      <span>X-Ray by Looplet</span>
+      <span><b>feat/architect-cad-engine</b></span>
+      <span>HEAD <b>26f5deb</b></span>
+      <span>16 Sep 2026</span>
+    </div>
+    <h1>X-Ray Remaining Work</h1>
+    <p class="standfirst">A plan assembled from the app's own registers, not from memory. It says what the code does today, what is genuinely absent, and in what order the rest is worth building. <strong>Nothing here is a completion claim</strong> — every line traces to a register row, a ledger entry or a test on disk.</p>
+  </header>
+
+  <section>
+    <h2><span class="n">01</span> At a glance</h2>
+    <p class="lede">Two registers hold the work. The A–Z register scores capabilities; the industry register scores whole workflows. Both are honest about absence, which is why the numbers look the way they do.</p>
+    <div class="figures">
+      <div class="fig">
+        <span class="k">A–Z register</span>
+        <span class="v">375</span>
+        <span class="s">requirements · 28 categories</span>
+      </div>
+      <div class="fig">
+        <span class="k">Reaching verified</span>
+        <span class="v">6</span>
+        <span class="s">1.6% of the register</span>
+      </div>
+      <div class="fig">
+        <span class="k">Industry profiles</span>
+        <span class="v">1 / 408</span>
+        <span class="s">gates passed across 68 profiles</span>
+      </div>
+      <div class="fig">
+        <span class="k">Active industries</span>
+        <span class="v">4</span>
+        <span class="s">IND-01, 29, 30, 38 · IND-43 deferred</span>
+      </div>
+      <div class="fig">
+        <span class="k">Distinct open items</span>
+        <span class="v">26</span>
+        <span class="s">after de-duplicating the ledgers</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span> Where the register actually stands</h2>
+    <p class="lede">Read the shape, not the headline. A gap is an honest absence, not a defect — and most of the register is gap. The 108 partial rows are where the product really is.</p>
+    <div class="coverage">
+      <div class="bar" role="img" aria-label="375 register rows: 6 verified, 108 partial, 19 dependency-blocked, 1 failed, 241 gap.">
+        <span class="seg-verified" style="width:1.6%"></span>
+        <span class="seg-partial" style="width:28.8%"></span>
+        <span class="seg-blocked" style="width:5.07%"></span>
+        <span class="seg-failed" style="width:0.27%"></span>
+        <span class="seg-gap" style="width:64.26%"></span>
+      </div>
+      <ul class="legend">
+        <li><span class="sw" style="background:var(--verified)"></span><span class="lbl">Verified</span><span class="num">6</span></li>
+        <li><span class="sw" style="background:var(--partial)"></span><span class="lbl">Partial</span><span class="num">108</span></li>
+        <li><span class="sw" style="background:var(--blocked)"></span><span class="lbl">Dependency-blocked</span><span class="num">19</span></li>
+        <li><span class="sw" style="background:var(--failed)"></span><span class="lbl">Failed</span><span class="num">1</span></li>
+        <li><span class="sw" style="background:var(--gap-soft);border:1px solid var(--line)"></span><span class="lbl">Gap</span><span class="num">241</span></li>
+      </ul>
+    </div>
+    <div class="grid" style="margin-top:14px">
+      <div class="card">
+        <h3>The header table is stale</h3>
+        <p>The register's summary block still reads <span class="mono">partial 102 · gap 247</span>, dated 2026-09-11. The rows themselves now read 108 and 241: six rows were reassessed after that date (D-09, D-13, D-15 on 12 Sep; SO-01 on 13 Sep; PH-01 on 14 Sep, and one undated). Small, but it is the kind of drift that makes a register stop being trusted.</p>
+      </div>
+      <div class="card">
+        <h3>What the register does not claim</h3>
+        <p>Its own words: <em>"No implied completion from a vendor feature, an installed package, a visible button or a green build."</em> And: <em>"No overall percentage or comprehensive readiness claim is assigned to the 375-requirement register."</em></p>
+        <p>All 68 industry profiles remain not-tested, and no working-day scenario DAY-01…DAY-08 has been run end to end.</p>
+      </div>
+      <div class="card">
+        <h3>The one failed row</h3>
+        <p><span class="pill p-failed">Q-13</span> Installed-app verification. Recorded as failed rather than open, because the release pipeline has no installed-app verification step at all: every verified build runs from an isolated profile, and the normal installed application has never been replaced.</p>
+      </div>
+      <div class="card">
+        <h3>Where the partial rows cluster</h3>
+        <p>D documents and sheets <span class="mono">12</span> · U usability <span class="mono">10</span> · T takeoff <span class="mono">10</span> · I interoperability <span class="mono">9</span> · X extensibility and AI <span class="mono">9</span> · B backup <span class="mono">8</span> · R review <span class="mono">8</span> · Z release integrity <span class="mono">8</span> · C drawing precision <span class="mono">7</span> · P procurement <span class="mono">7</span> · Q quality <span class="mono">7</span>.</p>
+        <p>Most of them say the same thing about what is missing: <strong>behaviour proven by executed test rather than by an inspected screenshot at the declared viewports</strong>, or proven for one surface rather than the whole application.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span> The immediate queue</h2>
+    <p class="lede">Six things stand between the current tree and a whole-industry gate. The first is not optional — several residential slices exist only in the working tree.</p>
+    <div class="tbl-scroll">
+      <table class="queue">
+        <thead>
+          <tr><th>Item</th><th>State</th><th>What is actually needed</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Residential slices uncommitted<span class="why">RES-02 partial infill, RES-03, RES-04, RES-05, RES-06</span></td>
+            <td><span class="pill p-open">First</span></td>
+            <td>Implemented in the working tree and proven by CDP receipts, but their step proofs attach no diff, commit or unit-test log. <em>"…several are still uncommitted in the working tree, which is the first thing to resolve."</em></td>
+          </tr>
+          <tr>
+            <td>Wire the <code>deliveryRecord</code> contract<span class="why">SH-03 → ROOF-06, HVAC-06, QS-05, QS-06</span></td>
+            <td><span class="pill p-partial">Contract landed</span></td>
+            <td>The shared contract is built, tested and nonvisual — nothing consumes it. The four consumers must store the frozen bytes and supply the hash, including RES-06's issued set, whose exported PDFs are not reopened.</td>
+          </tr>
+          <tr>
+            <td>Live answer failures<span class="why">ROOF-01 and QS-01</span></td>
+            <td><span class="pill p-failed">Failed live</span></td>
+            <td>Both failed actual MiniMax acceptance and stay open. Roofing skipped its tool twice; QS fabricated nullable placeholders and failed six calls. Do not promote industry readiness past these.</td>
+          </tr>
+          <tr>
+            <td>Assistant qualification<span class="why">SH-04</span></td>
+            <td><span class="pill p-partial">Partly done</span></td>
+            <td>Tool execution, no-tool requests, failed operations, reload and project switching are now covered by a live campaign (§06). What remains is the register's own second clause: <strong>compare primary and Developer responses independently</strong>. Not done, so the box stays unchecked.</td>
+          </tr>
+          <tr>
+            <td>Release matrix and theme residuals<span class="why">SH-06, SH-05</span></td>
+            <td><span class="pill p-open">Open</span></td>
+            <td>SH-06: dev and production browser, Windows native journey, installer upgrade/uninstall where claimed; macOS and Linux only with real package evidence. SH-05: keyboard <em>actions</em> are unexercised, "preserve adjustable top rows" is unverified, and the architect panels were not re-checked.</td>
+          </tr>
+          <tr>
+            <td>Whole-industry gates<span class="why">IND-01, IND-29, IND-30, IND-38</span></td>
+            <td><span class="pill p-gap">Not reached</span></td>
+            <td>Every profile needs all six gates (SC-01…SC-06) plus its working-day scenario. Exactly one gate is ticked across all 68 profiles.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> The four dependencies that gate the most</h2>
+    <p class="lede">All 19 blocked rows reduce to four missing external things. Three of them are one decision each.</p>
+    <div class="grid">
+      <div class="card">
+        <h3><span class="pill p-blocked">12 rows</span> No account service</h3>
+        <p>Blocks all of category A (administration, accounts, access) and much of V and Z — sign-in, roles, permissions, audit, organisation boundaries, activity logs, security and tenant isolation.</p>
+        <p><em>"No account service is selected, which blocks all of category A and much of V and Z."</em> Nothing ships that pretends otherwise: authentication is off by default and the account shell does not show a dev fallback identity.</p>
+      </div>
+      <div class="card">
+        <h3><span class="pill p-blocked">3 rows</span> Live search credential</h3>
+        <p>P-01 user-initiated search, P-03 structured product extraction and X-09 pricing research all need a configured search credential. The honest-failure branch is proven live (503 not-configured); real results are only proven against a mocked provider.</p>
+      </div>
+      <div class="card">
+        <h3><span class="pill p-blocked">3 rows</span> Authenticated transport</h3>
+        <p>V-05 recipients and distribution, V-06 transmittals and receipts, V-07 download links and expiry. <em>"Nothing is sent, so no durable receipt exists."</em></p>
+      </div>
+      <div class="card">
+        <h3><span class="pill p-blocked">1 row</span> Third-party connectors</h3>
+        <p>I-11 needs connectors with user-granted permissions. Provider credentials today are server-side environment values with an operator flag — not per-user tokens — so there is no subject to test revocation against.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span> Delivery order</h2>
+    <p class="lede">The register names these as implementation waves, not a narrowing of the catalogue. All categories stay in scope; dependencies decide the order. The parallelism is the plan's own assignment table.</p>
+    <ol class="waves">
+      <li><strong>Close the known gaps</strong><p>Residential infill and before-state contract · roofing boundary explanation and an independent review correction · QS CSV explanation and tablet acceptance. Coordinator reconciles stale status records and defines the shared evidence contract.</p></li>
+      <li><strong>Complete geometry and source binding</strong><p>Residential authored infill and changed-repair geometry · roofing measured planes, edges and penetrations · HVAC section and network identities with explicit fittings. Integrate shared source references, persistence and revision invalidation.</p></li>
+      <li><strong>Quantities and schedules</strong><p>Residential lifecycle allocation and demolition/repair schedules · roofing stock layout, flashing and fixing schedules · HVAC coordinated network and equipment schedules · QS rate-book binding, alternatives and revision comparison.</p></li>
+      <li><strong>End-to-end acceptance</strong><p>Residential coordinated issue workflow · roofing job walkthrough · HVAC job walkthrough, then the QS slot. Shared regression, production and native checks, independent acceptance review, per-industry evidence consolidated.</p></li>
+      <li><strong>One project lifecycle</strong><p>The register's own step 2: stable project, document and sheet IDs, a full backup asset manifest, save feedback, reopen, archive/restore, and concurrent-edit protection. This is the prerequisite for B, D and V together.</p></li>
+      <li><strong>Documents, sheets and pricing</strong><p>Complete named sheet sets with safe sheet removal and recovery · rate books, worksheet column mapping and reviewed application. Costs must not reinterpret measured quantities.</p></li>
+      <li><strong>Accounts, handoff and delivery</strong><p>Portable staff handoff first, then authenticated team storage, permissions, invitations and durable delivery receipts — the account-service decision above, taken in order.</p></li>
+      <li><strong>Discipline engines</strong><p>Specialist solvers, standards content, hardware formats and proprietary integrations each need a separately validated engine or licensed adapter. Producing geometry or a quantity never constitutes an engineering solution.</p></li>
+    </ol>
+    <div class="callout" style="margin-top:16px">
+      <p><strong>The honest half of the plan.</strong> Eleven whole categories are gaps because X-Ray holds discipline labels rather than engineering engines: geospatial, services, programme, libraries, landscape, manufacturing, electrical, operations, structural, whole-life and specialist assets. Naming a trade in a takeoff category never constitutes a solver for it.</p>
+      <p>The register's list of thirteen whole-gap categories predates SO-01 and PH-01 landing as partial rows, so it now reads eleven — the same drift as the header table, in the honest direction.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span> What today added</h2>
+    <p class="lede">The live assistant was used as its own test harness on an isolated origin, driving real MiniMax-M3 turns through the shipped UI. Seven scenarios, one turn each. No application source changed — this is evidence, not a fix.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Six scenarios pass</h3>
+        <p>Tool execution reported the real receipt, including the nine-decimal boundary value rather than a rounded one, and said plainly that per-sheet waste and offcuts are not calculated. A failed calculation was reported as failed with no substituted answer. A discussion-only request produced no tool calls. A reload at tablet size returned the conversation byte-identical. Switching projects gave a separate, empty conversation, and switching back restored the first exactly.</p>
+      </div>
+      <div class="card">
+        <h3>One real defect</h3>
+        <p>An objective that forbids tools but is <em>not</em> classified as discussion-only — <code>No tools. Reply with exactly: LIVE TURN OK</code> — delivers nothing. The app strips every tool declaration, the completion router still demands a step, and after two corrections it discards the answer it already has. The user sees a red banner instead of the two words they asked for.</p>
+        <p>The combination has no test: the correction limit is covered only with tools available. Reproduced once on a verified-empty conversation, never retried for a nicer answer.</p>
+      </div>
+      <div class="card">
+        <h3>A harness defect, recorded</h3>
+        <p>The first sweep was invalid and is preserved but excluded. The CDP profile persists, so the poller matched a <em>previous</em> run's answer within seconds. Fixed by baselining the entry count before each send and starting every scenario through the app's own <em>New chat</em> control. Any live-assistant evidence that predates this fix should be re-read with that in mind.</p>
+      </div>
+      <div class="card">
+        <h3>Verified, not assumed</h3>
+        <p>The internal withheld-candidate marker is <strong>not</strong> visible to users — checked in the rendered panel and in the page's own text before and after a reload, rather than inferred from the code.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>Sources.</strong> Everything above is drawn from files in the repository, read on 16 September 2026 at HEAD <span class="mono">26f5deb</span>:</p>
+    <ul>
+      <li><code>PROFESSIONAL-A-Z-CHECKLIST.md</code> — the 375-row capability register</li>
+      <li><code>INDUSTRY-CHECKLISTS.md</code> — 68 profiles × 6 gates</li>
+      <li><code>INDUSTRY-REMAINING-WORK-PLAN.md</code> — waves, ownership, shared prerequisites</li>
+      <li><code>INDUSTRY-WIDE-TODO.md</code>, <code>COMPLETE-CHECKLIST.md</code>, <code>walkthrough.md</code> and the topic ledgers (<code>DAY-TO-DAY</code>, <code>DAILY-RECOVERY</code>, <code>ASSISTANT-MCP</code>, <code>PROJECT-BACKUP</code>, <code>DWG</code>, <code>AZ-CLOSEOUT</code> and the rest)</li>
+      <li><code>proof/growth/2026-09-16-live-assistant-rig/</code> — today's live campaign, runner reports and screenshots</li>
+    </ul>
+    <p style="margin-top:14px">This page is a delivery plan and a reading of existing evidence. It is not new implementation, not acceptance, and not a claim about any row it describes. Where a register and the code disagreed, the register's own note says the code decided.</p>
+  </footer>
+</div>
