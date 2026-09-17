@@ -9,6 +9,15 @@ This campaign changed **no application source** — it is a test-only record, so
 `code.diff`. File hashes for the six files that govern the behaviours under test are in
 `source-hashes.txt`.
 
+Five of those six hashes reproduce from this repository, three of them from the blob at the snapshot
+commit. The sixth, `src/studio/assistant/useAssistantChat.ts`, does not: it was measured from the working
+tree on 2026-09-16 21:01, and the file is one of those the three later fix commits changed, so nothing here
+reproduces it. The blob at `26f5debf5c593427720986834e53a6ce100d0efc` hashes to `d5672f53f8bc9dc993bf95f375ac90baf219a0c7c79611b6befda353f2cf993f`, the working file
+to `4d7108c968d4460941cc52ddfc6ab5a8af4fc7d9e1ab216dccb573db7c62c8b2`, and a search of all 12,358 blobs at that commit — each as stored and
+with CRLF endings — and of all 630 files under `src/` in the working tree found no other candidate: the
+row records the tree the campaign ran against rather than the snapshot commit, and the value is kept
+here because it is a measurement of that tree. Read it as such; the other five are the snapshot's.
+
 ## Rig
 
 - Isolated origin `http://127.0.0.1:8085/` from an owned dev server (`.temp/live-rig/server-8085.ps1`,
