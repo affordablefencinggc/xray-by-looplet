@@ -65,10 +65,39 @@ test('blanket prohibition remains binding for compound action requests without c
   for (const text of ['No tools except read_project_context.', 'No tools, other than read_project_context.', 'Do not use tools apart from read_project_context.', 'Do not call classify_draft_quantities.', 'Draw a wall.']) assert.equal(prohibitsAllTools(text), false, text);
 });
 
+/**
+ * Source with its comments removed, so a guard cannot be satisfied by prose that merely describes the
+ * code. Every match below is on live code, which is the difference between a guard and a quotation:
+ * a comment reading `if (noToolStep) return null;` is not the line that stops the demand.
+ */
+const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/gm, '$1');
+
+test('the comment stripper a source guard depends on removes comments and nothing else', () => {
+  // Without this the guard below is only as good as the stripper, and a broken stripper reports
+  // every match as present.
+  assert.equal(code('// if (noToolStep) return null;').trim(), '');
+  assert.equal(code('/* if (noToolStep) return null; */').trim(), '');
+  assert.equal(code('const a = 1; // const b = 2;').trim(), 'const a = 1;');
+  assert.match(code('const url = "https://example.test/x";'), /https:\/\/example\.test\/x/);
+  assert.match(code('if (noToolStep) return null;'), /if \(noToolStep\) return null;/);
+});
+
 test('chat boundary uses blanket prohibition and rejects a provider mutation even for contradictory action intent', async () => {
-  const hook = readFileSync(new URL('./useAssistantChat.ts', import.meta.url), 'utf8');
+  const hook = code(readFileSync(new URL('./useAssistantChat.ts', import.meta.url), 'utf8'));
   assert.match(hook, /const noTools = reviewOnly \|\| prohibitsAllTools\(text\)/);
   assert.match(hook, /declarations: noTools \? \[\]/);
+  // D3: the caller's own no-tools decision is threaded into the runtime rather than re-derived from
+  // the narrower isDiscussionOnlyObjective, so a prohibited turn is never asked for a tool step.
+  assert.match(hook, /beginGovernedWork\(jobId, text, today, workPacket => update\(jobId, value => \(\{ \.\.\.value, workPacket \}\)\), initial\.contents, reviewOnly, noTools\)/);
+  const runtime = code(readFileSync(new URL('./workPacketRuntime.ts', import.meta.url), 'utf8'));
+  // Three sites, all load-bearing: the decision, the requirement that would otherwise withhold the
+  // answer, and the routing brief that would otherwise name a tool the turn may not call. IndexedDB
+  // (workPacketStore.open) is what keeps this a source guard; see the Limits section of the defect
+  // proof. A comment cannot satisfy any of the three, which is what `code` above establishes.
+  assert.match(runtime, /const noToolStep = observationOnly \|\| toolsProhibited;/);
+  assert.match(runtime, /if \(noToolStep\) return null;/);
+  assert.match(runtime, /refreshFailure \|\| noToolStep \? null : completionStep/);
+  assert.match(runtime, /prefix\[0\]\.parts\.push\(\{ text: toolsProhibited/);
   const text = 'No tools. Draw a wall and explain it.';
   let round = 0, executed = 0;
   await runConversation({ contents: [{ role: 'user', parts: [{ text }] }],
@@ -83,4 +112,30 @@ test('chat boundary uses blanket prohibition and rejects a provider mutation eve
     },
   });
   assert.equal(executed, 0);
+});
+
+test('a tools-prohibited answer is delivered rather than demanded a tool step it cannot call', async () => {
+  const text = 'No tools. Reply with exactly: LIVE TURN OK';
+  assert.equal(prohibitsAllTools(text), true);
+  // Not discussion-only: the runtime's narrower predicate disagrees with the caller's, and that
+  // disagreement is the seam D3 lived in. Threading the caller's decision is what closes it.
+  assert.equal(isDiscussionOnlyObjective(text), false);
+  const run = (beforeFinal: () => Promise<null | string>) => {
+    const events: Array<{ kind: string; text?: string }> = [];
+    return { events, done: runConversation({
+      contents: [{ role: 'user', parts: [{ text }] }], declarations: [], signal: new AbortController().signal,
+      assertContext() {}, checkpoint() {}, emit: event => events.push(event as { kind: string; text?: string }), beforeFinal,
+      call: async () => { throw Error('No tool may run for a prohibited message.'); },
+      turn: async request => ({ requestId: request.requestId, sources: [], model: 'MiniMax-M3', content: { role: 'model', parts: [{ text: 'LIVE TURN OK' }] } }),
+    }) };
+  };
+  // The pre-fix shape: an unsatisfiable requirement withholds the answer and throws after two
+  // correction attempts, so the user never sees it.
+  const stuck = run(async () => 'The workflow is not finished. Use read_workflow_route.');
+  await assert.rejects(stuck.done, /Workflow incomplete after two correction attempts/);
+  assert.equal(stuck.events.some(event => event.kind === 'assistant' && event.text === 'LIVE TURN OK'), false);
+  // The post-fix shape: no requirement, so the answer is delivered exactly once.
+  const answered = run(async () => null);
+  await answered.done;
+  assert.deepEqual(answered.events.filter(event => event.kind === 'assistant').map(event => event.text), ['LIVE TURN OK']);
 });

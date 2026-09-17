@@ -43,13 +43,23 @@ export const WORKBENCH_STRUCTURE = {
     sampleFirewall: "sample, inferred and unverified data stay visibly separate from verified source measurements; never promote sample data to verified results",
   },
   workbenchTools: {
-    read: ["read_project_context", "read_architect_design", "read_workbench_structure", "read_source_building", "read_source_sheets", "read_takeoff_evidence", "read_price_books", "read_draftsman_status", "generate_render_visualisation (web only; AI illustration of the captured 3D view shown on the Render pane)",
-      "show_design_in_model (Model mode: shows the current design in the Model viewer as inferred designed geometry; changes what is on screen, not the project)", "hide_designed_model (returns the Model viewer to its catalogued reconstructions)"],
+    read: ["read_project_context", "read_architect_design", "read_workbench_structure", "read_source_building", "read_source_sheets", "read_takeoff_evidence", "read_price_books", "read_draftsman_status"],
+    // Neither reads nor edits: they change what is on screen or spend the metered render budget without
+    // touching the project, and the permission model judges them on the same rule as edits — ask mode
+    // prompts for them and read-only blocks them. Listing them under reads made this inventory
+    // contradict the gate the model is also given, so the model offered a viewer change as a read it
+    // was then refused (or prompted for a tool the brief told it never prompts).
+    effectfulWithPermission: [
+      "navigate_workspace (selects an existing workbench pane in the current project)",
+      "show_design_in_model (Model mode: shows the current design in the Model viewer as inferred designed geometry; changes what is on screen, not the project)", "hide_designed_model (returns the Model viewer to its catalogued reconstructions)",
+      "control_draftsman (drives the mounted Model viewer's Magic Pencil: play, pause, replay, seek, speed, finish, exit, status, tour or jump_storey)",
+      "generate_render_visualisation (web only; AI illustration of the captured 3D view shown on the Render pane, and a spend of the metered render budget)",
+    ],
     editWithPermission: [
       "draw_architect_elements", "edit_architect_elements (move, re-parameterise or remove entities by ID; rename the design)", "undo_architect_change", "save_project",
       "manage_source_sheet (rename/archive/recover a source sheet)", "capture_project_backup",
       "calibrate_source_sheet (two-point manual calibration on an imported page; locked pages only with the user's explicit replaceLocked)", "trace_takeoff_run (length trace on a locked page)",
-      "review_takeoff_item (currently blocked by the internal-draft authority gate; a name alone is not verified authority)", "remove_takeoff_trace", "import_price_book (CSV text from the user)", "export_design_file (dxf, ifc, drawing-pdf, material-pdf, sheet-register as a browser download)",
+      "review_takeoff_item (the permission prompt runs first, then the internal-draft authority gate refuses it; a name alone is not verified authority, so it never completes)", "remove_takeoff_trace", "import_price_book (CSV text from the user)", "export_design_file (dxf, ifc, drawing-pdf, material-pdf, sheet-register as a browser download)",
     ],
   },
   notAvailableThroughTools: [

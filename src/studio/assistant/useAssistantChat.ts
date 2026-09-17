@@ -130,7 +130,13 @@ export function useAssistantChat(jobId: string) {
   const workspaceReady = useStudio(state => state.persistenceHydrated && !state.persistenceRecoveryBlocked);
   const record = useChats(state => state.records[jobId] || blank);
   const historyReady = useChats(state => workspaceReady && !!state.ready[jobId]);
-  useEffect(() => { if (workspaceReady) void ensureChat(jobId).catch(()=>{}); },[jobId, workspaceReady]);
+  useEffect(() => {
+    // This effect exists because the chat identity changed. A "for this chat" permission grant is
+    // part of that identity: without this, a grant given in one project's chat answered for the same
+    // tool name in another project's chat, where the user was never asked.
+    usePermissions.getState().scopeChatGrants(jobId);
+    if (workspaceReady) void ensureChat(jobId).catch(()=>{});
+  },[jobId, workspaceReady]);
   // View changes, docking and React refresh can unmount this hook. Only Stop,
   // a real project switch or recovery may cancel the project-owned request.
   /** `allowProjectEdits` is kept for callers that still pass it; the permission mode (permissions.ts) is what decides. */
@@ -177,7 +183,7 @@ export function useAssistantChat(jobId: string) {
       // The user entry is already visible. Release the composer before any model or tool work.
       onAccepted?.();
       await flushChat(jobId);
-      governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents, reviewOnly);
+      governed = await beginGovernedWork(jobId, text, today, workPacket => update(jobId, value => ({ ...value, workPacket })), initial.contents, reviewOnly, noTools);
       const session = await getAssistantMcp();
       await runConversation({
         contents, signal: controller.signal, execution: readExecutionBudget(localStorage),

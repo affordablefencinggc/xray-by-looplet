@@ -74,14 +74,27 @@ export function checkProfessionalAction(tool: string): void {
   if (tool === 'review_takeoff_item' || /^(send_|issue_|approve_|certify_|publish_)/.test(tool)) throw Error('Professional approval or external issue requires verified human authority. This work packet permits internal drafts only.');
 }
 
-export function checkPacketAction(packet: WorkPacket, tool: string, args: Record<string, unknown>, snapshot: ProjectSnapshot): void {
+/** The packet checks that must hold before anything else runs: identity, recovery, pending action, staleness. */
+export function checkPacketIntegrity(packet: WorkPacket, tool: string, args: Record<string, unknown>, snapshot: ProjectSnapshot): void {
   if (packet.projectId !== snapshot.projectId || (args.expectedJobId !== undefined && args.expectedJobId !== packet.projectId)) throw Error('Work packet project identity mismatch.');
   if (snapshot.recoveryBlocked) throw Error('Project recovery blocks this action.');
   if (packet.pendingAction && isAssistantEditTool(tool)) throw Error('An earlier tool has no durable outcome. Reconcile its saved state before another action.');
-  // No model role can manufacture professional approval through a tool argument.
-  checkProfessionalAction(tool);
   if (packet.snapshot.projectRevision !== snapshot.projectRevision || packet.snapshot.designRevision !== snapshot.designRevision
     || JSON.stringify(packet.snapshot.sources) !== JSON.stringify(snapshot.sources)) throw Error('Work packet is stale. Refresh project and source revisions before acting.');
+}
+
+/**
+ * Integrity plus the professional-authority refusal.
+ *
+ * Split out because the refusal must not pre-empt the human gate: the runtime calls
+ * `checkPacketIntegrity` first so ask mode reaches its permission prompt, then this composed form
+ * once the user has decided (workPacketRuntime.call). `session.ts` and `mcp.ts` call
+ * `checkProfessionalAction` directly, so all three paths still refuse review_takeoff_item.
+ */
+export function checkPacketAction(packet: WorkPacket, tool: string, args: Record<string, unknown>, snapshot: ProjectSnapshot): void {
+  checkPacketIntegrity(packet, tool, args, snapshot);
+  // No model role can manufacture professional approval through a tool argument.
+  checkProfessionalAction(tool);
 }
 
 /** Compact structured context; full artefacts and receipts remain in the task store. */
