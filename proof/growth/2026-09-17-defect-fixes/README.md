@@ -493,7 +493,15 @@ tree carried changes the commits did not, the two `HEAD~3` readings the page ask
 `code.diff` row's account of what the comparison shows. The page was then re-rendered as
 `2026-09-17T17-17-51-089Z-qa-render-final12`, and its scenario declares 83 booleans over the page — 47 that must read
 true and 36 that must read false, 35 of them superseded wordings — every one of
-which lands as declared. The six captures in this directory are that render's.
+which lands as declared.
+
+The six captures in this directory are that render's, and their bytes are recorded here so that claim can be
+checked by hashing rather than by trusting a timestamp: `report-desktop.png` `75013316…f6ded450`, `report-desktop-mid.png` `82d5ead5…53bbf12e`, `report-desktop-evidence.png` `041dd590…84c97727`, `report-desktop-recheck.png` `6b3b17bb…4b9f75f3`, `report-desktop-fixes.png` `4f5a4253…3cab9feb`, `report-phone.png` `1cfd4d55…e9455924` —
+taken against the page as this directory carries it, `index.html` `f8426c74…b494a4f8`, whose own mtime
+precedes the run. The report the render wrote hashes the scenario it ran, not these files, and the payload
+check hashes the page's four inlined frames, not these six, so without this paragraph no artifact in the
+repository carried a digest of the captures at all.
+
 The owned dev server on :8085 outlived the sessions only because the re-runs still needed
 it. Once they were finished it was stopped through its own identity-checked path —
 `.temp/live-rig/server-8085.ps1 -Stop`, which re-reads the executable, command line and creation time
