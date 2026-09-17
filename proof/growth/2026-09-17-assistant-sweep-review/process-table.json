@@ -1,7 +1,7 @@
 {
   "capturedAt": "2026-09-17T01:12:13.453Z",
   "lastPassAt": "2026-09-17T17:17:56.456Z",
-  "what": "Process table for this campaign's agent-browser sessions, captured immediately before their graceful close, and the profile directories those browsers were using checked again after it. Later passes append the sessions started after the previous one (the page-render checks).",
+  "what": "Process table for this campaign's agent-browser sessions, captured immediately before their graceful close, and the profile directories those browsers were using checked again after it. Later passes append the sessions started after the previous one (the page-render checks). A session that is closed again has its own entry replaced rather than added, so the per-pass counts sum to more than `summary.sessionsRecorded`, which counts distinct sessions — by 2 here.",
   "ownershipRule": "session-name prefix (qa-*, look-sweep-*) in %USERPROFILE%\\.agent-browser\\<session>.pid, then PID + creation time + executable re-read from the live process table",
   "shutdownCommand": "node scripts/fast-cdp-test.mjs <session> .temp/live-rig/scenarios/close-campaign.json  (the CLI's own `close`, not a kill)",
   "sessionsClosed": [
