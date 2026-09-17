@@ -124,10 +124,15 @@ export const isAssistantEditTool = (name: string) => EDIT_TOOLS.has(name);
  * viewer, or spends metered render quota. The permission mode must govern them too, so the gate
  * keys off effect rather than off EDIT_TOOLS membership alone (defects D5 and D8).
  *
- * Deliberately NOT added to EDIT_TOOLS. EDIT membership also drives declaration filtering
- * (assistantToolAllowed) and the pending-action replay gate, and none of these writes the project
- * record: reclassifying them would silently strip navigation from readonly and ask mode, where the
- * architecture workflow still requires navigate_workspace as its first step.
+ * Deliberately NOT added to EDIT_TOOLS. Edit membership feeds five readers, and the permission gate
+ * is only one of them — the gate reads it through isAssistantGatedTool, below: the other four all mean
+ * "writes the project record" — the context handover's state-changing list
+ * (contextBudget.isStateChangingTool), the packet's pending-action refusal, the runtime's pre-flight,
+ * and the `edits` alias that sets `pendingAction`. Added to the set, a pane move would enter that
+ * bookkeeping and a render would be counted as a state change; nothing an effectful tool returns can
+ * clear a pending action either, since isConfirmedRejection recognises only the two draw tools.
+ * Declaration is not the obstacle — assistantToolAllowed tests VIEW_TOOLS first, and all five are
+ * members. The class exists so the gate can widen without the record changing meaning.
  */
 const EFFECTFUL_TOOLS = new Set([
   "navigate_workspace", "show_design_in_model", "hide_designed_model", "control_draftsman", "generate_render_visualisation",

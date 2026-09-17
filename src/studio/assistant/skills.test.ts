@@ -93,9 +93,11 @@ test("effectful non-edits are classified apart from reads and from project edits
   for (const name of ["navigate_workspace", "show_design_in_model", "hide_designed_model", "control_draftsman", "generate_render_visualisation"]) {
     assert.equal(isAssistantEffectfulTool(name), true, name);
     assert.equal(isAssistantGatedTool(name), true, name);
-    // Deliberately NOT edits: EDIT membership drives declaration filtering and the pending-action
-    // replay gate, and reclassifying these would strip navigation from read-only and ask mode, where
-    // the architecture workflow still requires navigate_workspace as its first step.
+    // Deliberately NOT edits: edit membership drives the record-changing readers — the context
+    // handover's state-changing list, the packet's refusal, the runtime's pre-flight and the `edits`
+    // alias — so adding these five would put a pane move into that bookkeeping. Declaration is not
+    // the reason: assistantToolAllowed tests VIEW_TOOLS first, and the assertion below is what says
+    // the model's tool list is unchanged either way.
     assert.equal(isAssistantEditTool(name), false, name);
     assert.equal(assistantToolAllowed(name, false), true, name);
   }

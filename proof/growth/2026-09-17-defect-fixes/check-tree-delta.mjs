@@ -17,6 +17,13 @@
  * to do with `code.diff`. The readings it prints are the same ones; the range they are printed for no
  * longer moves.
  *
+ * The two corrections have since been committed, so the delta this check was written against is empty.
+ * That is the one state in which a check like this can quietly stop meaning anything — "every changed
+ * line is a comment line" is true of no lines at all — so the fourth reading follows the tree instead of
+ * assuming it: with a delta it counts that delta's lines, and with none it reads the same two files out
+ * of the commit that carries them and makes the same demand of those lines. Reverting the corrections
+ * fails it either way.
+ *
  * Run from the repository root: node proof/growth/2026-09-17-defect-fixes/check-tree-delta.mjs
  */
 import { execFileSync } from "node:child_process";
@@ -75,14 +82,21 @@ const others = committedPaths.filter((p) => !CORRECTIONS.includes(p));
 const sameBytes = others.every((p) => git(["diff", BASE, TIP, "--", p]) === git(["diff", BASE, "--", p]));
 check(`the other ${others.length} committed paths carry an identical diff in the working tree`, sameBytes);
 
-/* 4. Every line the delta adds or removes is a comment line. */
-const delta = git(["diff", "HEAD", "--", ...CORRECTIONS]);
-const changed = lines(delta).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
+/* 4. Every line the corrections change is a comment line — read from the delta while there is one, and
+   from the commit that carries them once there is not, so the reading cannot become empty-and-true. */
+const fromDelta = git(["diff", "HEAD", "--", ...CORRECTIONS]);
+const fromCommit = git(["diff", BASE, "HEAD", "--", ...CORRECTIONS]);
+const source = clean ? fromCommit : fromDelta;
+const changed = lines(source).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
 const code = changed.filter((l) => !/^[+-]\s*(\/\/|\*|\/\*)/.test(l));
 check(
-  "every changed line in those two files is a comment line",
-  code.length === 0,
-  `${changed.length} lines changed, ${code.length} not comments`,
+  clean
+    ? `the two corrections are in the commit that carries them, and every line they change is a comment line`
+    : "every changed line in those two files is a comment line",
+  clean ? changed.length > 0 && code.length === 0 : code.length === 0,
+  clean
+    ? `${changed.length} lines changed against ${BASE}, ${code.length} not comments${changed.length ? "" : " — the corrections are not in this history"}`
+    : `${changed.length} lines changed, ${code.length} not comments`,
 );
 
 /* 5. The same relation, taken over the paths the change itself touches: an unrestricted `git diff <the
