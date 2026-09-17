@@ -16,12 +16,12 @@ This directory is not part of those commits, so the note is the repair record ra
 shipped; every file it cites is in the working tree or a tracked path, and the record is committed on its own.
 `code.diff` was taken from the working tree before staging and, as the change was committed,
 **`git diff 26f5deb 09f1771` — the range `push.out.txt` beside it records — was byte-identical to it** —
-93,178 bytes, `cmp` clean. Two comments have been corrected since, one per file and both
+93,178 bytes, `cmp` clean. Two comments were corrected after it, one per file and both
 comment-only: `skills.ts`'s docstring, quoted in the page&rsquo;s §2, and a rationale comment in
-`skills.test.ts` — each gave the same wrong mechanism the corrected prose gave. Those two are the only
-thing the comparison adds today, so the "byte for byte" wording is retired here rather than left
-standing; `code.diff` itself is unchanged, and `check-tree-delta.mjs` runs the whole relation below
-rather than leaving it to this sentence.
+`skills.test.ts` — each gave the same wrong mechanism the corrected prose gave. Both are committed
+now, so the comparison that used to add their 21 lines adds nothing, and `check-tree-delta.mjs` runs
+the whole relation below — reading those two files out of the commit that carries them — rather than
+leaving it to this sentence.
 
 The rule this directory answers to: **nothing is done without a code diff plus executed or inspected
 proof.** Every claim below names the artifact that carries it, and the three that are not established
@@ -182,8 +182,8 @@ they are copied verbatim into `grant-verdicts.json` rather than cited by run id.
 | `probe-effectful-class.mjs`, `.out.txt` | What the effectful class is, and what the rejected alternative would have done | Runs the real predicates: the 38-name catalogue splits into **12 edits / 5 effectful-not-edits / 21 other declared reads / 0 unclassified** — 12 + 5 + 21 = 38, the 17 gated and 21 read-only the row above states; the five effectful names are themselves declared reads, so the probe's separately printed `26 declared reads` contains them; `assistantToolAllowed` stops moving with `allowProjectEdits` for exactly the five (`skills.ts:145`'s first disjunct decides them, so no `EDIT_TOOLS` membership can change it), while the gate before this change keyed on that set alone (read out of `git show 88e2e52^`); five readers of `isAssistantEditTool` outside tests, of which the gate's own `isAssistantGatedTool` is one; with a pending action set the witness edit tool is refused by `workPacket.ts:81` — the refusal keys off `isAssistantEditTool`, so it covers all 12 — and none of the five is; `isStateChangingTool` is false for all five and true for the witness edit; and `isConfirmedRejection` answers false for every name but the two draw tools, handed the one receipt shape that clears one. It also resolves against the tree each `file.ext:N` token the page and this note print — and fails one that lands on a blank or on a comment line, `//` included; a shorthand continuation and a range&rsquo;s second endpoint spell out no filename of their own, so they are not resolved; its own section G states how many occurrences that is and how many are distinct, and neither figure is repeated here, because this note is one of the two documents counted; on its first run section G caught a real one, a `skills.ts` line this pass's own comment correction had moved onto the docstring. **51 of 51**. |
 | `check-payloads.mjs`, `check-payloads.out.txt` | The page's four inlined figures against every PNG under `proof/` | **4 payloads**, each a PNG and all four distinct, and **0 of 4** matching the bytes of any PNG under `proof/` — the count it is held against and their digests are in its recorded output rather than quoted here, because every capture this bundle gains moves them. That comparison is what licenses reading the page's figures as the accepted runs' frames rather than the re-run ones. **4 of 4**. |
 | `tabulate-runs.mjs`, `runner-index.out.txt` | The live-run index | 26 reports: **4 accepted turns / 4 re-run at the committed revision / 5 substantively excluded / 1 diagnostic**, plus **12 close-operation-only** entries. Every accepted, re-run and close-operation report exits 0; the four that do not — two `exit 1` and two `exit null` from the rig's spawn timeout — are among the excluded runs, and §6 labels each with its own status. |
-| `check-housekeeping.mjs`, `check-housekeeping.out.txt` | The count claims above, checked against the record rather than restated | 25 passes, 51 sessions, **50 of 50** temporary profile directories gone after close, 1 persistent directory still present, and the record's last twenty-eight entries exactly this work's sessions, each `exitCode: 0` with its daemon and every profile directory gone. Also that the owned dev server was stopped rather than retained, and that the user-facing preview is the only server kept — that last reading run as well against three perturbed copies of the record, each of which it must reject, so a record that keeps a second server on any port cannot pass it. **13 of 13**. |
-| `check-page.mjs`, `check-page.out.txt`, `report-*.png` | The report page itself, checked and then rendered | 21 classes used / 25 defined, tag balance clean, no unresolved substitution, fonts the only external host, every one of the 21 tokens defined inside each of the two dark blocks — the two are read one at a time rather than merged into one list, so a token defined in only one of them fails the check instead of passing on the pair — and the footer's inventory of this directory held in both directions: 26 file names and one glob standing in for its 6 captures, over all 32 entries, so an artifact the footer omits or one it names but the directory does not hold both fail it — its recorded output counts 29 `<code>` tokens to get there, the other two being the directory paths the footer also names, which are skipped because they name no file in this directory. Rendered at 1600×1000 as five captures — the top, the register and the fix, the committed-revision re-runs, §4's evidence table from its `code.diff` row down, and the page tail (§7 Limits, Scope and the proof footer) — and the readings are that viewport's own DOM: 4 tally tiles, 21 table rows, all 4 inlined screenshots loading, the body ground painted from the token, and no horizontal overflow. The 400×900 pass re-reads horizontal overflow alone and took the sixth capture. That is a narrow-viewport robustness reading of this page, not a device-scope claim, which stays tablet, laptop and desktop. The rendered reading is the shipped page's own report (`2026-09-17T10-48-35-327Z-qa-render-final11`), whose scenario declares 78 booleans over the page — 46 that must read true (the re-run block, the four readings, every corrected sentence, the disclosure that the retracted 76.2 s figure is stated beside the note that no artifact established it, the footer's own inventory, the two clauses and the split card readings the previous round re-worded, this round's corrected footer clauses and their retired wordings read as absent, the scope bullet that now says the commits are pushed, the push record the footer's inventory counts, and two structural checks) and 32 that must read false (31 superseded wordings and one geometry reading that catches horizontal overflow) — and every one of them lands as declared. The renders before it are kept in the record rather than dropped: `qa-render-final3`, whose one failed assertion was the scenario's fault and not the page's (a pattern written as a single line against a sentence the source wraps in two, which `document.body.textContent` therefore does not contain — the eval now compares whitespace-collapsed prose), and `qa-render-final4` through `qa-render-final9`, each superseded when a passage of the page was corrected after its captures had been taken — `qa-render-final8` by the §7 correction, whose first form re-worded the clause before the one it aimed at and turned one of the scenario's own readings false, so the edit was narrowed back to the sentence the audit had sustained, `qa-render-final9` by the footer correction, which had credited `runner-index.out.txt` to a script that writes no file, and `qa-render-final10` by the push: four passages in this bundle said the commits were unpushed, and the push made all four false the moment it landed. |
+| `check-housekeeping.mjs`, `check-housekeeping.out.txt` | The count claims above, checked against the record rather than restated | 27 passes, 52 sessions, **51 of 51** temporary profile directories gone after close, 1 persistent directory still present, and the record's last twenty-eight entries exactly this work's sessions, each `exitCode: 0` with its daemon and every profile directory gone. Also that the owned dev server was stopped rather than retained, and that the user-facing preview is the only server kept — that last reading run as well against three perturbed copies of the record, each of which it must reject, so a record that keeps a second server on any port cannot pass it. **13 of 13**. |
+| `check-page.mjs`, `check-page.out.txt`, `report-*.png` | The report page itself, checked and then rendered | 21 classes used / 25 defined, tag balance clean, no unresolved substitution, fonts the only external host, every one of the 21 tokens defined inside each of the two dark blocks — the two are read one at a time rather than merged into one list, so a token defined in only one of them fails the check instead of passing on the pair — and the footer's inventory of this directory held in both directions: 26 file names and one glob standing in for its 6 captures, over all 32 entries, so an artifact the footer omits or one it names but the directory does not hold both fail it — its recorded output counts 29 `<code>` tokens to get there, the other two being the directory paths the footer also names, which are skipped because they name no file in this directory. Rendered at 1600×1000 as five captures — the top, the register and the fix, the committed-revision re-runs, §4's evidence table from its `code.diff` row down, and the page tail (§7 Limits, Scope and the proof footer) — and the readings are that viewport's own DOM: 4 tally tiles, 21 table rows, all 4 inlined screenshots loading, the body ground painted from the token, and no horizontal overflow. The 400×900 pass re-reads horizontal overflow alone and took the sixth capture. That is a narrow-viewport robustness reading of this page, not a device-scope claim, which stays tablet, laptop and desktop. The rendered reading is the shipped page's own report (`2026-09-17T17-17-51-089Z-qa-render-final12`), whose scenario declares 83 booleans over the page — 47 that must read true (the re-run block, the four readings, every corrected sentence, the disclosure that the retracted 76.2 s figure is stated beside the note that no artifact established it, the footer's own inventory, the two clauses and the split card readings the previous round re-worded, this round's corrected footer clauses and their retired wordings read as absent, the scope bullet that now says the commits are pushed, the push record the footer's inventory counts, and two structural checks) and 36 that must read false (35 superseded wordings and one geometry reading that catches horizontal overflow) — and every one of them lands as declared. The renders before it are kept in the record rather than dropped: `qa-render-final3`, whose one failed assertion was the scenario's fault and not the page's (a pattern written as a single line against a sentence the source wraps in two, which `document.body.textContent` therefore does not contain — the eval now compares whitespace-collapsed prose), and `qa-render-final4` through `qa-render-final9`, each superseded when a passage of the page was corrected after its captures had been taken — `qa-render-final8` by the §7 correction, whose first form re-worded the clause before the one it aimed at and turned one of the scenario's own readings false, so the edit was narrowed back to the sentence the audit had sustained, `qa-render-final9` by the footer correction, which had credited `runner-index.out.txt` to a script that writes no file, `qa-render-final10` by the push: four passages in this bundle said the commits were unpushed, and the push made all four false the moment it landed, and `qa-render-final11` by the round that committed the corrections — the page said the working tree carried them, and the commit made that false. |
 
 The probe asserts the partition rather than printing it for a reader. It builds the real catalogue via
 `createAppTools(port)` and holds every reading above against it, including the keys `INTENT_KEYS` names —
@@ -365,24 +365,24 @@ revision rather than from the accepted run.
   which the standing constraints forbid without Daniel naming them, so the claim that each commit is
   independently green rests on reading, not on execution. What *is* executed is the whole suite on the
   final tree, and that `git diff 26f5deb 09f1771` was byte-identical to `code.diff` as the change was committed.
-  The working tree carries two further changes the three commits do not — the `skills.ts` docstring the page quotes in §2,
-  and a rationale comment in `skills.test.ts` that repeated the same wrong mechanism, both comment-only and both corrected
-  after the commits — so that comparison today adds those two comments and nothing else,
-  uncommitted and disclosed rather than folded into `code.diff`.
+  The two comment-only corrections — the `skills.ts` docstring the page quotes in §2, and a rationale
+  comment in `skills.test.ts` that repeated the same wrong mechanism — are committed as well, in the
+  commit that re-points the check below; the working tree therefore matches the revision this page's
+  tree carries, and the comparison that used to add those two comments adds none.
 
 ## Process housekeeping
 
-Twenty-eight owned agent-browser sessions — the eight defect runs (`qa-defect20-d3`, `qa-defect21-d8`,
+Twenty-nine owned agent-browser sessions — the eight defect runs (`qa-defect20-d3`, `qa-defect21-d8`,
 `qa-defect22-d8`, `qa-defect22b-d8`, `qa-defect22c-d8`, `qa-defect22d-d4`, `qa-defect23-diag`,
 `qa-defect23b-diag`), the five earlier page-render and verification runs (`qa-report-page`,
 `qa-report-page2`, `qa-report-page3`, `qa-report-page3-verify`, `qa-report-page4`), the four
 committed-revision re-runs (`qa-recheck-d3`, `qa-recheck-d8-readonly`, `qa-recheck-d8-ask`,
-`qa-recheck-d4`) and the eleven renders of this page — the first two on the page as it then stood, the third
+`qa-recheck-d4`) and the twelve renders of this page — the first two on the page as it then stood, the third
 whose only failed assertion was the scenario's own, the fourth through tenth each retired when a passage of
-the page was corrected after its captures had been taken, and the eleventh carrying the shipped bytes
+the page was corrected after its captures had been taken, and the twelfth carrying the shipped bytes
 (`qa-render-final`, `qa-render-final2`, `qa-render-final3`, `qa-render-final4`, `qa-render-final5`,
 `qa-render-final6`, `qa-render-final7`, `qa-render-final8`, `qa-render-final9`, `qa-render-final10`,
-`qa-render-final11`) — were closed through
+`qa-render-final11`, `qa-render-final12`) — were closed through
 `.temp/live-rig/close-campaign-browsers.mjs --apply`, which identity-checks each session by name
 (pattern `/^(qa-|look-sweep)/`) before closing it through the rig's own `[["close"]]` opcode. Each close
 wrote an ordinary runner report, and each closed session's identity check, exit code and
@@ -398,11 +398,11 @@ The script merges each pass into
 rather than starting it fresh: `passes` appends, and `sessionsClosed` keeps every earlier entry except a
 session that closes again, whose entry is replaced with the newer one. (The rest of the object is rebuilt
 from the script's own template each pass, which is how an earlier amendment to the dev-server block was
-lost; that block is now derived at write time, below, so it cannot be.) The table records 51 sessions
-across 25 passes, and its last twenty-eight entries are exactly the sessions this work started: the eight defect
-runs, the five earlier page-render and verification runs, the four committed-revision re-runs, and the eleven
+lost; that block is now derived at write time, below, so it cannot be.) The table records 52 sessions
+across 27 passes, and its last twenty-nine entries are exactly the sessions this work started: the eight defect
+runs, the five earlier page-render and verification runs, the four committed-revision re-runs, and the twelve
 renders of this page, each closed after a verified identity check and each recorded with `exitCode: 0`.
-50 of 50 temporary browser profile directories were gone after close; the single persistent profile is the
+51 of 51 temporary browser profile directories were gone after close; the single persistent profile is the
 deliberate restart-persistence fixture from the sweep.
 
 An audit of this bundle read the sibling record too, and found four passages in it that its own citation
@@ -434,8 +434,8 @@ The completeness critic run over the same audit found one figure in this note th
 This note's Process housekeeping paragraph still named twenty-seven owned sessions and ten renders, and made
 `qa-render-final10` the render carrying the shipped bytes — twenty-seven lines above the paragraph that
 already read twenty-eight and eleven, and beside the evidence row that names the shipped report as
-`2026-09-17T10-48-35-327Z-qa-render-final11`. The record settles it: 51 closed sessions, the last 28 of them
-this work's, eleven of those renders, and the push is what retired the tenth. The paragraph reads the
+`2026-09-17T17-17-51-089Z-qa-render-final12`. The record settles it: 52 closed sessions, the last 29 of them
+this work's, twelve of those renders, and the push is what retired the tenth. The paragraph reads the
 record's figures now, and the check that carries the same numbers is what holds it there.
 
 **The anchor that check compared against moved with HEAD; this round pinned it, and committed the proof.**
@@ -446,13 +446,19 @@ reported is a property of where HEAD is, not of the working tree it is about. It
 the `push.out.txt` beside it, which already records the push as `26f5deb..09f1771`, prints that range, and reads
 nothing that moves with HEAD: the range is pinned, and the one line that could have moved — whether the
 pinned tip is still in HEAD's history — is monotone, so it prints the same before and after a commit rather
-than reporting where HEAD has got to. Every other reading is the one it printed before: 93,178 bytes in
-`code.diff` and in the committed diff, the two corrected paths the only ones differing from HEAD, the other
-fifteen carrying an identical diff, 21 changed lines with none of them code, +684 bytes over the change's
-own paths, and six of six. The recorded `.out.txt` was rewritten by the bundle verifier
-(`.temp/live-rig/verify-bundle-final9.mjs --apply`) for the printed labels alone, after which the plain
-re-run reports 0 of 8 recorded artifacts differing from a fresh run. No page byte was touched, so
-`qa-render-final11` still covers the bytes that shipped.
+than reporting where HEAD has got to. While the corrections were uncommitted it printed the delta's own
+readings; since they were committed it prints the clean state's: 93,178 bytes in `code.diff` and in the
+committed diff, no path differing from HEAD, the other fifteen carrying an identical diff, and the two
+corrections read out of the commit that carries them — 21 lines against the pinned tip, none of them code,
+with the change's own paths carrying the committed change and those two files and nothing else. Six of six
+in both states, which the round that committed them proved by putting one comment line into `skills.ts`
+and running it (`.temp/live-rig/probe-delta-state.mjs`), and by failing the first attempt at that probe,
+which appended a newline to a file whose last line had none and was reported as two changed lines, one of
+them not a comment. The recorded `.out.txt` was rewritten twice by the bundle verifier
+(`.temp/live-rig/verify-bundle-final9.mjs --apply`): once for the printed labels, and again when the
+corrections landed and the readings became the clean state's, after which the plain re-run reports 0 of 8
+recorded artifacts differing from a fresh run. That round edited the page, so `qa-render-final11` no longer
+covers the shipped bytes and the render that does is named below.
 
 The untracked evidence under `proof/growth/` is committed as the commit that carries this directory, which
 `git log -1 -- proof/growth/2026-09-17-defect-fixes` resolves: the four bundles —
@@ -460,14 +466,34 @@ The untracked evidence under `proof/growth/` is committed as the commit that car
 `2026-09-17-defect-fixes` — and the 467 session files under `runner/`, so the proof for the three fix commits
 is in the repository and not only on this machine. This round's push answer is recorded in
 `.temp/live-rig/proof-push.out.txt` rather than in a file here, because a new file in this directory
-invalidates the page that names every file in it. The two comment-only corrections in `skills.ts` and
-`skills.test.ts` stay deliberately uncommitted, which is what the page's Scope and the paragraph below say:
-committing them would make those sentences false, and repairing a page means re-rendering it and re-taking its
-captures, so they wait for the round that can. The page's own two `HEAD~3` readings stay true either way: the
-one it asks of `conversation.ts` is empty, because that file is not among the change's seventeen paths —
-measured at `26f5deb`, `5d0de3a` and `88e2e52` — and the other is dated to the moment of committing, where the
-pinned range is its reproducible form. Eight `.tmp-*` scratch files that sat in the repository root are now
+invalidates the page that names every file in it. The two comment-only corrections were committed in the round
+after this one, which is what that round's page and note edits are for: the Scope and the code.diff row had said
+the working tree carried changes the commits did not, and committing them made those sentences false, so the page
+was edited, re-rendered and re-captured rather than left standing. Its `HEAD~3` readings went with them — the one
+it asks of `conversation.ts` is now the pinned range, `git diff 26f5deb 09f1771 -- src/studio/assistant/conversation.ts`,
+which is empty and does not move, and the other was already dated to the moment of committing. Eight `.tmp-*` scratch files that sat in the repository root are now
 under `.temp/live-rig/scratch/`, which is ignored — the reason the root is clean.
+
+**The corrections are committed, the check follows the tree, and the page was re-rendered for it.**
+The two comment-only corrections this bundle had disclosed as outstanding — the `skills.ts` docstring the page
+quotes in §2 and the rationale comment in `skills.test.ts` — are committed, and the commit that carries them is
+also the one that re-points `check-tree-delta.mjs`. Two of that check's readings had been written for the state
+in which the corrections sit in the working tree, and the state the commit created is the one where they do not:
+the line-count reading now takes the committed corrections from the pinned tip, `git diff 26f5deb 09f1771`,
+instead of counting a delta that is empty, and the fifth reading holds the change's own paths to the committed
+change plus those two files and nothing else. It counts lines because a diff's byte length is not additive — the
+byte form of that reading failed by arithmetic rather than by drift, which is how it was found. Both states are
+then run: with the corrections committed the check prints six of six, and with one comment line put into
+`skills.ts` and removed again (`.temp/live-rig/probe-delta-state.mjs`) it prints six of six in the delta state
+too. Its first attempt at that probe — which appended a newline to a file whose last line had none — was failed
+by the check as two changed lines, one of them not a comment, which is the reading doing what it is for.
+
+The page and this note were edited for the state the commit created: the three passages that said the working
+tree carried changes the commits did not, the two `HEAD~3` readings the page asked of a reader, and the
+`code.diff` row's account of what the comparison shows. The page was then re-rendered as
+`2026-09-17T17-17-51-089Z-qa-render-final12`, and its scenario declares 83 booleans over the page — 47 that must read
+true and 36 that must read false, 35 of them superseded wordings — every one of
+which lands as declared. The six captures in this directory are that render's.
 The owned dev server on :8085 outlived the sessions only because the re-runs still needed
 it. Once they were finished it was stopped through its own identity-checked path —
 `.temp/live-rig/server-8085.ps1 -Stop`, which re-reads the executable, command line and creation time

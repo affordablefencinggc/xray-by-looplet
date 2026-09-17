@@ -1,9 +1,9 @@
 /**
  * Checks the process-table figures the two READMEs now state, against the record itself.
  *
- * The claim being tested is README.md's, not this script's: that the record reads 51 sessions across
- * 25 passes, that 50 of 50 temporary browser profile directories were gone after close, that the one
- * persistent directory is still present, and that the record's last twenty-eight entries are exactly the
+ * The claim being tested is README.md's, not this script's: that the record reads 52 sessions across
+ * 27 passes, that 51 of 51 temporary browser profile directories were gone after close, that the one
+ * persistent directory is still present, and that the record's last twenty-nine entries are exactly the
  * sessions this work started, each recorded with exitCode 0.
  *
  * Run from the repo root: node proof/growth/2026-09-17-defect-fixes/check-housekeeping.mjs
@@ -12,38 +12,38 @@ import fs from "node:fs";
 
 const record = JSON.parse(fs.readFileSync("proof/growth/2026-09-17-assistant-sweep-review/process-table.json", "utf8"));
 
-/** The twenty-eight sessions the fix work started, as named in its README. */
+/** The twenty-nine sessions the fix work started, as named in its README. */
 const MINE = [
   "qa-defect20-d3", "qa-defect21-d8", "qa-defect22-d8", "qa-defect22b-d8",
   "qa-defect22c-d8", "qa-defect22d-d4", "qa-defect23-diag", "qa-defect23b-diag",
   "qa-report-page", "qa-report-page2", "qa-report-page3", "qa-report-page3-verify", "qa-report-page4",
   "qa-recheck-d3", "qa-recheck-d8-readonly", "qa-recheck-d8-ask", "qa-recheck-d4", "qa-render-final",
   "qa-render-final2", "qa-render-final3", "qa-render-final4", "qa-render-final5", "qa-render-final6",
-  "qa-render-final7", "qa-render-final8", "qa-render-final9", "qa-render-final10", "qa-render-final11",
+  "qa-render-final7", "qa-render-final8", "qa-render-final9", "qa-render-final10", "qa-render-final11", "qa-render-final12",
 ];
 
 const checks = [];
 const check = (label, ok, detail) => checks.push({ label, ok, detail });
 
-check("25 passes in the record", record.passes.length === 25, `${record.passes.length}`);
-check("51 sessions recorded", record.sessionsClosed.length === 51, `${record.sessionsClosed.length}`);
-check("50 temporary profile dirs, all 50 gone after close",
-  record.summary.temporaryProfileDirs === 50 && record.summary.temporaryDirsGoneAfterClose === 50,
+check("27 passes in the record", record.passes.length === 27, `${record.passes.length}`);
+check("52 sessions recorded", record.sessionsClosed.length === 52, `${record.sessionsClosed.length}`);
+check("51 temporary profile dirs, all 51 gone after close",
+  record.summary.temporaryProfileDirs === 51 && record.summary.temporaryDirsGoneAfterClose === 51,
   `${record.summary.temporaryDirsGoneAfterClose} of ${record.summary.temporaryProfileDirs}`);
 check("1 persistent profile dir, still present",
   record.summary.persistentProfileDirs === 1 && record.summary.persistentDirsGoneAfterClose === 0,
   `${record.summary.persistentProfileDirs} dirs, ${record.summary.persistentDirsGoneAfterClose} gone`);
 
 const tail = record.sessionsClosed.slice(-MINE.length).map((s) => s.session);
-check("the last twenty-eight entries are this work's sessions",
+check("the last twenty-nine entries are this work's sessions",
   JSON.stringify(tail.slice().sort()) === JSON.stringify(MINE.slice().sort()), tail.join(", "));
 
 const by = new Map(record.sessionsClosed.map((s) => [s.session, s]));
-check("all twenty-eight are present in the record", MINE.every((n) => by.has(n)),
+check("all twenty-nine are present in the record", MINE.every((n) => by.has(n)),
   MINE.filter((n) => !by.has(n)).join(", ") || "none missing");
-check("all twenty-eight carry exitCode 0", MINE.every((n) => by.get(n)?.exitCode === 0),
+check("all twenty-nine carry exitCode 0", MINE.every((n) => by.get(n)?.exitCode === 0),
   MINE.filter((n) => by.get(n)?.exitCode !== 0).join(", ") || "all zero");
-check("all twenty-eight record the daemon gone and every profile dir gone",
+check("all twenty-nine record the daemon gone and every profile dir gone",
   MINE.every((n) => by.get(n)?.daemonProcessGone === true && by.get(n).browsers.every((b) => b.dirStillExists === false)),
   MINE.filter((n) => !(by.get(n)?.daemonProcessGone === true && by.get(n).browsers.every((b) => b.dirStillExists === false))).join(", ") || "all clean");
 

@@ -258,7 +258,7 @@
             <td>Internal planning text shown to the user. 158 characters of third-person reasoning archived and rendered as an assistant message.</td>
             <td><strong>Mitigated, not fixed.</strong> The strip now covers all three <em>tagged</em> shapes and leaves a space where it removes text. The surviving candidate &mdash; a tool-calling round&rsquo;s text emitted as a durable bubble at <code>conversation.ts:129</code> &mdash; is deliberately untouched.</td>
             <td><span class="tier t-mitigated">not verifiable</span></td>
-            <td>Source + unit. The triggering run was 1 of 5 and is not reproducible on demand. What is proven is that the site is unchanged: <code>git diff HEAD~3 -- src/studio/assistant/conversation.ts</code> is empty, so no commit in this change touches it.</td>
+            <td>Source + unit. The triggering run was 1 of 5 and is not reproducible on demand. What is proven is that the site is unchanged: <code>git diff 26f5deb 09f1771 -- src/studio/assistant/conversation.ts</code> is empty &mdash; the range <code>push.out.txt</code> records, which later commits do not move &mdash; so no commit in this change touches it.</td>
           </tr>
           <tr>
             <td>D2</td>
@@ -434,13 +434,16 @@ members. The class exists so the gate can widen without the record changing mean
             <td>code.diff</td>
             <td>The complete change</td>
             <td>17 files, <strong>+452 / &minus;60</strong>, no new source files. Re-generated from the three
-            commits and byte-compared with <code>cmp</code>: identical to <code>git diff HEAD~3</code>
-            as the change was committed, 93,178 bytes. Two comments have been corrected since, one per
-            file and both comment-only &mdash; the <code>skills.ts</code> docstring quoted above, in
-            &sect;2, and a rationale comment in <code>skills.test.ts</code> &mdash; and those two are
-            the only thing the same comparison now shows: 21 lines across exactly those two paths,
-            none of them code, the other fifteen committed paths carrying an identical diff. Run
-            rather than asserted: <code>check-tree-delta.mjs</code>, <strong>6 of 6</strong>.</td>
+            commits and byte-compared with <code>cmp</code>: identical to <code>git diff
+            26f5deb 09f1771</code> &mdash; the range <code>push.out.txt</code> records, which does not
+            move when later commits land &mdash; as the change was committed, 93,178 bytes. Two comments
+            were corrected after it, one per file and both comment-only: the <code>skills.ts</code>
+            docstring quoted above, in &sect;2, and a rationale comment in <code>skills.test.ts</code>.
+            Both are committed, so the comparison that used to show their 21 lines shows none of them,
+            and <code>check-tree-delta.mjs</code> reads the two files out of the commit that carries
+            them instead of out of a working-tree delta: 21 lines against the pinned tip, none of them
+            code, the other fifteen committed paths carrying an identical diff. Run rather than
+            asserted: <strong>6 of 6</strong>.</td>
           </tr>
           <tr>
             <td>full-test.log</td>
@@ -776,12 +779,13 @@ The answer rests on the conversation and any receipts already recorded."</blockq
       concern, staged by explicit path, and pushed: <code>push.out.txt</code> records the remote's own
       answer for the branch, the same commit this page's tree carries. Nothing is merged or tagged, and
       <code>LATEST-VERIFIED-BUILD.md</code> is untouched: the gates it requires, native shutdown among
-      them, have not all run. The working tree carries two changes the commits do not, both
-      comment-only: the <code>skills.ts</code> docstring quoted in &sect;2 and a rationale comment in
-      <code>skills.test.ts</code>, each giving the same wrong mechanism this audit found in the prose.
-      No Rust file was touched, the full suite and the typecheck were re-run on the tree that carries
-      them; those two files are the only paths in which the working tree differs from the committed
-      revision, which <code>check-tree-delta.mjs</code> measures.</li>
+      them, have not all run. The two comment-only corrections this audit made &mdash; the
+      <code>skills.ts</code> docstring quoted in &sect;2 and a rationale comment in
+      <code>skills.test.ts</code>, each giving the same wrong mechanism the prose had &mdash; are
+      committed as well, so the working tree matches the revision this page's tree carries and that
+      comparison is now the empty one. No Rust file was touched, and the full suite and the typecheck
+      were re-run on the tree that carries them; <code>check-tree-delta.mjs</code> measures the
+      relation and reads those two files out of the commit rather than out of a working-tree delta.</li>
       <li>Every owned agent-browser session this work started was closed through the identity-checked
       cleanup script &mdash; the eight defect runs, the page&rsquo;s own render and verification
       sessions, and the four committed-revision re-runs &mdash; each after its screenshots were taken.
