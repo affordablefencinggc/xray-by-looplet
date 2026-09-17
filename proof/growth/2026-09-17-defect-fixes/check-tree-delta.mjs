@@ -83,9 +83,12 @@ const sameBytes = others.every((p) => git(["diff", BASE, TIP, "--", p]) === git(
 check(`the other ${others.length} committed paths carry an identical diff in the working tree`, sameBytes);
 
 /* 4. Every line the corrections change is a comment line — read from the delta while there is one, and
-   from the commit that carries them once there is not, so the reading cannot become empty-and-true. */
+   from the commit that carries them once there is not, so the reading cannot become empty-and-true. The
+   committed reading is taken from the pinned tip rather than from the pinned base: the change itself
+   touched both of these files, so a diff from the base would count the fix commits' code lines too and
+   the reading would be about the change rather than about the corrections. */
 const fromDelta = git(["diff", "HEAD", "--", ...CORRECTIONS]);
-const fromCommit = git(["diff", BASE, "HEAD", "--", ...CORRECTIONS]);
+const fromCommit = git(["diff", TIP, "HEAD", "--", ...CORRECTIONS]);
 const source = clean ? fromCommit : fromDelta;
 const changed = lines(source).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
 const code = changed.filter((l) => !/^[+-]\s*(\/\/|\*|\/\*)/.test(l));
@@ -95,18 +98,27 @@ check(
     : "every changed line in those two files is a comment line",
   clean ? changed.length > 0 && code.length === 0 : code.length === 0,
   clean
-    ? `${changed.length} lines changed against ${BASE}, ${code.length} not comments${changed.length ? "" : " — the corrections are not in this history"}`
+    ? `${changed.length} lines changed against ${TIP}, ${code.length} not comments${changed.length ? "" : " — the corrections are not in this history"}`
     : `${changed.length} lines changed, ${code.length} not comments`,
 );
 
 /* 5. The same relation, taken over the paths the change itself touches: an unrestricted `git diff <the
    pinned base>` would also count every file committed on this branch since — the proof bundles among them —
-   which is not what this comparison is about. Over the change's own paths the reading is the note's, and it
-   does not move when later commits land. */
+   which is not what this comparison is about. Over the change's own paths the reading is the note's, and
+   what the tree adds must be exactly the corrections' own hunks and nothing else: while they are
+   uncommitted that is this tree's delta, and once they are committed it is the same two files' diff from
+   the pinned tip. A file that drifted by so much as a line makes the two disagree. */
 const working = git(["diff", BASE, "--", ...committedPaths]);
 const addedBytes = Buffer.byteLength(working) - Buffer.byteLength(committed);
-console.log(`\ncode.diff ${Buffer.byteLength(codeDiff)} bytes; git diff ${BASE} over the change's own ${committedPaths.length} paths on this tree ${Buffer.byteLength(working)} bytes (+${addedBytes})`);
-check("the comparison adds nothing when the tree is clean, or only these two files' hunks when it is not", clean ? addedBytes === 0 : addedBytes > 0);
+const correctionBytes = Buffer.byteLength(source);
+console.log(`\ncode.diff ${Buffer.byteLength(codeDiff)} bytes; git diff ${BASE} over the change's own ${committedPaths.length} paths on this tree ${Buffer.byteLength(working)} bytes (+${addedBytes}); the two corrected files' own hunks ${correctionBytes} bytes`);
+check(
+  clean
+    ? "the change's own paths add exactly the two corrected files' committed hunks and nothing else"
+    : "the comparison adds nothing when the tree is clean, or only these two files' hunks when it is not",
+  addedBytes === correctionBytes,
+  `+${addedBytes} against the corrections' ${correctionBytes}`,
+);
 
 /* 6. The two files still parse as the language they are, so a comment edit did not break them. */
 const testFile = CORRECTIONS[1];
