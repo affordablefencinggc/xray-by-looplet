@@ -6,8 +6,13 @@ import {
   ASSISTANT_SAFETY_MANUAL,
   ASSISTANT_SKILLS,
   assistantToolAllowed,
+  isAssistantEditTool,
+  isAssistantEffectfulTool,
+  isAssistantGatedTool,
 } from "./skills.ts";
+import { ASSISTANT_CONTEXT_BRIEF } from "./contextManual.gen.ts";
 import { joinManualSections, normaliseManualMarkdown } from "./manualNormalise.ts";
+import { DEFAULT_EXECUTION_BUDGET } from "./executionBudget.ts";
 
 // [SC-22 context] begin
 /** The fixed composition order both platforms must use (build-assistant-context.mjs). */
@@ -83,6 +88,34 @@ test("web and native providers hold identical safety rules", () => {
   assert.equal(JSON.parse(literal), ASSISTANT_SAFETY_MANUAL);
 });
 // [SC-22 context] end
+
+test("effectful non-edits are classified apart from reads and from project edits", () => {
+  for (const name of ["navigate_workspace", "show_design_in_model", "hide_designed_model", "control_draftsman", "generate_render_visualisation"]) {
+    assert.equal(isAssistantEffectfulTool(name), true, name);
+    assert.equal(isAssistantGatedTool(name), true, name);
+    // Deliberately NOT edits: EDIT membership drives declaration filtering and the pending-action
+    // replay gate, and reclassifying these would strip navigation from read-only and ask mode, where
+    // the architecture workflow still requires navigate_workspace as its first step.
+    assert.equal(isAssistantEditTool(name), false, name);
+    assert.equal(assistantToolAllowed(name, false), true, name);
+  }
+  for (const name of ["read_project_context", "capture_workspace_image", "read_source_sheets"]) {
+    assert.equal(isAssistantEffectfulTool(name), false, name);
+    assert.equal(isAssistantGatedTool(name), false, name);
+  }
+  for (const name of ["draw_architect_elements", "save_project"]) {
+    assert.equal(isAssistantEffectfulTool(name), false, name);
+    assert.equal(isAssistantGatedTool(name), true, name);
+  }
+});
+
+test("the brief carries the shipped execution defaults and not the superseded pair", () => {
+  // The manual is re-sent on every round, so a stale figure here contradicts budgets.md inside the
+  // same string and is read by the model as the real limit.
+  assert.doesNotMatch(ASSISTANT_CONTEXT_BRIEF, /Twelve rounds per send|Twenty-four tool calls per send/);
+  assert.match(ASSISTANT_CONTEXT_BRIEF, new RegExp(`${DEFAULT_EXECUTION_BUDGET.maxRounds} rounds per send`));
+  assert.match(ASSISTANT_CONTEXT_BRIEF, new RegExp(`${DEFAULT_EXECUTION_BUDGET.maxToolCalls} tool calls per send`));
+});
 
 test("drawing edits and save require explicit permission; new or destructive tools fail closed", () => {
   for (const name of ["draw_architect_elements", "undo_architect_change", "save_project"]) {

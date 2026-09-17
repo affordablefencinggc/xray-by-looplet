@@ -119,6 +119,23 @@ const EDIT_TOOLS = new Set([
 ]);
 /** True for tools that change project state (the edit-permission set). */
 export const isAssistantEditTool = (name: string) => EDIT_TOOLS.has(name);
+/**
+ * Not project edits, but not reads either: each changes what is on screen, drives the drafting
+ * viewer, or spends metered render quota. The permission mode must govern them too, so the gate
+ * keys off effect rather than off EDIT_TOOLS membership alone (defects D5 and D8).
+ *
+ * Deliberately NOT added to EDIT_TOOLS. EDIT membership also drives declaration filtering
+ * (assistantToolAllowed) and the pending-action replay gate, and none of these writes the project
+ * record: reclassifying them would silently strip navigation from readonly and ask mode, where the
+ * architecture workflow still requires navigate_workspace as its first step.
+ */
+const EFFECTFUL_TOOLS = new Set([
+  "navigate_workspace", "show_design_in_model", "hide_designed_model", "control_draftsman", "generate_render_visualisation",
+]);
+/** True for tools that change live workspace state or spend provider quota without editing the project. */
+export const isAssistantEffectfulTool = (name: string) => EFFECTFUL_TOOLS.has(name);
+/** Every tool the permission mode must judge before it runs: project edits plus effectful non-edits. */
+export const isAssistantGatedTool = (name: string) => isAssistantEditTool(name) || isAssistantEffectfulTool(name);
 export function assistantToolAllowed(name: string, allowProjectEdits: boolean): boolean {
   return VIEW_TOOLS.has(name) || (allowProjectEdits && EDIT_TOOLS.has(name));
 }
