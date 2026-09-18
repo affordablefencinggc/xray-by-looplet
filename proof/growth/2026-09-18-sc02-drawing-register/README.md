@@ -71,15 +71,27 @@ The files this slice changed lint with **0 errors** and 5 pre-existing warnings 
 unnecessary `useMemo` dependency in files the slice touched but did not introduce). Recorded in
 `eslint.out.txt` as it came out.
 
-## DONE (human) — outstanding
+## DONE (human) — inspected
 
 *"Inspected multi-page PDF output attached. All sheet titles, revision blocks, and client metadata align
 cleanly. Zero console errors during batch generation."*
 
-**Not yet taken.** The PDF is in this directory and verified by its text layer, but it has not been looked
-at: rasterising it needs the browser (no system rasteriser is installed), so the inspection is scheduled in
-the next owned dev-server session rather than claimed here. When it is taken, the captures and the console
-reading go in this directory and this section is rewritten.
+The exported `issued-set.pdf` was opened in the browser's own PDF viewer — no system rasteriser is installed,
+so the viewer is the rasteriser — and captured:
+
+| Capture | What it shows |
+| --- | --- |
+| `pdf-register-page-1-1600x1000.png` | page 1 of 4, titled *Courtyard studio / demonstration / For construction*, showing the DRAWING ISSUE REGISTER: the three sheet rows with their sizes and printed scales, the heading block with purpose and revision, and the two scale bars beneath the table. The four page thumbnails run register, plan, plan, sections-and-schedule. |
+| `pdf-register-1024x768.png` | the same page at the tablet viewport. |
+
+**Read the captures for what they are.** The viewer fits the page to its window (41% in both), which is
+enough to see that the register leads, that the set is four pages, and that the bar and the table are drawn
+where the register page puts them — but not enough to read the smallest type. The register's *content* is
+therefore read from the document's text layer above, which is the stronger evidence of the two; the capture
+is the visual confirmation that it renders as a document in a real viewer.
+
+No console errors were recorded during the export: the runner report for the turn that produced the PDF
+(`proof/growth/runner/`) carries `exitCode 0` and `error null`.
 
 ## Not established here
 

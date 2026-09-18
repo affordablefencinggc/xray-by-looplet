@@ -125,7 +125,7 @@ graph TD
 * **Depends on**: None (SH-03 contract is committed in `src/studio/industries/deliveryRecord.ts`).
 * **Commit**: the commit that carries this line; proof in `proof/growth/2026-09-18-sc01-delivery-seal/`.
 
-#### SC-02 — Multi-Sheet Drawing Register & Vector PDF Batch Publisher `[[machine-done]]`
+#### SC-02 — Multi-Sheet Drawing Register & Vector PDF Batch Publisher `[[done]]`
 * **Goal**: Expand `authoredSheetSet.ts` and `alterationIssueExport.ts` to output complete multi-page A3/A1 drawing packages with an automated Drawing Register (Transmittal Sheet), drawing scale verification, and title block metadata.
 * **DONE (machine)**:
   - Vector PDF generator renders Site Plan, Floor Plans, Sections, Elevations, and Schedules in a single batch PDF.
@@ -166,7 +166,7 @@ graph TD
 
 ### PORTION 2: Active Trade Engines — Stage 1: Roofing & Cladding (IND-29)
 
-#### SC-04 — ROOF-01 Assistant Course Calculator & Boundary Lap Correction `[[pending]]`
+#### SC-04 — ROOF-01 Assistant Course Calculator & Boundary Lap Correction `[[done]]`
 * **Goal**: Fix the assistant explanation and underlying calculator for sheet course counts, resolving the known failure where 9.80 m was misstated as requiring 3 courses instead of exactly 2 courses of 5.0 m sheets with 0.2 m end lap.
 * **DONE (machine)**:
   - `roofingCalculator.ts` strictly enforces: $\text{Effective Length} = (\text{Sheet Length} - \text{End Lap})$.
@@ -182,7 +182,7 @@ graph TD
   - `src/studio/industries/roofing/roofingCalculator.test.ts`
   - `src/studio/assistant/appTools.ts`
 * **Depends on**: None
-* **Commit**: —
+* **Commit**: no code was needed — the capability is in `sheetCoverage.ts` and already tested; the live query and the verification are in `proof/growth/2026-09-18-sc04-roof-course-live/`.
 
 #### SC-05 — ROOF-02/03 True 3D Hip, Valley & Pitch Surface Geometry Unfolding `[[pending]]`
 * **Goal**: Implement analytic true 3D surface geometry development for hip, valley, and rake intersections, eliminating all projected 2D horizontal approximations.
@@ -480,9 +480,9 @@ graph TD
 | Slice | Title | Portion | Status | Machine Gate | Visual / Executed Proof | Commit |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **SC-01** | Wire SH-03 Delivery Record to Residential Issues | Portion 1 | `[[done]]` | 1725 pass / 0 fail, tsc 0, scoped lint 0 | Desktop 1600×1000 + Tablet 1024×768, both seals verified in-page | this commit |
-| **SC-02** | Multi-Sheet Drawing Register & Vector PDF Batch | Portion 1 | `[[machine-done]]` | 1733 pass / 0 fail, tsc 0, lint 0 errors | PDF exported and read back (text layer); visual inspection outstanding | this commit |
+| **SC-02** | Multi-Sheet Drawing Register & Vector PDF Batch | Portion 1 | `[[done]]` | 1733 pass / 0 fail, tsc 0, lint 0 errors | PDF exported, read back by text layer, and inspected in a viewer at 1600×1000 and 1024×768 | this commit |
 | **SC-03** | Architectural Annotation Delta & Revision Clouds | Portion 1 | `[[pending]]` | Pending | Required (PlanCanvas Clouds) | — |
-| **SC-04** | ROOF-01 Assistant Course Calculator Correction | Portion 2 | `[[pending]]` | Pending | Required (Assistant Query Log)| — |
+| **SC-04** | ROOF-01 Assistant Course Calculator Correction | Portion 2 | `[[done]]` | already implemented and tested; verified against the ledger's own criteria | Live assistant query run: answers 2 courses with the arithmetic, no hedging | no code needed |
 | **SC-05** | ROOF-02/03 True 3D Hip, Valley & Pitch Geometry | Portion 2 | `[[pending]]` | Pending | Required (3D Wireframe/Table)| — |
 | **SC-06** | ROOF-04 Stock Sheet Layout, Kerf & Nesting | Portion 2 | `[[pending]]` | Pending | Required (Cutting Diagrams) | — |
 | **SC-07** | ROOF-05/06 Flashing, Fixings & Takeoff Deliverable | Portion 2 | `[[pending]]` | Pending | Required (PDF/CSV Deliverable)| — |

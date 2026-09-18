@@ -1,0 +1,129 @@
+{
+  "state": "done",
+  "baseline": 0,
+  "newEntryCount": 6,
+  "newEntries": [
+    {
+      "kind": "user",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "Explain the course calculation for a 9.80 m rafter run with 5 m sheets and a 200 mm end lap. State how many courses are needed and show the arithmetic you used."
+    },
+    {
+      "kind": "assistant",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "I'll select the discussion workflow for this explanation task, then walkthrough the arithmetic.\n"
+    },
+    {
+      "kind": "tool",
+      "tool": "read_workflow_route",
+      "failed": null,
+      "origin": "model",
+      "projectName": "New project",
+      "projectRevision": 1,
+      "text": "{\"version\":\"xray.workflow/1\",\"workflow\":\"discussion\",\"steps\":[\"Discuss capabilities or plans; do not claim project actions occurred.\"],\"scope\":\"Workflow selection only; no geometry, evidence or authority changed.\"}"
+    },
+    {
+      "kind": "assistant",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "I'll walk through the arithmetic by hand first, then call the coverage tool to verify the boundary and course expansion, since both the boundary and the per-course waste are sensitive to the exact formula.\n\n## Course calculation for a 9.80 m rafter run\n\n**Inputs**\n- Run length (horizontal): 9.80 m\n- Ordered sheet length: 5 m\n- End lap (transverse lap): 200 mm = 0.20 m\n- Side lap: not used here (it sits inside the supplied effective cover, which only matters when the sheet width is being set out)\n\n**Per-course run covered**\n\nThe first course is a full ordered length. Every course after that starts with an end lap, then the remaining length of the sheet is added to the run.\n\nPer-course contribution beyond the first = ordered length − end lap\n= 5.00 − 0.20\n= 4.80 m per additional course\n\n**Course count**\n\nCourses = 1 + ceil( (run − ordered length) / (ordered length − end lap) )\n= 1 + ceil( (9.80 − 5.00) / (5.00 − 0.20) )\n= 1 + ceil( 4.80 / 4.80 )\n= 1 + ceil( 1.00 )\n= 1 + 1\n= **2 courses**\n\n**Check the boundary**\n\nRun after 1 course = 5.00 m → not yet at 9.80 m, so a second course is required.\nRun after 2 courses = 5.00 + 4.80 = 9.80 m → exact match, no shortfall and no excess.\n\nSo 9.80 m sits exactly on the course-count boundary: with 5.00 m sheets and a 0.20 m end lap, two courses just reach 9.80 m; any run longer than 9.80 m would need a third course.\n\nLet me confirm this boundary behaviour with the coverage tool using the stated inputs.\n"
+    },
+    {
+      "kind": "tool",
+      "tool": "calculate_draft_roof_sheet_coverage",
+      "failed": null,
+      "origin": "model",
+      "projectName": "New project",
+      "projectRevision": 1,
+      "text": "{\"projectId\":\"job-1bf6dd91-608b-4e4f-ab11-0a357875a38d\",\"projectRevision\":1,\"status\":\"draft-sheet-coverage\",\"columns\":5,\"courses\":2,\"sheets\":10,\"inputs\":{\"developedWidthM\":\"1.000\",\"developedRunM\":\"9.80\",\"effectiveCoverM\":\"0.200\",\"orderLengthM\":\"5.00\",\"endLapM\":\"0.20\",\"measurementReference\":\"User-stated rafter run 9.80 m; 5 m ordered sheet length; 200 mm end lap (internal draft).\",\"supplierReference\":\"Internal draft only; no supplier rate applied.\"},\"calculation\":{\"columns\":\"ceil(1.000 / 0.200) = 5\",\"coursesFormula\":\"run <= ordered length ? 1 : 1 + ceil((run - ordered length) / (ordered length - end lap))\",\"courses\":\"1 + ceil((9.80 - 5.00) / (5.00 - 0.20)) = 2\",\"coursesExpanded\":\"Course 1 covers a full ordered sheet length of 5.00 m. The remaining 4.8 m is covered by further courses that each add 5.00 - 0.20 = 4.8 m, so ceil(4.8 / 4.8) = 1 more course(s), giving 2 courses in total.\",\"courseBoundary\":\"2 course(s) cover any run greater than 5 m and up to and including exactly 9.8 m. A run of 9.800000001 m or more needs at least 3 courses.\",\"boundaryPrecision\":\"The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision.\",\"maxRunAtThisCourseCountM\":9.8,\"minRunForAnotherCourseM\":9.800000001,\"wrongFormulaWarning\":\"Do NOT compute courses as ceil(run / (ordered length - end lap)); for this input that would give 3 instead of the correct 2, because the first course is not shortened by an end lap.\",\"sheets\":\"5 columns × 2 courses = 10 sheets\",\"orderedLength\":\"10 sheets × 5.00 m = 50 m\",\"endLapPolicy\":\"The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.\",\"excessRun\":\"9.8 m covered run - 9.80 m requested run = 0 m excess run. This is geometric over-coverage along the run, not a per-sheet waste or cutting quantity.\"},\"cuttingSchedule\":{\"status\":\"not-calculated\",\"perSheetWasteM\":null,\"reusableOffcuts\":null,\"reason\":\"No cutting layout, trimming or offcut reuse is supplied. Do not infer per-sheet waste, scrap, usable cut length or reusable offcuts from coverage excess, in either the answer or Developer review.\"},\"orderedLinearM\":50,\"coveredWidthM\":1,\"coveredRunM\":9.8,\"excessWidthM\":0,\"excessRunM\":0,\"measurementReference\":\"User-stated rafter run 9.80 m; 5 m ordered sheet length; 200 mm end lap (internal draft).\",\"supplierReference\":\"Internal draft only; no supplier rate applied.\",\"verifiedQuoteEligible\":false,\"limitations\":[\"End lap (the lengthwise lap between courses, also called a transverse lap) IS included in this calculation: every course after the first is shortened by the supplied end lap. Do not describe end laps or transverse laps as excluded.\",\"Side lap (the lap between adjacent sheets across the width) is NOT calculated here: it is already contained in the supplied effective sheet cover, so it is neither added nor deducted again. Side lap and end lap are separate laps and must be explained separately.\",\"One rectangular developed surface with identical ordered sheet lengths; no opening deductions, hips, valleys, cutting or reusable offcut schedule.\",\"No fixings, flashings, product suitability or compliance calculation. References are retained but not validated; draft and not eligible for verified quotes.\"]}"
+    },
+    {
+      "kind": "assistant",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "## Result\n\n**2 courses** are needed for a 9.80 m rafter run with 5.00 m sheets and a 0.20 m end lap.\n\nThe tool confirms:\n- Per-course contribution after the first: ordered length − end lap = 5.00 − 0.20 = 4.80 m\n- Courses = 1 + ceil((9.80 − 5.00) / (5.00 − 0.20)) = 1 + ceil(1.00) = **2**\n- `courseBoundary`: 2 courses cover any run > 5 m and ≤ 9.80 m; anything ≥ 9.800000001 m needs at least 3 courses\n- `excessRun`: 0 m (9.80 m fits exactly)\n- Sheets to order: 5 columns × 2 courses = 10 sheets (50 m of ordered length)\n\n**Why the common shortcut is wrong:** `ceil(run / (ordered length − end lap))` gives 3 here, because it wrongly assumes every course, including the first, is shortened by the end lap. The first course is full ordered length; only the courses after the first are shortened by the end lap.\n\n**Side lap note:** side lap is not in this calculation — it lives inside the supplied effective cover across the sheet width. End lap (also called transverse lap) is the lap between courses along the run and is included here.\n\n**Scope:** draft calculation, retained references but not validated; not eligible for a verified quote. No cutting layout, per-sheet waste or offcut reuse is calculated.\n\n## Developer review\n\n- **Outcome:** answered with the full course-count formula, the per-course contribution, and the boundary behaviour; the tool receipt confirmed 2 courses at exactly 9.80 m.\n- **Friction:** none material — a single explanatory sentence about the wrong-formula trap adds length, but prevents the standard off-by-one error, so it earns its place.\n- **Improvement:** none — the answer is concise, the boundary and excess are stated explicitly, and the side/end-lap distinction is clear without extra calls."
+    }
+  ],
+  "projectId": "job-1bf6dd91-608b-4e4f-ab11-0a357875a38d",
+  "activeId": "9a084c6e-74df-4d1b-8199-bfb6c8513e54",
+  "threads": 4,
+  "busy": false,
+  "error": null,
+  "workPacket": {
+    "state": "review-required",
+    "objective": "Explain the course calculation for a 9.80 m rafter run with 5 m sheets and a 200 mm end lap. State how many courses are needed and show the arithmetic you used.",
+    "nextAction": "Workflow receipts complete. Review the draft against its sources and acceptance tests; no professional approval or issue recorded.",
+    "pendingAction": null,
+    "routingFailure": null
+  },
+  "entries": [
+    {
+      "kind": "user",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "Explain the course calculation for a 9.80 m rafter run with 5 m sheets and a 200 mm end lap. State how many courses are needed and show the arithmetic you used."
+    },
+    {
+      "kind": "assistant",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "I'll select the discussion workflow for this explanation task, then walkthrough the arithmetic.\n"
+    },
+    {
+      "kind": "tool",
+      "tool": "read_workflow_route",
+      "failed": null,
+      "origin": "model",
+      "projectName": "New project",
+      "projectRevision": 1,
+      "text": "{\"version\":\"xray.workflow/1\",\"workflow\":\"discussion\",\"steps\":[\"Discuss capabilities or plans; do not claim project actions occurred.\"],\"scope\":\"Workflow selection only; no geometry, evidence or authority changed.\"}"
+    },
+    {
+      "kind": "assistant",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "I'll walk through the arithmetic by hand first, then call the coverage tool to verify the boundary and course expansion, since both the boundary and the per-course waste are sensitive to the exact formula.\n\n## Course calculation for a 9.80 m rafter run\n\n**Inputs**\n- Run length (horizontal): 9.80 m\n- Ordered sheet length: 5 m\n- End lap (transverse lap): 200 mm = 0.20 m\n- Side lap: not used here (it sits inside the supplied effective cover, which only matters when the sheet width is being set out)\n\n**Per-course run covered**\n\nThe first course is a full ordered length. Every course after that starts with an end lap, then the remaining length of the sheet is added to the run.\n\nPer-course contribution beyond the first = ordered length − end lap\n= 5.00 − 0.20\n= 4.80 m per additional course\n\n**Course count**\n\nCourses = 1 + ceil( (run − ordered length) / (ordered length − end lap) )\n= 1 + ceil( (9.80 − 5.00) / (5.00 − 0.20) )\n= 1 + ceil( 4.80 / 4.80 )\n= 1 + ceil( 1.00 )\n= 1 + 1\n= **2 courses**\n\n**Check the boundary**\n\nRun after 1 course = 5.00 m → not yet at 9.80 m, so a second course is required.\nRun after 2 courses = 5.00 + 4.80 = 9.80 m → exact match, no shortfall and no excess.\n\nSo 9.80 m sits exactly on the course-count boundary: with 5.00 m sheets and a 0.20 m end lap, two courses just reach 9.80 m; any run longer than 9.80 m would need a third course.\n\nLet me confirm this boundary behaviour with the coverage tool using the stated inputs.\n"
+    },
+    {
+      "kind": "tool",
+      "tool": "calculate_draft_roof_sheet_coverage",
+      "failed": null,
+      "origin": "model",
+      "projectName": "New project",
+      "projectRevision": 1,
+      "text": "{\"projectId\":\"job-1bf6dd91-608b-4e4f-ab11-0a357875a38d\",\"projectRevision\":1,\"status\":\"draft-sheet-coverage\",\"columns\":5,\"courses\":2,\"sheets\":10,\"inputs\":{\"developedWidthM\":\"1.000\",\"developedRunM\":\"9.80\",\"effectiveCoverM\":\"0.200\",\"orderLengthM\":\"5.00\",\"endLapM\":\"0.20\",\"measurementReference\":\"User-stated rafter run 9.80 m; 5 m ordered sheet length; 200 mm end lap (internal draft).\",\"supplierReference\":\"Internal draft only; no supplier rate applied.\"},\"calculation\":{\"columns\":\"ceil(1.000 / 0.200) = 5\",\"coursesFormula\":\"run <= ordered length ? 1 : 1 + ceil((run - ordered length) / (ordered length - end lap))\",\"courses\":\"1 + ceil((9.80 - 5.00) / (5.00 - 0.20)) = 2\",\"coursesExpanded\":\"Course 1 covers a full ordered sheet length of 5.00 m. The remaining 4.8 m is covered by further courses that each add 5.00 - 0.20 = 4.8 m, so ceil(4.8 / 4.8) = 1 more course(s), giving 2 courses in total.\",\"courseBoundary\":\"2 course(s) cover any run greater than 5 m and up to and including exactly 9.8 m. A run of 9.800000001 m or more needs at least 3 courses.\",\"boundaryPrecision\":\"The next boundary value uses this calculator's nine-decimal-place input resolution in metres. It does not establish measurement accuracy or PDF coordinate precision.\",\"maxRunAtThisCourseCountM\":9.8,\"minRunForAnotherCourseM\":9.800000001,\"wrongFormulaWarning\":\"Do NOT compute courses as ceil(run / (ordered length - end lap)); for this input that would give 3 instead of the correct 2, because the first course is not shortened by an end lap.\",\"sheets\":\"5 columns × 2 courses = 10 sheets\",\"orderedLength\":\"10 sheets × 5.00 m = 50 m\",\"endLapPolicy\":\"The first course covers a full ordered sheet length. Each additional course adds ordered length minus end lap.\",\"excessRun\":\"9.8 m covered run - 9.80 m requested run = 0 m excess run. This is geometric over-coverage along the run, not a per-sheet waste or cutting quantity.\"},\"cuttingSchedule\":{\"status\":\"not-calculated\",\"perSheetWasteM\":null,\"reusableOffcuts\":null,\"reason\":\"No cutting layout, trimming or offcut reuse is supplied. Do not infer per-sheet waste, scrap, usable cut length or reusable offcuts from coverage excess, in either the answer or Developer review.\"},\"orderedLinearM\":50,\"coveredWidthM\":1,\"coveredRunM\":9.8,\"excessWidthM\":0,\"excessRunM\":0,\"measurementReference\":\"User-stated rafter run 9.80 m; 5 m ordered sheet length; 200 mm end lap (internal draft).\",\"supplierReference\":\"Internal draft only; no supplier rate applied.\",\"verifiedQuoteEligible\":false,\"limitations\":[\"End lap (the lengthwise lap between courses, also called a transverse lap) IS included in this calculation: every course after the first is shortened by the supplied end lap. Do not describe end laps or transverse laps as excluded.\",\"Side lap (the lap between adjacent sheets across the width) is NOT calculated here: it is already contained in the supplied effective sheet cover, so it is neither added nor deducted again. Side lap and end lap are separate laps and must be explained separately.\",\"One rectangular developed surface with identical ordered sheet lengths; no opening deductions, hips, valleys, cutting or reusable offcut schedule.\",\"No fixings, flashings, product suitability or compliance calculation. References are retained but not validated; draft and not eligible for verified quotes.\"]}"
+    },
+    {
+      "kind": "assistant",
+      "tool": null,
+      "failed": null,
+      "origin": null,
+      "projectName": null,
+      "projectRevision": null,
+      "text": "## Result\n\n**2 courses** are needed for a 9.80 m rafter run with 5.00 m sheets and a 0.20 m end lap.\n\nThe tool confirms:\n- Per-course contribution after the first: ordered length − end lap = 5.00 − 0.20 = 4.80 m\n- Courses = 1 + ceil((9.80 − 5.00) / (5.00 − 0.20)) = 1 + ceil(1.00) = **2**\n- `courseBoundary`: 2 courses cover any run > 5 m and ≤ 9.80 m; anything ≥ 9.800000001 m needs at least 3 courses\n- `excessRun`: 0 m (9.80 m fits exactly)\n- Sheets to order: 5 columns × 2 courses = 10 sheets (50 m of ordered length)\n\n**Why the common shortcut is wrong:** `ceil(run / (ordered length − end lap))` gives 3 here, because it wrongly assumes every course, including the first, is shortened by the end lap. The first course is full ordered length; only the courses after the first are shortened by the end lap.\n\n**Side lap note:** side lap is not in this calculation — it lives inside the supplied effective cover across the sheet width. End lap (also called transverse lap) is the lap between courses along the run and is included here.\n\n**Scope:** draft calculation, retained references but not validated; not eligible for a verified quote. No cutting layout, per-sheet waste or offcut reuse is calculated.\n\n## Developer review\n\n- **Outcome:** answered with the full course-count formula, the per-course contribution, and the boundary behaviour; the tool receipt confirmed 2 courses at exactly 9.80 m.\n- **Friction:** none material — a single explanatory sentence about the wrong-formula trap adds length, but prevents the standard off-by-one error, so it earns its place.\n- **Improvement:** none — the answer is concise, the boundary and excess are stated explicitly, and the side/end-lap distinction is clear without extra calls."
+    }
+  ]
+}

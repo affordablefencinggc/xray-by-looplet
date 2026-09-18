@@ -1,0 +1,46 @@
+{
+  "what": "The browser session this slice ran, lifted out of the assistant campaign's own process table — a committed artifact of that campaign whose checks describe it — and the campaign's file restored to its committed bytes below.",
+  "ownershipRule": "session-name prefix (qa-*, look-sweep-*) in %USERPROFILE%\\.agent-browser\\<session>.pid, then PID + creation time + executable re-read from the live process table",
+  "shutdownCommand": "node scripts/fast-cdp-test.mjs <session> .temp/live-rig/scenarios/close-campaign.json  (the CLI's own `close`, not a kill)",
+  "sessionsClosed": [
+    {
+      "session": "qa-sc04-live",
+      "daemonPid": "34696",
+      "daemonCreation": "2026-09-18T15:53:04",
+      "daemonExe": "C:\\Users\\danie\\repo\\xray-by-looplet\\.temp\\npm\\_npx\\8e62322f9a68a26a\\node_modules\\agent-browser\\bin\\agent-browser-win32-x64.exe",
+      "exitCode": 0,
+      "sessionFileGone": false,
+      "sessionFileGoneAfterMs": 0,
+      "daemonProcessGone": true,
+      "browsers": [
+        {
+          "pid": 18368,
+          "name": "chrome.exe",
+          "created": "2026-09-18T15:53:04",
+          "userDataDir": "C:\\Users\\danie\\AppData\\Local\\Temp\\agent-browser-chrome-d2532ab6-f250-4279-81ba-bcb2ada62ef5",
+          "stillAlive": false,
+          "dirStillExists": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "sessionsRecorded": 1,
+    "temporaryProfileDirs": 1,
+    "temporaryDirsGoneAfterClose": 1,
+    "daemonGoneForEverySession": true,
+    "exitZeroForEverySession": true
+  },
+  "devServer": {
+    "what": "owned dev server 127.0.0.1:8085 — vite, a separate origin so the assistant's stored state is isolated from the user's",
+    "stoppedBy": ".temp/live-rig/server-8085.ps1 -Stop — executable, command line and creation time re-read from the live process table and compared to the ownership record before anything was terminated",
+    "exitVerified": "PID 50804 gone, port 8085 released, the user-facing preview on :8080 still listening",
+    "record": ".temp/live-rig/server-8085-owned.json",
+    "evidence": ".temp/live-rig/server-8085-cleanup.txt",
+    "daemonPid": 49020,
+    "daemonCreation": "2026-09-18T15:51:34.8856940+10:00",
+    "daemonCommandLine": "\"node\"   \"C:\\Users\\danie\\repo\\xray-by-looplet\\node_modules\\.bin\\\\..\\vite\\bin\\vite.js\" dev --host 127.0.0.1 --port 8085 --strictPort",
+    "stoppedAt": "2026-09-18T03:01:38.266Z",
+    "cleanupLog": "Stopped owned dev server. Verified processes terminated: 84376. Port 8085 released."
+  }
+}
