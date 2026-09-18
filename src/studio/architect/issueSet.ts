@@ -1,5 +1,6 @@
 import type { ArchitectProject } from "./model.ts";
 import { authoredSheets, type AuthoredSheet } from "./authoredSheetSet.ts";
+import { drawingRegister } from "./drawingRegister.ts";
 
 /**
  * D-13: batch printing and issue sets.
@@ -124,24 +125,13 @@ export function assertIssueReviewCurrent(p: ArchitectProject, review: IssueSetRe
  * The issue register: one row per sheet, plus what identifies the issue.
  * This is the record that accompanies the drawings, and the thing D-13 requires
  * beyond simply concatenating pages.
+ *
+ * It is built by `drawingRegister`, which is the one place the register's shape is defined (SC-02), so the
+ * PDF's register page, the studio's issue view and any other reader cannot come to disagree about what the
+ * issue contained. The row's `scale` is the ratio alone; `scaleLabel` is the ratio and the paper.
  */
 export function issueRegister(review: IssueSetReview, issuedAt: Date) {
-  return {
-    project: review.projectName,
-    purpose: review.purpose,
-    designRevision: review.designRevision,
-    modelRevision: review.modelRevision,
-    issuedAt: issuedAt.toISOString(),
-    sheetCount: review.sheets.length,
-    sheets: review.sheets.map((sheet, index) => ({
-      position: index + 1,
-      number: sheet.number,
-      name: sheet.name,
-      size: sheet.size,
-      scale: `1:${sheet.scale}`,
-      viewports: sheet.viewports,
-    })),
-  };
+  return drawingRegister(review, issuedAt);
 }
 
 /** A stable file name for the issued package. */

@@ -19,7 +19,7 @@ import {
   roofTrims,
   type MultiPolygon,
 } from "./geometry.ts";
-export type View = "plan" | "north" | "south" | "east" | "west" | "section";
+export type View = "plan" | "north" | "south" | "east" | "west" | "section" | "schedule";
 export type Primitive = {
   kind: "path" | "line" | "circle" | "text" | "arc";
   id?: string;
@@ -330,6 +330,7 @@ export function primitives(p: ArchitectProject, levelId: string, view: View = "p
     text([length / 2, 800], "SECTION A–A / modelled assemblies only", 190);
     return out;
   }
+  if (view === "schedule") return schedulePrimitives(p, levelId);
   const horizontal = (pt: Point) =>
       view === "north" ? -pt[0] : view === "south" ? pt[0] : view === "east" ? -pt[1] : pt[1],
     depth = (pt: Point) =>
@@ -400,6 +401,54 @@ export function primitives(p: ArchitectProject, levelId: string, view: View = "p
     text([max + 450, -l.elevation], `${l.name} +${(l.elevation / 1000).toFixed(3)}`, 140);
   }
   text([(min + max) / 2, 800], view.toUpperCase() + " ELEVATION", 190);
+  return out;
+}
+
+/**
+ * The door and window schedule (SC-02): the table a drawing set carries beside its plans.
+ *
+ * It is emitted as the primitives it is — a title, a heading rule and one row per opening on the level — so
+ * it prints through the same path as every other view and needs no second renderer. Sizes are model units
+ * like the rest of a viewport's content, so the viewport's own scale governs how large the table prints;
+ * the renderer's 5.5 pt floor keeps a small scale legible rather than silently vanishing.
+ */
+export function schedulePrimitives(p: ArchitectProject, levelId: string): Primitive[] {
+  const out: Primitive[] = [],
+    level = p.levels.find((l) => l.id === levelId),
+    bounds = projectBounds(p),
+    line = (a: Point, b: Point, id?: string, width = 12) =>
+      out.push({ kind: "line", points: [a, b], id, width, stroke: "#414952" }),
+    text = (at: Point, value: string, size = 150, id?: string) =>
+      out.push({ kind: "text", center: at, text: value, size, id, fill: "#26343d" });
+
+  const wallIds = new Set(p.walls.filter((w) => w.levelId === levelId).map((w) => w.id));
+  const openings = p.openings.filter((o) => wallIds.has(o.wallId));
+  const host = (wallId: string) => p.walls.find((w) => w.id === wallId)?.layers[0]?.name ?? wallId;
+  /* The table is laid out for a 1:50 viewport — the scale a schedule is drawn at — and its footprint is
+     sized so that the whole of it lands inside an A3 viewport at that scale: 20 000 model units is 400 mm
+     on paper there, and a column pair either side of that would be clipped away by the viewport the
+     renderer sets, which is exactly the failure this replaced. A viewport at a smaller scale prints the
+     same table larger; the emission does not depend on the paper. */
+  const columns = [2000, 6500, 11000, 15000, 18000],
+    head = ["TAG", "TYPE", "SIZE (mm)", "SILL (mm)", "HOST WALL"],
+    rowGap = 260,
+    left = bounds.min[0],
+    top = bounds.max[1];
+
+  text([left + 10000, top], `DOOR & WINDOW SCHEDULE — ${level?.name ?? levelId}`, 190, "schedule-title");
+  head.forEach((value, i) => text([left + columns[i], top - 520], value, 150, `schedule-head-${i}`));
+  line([left, top - 620], [left + 20000, top - 620], "schedule-rule", 6);
+
+  if (!openings.length) {
+    text([left + 10000, top - 900], "No doors or windows are recorded on this level.", 150, "schedule-empty");
+    return out;
+  }
+  openings.forEach((o, n) => {
+    const cells = [o.tag, o.kind.toUpperCase(), `${o.width} × ${o.height}`, String(o.sill), host(o.wallId)];
+    cells.forEach((value, i) =>
+      text([left + columns[i], top - 900 - n * rowGap], value, 140, `schedule-${o.id}-${i}`),
+    );
+  });
   return out;
 }
 export function arcPath(p: Primitive) {

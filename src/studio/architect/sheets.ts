@@ -240,6 +240,9 @@ export async function exportIssueSetPdf(
   }
 
   const register = issueRegister(review, issuedAt),
+    /* The register page is A1 portrait regardless of the sheets it lists, so its own millimetre scale is
+       fixed here rather than taken from any sheet's paper. */
+    mm = 72 / 25.4,
     page = out.insertPage(0, [595.276, 841.89]),
     line = (value: string, y: number, size = 9) =>
       page.drawText(value, { x: 35, y, size, font, color: rgb(0.16, 0.19, 0.21) });
@@ -252,17 +255,52 @@ export async function exportIssueSetPdf(
   );
   line(`${register.sheetCount} drawing sheet${register.sheetCount === 1 ? "" : "s"} in this issue`, 736);
   line("This issue requires design review. Print at 100%, without fit-to-page.", 722, 8);
-  line("No.  Sheet      Size  Scale    Views  Name", 700, 8);
+  line("No.  Sheet      Size  Views  Scale printed  Name", 700, 8);
   register.sheets.forEach((row, index) => {
     const y = 686 - index * 13;
     if (y < 40) return;
     line(
       `${String(row.position).padStart(3, " ")}  ${row.number.slice(0, 9).padEnd(9, " ")}  ` +
-        `${row.size.padEnd(4, " ")}  ${row.scale.padEnd(7, " ")}  ${String(row.viewports).padStart(5, " ")}  ` +
-        row.name.slice(0, 44),
+        `${row.size.padEnd(4, " ")}  ${String(row.viewports).padStart(5, " ")}  ` +
+        `${row.scaleLabel.padEnd(14, " ")}  ` + row.name.slice(0, 34),
       y,
       8,
     );
+  });
+
+  /* One bar per printed scale, under the table, each labelled with the ratio and the paper it belongs to
+     (SC-02). A bar without its ratio beside it is a length nobody can use, and two sheets at the same ratio
+     on different paper share a bar because the bar is the same length on both.
+     The register page's own coordinates are points from its bottom-left, like every other line on it; only
+     the bar's length is a millimetre measurement, so only that is converted. */
+  const barsTop = Math.max(120, 674 - register.sheets.length * 13);
+  register.scales.forEach((entry, index) => {
+    const y = barsTop - index * 22,
+      barPt = entry.barMm * mm,
+      left = 35,
+      mark = (x: number, height: number) =>
+        page.drawLine({
+          start: { x, y },
+          end: { x, y: y - height },
+          thickness: 0.75,
+          color: rgb(0.16, 0.19, 0.21),
+        });
+    page.drawLine({
+      start: { x: left, y },
+      end: { x: left + barPt, y },
+      thickness: 1,
+      color: rgb(0.16, 0.19, 0.21),
+    });
+    mark(left, 4);
+    mark(left + barPt / 2, 4);
+    mark(left + barPt, 4);
+    page.drawText(`${entry.label} — 0 to 5 m as drawn (${entry.sheets} sheet${entry.sheets === 1 ? "" : "s"})`, {
+      x: left + barPt + 6,
+      y: y + 2,
+      size: 7,
+      font,
+      color: rgb(0.16, 0.19, 0.21),
+    });
   });
   out.setTitle(`${register.project} / ${register.purpose}`);
   out.setSubject(

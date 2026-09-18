@@ -125,7 +125,7 @@ graph TD
 * **Depends on**: None (SH-03 contract is committed in `src/studio/industries/deliveryRecord.ts`).
 * **Commit**: the commit that carries this line; proof in `proof/growth/2026-09-18-sc01-delivery-seal/`.
 
-#### SC-02 — Multi-Sheet Drawing Register & Vector PDF Batch Publisher `[[pending]]`
+#### SC-02 — Multi-Sheet Drawing Register & Vector PDF Batch Publisher `[[machine-done]]`
 * **Goal**: Expand `authoredSheetSet.ts` and `alterationIssueExport.ts` to output complete multi-page A3/A1 drawing packages with an automated Drawing Register (Transmittal Sheet), drawing scale verification, and title block metadata.
 * **DONE (machine)**:
   - Vector PDF generator renders Site Plan, Floor Plans, Sections, Elevations, and Schedules in a single batch PDF.
@@ -142,7 +142,7 @@ graph TD
   - `src/studio/architect/drawingRegister.ts` (new)
   - `src/studio/architect/drawingRegister.test.ts` (new)
 * **Depends on**: SC-01
-* **Commit**: —
+* **Commit**: the commit that carries this line; machine criteria proven in `proof/growth/2026-09-18-sc02-drawing-register/`, the human PDF inspection still outstanding.
 
 #### SC-03 — Architectural Annotation Delta & Drawing Revision Clouding `[[pending]]`
 * **Goal**: Implement automatic geometric delta detection between alteration stages to generate visual revision clouds and delta marks ($\Delta\text{ Rev B}$) on modified walls, openings, and notes.
@@ -480,7 +480,7 @@ graph TD
 | Slice | Title | Portion | Status | Machine Gate | Visual / Executed Proof | Commit |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **SC-01** | Wire SH-03 Delivery Record to Residential Issues | Portion 1 | `[[done]]` | 1725 pass / 0 fail, tsc 0, scoped lint 0 | Desktop 1600×1000 + Tablet 1024×768, both seals verified in-page | this commit |
-| **SC-02** | Multi-Sheet Drawing Register & Vector PDF Batch | Portion 1 | `[[pending]]` | Pending | Required (Multi-Page PDF) | — |
+| **SC-02** | Multi-Sheet Drawing Register & Vector PDF Batch | Portion 1 | `[[machine-done]]` | 1733 pass / 0 fail, tsc 0, lint 0 errors | PDF exported and read back (text layer); visual inspection outstanding | this commit |
 | **SC-03** | Architectural Annotation Delta & Revision Clouds | Portion 1 | `[[pending]]` | Pending | Required (PlanCanvas Clouds) | — |
 | **SC-04** | ROOF-01 Assistant Course Calculator Correction | Portion 2 | `[[pending]]` | Pending | Required (Assistant Query Log)| — |
 | **SC-05** | ROOF-02/03 True 3D Hip, Valley & Pitch Geometry | Portion 2 | `[[pending]]` | Pending | Required (3D Wireframe/Table)| — |

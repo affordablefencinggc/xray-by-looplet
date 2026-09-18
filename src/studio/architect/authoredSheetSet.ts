@@ -10,7 +10,7 @@ export const sheetLayoutSchema = z.object({
   northAngle: coordinate,
   viewports: z.array(z.object({
     id: identity,
-    view: z.enum(["plan", "north", "south", "east", "west", "section"]),
+    view: z.enum(["plan", "north", "south", "east", "west", "section", "schedule"]),
     levelId: identity,
     x: coordinate, y: coordinate,
     width: z.number().finite().positive().max(1e6),

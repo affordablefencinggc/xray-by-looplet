@@ -141,7 +141,8 @@ test("the register records position, identity and the issue's own revision", () 
   );
   for (const row of register.sheets) {
     assert.ok(row.number, "every register row names its sheet");
-    assert.match(row.scale, /^1:\d+$/);
+    assert.match(row.scale, /^\d+$/, "the row carries the bare ratio");
+    assert.match(row.scaleLabel, /^1:\d+ @ A[13]$/, "the register prints the scale qualified by its paper");
   }
 });
 

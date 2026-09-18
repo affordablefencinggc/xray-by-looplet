@@ -929,7 +929,7 @@ export function ArchitectSheets({
           value={newView}
           onChange={(e) => setNewView(e.target.value as View)}
         >
-          {["plan", "north", "south", "east", "west", "section"].map((v) => (
+          {["plan", "north", "south", "east", "west", "section", "schedule"].map((v) => (
             <option key={v}>{v}</option>
           ))}
         </select>
