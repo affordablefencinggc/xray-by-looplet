@@ -330,6 +330,15 @@ export function compareSheets(
 function remainingChanges<T extends { revision: number }>(baseline: T, target: T, changes: string[]) {
   const { revision: _before, ...before } = baseline;
   const { revision: _after, ...after } = target;
+  // A lifecycle transition is the most consequential edit an element can carry, so
+  // it is named rather than left to the catch-all below: "modified" tells a reader
+  // nothing about whether the element is still there. A demolition in particular is
+  // the one change whose earlier position the later drawing no longer holds.
+  const from = (baseline as { lifecycle?: { status: string } }).lifecycle?.status;
+  const to = (target as { lifecycle?: { status: string } }).lifecycle?.status;
+  if (from !== to && from !== undefined && to !== undefined) {
+    changes.push(`Lifecycle ${from} → ${to}`);
+  }
   if (!changes.length && JSON.stringify(before) !== JSON.stringify(after)) {
     changes.push("Element geometry, placement, or specification modified");
   }

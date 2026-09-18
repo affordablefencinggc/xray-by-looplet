@@ -1,0 +1,35 @@
+Boot-guard campaign · task-owned browser cleanup
+2026-09-18
+
+Rule applied: AGENTS.project.md — session-name prefix in
+%USERPROFILE%\.agent-browser\<session>.pid, then PID + creation time +
+executable re-read from the live process table before termination.
+
+Graceful close was attempted first and exhausted:
+
+  node scripts/fast-cdp-test.mjs qa-guard3 .temp/live-rig/scenarios/close-campaign.json --cdp 9222
+  -> "Operation timed out. The page may still be loading or the element may not exist."
+  -> runner report: proof/growth/runner/2026-09-18T10-06-27-158Z-qa-guard3.log
+  -> pid 19968 still ALIVE after the bounded wait
+
+Every session below resolved its PID from its own .pid file and was re-verified
+against the live table (ExecutablePath === the agent-browser binary for this
+checkout) immediately before termination.
+
+session            pid     executable verified              result
+qa-bootguard       87280   agent-browser-win32-x64.exe      terminated
+qa-guard-fired     7380    agent-browser-win32-x64.exe      terminated
+qa-guard3          19968   agent-browser-win32-x64.exe      already gone
+qa-tstring-blank   30248   agent-browser-win32-x64.exe      terminated
+qa-tstring-app     42532   agent-browser-win32-x64.exe      terminated
+qa-frozen          64352   agent-browser-win32-x64.exe      terminated
+qa-close           69104   agent-browser-win32-x64.exe      already gone
+
+Retained deliberately:
+- The dev server on port 8085 (.temp/live-rig/server-8085.ps1). It is the
+  user-facing preview and is still serving; it is not superseded.
+- No browser profile directory, screenshot or log was deleted. This pass
+  terminates processes only.
+
+Not touched: no installed application, no user project, no unrelated repository,
+no process outside the session-prefix ownership rule.
