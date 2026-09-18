@@ -1,0 +1,24 @@
+$ npx eslint <the four files this slice changed>
+(no output; exit 0)
+exit 0
+
+The repository-wide run, recorded because the gate above is the one this slice answers to and this one is not:
+
+$ npx eslint .
+✖ 197297 problems (179928 errors, 17369 warnings)
+exit 1
+
+findings by top-level directory (files with at least one finding, 1193 in all):
+
+  proof              882
+  src-tauri          126
+  .temp               93
+  src                 45
+  snapshots           25
+  scripts             12
+  public              10
+
+The four files this slice changed appear nowhere in that list. The findings are pre-existing: they sit in
+the committed proof bundles' inline scripts (proof/), the Rust tree (src-tauri/), ignored scratch (.temp/)
+and elsewhere, and the run was already failing before this slice. eslint . is therefore recorded as it is
+rather than as the gate assumes.

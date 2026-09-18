@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { deliveryRecordSchema } from "../industries/deliveryRecord.ts";
 
 /**
  * Leaf schema module for formal frozen alteration issue sets.
- * No dependencies on geometry, resolver, or UI.
+ * No dependencies on geometry, resolver, or UI — the one import is the SH-03 delivery contract, which is
+ * itself a schema module with no geometry in it (SC-01).
  */
 export const ALTERATION_ISSUE_MAX = 10;
 export const ALTERATION_ISSUE_PURPOSE_MAX = 100;
@@ -88,6 +90,17 @@ export const alterationIssueRecordSchema = z
     sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
     issued: z.literal(true),
     sharedAnnotationsAudited: z.boolean(),
+    /**
+     * The SH-03 delivery identity for this issue (SC-01), carrying the same frozen hash as `sourceSha256`
+     * in the contract's own shape so an alteration issue set and an industry report speak the same language.
+     *
+     * Optional because issues issued before the contract was wired in carry none. `checkedAlterationIssue`
+     * adopts those from their own frozen bytes instead of refusing a project that was valid when it was
+     * saved — a stricter schema here would turn "this project predates the field" into "this project cannot
+     * be opened", which is data loss dressed as validation. Every issue created since carries it, and the
+     * adopted one is written back on the next append.
+     */
+    delivery: deliveryRecordSchema.optional(),
   })
   .strict();
 

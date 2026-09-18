@@ -21,6 +21,13 @@ export {
 
 import { validateProject, type ArchitectProject } from "./model.ts";
 import { sha256Hex } from "./designedScene.ts";
+import {
+  DELIVERY_RECORD_SCHEMA,
+  assertDeliveryContentIntact,
+  deliveryRecordSchema,
+  supersedeDelivery,
+  type DeliveryRecord,
+} from "../industries/deliveryRecord.ts";
 import { resolveAlterationStage, type AlterationBasis } from "./alterationStage.ts";
 import { calculateAlterationQuantities } from "./alterationQuantities.ts";
 import {
@@ -47,16 +54,110 @@ function sourceSnapshot(project: ArchitectProject): ArchitectProject {
   return source;
 }
 
+/**
+ * The code a caller can act on when a record's delivery identity no longer describes the record (SC-01).
+ * Every other failure here is a refusal to issue; this one means the bytes and the seal have come apart,
+ * which is a different thing to tell a user: the record is not to be repaired, it is to be re-issued.
+ */
+export const CORRUPTED_ISSUE_DELIVERY = "CORRUPTED_ISSUE_DELIVERY";
+
+export function isCorruptedIssueDelivery(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith(CORRUPTED_ISSUE_DELIVERY);
+}
+
+function corruptedIssueDelivery(detail: string): Error {
+  return Error(
+    `${CORRUPTED_ISSUE_DELIVERY}: ${detail} Re-issue the set from the project rather than repairing this record.`,
+  );
+}
+
+/**
+ * The delivery identity an issue issued before the contract was wired in would have carried, derived from
+ * the record's own frozen bytes rather than from anything the caller supplies. Adopting it keeps a project
+ * that was valid when it was saved openable; it is written back to storage on the next append.
+ */
+function adoptedDelivery(record: AlterationIssueRecord): DeliveryRecord {
+  const superseded = record.status === "superseded";
+  return deliveryRecordSchema.parse({
+    format: DELIVERY_RECORD_SCHEMA,
+    id: record.id,
+    kind: "alteration",
+    projectId: record.projectId,
+    state: "issued-deliverable",
+    revision: record.projectRevision,
+    createdAt: record.issuedAt,
+    reviewedAt: record.issuedAt,
+    issuedAt: record.issuedAt,
+    sourceBinding: null,
+    contentSha256: record.sourceSha256,
+    status: superseded ? "superseded" : "active",
+    ...(superseded
+      ? {
+          supersededAt: record.supersededAt,
+          supersededById: record.supersededById,
+          supersededByRevision: record.supersededByRevision,
+        }
+      : {}),
+  });
+}
+
+/** A checked record always carries a delivery identity, whether it was sealed with one or adopted. */
+export type CheckedAlterationIssueRecord = AlterationIssueRecord & { delivery: DeliveryRecord };
+
+/**
+ * Whether a record's seal still describes its frozen bytes — the reading the history screen shows beside
+ * each issue (SC-01). It answers rather than throws: a history screen has to be able to render an issue
+ * whose seal has come apart and say so, which is exactly the case a user needs to see. The hash is
+ * recomputed here rather than read from the record, so the badge means the bytes were hashed, not that a
+ * pointer to a hash was present.
+ */
+export function alterationIssueSeal(record: {
+  sourceJson: string;
+  sourceSha256: string;
+  delivery?: DeliveryRecord;
+}): { sealed: boolean; contentSha256: string; format: string | null } {
+  const recomputed = sha256Hex(record.sourceJson);
+  const sealed =
+    recomputed === record.sourceSha256 &&
+    (record.delivery === undefined || record.delivery.contentSha256 === recomputed);
+  return { sealed, contentSha256: record.sourceSha256, format: record.delivery?.format ?? null };
+}
+
 export function checkedAlterationIssue(
   value: unknown,
   projectId: string,
-): { record: AlterationIssueRecord; source: ArchitectProject } {
+): { record: CheckedAlterationIssueRecord; source: ArchitectProject } {
   const record = alterationIssueRecordSchema.parse(value);
   if (record.projectId !== projectId) {
     throw Error("Saved alteration issue belongs to another project.");
   }
   if (sha256Hex(record.sourceJson) !== record.sourceSha256) {
     throw Error("Saved alteration issue source hash does not match its frozen bytes.");
+  }
+  /* The delivery identity (SC-01): the contract's own hash check over the same frozen bytes, and its
+     pointers held to the record's own. A record whose delivery disagrees with the fields beside it is
+     corrupted rather than merely invalid, so the failure carries the code a caller can act on. */
+  const delivery = record.delivery ?? adoptedDelivery(record);
+  try {
+    assertDeliveryContentIntact(delivery, record.sourceJson, sha256Hex);
+  } catch {
+    throw corruptedIssueDelivery(
+      "Its delivery record's frozen content hash does not match the bytes it sealed.",
+    );
+  }
+  const agrees =
+    delivery.id === record.id &&
+    delivery.projectId === record.projectId &&
+    delivery.contentSha256 === record.sourceSha256 &&
+    delivery.state === "issued-deliverable" &&
+    delivery.status === (record.status === "superseded" ? "superseded" : "active") &&
+    delivery.revision === record.projectRevision &&
+    delivery.issuedAt === record.issuedAt &&
+    delivery.supersededAt === record.supersededAt &&
+    delivery.supersededById === record.supersededById &&
+    delivery.supersededByRevision === record.supersededByRevision;
+  if (!agrees) {
+    throw corruptedIssueDelivery("Its delivery record and its own fields disagree about what was issued.");
   }
   let raw: unknown;
   try {
@@ -98,7 +199,7 @@ export function checkedAlterationIssue(
         proposedRes.blockers.map((b) => b.reason).join(" "),
     );
   }
-  return { record, source };
+  return { record: { ...record, delivery }, source };
 }
 
 /**
@@ -167,7 +268,7 @@ export function createAlterationIssueRecord(
   project: ArchitectProject,
   basis: AlterationBasis | null,
   options: CreateAlterationIssueOptions,
-): AlterationIssueRecord {
+): CheckedAlterationIssueRecord {
   const source = sourceSnapshot(validateProject(project));
   if (!basis) {
     throw Error("A reviewed alteration basis is required to issue an alteration set.");
@@ -246,6 +347,26 @@ export function createAlterationIssueRecord(
 
   const id = options.metadata?.id ?? crypto.randomUUID();
   const issuedAt = options.metadata?.issuedAt ?? new Date().toISOString();
+  const sourceSha256 = sha256Hex(sourceJson);
+
+  /* The issue enters the delivery contract already issued: an alteration set is only ever frozen at the
+     moment it is issued, so there is no draft state here to advance through. Its revision is the project
+     revision it froze, which is the number the record already carries and which the record's own
+     `projectRevision` is checked against on every reopen. */
+  const delivery = deliveryRecordSchema.parse({
+    format: DELIVERY_RECORD_SCHEMA,
+    id,
+    kind: "alteration",
+    projectId: source.id,
+    state: "issued-deliverable",
+    revision: source.revision,
+    createdAt: issuedAt,
+    reviewedAt: issuedAt,
+    issuedAt,
+    sourceBinding: null,
+    contentSha256: sourceSha256,
+    status: "active",
+  });
 
   const record = alterationIssueRecordSchema.parse({
     format: "xray.alteration-issue/v1",
@@ -264,9 +385,10 @@ export function createAlterationIssueRecord(
     proposedSummary,
     schedulesSummary,
     sourceJson,
-    sourceSha256: sha256Hex(sourceJson),
+    sourceSha256,
     issued: true,
     sharedAnnotationsAudited: audit.valid,
+    delivery,
   });
 
   return checkedAlterationIssue(record, source.id).record;
@@ -298,15 +420,22 @@ export function appendAlterationIssue(
     );
   }
 
-  // Supersede previous active issues
+  /* Supersede previous active issues, through the delivery contract rather than beside it (SC-01): the
+     prior record's delivery status flips and its pointers are written by `supersedeDelivery`, which carries
+     the frozen content hash through untouched. The contract leaves `supersededByRevision` free-form, and
+     this record's field of that name is the design revision the history screen and the drawing stamp
+     print, so it is set to the same string here — the two representations must not disagree about the
+     revision a reader is being pointed at. */
   const updatedRecords: AlterationIssueRecord[] = records.map((prior) => {
     if (prior.status === "current") {
+      const superseded = supersedeDelivery(prior.delivery ?? adoptedDelivery(prior), verified.delivery);
       return {
         ...prior,
         status: "superseded" as const,
         supersededAt: verified.issuedAt,
         supersededById: verified.id,
         supersededByRevision: verified.designRevision,
+        delivery: { ...superseded, supersededByRevision: verified.designRevision },
       };
     }
     return prior;
@@ -320,7 +449,7 @@ export function appendAlterationIssue(
 export function retrieveAlterationIssue(
   project: ArchitectProject,
   id: string,
-): { record: AlterationIssueRecord; source: ArchitectProject } {
+): { record: CheckedAlterationIssueRecord; source: ArchitectProject } {
   const found = project.alterationIssues?.find((issue) => issue.id === id);
   if (!found) {
     throw Error("The selected alteration issue record does not exist.");

@@ -8,6 +8,7 @@ import {
   retrieveAlterationIssue,
   compareAlterationIssues,
   validateAlterationIssues,
+  isCorruptedIssueDelivery,
 } from "./alterationIssues.ts";
 import { exportAlterationIssueSetPdf } from "./alterationIssueExport.ts";
 
@@ -336,3 +337,129 @@ test("compareAlterationIssues detects sheet changes when sheets are renumbered",
   assert.equal(diff.hasVariance, true);
 });
 
+
+/* --- SC-01: the SH-03 delivery contract, wired into the issue rather than left beside it ---------------- */
+
+test("an issued alteration set enters the delivery contract, sealed with the hash of its own frozen bytes", () => {
+  const p = fixtureProject();
+  const basis = createAlterationBasis(p, "Survey Basis S01");
+  const issue = createAlterationIssueRecord(p, basis, {
+    purpose: "For Planning Approval",
+    metadata: { id: "issue-delivery-a", issuedAt: "2026-09-15T10:00:00.000Z" },
+  });
+
+  assert.equal(issue.delivery.format, "xray.delivery-record/v1");
+  assert.equal(issue.delivery.id, issue.id);
+  assert.equal(issue.delivery.kind, "alteration");
+  assert.equal(issue.delivery.projectId, issue.projectId);
+  assert.equal(issue.delivery.state, "issued-deliverable");
+  assert.equal(issue.delivery.status, "active");
+  assert.equal(issue.delivery.revision, issue.projectRevision);
+  assert.equal(issue.delivery.issuedAt, issue.issuedAt);
+  assert.equal(issue.delivery.reviewedAt, issue.issuedAt);
+  assert.equal(issue.delivery.contentSha256, issue.sourceSha256);
+  assert.equal(issue.delivery.contentSha256.length, 64);
+});
+
+test("reopening refuses a record whose delivery seal no longer matches the bytes it sealed", () => {
+  const p = fixtureProject();
+  const basis = createAlterationBasis(p, "Survey Basis S01");
+  const issue = createAlterationIssueRecord(p, basis, {
+    purpose: "For Planning Approval",
+    metadata: { id: "issue-delivery-b", issuedAt: "2026-09-15T10:00:00.000Z" },
+  });
+
+  // The seal is rewritten to a hash of nothing in particular, the source bytes left alone.
+  const resealed = { ...issue, delivery: { ...issue.delivery, contentSha256: "a".repeat(64) } };
+  assert.throws(
+    () => validateAlterationIssues({ ...p, alterationIssues: [resealed] }),
+    (error: unknown) => isCorruptedIssueDelivery(error) && /content hash does not match/.test(String(error)),
+  );
+
+  // And the reverse: the bytes move while the seal stays, which the record's own field catches first.
+  const moved = { ...issue, sourceJson: issue.sourceJson + " " };
+  assert.throws(() => validateAlterationIssues({ ...p, alterationIssues: [moved] }), /hash does not match/);
+});
+
+test("reopening refuses a record whose delivery and own fields disagree about what was issued", () => {
+  const p = fixtureProject();
+  const basis = createAlterationBasis(p, "Survey Basis S01");
+  const issue = createAlterationIssueRecord(p, basis, {
+    purpose: "For Planning Approval",
+    metadata: { id: "issue-delivery-c", issuedAt: "2026-09-15T10:00:00.000Z" },
+  });
+
+  const disagreeing = [
+    { ...issue, delivery: { ...issue.delivery, projectId: "another-project" } },
+    { ...issue, delivery: { ...issue.delivery, revision: issue.delivery.revision + 1 } },
+    { ...issue, delivery: { ...issue.delivery, issuedAt: "2026-09-15T11:00:00.000Z" } },
+    { ...issue, delivery: { ...issue.delivery, id: "issue-delivery-renamed" } },
+  ];
+  for (const record of disagreeing) {
+    assert.throws(
+      () => validateAlterationIssues({ ...p, alterationIssues: [record] }),
+      (error: unknown) => isCorruptedIssueDelivery(error),
+      "a delivery that disagrees with the record beside it is refused",
+    );
+  }
+});
+
+test("an issue saved before the contract opened is adopted from its own bytes, not refused", () => {
+  const p = fixtureProject();
+  const basis = createAlterationBasis(p, "Survey Basis S01");
+  const issued = createAlterationIssueRecord(p, basis, {
+    purpose: "For Planning Approval",
+    metadata: { id: "issue-delivery-legacy", issuedAt: "2026-09-15T10:00:00.000Z" },
+  });
+  const { delivery: _dropped, ...legacy } = issued;
+
+  // The project still validates: the record predates the field, it is not corrupt.
+  validateAlterationIssues({ ...p, alterationIssues: [legacy] });
+
+  const reopened = retrieveAlterationIssue({ ...p, alterationIssues: [legacy] } as never, legacy.id);
+  assert.equal(reopened.record.delivery.contentSha256, legacy.sourceSha256);
+  assert.equal(reopened.record.delivery.state, "issued-deliverable");
+  assert.equal(reopened.record.delivery.status, "active");
+  assert.equal(reopened.record.delivery.id, legacy.id);
+
+  // And a legacy record whose bytes were edited after the fact is still refused.
+  const edited = { ...legacy, sourceJson: legacy.sourceJson + " " };
+  assert.throws(() => validateAlterationIssues({ ...p, alterationIssues: [edited] }), /hash does not match/);
+});
+
+test("superseding writes the delivery pointers through the contract and carries the frozen hash untouched", () => {
+  let p = fixtureProject();
+  const basisA = createAlterationBasis(p, "Survey Basis S01");
+  const issueA = createAlterationIssueRecord(p, basisA, {
+    purpose: "For Client Review",
+    metadata: { id: "issue-delivery-a1", issuedAt: "2026-09-15T10:00:00.000Z" },
+  });
+  p = appendAlterationIssue(p, issueA);
+
+  p.revision = 2;
+  p = validateProject(p);
+  const basisB = createAlterationBasis(p, "Survey Basis S02");
+  const issueB = createAlterationIssueRecord(p, basisB, {
+    purpose: "For Tender Reissue",
+    metadata: { id: "issue-delivery-b1", issuedAt: "2026-09-15T16:00:00.000Z" },
+  });
+  p = appendAlterationIssue(p, issueB);
+
+  const [superseded] = p.alterationIssues ?? [];
+  assert.ok(superseded.delivery, "a record issued by this build stores its delivery identity");
+  assert.equal(superseded.status, "superseded");
+  assert.equal(superseded.delivery.status, "superseded");
+  assert.equal(superseded.delivery.state, "issued-deliverable");
+  assert.equal(superseded.delivery.supersededAt, superseded.supersededAt);
+  assert.equal(superseded.delivery.supersededById, superseded.supersededById);
+  assert.equal(superseded.delivery.supersededByRevision, superseded.supersededByRevision);
+  assert.equal(superseded.delivery.supersededById, issueB.id);
+
+  // The frozen bytes and the seal over them are the ones revision A was issued with, unchanged.
+  assert.equal(superseded.delivery.contentSha256, superseded.sourceSha256);
+  assert.equal(superseded.delivery.contentSha256, issueA.delivery.contentSha256);
+  assert.equal(superseded.sourceJson, issueA.sourceJson);
+
+  // The record with its supersession written through revalidates as a whole.
+  validateAlterationIssues(p);
+});

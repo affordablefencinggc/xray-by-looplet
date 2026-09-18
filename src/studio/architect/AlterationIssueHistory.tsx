@@ -2,6 +2,7 @@ import { useState } from "react";
 import { type ArchitectProject } from "./model.ts";
 import {
   type AlterationIssueRecord,
+  alterationIssueSeal,
   compareAlterationIssues,
   type AlterationIssueComparison,
 } from "./alterationIssues.ts";
@@ -133,6 +134,9 @@ export function AlterationIssueHistory({ project }: AlterationIssueHistoryProps)
         {[...issues].reverse().map((issue, idx, arr) => {
           const isCurrent = issue.status === "current";
           const priorIssue = arr[idx + 1];
+          /* Recomputed here rather than read off the record: the badge says the frozen bytes hash to the
+             seal this issue was issued with, which is the claim a reader is being asked to rely on. */
+          const seal = alterationIssueSeal(issue);
 
           return (
             <div key={issue.id} className="alteration-saved-row alteration-issue-row">
@@ -147,6 +151,26 @@ export function AlterationIssueHistory({ project }: AlterationIssueHistoryProps)
                 </div>
                 <time dateTime={issue.issuedAt}>{new Date(issue.issuedAt).toLocaleString("en-AU")}</time>
               </div>
+
+              <p className="alteration-seal-row">
+                {seal.sealed ? (
+                  <span
+                    className="alteration-seal-badge seal-verified"
+                    title={`The frozen source hashes to ${seal.contentSha256}, the seal this issue was issued with.`}
+                  >
+                    Cryptographically Sealed (SHA-256 Verified)
+                  </span>
+                ) : (
+                  <span
+                    className="alteration-seal-badge seal-broken"
+                    role="alert"
+                    title={`The frozen source no longer hashes to ${seal.contentSha256}. Re-issue the set from the project; do not edit this record.`}
+                  >
+                    Seal not verified — the frozen bytes have changed since this issue was sealed
+                  </span>
+                )}
+                <code className="alteration-seal-hash">{seal.contentSha256.slice(0, 16)}…</code>
+              </p>
 
               {!isCurrent && issue.supersededByRevision && (
                 <p className="alteration-superseded-pointer">
