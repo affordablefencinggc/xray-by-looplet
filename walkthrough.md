@@ -838,6 +838,28 @@ Executed: `node scripts/fast-cdp-test.mjs qa-dash-ticks` against the built file 
 
 `node scripts/validate-dashboard.mjs` passes after the rebuild (58 proof images, 30 slices, 375 A-Z rows). The remaining `16` that the tab prose used to assert is now `${stats.slicesTotal}`; the other headline figures on that page (1,751 tests, 89 suites, 53 proofs, 108/375) are still literal and were not re-derived in this pass.
 
+### SC-07's proof was racing React (2026-09-19)
+
+Re-running `qa-sc07-final` against the committed tree passes — four times over (`24.2 s`, then three consecutive runs). The two earlier `exit=1` runs in `proof/growth/runner/` were not flakiness and not a product defect. They were the proof asserting too early.
+
+The old scenario combined the restore click and its assertion in a single `eval`:
+
+```js
+document.querySelector('[data-testid="tamper-simulate"]').click();
+const card = document.querySelector('[data-testid="delivery-seal-card"]');
+if (card.getAttribute('data-seal-status') !== 'verified') throw Error('Seal did not restore');
+```
+
+`setTampered` is a React state update. The click schedules it; it does not apply it. The next line reads `data-seal-status` off the DOM in the same synchronous task, before React has committed, and sees the still-`failed` attribute left by the tamper step. The assertion was guaranteed to fail, not merely prone to.
+
+The fix is in the current scenario and splits that one op into two: op 33 clicks and returns `'restore clicked'`, op 34 is a `wait --fn … data-seal-status==='verified'`, which yields to the browser between them. Confirmed by op alignment — the 41-op scenario is the 39/40-op sequence with exactly that one op split, and nothing else differs. Run `2026-09-19T04-32-36-149Z-qa-sc07-final` (exit 0) is the first run of the corrected scenario, three seconds after the last failure.
+
+The panel was always correct: `onClick={() => setTampered((t) => !t)}`. Nothing in the product changed. What changed is that the proof now waits for the state it claims to have produced.
+
+Both states are captured and inspected, not merely written: [seal-tamper-rejected](proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-seal-tamper-rejected-desktop-1600x1000.png) shows the card red with `SEAL INVALID`, the digest withheld (`— withheld, seal did not verify —`) and `Status: REJECTED (digest mismatch)`; [fastener-and-seal](proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png) shows it green with `ISSUED-DELIVERABLE`, a real 64-hex digest and `Status: ACTIVE (Uncompromised)`. The withheld-digest claim is visible in the pixels rather than inferred from `data-seal-status`.
+
+Recheck runs: `qa-sc07-recheck` (exit 0) and `qa-sc07-stability-1..3` (exit 0 ×3), in `proof/growth/runner/`. These are diagnostics re-run against a corrected scenario, not new sections — the section's own evidence remains `qa-sc07-final`.
+
 ## SC-09 — QS item-level evidence binding (QS-03) (2026-09-19)
 
 Every cost-plan row can now be bound to the measured entity its quantity came from, and the binding carries the entity's SHA-256 geometry hash and the calibration it was measured under. Whether a binding still holds is **derived on every render** from the live entity, never stored — `evaluateItemBinding(binding, entity)` is a pure function, for the same reason `frozenDeliveryState` is. A stored verdict would be a second source of truth, and the copy is the one that goes stale.
