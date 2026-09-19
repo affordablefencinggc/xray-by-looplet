@@ -27,6 +27,9 @@ import { SheetManager } from "./SheetManager";
 import { useSheetLifecycle } from "./useSheetLifecycle.ts";
 import { PriceBookPanel } from "./pricing/PriceBookPanel";
 import { IndustryDraftWorkbench } from "./industries/IndustryDraftWorkbench";
+import { QS_HIGHLIGHT_EVENT, qsHighlightRequestSchema } from "./industries/quantity-surveying/qsEntityHighlight";
+import { QsMeasuredGeometryPreview } from "./industries/quantity-surveying/QsMeasuredGeometryPreview";
+import { QsMeasuredGeometryScope } from "./industries/quantity-surveying/QsMeasuredGeometryScope";
 import { invalidateModelViews } from "./modelViewSnapshot";
 import { SourceBuildingViewer } from "./SourceBuildingViewer";
 import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
@@ -1448,6 +1451,7 @@ function CostRightRail() {
     <p>Import supplier rates, review their units and commercial basis, then apply selected rates to a priced worksheet.</p>
     <p>Enter quantities explicitly. Each worksheet line retains its supplier and price-book revision. Drawing measurements and assembly calculations remain separate until reviewed.</p>
     <div className="rail-register mt-2.5"><Row a="Project" b={s.job.name} /><Row a="Source" b={document?.name ?? "No drawing required for a price book"} /></div>
+    <MeasuredGeometryEvidence />
   </aside>;
   if (generalRuns.length) return <aside className="studio-right-rail overflow-auto border-l border-line p-3">
     <h2 className="kicker">Quantity scope</h2>
@@ -1458,6 +1462,7 @@ function CostRightRail() {
       <Row a="Assembly quantities" b="Require reviewed rules" />
     </div>
     <p>{document?.name ?? "Import a source drawing."}</p>
+    <MeasuredGeometryEvidence />
   </aside>;
   return (
     <aside className="studio-right-rail overflow-auto border-l border-line p-3">
@@ -1478,7 +1483,63 @@ function CostRightRail() {
         <div className="kicker mt-2.5">Source</div>
         <p className="mt-2">{document?.name ?? "Import and verify a source plan before preparing quantities."}</p>
       </div>
+      <MeasuredGeometryEvidence />
     </aside>
+  );
+}
+
+/** Coordinated 2D and 3D context beside the quantity worksheet.
+ * A request is accepted only when the exact real run is on the active sheet;
+ * both views then derive their selection from the same entity id. */
+function MeasuredGeometryEvidence() {
+  const s = useStudio();
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const visibleRuns = s.job.runs.filter(run => run.sheet === s.sheet);
+  const present = highlighted !== null && visibleRuns.some((run) => run.id === highlighted);
+
+  useEffect(() => {
+    const onHighlight = (event: Event) => {
+      const request = qsHighlightRequestSchema.safeParse((event as CustomEvent).detail);
+      if (!request.success) return;
+      const current = useStudio.getState();
+      if (!current.job.runs.some(run => run.id === request.data.entityId && run.sheet === current.sheet)) return;
+      setHighlighted(request.data.entityId);
+      useStudio.getState().selectRun(request.data.entityId);
+    };
+    window.addEventListener(QS_HIGHLIGHT_EVENT, onHighlight);
+    return () => window.removeEventListener(QS_HIGHLIGHT_EVENT, onHighlight);
+  }, []);
+
+  return (
+    <section className="evidence-geometry-preview" data-testid="qs-evidence-preview">
+      <div className="kicker">Measured geometry</div>
+      <p className="mt-2">{present
+        ? `Showing ${s.job.runs.find(run => run.id === highlighted)?.label ?? highlighted} in plan and 3D.`
+        : highlighted === null
+          ? "Activate a measured item to highlight the geometry it was measured from."
+          : "That entity is not present in this project's geometry."}</p>
+      <div className="evidence-geometry-surfaces">
+        <div>
+          <span className="evidence-surface-label">2D measured plan</span>
+          <div
+            className="evidence-surface-frame"
+            data-qs-highlight-surface="plan-2d"
+            data-testid="qs-evidence-plan"
+            data-highlighted-entity={present ? highlighted : undefined}
+          >
+            <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} zoom={s.zoom2d} pan={s.pan2d}>
+              {(page) => <PlanCanvas interactive={false} sourceMode="overlay" sourceBounds={page?.bounds ?? null} selectedRunId={present ? highlighted : null} />}
+            </DocumentPreview>
+          </div>
+        </div>
+        <div>
+          <span className="evidence-surface-label">3D measured model</span>
+          <div className="evidence-surface-frame">
+            <QsMeasuredGeometryPreview runs={visibleRuns} selectedRunId={present ? highlighted : null} />
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1816,7 +1877,9 @@ function CostPane() {
 
   return (
     <div className="cost-workspace">
-      {s.persistenceHydrated && !s.persistenceError && <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.job.activeSheet ?? 0} calibrations={s.job.calibrations} />}
+      {s.persistenceHydrated && !s.persistenceError && <QsMeasuredGeometryScope job={s.job} activeSheet={s.sheet} sourceReady={s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId && s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256}>
+        <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.sheet} calibrations={s.job.calibrations} />
+      </QsMeasuredGeometryScope>}
       {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} />
         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">

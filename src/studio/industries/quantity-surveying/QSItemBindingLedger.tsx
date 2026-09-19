@@ -7,6 +7,7 @@ import {
   type QsEntityGeometry,
   type QsItemBinding,
 } from "./qsItemBinding.ts";
+import { resolveEntityHighlight, type QsHighlightResolution } from "./qsEntityHighlight.ts";
 
 
 /** The minimum a row must supply. Accepting this rather than a full
@@ -18,6 +19,8 @@ export interface QSBindingLedgerRow {
   id: string;
   quantity: string;
   unit: string;
+  evidence?: "unverified" | "inferred" | "sample";
+  projectId?: string;
 }
 
 interface QSItemBindingLedgerProps {
@@ -29,6 +32,14 @@ interface QSItemBindingLedgerProps {
   /** Live entities by entity id, read at render time. Staleness is derived from
    *  these on every render — nothing here stores a verdict. */
   entities: ReadonlyMap<string, QsEntityGeometry>;
+  /** Called when a row is activated, with the row's binding state already
+   *  resolved. Absent when no canvas is mounted to receive a highlight, so the
+   *  row renders as plain text rather than as a control that would do nothing. */
+  onHighlight?: (itemId: string, resolution: QsHighlightResolution) => void;
+  /** Whether the 2D plan and 3D model are currently mounted. Passed through to
+   *  the resolver so the ledger never claims to have highlighted something no
+   *  canvas could draw. */
+  surfacesAvailable?: boolean;
 }
 
 const STATUS_STYLE: Record<QsBindingStatus, { bg: string; fg: string; border: string; label: string }> = {
@@ -37,6 +48,7 @@ const STATUS_STYLE: Record<QsBindingStatus, { bg: string; fg: string; border: st
   "missing-entity": { bg: "rgba(120, 113, 108, 0.22)", fg: "#e7e5e4", border: "rgba(168, 162, 158, 0.5)", label: "✗ ENTITY MISSING" },
   "unit-changed": { bg: "rgba(217, 119, 6, 0.18)", fg: "#fde68a", border: "rgba(217, 119, 6, 0.55)", label: "✗ UNIT CHANGED" },
   uncalibrated: { bg: "rgba(217, 119, 6, 0.18)", fg: "#fde68a", border: "rgba(217, 119, 6, 0.55)", label: "✗ UNCALIBRATED" },
+  "ineligible-evidence": { bg: "rgba(217, 119, 6, 0.18)", fg: "#fde68a", border: "rgba(217, 119, 6, 0.55)", label: "✗ INELIGIBLE EVIDENCE" },
 };
 
 const UNBOUND_STYLE = { bg: "rgba(71, 85, 105, 0.18)", fg: "#cbd5e1", border: "rgba(100, 116, 139, 0.45)", label: "— NOT BOUND" };
@@ -52,16 +64,47 @@ const UNBOUND_STYLE = { bg: "rgba(71, 85, 105, 0.18)", fg: "#cbd5e1", border: "r
  * number is still shown, because hiding a number a user entered is worse than
  * labelling it. What is withheld is any claim that it is verified.
  */
-export function QSItemBindingLedger({ rows: items, bindings, entities }: QSItemBindingLedgerProps) {
+export function QSItemBindingLedger({
+  rows: items, bindings, entities, onHighlight, surfacesAvailable = false,
+}: QSItemBindingLedgerProps) {
   const rows = useMemo(
-    () =>
-      items.map((row) => {
+    () => {
+      const referenceCounts = new Map<string, number>();
+      for (const row of items) {
+        const reference = row.id.trim();
+        referenceCounts.set(reference, (referenceCounts.get(reference) ?? 0) + 1);
+      }
+      return items.map((row) => {
+        // Draft references may be duplicated while the estimator edits. A map
+        // keyed by that reference cannot identify which row owns its binding,
+        // so neither duplicate may borrow the other row's measured evidence.
+        const ambiguousReference = (referenceCounts.get(row.id.trim()) ?? 0) > 1;
+        if (ambiguousReference) return { row, binding: null, evaluation: null, entity: null, ambiguousReference };
         const binding = bindings.get(row.id) ?? null;
-        if (binding === null) return { row, binding, evaluation: null, entity: null };
+        if (binding === null) return { row, binding, evaluation: null, entity: null, ambiguousReference };
         const entity = entities.get(binding.entityId) ?? null;
-        return { row, binding, evaluation: evaluateItemBinding(binding, entity), entity };
-      }),
+        return { row, binding, evaluation: evaluateItemBinding(binding, entity, row), entity, ambiguousReference };
+      });
+    },
     [items, bindings, entities],
+  );
+
+  // Resolved per row from the same evaluation that drives the badge, so the
+  // highlight can never disagree with the status sitting beside it. Nothing is
+  // stored: the resolution is recomputed whenever the ledger re-renders.
+  const highlights = useMemo(
+    () =>
+      rows.map(({ row, binding, evaluation, entity }) =>
+        resolveEntityHighlight({
+          subject: {
+            entityId: binding?.entityId ?? null,
+            verified: evaluation?.status === "verified",
+            present: entity !== null,
+          },
+          surfacesAvailable,
+        }),
+      ),
+    [rows, surfacesAvailable],
   );
 
   const counts = useMemo(() => {
@@ -128,20 +171,43 @@ export function QSItemBindingLedger({ rows: items, bindings, entities }: QSItemB
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ row, binding, evaluation, entity }) => {
+            {rows.map(({ row, binding, evaluation, entity, ambiguousReference }, index) => {
               const style = binding === null || evaluation === null ? UNBOUND_STYLE : STATUS_STYLE[evaluation.status];
+              const highlight = highlights[index];
+              // A row is only a control when there is something to show and somewhere
+              // to show it. Otherwise it is a table row, and saying so in the markup
+              // is honest where a button that does nothing is not.
+              const interactive = onHighlight !== undefined && highlight.resolvable;
               return (
-                <tr key={row.id} data-testid={`qs-binding-row-${row.id}`} data-binding-status={binding === null ? "unbound" : evaluation!.status}>
+                <tr
+                  key={`${row.id}:${index}`}
+                  data-testid={`qs-binding-row-${row.id}`}
+                  data-binding-status={binding === null ? "unbound" : evaluation!.status}
+                  data-ambiguous-reference={ambiguousReference ? "true" : undefined}
+                  data-highlight-claim={highlight.claim}
+                  data-highlight-resolvable={String(highlight.resolvable)}
+                >
                   <td style={{ fontWeight: 600, color: "#f8fafc" }}>{row.id}</td>
                   <td style={{ fontFamily: "monospace" }}>
                     {row.quantity} {row.unit}
                   </td>
                   <td style={{ fontSize: "0.8125rem", color: "#cbd5e1" }}>
                     {binding === null ? (
-                      <span style={{ color: "#94a3b8" }}>No measured entity bound</span>
+                      <span style={{ color: "#94a3b8" }}>{ambiguousReference
+                        ? "Duplicate item reference: assign a unique reference to identify this row's measured binding."
+                        : "No measured entity bound"}</span>
                     ) : (
                       <span title={binding.entityGeometrySha256}>{describeItemBinding(binding)}</span>
                     )}
+                    {interactive ? <button
+                      type="button"
+                      className="qs-binding-highlight"
+                      data-testid={`qs-binding-highlight-${row.id}`}
+                      onClick={() => onHighlight(row.id, highlight)}
+                      title={evaluation && evaluation.status !== "verified" ? evaluation.reasons.join(" ") : highlight.note}
+                    >
+                      Show in plan + 3D
+                    </button> : null}
                   </td>
                   <td>
                     <span
@@ -156,7 +222,7 @@ export function QSItemBindingLedger({ rows: items, bindings, entities }: QSItemB
                         border: `1px solid ${style.border}`,
                       }}
                     >
-                      {style.label}
+                      {ambiguousReference ? "AMBIGUOUS REFERENCE" : style.label}
                     </span>
                     {evaluation?.reasons.length ? (
                       <ul style={{ margin: "0.375rem 0 0", paddingLeft: "1rem", fontSize: "0.75rem", color: "#fca5a5" }}>

@@ -8,6 +8,7 @@ import {
 import {
   describeIndustryBinding, isVerifiedEvidenceClass, type IndustrySourceState,
 } from "../sourceBinding.ts";
+import { QS_ITEM_BINDING_SCHEMA } from "./qsItemBinding.ts";
 
 function fixture(): QuantityForm {
   return {
@@ -108,6 +109,30 @@ test("JSON draft roundtrip retains unassigned items and recomputes the same repo
   const restored = quantityFormSchema.parse(JSON.parse(JSON.stringify(form)));
   assert.deepEqual(calculateQuantityForm(restored), calculateQuantityForm(form));
   assert.equal(restored.items[1].nodeKey, "");
+});
+
+test("JSON draft roundtrip retains the exact immutable measured-entity binding", () => {
+  const form = fixture();
+  form.items[0].entityBinding = {
+    format: QS_ITEM_BINDING_SCHEMA,
+    itemId: "a",
+    projectId: "project-1",
+    entityId: "wall-run-7",
+    entityType: "wall-run",
+    measuredQuantity: "0.1",
+    unit: "m2",
+    entityGeometrySha256: "c".repeat(64),
+    sourceSha256: "d".repeat(64),
+    calibrationId: "cal:0:manual:0.01:candidate-1",
+    boundAt: "2026-09-19T10:00:00.000Z",
+    boundBy: "estimator-selection",
+  };
+  const restored = quantityFormSchema.parse(JSON.parse(JSON.stringify(form)));
+  assert.deepEqual(restored.items[0].entityBinding, form.items[0].entityBinding);
+  assert.throws(() => quantityFormSchema.parse({
+    ...form,
+    items: [{ ...form.items[0], entityBinding: { ...form.items[0].entityBinding, status: "verified" } }, form.items[1]],
+  }), /Unrecognized key/);
 });
 
 // --- QS-03: binding classified rows to immutable measured evidence ---

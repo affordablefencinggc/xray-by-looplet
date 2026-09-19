@@ -10,6 +10,11 @@ import ts from "typescript";
 import type { z } from "zod";
 import type { QuantityReport } from "./report.ts";
 import { classifyQuantities } from "./classification.ts";
+// Package-level test registration: `npm test` already executes this suite, so
+// importing the companion contract suite keeps QS-03's highlight invariants in
+// the mandatory regression gate as well as focused runs.
+import "./qsEntityHighlight.test.ts";
+import "./qsMeasuredGeometry.test.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 mkdirSync(resolve("node_modules/.cache"), { recursive: true });
@@ -60,6 +65,7 @@ const geometryInput = {
   entityId: "wall-run-7",
   entityType: "wall-run",
   geometrySha256: HASH_A,
+  sourceSha256: HASH_B,
   calibrationId: "cal-01",
   unit: "m",
   measuredQuantity: "18.50",
@@ -138,6 +144,13 @@ test("B3: a changed calibration is stale even when geometry is unchanged", () =>
   assert.equal(result.pricingPermitted, false);
 });
 
+test("B3b: a changed source hash makes the entity binding stale", () => {
+  const result = evaluateItemBinding(parseBinding(), parseGeometry({ sourceSha256: HASH_C }));
+  assert.equal(result.status, "stale-measurement");
+  assert.equal(result.pricingPermitted, false);
+  assert.match(result.reasons[0], /Source identity changed/);
+});
+
 test("B4: a deleted entity reports missing-entity, not stale", () => {
   const result = evaluateItemBinding(parseBinding(), null);
   assert.equal(result.status, "missing-entity");
@@ -181,6 +194,52 @@ test("B9: a drifted measured quantity is stale", () => {
   const result = evaluateItemBinding(parseBinding(), parseGeometry({ measuredQuantity: "19" }));
   assert.equal(result.status, "stale-measurement");
   assert.match(result.reasons[0], /Measured quantity changed from 18\.5 to 19 m/);
+});
+
+test("B9b: editing only the cost-plan quantity makes the immutable binding stale", () => {
+  const result = evaluateItemBinding(parseBinding(), parseGeometry(), { quantity: "19", unit: "m" });
+  assert.equal(result.status, "stale-measurement");
+  assert.equal(result.pricingPermitted, false);
+  assert.match(result.reasons[0], /Cost-plan quantity changed from 18\.5 to 19 m/);
+});
+
+test("B9c: editing only the cost-plan unit withholds pricing as unit-changed", () => {
+  const result = evaluateItemBinding(parseBinding(), parseGeometry(), { quantity: "18.5", unit: "ft" });
+  assert.equal(result.status, "unit-changed");
+  assert.equal(result.pricingPermitted, false);
+  assert.match(result.reasons[0], /Cost-plan unit changed from m to ft/);
+});
+
+test("B9d: equivalent decimal spelling does not make an unchanged quantity stale", () => {
+  const result = evaluateItemBinding(parseBinding(), parseGeometry(), { quantity: "18.500", unit: "m" });
+  assert.equal(result.status, "verified");
+  assert.equal(result.pricingPermitted, true);
+});
+
+test("B9e: sample and inferred row evidence cannot verify against matching measured geometry", () => {
+  const binding = parseBinding(), geometry = parseGeometry();
+  for (const evidence of ["sample", "inferred"] as const) {
+    const result = evaluateItemBinding(binding, geometry, { quantity: "18.5", unit: "m", evidence, projectId: binding.projectId });
+    assert.equal(result.status, "ineligible-evidence");
+    assert.equal(result.pricingPermitted, false);
+    assert.match(result.reasons[0], new RegExp(`classified as ${evidence}`));
+    assert.match(result.reasons[0], /cannot permit verified pricing/);
+  }
+  const measured = evaluateItemBinding(binding, geometry, { quantity: "18.5", unit: "m", evidence: "unverified", projectId: binding.projectId });
+  assert.equal(measured.status, "verified", "a real measured binding can establish a previously unverified row");
+  assert.equal(measured.pricingPermitted, true);
+});
+
+test("B9f: copied bindings from another project stay stale even when entity IDs and hashes match", () => {
+  const binding = parseBinding(), geometry = parseGeometry();
+  for (const projectId of ["another-project", "", "p".repeat(240)]) {
+    const result = evaluateItemBinding(binding, geometry, { quantity: "18.5", unit: "m", projectId });
+    assert.equal(result.status, "stale-measurement");
+    assert.equal(result.pricingPermitted, false);
+    assert.match(result.reasons[0], /belongs to another project/);
+  }
+  assert.equal(evaluateItemBinding(binding, geometry, { quantity: "18.5", unit: "m", projectId: binding.projectId }).status, "verified");
+  assert.equal(evaluateItemBinding(binding, geometry).status, "verified", "legacy callers may omit row context");
 });
 
 test("B10: evaluation is pure — the same inputs always give the same verdict", () => {
@@ -301,7 +360,7 @@ test("F5: the pin rule is pure", () => {
 // than reading a status that was written once.
 
 const CACHE = mkdtempSync(resolve("node_modules/.cache/qs-binding-ledger-"));
-for (const name of ["qsItemBinding.ts", "QSItemBindingLedger.tsx", "report.ts", "classification.ts"]) {
+for (const name of ["qsItemBinding.ts", "qsEntityHighlight.ts", "QSItemBindingLedger.tsx", "report.ts", "classification.ts"]) {
   const code = ts.transpileModule(readFileSync(join(HERE, name), "utf8"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
   }).outputText.replace(/require\("\.\/(\w+)(?:\.tsx?)?"\)/g, 'require("./$1.cjs")');
@@ -340,7 +399,7 @@ test("E1: an item with no binding renders as not bound, never as verified", () =
 test("E2: a binding whose entity is present and matching renders verified and permits pricing", () => {
   const binding = parseBinding();
   const entity = qsEntityGeometrySchema.parse({ entityId: binding.entityId, entityType: binding.entityType,
-    geometrySha256: binding.entityGeometrySha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
+    geometrySha256: binding.entityGeometrySha256, sourceSha256: binding.sourceSha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
   const html = renderLedger(new Map([[binding.itemId, binding]]), new Map([[entity.entityId, entity]]));
   assert.equal(statusOf(html), "verified");
   assert.match(html, /Permitted/);
@@ -350,7 +409,7 @@ test("E2: a binding whose entity is present and matching renders verified and pe
 test("E3: the ledger derives staleness from live geometry — the same stored binding goes stale when the entity moves", () => {
   const binding = parseBinding();
   const moved = qsEntityGeometrySchema.parse({ entityId: binding.entityId, entityType: binding.entityType,
-    geometrySha256: HASH_C, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
+    geometrySha256: HASH_C, sourceSha256: binding.sourceSha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
   const html = renderLedger(new Map([[binding.itemId, binding]]), new Map([[moved.entityId, moved]]));
   assert.equal(statusOf(html), "stale-measurement");
   assert.match(html, /Withheld/);
@@ -370,9 +429,9 @@ test("E5: the withheld notice appears for unverified items and names each status
   // leaves that half green. The unverified half is the one that carries the guard.
   const binding = parseBinding();
   const matching = qsEntityGeometrySchema.parse({ entityId: binding.entityId, entityType: binding.entityType,
-    geometrySha256: binding.entityGeometrySha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
+    geometrySha256: binding.entityGeometrySha256, sourceSha256: binding.sourceSha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
   const moved = qsEntityGeometrySchema.parse({ entityId: binding.entityId, entityType: binding.entityType,
-    geometrySha256: HASH_C, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
+    geometrySha256: HASH_C, sourceSha256: binding.sourceSha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
 
   const verifiedLedger = renderLedger(new Map([[binding.itemId, binding]]), new Map([[matching.entityId, matching]]));
   assert.doesNotMatch(verifiedLedger, /Pricing withheld on/);
@@ -387,4 +446,284 @@ test("E5: the withheld notice appears for unverified items and names each status
   const unboundLedger = renderLedger(new Map(), new Map());
   assert.match(unboundLedger, /Pricing withheld on 1 item</);
   assert.match(unboundLedger, /1 unbound/);
+});
+
+// --- G: the highlight control (SC-09's human gate). The ledger must be able to
+// send a user to the entity it names, and must not offer to when it cannot.
+
+const renderLedgerWithHighlight = (
+  bindings: ReadonlyMap<string, QsItemBinding>,
+  entities: ReadonlyMap<string, QsEntityGeometry>,
+  surfacesAvailable: boolean,
+) => ({
+  html: renderToStaticMarkup(React.createElement(QSItemBindingLedger, {
+    rows: REPORT.rows.map(row => ({ id: row.id, quantity: row.quantity, unit: row.unit })),
+    bindings,
+    entities,
+    onHighlight: () => {},
+    surfacesAvailable,
+  })),
+  // Without a handler the row is inert no matter what, so this renders the
+  // handler-less form to prove the control is genuinely gated on having one.
+  inert: renderToStaticMarkup(React.createElement(QSItemBindingLedger, {
+    rows: REPORT.rows.map(row => ({ id: row.id, quantity: row.quantity, unit: row.unit })),
+    bindings,
+    entities,
+  })),
+});
+
+const boundPair = () => {
+  const binding = parseBinding();
+  const entity = qsEntityGeometrySchema.parse({ entityId: binding.entityId, entityType: binding.entityType,
+    geometrySha256: binding.entityGeometrySha256, sourceSha256: binding.sourceSha256, calibrationId: binding.calibrationId, unit: binding.unit, measuredQuantity: binding.measuredQuantity });
+  return { binding, entity };
+};
+
+test("G0a: the ledger withholds sample, inferred and foreign-project rows while preserving the current measured row", () => {
+  const { binding, entity } = boundPair();
+  const contexts = [
+    { id: "sample-row", evidence: "sample" as const, projectId: binding.projectId },
+    { id: "inferred-row", evidence: "inferred" as const, projectId: binding.projectId },
+    { id: "foreign-row", evidence: "unverified" as const, projectId: "another-project" },
+    { id: "current-row", evidence: "unverified" as const, projectId: binding.projectId },
+  ];
+  const html = renderToStaticMarkup(React.createElement(QSItemBindingLedger, {
+    rows: contexts.map(context => ({ ...context, quantity: binding.measuredQuantity, unit: binding.unit })),
+    bindings: new Map(contexts.map(context => [context.id, parseBinding({ itemId: context.id })])),
+    entities: new Map([[entity.entityId, entity]]),
+    onHighlight: () => {},
+    surfacesAvailable: true,
+  }));
+  const row = (id: string) => {
+    const match = html.match(new RegExp(`<tr[^>]*data-testid="qs-binding-row-${id}"[^>]*>.*?<\\/tr>`, "s"));
+    assert.ok(match, `${id} must render`);
+    return match[0];
+  };
+  for (const id of ["sample-row", "inferred-row"]) {
+    assert.match(row(id), /data-binding-status="ineligible-evidence"/);
+    assert.match(row(id), /INELIGIBLE EVIDENCE/);
+    assert.match(row(id), /Withheld/);
+    assert.doesNotMatch(row(id), /Permitted|measured-and-current/);
+  }
+  assert.match(row("foreign-row"), /data-binding-status="stale-measurement"/);
+  assert.match(row("foreign-row"), /belongs to another project/);
+  assert.match(row("foreign-row"), /Withheld/);
+  assert.match(row("current-row"), /data-binding-status="verified"/);
+  assert.match(row("current-row"), /Permitted/);
+  assert.match(html, /Pricing withheld on 3 items/);
+  assert.match(html, /2 ineligible-evidence/);
+});
+
+test("G0: duplicate draft references cannot borrow a bound row's verified evidence", () => {
+  const { binding, entity } = boundPair();
+  const otherBinding = parseBinding({ itemId: "unique-item", entityId: "unique-wall" });
+  const otherEntity = parseGeometry({ entityId: otherBinding.entityId });
+  const render = (duplicate: boolean) => renderToStaticMarkup(React.createElement(QSItemBindingLedger, {
+    rows: [
+      { id: binding.itemId, quantity: binding.measuredQuantity, unit: binding.unit },
+      { id: duplicate ? binding.itemId : "renamed-unbound-item", quantity: binding.measuredQuantity, unit: binding.unit },
+      { id: otherBinding.itemId, quantity: otherBinding.measuredQuantity, unit: otherBinding.unit },
+    ],
+    bindings: new Map([[binding.itemId, binding], [otherBinding.itemId, otherBinding]]),
+    entities: new Map([[entity.entityId, entity], [otherEntity.entityId, otherEntity]]),
+    onHighlight: () => {},
+    surfacesAvailable: true,
+  }));
+
+  const ambiguous = render(true);
+  const duplicates = [...ambiguous.matchAll(/<tr[^>]*data-testid="qs-binding-row-item-01"[^>]*>.*?<\/tr>/gs)].map(match => match[0]);
+  assert.equal(duplicates.length, 2);
+  for (const row of duplicates) {
+    assert.match(row, /data-binding-status="unbound"/);
+    assert.match(row, /data-ambiguous-reference="true"/);
+    assert.match(row, /Duplicate item reference/);
+    assert.match(row, /AMBIGUOUS REFERENCE/);
+    assert.match(row, /Withheld/);
+    assert.doesNotMatch(row, /Permitted|qs-binding-highlight-/);
+  }
+  assert.match(ambiguous, /Pricing withheld on 2 items/);
+  assert.match(ambiguous, /data-testid="qs-binding-row-unique-item"[^>]*data-binding-status="verified"/);
+
+  const repaired = render(false);
+  assert.doesNotMatch(repaired, /AMBIGUOUS REFERENCE/);
+  assert.match(repaired, /data-testid="qs-binding-row-item-01"[^>]*data-binding-status="verified"/);
+  assert.match(repaired, /data-testid="qs-binding-row-renamed-unbound-item"[^>]*data-binding-status="unbound"/);
+  assert.match(repaired, /Pricing withheld on 1 item</);
+});
+
+test("G1: a resolvable bound item offers a highlight control naming its claim", () => {
+  const { binding, entity } = boundPair();
+  const { html } = renderLedgerWithHighlight(new Map([[binding.itemId, binding]]), new Map([[entity.entityId, entity]]), true);
+  assert.match(html, /data-testid="qs-binding-highlight-item-01"/);
+  assert.match(html, /data-highlight-resolvable="true"/);
+  assert.match(html, /data-highlight-claim="measured-and-current"/);
+  assert.match(html, /Show in plan \+ 3D/);
+});
+
+test("G2: no canvas mounted means no control, and the claim is not that it was shown", () => {
+  const { binding, entity } = boundPair();
+  const { html } = renderLedgerWithHighlight(new Map([[binding.itemId, binding]]), new Map([[entity.entityId, entity]]), false);
+  assert.doesNotMatch(html, /data-testid="qs-binding-highlight-item-01"/);
+  assert.match(html, /data-highlight-resolvable="false"/);
+});
+
+test("G3: a stale item is still highlightable, and says the geometry moved", () => {
+  // The discriminating case. Refusing to highlight a stale item would hide the
+  // one fact that makes it fixable, so the control must survive the staleness.
+  const { binding, entity } = boundPair();
+  const moved = qsEntityGeometrySchema.parse({ entityId: entity.entityId, entityType: entity.entityType,
+    geometrySha256: HASH_C, sourceSha256: entity.sourceSha256, calibrationId: entity.calibrationId, unit: entity.unit, measuredQuantity: entity.measuredQuantity });
+  const { html } = renderLedgerWithHighlight(new Map([[binding.itemId, binding]]), new Map([[moved.entityId, moved]]), true);
+  assert.match(html, /data-testid="qs-binding-highlight-item-01"/);
+  assert.match(html, /data-highlight-claim="measured-then-changed"/);
+  assert.match(html, /geometry changed/);
+});
+
+test("G4: an unbound item offers no control and claims nothing was measured", () => {
+  const { html } = renderLedgerWithHighlight(new Map(), new Map(), true);
+  assert.doesNotMatch(html, /data-testid="qs-binding-highlight-item-01"/);
+  assert.match(html, /data-highlight-claim="not-measured"/);
+});
+
+test("G5: without a handler the row is inert, not a button that does nothing", () => {
+  const { binding, entity } = boundPair();
+  const { inert } = renderLedgerWithHighlight(new Map([[binding.itemId, binding]]), new Map([[entity.entityId, entity]]), true);
+  assert.doesNotMatch(inert, /data-testid="qs-binding-highlight-item-01"/);
+});
+
+test("G6: a bound item whose entity is gone offers no control", () => {
+  const { binding } = boundPair();
+  const { html } = renderLedgerWithHighlight(new Map([[binding.itemId, binding]]), new Map(), true);
+  assert.doesNotMatch(html, /data-testid="qs-binding-highlight-item-01"/);
+  assert.match(html, /data-highlight-resolvable="false"/);
+});
+
+// G1–G6 all render a single row, which cannot tell a highlight that is genuinely
+// per-row from one that is frozen, misaligned, or borrowed from a neighbour.
+// Only a ledger whose rows disagree can do that.
+const mixedLedger = (surfacesAvailable?: boolean) => {
+  const { binding, entity } = boundPair();
+  const second = qsItemBindingSchema.parse({ ...binding, itemId: "item-02", entityId: "measured:item-02" });
+  const secondEntity = qsEntityGeometrySchema.parse({ ...entity, entityId: "measured:item-02", geometrySha256: HASH_C });
+  return renderToStaticMarkup(React.createElement(QSItemBindingLedger, {
+    rows: [
+      { id: "item-01", quantity: "18.5", unit: "m" },
+      { id: "item-02", quantity: "18.5", unit: "m" },
+      { id: "item-03", quantity: "18.5", unit: "m" },
+    ],
+    bindings: new Map([[binding.itemId, binding], [second.itemId, second]]),
+    entities: new Map([[entity.entityId, entity], [secondEntity.entityId, secondEntity]]),
+    onHighlight: () => {},
+    ...(surfacesAvailable === undefined ? {} : { surfacesAvailable }),
+  }));
+};
+
+/** Drives the ledger through the real reconciler and records what each row sends.
+ *
+ * Rendering to a string cannot answer this: once the resolution is mis-indexed,
+ * row 2's markup looks exactly like row 1's, so the activation itself has to be
+ * exercised.
+ *
+ * React 19 keeps its test renderer behind react-dom/test-utils, which this suite
+ * does not depend on, so the component is called directly. Rather than stub each
+ * hook, the real dispatcher is kept and only its memoisation is weakened: every
+ * hook runs for real, it just recomputes, which is exactly the derivation this
+ * assertion is about. The props are then walked to the rows and the same onClick
+ * the DOM would call is invoked — the clickable path is a plain onClick, not a
+ * synthesised event. */
+const activateRow = (rowId: string, options: { stale?: boolean } = {}) => {
+  const received: Array<{ entityId: string; claim: string }> = [];
+  const { binding, entity } = boundPair();
+  // Optionally move the live geometry so the row is stale at activation time. A
+  // stale row must still be able to send the user to where the geometry went.
+  const live = options.stale
+    ? qsEntityGeometrySchema.parse({ ...entity, geometrySha256: HASH_C })
+    : entity;
+  const second = qsItemBindingSchema.parse({ ...binding, itemId: "item-02", entityId: "measured:item-02" });
+  const secondEntity = qsEntityGeometrySchema.parse({ ...entity, entityId: "measured:item-02", geometrySha256: HASH_C });
+  const internals = (React as unknown as {
+    __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: { H: unknown } | null;
+  }).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+  if (!internals) throw new Error("React internals are unavailable; cannot drive the component");
+  const previous = internals.H;
+  internals.H = { useMemo: (compute: () => unknown) => compute(), useState: (initial: unknown) => [typeof initial === "function" ? (initial as () => unknown)() : initial, () => {}], useCallback: (fn: unknown) => fn, useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) };
+  let element: React.ReactElement;
+  try {
+    element = QSItemBindingLedger({
+    rows: [
+      { id: "item-01", quantity: "18.5", unit: "m" },
+      { id: "item-02", quantity: "18.5", unit: "m" },
+    ],
+    bindings: new Map([[binding.itemId, binding], [second.itemId, second]]),
+    entities: new Map([[live.entityId, live], [secondEntity.entityId, secondEntity]]),
+    onHighlight: (_itemId, resolution) => received.push({ entityId: resolution.entityId, claim: resolution.claim }),
+    surfacesAvailable: true,
+    }) as React.ReactElement;
+  } finally { internals.H = previous; }
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== "object") return;
+    const props = (node as { props?: Record<string, unknown> }).props;
+    if (!props) return;
+    if (props["data-testid"] === `qs-binding-highlight-${rowId}` && typeof props.onClick === "function") {
+      (props.onClick as () => void)();
+      return;
+    }
+    walk(props.children);
+  };
+  walk(element);
+  return received;
+};
+
+test("G10: activating a row sends that row's own entity, not its neighbour's", () => {
+  assert.deepEqual(activateRow("item-01").map(r => r.entityId), ["wall-run-7"]);
+  assert.deepEqual(activateRow("item-02").map(r => r.entityId), ["measured:item-02"]);
+});
+
+test("G11: an unbound row has nothing to activate", () => {
+  assert.deepEqual(activateRow("item-03"), []);
+});
+
+test("G12: activating a stale row still sends the user to the entity, and says it moved", () => {
+  // The one case where the claim at activation time has to disagree with a clean
+  // verification. A highlight that reported the row as current because the click
+  // itself was authorised would send the user to geometry they cannot trust.
+  const [resolution] = activateRow("item-01", { stale: true });
+  assert.equal(resolution.entityId, "wall-run-7");
+  assert.equal(resolution.claim, "measured-then-changed");
+});
+
+const rowOf = (html: string, id: string) => {
+  const at = html.indexOf(`data-testid="qs-binding-row-${id}"`);
+  return html.slice(at, html.indexOf("</tr>", at));
+};
+
+test("G7: highlight state is per row — a verified row and a stale row disagree", () => {
+  const html = mixedLedger(true);
+  assert.match(rowOf(html, "item-01"), /data-highlight-claim="measured-and-current"/);
+  assert.match(rowOf(html, "item-02"), /data-highlight-claim="measured-then-changed"/);
+  // item-03 is unbound. A highlight borrowed from a neighbour, or frozen at the
+  // first row, would show up here as some other claim entirely.
+  assert.match(rowOf(html, "item-03"), /data-highlight-claim="not-measured"/);
+  assert.match(rowOf(html, "item-03"), /data-highlight-resolvable="false"/);
+});
+
+test("G8: a ledger that is not told about the surfaces assumes there are none", () => {
+  // The prop is optional, so a caller that forgets it exists. Defaulting the
+  // other way would let a row offer a highlight no canvas was ever mounted for.
+  const html = mixedLedger(undefined);
+  assert.equal((html.match(/data-highlight-resolvable="true"/g) ?? []).length, 0);
+});
+
+test("G8b: with no surface to draw on, no row in a mixed ledger claims resolvable", () => {
+  const html = mixedLedger(false);
+  assert.equal((html.match(/data-highlight-resolvable="true"/g) ?? []).length, 0);
+  assert.equal((html.match(/data-highlight-resolvable="false"/g) ?? []).length, 3);
+});
+
+test("G9: a mixed ledger offers a control only on the rows it can show", () => {
+  const html = mixedLedger(true);
+  assert.match(html, /data-testid="qs-binding-highlight-item-01"/);
+  assert.match(html, /data-testid="qs-binding-highlight-item-02"/);
+  assert.doesNotMatch(html, /data-testid="qs-binding-highlight-item-03"/);
 });

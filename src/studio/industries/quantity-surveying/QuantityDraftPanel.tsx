@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { QuantityReportView } from "./QuantityReportView";
 import { QSItemBindingLedger, type QSBindingLedgerRow } from "./QSItemBindingLedger";
-import type { IndustryDraftPanelProps } from "../draftPanel";
+import type { IndustryDraftPanelProps, IndustryGeometryEntitySource } from "../draftPanel";
 import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
@@ -11,29 +11,37 @@ import {
   QS_ITEM_BINDING_SCHEMA,
   qsEntityGeometrySchema,
   qsItemBindingSchema,
-  shouldRepin,
   type QsEntityGeometry,
   type QsItemBinding,
 } from "./qsItemBinding";
 import { qsDigest } from "./qsItemBinding";
+import { useQsMeasuredGeometry } from "./qsMeasuredGeometryContext";
+import {
+  QS_ENTITY_HIGHLIGHT_SCHEMA,
+  QS_HIGHLIGHT_EVENT,
+  QS_HIGHLIGHT_SURFACE_SELECTOR,
+  qsHighlightRequestSchema,
+  type QsHighlightResolution,
+} from "./qsEntityHighlight";
 
 /** Rendered when the host cannot supply a live project source: the worksheet stays manual and unbound. */
 const MISSING_SOURCE: IndustrySourceState = { projectId: "", sourceRevision: null, calibrationId: null };
+const EMPTY_ENTITIES: ReadonlyMap<string, QsEntityGeometry> = new Map();
 const EVIDENCE_LABELS: Record<string, string> = {
   traced: "Traced source geometry", dimensioned: "Dimensioned source geometry",
   inferred: "Inferred reconstruction", declared: "Declared typed reference",
 };
-
-/** One instant per session, so bindings do not churn their timestamp on every render. */
-const BOUND_AT = new Date().toISOString();
 
 function parseBinding(input: unknown): QsItemBinding | null {
   const result = qsItemBindingSchema.safeParse(input);
   return result.success ? result.data : null;
 }
 
-export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource }: IndustryDraftPanelProps<QuantityForm>) {
+export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource, geometryEntities: suppliedGeometry }: IndustryDraftPanelProps<QuantityForm>) {
+  const scopedGeometry = useQsMeasuredGeometry();
+  const geometryEntities = suppliedGeometry ?? scopedGeometry;
   const [error, setError] = useState("");
+  const [geometryError, setGeometryError] = useState("");
   const [draft, setDraft] = useState<QuantityBindingDraft>(() => createEmptyQuantityBindingDraft());
   const source: IndustrySourceState = reportedSource ?? MISSING_SOURCE;
   useEffect(() => { setError(""); }, [value]);
@@ -59,129 +67,132 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
     catch (cause) { setError(cause instanceof Error ? cause.message : "Check the classification and quantity inputs."); }
   };
 
-  // Bindings are derived from the draft's own rows, so the ledger cannot show a
-  // verification that does not correspond to what the user actually entered. The
-  // geometry hash is the real SHA-256 of the row's reference, quantity and unit —
-  // change any of them and the binding goes stale on the next render without
-  // anything needing to write a status. Hashing is async (crypto.subtle), so this
-  // is state rather than a memo: a placeholder digest would be a fabricated
-  // measurement wearing the shape of a real one.
-  // The draft's rows, keyed as the report keys them (by reference). A row is
-  // shown even when it cannot be bound yet — blank reference, mid-typed quantity —
-  // because an item silently missing from an evidence ledger reads as evidence
-  // that no longer needs checking.
+  // Whether anything is mounted that could draw a highlight. Read from the
+  // document rather than guessed from a prop: the canvases live in other panes,
+  // and the only honest answer to "can this be shown" is "is it there".
+  const [surfacesAvailable, setSurfacesAvailable] = useState(false);
+  useEffect(() => {
+    const read = () => {
+      const surfaces = new Set(
+        Array.from(document.querySelectorAll(QS_HIGHLIGHT_SURFACE_SELECTOR))
+          .map(element => element.getAttribute("data-qs-highlight-surface")),
+      );
+      setSurfacesAvailable(surfaces.has("plan-2d") && surfaces.has("model-3d"));
+    };
+    read();
+    // The canvases mount and unmount on pane switches, which are not React
+    // renders this component can observe. A MutationObserver is the honest way
+    // to notice; polling would sample the answer and sometimes report the wrong one.
+    const observer = new MutationObserver(read);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  const highlightEntity = (itemId: string, resolution: QsHighlightResolution) => {
+    // Nothing resolvable, nothing to send. Emitting anyway would let a canvas
+    // record a highlight it never drew.
+    if (!resolution.resolvable) return;
+    window.dispatchEvent(new CustomEvent(QS_HIGHLIGHT_EVENT, {
+      detail: qsHighlightRequestSchema.parse({
+        format: QS_ENTITY_HIGHLIGHT_SCHEMA,
+        itemId,
+        entityId: resolution.entityId,
+        requestedAt: new Date().toISOString(),
+      }),
+    }));
+  };
+
+  // The draft's rows are keyed as the report keys them (by reference). Blank
+  // references stay out until they can name a binding; every named row is shown,
+  // including unbound or mid-edited rows.
   const ledgerRows = useMemo<QSBindingLedgerRow[]>(
     () => value.items
       .filter(item => item.reference.trim() !== "")
-      .map(item => ({ id: item.reference.trim(), quantity: item.quantity.trim(), unit: item.unit.trim() })),
-    [value.items],
+      .map(item => ({ id: item.reference.trim(), quantity: item.quantity.trim(), unit: item.unit.trim(), evidence: item.evidence, projectId: source.projectId })),
+    [value.items, source.projectId],
   );
-  // The ledger's two halves come from different places on purpose, and that
-  // separation is the whole mechanism. `bindings` are the *pinned* record: the
-  // row as it was at the moment it was calculated. `entities` are the *live*
-  // geometry: the row as it is right now. `evaluateItemBinding` compares one
-  // against the other, so editing a quantity moves the entity out from under the
-  // binding and the row goes stale.
-  //
-  // Deriving both from the same current value would make the comparison a
-  // tautology — the hash could never disagree with itself, and the ledger would
-  // report every row verified no matter what the user typed. That is a ledger
-  // that cannot fail, which is a ledger that proves nothing.
-  //
-  // Hashing is async (crypto.subtle), so this is state rather than a memo: a
-  // placeholder digest would be a fabricated measurement wearing the shape of a
-  // real one. `committed` is the row set the bindings were pinned against, so a
-  // re-render that changes nothing does not disturb them.
-  const committed = useMemo(
-    () =>
-      value.items
-        .map(item => ({
-          id: item.reference.trim(),
-          quantity: item.quantity.trim(),
-          unit: item.unit.trim(),
-          nodeKey: item.nodeKey,
-        }))
-        .filter(row => row.id !== ""),
-    [value.items],
-  );
-  const [pinned, setPinned] = useState<{ bindings: Map<string, QsItemBinding>; pinnedFor: string }>(
-    () => ({ bindings: new Map(), pinnedFor: "" }),
-  );
-  const [entities, setEntities] = useState<ReadonlyMap<string, QsEntityGeometry>>(() => new Map());
+  // Live entities and immutable bindings deliberately come from different
+  // records. A geometry hash is recomputed from the current project run, while
+  // each row retains the hash explicitly accepted by the estimator. The ledger
+  // can therefore fail closed after a canvas edit instead of comparing a value
+  // with itself. Hashing is asynchronous, so the live map is component state.
+  const [entitySnapshot, setEntitySnapshot] = useState<{
+    input: readonly IndustryGeometryEntitySource[];
+    entities: ReadonlyMap<string, QsEntityGeometry>;
+  } | null>(null);
+  // A source edit invalidates the old hash map in this render, before the effect
+  // can finish hashing its replacement. Pending work must not preserve a green
+  // pricing badge from the previous geometry or source.
+  const entities = entitySnapshot?.input === geometryEntities ? entitySnapshot.entities : EMPTY_ENTITIES;
 
-  // The fingerprint of what the bindings were pinned against. Re-pinning is only
-  // allowed when this changes *and* the draft is calculated, so typing a new
-  // quantity leaves the old binding in place for the live entity to disagree with.
-  const committedKey = useMemo(
-    () => committed.map(row => `${row.id}${row.quantity}${row.unit}`).join(""),
-    [committed],
-  );
-
-  // One effect, two outputs, deliberately not two effects: the pin is a function
-  // of the entities built in the same pass, and splitting them would race the pin
-  // against an entity map that had not been computed yet.
-  //
-  // The pin is only *replaced* when the draft is calculated — i.e. when the user
-  // has just confirmed these numbers. An ordinary edit leaves the pin untouched,
-  // which is exactly what makes the live entity disagree with it on the next
-  // render. Folding the pin forward on every row change would re-derive the
-  // binding from the edited value, the hash would match itself, and the ledger
-  // would report a clean verification of a number nobody confirmed.
   useEffect(() => {
     let cancelled = false;
+    setGeometryError("");
     void (async () => {
       const live = new Map<string, QsEntityGeometry>();
-      for (const row of committed) {
-        if (!row.quantity || !row.unit) continue;
-        const entityId = `measured:${row.id}`;
-        // The hash covers the entity id alongside the values, so a row cannot
-        // inherit another row's hash by happening to share a quantity.
+      for (const sourceEntity of geometryEntities) {
         const geometry = qsEntityGeometrySchema.safeParse({
-          entityId,
-          entityType: "room-area",
-          geometrySha256: await qsDigest(`${entityId} ${row.quantity} ${row.unit}`),
-          calibrationId: source.calibrationId,
-          unit: row.unit,
-          measuredQuantity: row.quantity,
+          entityId: sourceEntity.entityId,
+          entityType: sourceEntity.entityType,
+          geometrySha256: await qsDigest(JSON.stringify({
+            entityId: sourceEntity.entityId,
+            revision: sourceEntity.revision,
+            points: sourceEntity.points,
+            measuredQuantity: sourceEntity.measuredQuantity,
+            unit: sourceEntity.unit,
+            calibrationId: sourceEntity.calibrationId,
+          })),
+          sourceSha256: sourceEntity.sourceSha256,
+          calibrationId: sourceEntity.calibrationId,
+          unit: sourceEntity.unit,
+          measuredQuantity: sourceEntity.measuredQuantity,
         });
-        if (geometry.success) live.set(entityId, geometry.data);
+        if (geometry.success) live.set(sourceEntity.entityId, geometry.data);
       }
       if (cancelled) return;
-      setEntities(live);
-
-      if (!shouldRepin({ calculated: value.calculated, draftKey: committedKey, pinnedFor: pinned.pinnedFor })) return;
-      const sourceSha256 = source.sourceRevision === null
-        ? null
-        : await qsDigest(`${source.projectId} ${source.sourceRevision}`);
-      const bindings = new Map<string, QsItemBinding>();
-      for (const row of committed) {
-        const entity = live.get(`measured:${row.id}`);
-        if (!entity) continue;
-        const next = parseBinding({
-          format: QS_ITEM_BINDING_SCHEMA,
-          // itemId and entityId are different identities and must stay different:
-          // the schema refuses a self-binding ("an item cannot be bound to
-          // itself"). The item is identified by its reference because that is how
-          // the report identifies its rows (quantityFormInput: `id:
-          // item.reference`); the entity is the measured object.
-          itemId: row.id,
-          projectId: source.projectId || "local-draft",
-          entityId: entity.entityId,
-          entityType: "room-area",
-          measuredQuantity: entity.measuredQuantity,
-          unit: entity.unit,
-          entityGeometrySha256: entity.geometrySha256,
-          sourceSha256,
-          calibrationId: source.calibrationId,
-          boundAt: BOUND_AT,
-          boundBy: "draft-worksheet",
-        });
-        if (next !== null) bindings.set(row.id, next);
-      }
-      if (!cancelled) setPinned({ bindings, pinnedFor: committedKey });
-    })();
+      setEntitySnapshot({ input: geometryEntities, entities: live });
+    })().catch(() => {
+      if (cancelled) return;
+      setEntitySnapshot({ input: geometryEntities, entities: EMPTY_ENTITIES });
+      setGeometryError("Measured geometry could not be checked. Verification and pricing remain withheld.");
+    });
     return () => { cancelled = true; };
-  }, [value.calculated, committedKey, committed, source.projectId, source.sourceRevision, source.calibrationId, pinned.pinnedFor]);
+  }, [geometryEntities]);
+
+  const bindings = useMemo(() => new Map(
+    value.items.flatMap(item => {
+      const binding = parseBinding(item.entityBinding);
+      return binding && binding.itemId === item.reference.trim() ? [[binding.itemId, binding] as const] : [];
+    }),
+  ), [value.items]);
+
+  const bindItem = (itemKey: string, entityId: string) => {
+    try {
+      const item = value.items.find(row => row.key === itemKey);
+      const sourceEntity = geometryEntities.find(entity => entity.entityId === entityId);
+      const entity = entities.get(entityId);
+      if (!item || !sourceEntity || !entity) throw Error("That measured entity is still loading. Try again.");
+      if (!item.reference.trim()) throw Error("Enter the item reference before binding measured geometry.");
+      const next = qsItemBindingSchema.parse({
+        format: QS_ITEM_BINDING_SCHEMA,
+        itemId: item.reference.trim(),
+        projectId: source.projectId || "local-draft",
+        entityId: entity.entityId,
+        entityType: entity.entityType,
+        measuredQuantity: entity.measuredQuantity,
+        unit: entity.unit,
+        entityGeometrySha256: entity.geometrySha256,
+        sourceSha256: sourceEntity.sourceSha256,
+        calibrationId: entity.calibrationId,
+        boundAt: new Date().toISOString(),
+        boundBy: "estimator-selection",
+      });
+      setError("");
+      onChange({ ...value, calculated: false, items: value.items.map(row => row.key === itemKey ? { ...row, entityBinding: next } : row) });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The measured entity could not be bound.");
+    }
+  };
 
   return <section className="industry-form" aria-label="Quantity surveying draft">
     <p className="industry-note">Manual draft quantities. Binding records the source you pointed at; it does not verify the quantity. Classifications do not create prices or an issued cost plan.</p>
@@ -241,7 +252,7 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
       <legend>Quantity rows</legend>
       {!value.items.length && <p className="industry-note">Add a quantity row and enter its quantity and unit.</p>}
       {value.items.map((item, index) => <div className="industry-fields" key={item.key}>
-        <label>Item reference {index + 1}<input value={item.reference} maxLength={240} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, reference: event.target.value } : row) })} /></label>
+        <label>Item reference {index + 1}<input value={item.reference} maxLength={240} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, reference: event.target.value, entityBinding: null } : row) })} /></label>
         <label>Quantity {index + 1}<input inputMode="decimal" value={item.quantity} maxLength={80} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, quantity: event.target.value } : row) })} /></label>
         <label>Unit {index + 1}<input value={item.unit} maxLength={240} placeholder="e.g. m2, lm, ea" onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, unit: event.target.value } : row) })} /></label>
         <label>Evidence {index + 1}<select value={item.evidence} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, evidence: event.target.value as typeof item.evidence } : row) })}>
@@ -250,19 +261,42 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
         <label>Assign item {index + 1}<select value={item.nodeKey} onChange={event => { setError(""); onChange(assignQuantityItem(value, item.key, event.target.value)); }}>
           <option value="">Unassigned</option>{value.nodes.map(node => <option key={node.key} value={node.key}>{nodeName(node.key)}</option>)}
         </select></label>
+        <label>Measured entity {index + 1}<select
+          data-testid={`qs-entity-select-${index + 1}`}
+          value={item.entityBinding?.entityId ?? ""}
+          onChange={event => {
+            const entityId = event.target.value;
+            if (entityId) bindItem(item.key, entityId);
+            else onChange({ ...value, calculated: false, items: value.items.map(row => row.key === item.key ? { ...row, entityBinding: null } : row) });
+          }}
+        >
+          <option value="">Not bound to measured geometry</option>
+          {geometryEntities.map(entity => <option key={entity.entityId} value={entity.entityId} disabled={!entities.has(entity.entityId)}>
+            {entity.label} · {entity.measuredQuantity} {entity.unit}{entity.calibrationId ? "" : " · uncalibrated"}
+          </option>)}
+        </select></label>
+        {item.entityBinding ? <button type="button" onClick={() => {
+          if (item.entityBinding) bindItem(item.key, item.entityBinding.entityId);
+        }}>Rebind current geometry</button> : null}
         <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => edit({ ...value, items: value.items.filter(row => row.key !== item.key) })}>Remove quantity</button>
       </div>)}
       <button type="button" disabled={value.items.length >= 10000} onClick={() => edit({ ...value, items: [...value.items, { key: crypto.randomUUID(), reference: "", quantity: "", unit: "", evidence: "unverified", nodeKey: "" }] })}>Add quantity</button>
     </fieldset>
     <div className="industry-actions"><button type="button" disabled={disabled || !value.items.length || !value.nodes.length} onClick={calculate}>Calculate classification</button></div>
-    {error && <p className="industry-error" role="alert">{error}</p>}
+    {(error || geometryError) && <p className="industry-error" role="alert">{error || geometryError}</p>}
     {evaluation.status === "stale" && <p className="industry-result" role="status">Classification report withheld — {describeIndustryBinding(evaluation)}</p>}
     {/* The ledger is rendered from the draft's own rows and deliberately sits
         outside the report gate: editing a quantity withholds the report, and the
         items a user is editing are exactly the ones whose evidence they need to
         see. Inside the gate it would unmount on the first keystroke. */}
     <div className="industry-result">
-      <QSItemBindingLedger rows={ledgerRows} bindings={pinned.bindings} entities={entities} />
+      <QSItemBindingLedger
+        rows={ledgerRows}
+        bindings={bindings}
+        entities={entities}
+        onHighlight={highlightEntity}
+        surfacesAvailable={surfacesAvailable}
+      />
     </div>
     {report && <div className="industry-result" aria-live="polite"><QuantityReportView report={report} disabled={disabled} /></div>}
   </section>;

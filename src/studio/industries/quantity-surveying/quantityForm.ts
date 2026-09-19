@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { classifyQuantities, type ClassificationInput } from "./classification.ts";
 import type { QuantityReport } from "./report.ts";
+import { qsItemBindingSchema } from "./qsItemBinding.ts";
 import {
   INDUSTRY_SOURCE_BINDING_SCHEMA,
   createIndustrySourceBinding,
@@ -21,6 +22,10 @@ export const quantityFormSchema = z.object({
   items: z.array(z.object({
     key, reference: text, quantity: z.string().max(80), unit: text,
     evidence: z.enum(["unverified", "inferred", "sample"]), nodeKey: text,
+    /** Optional for backwards compatibility with drafts saved before QS-03.
+     * `null` is an explicit unbound row; a record is the immutable measured
+     * entity snapshot chosen by the estimator. */
+    entityBinding: qsItemBindingSchema.nullable().optional(),
   }).strict()).max(10000),
   // Optional so drafts saved before source binding existed still open; `null` is an explicit unbound worksheet.
   binding: industrySourceBindingSchema.nullable().optional(),

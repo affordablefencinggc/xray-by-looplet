@@ -37,7 +37,7 @@ const timestamp = z.string().datetime({ offset: true });
 /** The geometry classes a quantity can be measured from. Kept narrow on purpose:
  * an entity type outside this list cannot be bound, because nothing in the
  * workspace can produce a measured quantity for it. */
-export const QS_BINDABLE_ENTITY_TYPES = ["wall-run", "room-area", "roof-plane", "duct-run"] as const;
+export const QS_BINDABLE_ENTITY_TYPES = ["wall-run", "room-area", "roof-plane", "duct-run", "construction-run"] as const;
 export type QsBindableEntityType = (typeof QS_BINDABLE_ENTITY_TYPES)[number];
 
 /** Quantities are exact decimal strings, matching classification.ts. They are
@@ -48,6 +48,12 @@ const quantity = z
   .max(80)
   .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
   .transform((value) => (value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value));
+
+function canonicalQuantity(value: string): string {
+  return /^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)
+    ? value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value
+    : value;
+}
 
 export const qsItemBindingSchema = z
   .object({
@@ -98,6 +104,8 @@ export const qsEntityGeometrySchema = z
     entityId: identifier,
     entityType: z.enum(QS_BINDABLE_ENTITY_TYPES),
     geometrySha256: sha256,
+    /** Current source-document identity for this entity, when it was traced. */
+    sourceSha256: sha256.nullable(),
     /** Null when the entity has no calibration or its calibration was cleared. */
     calibrationId: identifier.nullable(),
     unit: identifier,
@@ -113,6 +121,7 @@ export const QS_BINDING_STATUSES = [
   "missing-entity",
   "unit-changed",
   "uncalibrated",
+  "ineligible-evidence",
 ] as const;
 export type QsBindingStatus = (typeof QS_BINDING_STATUSES)[number];
 
@@ -155,7 +164,27 @@ export type QsBindingEvaluation = z.infer<typeof qsBindingEvaluationSchema>;
 export function evaluateItemBinding(
   binding: QsItemBinding,
   entity: QsEntityGeometry | null,
+  row?: {
+    quantity: string;
+    unit: string;
+    evidence?: "unverified" | "inferred" | "sample";
+    projectId?: string;
+  },
 ): QsBindingEvaluation {
+  if (row?.projectId !== undefined && binding.projectId !== row.projectId)
+    return evaluate({
+      status: "stale-measurement",
+      reasons: ["This binding belongs to another project; rebind the measured entity within the current project."],
+    });
+
+  // A matching geometry snapshot cannot promote a row the estimator explicitly
+  // classified as sample or inferred into verified pricing evidence.
+  if (row?.evidence === "sample" || row?.evidence === "inferred")
+    return evaluate({
+      status: "ineligible-evidence",
+      reasons: [`This row is classified as ${row.evidence}; sample and inferred quantities cannot permit verified pricing.`],
+    });
+
   if (entity === null)
     return evaluate({ status: "missing-entity", reasons: [`Entity ${binding.entityId} is no longer in the workspace.`] });
 
@@ -190,6 +219,12 @@ export function evaluateItemBinding(
       reasons: [`Calibration changed from ${binding.calibrationId} to ${entity.calibrationId}.`],
     });
 
+  if (entity.sourceSha256 !== binding.sourceSha256)
+    return evaluate({
+      status: "stale-measurement",
+      reasons: [`Source identity changed for entity ${binding.entityId}; rebind it to the current drawing revision.`],
+    });
+
   if (entity.geometrySha256 !== binding.entityGeometrySha256)
     return evaluate({
       status: "stale-measurement",
@@ -202,6 +237,19 @@ export function evaluateItemBinding(
       reasons: [
         `Measured quantity changed from ${binding.measuredQuantity} to ${entity.measuredQuantity} ${binding.unit}.`,
       ],
+    });
+
+  // A cost-plan edit is not a geometry edit, but it changes the number that
+  // would be priced. Keep the immutable measured binding in force until the
+  // estimator explicitly rebinds the row; silently folding this edit into the
+  // binding would make an unreviewed quantity look verified.
+  const rowQuantity = row ? canonicalQuantity(row.quantity) : null;
+  if (row && (rowQuantity !== binding.measuredQuantity || row.unit !== binding.unit))
+    return evaluate({
+      status: row.unit !== binding.unit ? "unit-changed" : "stale-measurement",
+      reasons: row.unit !== binding.unit
+        ? [`Cost-plan unit changed from ${binding.unit} to ${row.unit}; rebind the measured entity before pricing.`]
+        : [`Cost-plan quantity changed from ${binding.measuredQuantity} to ${rowQuantity} ${binding.unit}; rebind the measured entity before pricing.`],
     });
 
   return evaluate({ status: "verified", reasons: [] });
