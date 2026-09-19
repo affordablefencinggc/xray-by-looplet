@@ -36,7 +36,7 @@ Every slice in this ledger must satisfy the following four proof criteria before
 * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
 * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
 
-**Last executed machine gate**: `npm test` — 1829/1829 passing across 93 suites; `npx tsc --noEmit` exit 0. Recorded 2026-09-19 alongside SC-09. The dashboard reads this line rather than carrying its own copy of the numbers.
+**Last executed machine gate**: `npm test` — 1943/1943 passing (203 + 796 + 944 across three test processes); `npm run typecheck` exit 0. DANS1 frozen snapshot `4c87a0de13b6`, source SHA-256 `5666204bb6737ec331b1570be64b5f51a1e5ad9254579538fe273f1c12baeb8c`, recorded 2026-09-19. Evidence: `proof/growth/2026-09-19-sc09-entity-highlight/dans1-4c87a0de13b6/`. That snapshot's scoped lint reported three errors. Their subsequent corrections passed isolated scoped lint (0 errors, 10 warnings), typecheck and 32 targeted tests on DANS1 `sc11-panel-cb3d0b8de15f`; see `proof/growth/2026-09-19-sc11-package-panel-preflight/sc11-panel-cb3d0b8de15f/output/results.json`. This later diagnostic is not a new full-suite or production-build receipt. SC-09 completion remains open. The dashboard reads this line rather than carrying its own copy of the numbers.
 
 The figure moved from 1616 because `src/studio/persistence/portableArchive.test.ts` (SC-15's archive container, 10 tests) was written but never added to the `test` script, so it ran in no suite at all — a green test nobody executed. `npm test` also exceeded Windows' 8191-character command limit once that path was added, so the source suites now run through `test:src`; the guard scripts stay in `test` ahead of it.
 
@@ -333,12 +333,12 @@ graph TD
   - If a bound entity's geometry is modified on the canvas, the QS item status flips to `"stale-measurement"` and withholds pricing until re-verified.
   - Tests verify entity-level binding invalidation and audit trail tracking.
 * **NOT DONE (human)**:
-  - Clicking a cost line item in the QS Panel automatically highlights the corresponding physical wall/room in 2D PlanCanvas and 3D Model Viewer. The ledger renders the binding and its entity id, but nothing is wired to the canvases: there is no click handler on a ledger row and no highlight selection travels to `PlanCanvas` or the 3D viewer. This gate stays open.
+  - Exact run highlight is now wired through the QS evidence action into the 2D source overlay and 3D measured-run preview. Development proof on DANS1 shows the same entity selected in both views and a real canvas vertex edit making only its bound row stale. Remaining: final combined-source production qualification, the reported tablet hash/diagnostics clipping, and evidence for any geometry family beyond the exercised construction runs. Do not equate this scoped run proof with every wall, room-area or roof-plane workflow.
 * **Proof**:
-  - `node scripts/fast-cdp-test.mjs qa-sc09-final` — 28 opcodes, exit 0. Both directions asserted: fresh draft 3× `verified` with no withheld notice; typing `99` turns only row 1 to `stale-measurement` with pricing withheld and the notice naming `1 stale-measurement`; restoring `45.5` returns every row to `verified` with the notice gone.
-  - Captures: [all-bound-verified](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-all-bound-verified-desktop-1600x1000.png), [stale-after-edit](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-stale-after-edit-desktop-1600x1000.png), [recovered](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-recovered-verified-desktop-1600x1000.png), [tablet 1024×768](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-tablet-1024x768.png).
-  - Gates: `tsc --noEmit` exit 0; full `npm test` 1829/1829. Three mutations on `shouldRepin()` all killed; one survived its first attempt and the test was rewritten (see `walkthrough.md`).
-  - Limit: staleness is proven by editing a worksheet quantity, not by moving geometry on the canvas. The panel derives live geometry from the worksheet rows, so a canvas-side geometry edit reaches the ledger through the same derived path only once that path exists — which is the open human gate above.
+  - Current development campaign: [visual3 browser receipt](proof/growth/2026-09-19-sc09-entity-highlight/campaigns/sc09-4c87a0de13b6-visual3/output/browser-results.json), 69/69 operations, zero unexpected browser errors, successful owned-process cleanup. Ten captures inspected: calibrated SVG source bytes, two independent live measured runs, exact 2D/3D highlights, actual canvas vertex movement, edited-run-only stale withholding, desktop and tablet evidence cards. Fixture proof is not certification of a user's live project.
+  - [Desktop exact highlight](proof/growth/2026-09-19-sc09-entity-highlight/campaigns/sc09-4c87a0de13b6-visual3/output/proof/growth/2026-09-19-dashboard-refresh/qs-visual-captures/sc09-current-exact-2d-3d-desktop-1600x1000.png); [tablet stale item](proof/growth/2026-09-19-sc09-entity-highlight/campaigns/sc09-4c87a0de13b6-visual3/output/proof/growth/2026-09-19-dashboard-refresh/qs-visual-captures/qs-evidence-card-qs-wall-a-tablet-1024x768.png). Source gate: 130 focused / 1943 full / 13 runner-state tests and typecheck pass on 4c87; see machine gate above for later lint scope.
+  - Earlier b853 production web build and built2 browser smoke passed 15/15 startup/mount checks with three inspected screenshots. It starts an empty project: **not** measured-binding production acceptance and not proof of subsequent SC10 integration.
+  - Historical `qa-sc09-final` row-derived synthetic evidence is retained for audit only; it does not establish source-linked measurement or canvas-edit proof. It is superseded for the run workflow by visual3, not promoted to current acceptance.
 * **Files**:
   - `src/studio/industries/quantity-surveying/qsItemBinding.ts` (new)
   - `src/studio/industries/quantity-surveying/qsItemBinding.test.ts` (new)
@@ -346,11 +346,11 @@ graph TD
   - `src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx` (ledger wired in)
   - `src/studio/industries/quantity-surveying/QuantityReportView.tsx`
 * **Depends on**: SC-08
-* **Completed**: 2026-09-19 (machine gates only; human highlight gate open)
-* **Commit**: —
+* **Commit**: `0ea3f83`, `a2935a9` checkpoints; later visual/lint/documentation changes pending next checkpoint. No completion date while partial.
 
 #### SC-10 — QS-04/05 Rate Books, Tax/Currency Normalization, Options & Cost Deltas `[[pending]]`
 * **Goal**: Connect contractor rate books with supplier references, support multi-currency/tax normalization (e.g. GST), alternative option sections, and compute cost deltas against prior revisions.
+* **Proof**: Source and mounted worksheet checkpoint pushed in `a2935a9`; 21 rate-book and 11 delta tests are registered in the 1943-test snapshot. First DANS1 browser campaign `sc10-4c87a0de13b6-dev1` passed supplier pins, GST, base/proposed/accepted option totals and immutable revisions, then failed keyboard modal focus at operation 108 of 289. No browser acceptance or completion claimed. Evidence: `proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/`.
 * **DONE (machine)**:
   - Rate book schema supports unit rates, labor/material splits, markup percentages, and wastage factors.
   - Cost delta calculator computes: $\Delta\text{ Quantity}$, $\Delta\text{ Unit Rate}$, $\Delta\text{ Scope}$ between Revision N and Revision N-1.
@@ -368,6 +368,7 @@ graph TD
 
 #### SC-11 — QS-06 End-to-End Auditable Cost Plan Deliverable Export & Reopen `[[pending]]`
 * **Goal**: Package and export a complete professional Cost Plan package with transmittal metadata, classification breakdown (Elements / Sub-elements), basis of estimate, exclusions, and sealed SHA-256 hash.
+* **Proof**: Pure package/export code and its 14 tests were pushed in `a2935a9` and included in the 1943-test snapshot. Separate unmounted package-panel diagnostics passed 14 tests and typecheck on DANS1 `sc11-panel-cb3d0b8de15f`. UI download/reopen, inspected PDF, screenshots and integrated production qualification remain open; no completion claim.
 * **DONE (machine)**:
   - Multi-page vector PDF cost plan and CSV schedule exported cleanly.
   - Reopening the exported package verifies integrity and restores exact worksheet state.

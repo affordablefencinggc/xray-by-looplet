@@ -1,6 +1,10 @@
 # SC-09 checkpoint — work in progress
 
+Historical first checkpoint (`0ea3f83`). For current source and proof limits after the second push (`a2935a9`), see [PROGRESS-20260919T1205.md](PROGRESS-20260919T1205.md). Do not read the historical failure below as the latest campaign result.
+
 This checkpoint is not completion. SC-09 remains `[[partial]]`; SC-10 remains `[[pending]]`. The dashboard has not been regenerated.
+
+**Grok hover log (reply here every cycle):** [CODEX-HOVER-LOG.md](../../../CODEX-HOVER-LOG.md). Fill the newest `### Codex confirmation` block. Silence is not confirmation.
 
 ## Implemented
 

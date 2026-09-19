@@ -10,21 +10,23 @@ This is the expanded scope register. It does not replace the historical 150-feat
 
 Delivery states: not-assessed → gap / partial / in-progress / failed / dependency-blocked → verified. No implied completion from a vendor feature, an installed package, a visible button or a green build.
 
-## Assessment status, updated 2026-09-11
+## Assessment status, reconciled 2026-09-19
 
 Every one of the 375 rows now carries a state and its reasoning. No row is left not-assessed. The assessment read shipping source code rather than earlier ledger claims, and where a ledger and the code disagreed, the code decided.
 
 | State | Rows | Meaning |
 |---|---|---|
 | verified | 6 | Complete stated behaviour proven to this register's tick rule. |
-| partial | 102 | Real implementation with executed proof, and a named remaining boundary. |
+| partial | 108 | Real implementation with executed proof, and a named remaining boundary. |
 | dependency-blocked | 19 | Cannot progress until an external dependency exists, chiefly an account service or a live search credential. |
 | failed | 1 | Attempted and not achieved: Q-13 installed-app verification. |
-| gap | 247 | Not implemented. Nothing to assess until the capability is built. |
+| gap | 241 | Not implemented. Nothing to assess until the capability is built. |
 
 Reading these numbers correctly matters more than the numbers. A gap is an honest absence, not a defect, and 13 whole categories are gaps because X-Ray holds discipline labels rather than engineering engines: G geospatial, H services, J programme, K libraries, L landscape, M manufacturing, N electrical, O operations, S structural, W whole-life, Y specialist assets, and the two added on 2026-09-11, SO set-out and PH phasing. Naming a trade in a takeoff category never constitutes a solver for it.
 
-The 102 partial rows are where the product actually is. They are concentrated in drawing precision, takeoff and calibration, documents and sheets, interoperability, review, the assistant, and release integrity. Most say the same thing about what is missing: behaviour is proven by executed test rather than by an inspected screenshot at the declared viewports, or it is proven for one surface rather than the whole application.
+The 108 partial rows are where the product actually is. They are concentrated in drawing precision, takeoff and calibration, documents and sheets, interoperability, review, the assistant, and release integrity. Most say the same thing about what is missing: behaviour is proven by executed test rather than by an inspected screenshot at the declared viewports, or it is proven for one surface rather than the whole application.
+
+Count reconciliation, 2026-09-19: these figures now match the existing 375 row states; this update promotes no row. The dashboard's 114/375 coverage count means 6 verified plus 108 partial, **not 114 completed requirements**. Historical 108/375 (6 + 102) and 247 gaps were stale summary values. Current production-closeout progress and source-specific test evidence live in [XRAY-PRODUCTION-CLOSEOUT-LEDGER.md](XRAY-PRODUCTION-CLOSEOUT-LEDGER.md); SC-09 remains partial, and IND-38 has not passed a full working-day qualification.
 
 Six rows reach verified. B-01 and B-07 have built-browser lifecycle proof, and B-10 has protected replacement integrity proof (2026-09-11). The other three concern process: Q-03 proof discipline enforced by a harness hook, Q-14 visibly distinct capability states, and Z-12 acceptance reopening when a dependency changes.
 

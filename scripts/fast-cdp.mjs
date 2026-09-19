@@ -104,8 +104,9 @@ async function readScenario(path, origin) {
   }
   const operations = Array.isArray(parsed) ? parsed : parsed?.operations;
   if (!Array.isArray(operations)) throw new InfrastructureFailure("Scenario must be an opcode array or { operations: [] }");
+  const originValue = origin ? new URL(origin).origin : "";
   const replace = (value) => {
-    if (typeof value === "string") return value.replaceAll("{{ORIGIN}}", origin ?? "");
+    if (typeof value === "string") return value.replaceAll("{{ORIGIN}}", originValue);
     if (Array.isArray(value)) return value.map(replace);
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, replace(item)]));
     return value;
@@ -749,6 +750,12 @@ async function main() {
       } catch (error) {
         cleanupFailure = error;
       }
+    }
+    // Only a launcher that owns this exact browser opts into process shutdown.
+    // Closing Chrome through CDP lets it drain its children and redirected logs.
+    if (socket && options["close-browser"] === "true") {
+      try { await socket.call("Browser.close", {}, undefined, 5_000); }
+      catch (error) { if (!cleanupFailure) cleanupFailure = error; }
     }
     socket?.close();
   }

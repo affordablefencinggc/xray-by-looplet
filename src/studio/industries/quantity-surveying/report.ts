@@ -37,6 +37,8 @@ export function filterQuantityReport(report: QuantityReport, filter: ReportFilte
 
 /** RFC-style quoting plus spreadsheet formula neutralisation for untrusted labels/references. */
 export function csvCell(value: string): string {
+  // C0/C1 prefixes must be inspected so control characters cannot hide spreadsheet formulas.
+  // eslint-disable-next-line no-control-regex
   const safe = /^[\s\u0000-\u001f\u007f-\u009f]*[=+\-@]/u.test(value) ? `'${value}` : value;
   return `"${safe.replace(/"/g, '""')}"`;
 }

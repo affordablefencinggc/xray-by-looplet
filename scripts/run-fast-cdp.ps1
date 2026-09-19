@@ -97,7 +97,9 @@ function Stop-VerifiedTree(
   $listeners = @(Get-ListeningConnections $Port)
   $unexpected = @($listeners | Where-Object { $treeIds -notcontains [int]$_.OwningProcess })
   if ($unexpected.Count) { throw "$Purpose port $Port has a listener outside the owned process tree; cleanup refused." }
-  $ordered = @($treeIds | Sort-Object -Descending)
+  # Numeric PID order is not ancestry order. Keep the root until last so its
+  # shutdown cannot make a still-enumerated child's CIM identity disappear.
+  $ordered = @($treeIds | Where-Object { $_ -ne $Root.Id }) + @($Root.Id)
   foreach ($id in $ordered) {
     $record = $snapshot | Where-Object { $_.ProcessId -eq $id } | Select-Object -First 1
     if ($null -eq $record) { continue }
@@ -248,13 +250,14 @@ try {
   if ($websocket.Scheme -cne 'ws' -or $websocket.Host -cne '127.0.0.1' -or $websocket.Port -ne $CdpPort -or $websocket.AbsolutePath -notmatch '^/devtools/browser/[a-f0-9-]+$') { throw 'Browser endpoint does not match the verified loopback listener.' }
   @([string]$CdpPort, $websocket.AbsolutePath) | Set-Content -LiteralPath $endpointFile -Encoding ASCII
 
-  & $Node (Join-Path $PSScriptRoot 'fast-cdp.mjs') --endpoint-file $endpointFile --scenario $scenarioFull --output $outputFull --origin $previewUri.AbsoluteUri --run-id $RunId
+  & $Node (Join-Path $PSScriptRoot 'fast-cdp.mjs') --endpoint-file $endpointFile --scenario $scenarioFull --output $outputFull --origin $previewUri.AbsoluteUri --run-id $RunId --close-browser true
   $nodeExitCode = $LASTEXITCODE
   if ($nodeExitCode -ne 0) { throw "Fast CDP runner exited with code $nodeExitCode." }
 } catch {
   $campaignError = $_
 } finally {
   try {
+    if ($browserRoot -and -not $browserRoot.HasExited) { [void]$browserRoot.WaitForExit(5000) }
     $cleanup.Add((Stop-VerifiedTree $browserRoot $CdpPort $chromeFull $browserMarker 'browser'))
   } catch {
     $cleanup.Add([pscustomobject]@{ purpose = 'browser'; status = 'cleanup-failed'; error = $_.Exception.Message })

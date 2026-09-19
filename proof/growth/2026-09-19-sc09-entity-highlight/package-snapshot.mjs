@@ -10,15 +10,20 @@ if (!/^[a-f0-9]{12}$/.test(runId ?? '')) throw Error('Expected an isolated 12-he
 const stage = path.resolve(root, '.temp', `dans1-sc09-${runId}`, 'stage');
 if (!fs.existsSync(path.join(stage, 'package.json'))) throw Error('Extract the clean HEAD archive before packaging');
 const overlay = [
+  'package.json',
   'src/studio/Studio.tsx', 'src/styles.css',
   'src/lib/boot-guard.ts', 'src/lib/boot-guard.test.ts', 'src/routes/__root.tsx',
+  'src/studio/pricing/PriceBookPanel.tsx',
+  'scripts/fast-cdp.mjs', 'scripts/run-fast-cdp.ps1',
   'src/studio/industries/IndustryDraftHost.tsx', 'src/studio/industries/IndustryDraftWorkbench.tsx',
   'src/studio/industries/draftPanel.ts',
   ...['QSItemBindingLedger.tsx', 'QuantityDraftPanel.tsx', 'QuantityReportView.test.ts',
-    'QsMeasuredGeometryPreview.tsx', 'qsEntityHighlight.ts', 'qsEntityHighlight.test.ts',
+    'QsMeasuredGeometryPreview.tsx', 'QuantityReportView.tsx', 'qsEntityHighlight.ts', 'qsEntityHighlight.test.ts',
     'qsItemBinding.ts', 'qsItemBinding.test.ts', 'quantityForm.ts', 'quantityForm.test.ts',
     'qsMeasuredGeometry.ts', 'qsMeasuredGeometry.test.ts',
     'QsMeasuredGeometryScope.tsx', 'qsMeasuredGeometryContext.ts',
+    'qsRateBook.ts', 'report.ts',
+    'QSWorksheet.tsx', 'QSWorksheet.focus.test.ts',
   ].map(name => `src/studio/industries/quantity-surveying/${name}`),
 ];
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -29,6 +34,7 @@ for (const file of overlay) {
 const transfer = path.join(stage, '.temp', 'dans1-transfer');
 fs.mkdirSync(transfer, { recursive: true });
 const files = ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'vite.config.spa.ts', 'index.html', '.grok/app-env.json', '.agents/mcp_config.json', '.cursor/mcp.json', 'src-tauri/src/assistant_ai.rs', 'src-tauri/resources/ai-materials-result.schema.json', 'proof/audit/IW-AI-MATERIALS/fixture-result.json'];
+files.push('eslint.config.mjs', '.prettierrc', 'proof/growth/2026-09-19-sc10-qs-rate-delta/preflight/state-boundary.test.ts');
 for (const name of fs.readdirSync(stage)) if (name.endsWith('.md') && fs.statSync(path.join(stage, name)).isFile()) files.push(name);
 function walk(relative) {
   for (const entry of fs.readdirSync(path.join(stage, relative), { withFileTypes: true })) {

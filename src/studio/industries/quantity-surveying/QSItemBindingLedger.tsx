@@ -42,16 +42,14 @@ interface QSItemBindingLedgerProps {
   surfacesAvailable?: boolean;
 }
 
-const STATUS_STYLE: Record<QsBindingStatus, { bg: string; fg: string; border: string; label: string }> = {
-  verified: { bg: "rgba(16, 185, 129, 0.18)", fg: "#a7f3d0", border: "rgba(16, 185, 129, 0.5)", label: "✓ VERIFIED" },
-  "stale-measurement": { bg: "rgba(220, 38, 38, 0.18)", fg: "#fecaca", border: "rgba(220, 38, 38, 0.55)", label: "✗ STALE MEASUREMENT" },
-  "missing-entity": { bg: "rgba(120, 113, 108, 0.22)", fg: "#e7e5e4", border: "rgba(168, 162, 158, 0.5)", label: "✗ ENTITY MISSING" },
-  "unit-changed": { bg: "rgba(217, 119, 6, 0.18)", fg: "#fde68a", border: "rgba(217, 119, 6, 0.55)", label: "✗ UNIT CHANGED" },
-  uncalibrated: { bg: "rgba(217, 119, 6, 0.18)", fg: "#fde68a", border: "rgba(217, 119, 6, 0.55)", label: "✗ UNCALIBRATED" },
-  "ineligible-evidence": { bg: "rgba(217, 119, 6, 0.18)", fg: "#fde68a", border: "rgba(217, 119, 6, 0.55)", label: "✗ INELIGIBLE EVIDENCE" },
+const STATUS_LABEL: Record<QsBindingStatus, string> = {
+  verified: "✓ VERIFIED",
+  "stale-measurement": "✗ STALE MEASUREMENT",
+  "missing-entity": "✗ ENTITY MISSING",
+  "unit-changed": "✗ UNIT CHANGED",
+  uncalibrated: "✗ UNCALIBRATED",
+  "ineligible-evidence": "✗ INELIGIBLE EVIDENCE",
 };
-
-const UNBOUND_STYLE = { bg: "rgba(71, 85, 105, 0.18)", fg: "#cbd5e1", border: "rgba(100, 116, 139, 0.45)", label: "— NOT BOUND" };
 
 /** Item-level evidence binding ledger (QS-03).
  *
@@ -123,11 +121,11 @@ export function QSItemBindingLedger({
 
   return (
     <section className="qs-item-binding-ledger" aria-label="Item-level evidence binding" data-testid="qs-item-binding-ledger">
-      <div style={{ marginBottom: "0.75rem" }}>
-        <p style={{ margin: 0, fontWeight: 700, fontSize: "0.9375rem", color: "#f8fafc" }}>
+      <div className="qs-binding-heading">
+        <p className="qs-binding-title">
           Item-level evidence binding (QS-03)
         </p>
-        <p style={{ margin: "0.25rem 0", color: "#94a3b8", fontSize: "0.8125rem" }}>
+        <p className="qs-binding-explanation">
           Each item is bound to the measured entity it came from. Binding status is recomputed from live geometry on
           every render; nothing here is stored.
         </p>
@@ -137,19 +135,12 @@ export function QSItemBindingLedger({
         <div
           role="alert"
           data-testid="qs-binding-withheld-notice"
-          style={{
-            background: "rgba(220, 38, 38, 0.14)",
-            border: "1px solid #dc2626",
-            borderLeft: "6px solid #b91c1c",
-            padding: "0.75rem 1rem",
-            borderRadius: "8px",
-            marginBottom: "1rem",
-          }}
+          className="qs-binding-withheld-notice"
         >
-          <strong style={{ color: "#fecaca", display: "block", fontSize: "0.875rem", marginBottom: "0.25rem" }}>
+          <strong>
             Pricing withheld on {withheldCount} {withheldCount === 1 ? "item" : "items"}
           </strong>
-          <p style={{ margin: 0, fontSize: "0.8125rem", color: "#fca5a5", lineHeight: 1.45 }}>
+          <p>
             {QS_BINDING_STATUSES.filter((s) => s !== "verified")
               .map((s) => `${counts.get(s) ?? 0} ${s}`)
               .join(" · ")}
@@ -158,21 +149,21 @@ export function QSItemBindingLedger({
         </div>
       )}
 
-      <div className="industry-table-wrap" style={{ marginBottom: "1.25rem" }}>
-        <table>
+      <div className="industry-table-wrap qs-binding-table-wrap">
+        <table role="table">
           <caption>Measured item bindings — {rows.length} items</caption>
-          <thead>
-            <tr>
-              <th style={{ minWidth: "140px" }}>Item</th>
-              <th style={{ minWidth: "110px" }}>Row quantity</th>
-              <th style={{ minWidth: "220px" }}>Bound entity</th>
-              <th style={{ minWidth: "170px" }}>Binding status</th>
-              <th style={{ minWidth: "150px" }}>Pricing</th>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader">Item</th>
+              <th scope="col" role="columnheader">Row quantity</th>
+              <th scope="col" role="columnheader">Bound entity</th>
+              <th scope="col" role="columnheader">Binding status</th>
+              <th scope="col" role="columnheader">Pricing</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {rows.map(({ row, binding, evaluation, entity, ambiguousReference }, index) => {
-              const style = binding === null || evaluation === null ? UNBOUND_STYLE : STATUS_STYLE[evaluation.status];
+              const label = binding === null || evaluation === null ? "— NOT BOUND" : STATUS_LABEL[evaluation.status];
               const highlight = highlights[index];
               // A row is only a control when there is something to show and somewhere
               // to show it. Otherwise it is a table row, and saying so in the markup
@@ -180,6 +171,7 @@ export function QSItemBindingLedger({
               const interactive = onHighlight !== undefined && highlight.resolvable;
               return (
                 <tr
+                  role="row"
                   key={`${row.id}:${index}`}
                   data-testid={`qs-binding-row-${row.id}`}
                   data-binding-status={binding === null ? "unbound" : evaluation!.status}
@@ -187,17 +179,30 @@ export function QSItemBindingLedger({
                   data-highlight-claim={highlight.claim}
                   data-highlight-resolvable={String(highlight.resolvable)}
                 >
-                  <td style={{ fontWeight: 600, color: "#f8fafc" }}>{row.id}</td>
-                  <td style={{ fontFamily: "monospace" }}>
+                  <td role="cell" className="qs-binding-reference"><span className="qs-binding-cell-label" aria-hidden="true">Item</span>{row.id}</td>
+                  <td role="cell" className="qs-binding-quantity">
+                    <span className="qs-binding-cell-label" aria-hidden="true">Row quantity</span>
                     {row.quantity} {row.unit}
                   </td>
-                  <td style={{ fontSize: "0.8125rem", color: "#cbd5e1" }}>
+                  <td role="cell" className="qs-binding-entity">
+                    <span className="qs-binding-cell-label" aria-hidden="true">Bound entity</span>
                     {binding === null ? (
-                      <span style={{ color: "#94a3b8" }}>{ambiguousReference
+                      <span>{ambiguousReference
                         ? "Duplicate item reference: assign a unique reference to identify this row's measured binding."
                         : "No measured entity bound"}</span>
                     ) : (
-                      <span title={binding.entityGeometrySha256}>{describeItemBinding(binding)}</span>
+                      <>
+                        <span title={binding.entityGeometrySha256}>{describeItemBinding(binding)}</span>
+                        <details className="qs-binding-provenance" data-testid={`qs-binding-provenance-${row.id}`}>
+                          <summary aria-label={`Full binding provenance for ${row.id}`}>View full binding provenance</summary>
+                          <dl>
+                            <div><dt>Geometry SHA-256 at binding</dt><dd><code data-qs-binding-hash="geometry">{binding.entityGeometrySha256}</code></dd></div>
+                            <div><dt>Source SHA-256 at binding</dt><dd><code data-qs-binding-hash="source">{binding.sourceSha256 ?? "Not recorded"}</code></dd></div>
+                            <div><dt>Calibration at binding</dt><dd><code>{binding.calibrationId ?? "Uncalibrated"}</code></dd></div>
+                          </dl>
+                          <p>Recorded identities only. The current binding status below determines whether pricing is permitted.</p>
+                        </details>
+                      </>
                     )}
                     {interactive ? <button
                       type="button"
@@ -209,34 +214,25 @@ export function QSItemBindingLedger({
                       Show in plan + 3D
                     </button> : null}
                   </td>
-                  <td>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "4px",
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        background: style.bg,
-                        color: style.fg,
-                        border: `1px solid ${style.border}`,
-                      }}
-                    >
-                      {ambiguousReference ? "AMBIGUOUS REFERENCE" : style.label}
+                  <td role="cell" className="qs-binding-status">
+                    <span className="qs-binding-cell-label" aria-hidden="true">Binding status</span>
+                    <span className="qs-binding-status-pill">
+                      {ambiguousReference ? "AMBIGUOUS REFERENCE" : label}
                     </span>
                     {evaluation?.reasons.length ? (
-                      <ul style={{ margin: "0.375rem 0 0", paddingLeft: "1rem", fontSize: "0.75rem", color: "#fca5a5" }}>
+                      <ul className="qs-binding-reasons">
                         {evaluation.reasons.map((reason) => (
                           <li key={reason}>{reason}</li>
                         ))}
                       </ul>
                     ) : null}
                   </td>
-                  <td data-testid={`qs-binding-pricing-${row.id}`}>
+                  <td role="cell" className="qs-binding-pricing" data-testid={`qs-binding-pricing-${row.id}`}>
+                    <span className="qs-binding-cell-label" aria-hidden="true">Pricing</span>
                     {binding === null || !evaluation!.pricingPermitted ? (
-                      <span style={{ color: "#fca5a5", fontWeight: 700, fontSize: "0.8125rem" }}>⛔ Withheld</span>
+                      <span className="qs-binding-price-withheld">⛔ Withheld</span>
                     ) : (
-                      <span style={{ color: "#6ee7b7", fontWeight: 700, fontSize: "0.8125rem" }}>✓ Permitted</span>
+                      <span className="qs-binding-price-permitted">✓ Permitted</span>
                     )}
                   </td>
                 </tr>
@@ -247,7 +243,7 @@ export function QSItemBindingLedger({
         {!rows.length && <p>No items to bind. Recalculate the draft.</p>}
       </div>
 
-      <p className="industry-note" style={{ fontSize: "0.8125rem", color: "#94a3b8" }}>
+      <p className="industry-note qs-binding-explanation">
         A binding records the entity, its geometry hash and the calibration the quantity was measured under. Whether it
         still holds is derived on every render — a stored verdict would let an item keep pricing against geometry that
         changed underneath it.

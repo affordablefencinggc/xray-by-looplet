@@ -1,0 +1,884 @@
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.tsx" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.tsx"
+new file mode 100644
+index 0000000..765f14b
+--- /dev/null
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.tsx"
+@@ -0,0 +1,238 @@
++import { useEffect, useMemo, useRef, useState } from "react";
++import { unzipSync } from "fflate";
++import { z } from "zod";
++import { DELIVERY_RECORD_SCHEMA, DELIVERY_STATES, describeDeliveryState, type DeliveryState } from "../deliveryRecord.ts";
++import { quantityFormSchema, type QuantityForm } from "./quantityForm.ts";
++import { createQsCostPlanPackage, exportQsCostPlanPackage, parseQsCostPlanPackage, qsPackageDigest, restoreQsCostPlanWorksheet,
++  QS_PACKAGE_MAX_BYTES, type QsPackageInput, type QsVerifiedPackage } from "./qsPackageExport.ts";
++import "./QSCostPlanPackagePanel.css";
++
++export type QSCostPlanPackagePanelProps = {
++  projectId: string;
++  value: QuantityForm;
++  disabled?: boolean;
++  /** The host is the sole writer. False means the replacement was rejected. */
++  onRestore: (value: QuantityForm) => boolean;
++};
++export type QsPackagePanelInputs = {
++  title: string; reference: string; revisionLabel: string; preparedBy: string; recipient: string; purpose: string;
++  transmittalCreatedAt: string; basisOfEstimate: string; assumptions: string; exclusions: string;
++  deliveryId: string; deliveryState: DeliveryState | ""; createdAt: string; reviewedAt: string; issuedAt: string;
++};
++export const emptyQsPackagePanelInputs = (): QsPackagePanelInputs => ({ title: "", reference: "", revisionLabel: "", preparedBy: "",
++  recipient: "", purpose: "", transmittalCreatedAt: "", basisOfEstimate: "", assumptions: "", exclusions: "",
++  deliveryId: "", deliveryState: "", createdAt: "", reviewedAt: "", issuedAt: "" });
++const parseWorksheet = (raw: unknown) => quantityFormSchema.parse(raw);
++const errorText = (error: unknown) => error instanceof Error ? error.message : "The package operation failed. Existing worksheet and selected file are preserved.";
++const noteLines = (text: string) => text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
++
++/** Select the latest frozen revision and its exact predecessor. No new pricing,
++ * current-time metadata or classification defaults are silently invented. */
++export function qsPackageInputFromForm(projectId: string, raw: QuantityForm, inputs: QsPackagePanelInputs): QsPackageInput<QuantityForm> {
++  const worksheet = parseWorksheet(raw), state = worksheet.pricing;
++  if (!projectId || !state || state.projectId !== projectId) throw Error("A cost worksheet for the current project is required.");
++  const current = state.snapshots.at(-1);
++  if (!current) throw Error("Save a cost revision before preparing a package.");
++  if (!inputs.deliveryState) throw Error("Choose the delivery state explicitly.");
++  if (!DELIVERY_STATES.includes(inputs.deliveryState)) throw Error("Unsupported delivery state.");
++  return { worksheet, current, previous: state.snapshots.at(-2) ?? null,
++    transmittal: { title: inputs.title, reference: inputs.reference, revisionLabel: inputs.revisionLabel,
++      preparedBy: inputs.preparedBy, recipient: inputs.recipient, purpose: inputs.purpose, createdAt: inputs.transmittalCreatedAt },
++    basisOfEstimate: noteLines(inputs.basisOfEstimate), assumptions: noteLines(inputs.assumptions), exclusions: noteLines(inputs.exclusions),
++    delivery: { format: DELIVERY_RECORD_SCHEMA, id: inputs.deliveryId.trim(), kind: "quantity-surveying", projectId,
++      state: inputs.deliveryState, revision: current.input.revision, createdAt: inputs.createdAt,
++      ...(inputs.reviewedAt ? { reviewedAt: inputs.reviewedAt } : {}), ...(inputs.issuedAt ? { issuedAt: inputs.issuedAt } : {}),
++      sourceBinding: worksheet.binding ?? null, status: "active" } };
++}
++export async function prepareQsPackagePanelExport(projectId: string, form: QuantityForm, inputs: QsPackagePanelInputs) {
++  const value = await createQsCostPlanPackage(qsPackageInputFromForm(projectId, form, inputs), parseWorksheet);
++  return { value, artifacts: await exportQsCostPlanPackage(value, parseWorksheet) };
++}
++
++const manifestEntrySchema = z.object({ name: z.string(), sizeBytes: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
++const previewManifestSchema = z.object({ format: z.literal("xray.qs-package-manifest/v1"), contentSha256: z.string(),
++  sealSha256: z.string(), entries: z.array(manifestEntrySchema) }).strict();
++export type QsPackagePanelPreview = {
++  value: QsVerifiedPackage<QuantityForm>; packageSha256: string; manifestSealSha256: string;
++  entries: z.infer<typeof manifestEntrySchema>[];
++};
++export function assertQsPackageFileSize(size: number): void {
++  if (!Number.isSafeInteger(size) || size < 22 || size > QS_PACKAGE_MAX_BYTES) throw Error("Choose a supported cost-plan ZIP no larger than 32 MiB.");
++}
++/** The package parser verifies quotas, every digest, and the regenerated visible
++ * PDF/CSV before any manifest contents are trusted for display. */
++export async function inspectQsPackagePanelImport(bytes: Uint8Array): Promise<QsPackagePanelPreview> {
++  assertQsPackageFileSize(bytes.length);
++  const captured = Uint8Array.from(bytes), value = await parseQsCostPlanPackage(captured, parseWorksheet);
++  const files = unzipSync(captured), manifestBytes = files["manifest.json"];
++  const manifest = previewManifestSchema.parse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(manifestBytes)));
++  const entries = [...manifest.entries, { name: "manifest.json", sizeBytes: manifestBytes.length, sha256: await qsPackageDigest(manifestBytes) }];
++  if (entries.length !== Object.keys(files).length) throw Error("The preview does not reconcile with the validated archive.");
++  return { value, entries, manifestSealSha256: manifest.sealSha256, packageSha256: await qsPackageDigest(captured) };
++}
++
++export type QsPackageTaskScope = { projectId: string; form: QuantityForm; disabled: boolean; inputs: QsPackagePanelInputs };
++/** Identity-sensitive cancellation, including A -> B -> A switches. Each new
++ * operation supersedes earlier work, even when its promises cannot be aborted. */
++export function createQsPackageTaskGate() {
++  let scope: QsPackageTaskScope | null = null, generation = 0, active = true;
++  return {
++    sync(next: QsPackageTaskScope) { if (scope !== next) { scope = next; generation++; } },
++    activate() { active = true; generation++; },
++    dispose() { active = false; generation++; },
++    begin() {
++      if (!active || !scope || scope.disabled) throw Error("Package actions are unavailable while project/source/storage checks are pending.");
++      const ticket = ++generation, captured = scope;
++      return () => active && generation === ticket && scope === captured && !captured.disabled;
++    },
++  };
++}
++
++type Prepared = Awaited<ReturnType<typeof prepareQsPackagePanelExport>> & { scope: QsPackageTaskScope };
++export type QsSelectedPackageImport = { id: object; file: File; bytes: Uint8Array | null; preview: QsPackagePanelPreview | null; error: string };
++export function qsPackageImportFailure(existing: QsSelectedPackageImport | null, expectedId: object, cause: unknown): QsSelectedPackageImport | null {
++  return existing?.id === expectedId ? { ...existing, preview: null, error: errorText(cause) } : existing;
++}
++/** The restore callback is synchronous and remains the host's persistence boundary. */
++export async function restoreInspectedQsPackage(preview: QsPackagePanelPreview, projectId: string, confirmed: boolean,
++  onRestore: (next: QuantityForm) => boolean, current: () => boolean): Promise<"accepted" | "cancelled"> {
++  if (!confirmed) throw Error("Inspect and explicitly confirm the worksheet replacement before restoring.");
++  if (!current()) return "cancelled";
++  const next = await restoreQsCostPlanWorksheet(preview.value, projectId, parseWorksheet);
++  if (!current()) return "cancelled";
++  if (!onRestore(next)) throw Error("The host rejected the restore. The current worksheet and imported bytes are preserved.");
++  return "accepted";
++}
++type DownloadKind = "package" | "pdf" | "csv";
++const timestampHint = "ISO date/time with timezone, for example 2026-09-19T12:00:00Z";
++
++export function QSCostPlanPackageManifest({ preview }: { preview: QsPackagePanelPreview }) {
++  return <><h4>Integrity-checked manifest · {preview.entries.length} files</h4>
++    <p className="qs-package-note">{preview.value.transmittal.title} · Project {preview.value.delivery.projectId} · Revision {preview.value.delivery.revision} · {describeDeliveryState(preview.value.delivery.state)}</p>
++    <p className="qs-package-note">{preview.value.current.items.length} priced items · {preview.value.worksheet.nodes.length} classification nodes. Classification quantities remain draft; a matching hash is not source verification.</p>
++    <dl className="qs-package-hashes"><div><dt>Package SHA-256</dt><dd><code>{preview.packageSha256}</code></dd></div><div><dt>Content SHA-256</dt><dd><code>{preview.value.delivery.contentSha256}</code></dd></div><div><dt>Manifest seal</dt><dd><code>{preview.manifestSealSha256}</code></dd></div></dl>
++    <div className="qs-package-table-scroll" tabIndex={0} aria-label="Verified package file hashes"><table><caption>Exact imported files; no worksheet changes yet</caption><thead><tr><th scope="col">File</th><th scope="col">Bytes</th><th scope="col">SHA-256</th></tr></thead><tbody>{preview.entries.map(entry => <tr key={entry.name}><th scope="row">{entry.name}</th><td>{entry.sizeBytes.toLocaleString()}</td><td><code>{entry.sha256}</code></td></tr>)}</tbody></table></div>
++  </>;
++}
++
++/** No persistence or project mutation occurs until the separate explicit restore
++ * action calls the host. Reopening checks integrity, not professional adequacy. */
++export function QSCostPlanPackagePanel({ projectId, value, disabled = false, onRestore }: QSCostPlanPackagePanelProps) {
++  const [inputs, setInputs] = useState(emptyQsPackagePanelInputs);
++  const [inputsProject, setInputsProject] = useState(projectId);
++  const [prepared, setPrepared] = useState<Prepared | null>(null);
++  const [selected, setSelected] = useState<QsSelectedPackageImport | null>(null);
++  const [confirmed, setConfirmed] = useState<{ id: object; scope: QsPackageTaskScope } | null>(null);
++  const [error, setError] = useState("");
++  const [notice, setNotice] = useState("");
++  const scope = useMemo(() => ({ projectId, form: value, disabled: disabled || inputsProject !== projectId, inputs }), [projectId, value, disabled, inputsProject, inputs]);
++  const [busy, setBusy] = useState<{ scope: QsPackageTaskScope; label: string } | null>(null);
++  const gate = useRef(createQsPackageTaskGate()).current;
++  gate.sync(scope);
++  const currentRestore = useRef(onRestore); currentRestore.current = onRestore;
++  useEffect(() => { gate.activate(); return () => gate.dispose(); }, [gate]);
++  useEffect(() => {
++    setInputs(emptyQsPackagePanelInputs()); setInputsProject(projectId); setPrepared(null); setConfirmed(null); setError(""); setNotice("");
++    // Selected original file/bytes are intentionally retained, even across projects.
++    // Its validated project identity still prevents restoring to another project.
++  }, [projectId]);
++  const working = busy?.scope === scope ? busy.label : "";
++  const locked = scope.disabled || !!working;
++  const ready = prepared?.scope === scope ? prepared : null;
++  const latest = value.pricing?.projectId === projectId ? value.pricing.snapshots.at(-1) : undefined;
++  const preview = selected?.preview ?? null;
++  const sameProject = preview?.value.delivery.projectId === projectId;
++  const restoreConfirmed = confirmed?.id === selected?.id && confirmed?.scope === scope;
++
++  async function prepare() {
++    let current: (() => boolean) | undefined;
++    try {
++      current = gate.begin(); setBusy({ scope, label: "Preparing sealed package…" }); setError(""); setNotice(""); setPrepared(null);
++      const result = await prepareQsPackagePanelExport(projectId, value, inputs);
++      if (!current()) return;
++      setPrepared({ ...result, scope }); setNotice("Package prepared from the saved revision. Choose each download separately.");
++    } catch (cause) { if (!current || current()) setError(errorText(cause)); }
++    finally { if (current?.()) setBusy(null); }
++  }
++  async function download(kind: DownloadKind) {
++    if (!ready || locked) return;
++    let current: (() => boolean) | undefined;
++    try {
++      current = gate.begin(); setError("");
++      const { saveDownload } = await import("../../architect/sheets.ts");
++      if (!current()) return;
++      const stem = `cost-plan-r${ready.value.delivery.revision}`;
++      const payload = kind === "package" ? ready.artifacts.bytes : kind === "pdf" ? ready.artifacts.pdf : ready.artifacts.csv;
++      saveDownload(payload, `${stem}.${kind === "package" ? "xray-qs.zip" : kind}`, kind === "package" ? "application/zip" : kind === "pdf" ? "application/pdf" : "text/csv;charset=utf-8");
++      setNotice(`${kind === "package" ? "Package" : kind.toUpperCase()} offered to the browser download. Disk save and readback are not established until you reopen the file.`);
++    } catch (cause) { if (!current || current()) setError(errorText(cause)); }
++  }
++  async function validateFile(file: File, retained?: QsSelectedPackageImport) {
++    let current: (() => boolean) | undefined;
++    const record: QsSelectedPackageImport = retained ?? { id: {}, file, bytes: null, preview: null, error: "" };
++    try {
++      current = gate.begin(); setBusy({ scope, label: "Checking package contents…" }); setError(""); setNotice(""); setConfirmed(null);
++      setSelected({ ...record, preview: null, error: "" });
++      assertQsPackageFileSize(file.size);
++      const bytes = record.bytes ?? new Uint8Array(await file.arrayBuffer());
++      if (!current()) return;
++      setSelected({ ...record, bytes, preview: null, error: "" });
++      const result = await inspectQsPackagePanelImport(bytes);
++      if (!current()) return;
++      setSelected({ ...record, bytes, preview: result, error: "" });
++    } catch (cause) {
++      if (!current || current()) setSelected(existing => qsPackageImportFailure(existing, record.id, cause));
++    } finally { if (current?.()) setBusy(null); }
++  }
++  async function restore() {
++    if (!preview || !sameProject || !restoreConfirmed || locked) return;
++    let current: (() => boolean) | undefined;
++    try {
++      current = gate.begin(); setBusy({ scope, label: "Rechecking worksheet before restore…" }); setError(""); setNotice("");
++      const outcome = await restoreInspectedQsPackage(preview, projectId, restoreConfirmed, next => currentRestore.current(next), current);
++      if (outcome === "cancelled" || !current()) return;
++      setConfirmed(null); setNotice("The host accepted the restored worksheet. Check its save indicator; disk persistence is not established by package validation.");
++    } catch (cause) { if (!current || current()) setError(errorText(cause)); }
++    finally { if (current?.()) setBusy(null); }
++  }
++  const field = (key: keyof QsPackagePanelInputs, label: string, long = false, timestamp = false) => <label key={key}>{label}
++    {long ? <textarea rows={3} value={inputs[key]} maxLength={400100} onChange={event => setInputs({ ...inputs, [key]: event.target.value })} />
++      : <input value={inputs[key]} maxLength={timestamp ? 40 : 240} placeholder={timestamp ? timestampHint : undefined} onChange={event => setInputs({ ...inputs, [key]: event.target.value })} />}</label>;
++
++  return <section className="qs-package-panel" aria-label="Cost plan package" aria-busy={!!working}>
++    <header><h3>Cost plan package</h3><span>Draft quantities remain draft</span></header>
++    <p className="qs-package-note">Sealed files preserve a saved cost revision, classifications and source references. Integrity checks do not certify quantities, classify estimates as verified, or issue anything to a recipient.</p>
++    <p className="qs-package-note">{latest ? `Latest saved cost revision: ${latest.input.revision}. Previous revision: ${value.pricing!.snapshots.at(-2)?.input.revision ?? "none (initial revision)"}.` : "Save a measured cost revision before exporting. An existing package can still be inspected."}</p>
++    <fieldset disabled={locked || !latest} className="qs-package-section"><legend>Export details</legend>
++      <div className="qs-package-fields">{field("title", "Cost plan title")}{field("reference", "Transmittal reference")}{field("revisionLabel", "Revision label")}
++        {field("preparedBy", "Prepared by")}{field("recipient", "Intended recipient")}{field("purpose", "Purpose")}{field("transmittalCreatedAt", "Transmittal created at", false, true)}</div>
++      <p className="qs-package-note">One statement per line. Enter an explicit “None” where appropriate; empty assumptions or exclusions are not silently supplied.</p>
++      <div className="qs-package-fields">{field("basisOfEstimate", "Basis of estimate", true)}{field("assumptions", "Assumptions", true)}{field("exclusions", "Exclusions", true)}</div>
++      <details><summary>Delivery identity and review record</summary><div className="qs-package-fields">
++        {field("deliveryId", "Delivery identifier")}
++        <label>Delivery state<select value={inputs.deliveryState} onChange={event => setInputs({ ...inputs, deliveryState: event.target.value as DeliveryState | "" })}>
++          <option value="">Choose delivery state</option>{DELIVERY_STATES.map(state => <option key={state} value={state}>{describeDeliveryState(state)}</option>)}</select></label>
++        {field("createdAt", "Delivery created at", false, true)}{field("reviewedAt", "Reviewed at (reviewed or issued only)", false, true)}{field("issuedAt", "Issued at (issued only)", false, true)}
++      </div><p className="qs-package-note">Review/issue timestamps are explicit declarations. Choosing a state does not verify the source or send this package. Draft delivery states cannot carry review/issue timestamps.</p></details>
++      <button type="button" onClick={() => void prepare()}>Prepare package from saved revision</button>
++    </fieldset>
++    {ready && <section className="qs-package-section" aria-label="Prepared cost package"><h4>Prepared files</h4>
++      <p className="qs-package-note">Content SHA-256 <code>{ready.artifacts.contentSha256}</code></p>
++      <div className="qs-package-actions">{(["package", "pdf", "csv"] as const).map(kind => <button key={kind} type="button" disabled={locked} onClick={() => void download(kind)}>Download {kind === "package" ? "package ZIP" : kind.toUpperCase()}</button>)}</div>
++    </section>}
++    <section className="qs-package-section" aria-label="Reopen cost package"><h4>Reopen and inspect</h4>
++      <label>Cost-plan package ZIP (maximum 32 MiB)<input type="file" accept=".zip,application/zip" disabled={locked} onChange={event => { const file = event.target.files?.[0]; if (file) void validateFile(file); }} /></label>
++      {selected && <><p className="qs-package-note">Selected: {selected.file.name} · {selected.file.size.toLocaleString()} bytes. {selected.bytes ? "Original imported bytes retained in this panel." : "Original file selection retained."}</p>
++        {selected.error && <p className="qs-package-error" role="alert">{selected.error}</p>}
++        {!preview && <button type="button" disabled={locked} onClick={() => void validateFile(selected.file, selected)}>Retry validation of retained file</button>}</>}
++      {preview && <><QSCostPlanPackageManifest preview={preview} />
++        {!sameProject && <p className="qs-package-error" role="alert">This package belongs to another project. Restore is disabled; the current worksheet is unchanged.</p>}
++        <label className="qs-package-confirm"><input type="checkbox" disabled={locked || !sameProject} checked={restoreConfirmed} onChange={event => setConfirmed(event.target.checked && selected ? { id: selected.id, scope } : null)} />I have inspected this package and want to replace this project’s entire quantity worksheet, including its pricing history. Unsaved worksheet edits will be replaced.</label>
++        <button type="button" disabled={locked || !sameProject || !restoreConfirmed} onClick={() => void restore()}>Restore inspected worksheet to this project</button>
++      </>}
++    </section>
++    {working && <p className="qs-package-note" role="status">{working}</p>}
++    {error && <p className="qs-package-error" role="alert">{error}</p>}
++    {notice && <p className="qs-package-note" role="status">{notice}</p>}
++  </section>;
++}
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.css" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.css"
+new file mode 100644
+index 0000000..b471229
+--- /dev/null
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.css"
+@@ -0,0 +1,33 @@
++.qs-package-panel {
++  --qs-package-space: 12px;
++  display: grid; gap: 16px; min-width: 0; padding-top: 20px;
++  border-top: 1px solid var(--color-line); color: var(--color-ink); font: inherit;
++}
++.qs-package-panel header { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: var(--qs-package-space); }
++.qs-package-panel :is(h3,h4) { margin: 0; font-size: 16px; font-weight: 700; text-wrap: balance; }
++.qs-package-panel header span { border: 1px solid var(--color-line); border-radius: var(--radius-pill); padding: 4px 10px; color: var(--color-muted); background: var(--color-paper); }
++.qs-package-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--color-muted); overflow-wrap: anywhere; }
++.qs-package-section { display: grid; min-width: 0; gap: var(--qs-package-space); padding: var(--qs-package-space); border: 1px solid var(--color-line); border-radius: var(--radius-panel); }
++.qs-package-section legend { padding: 0 6px; font-weight: 700; }
++.qs-package-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: var(--qs-package-space); min-width: 0; }
++.qs-package-panel label { display: grid; min-width: 0; gap: 6px; color: var(--color-muted); font-size: 12px; font-weight: 600; }
++.qs-package-panel :is(input:not([type="checkbox"]),select,textarea) { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-line); border-radius: var(--radius-pill); background: var(--color-field); color: var(--color-field-ink); font: inherit; }
++.qs-package-panel textarea { resize: vertical; border-radius: var(--radius-panel); }
++.qs-package-panel button { min-height: 44px; border: 1px solid var(--color-line); border-radius: var(--radius-pill); padding: 10px 14px; background: var(--color-card); color: var(--color-ink); font: inherit; font-weight: 600; white-space: normal; cursor: pointer; }
++.qs-package-panel button:disabled { opacity: .55; cursor: not-allowed; }
++.qs-package-panel summary { min-height: 44px; padding: 12px 0; cursor: pointer; font-weight: 600; }
++.qs-package-panel :is(button,input,select,textarea,summary):focus-visible,.qs-package-table-scroll:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }
++.qs-package-actions { display: flex; flex-wrap: wrap; gap: 10px; }
++.qs-package-error { margin: 0; color: var(--color-danger); border-left: 3px solid currentColor; padding: 8px 12px; overflow-wrap: anywhere; }
++.qs-package-hashes { margin: 0; display: grid; gap: 8px; }
++.qs-package-hashes > div { display: grid; grid-template-columns: minmax(100px,1fr) minmax(0,3fr); gap: var(--qs-package-space); }
++.qs-package-hashes dt { color: var(--color-muted); }
++.qs-package-hashes dd { margin: 0; }
++.qs-package-panel code { font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
++.qs-package-table-scroll { max-width: 100%; overflow: auto; border: 1px solid var(--color-line); border-radius: var(--radius-panel); }
++.qs-package-panel table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.5; }
++.qs-package-panel caption { text-align: left; padding: var(--qs-package-space); color: var(--color-muted); background: var(--color-paper); }
++.qs-package-panel :is(th,td) { padding: var(--qs-package-space); border-top: 1px solid var(--color-line); text-align: left; vertical-align: top; font-variant-numeric: tabular-nums; }
++.qs-package-panel thead { color: var(--color-muted); background: var(--color-paper); }
++.qs-package-panel .qs-package-confirm { display: flex; align-items: start; gap: 10px; min-height: 44px; padding: 10px 0; color: var(--color-ink); line-height: 1.5; }
++.qs-package-confirm input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: var(--color-action); }
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.test.ts" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.test.ts"
+new file mode 100644
+index 0000000..c24301e
+--- /dev/null
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\QSCostPlanPackagePanel.test.ts"
+@@ -0,0 +1,156 @@
++import { after, test } from "node:test";
++import assert from "node:assert/strict";
++import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
++import { createRequire } from "node:module";
++import { basename, dirname, join, resolve } from "node:path";
++import { fileURLToPath } from "node:url";
++import React from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++import ts from "typescript";
++import { unzipSync, zipSync } from "fflate";
++import { calculateQsCostPlan, canonicalQsJson, type QsCostSnapshot } from "./qsRateBook.ts";
++import { createEmptyQuantityForm, quantityFormSchema, type QuantityForm } from "./quantityForm.ts";
++import { createEmptyQsWorksheetState } from "./qsWorksheetState.ts";
++import { qsPackageDigest } from "./qsPackageExport.ts";
++import type { QsPackagePanelInputs, QsPackageTaskScope, QsSelectedPackageImport } from "./QSCostPlanPackagePanel.tsx";
++
++// Execute actual component markup and production orchestration. CSS/downloads
++// are browser-proof responsibilities; no browser delivery is simulated here.
++const here = dirname(fileURLToPath(import.meta.url));
++mkdirSync(resolve("node_modules/.cache"), { recursive: true });
++const cache = mkdtempSync(resolve("node_modules/.cache/qs-package-panel-"));
++for (const file of ["QSCostPlanPackagePanel.tsx", "quantityForm.ts", "classification.ts", "report.ts", "qsPackageExport.ts", "qsRateBook.ts",
++  "qsWorksheetState.ts", "qsDeltaComparison.ts", "qsItemBinding.ts", "../deliveryRecord.ts", "../sourceBinding.ts", "../draftStorage.ts", "../../pricing/priceBooks.ts"]) {
++  const code = ts.transpileModule(readFileSync(join(here, file), "utf8"), {
++    fileName: file, compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
++  }).outputText.replace(/require\("[^"\n]+\.css"\);?/g, "")
++    .replace(/require\("((?:\.\.?\/)+[\w/-]+?)(?:\.tsx?)?"\)/g, (_match, path: string) => `require("./${basename(path)}.cjs")`);
++  writeFileSync(join(cache, basename(file).replace(/\.tsx?$/, ".cjs")), code);
++}
++const require = createRequire(import.meta.url);
++const panel = require(join(cache, "QSCostPlanPackagePanel.cjs")) as typeof import("./QSCostPlanPackagePanel.tsx");
++after(() => rmSync(cache, { recursive: true, force: true }));
++
++const projectId = "panel-project", hash = "a".repeat(64), geometry = "b".repeat(64), bookId = "11111111-1111-4111-8111-111111111111";
++function snapshot(revision: number): QsCostSnapshot {
++  const result = calculateQsCostPlan({ format: "xray.qs-cost-input/v1", projectId, revision, createdAt: `2026-09-19T0${revision}:00:00.000Z`, createdBy: "Estimator", currency: "AUD",
++    priceBooks: { schema: "xray.price-books/v1", jobId: projectId, revision: 1, worksheet: [], books: [{ id: bookId, name: "Synthetic source book", archived: false,
++      revisions: [{ revision: 1, importedAt: "2026-09-01T00:00:00.000Z", metadata: { supplier: "Synthetic supplier", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-01", sourceReference: "Synthetic fixture rate" },
++        source: { fileName: "fixture.csv", sha256: hash, sizeBytes: 100, delimiter: ",", headers: ["Code", "Description", "Unit", "Rate"], mapping: { stockCode: 0, description: 1, unit: 2, rate: 3 } },
++        rows: [{ sourceLine: 2, stockCode: "MAT", description: "Material", unit: "m", rate: 10 }] }] }] },
++    rateBook: { format: "xray.qs-rate-book/v1", projectId, revision: 1, rates: [{ id: "rate-1", revision: 1, description: "Wall rate", unit: "m", material: { bookId, bookRevision: 1, sourceLine: 2 }, labour: null,
++      labourAssumption: "Supply only, labour excluded", wastagePercent: "0", markupPercent: "0", createdAt: "2026-09-18T00:00:00.000Z", createdBy: "Estimator" }] },
++    items: [{ itemId: "item-1", description: "Measured wall", quantity: "3", unit: "m", evidence: "unverified", rateId: "rate-1", rateRevision: 1, optionId: null,
++      binding: { format: "xray.qs-item-binding/v1", itemId: "item-1", projectId, entityId: "wall-1", entityType: "wall-run", measuredQuantity: "3", unit: "m", entityGeometrySha256: geometry, sourceSha256: hash, calibrationId: "cal-1", boundAt: "2026-09-18T00:00:00.000Z", boundBy: "Estimator" },
++      entity: { entityId: "wall-1", entityType: "wall-run", geometrySha256: geometry, sourceSha256: hash, calibrationId: "cal-1", unit: "m", measuredQuantity: "3" } }],
++    options: [], activeOptionIds: [], fxRates: [] });
++  assert.equal(result.ok, true, result.ok ? "" : JSON.stringify(result.blockers));
++  if (!result.ok) throw Error("Fixture failed"); return result.snapshot;
++}
++function fixture(revision = 1): QuantityForm {
++  const snapshots = Array.from({ length: revision }, (_, index) => snapshot(index + 1)), current = snapshots.at(-1)!;
++  return quantityFormSchema.parse({ hierarchyId: "Elements", hierarchyRevision: "1", calculated: true, binding: null,
++    nodes: [{ key: "wall", code: "E1", label: "Walls", parentKey: "" }],
++    items: [{ key: "row-1", reference: "item-1", quantity: "3.000", unit: "m", evidence: "unverified", nodeKey: "wall", entityBinding: current.items[0].binding }],
++    pricing: { ...createEmptyQsWorksheetState(projectId), preparedBy: "Estimator", rateBook: current.input.rateBook,
++      assignments: [{ itemKey: "row-1", rateId: "rate-1", rateRevision: 1, optionId: null }], snapshots } });
++}
++const metadata = (): QsPackagePanelInputs => ({ title: "Cost plan <script>unsafe()</script>", reference: "CP-001", revisionLabel: "Client review", preparedBy: "Estimator", recipient: "Client", purpose: "Budget review",
++  transmittalCreatedAt: "2026-09-19T06:00:00.000Z", basisOfEstimate: "Gross measured geometry\nNo opening deductions", assumptions: "Supplier rates pinned in revision", exclusions: "Labour excluded",
++  deliveryId: "delivery-panel-1", deliveryState: "saved-draft", createdAt: "2026-09-19T05:00:00.000Z", reviewedAt: "", issuedAt: "" });
++const scope = (form = fixture()): QsPackageTaskScope => ({ projectId, form, inputs: metadata(), disabled: false });
++const build = () => panel.prepareQsPackagePanelExport(projectId, fixture(), metadata());
++
++test("SC11-UI01 empty real panel permits inspection but not preparation or automatic restore", () => {
++  let calls = 0;
++  const html = renderToStaticMarkup(React.createElement(panel.QSCostPlanPackagePanel, { projectId, value: createEmptyQuantityForm(), onRestore() { calls++; return true; } }));
++  assert.match(html, /Save a measured cost revision/); assert.match(html, /<fieldset disabled=""/);
++  assert.match(html, /type="file"/); assert.match(html, /Draft quantities remain draft/);
++  assert.doesNotMatch(html, /Restore inspected worksheet|Download package ZIP|Integrity-checked manifest/); assert.equal(calls, 0);
++});
++test("SC11-UI02 disabled panel keeps both export and file-selection controls unavailable", () => {
++  const html = renderToStaticMarkup(React.createElement(panel.QSCostPlanPackagePanel, { projectId, value: fixture(), disabled: true, onRestore: () => true }));
++  assert.match(html, /<fieldset disabled=""/); assert.match(html, /type="file"[^>]+disabled=""/);
++  assert.match(html, /Choose delivery state/); assert.match(html, /Basis of estimate/); assert.match(html, /Review\/issue timestamps are explicit declarations/);
++});
++test("SC11-UI03 package input selects exact latest and immediate predecessor, preserving complete form", () => {
++  const form = fixture(2), before = canonicalQsJson(form), input = panel.qsPackageInputFromForm(projectId, form, metadata());
++  assert.equal(input.current.input.revision, 2); assert.equal(input.previous!.input.revision, 1);
++  assert.deepEqual(input.worksheet, form); assert.notEqual(input.worksheet, form); assert.deepEqual(input.basisOfEstimate, ["Gross measured geometry", "No opening deductions"]);
++  assert.equal(canonicalQsJson(form), before); assert.equal(input.delivery.state, "saved-draft");
++});
++test("SC11-UI04 missing saved state, foreign project and unchosen delivery state fail explicitly", () => {
++  assert.throws(() => panel.qsPackageInputFromForm(projectId, createEmptyQuantityForm(), metadata()), /cost worksheet/);
++  assert.throws(() => panel.qsPackageInputFromForm("other", fixture(), metadata()), /current project/);
++  assert.throws(() => panel.qsPackageInputFromForm(projectId, fixture(), { ...metadata(), deliveryState: "" }), /explicitly/);
++  const noHistory = fixture(); noHistory.pricing!.snapshots = [];
++  assert.throws(() => panel.qsPackageInputFromForm(projectId, noHistory, metadata()), /Save a cost revision/);
++});
++test("SC11-UI05 changed quantities and missing explicit transmittal/basis inputs cannot export stale revision", async () => {
++  const changed = fixture(); changed.items[0].quantity = "4";
++  await assert.rejects(panel.prepareQsPackagePanelExport(projectId, changed, metadata()), /does not match/);
++  await assert.rejects(panel.prepareQsPackagePanelExport(projectId, fixture(), { ...metadata(), title: "" }));
++  await assert.rejects(panel.prepareQsPackagePanelExport(projectId, fixture(), { ...metadata(), exclusions: "" }));
++});
++test("SC11-UI06 import preview reconciles actual archive membership and every displayed SHA including manifest", async () => {
++  const prepared = await build(), bytes = prepared.artifacts.bytes, before = Uint8Array.from(bytes);
++  const preview = await panel.inspectQsPackagePanelImport(bytes), files = unzipSync(bytes);
++  assert.equal(preview.entries.length, Object.keys(files).length);
++  assert.deepEqual(preview.entries.map(entry => entry.name).sort(), Object.keys(files).sort());
++  for (const entry of preview.entries) { assert.equal(entry.sizeBytes, files[entry.name].length); assert.equal(entry.sha256, await qsPackageDigest(files[entry.name])); }
++  assert.equal(preview.packageSha256, await qsPackageDigest(bytes)); assert.deepEqual(preview.value.worksheet, fixture()); assert.deepEqual(bytes, before);
++});
++test("SC11-UI07 corrupted file cannot produce preview, and failure handling retains exact imported bytes", async () => {
++  const prepared = await build(), files = unzipSync(prepared.artifacts.bytes); files["worksheet.json"][0] ^= 1;
++  const bytes = zipSync(files), id = {}, file = new File([Uint8Array.from(bytes).buffer], "bad.zip");
++  const record: QsSelectedPackageImport = { id, file, bytes, preview: null, error: "" };
++  await assert.rejects(panel.inspectQsPackagePanelImport(bytes), /integrity/);
++  const failed = panel.qsPackageImportFailure(record, id, Error("Integrity failed"));
++  assert.equal(failed!.bytes, bytes); assert.equal(failed!.file, file); assert.match(failed!.error, /Integrity failed/); assert.equal(failed!.preview, null);
++  assert.equal(panel.qsPackageImportFailure(record, {}, Error("Older operation")), record);
++});
++test("SC11-UI08 restore requires explicit confirmation and the same project before calling host", async () => {
++  const { artifacts } = await build(), preview = await panel.inspectQsPackagePanelImport(artifacts.bytes); let calls = 0;
++  const accept = () => { calls++; return true; };
++  await assert.rejects(panel.restoreInspectedQsPackage(preview, projectId, false, accept, () => true), /explicitly confirm/);
++  await assert.rejects(panel.restoreInspectedQsPackage(preview, "other", true, accept, () => true), /another project/); assert.equal(calls, 0);
++  let restored: QuantityForm | undefined;
++  assert.equal(await panel.restoreInspectedQsPackage(preview, projectId, true, next => { restored = next; return true; }, () => true), "accepted");
++  assert.deepEqual(restored, fixture()); restored!.items[0].quantity = "99"; assert.equal(preview.value.worksheet.items[0].quantity, "3.000");
++});
++test("SC11-UI09 host refusal propagates without altering package, worksheet or retained bytes", async () => {
++  const { artifacts } = await build(), preview = await panel.inspectQsPackagePanelImport(artifacts.bytes), before = canonicalQsJson(preview.value), bytesBefore = Uint8Array.from(artifacts.bytes);
++  await assert.rejects(panel.restoreInspectedQsPackage(preview, projectId, true, () => false, () => true), /host rejected/);
++  assert.equal(canonicalQsJson(preview.value), before); assert.deepEqual(artifacts.bytes, bytesBefore);
++});
++test("SC11-UI10 project A-to-B-to-A while hashing cancels the pending restore before host mutation", async () => {
++  const { artifacts } = await build(), preview = await panel.inspectQsPackagePanelImport(artifacts.bytes), gate = panel.createQsPackageTaskGate(), a = scope();
++  gate.sync(a); const current = gate.begin(); let calls = 0;
++  const pending = panel.restoreInspectedQsPackage(preview, projectId, true, () => { calls++; return true; }, current);
++  gate.sync({ ...a, projectId: "other" }); gate.sync(a);
++  assert.equal(await pending, "cancelled"); assert.equal(calls, 0);
++});
++test("SC11-UI11 form, metadata, disabled state and unmount invalidate in-flight work", () => {
++  for (const mutate of [(a: QsPackageTaskScope) => ({ ...a, form: fixture() }), (a: QsPackageTaskScope) => ({ ...a, inputs: metadata() }), (a: QsPackageTaskScope) => ({ ...a, disabled: true })]) {
++    const gate = panel.createQsPackageTaskGate(), a = scope(); gate.sync(a); const current = gate.begin(); gate.sync(mutate(a)); assert.equal(current(), false);
++  }
++  const gate = panel.createQsPackageTaskGate(); gate.sync({ ...scope(), disabled: true }); assert.throws(() => gate.begin(), /unavailable/);
++  gate.sync(scope()); const current = gate.begin(); gate.dispose(); assert.equal(current(), false); assert.throws(() => gate.begin(), /unavailable/);
++  gate.activate(); assert.equal(current(), false); assert.equal(gate.begin()(), true);
++});
++test("SC11-UI12 a newer action supersedes an older promise without being cancelled itself", () => {
++  const gate = panel.createQsPackageTaskGate(); gate.sync(scope()); const first = gate.begin(), second = gate.begin();
++  assert.equal(first(), false); assert.equal(second(), true);
++});
++test("SC11-UI13 actual manifest markup names every file and escapes source-authored text", async () => {
++  const { artifacts } = await build(), preview = await panel.inspectQsPackagePanelImport(artifacts.bytes);
++  const html = renderToStaticMarkup(React.createElement(panel.QSCostPlanPackageManifest, { preview }));
++  assert.match(html, new RegExp(`Integrity-checked manifest · ${preview.entries.length} files`));
++  assert.equal((html.match(/<th scope="row">/g) ?? []).length, preview.entries.length);
++  assert.match(html, /Classification quantities remain draft/); assert.match(html, /matching hash is not source verification/);
++  assert.match(html, /&lt;script&gt;/); assert.doesNotMatch(html, /<script>/);
++});
++test("SC11-UI14 file-size guard rejects oversized/invalid files before reading their bytes", () => {
++  for (const size of [0, 21, -1, NaN, Infinity, 33 * 1024 * 1024]) assert.throws(() => panel.assertQsPackageFileSize(size), /32 MiB/);
++  assert.doesNotThrow(() => panel.assertQsPackageFileSize(22)); assert.doesNotThrow(() => panel.assertQsPackageFileSize(32 * 1024 * 1024));
++});
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\hvac\\ductMaterialBasis.ts" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\hvac\\ductMaterialBasis.ts"
+new file mode 100644
+index 0000000..9d705d1
+--- /dev/null
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\hvac\\ductMaterialBasis.ts"
+@@ -0,0 +1,142 @@
++import { z } from "zod";
++import type { StraightDuctSchedule } from "./straightDuct.ts";
++
++const label = z.string().trim().min(1).max(240);
++const reference = z.string().trim().min(1).max(1000);
++const positive = z.number().finite().positive().max(Number.MAX_SAFE_INTEGER);
++export const ductMaterialSchema = z.enum(["galvanized-steel", "aluminum", "stainless-steel"]);
++export const ductMaterialSourceIdentitySchema = z.object({
++  sourceId: label,
++  sourceRevision: label,
++  sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
++}).strict();
++export type DuctMaterialSourceIdentity = z.infer<typeof ductMaterialSourceIdentitySchema>;
++
++const thicknessSchema = z.object({ value: positive, unit: z.enum(["mm", "m"]), sourceReference: reference }).strict();
++const densitySchema = z.object({ value: positive, unit: z.literal("kg/m3"), sourceReference: reference }).strict();
++const provenanceSchema = ductMaterialSourceIdentitySchema.extend({
++  sourceReference: reference,
++  evidenceClass: z.enum(["declared", "inferred", "sample"]),
++}).strict();
++
++/** One user-supplied table row. Gauge labels do not select a normative thickness.
++ * Bulk density is kg/m3; the derived areal mass is kg/m2. There is no database,
++ * design-velocity prerequisite, source-byte authentication or certification here. */
++export const ductMaterialValuesSchema = z.object({
++  material: ductMaterialSchema,
++  gaugeLabel: label,
++  thickness: thicknessSchema,
++  bulkDensity: densitySchema,
++  provenance: provenanceSchema,
++}).strict();
++export type DuctMaterialValues = z.infer<typeof ductMaterialValuesSchema>;
++const reviewerSchema = z.object({ reviewedBy: label, reviewedAt: z.string().datetime({ offset: true }) }).strict();
++const reviewSchema = reviewerSchema.extend({ values: ductMaterialValuesSchema }).strict();
++
++/** Nullable/omitted inputs mean unknown, never an assumed gauge or density.
++ * The review preserves exact values so subsequent edits require another review. */
++export const ductMaterialBasisSchema = z.object({
++  material: ductMaterialSchema.nullish(),
++  gaugeLabel: label.nullish(),
++  thickness: thicknessSchema.nullish(),
++  bulkDensity: densitySchema.nullish(),
++  provenance: provenanceSchema.nullish(),
++  review: reviewSchema.nullish(),
++}).strict();
++export type DuctMaterialBasis = z.infer<typeof ductMaterialBasisSchema>;
++export type DuctMaterialUnknownReason =
++  | "invalid-input" | "missing-material" | "missing-gauge" | "missing-thickness"
++  | "missing-density" | "missing-provenance" | "unreviewed" | "ineligible-evidence"
++  | "review-outdated" | "source-unavailable" | "source-mismatch" | "outside-numeric-range";
++type SheetMassOperand = NonNullable<StraightDuctSchedule["sections"][number]["sheetMassKgPerM2"]>;
++type CommonResult = {
++  ruleset: "hvac-declared-material-basis-v1";
++  evidenceStatus: "draft-unverified";
++  verifiedQuoteEligible: false;
++  sourceAuthenticated: false;
++  basis: DuctMaterialBasis | null;
++};
++export type DuctMaterialBasisResult = CommonResult & ({
++  status: "unknown";
++  reasons: DuctMaterialUnknownReason[];
++  validationIssues: string[];
++  sheetMassKgPerM2: null;
++  calculation: null;
++} | {
++  status: "declared";
++  reasons: DuctMaterialUnknownReason[];
++  validationIssues: string[];
++  sheetMassKgPerM2: SheetMassOperand;
++  calculation: { formula: "thicknessM * bulkDensityKgPerM3"; thicknessM: number; bulkDensityKgPerM3: number; value: number; unit: "kg/m2" };
++});
++
++const common = {
++  ruleset: "hvac-declared-material-basis-v1" as const,
++  evidenceStatus: "draft-unverified" as const,
++  verifiedQuoteEligible: false as const,
++  sourceAuthenticated: false as const,
++};
++function unknown(basis: DuctMaterialBasis | null, reasons: DuctMaterialUnknownReason[], validationIssues: string[] = []): DuctMaterialBasisResult {
++  return { ...common, basis, status: "unknown", reasons, validationIssues, sheetMassKgPerM2: null, calculation: null };
++}
++function valuesOf(basis: DuctMaterialBasis) {
++  return ductMaterialValuesSchema.safeParse({ material: basis.material, gaugeLabel: basis.gaugeLabel,
++    thickness: basis.thickness, bulkDensity: basis.bulkDensity, provenance: basis.provenance });
++}
++function valuesKey(values: DuctMaterialValues): string {
++  // Schemas create keys in a fixed order. This is an equality key, NOT a seal.
++  return JSON.stringify(ductMaterialValuesSchema.parse(values));
++}
++
++/** Records the caller's explicit review declaration against exact inputs.
++ * It does not independently verify the reviewer, source bytes or engineering use. */
++export function recordDuctMaterialReview(input: unknown, reviewer: unknown): DuctMaterialBasis {
++  const values = ductMaterialValuesSchema.parse(input);
++  if (values.provenance.evidenceClass !== "declared") throw new Error("Sample or inferred material data cannot be recorded as a reviewed declaration.");
++  const review = reviewerSchema.parse(reviewer);
++  return { ...values, review: { ...review, values: structuredClone(values) } };
++}
++
++/** Re-evaluate whenever values or a known live source identity change. Supplying
++ * null for currentSource means the source is unavailable. Omitting it performs
++ * only internal reconciliation; the result still explicitly says unauthenticated.
++ * A declared operand fits the existing straightDuct/wrap schedule contract, but
++ * consumers must retain this full result alongside it and never promote it. */
++export function evaluateDuctMaterialBasis(input: unknown, currentSource?: DuctMaterialSourceIdentity | null): DuctMaterialBasisResult {
++  const parsed = ductMaterialBasisSchema.safeParse(input);
++  if (!parsed.success) return unknown(null, ["invalid-input"], parsed.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`));
++  const basis = parsed.data;
++  const reasons: DuctMaterialUnknownReason[] = [];
++  if (!basis.material) reasons.push("missing-material");
++  if (!basis.gaugeLabel) reasons.push("missing-gauge");
++  if (!basis.thickness) reasons.push("missing-thickness");
++  if (!basis.bulkDensity) reasons.push("missing-density");
++  if (!basis.provenance) reasons.push("missing-provenance");
++  else if (basis.provenance.evidenceClass !== "declared") reasons.push("ineligible-evidence");
++  if (!basis.review) reasons.push("unreviewed");
++  const values = valuesOf(basis);
++  if (basis.review && values.success && valuesKey(values.data) !== valuesKey(basis.review.values)) reasons.push("review-outdated");
++  if (currentSource === null) reasons.push("source-unavailable");
++  else if (currentSource !== undefined) {
++    const live = ductMaterialSourceIdentitySchema.safeParse(currentSource);
++    if (!live.success) reasons.push("source-unavailable");
++    else if (basis.provenance && (live.data.sourceId !== basis.provenance.sourceId || live.data.sourceRevision !== basis.provenance.sourceRevision || live.data.sourceSha256 !== basis.provenance.sourceSha256)) reasons.push("source-mismatch");
++  }
++  if (reasons.length || !values.success) return unknown(basis, reasons.length ? reasons : ["invalid-input"]);
++  const data = values.data;
++  const thicknessM = data.thickness.unit === "mm" ? data.thickness.value / 1000 : data.thickness.value;
++  const value = thicknessM * data.bulkDensity.value;
++  if (!Number.isFinite(thicknessM) || thicknessM <= 0 || !Number.isFinite(value) || value <= 0 || value > Number.MAX_SAFE_INTEGER)
++    return unknown(basis, ["outside-numeric-range"]);
++  const sourceReference = [
++    "Declared reviewed material basis; not source-authenticated or verified",
++    `${data.material}; gauge ${data.gaugeLabel}`,
++    `thickness ${data.thickness.value} ${data.thickness.unit} (${data.thickness.sourceReference})`,
++    `bulk density ${data.bulkDensity.value} kg/m3 (${data.bulkDensity.sourceReference})`,
++    `${data.provenance.sourceReference}; source ${data.provenance.sourceId}; revision ${data.provenance.sourceRevision}; SHA-256 ${data.provenance.sourceSha256}`,
++    `review declared by ${basis.review!.reviewedBy} at ${basis.review!.reviewedAt}`,
++  ].join("; ");
++  return { ...common, basis, status: "declared", reasons: [], validationIssues: [],
++    sheetMassKgPerM2: { value, sourceReference },
++    calculation: { formula: "thicknessM * bulkDensityKgPerM3", thicknessM, bulkDensityKgPerM3: data.bulkDensity.value, value, unit: "kg/m2" } };
++}
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\hvac\\ductMaterialBasis.test.ts" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\hvac\\ductMaterialBasis.test.ts"
+new file mode 100644
+index 0000000..f40b671
+--- /dev/null
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\hvac\\ductMaterialBasis.test.ts"
+@@ -0,0 +1,160 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { ductMaterialBasisSchema, ductMaterialValuesSchema, evaluateDuctMaterialBasis, recordDuctMaterialReview, type DuctMaterialBasis, type DuctMaterialValues } from "./ductMaterialBasis.ts";
++import { calculateStraightDuctDraft } from "./straightDuct.ts";
++import { calculateStraightDuctWrapDraft } from "./straightDuctWrap.ts";
++
++// Arithmetic-only synthetic fixture; these numbers are not a normative gauge table.
++const values = (): DuctMaterialValues => ({ material: "galvanized-steel", gaugeLabel: "Synthetic G-01 (not a standard)",
++  thickness: { value: 0.5, unit: "mm", sourceReference: "Synthetic thickness row" },
++  bulkDensity: { value: 8000, unit: "kg/m3", sourceReference: "Synthetic density row" },
++  provenance: { sourceId: "fixture-sheet", sourceRevision: "R1", sourceSha256: "a".repeat(64), sourceReference: "Synthetic arithmetic fixture only", evidenceClass: "declared" } });
++const reviewer = () => ({ reviewedBy: "Synthetic test reviewer", reviewedAt: "2026-09-19T12:00:00.000Z" });
++const reviewed = () => recordDuctMaterialReview(values(), reviewer());
++const operand = (value: number) => ({ value, sourceReference: "Explicit synthetic geometry" });
++
++test("SC12-M01 reviewed explicit mm and kg/m3 produce declared kg/m2, never verified", () => {
++  const result = evaluateDuctMaterialBasis(reviewed());
++  assert.equal(result.status, "declared");
++  assert.equal(result.sheetMassKgPerM2?.value, 4);
++  assert.deepEqual(result.calculation, { formula: "thicknessM * bulkDensityKgPerM3", thicknessM: 0.0005, bulkDensityKgPerM3: 8000, value: 4, unit: "kg/m2" });
++  assert.equal(result.evidenceStatus, "draft-unverified");
++  assert.equal(result.verifiedQuoteEligible, false);
++  assert.equal(result.sourceAuthenticated, false);
++  assert.match(result.sheetMassKgPerM2!.sourceReference, /not source-authenticated or verified/);
++  assert.match(result.sheetMassKgPerM2!.sourceReference, /Synthetic thickness row/);
++  assert.match(result.sheetMassKgPerM2!.sourceReference, /Synthetic density row/);
++  assert.match(result.sheetMassKgPerM2!.sourceReference, /revision R1/);
++});
++
++test("SC12-M02 mm/m are equivalent and material/gauge labels do not infer any numeric value", () => {
++  for (const material of ["galvanized-steel", "aluminum", "stainless-steel"] as const) {
++    const input = values(); input.material = material; input.gaugeLabel = "User-defined label";
++    input.thickness = { ...input.thickness, value: .0005, unit: "m" };
++    assert.equal(evaluateDuctMaterialBasis(recordDuctMaterialReview(input, reviewer())).sheetMassKgPerM2?.value, 4);
++  }
++});
++
++test("SC12-M03 missing inputs remain unknown with specific reasons and no mass operand", () => {
++  const result = evaluateDuctMaterialBasis({});
++  assert.equal(result.status, "unknown");
++  assert.deepEqual(result.reasons, ["missing-material", "missing-gauge", "missing-thickness", "missing-density", "missing-provenance", "unreviewed"]);
++  assert.equal(result.sheetMassKgPerM2, null);
++  for (const [key, reason] of [["material", "missing-material"], ["gaugeLabel", "missing-gauge"], ["thickness", "missing-thickness"], ["bulkDensity", "missing-density"], ["provenance", "missing-provenance"]] as const) {
++    const input = reviewed(); delete input[key];
++    const missing = evaluateDuctMaterialBasis(input);
++    assert.equal(missing.status, "unknown"); assert.ok(missing.reasons.includes(reason)); assert.equal(missing.sheetMassKgPerM2, null);
++  }
++});
++
++test("SC12-M04 a complete unreviewed row does not become a usable material basis", () => {
++  const result = evaluateDuctMaterialBasis(values());
++  assert.equal(result.status, "unknown"); assert.deepEqual(result.reasons, ["unreviewed"]);
++  assert.equal(result.sheetMassKgPerM2, null); assert.equal(result.verifiedQuoteEligible, false);
++});
++
++test("SC12-M05 sample/inferred provenance cannot yield mass even with forged matching review metadata", () => {
++  for (const evidenceClass of ["sample", "inferred"] as const) {
++    const input = values(); input.provenance.evidenceClass = evidenceClass;
++    assert.throws(() => recordDuctMaterialReview(input, reviewer()), /Sample or inferred/);
++    const result = evaluateDuctMaterialBasis({ ...input, review: { ...reviewer(), values: input } });
++    assert.equal(result.status, "unknown"); assert.deepEqual(result.reasons, ["ineligible-evidence"]);
++    assert.equal(result.sheetMassKgPerM2, null); assert.equal(result.verifiedQuoteEligible, false);
++  }
++});
++
++test("SC12-M06 malformed provenance, unit substitutions and extra verified flags fail closed", () => {
++  const base = reviewed();
++  for (const input of [null, [], { ...base, verified: true }, { ...base, material: "steel" }, { ...base, gaugeLabel: " " },
++    { ...base, thickness: { ...base.thickness, unit: "in" } },
++    { ...base, bulkDensity: { ...base.bulkDensity, unit: "kg/m2" } },
++    { ...base, provenance: { ...base.provenance, sourceSha256: "not-a-hash" } },
++    { ...base, provenance: { ...base.provenance, sourceReference: " " } },
++    { ...base, provenance: { ...base.provenance, evidenceClass: "verified" } },
++    { ...base, review: { ...base.review, reviewedBy: " " } },
++    { ...base, review: { ...base.review, reviewedAt: "yesterday" } }]) {
++    const result = evaluateDuctMaterialBasis(input);
++    assert.equal(result.status, "unknown"); assert.deepEqual(result.reasons, ["invalid-input"]);
++    assert.equal(result.sheetMassKgPerM2, null); assert.equal(result.verifiedQuoteEligible, false);
++  }
++});
++
++test("SC12-M07 only finite positive numeric operands are accepted without coercion", () => {
++  for (const field of ["thickness", "bulkDensity"] as const) for (const value of [0, -1, NaN, Infinity, -Infinity, "0.5", null, Number.MAX_SAFE_INTEGER + 1]) {
++    const input = reviewed();
++    const result = evaluateDuctMaterialBasis({ ...input, [field]: { ...input[field], value } });
++    assert.equal(result.status, "unknown"); assert.deepEqual(result.reasons, ["invalid-input"]); assert.equal(result.sheetMassKgPerM2, null);
++  }
++});
++
++test("SC12-M08 conversion underflow and derived overflow are unknown rather than zero/infinite mass", () => {
++  const underflow = values(); underflow.thickness.value = Number.MIN_VALUE;
++  const overflow = values(); overflow.thickness = { ...overflow.thickness, value: Number.MAX_SAFE_INTEGER, unit: "m" };
++  for (const input of [underflow, overflow]) {
++    const result = evaluateDuctMaterialBasis(recordDuctMaterialReview(input, reviewer()));
++    assert.equal(result.status, "unknown"); assert.deepEqual(result.reasons, ["outside-numeric-range"]); assert.equal(result.sheetMassKgPerM2, null);
++  }
++});
++
++test("SC12-M09 changing any reviewed material, gauge, value or provenance invalidates the review", () => {
++  const mutations: Array<(input: DuctMaterialBasis) => void> = [
++    input => { input.material = "aluminum"; }, input => { input.gaugeLabel = "Different gauge"; },
++    input => { input.thickness!.value = .6; }, input => { input.bulkDensity!.value = 7000; },
++    input => { input.thickness!.sourceReference = "Different thickness source"; },
++    input => { input.provenance!.sourceRevision = "R2"; }, input => { input.provenance!.sourceSha256 = "b".repeat(64); },
++  ];
++  for (const mutate of mutations) {
++    const input = reviewed(); mutate(input);
++    const result = evaluateDuctMaterialBasis(input);
++    assert.equal(result.status, "unknown"); assert.ok(result.reasons.includes("review-outdated")); assert.equal(result.sheetMassKgPerM2, null);
++  }
++});
++
++test("SC12-M10 a known live source must match id, revision and hash; unavailable remains unknown", () => {
++  const input = reviewed(), source = { sourceId: "fixture-sheet", sourceRevision: "R1", sourceSha256: "a".repeat(64) };
++  assert.equal(evaluateDuctMaterialBasis(input, source).status, "declared");
++  for (const changed of [{ ...source, sourceId: "other" }, { ...source, sourceRevision: "R2" }, { ...source, sourceSha256: "b".repeat(64) }]) {
++    const result = evaluateDuctMaterialBasis(input, changed);
++    assert.equal(result.status, "unknown"); assert.deepEqual(result.reasons, ["source-mismatch"]); assert.equal(result.sheetMassKgPerM2, null);
++  }
++  assert.deepEqual(evaluateDuctMaterialBasis(input, null).reasons, ["source-unavailable"]);
++  assert.deepEqual(evaluateDuctMaterialBasis(input, { ...source, sourceSha256: "bad" }).reasons, ["source-unavailable"]);
++});
++
++test("SC12-M11 explicit review and evaluation are deterministic detached operations", () => {
++  const input = values(), original = structuredClone(input), review = reviewer();
++  const basis = recordDuctMaterialReview(input, review), result = evaluateDuctMaterialBasis(basis);
++  assert.deepEqual(input, original); assert.deepEqual(result, evaluateDuctMaterialBasis(basis));
++  input.thickness.value = 9; review.reviewedBy = "Changed";
++  assert.equal(basis.thickness!.value, .5); assert.equal(basis.review!.reviewedBy, "Synthetic test reviewer");
++  result.basis!.thickness!.value = 8; result.basis!.review!.values.provenance.sourceReference = "Changed";
++  assert.equal(basis.thickness!.value, .5); assert.equal(basis.review!.values.provenance.sourceReference, "Synthetic arithmetic fixture only");
++  assert.deepEqual(ductMaterialBasisSchema.parse(JSON.parse(JSON.stringify(basis))), basis);
++});
++
++test("SC12-M12 existing straight metal and wrap accept the declared operand without changing geometry", () => {
++  const result = evaluateDuctMaterialBasis(reviewed()); assert.equal(result.status, "declared");
++  if (result.status !== "declared") throw new Error("Expected declared fixture");
++  const duct = { sections: [{ id: "D1", shape: "rectangular", lengthM: operand(10), widthM: operand(.5), heightM: operand(.3), sheetMassKgPerM2: result.sheetMassKgPerM2 }] };
++  const original = structuredClone(duct), metal = calculateStraightDuctDraft(duct);
++  const wrap = calculateStraightDuctWrapDraft({ duct, wraps: [{ sectionId: "D1", insulationThicknessM: operand(.025), longitudinalOverlapM: operand(.05) }] });
++  assert.equal(metal.developedAreaM2, 16); assert.equal(metal.sheetMassKg, 64);
++  assert.ok(Math.abs(wrap.wrapAreaM2 - 18.5) < 1e-10);
++  assert.equal(metal.verifiedQuoteEligible, false); assert.equal(wrap.verifiedQuoteEligible, false); assert.deepEqual(duct, original);
++  assert.deepEqual(metal.sections[0].inputs.sheetMassKgPerM2, result.sheetMassKgPerM2);
++});
++
++test("SC12-M13 unknown basis leaves legacy mass unknown while metal/wrap geometry remains available", () => {
++  const result = evaluateDuctMaterialBasis({}); assert.equal(result.sheetMassKgPerM2, null);
++  const duct = { sections: [{ id: "D1", shape: "round", lengthM: operand(10), diameterM: operand(.4) }] };
++  const metal = calculateStraightDuctDraft(duct);
++  const wrap = calculateStraightDuctWrapDraft({ duct, wraps: [{ sectionId: "D1", insulationThicknessM: operand(.05), longitudinalOverlapM: operand(0) }] });
++  assert.equal(metal.sheetMassKg, null); assert.equal(metal.developedAreaM2, Math.PI * .4 * 10);
++  assert.equal(wrap.wrapAreaM2, Math.PI * .5 * 10);
++});
++
++test("SC12-M14 review metadata and exact source operands roundtrip without dropping provenance", () => {
++  const row = reviewed(), parsed = ductMaterialBasisSchema.parse(JSON.parse(JSON.stringify(row)));
++  assert.deepEqual(parsed, row); assert.deepEqual(parsed.review!.values, ductMaterialValuesSchema.parse(values()));
++  assert.equal(evaluateDuctMaterialBasis(parsed).status, "declared");
++});
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\proof\\growth\\2026-09-19-sc12-hvac-qualification\\AUDIT.md" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\proof\\growth\\2026-09-19-sc12-hvac-qualification\\AUDIT.md"
+new file mode 100644
+index 0000000..21d9480
+--- /dev/null
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\proof\\growth\\2026-09-19-sc12-hvac-qualification\\AUDIT.md"
+@@ -0,0 +1,42 @@
++# SC12 / HVAC-01/02 qualification audit
++
++2026-09-19. Branch `feat/architect-cad-engine`. Read-only source/proof audit; SC12 and whole-industry IND-30 remain **pending**. No product tests/builds/browser runs were executed for this audit. Historical evidence below retains its original identity and is not current-build acceptance.
++
++## Scope and reuse
++
++- [Closeout ledger SC12](../../../../XRAY-PRODUCTION-CLOSEOUT-LEDGER.md), lines 388-403: straight rectangular/round metal, reviewed material/gauge mass basis, correct external wrap, explicit unknowns and 3D core/insulation preview.
++- [Remaining industry plan](../../../../INDUSTRY-REMAINING-WORK-PLAN.md), lines 80-85: current built entry/edit/reload/project isolation/tablet/export qualification. SC13 network and SC14 sizing/commissioning are separate; do not close IND-30 from this slice.
++- `straightDuct.ts:42-72` already calculates rectangular/round lateral area and supplied kg/m2 mass. Any section lacking mass makes the total null. All output remains draft/unverified.
++- `straightDuctWrap.ts:18-30` already uses rectangular `2*((W+2t)+(H+2t))` and round `pi*(D+2t)`; adds one explicitly sourced longitudinal lap and returns authoritative calculation steps. Reuse, do not rewrite these formulas.
++- `ductForm.test.ts:75-100` covers metal 16 m2 / 64 kg plus wrap 18.5 m2, round zero lap, invalid operands and legacy draft compatibility. `straightDuct.test.ts` has 10 tests, `straightDuctWrap.test.ts` has 3, `ductForm.test.ts` has 17. Counts are source inspection, not a newly executed result.
++
++## Exact open issues
++
++1. No material/gauge/thickness/bulk-density mapping exists; only explicit supplier kg/m2 (`straightDuct.ts:11-12`, `ductForm.ts:19,48`). No default normative table should be invented. Keep the existing supplier-mass path valid.
++2. No HVAC 3D section preview or `HVACWorksheet.tsx` exists. `HvacDraftPanel.tsx:100-113` only renders numerical tables. The future preview must separate the duct core and outside insulation; it must not imply thermal/fire compliance.
++3. `HvacDraftPanel.tsx:102-103` renders missing mass as "Not calculated" / "Not supplied". Ledger asks for explicit "unknown"; it must never become zero.
++4. No normal result export exists. `IndustryDraftHost.tsx:63-71` only offers emergency JSON inputs after a save error. Do not count this as result export or a sealed HVAC package. Full commissioning PDF/CSV belongs SC14.
++5. **Declared binding on a calibrated source fails:** `ductForm.ts:92` always assigns `source.calibrationId`, but `sourceBinding.ts:73-79` forbids calibration on declared evidence. A constructor-only null fix is insufficient because `sourceBinding.ts:209` compares current calibration for all evidence classes, making a declared binding immediately stale.
++6. **Page/calibration identity is not reconciled:** `ductForm.ts:91-92` pairs an arbitrary user-entered page with the supplied calibration; `sourceBinding.ts:183-185` selects the first calibration by document, not selected page. Historical fixture page 2 uses `cal:0`. This supports authored source references, not page-specific verified measurement.
++7. Ledger wording at lines 394-395 conflates bulk density (kg/m3) with areal mass (kg/m2) and says missing velocity makes mass unknown. Material mass is developed area times thickness times bulk density. Velocity belongs sizing (SC14), not this supplied-material arithmetic. Do not add a guessed velocity or invalidate valid supplied kg/m2 because velocity is absent. Root must reconcile wording explicitly.
++
++## Proposed source-binding semantics (not implemented here)
++
++- For `declared` references, construct a null calibration and evaluate source/project identity without a calibration-change reason. Preserve authored/unverified status. Apply consistently in shared code under root ownership, not only HVAC.
++- For traced/dimensioned evidence, require a locked calibration whose source revision **and page** match the selected locator. Missing, ambiguous, unlocked or wrong-page calibration must withhold source-derived use; never choose the first matching document entry.
++- Keep document-locator and declared bindings calibration-free; retain same-project/id/hash stale checks. A source hash is an identity claim unless the current original bytes have actually been checked.
++- Add regressions for declared binding with a calibrated live source; later calibration-only changes; source replacement/revision/project changes; multiple calibrations; selected page differing from active page; missing original source; sample/inferred inputs remaining unverified. Browser proof must show the resulting labels and withheld numbers.
++
++## Historical evidence and missing proof
++
++- [Wrap upgrade report](../2026-09-13-industry-agents/hvac/wrap-upgrade/REPORT.md): corrected live assistant/Developer explanation already passed twice-thickness equations and 18.5 m2; reload preserved exact fields/history. Preserve the earlier failed explanation as history, but do not reopen the superseded defect.
++- [Form browser report](../2026-09-13-industry-agents/hvac/form-browser/README.md): 16 m2 / 64 kg, edit invalidation, reload and tablet were recorded. Project-to-project isolation was explicitly not tested.
++- [HVAC-02-SC-01 source-binding proof](../2026-09-16-industry-source-binding/steps/HVAC-02-SC-01.md): bound/stale screenshots and saved-field checks exist. This run did not prove HVAC reload, wrap or supplied-mass browser branches. Current `ductForm.ts` and `HvacDraftPanel.tsx` SHA-256 match the two hashes recorded there at audit time.
++- HVAC-folder native fencing-engine evidence is not HVAC native acceptance. No fresh screenshot was captured by this audit.
++- Pending qualification: immutable current source/build identity, focused and regression logs, typecheck/build, desktop/tablet distinct core/wrap screenshots, invalidation without recalculation, reload exact fields and binding, project isolation, incomplete mass, stale source/page/calibration, actual supported export bytes, diff and cleanup record. Do not mark SC12 complete until all applicable evidence exists.
++
++## Bounded implementation handoff
++
++Root owns Workbench/shared Host/source-binding semantics. Domain work is limited to new `ductMaterialBasis.ts` and `.test.ts`: explicit reviewed material/gauge label/thickness in mm or m/bulk density in kg/m3/source provenance; derived kg/m2 is **declared**, never verified. Missing, invalid, sample, inferred, unreviewed or stale reviewed values yield **unknown** without a mass operand. No built-in gauge database, no certification and no velocity prerequisite. Review pins exact source/value inputs so changes require another review. The returned operand fits the existing straight-duct schedule; preserve the accompanying evidence result when integrating.
++
++Implementation checklist: new pure domain and authored tests only; no existing UI/shared/persistence/schema edits; no local test execution; root arranges explicit DANS1 test discovery, screenshot of executed proof, exact diff and eventual integration. This audit is not a completion record.
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\src\\studio\\industries\\quantity-surveying\\qsRateBook.ts" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\qsRateBook.ts"
+index 93ee0e8..186b917 100644
+--- "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\src\\studio\\industries\\quantity-surveying\\qsRateBook.ts"
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\qsRateBook.ts"
+@@ -227,7 +227,8 @@ function allowance(value: string): Rational { const percentValue = decimal(value
+ function rounded(n: bigint, d: bigint): bigint { if (n < 0n || d <= 0n) throw Error("Invalid monetary calculation."); return (n * 2n + d) / (2n * d); }
+ function minor(value: bigint): number { if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new CostFailure("overflow", "Amount exceeds the safe integer minor-unit limit."); return Number(value); }
+ function rationalDecimal(value: Rational): string {
+-  let n = value.n, d = value.d;
++  let n = value.n;
++  const d = value.d;
+   const whole = n / d; n %= d;
+   let fraction = "";
+   while (n && fraction.length < 30) { n *= 10n; fraction += (n / d).toString(); n %= d; }
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\src\\studio\\industries\\quantity-surveying\\report.ts" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\report.ts"
+index 129eec1..d7e7782 100644
+--- "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\src\\studio\\industries\\quantity-surveying\\report.ts"
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\industries\\quantity-surveying\\report.ts"
+@@ -37,6 +37,8 @@ export function filterQuantityReport(report: QuantityReport, filter: ReportFilte
+ 
+ /** RFC-style quoting plus spreadsheet formula neutralisation for untrusted labels/references. */
+ export function csvCell(value: string): string {
++  // C0/C1 prefixes must be inspected so control characters cannot hide spreadsheet formulas.
++  // eslint-disable-next-line no-control-regex
+   const safe = /^[\s\u0000-\u001f\u007f-\u009f]*[=+\-@]/u.test(value) ? `'${value}` : value;
+   return `"${safe.replace(/"/g, '""')}"`;
+ }
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\src\\studio\\pricing\\PriceBookPanel.tsx" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\pricing\\PriceBookPanel.tsx"
+index 73060ae..35e0960 100644
+--- "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\src\\studio\\pricing\\PriceBookPanel.tsx"
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\src\\studio\\pricing\\PriceBookPanel.tsx"
+@@ -108,7 +108,7 @@ export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSe
+       setNotice("");
+     } catch (error) { setNotice(priceBookError(error)); }
+   }
+-  function useRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
++  function chooseRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
+   const disabled = busy || !value || session?.blocked;
+   return <section className="price-books" aria-label="Project price books" data-price-import-state={readingWorkbook ? "loading" : review ? "review" : file ? parseError || rows?.errors.length ? "invalid" : table && mapping ? "ready" : "choose-sheet" : "idle"} data-price-import-rows={rows?.rows.length ?? 0}>
+     <header><div><h2>Price books</h2><p>Import supplier sheets, preserve revisions and apply chosen rates to a priced worksheet.</p></div>
+@@ -157,7 +157,7 @@ export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSe
+     {tab === "library" && <>
+       <div className="price-toolbar"><label>Find a price book<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or supplier" /></label><button className="pill" aria-pressed={archived} onClick={() => setArchived(!archived)}><Archive size={16} />{archived ? "Show active" : "Show archived"}</button></div>
+       {!value?.books.some(b => b.archived === archived) && <div className="price-empty"><h3>{archived ? "No archived price books" : "Keep supplier pricing in one place"}</h3><p>Import a supplier sheet, check its columns and source, then save a named revision. Every applied line keeps the rate version you chose.</p></div>}
+-      {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => useRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
++      {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => chooseRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
+     </>}
+     {tab === "worksheet" && <>
+       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
+diff --git "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\scripts\\fast-cdp.mjs" "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\scripts\\fast-cdp.mjs"
+index 77631bf..9061881 100644
+--- "a/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\baseline\\scripts\\fast-cdp.mjs"
++++ "b/C:\\Users\\danie\\repo\\xray-by-looplet\\proof\\growth\\2026-09-19-sc11-package-panel-preflight\\sc11-panel-cb3d0b8de15f\\input\\overlay\\scripts\\fast-cdp.mjs"
+@@ -104,8 +104,9 @@ async function readScenario(path, origin) {
+   }
+   const operations = Array.isArray(parsed) ? parsed : parsed?.operations;
+   if (!Array.isArray(operations)) throw new InfrastructureFailure("Scenario must be an opcode array or { operations: [] }");
++  const originValue = origin ? new URL(origin).origin : "";
+   const replace = (value) => {
+-    if (typeof value === "string") return value.replaceAll("{{ORIGIN}}", origin ?? "");
++    if (typeof value === "string") return value.replaceAll("{{ORIGIN}}", originValue);
+     if (Array.isArray(value)) return value.map(replace);
+     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, replace(item)]));
+     return value;
+@@ -750,6 +751,12 @@ async function main() {
+         cleanupFailure = error;
+       }
+     }
++    // Only a launcher that owns this exact browser opts into process shutdown.
++    // Closing Chrome through CDP lets it drain its children and redirected logs.
++    if (socket && options["close-browser"] === "true") {
++      try { await socket.call("Browser.close", {}, undefined, 5_000); }
++      catch (error) { if (!cleanupFailure) cleanupFailure = error; }
++    }
+     socket?.close();
+   }
+   if (cleanupFailure && !failure) failure = cleanupFailure;

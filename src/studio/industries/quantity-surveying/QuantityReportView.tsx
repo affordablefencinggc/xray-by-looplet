@@ -14,8 +14,8 @@ export function QuantityReportView({ report, disabled, rows, bindings, entities 
   bindings?: ReadonlyMap<string, QsItemBinding>;
   entities?: ReadonlyMap<string, QsEntityGeometry>;
 }) {
-  return <>
+  return <div className="qs-quantity-report">
     {rows && bindings && entities && <QSItemBindingLedger rows={rows} bindings={bindings} entities={entities} />}
     <QSReportPanel report={report} disabled={disabled} />
-  </>;
+  </div>;
 }

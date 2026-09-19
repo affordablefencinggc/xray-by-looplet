@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { PriceBookLibrary } from "../../pricing/priceBooks";
 import type { QsEntityGeometry } from "./qsItemBinding";
 import type { QuantityForm } from "./quantityForm";
@@ -89,6 +89,27 @@ function CostTotals({ title, value, currency, testId }: { title: string; value: 
       <div><dt>Net</dt><dd>{formatQsMoney(value.netMinor, currency)}</dd></div>
       <div><dt>Tax / GST</dt><dd>{formatQsMoney(value.taxMinor, currency)}</dd></div></dl>
   </section>;
+}
+
+/** Keep Tab at this dialog's boundaries. Native modal/Escape behaviour remains
+ * in charge; no document listener or background focus interception is added. */
+export function keepQsComparisonFocus(event: KeyboardEvent<HTMLDialogElement>): void {
+  const dialog = event.currentTarget;
+  if (event.key !== "Tab" || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !dialog.open) return;
+  const controls = Array.from(dialog.querySelectorAll<HTMLElement>("button, a[href], input, select, textarea, [tabindex]"))
+    .filter(element => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+      && element.getClientRects().length > 0
+      && !["hidden", "collapse"].includes(element.ownerDocument.defaultView?.getComputedStyle(element).visibility ?? "visible"))
+    // Positive tabindex precedes normal DOM order. Stable sort preserves the
+    // DOM order of the controls and the read-only scrollable change table.
+    .sort((a, b) => (a.tabIndex > 0 ? a.tabIndex : Infinity) - (b.tabIndex > 0 ? b.tabIndex : Infinity));
+  const first = controls[0], last = controls[controls.length - 1];
+  if (!first || !last) { event.preventDefault(); return; }
+  const active = dialog.ownerDocument.activeElement;
+  if (active === (event.shiftKey ? first : last) || active === dialog || !dialog.contains(active)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }
 }
 
 /** Controlled cost editor. Quantities, geometry and supplier records are inputs;
@@ -317,7 +338,7 @@ export function QSWorksheet({ projectId, rows, entities, priceBooks, value, onCh
       <button type="button" ref={comparisonTrigger} disabled={!value.snapshots.length} aria-expanded={comparisonOpen} aria-controls={comparisonId} onClick={() => setComparisonOpen(true)}>Compare cost revisions</button></div>
     <p className="qs-cost-note" data-testid="qs-cost-history">{value.snapshots.length} recorded cost revision{value.snapshots.length === 1 ? "" : "s"}. Changing geometry, rates or options recalculates the draft and preserves recorded revisions. Project save status is shown below this worksheet.</p>
 
-    <dialog id={comparisonId} className="qs-cost-comparison" ref={comparisonRef} aria-labelledby={`${comparisonId}-title`} onCancel={event => { event.preventDefault(); setComparisonOpen(false); }} onClose={() => { setComparisonOpen(false); comparisonTrigger.current?.focus(); }}>
+    <dialog id={comparisonId} className="qs-cost-comparison" ref={comparisonRef} aria-labelledby={`${comparisonId}-title`} onKeyDown={keepQsComparisonFocus} onCancel={event => { event.preventDefault(); setComparisonOpen(false); }} onClose={() => { setComparisonOpen(false); comparisonTrigger.current?.focus(); }}>
       <div className="qs-cost-heading"><div><h3 id={`${comparisonId}-title`}>Cost revision comparison</h3><p>Quantity, rate and scope contributions reconcile to the accepted total change.</p></div><button type="button" aria-label="Close cost revision comparison" onClick={() => setComparisonOpen(false)}>Close</button></div>
       <div className="qs-cost-fields"><label>Earlier cost revision<select value={selectedPrevious?.input.revision ?? ""} onChange={event => setPreviousRevision(Number(event.target.value))}>
         {!earlierSnapshots.length && <option value="">No earlier revision</option>}{earlierSnapshots.map(snapshot => <option key={snapshot.input.revision} value={snapshot.input.revision}>Revision {snapshot.input.revision} · {snapshot.input.createdBy} · {snapshot.input.currency}</option>)}

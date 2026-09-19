@@ -6,68 +6,95 @@ const closeoutLedger = fs.readFileSync("XRAY-PRODUCTION-CLOSEOUT-LEDGER.md", "ut
 const azChecklist = fs.readFileSync("PROFESSIONAL-A-Z-CHECKLIST.md", "utf8");
 const curatedImages = JSON.parse(fs.readFileSync("dashboard-curated-images.json", "utf8"));
 
-// 1. Parse Closeout Slices (SC-01 to SC-20)
-const sliceRegex = /####\s+(SC-\d+)\s+—\s+(.*?)\s+`\[\[(.*?)\]\]`([\s\S]*?)(?=####\s+SC-|\n###\s+PORTION|\n---\n\n##\s+5\.|$)/g;
+// 1. Parse Closeout Slices. This is deliberately line-oriented: each ledger
+// field ends at the next field marker, so a DONE section can never swallow the
+// Files, Proof, Depends on, or Commit heading that follows it.
 const slices = [];
-let match;
-while ((match = sliceRegex.exec(closeoutLedger)) !== null) {
-  const [_, id, title, status, body] = match;
-  
-  // extract portion
-  const portionMatch = closeoutLedger.substring(0, match.index).match(/###\s+PORTION\s+(\d+):\s+(.*?)\n/g);
-  const lastPortion = portionMatch ? portionMatch[portionMatch.length - 1].replace(/###\s+/, "").trim() : "Portion 1: Core Architectural Deliverables";
+let currentPortion = { number: 0, title: "Unassigned" };
+let currentSlice = null;
 
-  // extract goal
-  const goalMatch = body.match(/\*\s+\*\*Goal\*\*:\s*([\s\S]*?)(?=\*\s+\*\*DONE|\n\n)/);
-  const goal = goalMatch ? goalMatch[1].trim() : "";
-
-  // extract machine done
-  const machineMatch = body.match(/\*\s+\*\*DONE \(machine\)\*\*:\s*([\s\S]*?)(?=\*\s+\*\*DONE \(human\)|\n\n)/);
-  const machineDone = machineMatch ? machineMatch[1].trim() : "";
-
-  // extract human done
-  const humanMatch = body.match(/\*\s+\*\*DONE \(human\)\*\*:\s*([\s\S]*?)(?=\*\s+\*\*Files|\*\s+\*\*Machine evidence|\*\s+\*\*BLOCKED|\n\n)/);
-  const humanDone = humanMatch ? humanMatch[1].trim() : "";
-
-  // extract files
-  const filesMatch = body.match(/\*\s+\*\*Files\*\*:\s*([\s\S]*?)(?=\*\s+\*\*Depends|\*\s+\*\*Commit|\n\n)/);
-  const files = filesMatch ? filesMatch[1].trim().split("\n").map(f => f.replace(/^-\s*`?/, "").replace(/`?$/, "").trim()).filter(Boolean) : [];
-
-  // extract notes/blocked
-  const blockedMatch = body.match(/\*\s+\*\*BLOCKED.*?\*\*:\s*([\s\S]*?)(?=\*\s+\*\*Files|\*\s+\*\*Depends|\n\n)/);
-  const blockedNote = blockedMatch ? blockedMatch[1].trim() : "";
-
-  // Completion timestamp: prefer an explicit "Completed:" line, else the ISO date
-  // in the slice's own Done records, else the date on the ledger's status heading.
-  const headerLine = closeoutLedger.substring(0, match.index).split("\n").filter(Boolean).pop() ?? "";
-  const completedMatch = body.match(/\*\s+\*\*Completed\*\*:\s*(\S+)/)
-    ?? body.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)/)
-    ?? body.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
-  let completedAt = "";
-  if (completedMatch) {
-    completedAt = completedMatch[2] ? `${completedMatch[1]}T${completedMatch[2]}` : completedMatch[1];
-  } else {
-    const headingDate = headerLine.match(/\((\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?\)/);
-    if (headingDate) completedAt = headingDate[2] ? `${headingDate[1]}T${headingDate[2]}` : headingDate[1];
+function parseLedgerFields(body) {
+  const fields = new Map();
+  let currentField = null;
+  for (const line of body.split(/\r?\n/)) {
+    const fieldHeading = line.match(/^\*\s+\*\*([^*]+)\*\*:\s*(.*)$/);
+    if (fieldHeading) {
+      currentField = fieldHeading[1].trim();
+      fields.set(currentField, [fieldHeading[2]]);
+      continue;
+    }
+    if (/^#{1,6}\s|^---\s*$/.test(line)) {
+      currentField = null;
+      continue;
+    }
+    if (currentField) fields.get(currentField).push(line);
   }
-
-  // associate images
-  const matchingImages = curatedImages.filter(img => img.slice === id || (id === "SC-01" && img.slice === "SC-01") || (id === "SC-02" && img.slice === "SC-02") || (id === "SC-04" && img.slice === "SC-04"));
-
-  slices.push({
-    id,
-    title,
-    status: status.toLowerCase(),
-    portion: lastPortion,
-    goal,
-    machineDone,
-    humanDone,
-    files,
-    blockedNote,
-    completedAt,
-    images: matchingImages
-  });
+  return new Map([...fields].map(([key, lines]) => [key, lines.join("\n").trim()]));
 }
+
+function parseFileList(value) {
+  return value.split(/\r?\n/).map(line => {
+    const cleaned = line.replace(/^\s*-\s*/, "").trim();
+    return cleaned.match(/`([^`]+)`/)?.[1] ?? cleaned;
+  }).filter(Boolean);
+}
+
+function finishSlice() {
+  if (!currentSlice) return;
+  const fields = parseLedgerFields(currentSlice.body.join("\n"));
+  const completedValue = fields.get("Completed") ?? "";
+  const completedMatch = completedValue.match(/(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?)/);
+  const humanField = fields.has("DONE (human)") ? "DONE (human)"
+    : fields.has("NOT DONE (human)") ? "NOT DONE (human)"
+      : "";
+  slices.push({
+    id: currentSlice.id,
+    title: currentSlice.title,
+    status: currentSlice.status,
+    portionNumber: currentSlice.portion.number,
+    portion: `Portion ${currentSlice.portion.number}: ${currentSlice.portion.title}`,
+    goal: fields.get("Goal") ?? "",
+    machineDone: fields.get("DONE (machine)") ?? "",
+    humanDone: humanField ? fields.get(humanField) : "",
+    humanGateOpen: humanField === "NOT DONE (human)",
+    proof: fields.get("Proof") ?? fields.get("Machine evidence") ?? "",
+    files: parseFileList(fields.get("Files") ?? ""),
+    blockedNote: [...fields]
+      .filter(([name]) => /^BLOCKED/i.test(name))
+      .map(([, value]) => value)
+      .join("\n"),
+    completedAt: completedMatch?.[1] ?? "",
+    images: curatedImages.filter(image => image.slice === currentSlice.id),
+  });
+  currentSlice = null;
+}
+
+for (const line of closeoutLedger.split(/\r?\n/)) {
+  const portionHeading = line.match(/^###\s+PORTION\s+(\d+):\s+(.+)$/);
+  if (portionHeading) {
+    finishSlice();
+    currentPortion = { number: Number(portionHeading[1]), title: portionHeading[2].trim() };
+    continue;
+  }
+  const sliceHeading = line.match(/^####\s+(SC-\d+)\s+[—-]\s+(.+?)\s+`\[\[(done|partial|pending|blocked)\]\]`\s*$/i);
+  if (sliceHeading) {
+    finishSlice();
+    currentSlice = {
+      id: sliceHeading[1],
+      title: sliceHeading[2],
+      status: sliceHeading[3].toLowerCase(),
+      portion: { ...currentPortion },
+      body: [],
+    };
+    continue;
+  }
+  if (currentSlice && /^##\s+/.test(line)) {
+    finishSlice();
+    continue;
+  }
+  if (currentSlice) currentSlice.body.push(line);
+}
+finishSlice();
 
 console.log(`Parsed ${slices.length} closeout slices.`);
 
@@ -78,7 +105,7 @@ let currentCat = null;
 const allRequirements = [];
 
 for (const line of azLines) {
-  const catMatch = line.match(/^###\s+([A-Z]|SO|PH)\s+—\s+(.*)/);
+  const catMatch = line.match(/^###\s+([A-Z]|SO|PH)\s+[—-]\s+(.*)/);
   if (catMatch) {
     if (currentCat) categories.push(currentCat);
     currentCat = {
@@ -89,9 +116,9 @@ for (const line of azLines) {
     continue;
   }
 
-  const rowMatch = line.match(/^-\s+\[([ x])\]\s+\*\*([A-Z0-9-]+)\s+(.*?)\*\*\s+—\s+([\s\S]*)/);
+  const rowMatch = line.match(/^-\s+\[([ xX])\]\s+\*\*([A-Z0-9-]+)\s+(.*?)\*\*\s+[—-]\s+([\s\S]*)/);
   if (rowMatch && currentCat) {
-    const isChecked = rowMatch[1] === "x";
+    const isChecked = rowMatch[1].toLowerCase() === "x";
     const reqId = rowMatch[2];
     const reqTitle = rowMatch[3];
     const desc = rowMatch[4].trim();
@@ -124,20 +151,20 @@ console.log(`Parsed ${categories.length} A-Z categories with ${allRequirements.l
 // recorded test-count line rather than typed in here, because a hardcoded number
 // is a fabricated measurement wearing the shape of a result: it stays right for
 // exactly as long as nobody adds a test, and then quietly lies.
-const testsMatch = closeoutLedger.match(/(\d{1,6})\s*\/\s*(\d{1,6})\s*(?:tests|passing)/i)
-  ?? closeoutLedger.match(/(\d{1,6})\s*(?:tests\s+)?passing\b/i);
-const suitesMatch = closeoutLedger.match(/(\d{1,4})\s+suites\b/i);
-if (!testsMatch || !suitesMatch) {
-  console.warn("No test/suite count found in the ledger — the dashboard will show the literal values as unknown.");
-}
+const currentGateLine = closeoutLedger.match(/^\*\*Last executed machine gate\*\*:\s*(.+)$/im)?.[1] ?? "";
+const testsMatch = currentGateLine.match(/([\d,]+)\s*\/\s*([\d,]+)\s+passing\b/i);
+const suitesMatch = currentGateLine.match(/\bacross\s+([\d,]+)\s+suites\b/i);
+if (!testsMatch) console.warn("No explicit current machine-gate count found; test KPIs will be marked unknown.");
 const stats = {
   slicesTotal: slices.length,
   slicesDone: slices.filter(s => s.status === "done").length,
   slicesPartial: slices.filter(s => s.status === "partial").length,
+  slicesBlocked: slices.filter(s => s.status === "blocked").length,
   slicesPending: slices.filter(s => s.status === "pending").length,
-  testsPassing: testsMatch ? Number(testsMatch[1]) : 0,
-  testSuites: suitesMatch ? Number(suitesMatch[1]) : 0,
-  tscStatus: "Clean (Exit 0)",
+  testsPassing: testsMatch ? Number(testsMatch[1].replaceAll(",", "")) : null,
+  testsTotal: testsMatch ? Number(testsMatch[2].replaceAll(",", "")) : null,
+  testSuites: suitesMatch ? Number(suitesMatch[1].replaceAll(",", "")) : null,
+  tscStatus: /(?:tsc|typescript|typecheck)[^\n;]*exit\s+0/i.test(currentGateLine) ? "Clean (Exit 0)" : "Not recorded",
   azTotal: allRequirements.length,
   azVerified: allRequirements.filter(r => r.state === "verified").length,
   azPartial: allRequirements.filter(r => r.state === "partial").length,
@@ -146,6 +173,13 @@ const stats = {
   azGaps: allRequirements.filter(r => r.state === "gap").length,
   totalScreenshots: curatedImages.length
 };
+
+const portions = [...new Map(slices.map(slice => [slice.portionNumber, slice.portion])).entries()]
+  .map(([number, label]) => ({ number, label, count: slices.filter(slice => slice.portionNumber === number).length }))
+  .sort((a, b) => a.number - b.number);
+const galleryCategories = [...new Set(curatedImages.map(image => image.category))]
+  .sort((a, b) => a.localeCompare(b));
+const azStates = ["verified", "partial", "dependency-blocked", "gap", "failed"];
 
 console.log("Stats:", stats);
 
@@ -170,7 +204,7 @@ const html = `<!DOCTYPE html>
       
       --text-main: #f1f5f9;
       --text-muted: #94a3b8;
-      --text-dim: #64748b;
+      --text-dim: #91a1b7;
       
       --accent-emerald: #10b981;
       --accent-emerald-glow: rgba(16, 185, 129, 0.2);
@@ -191,6 +225,34 @@ const html = `<!DOCTYPE html>
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    button,
+    input {
+      min-height: 44px;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #93c5fd;
+      outline-offset: 3px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     body {
@@ -366,7 +428,7 @@ const html = `<!DOCTYPE html>
       font-family: var(--font-sans);
       font-size: 13px;
       font-weight: 600;
-      padding: 8px 18px;
+      padding: 10px 18px;
       border-radius: 6px;
       cursor: pointer;
       display: flex;
@@ -407,7 +469,7 @@ const html = `<!DOCTYPE html>
       color: #fff;
       font-family: var(--font-sans);
       font-size: 13px;
-      padding: 9px 14px 9px 36px;
+      padding: 10px 14px 10px 40px;
       border-radius: 8px;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
@@ -468,7 +530,7 @@ const html = `<!DOCTYPE html>
       color: var(--text-muted);
       font-size: 12px;
       font-weight: 500;
-      padding: 5px 12px;
+      padding: 8px 14px;
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.15s;
@@ -534,7 +596,17 @@ const html = `<!DOCTYPE html>
       border-left: 4px solid var(--text-dim);
     }
 
+    .slice-card.blocked {
+      border-left: 4px solid var(--accent-crimson);
+    }
+
     .slice-top {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
       padding: 18px 24px;
       display: flex;
       justify-content: space-between;
@@ -628,6 +700,12 @@ const html = `<!DOCTYPE html>
       border: 1px solid rgba(100, 116, 139, 0.3);
     }
 
+    .badge-blocked {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
     .slice-goal {
       color: var(--text-muted);
       font-size: 13.5px;
@@ -681,6 +759,37 @@ const html = `<!DOCTYPE html>
       line-height: 1.6;
     }
 
+    .detail-body p + p,
+    .detail-body ul + p,
+    .detail-body p + ul {
+      margin-top: 10px;
+    }
+
+    .detail-body ul {
+      padding-left: 20px;
+    }
+
+    .detail-body code,
+    .md-link,
+    .file-tag {
+      overflow-wrap: anywhere;
+    }
+
+    .detail-body code {
+      font-family: var(--font-mono);
+      color: #dbeafe;
+      background: rgba(59, 130, 246, 0.12);
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+
+    .md-link,
+    a.file-tag {
+      color: #93c5fd;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
     .files-list {
       display: flex;
       flex-wrap: wrap;
@@ -714,6 +823,11 @@ const html = `<!DOCTYPE html>
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
+      width: 100%;
+      padding: 0;
+      color: inherit;
+      font: inherit;
+      text-align: left;
     }
 
     .proof-card:hover {
@@ -781,6 +895,7 @@ const html = `<!DOCTYPE html>
     }
 
     .proof-title {
+      display: block;
       font-family: var(--font-heading);
       font-size: 15px;
       font-weight: 700;
@@ -789,6 +904,7 @@ const html = `<!DOCTYPE html>
     }
 
     .proof-desc {
+      display: block;
       font-size: 12.5px;
       color: var(--text-muted);
       line-height: 1.5;
@@ -796,6 +912,7 @@ const html = `<!DOCTYPE html>
     }
 
     .proof-path {
+      display: block;
       font-family: var(--font-mono);
       font-size: 10.5px;
       color: var(--text-dim);
@@ -858,8 +975,8 @@ const html = `<!DOCTYPE html>
       color: var(--text-muted);
       font-size: 24px;
       cursor: pointer;
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -916,6 +1033,24 @@ const html = `<!DOCTYPE html>
       background: rgba(59, 130, 246, 0.1);
       padding: 4px 10px;
       border-radius: 6px;
+    }
+
+    .proof-mini {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+      width: min(220px, 100%);
+      padding: 0;
+      text-align: left;
+    }
+
+    .proof-mini img {
+      display: block;
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
     }
 
     /* A-Z TABLE */
@@ -1061,6 +1196,18 @@ const html = `<!DOCTYPE html>
     }
 
     /* RESPONSIVE */
+    @media (max-width: 1100px) {
+      header { position: static; padding: 24px 24px 20px; }
+      main { padding: 24px; }
+      .title-group, .slice-info { min-width: 0; }
+      .title-group h1 { flex-wrap: wrap; font-size: 24px; }
+      .tabs { max-width: 100%; flex-wrap: wrap; }
+      .tab-btn { padding-inline: 12px; }
+      .kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+      .kpi-card { padding: 14px; }
+      .kpi-title { flex-wrap: wrap; gap: 4px; }
+      .slice-goal, .detail-body, .modal-path { overflow-wrap: anywhere; }
+    }
     @media (max-width: 900px) {
       header { padding: 20px 20px 16px; }
       main { padding: 20px; }
@@ -1069,7 +1216,7 @@ const html = `<!DOCTYPE html>
     }
   </style>
 </head>
-<body>
+<body data-source-slices="${stats.slicesTotal}" data-source-requirements="${stats.azTotal}" data-source-proofs="${stats.totalScreenshots}">
 
   <header>
     <div class="header-top">
@@ -1078,108 +1225,104 @@ const html = `<!DOCTYPE html>
           <span>X-RAY PRODUCTION CLOSEOUT & PROOF DASHBOARD</span>
           <span class="badge-branch">feat/architect-cad-engine</span>
         </h1>
-        <p>Authoritative Evidence-Backed Status Register — Architectural CAD Engine, Active Trades & Verification Proofs</p>
+        <p>Recorded implementation status and proof index — local source snapshot, not deployment certification</p>
       </div>
       <div class="meta-pills">
         <div class="pill pill-green">
           <span class="dot"></span>
-          <span>1,751 Passed / 0 Failed</span>
+          <span>${stats.testsPassing === null ? "Machine gate not recorded" : `${formatNumber(stats.testsPassing)} / ${formatNumber(stats.testsTotal)} Passed`}</span>
         </div>
         <div class="pill pill-blue">
           <span class="dot"></span>
-          <span>TypeScript Clean (Exit 0)</span>
+          <span>TypeScript ${escapeHtml(stats.tscStatus)}</span>
         </div>
         <div class="pill">
-          <span>SHA-256 Sealed Delivery</span>
+          <span>Source-grounded proof index</span>
         </div>
       </div>
     </div>
 
     <!-- KPI ROW -->
     <div class="kpi-row">
-      <div class="kpi-card">
+      <div class="kpi-card" data-kpi="slices" data-total="${stats.slicesTotal}" data-done="${stats.slicesDone}" data-partial="${stats.slicesPartial}" data-blocked="${stats.slicesBlocked}" data-pending="${stats.slicesPending}">
         <div class="kpi-title">
           <span>Closeout Slices</span>
           <span style="color: #34d399;">${stats.slicesDone} / ${stats.slicesTotal} DONE</span>
         </div>
-        <div class="kpi-value">${Math.round((stats.slicesDone / stats.slicesTotal) * 100)}%</div>
-        <div class="kpi-sub">${stats.slicesDone} Done, ${stats.slicesTotal - stats.slicesDone - stats.slicesPending} Partial, ${stats.slicesPending} Pending</div>
+        <div class="kpi-value">${stats.slicesTotal ? Math.round((stats.slicesDone / stats.slicesTotal) * 100) : 0}%</div>
+        <div class="kpi-sub">${stats.slicesDone} Done, ${stats.slicesPartial} Partial, ${stats.slicesBlocked} Blocked, ${stats.slicesPending} Pending</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" data-kpi="tests" data-passing="${stats.testsPassing ?? "unknown"}" data-total="${stats.testsTotal ?? "unknown"}" data-suites="${stats.testSuites ?? "unknown"}" data-tsc="${stats.tscStatus === "Clean (Exit 0)" ? "exit-0" : "unknown"}">
         <div class="kpi-title">
           <span>Machine Gate Tests</span>
-          <span style="color: #34d399;">100% PASS</span>
+          <span style="color: #34d399;">${stats.testsPassing !== null && stats.testsPassing === stats.testsTotal ? "100% PASS" : "SEE LEDGER"}</span>
         </div>
-        <div class="kpi-value">1,751</div>
-        <div class="kpi-sub">89 Suites, 0 Failures</div>
+        <div class="kpi-value">${stats.testsPassing === null ? "Unknown" : formatNumber(stats.testsPassing)}</div>
+        <div class="kpi-sub">${stats.testsPassing === null ? "Current test count not recorded" : `${formatNumber(stats.testsTotal - stats.testsPassing)} Failures · ${stats.testSuites === null ? "suite count not recorded" : `${formatNumber(stats.testSuites)} Suites`}`}</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" data-kpi="proofs" data-total="${stats.totalScreenshots}">
         <div class="kpi-title">
           <span>Visual & Executed Proofs</span>
           <span style="color: #60a5fa;">ATTACHED</span>
         </div>
         <div class="kpi-value">${curatedImages.length}</div>
-        <div class="kpi-sub">Screenshots & Vector PDFs</div>
+        <div class="kpi-sub">Curated historical captures; not current qualification</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" data-kpi="az" data-total="${stats.azTotal}" data-verified="${stats.azVerified}" data-partial="${stats.azPartial}" data-blocked="${stats.azBlocked}" data-gap="${stats.azGaps}" data-failed="${stats.azFailed}">
         <div class="kpi-title">
           <span>A–Z Full Catalogue</span>
-          <span style="color: #cbd5e1;">375 ITEMS</span>
+          <span style="color: #cbd5e1;">${stats.azTotal} ITEMS</span>
         </div>
-        <div class="kpi-value">108 / 375</div>
-        <div class="kpi-sub">6 Verified, 102 Partial, 247 Gaps</div>
+        <div class="kpi-value">${stats.azVerified + stats.azPartial} / ${stats.azTotal}</div>
+        <div class="kpi-sub">${stats.azVerified} Verified, ${stats.azPartial} Partial, ${stats.azBlocked} Blocked, ${stats.azGaps} Gaps, ${stats.azFailed} Failed</div>
       </div>
     </div>
 
     <!-- TABS AND SEARCH -->
     <div class="nav-container">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('slices')">
+      <div class="tabs" role="tablist" aria-label="Dashboard views">
+        <button type="button" class="tab-btn active" id="tab-button-slices" role="tab" aria-selected="true" aria-controls="tab-slices" data-tab="slices">
           <span>📑 Closeout Slices</span>
-          <span class="tab-badge">20</span>
+          <span class="tab-badge">${stats.slicesTotal}</span>
         </button>
-        <button class="tab-btn" onclick="switchTab('gallery')">
+        <button type="button" class="tab-btn" id="tab-button-gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" data-tab="gallery" tabindex="-1">
           <span>🖼️ Visual Proof Gallery</span>
           <span class="tab-badge">${curatedImages.length}</span>
         </button>
-        <button class="tab-btn" onclick="switchTab('gaps')">
+        <button type="button" class="tab-btn" id="tab-button-gaps" role="tab" aria-selected="false" aria-controls="tab-gaps" data-tab="gaps" tabindex="-1">
           <span>🔍 What Hasn't Been Done</span>
-          <span class="tab-badge">17</span>
+          <span class="tab-badge">${stats.slicesTotal - stats.slicesDone}</span>
         </button>
-        <button class="tab-btn" onclick="switchTab('az')">
+        <button type="button" class="tab-btn" id="tab-button-az" role="tab" aria-selected="false" aria-controls="tab-az" data-tab="az" tabindex="-1">
           <span>📋 Professional A–Z Catalogue</span>
-          <span class="tab-badge">375</span>
+          <span class="tab-badge">${stats.azTotal}</span>
         </button>
-        <button class="tab-btn" onclick="switchTab('invariants')">
+        <button type="button" class="tab-btn" id="tab-button-invariants" role="tab" aria-selected="false" aria-controls="tab-invariants" data-tab="invariants" tabindex="-1">
           <span>🛡️ Architecture & Invariants</span>
         </button>
       </div>
 
       <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="globalSearch" class="search-input" placeholder="Search slices, requirements, files, proofs..." oninput="handleSearch()">
+        <label class="sr-only" for="globalSearch">Search slices, requirements, files, and proofs</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input type="search" id="globalSearch" class="search-input" placeholder="Search slices, requirements, files, proofs..." aria-controls="slicesContainer galleryContainer azTable">
       </div>
     </div>
   </header>
 
   <main>
     <!-- TAB 1: CLOSEOUT SLICES -->
-    <section id="tab-slices" class="tab-content active">
-      <div class="filter-bar">
+    <section id="tab-slices" class="tab-content active" role="tabpanel" aria-labelledby="tab-button-slices">
+      <div class="filter-bar" role="group" aria-label="Closeout slice filters">
         <span class="filter-label">Filter Status:</span>
-        <button class="filter-chip active" onclick="filterSlices('all', this)">All (${slices.length})</button>
-        <button class="filter-chip" onclick="filterSlices('done', this)">Done (${slices.filter(s => s.status === "done").length})</button>
-        <button class="filter-chip" onclick="filterSlices('partial', this)">Partial / Blocked (${slices.filter(s => s.status !== "done" && s.status !== "pending").length})</button>
-        <button class="filter-chip" onclick="filterSlices('pending', this)">Pending (${slices.filter(s => s.status === "pending").length})</button>
+        ${renderFilterButton("slice-status", "all", `All (${slices.length})`, true)}
+        ${renderFilterButton("slice-status", "done", `Done (${stats.slicesDone})`)}
+        ${renderFilterButton("slice-status", "partial", `Partial / Blocked (${stats.slicesPartial + stats.slicesBlocked})`)}
+        ${renderFilterButton("slice-status", "pending", `Pending (${stats.slicesPending})`)}
 
         <span class="filter-label" style="margin-left: 20px;">Portion:</span>
-        <button class="filter-chip active" onclick="filterPortion('all', this)">All Portions</button>
-        <button class="filter-chip" onclick="filterPortion('1', this)">P1: Residential</button>
-        <button class="filter-chip" onclick="filterPortion('2', this)">P2: Roofing</button>
-        <button class="filter-chip" onclick="filterPortion('3', this)">P3: QS</button>
-        <button class="filter-chip" onclick="filterPortion('4', this)">P4: HVAC</button>
-        <button class="filter-chip" onclick="filterPortion('5', this)">P5: Persistence</button>
-        <button class="filter-chip" onclick="filterPortion('6', this)">P6: Packaging</button>
+        ${renderFilterButton("slice-portion", "all", "All Portions", true)}
+        ${portions.map(portion => renderFilterButton("slice-portion", String(portion.number), `${portion.label} (${portion.count})`)).join("")}
       </div>
 
       <div class="slices-grid" id="slicesContainer">
@@ -1188,16 +1331,11 @@ const html = `<!DOCTYPE html>
     </section>
 
     <!-- TAB 2: PROOF GALLERY -->
-    <section id="tab-gallery" class="tab-content">
-      <div class="filter-bar">
+    <section id="tab-gallery" class="tab-content" role="tabpanel" aria-labelledby="tab-button-gallery" hidden>
+      <div class="filter-bar" role="group" aria-label="Proof gallery filters">
         <span class="filter-label">Filter Category:</span>
-        <button class="filter-chip active" onclick="filterGallery('all', this)">All (${curatedImages.length})</button>
-        <button class="filter-chip" onclick="filterGallery('Drawing Register & PDF', this)">Drawing Register & PDF</button>
-        <button class="filter-chip" onclick="filterGallery('Roofing & Cladding', this)">Roofing & Cladding</button>
-        <button class="filter-chip" onclick="filterGallery('Alteration Stages & Demolition', this)">Alteration Stages</button>
-        <button class="filter-chip" onclick="filterGallery('Coordinated Schedules', this)">Coordinated Schedules</button>
-        <button class="filter-chip" onclick="filterGallery('Architectural CAD & 3D', this)">Architectural CAD & 3D</button>
-        <button class="filter-chip" onclick="filterGallery('AI Assistant & Drafting', this)">AI Assistant</button>
+        ${renderFilterButton("gallery-category", "all", `All (${curatedImages.length})`, true)}
+        ${galleryCategories.map(category => renderFilterButton("gallery-category", category, `${category} (${curatedImages.filter(image => image.category === category).length})`)).join("")}
       </div>
 
       <div class="gallery-grid" id="galleryContainer">
@@ -1206,108 +1344,49 @@ const html = `<!DOCTYPE html>
     </section>
 
     <!-- TAB 3: WHAT HASN'T BEEN DONE (GAP ANALYSIS) -->
-    <section id="tab-gaps" class="tab-content">
+    <section id="tab-gaps" class="tab-content" role="tabpanel" aria-labelledby="tab-button-gaps" hidden>
       <div class="gap-section">
         <h3>
           <span style="color: #ef4444;">●</span>
-          <span>Active Pending Closeout Slices (SC-05 .. SC-20)</span>
+          <span>Open Closeout Slices (${stats.slicesTotal - stats.slicesDone})</span>
         </h3>
         <p style="color: var(--text-muted); font-size: 13.5px;">
-          The following ${stats.slicesTotal} atomic slices are defined in <code>XRAY-PRODUCTION-CLOSEOUT-LEDGER.md</code> with brutal mathematical precision and require implementation before the v1.0 Production Release:
+          These ${stats.slicesTotal - stats.slicesDone} slices remain partial, blocked, or pending in <code>XRAY-PRODUCTION-CLOSEOUT-LEDGER.md</code>. Completed slices are intentionally omitted from this view.
         </p>
 
         <div class="roadmap-timeline">
-          <div class="timeline-item">
-            <div class="timeline-icon">P2</div>
-            <div>
-              <h4 style="color: #fff; font-size: 15px;">Portion 2: Roofing & Cladding Geometry (SC-05, SC-06, SC-07)</h4>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-                <strong>SC-05</strong> True 3D Hip/Valley Geometry unfolding (eliminating 2D projected approximations) &bull; 
-                <strong>SC-06</strong> Stock Sheet Kerf Nesting (1D/2D bin-packing with 5mm kerf & offcut classification) &bull; 
-                <strong>SC-07</strong> Flashing & Fixing schedules with wind zone calculation.
-              </p>
-            </div>
-          </div>
-
-          <div class="timeline-item">
-            <div class="timeline-icon">P3</div>
-            <div>
-              <h4 style="color: #fff; font-size: 15px;">Portion 3: Quantity Surveying & Cost Consultancy (SC-08, SC-09, SC-10, SC-11)</h4>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-                <strong>SC-08</strong> Hierarchy CSV Overlap Disclosure (distinguishing aggregate summary nodes from leaf items to prevent double-counting) &bull; 
-                <strong>SC-09</strong> Measured Item-Level Evidence Binding (binding cost items to immutable geometry entities) &bull; 
-                <strong>SC-10</strong> Contractor Rate Books & Cost Deltas &bull; 
-                <strong>SC-11</strong> Auditable Cost Plan Deliverable Export & Restore.
-              </p>
-            </div>
-          </div>
-
-          <div class="timeline-item">
-            <div class="timeline-icon">P4</div>
-            <div>
-              <h4 style="color: #fff; font-size: 15px;">Portion 4: HVAC & Building Services (SC-12, SC-13, SC-14)</h4>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-                <strong>SC-12</strong> Straight-duct surface area and double-thickness insulation wrap geometry &bull; 
-                <strong>SC-13</strong> Multi-zone duct & pipe network coordination and ceiling plenum clash detection &bull; 
-                <strong>SC-14</strong> Airflow sizing ($v = Q/A$), velocity noise checks, and equipment commissioning schedules.
-              </p>
-            </div>
-          </div>
-
-          <div class="timeline-item">
-            <div class="timeline-icon">P5</div>
-            <div>
-              <h4 style="color: #fff; font-size: 15px;">Portion 5: Persistence & Disaster Recovery (SC-15, SC-16, SC-17)</h4>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-                <strong>SC-15</strong> Portable Project Archive (<code>.xray</code> / ZIP format) with raw drawing bytes and manifest &bull; 
-                <strong>SC-16</strong> Exclusive lifetime workspace lock (preventing concurrent write corruption across tabs) & recovery journal &bull; 
-                <strong>SC-17</strong> Storage quota exhaustion handling & corrupt record isolation.
-              </p>
-            </div>
-          </div>
-
-          <div class="timeline-item">
-            <div class="timeline-icon">P6</div>
-            <div>
-              <h4 style="color: #fff; font-size: 15px;">Portion 6: Native Desktop Packaging & Release (SC-18, SC-19, SC-20)</h4>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-                <strong>SC-18</strong> Standalone native Windows desktop executable (<code>xray-engine.exe</code> via Tauri v2 with embedded Rust CAD engine) &bull; 
-                <strong>SC-19</strong> Responsive Tablet (1024×768 / 768×1024) & desktop ergonomic signoff &bull; 
-                <strong>SC-20</strong> Full working-day stress scenarios (DAY-01 to DAY-08) and master release sign-off.
-              </p>
-            </div>
-          </div>
+          ${renderOpenSlicesHtml(slices)}
         </div>
       </div>
 
       <div class="gap-section">
         <h3>
           <span style="color: #f59e0b;">●</span>
-          <span>Technical Blockers & Honest Absence Disclosures</span>
+          <span>Current Evidence Gaps & Honest Absence Disclosures</span>
         </h3>
         <div class="gap-grid">
           <div class="gap-card">
-            <h4>SC-03 Browser Capture Environment Blocker</h4>
+            <h4>Pending closeout work</h4>
             <p>
-              Revision clouding code and 18 unit tests pass (1751 suite pass). However, visual captures were blocked because the test automation browser froze <code>Object.prototype</code> at startup. Fixed with an inlined <code>boot-guard.ts</code>. Visual inspection captures are pending execution on a standard browser session.
+              ${stats.slicesPending} slices remain pending, ${stats.slicesPartial} remain partial, and ${stats.slicesBlocked} are blocked. Their open gates are shown above directly from the closeout ledger.
             </p>
           </div>
           <div class="gap-card">
-            <h4>Live Firecrawl Search Credential (P-01)</h4>
+            <h4>Dependency-blocked A–Z requirements</h4>
             <p>
-              The bounded pricing search contract is built and verified with honest typed failure states (503 unconfigured, rate-limits, timeouts). Real internet search requires a configured <code>FIRECRAWL_API_KEY</code>.
+              ${stats.azBlocked} professional requirements are explicitly dependency-blocked. The catalogue retains each source assessment rather than treating blocked work as complete.
             </p>
           </div>
           <div class="gap-card">
-            <h4>Authentication & Multi-Tenant Accounts (A-01..A-12)</h4>
+            <h4>Unimplemented A–Z requirements</h4>
             <p>
-              Authentication is intentionally disabled by default per application architecture. The app operates as an offline-first local workstation with local profile storage.
+              ${stats.azGaps} requirements are recorded as gaps and ${stats.azFailed} as failed. Search the catalogue for the exact source-grounded explanation and remaining boundary.
             </p>
           </div>
           <div class="gap-card">
-            <h4>Discipline Labels vs Specialty Solvers (13 Gap Categories)</h4>
+            <h4>Partial A–Z requirements</h4>
             <p>
-              Categories G (Geospatial), H (Services), J (Programme), K (Libraries), L (Landscape), M (Manufacturing), N (Electrical), O (Operations/BMS), S (Structural), and W (Whole-Life) contain industry labels and categories in the UI, but do not yet possess certified engineering solvers.
+              ${stats.azPartial} requirements have useful implementation or evidence but still carry an explicit remaining limit. Partial is never counted as verified.
             </p>
           </div>
         </div>
@@ -1315,15 +1394,11 @@ const html = `<!DOCTYPE html>
     </section>
 
     <!-- TAB 4: A-Z CATALOGUE -->
-    <section id="tab-az" class="tab-content">
-      <div class="filter-bar">
+    <section id="tab-az" class="tab-content" role="tabpanel" aria-labelledby="tab-button-az" hidden>
+      <div class="filter-bar" role="group" aria-label="Professional requirement state filters">
         <span class="filter-label">State:</span>
-        <button class="filter-chip active" onclick="filterAzState('all', this)">All (375)</button>
-        <button class="filter-chip" onclick="filterAzState('verified', this)">Verified (6)</button>
-        <button class="filter-chip" onclick="filterAzState('partial', this)">Partial (102)</button>
-        <button class="filter-chip" onclick="filterAzState('dependency-blocked', this)">Blocked (19)</button>
-        <button class="filter-chip" onclick="filterAzState('gap', this)">Gaps (247)</button>
-        <button class="filter-chip" onclick="filterAzState('failed', this)">Failed (1)</button>
+        ${renderFilterButton("az-state", "all", `All (${stats.azTotal})`, true)}
+        ${azStates.map(state => renderFilterButton("az-state", state, `${formatStateLabel(state)} (${allRequirements.filter(requirement => requirement.state === state).length})`)).join("")}
       </div>
 
       <div class="az-table-container">
@@ -1345,36 +1420,36 @@ const html = `<!DOCTYPE html>
     </section>
 
     <!-- TAB 5: INVARIANTS & ARCHITECTURE -->
-    <section id="tab-invariants" class="tab-content">
+    <section id="tab-invariants" class="tab-content" role="tabpanel" aria-labelledby="tab-button-invariants" hidden>
       <div class="gap-section">
-        <h3>🛡️ Fail-Safe Architecture & Non-Negotiable Invariants</h3>
+        <h3>🛡️ Declared Architecture Contracts & Verification Boundaries</h3>
         <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 20px;">
-          To guarantee zero-data-loss, mathematical correctness, and prevent AI regression, the engine strictly enforces the following core contracts:
+          These engineering contracts describe required behaviour, not blanket certification. Consult each slice’s recorded tests, visual evidence and open gates for the coverage actually demonstrated.
         </p>
 
         <div class="gap-grid">
           <div class="gap-card" style="border-left: 4px solid #10b981;">
             <h4 style="color: #34d399;">1. True 3D Surface Geometry</h4>
             <p>
-              Sloped surfaces (roofs, ramps, stairs) must calculate true pitch dimensions: $A_{\text{true}} = A_{\text{projected}} / \cos(\theta)$. 2D horizontal projected measurements are strictly forbidden from masquerading as net quantities.
+              Sloped surfaces must distinguish true surface area from horizontal projected area: <code>Atrue = Aprojected / cos(pitch)</code>. Each supported measurement must retain its source, calibration and stated limitations.
             </p>
           </div>
           <div class="gap-card" style="border-left: 4px solid #3b82f6;">
             <h4 style="color: #60a5fa;">2. Explicit Opening Deductions</h4>
             <p>
-              Any opening $> 0.5\text{ m}^2$ (doors, windows, voids, penetrations) must be explicitly deducted with mathematical proof. Gross areas, deduction areas, and net areas must all be reported.
+              Opening deductions must follow the project’s declared measurement rules. Gross area, applied deductions and net area must remain distinguishable; missing geometry or deduction evidence must be disclosed.
             </p>
           </div>
           <div class="gap-card" style="border-left: 4px solid #8b5cf6;">
             <h4 style="color: #c084fc;">3. Immutable Cryptographic Delivery Freeze</h4>
             <p>
-              When a set transitions to <code>issued-deliverable</code>, its SHA-256 payload digest is computed and sealed. Tampering with or altering an issued deliverable triggers <code>CORRUPTED_ISSUE_DELIVERY</code> fail-closed state.
+              Issued-deliverable workflows require a retained SHA-256 payload digest and rejection of altered content. This dashboard is an evidence index, not an issued or cryptographically sealed project deliverable.
             </p>
           </div>
           <div class="gap-card" style="border-left: 4px solid #f59e0b;">
             <h4 style="color: #fbbf24;">4. Compare-And-Swap (CAS) Workspace Locking</h4>
             <p>
-              Project authoring requires an exclusive Web Lock lease. Concurrent tabs are relegated to read-only mode to prevent write clobbering. Interrupted saves are journalled and rolled back automatically.
+              Project authoring requires explicit concurrency and recovery safeguards. Recorded browser tests establish only their exercised cases; a dashboard screenshot does not establish multi-device safety or universal data recovery.
             </p>
           </div>
         </div>
@@ -1383,11 +1458,11 @@ const html = `<!DOCTYPE html>
   </main>
 
   <!-- LIGHTBOX MODAL -->
-  <div class="modal-overlay" id="lightboxModal" onclick="closeLightbox(event)">
-    <div class="modal-container" onclick="event.stopPropagation()">
+  <div class="modal-overlay" id="lightboxModal" hidden>
+    <div class="modal-container" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc" tabindex="-1">
       <div class="modal-header">
         <h3 class="modal-title" id="modalTitle">Screenshot Inspection</h3>
-        <button class="close-btn" onclick="closeLightbox()">&times;</button>
+        <button type="button" class="close-btn" aria-label="Close screenshot inspection">&times;</button>
       </div>
       <div class="modal-body">
         <img src="" alt="Proof Screenshot" class="modal-image" id="modalImage">
@@ -1400,243 +1475,242 @@ const html = `<!DOCTYPE html>
   </div>
 
   <script>
-    // Tab switching
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      
-      const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
-      if (targetBtn) targetBtn.classList.add('active');
-      
-      const targetContent = document.getElementById('tab-' + tabId);
-      if (targetContent) targetContent.classList.add('active');
+    const filters = {
+      sliceStatus: 'all',
+      slicePortion: 'all',
+      galleryCategory: 'all',
+      azState: 'all',
+      query: '',
+    };
+    let modalReturnFocus = null;
+
+    function switchTab(tabId, focusTab = false) {
+      document.querySelectorAll('[role="tab"]').forEach(button => {
+        const selected = button.dataset.tab === tabId;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+        if (selected && focusTab) button.focus();
+      });
+      document.querySelectorAll('[role="tabpanel"]').forEach(panel => {
+        const selected = panel.id === 'tab-' + tabId;
+        panel.classList.toggle('active', selected);
+        panel.hidden = !selected;
+      });
+      // Each tab starts at its own controls; retaining a previous view's scroll
+      // can otherwise leave the next filters obscured by the desktop header.
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
 
-    // Toggle slice card accordion
-    function toggleSlice(card) {
-      card.classList.toggle('expanded');
-    }
-
-    // Filter Slices by Status
-    function filterSlices(status, chip) {
-      document.querySelectorAll('#tab-slices .filter-chip').forEach(c => {
-        if (c.getAttribute('onclick').includes('filterSlices')) c.classList.remove('active');
-      });
-      chip.classList.add('active');
-
-      const cards = document.querySelectorAll('.slice-card');
-      cards.forEach(card => {
-        if (status === 'all' || card.dataset.status === status) {
-          card.style.display = 'block';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    }
-
-    // Filter Slices by Portion
-    function filterPortion(portionNum, chip) {
-      document.querySelectorAll('#tab-slices .filter-chip').forEach(c => {
-        if (c.getAttribute('onclick').includes('filterPortion')) c.classList.remove('active');
-      });
-      chip.classList.add('active');
-
-      const cards = document.querySelectorAll('.slice-card');
-      cards.forEach(card => {
-        if (portionNum === 'all' || card.dataset.portion.includes(portionNum)) {
-          card.style.display = 'block';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    }
-
-    // Filter Gallery by Category
-    function filterGallery(category, chip) {
-      document.querySelectorAll('#tab-gallery .filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-
-      const cards = document.querySelectorAll('.proof-card');
-      cards.forEach(card => {
-        if (category === 'all' || card.dataset.category === category) {
-          card.style.display = 'flex';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    }
-
-    // Filter A-Z by State
-    function filterAzState(state, chip) {
-      document.querySelectorAll('#tab-az .filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-
-      const rows = document.querySelectorAll('#azTable tbody tr');
-      rows.forEach(row => {
-        if (state === 'all' || row.dataset.state === state) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    // Global Search
-    function handleSearch() {
-      const q = document.getElementById('globalSearch').value.toLowerCase().trim();
-      
-      // search slices
+    function applyFilters() {
+      const q = filters.query;
       document.querySelectorAll('.slice-card').forEach(card => {
-        const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(q) ? 'block' : 'none';
+        const statusMatch = filters.sliceStatus === 'all'
+          || card.dataset.status === filters.sliceStatus
+          || (filters.sliceStatus === 'partial' && card.dataset.status === 'blocked');
+        const portionMatch = filters.slicePortion === 'all' || card.dataset.portion === filters.slicePortion;
+        const searchMatch = !q || card.textContent.toLowerCase().includes(q);
+        card.hidden = !(statusMatch && portionMatch && searchMatch);
       });
-
-      // search gallery
+      document.querySelectorAll('.portion-group').forEach(group => {
+        group.hidden = !group.querySelector('.slice-card:not([hidden])');
+      });
       document.querySelectorAll('.proof-card').forEach(card => {
-        const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(q) ? 'flex' : 'none';
+        const categoryMatch = filters.galleryCategory === 'all' || card.dataset.category === filters.galleryCategory;
+        const searchMatch = !q || card.textContent.toLowerCase().includes(q);
+        card.hidden = !(categoryMatch && searchMatch);
       });
-
-      // search AZ table
       document.querySelectorAll('#azTable tbody tr').forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
+        const stateMatch = filters.azState === 'all' || row.dataset.state === filters.azState;
+        const searchMatch = !q || row.textContent.toLowerCase().includes(q);
+        row.hidden = !(stateMatch && searchMatch);
       });
     }
 
-    // Lightbox modal
-    function openLightbox(src, title, desc, relPath) {
-      document.getElementById('modalImage').src = src;
-      document.getElementById('modalTitle').textContent = title;
-      document.getElementById('modalDesc').textContent = desc;
-      document.getElementById('modalPath').textContent = relPath;
-      document.getElementById('lightboxModal').classList.add('active');
+    function selectFilter(button) {
+      const group = button.dataset.filterGroup;
+      document.querySelectorAll('[data-filter-group="' + CSS.escape(group) + '"]').forEach(candidate => {
+        const selected = candidate === button;
+        candidate.classList.toggle('active', selected);
+        candidate.setAttribute('aria-pressed', String(selected));
+      });
+      if (group === 'slice-status') filters.sliceStatus = button.dataset.filterValue;
+      if (group === 'slice-portion') filters.slicePortion = button.dataset.filterValue;
+      if (group === 'gallery-category') filters.galleryCategory = button.dataset.filterValue;
+      if (group === 'az-state') filters.azState = button.dataset.filterValue;
+      applyFilters();
     }
 
-    function closeLightbox(e) {
-      document.getElementById('lightboxModal').classList.remove('active');
+    function toggleSlice(button) {
+      const card = button.closest('.slice-card');
+      const expanded = button.getAttribute('aria-expanded') !== 'true';
+      card.classList.toggle('expanded', expanded);
+      button.setAttribute('aria-expanded', String(expanded));
+      document.getElementById(button.getAttribute('aria-controls')).hidden = !expanded;
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeLightbox();
+    function openLightbox(button) {
+      modalReturnFocus = button;
+      const modal = document.getElementById('lightboxModal');
+      document.getElementById('modalImage').src = button.dataset.src;
+      document.getElementById('modalImage').alt = button.dataset.title;
+      document.getElementById('modalTitle').textContent = button.dataset.title;
+      document.getElementById('modalDesc').textContent = button.dataset.desc;
+      document.getElementById('modalPath').textContent = button.dataset.path;
+      modal.hidden = false;
+      modal.classList.add('active');
+      modal.querySelector('.close-btn').focus();
+    }
+
+    function closeLightbox() {
+      const modal = document.getElementById('lightboxModal');
+      if (modal.hidden) return;
+      modal.classList.remove('active');
+      modal.hidden = true;
+      modalReturnFocus?.focus();
+      modalReturnFocus = null;
+    }
+
+    document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.tab)));
+    document.querySelector('[role="tablist"]').addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = [...document.querySelectorAll('[role="tab"]')];
+      const current = tabs.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? tabs.length - 1
+          : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      switchTab(tabs[next].dataset.tab, true);
+    });
+    document.querySelectorAll('[data-filter-group]').forEach(button => button.addEventListener('click', () => selectFilter(button)));
+    document.querySelectorAll('.slice-top').forEach(button => button.addEventListener('click', () => toggleSlice(button)));
+    document.querySelectorAll('[data-lightbox]').forEach(button => button.addEventListener('click', () => openLightbox(button)));
+    document.querySelector('.close-btn').addEventListener('click', closeLightbox);
+    document.getElementById('lightboxModal').addEventListener('click', event => {
+      if (event.target === event.currentTarget) closeLightbox();
+    });
+    document.getElementById('globalSearch').addEventListener('input', event => {
+      filters.query = event.currentTarget.value.toLowerCase().trim();
+      applyFilters();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeLightbox();
+      const modal = document.getElementById('lightboxModal');
+      if (event.key === 'Tab' && !modal.hidden) {
+        event.preventDefault();
+        modal.querySelector('.close-btn').focus();
+      }
     });
   </script>
 </body>
 </html>
 `;
 
+
 function renderSlicesHtml(slices) {
-  let html = "";
-  let currentPortion = "";
-
-  for (const s of slices) {
-    if (s.portion !== currentPortion) {
-      currentPortion = s.portion;
-      html += `
+  return portions.map(portion => {
+    const portionSlices = slices.filter(slice => slice.portionNumber === portion.number);
+    return `
+      <section class="portion-group" data-portion-group="${portion.number}" aria-labelledby="portion-title-${portion.number}">
         <div class="portion-header">
-          <span class="portion-title">📂 ${escapeHtml(currentPortion)}</span>
+          <h2 class="portion-title" id="portion-title-${portion.number}">📂 ${escapeHtml(portion.label)}</h2>
         </div>
-      `;
-    }
-
-    const statusBadgeClass = s.status === "done" ? "badge-done" : s.status === "partial" ? "badge-partial" : "badge-pending";
-    const statusText = s.status === "done" ? "✓ Done" : s.status === "partial" ? "⚠ Partial" : "○ Pending";
-
-    const isDone = s.status === "done";
-    const tick = isDone ? "☑" : "☐";
-    const completedLabel = s.completedAt ? formatCompleted(s.completedAt) : (isDone ? "date not recorded" : "");
-    const completedTitle = s.completedAt ? ` title="Completed ${escapeHtml(s.completedAt)}"` : "";
-
-    html += `
-      <div class="slice-card ${s.status}" data-status="${s.status}" data-portion="${escapeHtml(s.portion)}">
-        <div class="slice-top" onclick="toggleSlice(this.parentElement)">
-          <div class="slice-info">
-            <div class="slice-header">
-              <span class="slice-tick" data-tick="${isDone ? "done" : "open"}"${completedTitle}>${tick}</span>
-              <span class="slice-id">${escapeHtml(s.id)}</span>
-              <span class="slice-title">${escapeHtml(s.title)}</span>
-              <span class="status-badge ${statusBadgeClass}">${statusText}</span>
-              ${completedLabel ? `<span class="slice-completed"${completedTitle}>✔ ${escapeHtml(completedLabel)}</span>` : ""}
-            </div>
-            <div class="slice-goal">${escapeHtml(s.goal)}</div>
-          </div>
-          <div class="slice-chevron">▼</div>
-        </div>
-
-        <div class="slice-details">
-          ${s.machineDone ? `
-            <div class="detail-section">
-              <div class="detail-heading">⚙️ Machine Gate Verification</div>
-              <div class="detail-body">${escapeHtml(s.machineDone).replace(/\\n/g, '<br>')}</div>
-            </div>
-          ` : ""}
-
-          ${s.humanDone ? `
-            <div class="detail-section">
-              <div class="detail-heading">👁️ Human & Visual Proof</div>
-              <div class="detail-body">${escapeHtml(s.humanDone).replace(/\\n/g, '<br>')}</div>
-            </div>
-          ` : ""}
-
-          ${s.blockedNote ? `
-            <div class="detail-section">
-              <div class="detail-heading" style="color: #f87171;">⚠️ Blocked / Environment Note</div>
-              <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;">
-                ${escapeHtml(s.blockedNote)}
-              </div>
-            </div>
-          ` : ""}
-
-          ${s.files && s.files.length > 0 ? `
-            <div class="detail-section">
-              <div class="detail-heading">📁 Associated Files</div>
-              <div class="files-list">
-                ${s.files.map(f => `<span class="file-tag">${escapeHtml(f)}</span>`).join("")}
-              </div>
-            </div>
-          ` : ""}
-
-          ${s.images && s.images.length > 0 ? `
-            <div class="detail-section">
-              <div class="detail-heading">📸 Attached Visual Proof</div>
-              <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
-                ${s.images.map(img => `
-                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
-                       onclick="openLightbox('${img.relPath}', '${escapeHtml(img.title)}', '${escapeHtml(img.description)}', '${img.relPath}')">
-                    <img src="${img.relPath}" style="width: 100%; height: 120px; object-fit: cover;" alt="${escapeHtml(img.title)}">
-                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">${escapeHtml(img.title)}</div>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-          ` : ""}
-        </div>
-      </div>
+        ${portionSlices.map(renderSliceCardHtml).join("")}
+      </section>
     `;
-  }
-  return html;
+  }).join("");
+}
+
+function renderSliceCardHtml(s) {
+  const statusBadgeClass = s.status === "done" ? "badge-done"
+    : s.status === "partial" ? "badge-partial"
+      : s.status === "blocked" ? "badge-blocked"
+        : "badge-pending";
+  const statusText = s.status === "done" ? "✓ Done"
+    : s.status === "partial" ? "⚠ Partial"
+      : s.status === "blocked" ? "⛔ Blocked"
+        : "○ Pending";
+  const isDone = s.status === "done";
+  const completedLabel = isDone ? (s.completedAt ? formatCompleted(s.completedAt) : "date not recorded") : "";
+  const completedTitle = s.completedAt ? ` title="Completed ${escapeHtml(s.completedAt)}"` : "";
+  const controlId = `slice-control-${s.id.toLowerCase()}`;
+  const detailsId = `slice-details-${s.id.toLowerCase()}`;
+  const machineHeading = s.status === "pending" ? "⚙️ Machine Completion Criteria (not yet closed)" : "⚙️ Machine Gate Verification";
+  const humanHeading = s.humanGateOpen ? "⚠️ Open Human / Visual Gate"
+    : s.status === "pending" ? "👁️ Human / Visual Completion Criteria (not yet closed)"
+      : "👁️ Human & Visual Proof";
+  return `
+    <article class="slice-card ${s.status}" data-slice-id="${escapeHtml(s.id)}" data-status="${s.status}" data-portion="${s.portionNumber}">
+      <button type="button" class="slice-top" id="${controlId}" aria-expanded="false" aria-controls="${detailsId}">
+        <span class="slice-info">
+          <span class="slice-header">
+            <span class="slice-tick" data-tick="${isDone ? "done" : "open"}"${completedTitle}>${isDone ? "☑" : "☐"}</span>
+            <span class="slice-id">${escapeHtml(s.id)}</span>
+            <span class="slice-title">${escapeHtml(s.title)}</span>
+            <span class="status-badge ${statusBadgeClass}">${statusText}</span>
+            ${completedLabel ? `<span class="slice-completed"${completedTitle}>✔ ${escapeHtml(completedLabel)}</span>` : ""}
+          </span>
+          <span class="slice-goal">${renderInlineMarkdown(s.goal)}</span>
+        </span>
+        <span class="slice-chevron" aria-hidden="true">▼</span>
+      </button>
+
+      <div class="slice-details" id="${detailsId}" role="region" aria-labelledby="${controlId}" hidden>
+        ${s.machineDone ? renderDetailSection(machineHeading, s.machineDone, s.status === "pending") : ""}
+        ${s.humanDone ? renderDetailSection(humanHeading, s.humanDone, s.humanGateOpen || s.status === "pending") : ""}
+        ${s.proof ? renderDetailSection("🔗 Recorded Proof", s.proof) : ""}
+        ${s.blockedNote ? renderDetailSection("⚠️ Blocked / Environment Note", s.blockedNote, true) : ""}
+        ${s.files.length ? `
+          <div class="detail-section">
+            <div class="detail-heading">📁 Associated Files</div>
+            <div class="files-list">${s.files.map(renderFileLink).join("")}</div>
+          </div>
+        ` : ""}
+        ${s.images.length ? `
+          <div class="detail-section">
+            <div class="detail-heading">📸 Attached Visual Proof</div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+              ${s.images.map(image => renderProofButton(image, true)).join("")}
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    </article>
+  `;
 }
 
 function renderGalleryHtml(images) {
-  return images.map(img => `
-    <div class="proof-card" data-category="${escapeHtml(img.category)}"
-         onclick="openLightbox('${img.relPath}', '${escapeHtml(img.title)}', '${escapeHtml(img.description)}', '${img.relPath}')">
-      <div class="thumb-wrapper">
-        <img src="${img.relPath}" alt="${escapeHtml(img.title)}" class="proof-thumb" loading="lazy">
-        <div class="thumb-overlay">
-          <span class="category-tag">${escapeHtml(img.category)}</span>
-          <span class="proof-slice-tag">${escapeHtml(img.slice)}</span>
-        </div>
-      </div>
-      <div class="proof-content">
-        <div>
-          <h4 class="proof-title">${escapeHtml(img.title)}</h4>
-          <p class="proof-desc">${escapeHtml(img.description)}</p>
-        </div>
-        <div class="proof-path">${escapeHtml(img.relPath)}</div>
-      </div>
-    </div>
-  `).join("");
+  return images.map(image => renderProofButton(image, false)).join("");
+}
+
+function renderProofButton(image, compact) {
+  const data = `data-lightbox data-src="${escapeHtml(image.relPath)}" data-title="${escapeHtml(image.title)}" data-desc="${escapeHtml(image.description)}" data-path="${escapeHtml(image.relPath)}"`;
+  if (compact) {
+    return `
+      <button type="button" class="proof-mini" ${data} aria-label="Inspect proof: ${escapeHtml(image.title)}">
+        <img src="${escapeHtml(image.relPath)}" alt="" loading="lazy">
+        <span style="display: block; padding: 8px; font-size: 11px;">${escapeHtml(image.title)}</span>
+      </button>
+    `;
+  }
+  return `
+    <button type="button" class="proof-card" data-category="${escapeHtml(image.category)}" ${data} aria-label="Inspect proof: ${escapeHtml(image.title)}">
+      <span class="thumb-wrapper">
+        <img src="${escapeHtml(image.relPath)}" alt="" class="proof-thumb" loading="lazy">
+        <span class="thumb-overlay">
+          <span class="category-tag">${escapeHtml(image.category)}</span>
+          <span class="proof-slice-tag">${escapeHtml(image.slice)}</span>
+        </span>
+      </span>
+      <span class="proof-content">
+        <span>
+          <span class="proof-title">${escapeHtml(image.title)}</span>
+          <span class="proof-desc">${escapeHtml(image.description)}</span>
+        </span>
+        <span class="proof-path">${escapeHtml(image.relPath)}</span>
+      </span>
+    </button>
+  `;
 }
 
 function renderAzRowsHtml(rows) {
@@ -1648,17 +1722,132 @@ function renderAzRowsHtml(rows) {
         <td><span style="font-size: 12px; color: var(--text-dim);">${escapeHtml(r.category)} — ${escapeHtml(r.categoryName)}</span></td>
         <td class="az-title">${escapeHtml(r.title)}</td>
         <td><span class="badge-state ${badgeClass}">${escapeHtml(r.state)}</span></td>
-        <td style="color: var(--text-muted); font-size: 12.5px; line-height: 1.5;">${escapeHtml(r.description)}</td>
+        <td style="color: var(--text-muted); font-size: 12.5px; line-height: 1.5;">${renderInlineMarkdown(r.description)}</td>
       </tr>
     `;
   }).join("");
 }
 
+function renderFilterButton(group, value, label, active = false) {
+  return `<button type="button" class="filter-chip${active ? " active" : ""}" data-filter-group="${escapeHtml(group)}" data-filter-value="${escapeHtml(value)}" aria-pressed="${active}">${escapeHtml(label)}</button>`;
+}
+
+function formatStateLabel(state) {
+  return state === "dependency-blocked" ? "Blocked"
+    : state === "gap" ? "Gaps"
+      : state.charAt(0).toUpperCase() + state.slice(1);
+}
+
+function renderOpenSlicesHtml(rows) {
+  const open = rows.filter(row => row.status !== "done");
+  return portions.map(portion => {
+    const portionRows = open.filter(row => row.portionNumber === portion.number);
+    if (!portionRows.length) return "";
+    return `
+      <div class="timeline-item" data-open-portion="${portion.number}">
+        <div class="timeline-icon">P${portion.number}</div>
+        <div>
+          <h4 style="color: #fff; font-size: 15px;">${escapeHtml(portion.label)}</h4>
+          <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
+            ${portionRows.map(row => `<strong>${escapeHtml(row.id)}</strong> <span class="badge-state state-${row.status === "partial" ? "partial" : row.status === "blocked" ? "blocked" : "gap"}">${escapeHtml(row.status)}</span> ${renderInlineMarkdown(row.title)}`).join(" &bull; ")}
+          </p>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderDetailSection(heading, body, warning = false) {
+  const warningStyle = warning ? "border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;" : "";
+  return `
+    <div class="detail-section">
+      <div class="detail-heading"${warning ? ' style="color: #f87171;"' : ""}>${escapeHtml(heading)}</div>
+      <div class="detail-body"${warningStyle ? ` style="${warningStyle}"` : ""}>${renderMarkdownContent(body)}</div>
+    </div>
+  `;
+}
+
+function renderMarkdownContent(value) {
+  let html = "";
+  let listOpen = false;
+  for (const rawLine of String(value ?? "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      if (listOpen) {
+        html += "</ul>";
+        listOpen = false;
+      }
+      continue;
+    }
+    const listItem = line.match(/^-\s+(.+)$/);
+    if (listItem) {
+      if (!listOpen) {
+        html += "<ul>";
+        listOpen = true;
+      }
+      html += `<li>${renderInlineMarkdown(listItem[1])}</li>`;
+      continue;
+    }
+    if (listOpen) {
+      html += "</ul>";
+      listOpen = false;
+    }
+    html += `<p>${renderInlineMarkdown(line)}</p>`;
+  }
+  if (listOpen) html += "</ul>";
+  return html;
+}
+
+function renderInlineMarkdown(value) {
+  const source = String(value ?? "");
+  const tokenPattern = /(`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\)|\*\*[^*\n]+\*\*)/g;
+  let html = "";
+  let cursor = 0;
+  for (const match of source.matchAll(tokenPattern)) {
+    html += escapeHtml(source.slice(cursor, match.index));
+    const token = match[0];
+    if (token.startsWith("`")) {
+      html += `<code>${escapeHtml(token.slice(1, -1))}</code>`;
+    } else if (token.startsWith("**")) {
+      html += `<strong>${escapeHtml(token.slice(2, -2))}</strong>`;
+    } else {
+      const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      const href = sanitizeLocalHref(link?.[2] ?? "");
+      html += href
+        ? `<a class="md-link" href="${escapeHtml(href)}">${escapeHtml(link[1])}</a>`
+        : `<span>${escapeHtml(link?.[1] ?? token)}</span>`;
+    }
+    cursor = match.index + token.length;
+  }
+  html += escapeHtml(source.slice(cursor));
+  return html;
+}
+
+function sanitizeLocalHref(value) {
+  const href = String(value).trim().replaceAll("\\", "/");
+  if (!href || /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|[a-z]:\/)/i.test(href)) return null;
+  if (href.split("/").includes("..")) return null;
+  return href;
+}
+
+function renderFileLink(file) {
+  const href = sanitizeLocalHref(file);
+  return href
+    ? `<a class="file-tag" href="${escapeHtml(href)}">${escapeHtml(file)}</a>`
+    : `<span class="file-tag">${escapeHtml(file)}</span>`;
+}
+
+function formatNumber(value) {
+  return Number(value).toLocaleString("en-AU");
+}
+
 function formatCompleted(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  // Rendered in the viewer's own timezone; the raw value stays on the title attribute.
-  return parsed.toLocaleString(undefined, {
+  // Stable across build hosts; the raw source value stays on the title attribute.
+  return parsed.toLocaleString("en-AU", {
+    timeZone: "UTC",
+    timeZoneName: "short",
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -1677,5 +1866,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-fs.writeFileSync("XRAY-STATUS-AND-PROOF-DASHBOARD.html", html, "utf8");
-console.log("Successfully created XRAY-STATUS-AND-PROOF-DASHBOARD.html! Size:", html.length, "bytes");
+const outputPath = path.resolve(process.argv[2] ?? "XRAY-STATUS-AND-PROOF-DASHBOARD.html");
+const generatedHtml = html.replace(/[\t ]+$/gm, "");
+fs.writeFileSync(outputPath, generatedHtml, "utf8");
+console.log(`Successfully created ${outputPath}! Size:`, Buffer.byteLength(generatedHtml, "utf8"), "bytes");

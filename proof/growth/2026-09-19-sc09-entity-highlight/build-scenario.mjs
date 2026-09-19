@@ -457,6 +457,7 @@ const scenario = [
   ["find", "role", "button", "click", "--name", "Takeoff", "--exact"],
   ["wait", "--fn", "document.querySelector('nav[aria-label=\"Workspace tools\"] button[aria-current=\"page\"]')?.textContent?.trim() === 'Measure'"],
   ["wait", "--fn", "document.querySelector('.measure-document-preview')?.getAttribute('data-source-ready') === 'true' && !!document.querySelector('.trace-editor-panel')"],
+  ["wait", "--fn", "[...document.querySelectorAll('.trace-edit-modes button')].some(button => button.textContent.trim() === 'Move vertex' && !button.matches(':disabled'))"],
   ["find", "role", "button", "click", "--name", "Move vertex", "--exact"],
   ["wait", "--fn", "document.querySelector('.trace-edit-modes button[aria-pressed=\"true\"]')?.textContent?.trim() === 'Move vertex'"],
   ["eval", prepareRealRunCanvasDrag],

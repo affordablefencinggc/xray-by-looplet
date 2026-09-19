@@ -227,7 +227,8 @@ function allowance(value: string): Rational { const percentValue = decimal(value
 function rounded(n: bigint, d: bigint): bigint { if (n < 0n || d <= 0n) throw Error("Invalid monetary calculation."); return (n * 2n + d) / (2n * d); }
 function minor(value: bigint): number { if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new CostFailure("overflow", "Amount exceeds the safe integer minor-unit limit."); return Number(value); }
 function rationalDecimal(value: Rational): string {
-  let n = value.n, d = value.d;
+  let n = value.n;
+  const d = value.d;
   const whole = n / d; n %= d;
   let fraction = "";
   while (n && fraction.length < 30) { n *= 10n; fraction += (n / d).toString(); n %= d; }

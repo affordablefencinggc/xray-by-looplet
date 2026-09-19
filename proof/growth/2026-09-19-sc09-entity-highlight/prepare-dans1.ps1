@@ -61,7 +61,9 @@ function Step([string]$Name,[string[]]$Arguments){
 Step 'dependencies' @($npm,'ci','--ignore-scripts','--no-audit','--no-fund')
 Step 'sc09-focused' @('--experimental-strip-types','--test','src/lib/boot-guard.test.ts','src/studio/industries/quantity-surveying/qsItemBinding.test.ts','src/studio/industries/quantity-surveying/quantityForm.test.ts','src/studio/industries/quantity-surveying/QuantityReportView.test.ts')
 Step 'typecheck' @($npm,'run','typecheck')
+Step 'runner-and-pricing-state' @('--experimental-strip-types','--test','scripts/fast-cdp.test.mjs','proof/growth/2026-09-19-sc10-qs-rate-delta/preflight/state-boundary.test.ts')
 Step 'full-tests' @($npm,'test')
+Step 'scoped-lint' @('node_modules/eslint/bin/eslint.js','src/lib/boot-guard.ts','src/lib/boot-guard.test.ts','src/studio/industries/quantity-surveying','src/studio/pricing/PriceBookPanel.tsx')
 Verify-Sources
 [pscustomobject]@{host=$env:COMPUTERNAME;source=$source;sourceSha256=$SourceHash;runtimeSha256=$RuntimeHash;nativeSha256=$NativeHash;results=$results;verdict='PASS'} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'preflight.json') -Encoding UTF8
 Write-Output 'PREFLIGHT_READY: execute development browser proof before full build.'
