@@ -12,7 +12,10 @@
  */
 import fs from 'node:fs';
 
-const SEEDED = JSON.parse(fs.readFileSync('.temp/live-rig/sc03-seeded-project.json', 'utf8'));
+const seedPath = fs.existsSync('.temp/live-rig/sc03-seeded-project.json')
+  ? '.temp/live-rig/sc03-seeded-project.json'
+  : 'proof/growth/2026-09-18-sc03-revision-clouding/seeded-project.json';
+const SEEDED = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
 const PROJECT = JSON.stringify(SEEDED.design);
 const OUT = '.temp/live-rig/sc03-proof.json';
 const SHOTS = 'screenshots/growth/sc03';
@@ -40,18 +43,20 @@ const openWorkspace = `(()=>{
   return 'workspace';
 })()`;
 
+const openSheets = `(()=>{
+  const byText = (t) => [...document.querySelectorAll('button')].find(b => b.innerText.trim() === t);
+  const s = byText('Drawing sheets'); if (!s) throw Error('no Drawing sheets tab'); s.click();
+  return 'sheets';
+})()`;
+
 /* The delta panel and the overlay inside it are both collapsed folds until opened. */
 const openOverlay = `(()=>{
   const folds = [...document.querySelectorAll('details')];
+  for (const f of folds) f.open = true;
   const overlay = document.querySelector('.revision-overlay');
-  if (!overlay) {
-    const summary = folds.find(d => /plan revision overlay/i.test(d.querySelector('summary')?.textContent ?? ''));
-    if (!summary) throw Error('no revision overlay in the document');
-    summary.open = true;
-  }
-  const el = document.querySelector('.revision-overlay');
-  el.open = true;
-  el.scrollIntoView({ block: 'start' });
+  if (!overlay) throw Error('no revision overlay in the document');
+  overlay.open = true;
+  overlay.scrollIntoView({ block: 'start' });
   return 'overlay open';
 })()`;
 
@@ -101,16 +106,18 @@ const read = `(()=>{
 
 const scenario = [
   ['set', 'viewport', '1600', '1000'],
-  ['open', 'http://127.0.0.1:8085/'],
+  ['open', 'http://127.0.0.1:8080/'],
   ['wait', '--fn', "document.readyState==='complete'", '--timeout', '60000'],
   ['wait', '--fn', "!!localStorage.getItem('xray:fencing-job:v2')", '--timeout', '60000'],
   ['eval', seed],
-  ['open', 'http://127.0.0.1:8085/'],
+  ['open', 'http://127.0.0.1:8080/'],
   ['wait', '--fn', "document.readyState==='complete'", '--timeout', '60000'],
   ['wait', '--fn', "[...document.querySelectorAll('button')].some(b=>b.innerText.trim()==='Design')", '--timeout', '60000'],
   ['eval', openDelta],
   ['wait', '--fn', "[...document.querySelectorAll('button')].some(b=>b.innerText.trim()==='Architectural workspace')", '--timeout', '60000'],
   ['eval', openWorkspace],
+  ['wait', '--fn', "[...document.querySelectorAll('button')].some(b=>b.innerText.trim()==='Drawing sheets')", '--timeout', '60000'],
+  ['eval', openSheets],
   ['wait', '--fn', "!!document.querySelector('.arch-delta-content')", '--timeout', '60000'],
   ['eval', "(()=>{const el=document.querySelector('.revision-overlay');if(el)el.scrollIntoView({block:'start'});return 'at overlay'})()"],
   ['eval', openOverlay],
@@ -137,5 +144,6 @@ const scenario = [
 
 fs.mkdirSync(SHOTS, { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(scenario, null, 2));
+fs.writeFileSync('proof/growth/2026-09-18-sc03-revision-clouding/render-scenario.json', JSON.stringify(scenario, null, 2));
 console.log(`written  ${OUT}  (${scenario.length} ops, project ${PROJECT.length} chars embedded)`);
 console.log(`screenshots land in ${SHOTS}/`);

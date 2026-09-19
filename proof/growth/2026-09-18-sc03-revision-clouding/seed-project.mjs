@@ -10,13 +10,13 @@
  * Run from the repo root: node --experimental-strip-types .temp/live-rig/sc03-seed-project.mjs [outfile]
  */
 import fs from 'node:fs';
-import { emptyProject, newWall, validateProject } from '../../src/studio/architect/model.ts';
-import { createAlterationBasis } from '../../src/studio/architect/alterationStage.ts';
-import { createAlterationIssueRecord } from '../../src/studio/architect/alterationIssues.ts';
-import { compareGeometry } from '../../src/studio/architect/revisionDelta.ts';
-import { revisionDeltaRegister } from '../../src/studio/architect/revisionClouding.ts';
+import { emptyProject, newWall, validateProject } from '../../../src/studio/architect/model.ts';
+import { createAlterationBasis } from '../../../src/studio/architect/alterationStage.ts';
+import { createAlterationIssueRecord } from '../../../src/studio/architect/alterationIssues.ts';
+import { compareGeometry } from '../../../src/studio/architect/revisionDelta.ts';
+import { revisionDeltaRegister } from '../../../src/studio/architect/revisionClouding.ts';
 
-const OUT = process.argv[2] ?? '.temp/live-rig/sc03-seeded-project.json';
+const OUT = process.argv[2] ?? 'proof/growth/2026-09-18-sc03-revision-clouding/seeded-project.json';
 const JOB = 'job-sc03-proof';
 
 const brick = (n) => ({ id: `s${n}`, name: 'Brick', thickness: 230, kind: 'solid', hatch: 'brick', densityKgM3: 1900, rateM2: 120, supplierReference: 'SUP-01', rateRevision: 'R1', wastePercent: 5 });
@@ -63,7 +63,46 @@ const issued = createAlterationIssueRecord(baseline, basisA, {
   purpose: 'For Client Review',
   metadata: { id: 'issue-sc03-rev-a', issuedAt: '2026-09-17T09:00:00.000Z' },
 });
-const withIssue = validateProject({ ...structuredClone(baseline), alterationIssues: [issued] });
+const issueRevA = {
+  id: 'issue-sc03-rev-a',
+  issuedAt: '2026-09-17T09:00:00.000Z',
+  purpose: 'For Client Review',
+  designRevision: 'A',
+  modelRevision: 1,
+  projectName: baseline.name,
+  projectAddress: baseline.address,
+  status: 'current',
+  sheets: [{
+    sheetId: 's-01',
+    number: 'A-01',
+    name: 'Floor Plan',
+    size: 'A3',
+    scale: '100',
+    viewports: 1,
+    layoutHash: 'hash-01',
+    layout: baseline.sheet,
+    status: 'current',
+  }],
+  snapshot: {
+    revision: 1,
+    designRevision: 'A',
+    units: baseline.units,
+    section: structuredClone(baseline.section),
+    levels: structuredClone(baseline.levels),
+    walls: structuredClone(baseline.walls),
+    openings: structuredClone(baseline.openings),
+    slabs: structuredClone(baseline.slabs),
+    roofs: structuredClone(baseline.roofs),
+    lines: structuredClone(baseline.lines ?? []),
+    circles: structuredClone(baseline.circles ?? []),
+    arcs: structuredClone(baseline.arcs ?? []),
+    grids: structuredClone(baseline.grids ?? []),
+    roomTags: structuredClone(baseline.roomTags ?? []),
+    dimensions: structuredClone(baseline.dimensions ?? []),
+    notes: baseline.notes,
+  },
+};
+const withIssue = validateProject({ ...structuredClone(baseline), alterationIssues: [issued], issues: [issueRevA] });
 
 /* Rev B: the front doorway widened, the partition shifted north and lengthened,
    and the enclosure wall demolished. Nothing else moves. */

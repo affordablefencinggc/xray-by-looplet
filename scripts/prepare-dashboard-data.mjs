@@ -1,0 +1,256 @@
+import fs from "node:fs";
+
+const images = JSON.parse(fs.readFileSync("proof-images-catalogue.json", "utf8"));
+
+const curated = [
+  // 1. SC-02 Multi-sheet drawing register
+  {
+    category: "Drawing Register & PDF",
+    title: "A1/A3 Drawing Register Transmittal Sheet (Desktop 1600x1000)",
+    slice: "SC-02",
+    relPath: "proof/growth/2026-09-18-sc02-drawing-register/pdf-register-page-1-1600x1000.png",
+    description: "Exported batch PDF transmittal sheet showing drawing register table, paper-qualified scales (1:100 @ A1, 1:50 @ A3), and true scale bars."
+  },
+  {
+    category: "Drawing Register & PDF",
+    title: "Drawing Register Transmittal Sheet (Tablet 1024x768)",
+    slice: "SC-02",
+    relPath: "proof/growth/2026-09-18-sc02-drawing-register/pdf-register-1024x768.png",
+    description: "Responsive tablet verification of the vector PDF drawing register with zero horizontal clipping."
+  },
+
+  // 2. SC-04 Roofing Course Calculator Live Proof
+  {
+    category: "Roofing & Cladding",
+    title: "Live Assistant Course Calculator Proof (Desktop 1600x1000)",
+    slice: "SC-04",
+    relPath: "proof/growth/2026-09-18-sc04-roof-course-live/assistant-answer-replied.png",
+    description: "Live assistant query verifying exact 2-course arithmetic for 9.80m rafter with 5.0m sheets and 0.2m end lap (5.0m + 4.8m = 9.80m)."
+  },
+  {
+    category: "Roofing & Cladding",
+    title: "Live Assistant Course Calculator Proof (Tablet 1024x768)",
+    slice: "SC-04",
+    relPath: "proof/growth/2026-09-18-sc04-roof-course-live/assistant-answer-replied-1024x768.png",
+    description: "Tablet viewport proof of the live assistant roofing calculation without hedging."
+  },
+  {
+    category: "Roofing & Cladding",
+    title: "Live Assistant Prompt Composition",
+    slice: "SC-04",
+    relPath: "proof/growth/2026-09-18-sc04-roof-course-live/assistant-answer-composed.png",
+    description: "Composed technical test prompt submitted to live assistant."
+  },
+
+  // 3. CDP Demo Suite - Architectural, Alterations, Schedules, Issues
+  {
+    category: "Architectural CAD & 3D",
+    title: "Architectural CAD Workspace & PlanCanvas",
+    slice: "IND-01",
+    relPath: "proof/growth/cdp-demo/01-architectural-workspace.png",
+    description: "Full architectural workstation showing 2D plan, levels, active tools, and Charcoal UI theme."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Alteration Schedule & Retained Infill",
+    slice: "RES-02",
+    relPath: "proof/growth/cdp-demo/02-alteration-schedule-infill.png",
+    description: "Doorway infill and partition modification schedule showing before/after state transitions."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Partition Repair Height & Geometry Audit",
+    slice: "RES-03",
+    relPath: "proof/growth/cdp-demo/03-before-repair-height.png",
+    description: "Audit of partition repair height and dimensional constraints."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Stage Review: Existing Stage (Before)",
+    slice: "RES-04",
+    relPath: "proof/growth/cdp-demo/04-stage-review-before.png",
+    description: "Stage review showing unmodified existing building footprint prior to alterations."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Stage Review: Proposed Stage (Demolition & New)",
+    slice: "RES-04",
+    relPath: "proof/growth/cdp-demo/05-stage-review-proposed.png",
+    description: "Stage review displaying proposed additions with color-coded demolition elements."
+  },
+  {
+    category: "Architectural CAD & 3D",
+    title: "Architectural South Elevation View",
+    slice: "IND-01",
+    relPath: "proof/growth/cdp-demo/06-elevation-view.png",
+    description: "Procedural 2D elevation projected directly from 3D wall and roof geometries."
+  },
+  {
+    category: "AI Assistant & Drafting",
+    title: "Live AI Assistant Interactive Rail",
+    slice: "X-01",
+    relPath: "proof/growth/cdp-demo/07-live-assistant.png",
+    description: "Docked AI assistant rail executing technical drawing queries and tool receipts."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Partial Infill & Opening Modification Saved",
+    slice: "RES-05",
+    relPath: "proof/growth/cdp-demo/08-partial-infill-saved.png",
+    description: "Partial infill of doorway opening with preserved lintel and sill heights."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Stage Inspection: Before Door Removal",
+    slice: "RES-05",
+    relPath: "proof/growth/cdp-demo/09-stage-before-door.png",
+    description: "Close-up inspection of internal doorway before structural demolition."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Stage Inspection: Proposed Void & Partial Fill",
+    slice: "RES-05",
+    relPath: "proof/growth/cdp-demo/10-stage-proposed-partial-void.png",
+    description: "Geometric representation of deducted opening and newly inserted wall infill."
+  },
+  {
+    category: "Coordinated Schedules",
+    title: "Lifecycle Quantity Breakdown Table",
+    slice: "RES-06",
+    relPath: "proof/growth/cdp-demo/12-lifecycle-quantities-table.png",
+    description: "Detailed quantities categorized by Existing, Demolished, Repaired, and New with shared junction allocation."
+  },
+  {
+    category: "Coordinated Schedules",
+    title: "6 Coordinated Alteration Schedules",
+    slice: "RES-06",
+    relPath: "proof/growth/cdp-demo/13-alteration-schedules.png",
+    description: "Unified schedules panel displaying Walls, Doors, Windows, Infill, Retained Openings, and Shared Intersections."
+  },
+  {
+    category: "Alteration Stages & Demolition",
+    title: "Stage Coordination Matrix",
+    slice: "RES-07",
+    relPath: "proof/growth/cdp-demo/14-stage-coordination.png",
+    description: "Stage coordination check verifying non-overlapping entity IDs and stage continuity."
+  },
+  {
+    category: "Drawing Register & PDF",
+    title: "Issue Alteration Package Modal",
+    slice: "SC-01",
+    relPath: "proof/growth/cdp-demo/17-issue-modal.png",
+    description: "Pre-flight issue modal verifying project snapshot, design revision, purpose, and SHA-256 seal."
+  },
+  {
+    category: "Drawing Register & PDF",
+    title: "Issued Drawing History & Seal Verification",
+    slice: "SC-01",
+    relPath: "proof/growth/cdp-demo/18-issued-history.png",
+    description: "Issue history table displaying immutable frozen revisions, SHA-256 digests, and active/superseded status."
+  },
+  {
+    category: "Drawing Register & PDF",
+    title: "Visual Revision Comparison",
+    slice: "SC-03",
+    relPath: "proof/growth/cdp-demo/19-revision-comparison.png",
+    description: "Side-by-side visual diff comparing Rev A against Rev B with color-coded additions and deletions."
+  },
+  {
+    category: "Coordinated Schedules",
+    title: "Desktop Alteration Schedules (1600x1000)",
+    slice: "RES-07",
+    relPath: "proof/growth/cdp-demo/20-res07-desktop-alteration-schedules.png",
+    description: "Full desktop resolution capture of coordinated architectural schedules."
+  },
+  {
+    category: "Drawing Register & PDF",
+    title: "Desktop Issue Package Rev A (1600x1000)",
+    slice: "RES-07",
+    relPath: "proof/growth/cdp-demo/21-res07-desktop-issue-rev-a.png",
+    description: "Desktop capture of newly issued Revision A deliverable."
+  },
+  {
+    category: "Drawing Register & PDF",
+    title: "Desktop Revision Comparison Overlay (1600x1000)",
+    slice: "RES-07",
+    relPath: "proof/growth/cdp-demo/22-res07-desktop-revision-comparison.png",
+    description: "Desktop visual overlay comparing drawing revisions with delta highlights."
+  },
+  {
+    category: "Coordinated Schedules",
+    title: "Tablet Responsive Schedules Viewport (1024x768)",
+    slice: "RES-07",
+    relPath: "proof/growth/cdp-demo/23-res07-tablet-responsive-schedules.png",
+    description: "Responsive tablet layout of schedules table with touch-friendly scroll and zero clipping."
+  },
+
+  // 4. Procedural 3D & Draftsman Models
+  {
+    category: "Architectural CAD & 3D",
+    title: "Procedural 3D Building Model (Courtyard Studio)",
+    slice: "IND-01",
+    relPath: "proof/model-preview/latest.png",
+    description: "High-fidelity procedural 3D model generated from 2D wall traces with parametric roof, glazing, and doors."
+  },
+  {
+    category: "Architectural CAD & 3D",
+    title: "Technical Drafting Ink & Pen Wash",
+    slice: "IND-01",
+    relPath: "proof/draftsman/phase3-technical-ink.png",
+    description: "Procedural pen wash and architectural drafting style rendering."
+  },
+  {
+    category: "Architectural CAD & 3D",
+    title: "Material Wash & Shading Pass",
+    slice: "IND-01",
+    relPath: "proof/draftsman/phase4-material-wash.png",
+    description: "Procedural material shader rendering brickwork, timber mullions, and roof sheeting."
+  },
+  {
+    category: "Architectural CAD & 3D",
+    title: "Complete Solid Architectural Model",
+    slice: "IND-01",
+    relPath: "proof/draftsman/phase5-complete-solid.png",
+    description: "Final solid geometry reconstruction with physically simulated camera and lighting."
+  },
+
+  // 5. Defect fixes & Quality Evidence
+  {
+    category: "Quality & Verification",
+    title: "Defect Fixes & Verification Report Desktop",
+    slice: "Q-03",
+    relPath: "proof/growth/2026-09-17-defect-fixes/report-desktop-evidence.png",
+    description: "Desktop audit report detailing resolved edge cases, schema boundaries, and regression passes."
+  },
+  {
+    category: "Quality & Verification",
+    title: "Defect Fixes Summary & Recheck",
+    slice: "Q-03",
+    relPath: "proof/growth/2026-09-17-defect-fixes/report-desktop-fixes.png",
+    description: "Audit ledger showing verified fix commits and regression check results."
+  },
+  {
+    category: "AI Assistant & Drafting",
+    title: "Live Assistant Rig Proof Composed",
+    slice: "X-01",
+    relPath: "proof/growth/2026-09-16-live-assistant-rig/01-rig-proof-composed.png",
+    description: "Assistant integration test verifying context capture, prompt injection, and tool gating."
+  },
+  {
+    category: "AI Assistant & Drafting",
+    title: "Live Assistant Rig Tool Receipt & Execution",
+    slice: "X-01",
+    relPath: "proof/growth/2026-09-16-live-assistant-rig/01-rig-proof-replied.png",
+    description: "Verified tool receipt showing deterministic execution without hallucination or mock data."
+  }
+];
+
+// Check existence
+const verifiedCurated = curated.filter(c => {
+  const exists = fs.existsSync(c.relPath);
+  if (!exists) console.warn("Missing:", c.relPath);
+  return exists;
+});
+
+console.log(`Verified ${verifiedCurated.length} / ${curated.length} images exist on disk.`);
+fs.writeFileSync("dashboard-curated-images.json", JSON.stringify(verifiedCurated, null, 2));

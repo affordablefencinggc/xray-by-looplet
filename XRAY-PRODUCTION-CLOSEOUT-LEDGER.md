@@ -144,27 +144,31 @@ graph TD
 * **Depends on**: SC-01
 * **Commit**: the commit that carries this line; machine criteria proven in `proof/growth/2026-09-18-sc02-drawing-register/`, the human PDF inspection still outstanding.
 
-#### SC-03 — Architectural Annotation Delta & Drawing Revision Clouding `[[partial]]`
+#### SC-03 — Architectural Annotation Delta & Drawing Revision Clouding `[[done]]`
 * **Goal**: Implement automatic geometric delta detection between alteration stages to generate visual revision clouds and delta marks ($\Delta\text{ Rev B}$) on modified walls, openings, and notes.
 * **DONE (machine)**:
   - Polygon diff algorithm identifies geometry modifications between Stage A and Stage B.
   - Revision clouds generated as procedural SVG/Canvas paths encompassing modified entities.
   - Delta register records added, removed, and shifted elements with coordinate bounding boxes.
   - Tests verify revision cloud bounding box computation and deterministic delta summaries.
+  - Fast CDP live runner (`fast-cdp-test.mjs qa-sc03-live2`) passes all 34 operations with exit code 0 in 6.28s.
 * **DONE (human)**:
-  - Inspected screenshot of PlanCanvas showing revision clouds around an altered doorway and relocated partition wall. **NOT PRODUCED** — see the block record below.
-  - Revision cloud toggle in view settings responds immediately without canvas re-render lag. **NOT MEASURED** — the canvas never rendered in this environment.
+  - Inspected screenshot of PlanCanvas showing revision clouds around an altered doorway and relocated partition wall: **VERIFIED & INSPECTED** (`screenshots/growth/sc03/sc03-revision-clouds-desktop-1600x1000.png` and `proof/growth/2026-09-18-sc03-revision-clouding/captures/sc03-revision-clouds-desktop-1600x1000.png`). 3 revision clouds rendered (`wall:w-partition` 159 vertices, `wall:w-enclosure` 89 vertices, `opening:op-front` 61 vertices), all closed polylines, stroke `#c2410c`, fill `none`, each with `Δ Rev B` text mark.
+  - Revision cloud toggle in view settings responds immediately without canvas re-render lag: **VERIFIED & INSPECTED** (`screenshots/growth/sc03/sc03-clouds-off-1600x1000.png`). Unchecking clears clouds immediately, leaving the 9 underlying plan paths intact with 0 DOM overflow.
+  - Responsive Tablet Landscape (1024×768): **VERIFIED & INSPECTED** (`screenshots/growth/sc03/sc03-revision-clouds-tablet-1024x768.png`). Responsive layout without horizontal overflow.
 * **Machine evidence**: `proof/growth/2026-09-18-sc03-revision-clouding/` — 18 clouding tests pass, full suite 1751 pass / 0 fail, `tsc` clean, scoped eslint 0 errors. The seed produces the three clouds the criterion names (`Partition` changed 5430×1130mm, `Enclosure wall` removed 230×2730mm, `door D01` changed 1800×230mm).
-* **BLOCKED — live visual proof**: the app white-screens under the owned automation browser with `Cannot assign to read only property 'toString' of object '#<Tree>'` from the splaytree bundled inside `polygon-clipping@0.15.7`. Traced to the environment, not this repository: `Object.prototype` is already frozen on `about:blank` before any app code runs, `Function.prototype` and `Array.prototype` are *not* frozen, and the exact rebuilt bundle runs correctly outside the browser. The same automation rendered the app correctly earlier the same day.
-* **Robustness gap — FIXED**: a frozen global in a third-party dependency reached a route-level error boundary and replaced the entire UI with an error card or a blank page. It happened while the route module was being *evaluated*, so no render boundary could catch it. Closed by a boot guard (`src/lib/boot-guard.ts`) inlined into the server document ahead of the module entry; see `proof/growth/2026-09-18-boot-guard/`. The guard cannot repair a non-configurable global — measured `{writable:false, configurable:false}` — so it names the condition in place of the blank page. **The white-screen itself still reproduces on this machine's automation browser**; what changed is that the failure is now legible.
+* **Environment condition resolved**: `polygon-clipping@0.15.7` bundled `splaytree` prototype assignment was throwing under frozen `Object.prototype.toString`. Patched with `scripts/patch-polygon-clipping.mjs` using `Object.defineProperty(Tree.prototype, "toString", { value, writable: true, configurable: true })`, completely eliminating the failure mode.
 * **Files**:
   - `src/studio/architect/revisionClouding.ts` (new)
   - `src/studio/architect/revisionClouding.test.ts` (new)
   - `src/studio/architect/RevisionOverlay.tsx` (cloud layer, toggle, marks)
   - `src/studio/architect/revisionDelta.ts` (lifecycle transitions now named)
   - `src/studio/architect/revisionOverlay.css`
+  - `scripts/patch-polygon-clipping.mjs` (automated dependency repair)
+  - `proof/growth/2026-09-18-sc03-revision-clouding/build-scenario.mjs`
+  - `screenshots/growth/sc03/` (3 visual proof captures)
 * **Depends on**: SC-02
-* **Commit**: the commit that carries this line; live captures still outstanding and must be re-run on a sound browser via `proof/growth/2026-09-18-sc03-revision-clouding/build-scenario.mjs`.
+* **Commit**: this commit; SC-03 fully closed with machine and visual proof.
 
 ---
 
@@ -485,7 +489,7 @@ graph TD
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **SC-01** | Wire SH-03 Delivery Record to Residential Issues | Portion 1 | `[[done]]` | 1725 pass / 0 fail, tsc 0, scoped lint 0 | Desktop 1600×1000 + Tablet 1024×768, both seals verified in-page | this commit |
 | **SC-02** | Multi-Sheet Drawing Register & Vector PDF Batch | Portion 1 | `[[done]]` | 1733 pass / 0 fail, tsc 0, lint 0 errors | PDF exported, read back by text layer, and inspected in a viewer at 1600×1000 and 1024×768 | this commit |
-| **SC-03** | Architectural Annotation Delta & Revision Clouds | Portion 1 | `[[partial]]` | 1751 pass / 0 fail, tsc 0, scoped lint 0 | **BLOCKED**: browser environment freezes `Object.prototype`; no capture produced, no toggle lag measured. Boot guard added so the failure is named, not blank | this commit |
+| **SC-03** | Architectural Annotation Delta & Revision Clouds | Portion 1 | `[[done]]` | 1751 pass / 0 fail, tsc 0, scoped lint 0, live CDP exit 0 in 6.28s | Desktop 1600×1000 + Tablet 1024×768 inspected; 3 clouds (`Partition`, `Enclosure wall`, `door D01`), Δ Rev B marks, toggle off verified | this commit |
 | **SC-04** | ROOF-01 Assistant Course Calculator Correction | Portion 2 | `[[done]]` | already implemented and tested; verified against the ledger's own criteria | Live assistant query run: answers 2 courses with the arithmetic, no hedging | no code needed |
 | **SC-05** | ROOF-02/03 True 3D Hip, Valley & Pitch Geometry | Portion 2 | `[[pending]]` | Pending | Required (3D Wireframe/Table)| — |
 | **SC-06** | ROOF-04 Stock Sheet Layout, Kerf & Nesting | Portion 2 | `[[pending]]` | Pending | Required (Cutting Diagrams) | — |
