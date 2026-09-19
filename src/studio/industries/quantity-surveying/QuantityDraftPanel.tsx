@@ -6,7 +6,7 @@ import type { IndustryDraftPanelProps, IndustryGeometryEntitySource } from "../d
 import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withMeasuredQuantityBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withMeasuredQuantityBinding, withQuantityPricing, withRestoredQuantityWorksheet, type QuantityBindingDraft, type QuantityForm,
 } from "./quantityForm";
 import { createEmptyQsWorksheetState, type QsWorksheetState } from "./qsWorksheetState";
 import { useQsPricing } from "./qsPricingContext";
@@ -155,6 +155,15 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
       onChange(updated);
       return true;
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Cost changes could not be saved. Existing inputs were preserved."); return false; }
+  };
+  const restoreWorksheet = (next: QuantityForm): boolean => {
+    try {
+      if (!measurementCopyReady) throw Error("Worksheet restore is unavailable until this project's source, geometry, supplier library and storage are ready.");
+      const restored = withRestoredQuantityWorksheet(next, source.projectId, localStorage.getItem(industryDraftKey(source.projectId)));
+      setError("");
+      onChange(restored);
+      return true;
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The worksheet could not be restored. Existing inputs were preserved."); return false; }
   };
   const removeQuantity = (itemKey: string) => {
     const next = { ...value, items: value.items.filter(row => row.key !== itemKey) };
@@ -349,7 +358,7 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
           : pricing && pricingSource?.library && <>
             {(!pricingSource.sourceReady || geometryPending) && <p className="industry-note" role="status">Checking source geometry. Cost changes remain disabled until current measurements are available.</p>}
             <QSWorksheet key={source.projectId} projectId={source.projectId} rows={value.items} entities={entities}
-              priceBooks={pricingSource.library} value={pricing} onChange={changePricing}
+              priceBooks={pricingSource.library} value={pricing} onChange={changePricing} worksheet={value} onRestoreWorksheet={restoreWorksheet}
               disabled={disabled || !pricingSource.sourceReady || geometryPending} />
           </>}
     </section>

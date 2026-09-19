@@ -369,21 +369,27 @@ graph TD
 * **Depends on**: SC-09
 * **Commit**: implementation `a2935a9`, `6a9d5b3`, `378bcd9`; source qualified at `545d25f`. Proof/docs checkpoint awaiting Daniel's explicit path approval.
 
-#### SC-11 — QS-06 End-to-End Auditable Cost Plan Deliverable Export & Reopen `[[pending]]`
+#### SC-11 — QS-06 End-to-End Auditable Cost Plan Deliverable Export & Reopen `[[done]]`
 * **Goal**: Package and export a complete professional Cost Plan package with transmittal metadata, classification breakdown (Elements / Sub-elements), basis of estimate, exclusions, and sealed SHA-256 hash.
-* **Proof**: Exporter tests in `a2935a9`. Unmounted `QSCostPlanPackagePanel` + HVAC prep in `378bcd9` ([SOURCE-CHECKPOINT.md](proof/growth/2026-09-19-closeout-hygiene/SOURCE-CHECKPOINT.md)). Isolated PDF-layout overlay claims 41/41 tests and 46/46 browser on local `proof/growth/2026-09-19-sc11-pdf-qualification/` (not in `86e3dc2`). Panel is **not imported**. UI download/reopen, mounted screenshots, and production qualification remain open. No completion claim.
+* **Proof**: [SC11-MOUNTED-03](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MOUNTED-03.md): real worksheet mount, **379/379 browser PASS**, 22 inspected desktop/tablet captures, actual ZIP/PDF/CSV downloads, disk SHA-256 reopen, explicit whole-worksheet restore and saved reload, and changed-PDF rejection. [SC11-PDF-04](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-PDF-04.md): actual downloaded five-page PDF, **47/47 PASS**, all ten desktop/tablet page captures inspected. [Exact six-file code diff](proof/growth/2026-09-20-sc11-mounted-package/sc11-mounted.source.diff), frozen current-source digest `c9b41fd82e89` based on `6f82b93`; not an overlay.
 * **DONE (machine)**:
-  - Package/export module and tests exist.
-  - Output bound to `deliveryRecordSchema` in source.
-* **NOT DONE (human)**:
-  - No mounted download/reopen UI. Inspected PDF/pages are overlay-only, not an accepted deliverable. Do not tick.
+  - [273/273 QS and state-boundary tests, TypeScript exit 0, scoped lint 0 errors / 10 existing warnings](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MACHINE-01.md). The established broad gate remains 1951/1951 on `9abf`; no newer repository-wide pass is claimed.
+  - Eight-file package verifies all payload hashes and the manifest. Separately downloaded PDF/CSV equal their ZIP members. Delivery remains `saved-draft`; all four cost revisions and Unverified evidence survive explicit restore and reload unchanged.
+  - PDF SHA-256 `0fa7fcfe2bacdbc065f66d8f23dac565947095ae8635a5f4073bf753931213ef`; exact `5.999999930955706` quantity is preserved, wrapping within its table cell rather than silently rounded.
+* **DONE (human)**:
+  - Mounted export details, SHA-256 manifest, explicit unchecked restore gate, saved state, and tamper rejection inspected at 1600×1000 and 1024×768. Five PDF pages show summary, estimate basis/exclusions, classification breakdown, variance report and source/rate audit trail without clipping.
+* **Limits / retained failures**:
+  - Controlled development-app qualification only; no professional certification, external issue, native/platform, production-build or deployment claim. Legacy packages from older PDF renderers remain a compatibility limitation. Unsupported PDF glyphs are explicitly escaped (for example `\u{2014}`); originals remain in JSON/CSV.
+  - First app launch is preserved as INFRA_FAILURE (npm PATH). First PDF inspection is preserved as FAIL at op 3 (flat text extraction interleaved adjacent table cells); bounded harness correction reconstructs the exact quantity within its cell. Product bytes and downloaded PDF were unchanged for the passing rerun.
 * **Files**:
-  - `src/studio/industries/quantity-surveying/qsPackageExport.ts` (new)
-  - `src/studio/industries/quantity-surveying/qsPackageExport.test.ts` (new)
-  - `src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx` (unmounted)
+  - `src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx`
   - `src/studio/industries/quantity-surveying/QSWorksheet.tsx`
+  - `src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx`
+  - `src/studio/industries/quantity-surveying/quantityForm.ts`
+  - `src/studio/industries/quantity-surveying/QuantityReportView.test.ts`
+  - `src/studio/industries/quantity-surveying/quantityForm.test.ts`
 * **Depends on**: SC-01, SC-10
-* **Commit**: `a2935a9`, `378bcd9`. Status remains `[[pending]]`.
+* **Commit**: exporter `a2935a9`, `378bcd9`; mounted-source diff based on `6f82b93`. This named SC-11 checkpoint is explicitly approved by Daniel for commit/push; its commit is the one containing this record. Shared workbench/host and HVAC source are unchanged.
 
 ---
 
@@ -573,7 +579,7 @@ graph TD
 | **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[done]]` | 60 QS tests pass, tsc 0, live CDP exit 0 | Desktop 1600×1000 + Tablet 1024×768: overlap warning, hierarchy table, subtree filter and unassigned filter inspected | this commit |
 | **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[partial]]` | 1951 on 9abf | combined2 84/84 + built2 89/89 (construction-run only; room/roof open) | `86e3dc2` |
 | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
-| **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[pending]]` | Exporter tests; panel unmounted | Overlay PDF only; no mounted UI | `378bcd9` WIP |
+| **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
 | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[pending]]` | Pending | Required (3D Section Preview) | — |
 | **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[pending]]` | Pending | Required (3D Clash Highlights)| — |
 | **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[pending]]` | Pending | Required (Commissioning PDF) | — |

@@ -1,0 +1,317 @@
+diff --git a/PROFESSIONAL-A-Z-CHECKLIST.md b/PROFESSIONAL-A-Z-CHECKLIST.md
+index 87856d6..f209a17 100644
+--- a/PROFESSIONAL-A-Z-CHECKLIST.md
++++ b/PROFESSIONAL-A-Z-CHECKLIST.md
+@@ -26,7 +26,7 @@ Reading these numbers correctly matters more than the numbers. A gap is an hones
+ 
+ The 110 partial rows are where the product actually is. They are concentrated in drawing precision, takeoff and calibration, documents and sheets, interoperability, review, the assistant, and release integrity. Most say the same thing about what is missing: behaviour is proven by executed test rather than by an inspected screenshot at the declared viewports, or it is proven for one surface rather than the whole application.
+ 
+-Count reconciliation, 2026-09-19 (counts unchanged): **116 / 375 coverage = 6 verified + 110 partial**. That is **not** 116 completed requirements. Gaps 239, blocked 19, failed 1. E-08 and E-11 moved gap → **partial** with [explicit remaining boundaries](proof/growth/2026-09-19-sc10-qs-rate-delta/AZ-PARTIAL-ASSESSMENT.md); neither is ticked. Historical headlines 108/375 (6+102) and 114/375 (6+108) were earlier summaries. Closeout evidence lives in [XRAY-PRODUCTION-CLOSEOUT-LEDGER.md](XRAY-PRODUCTION-CLOSEOUT-LEDGER.md). SC-10 update only, 2026-09-20: [297/297 development-browser PASS](proof/growth/2026-09-20-sc10-use-measured/steps/SC10-USE-MEASURED-01.md) now proves explicit exact-measured copy without silent rounding, and SC-10 is `[[done]]`. SC-09 stays `[[partial]]`, SC-11 stays `[[pending]]`; IND-38 has not passed a full working-day qualification. The earlier css1 FAIL is preserved as historical evidence.
++Count reconciliation, 2026-09-19 (counts unchanged): **116 / 375 coverage = 6 verified + 110 partial**. That is **not** 116 completed requirements. Gaps 239, blocked 19, failed 1. E-08 and E-11 moved gap → **partial** with [explicit remaining boundaries](proof/growth/2026-09-19-sc10-qs-rate-delta/AZ-PARTIAL-ASSESSMENT.md); neither is ticked. Historical headlines 108/375 (6+102) and 114/375 (6+108) were earlier summaries. Closeout evidence lives in [XRAY-PRODUCTION-CLOSEOUT-LEDGER.md](XRAY-PRODUCTION-CLOSEOUT-LEDGER.md). SC-10 update, 2026-09-20: [297/297 development-browser PASS](proof/growth/2026-09-20-sc10-use-measured/steps/SC10-USE-MEASURED-01.md) proves explicit exact-measured copy without silent rounding, and SC-10 is `[[done]]`. SC-11 is now `[[done]]` for [mounted download/SHA-256 reopen and explicit restore, 379/379 PASS](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MOUNTED-03.md), with [actual five-page PDF readback, 47/47 PASS](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-PDF-04.md). This does not promote any catalogue row or count. SC-09 stays `[[partial]]`; IND-38 has not passed a full working-day qualification. Historical failures remain preserved; legacy PDF-renderer compatibility and production/native/deployment qualification are not claimed.
+ 
+ Six rows reach verified. B-01 and B-07 have built-browser lifecycle proof, and B-10 has protected replacement integrity proof (2026-09-11). The other three concern process: Q-03 proof discipline enforced by a harness hook, Q-14 visibly distinct capability states, and Z-12 acceptance reopening when a dependency changes.
+ 
+diff --git a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+index 24eac52..4413195 100644
+--- a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
++++ b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+@@ -369,21 +369,27 @@ graph TD
+ * **Depends on**: SC-09
+ * **Commit**: implementation `a2935a9`, `6a9d5b3`, `378bcd9`; source qualified at `545d25f`. Proof/docs checkpoint awaiting Daniel's explicit path approval.
+ 
+-#### SC-11 — QS-06 End-to-End Auditable Cost Plan Deliverable Export & Reopen `[[pending]]`
++#### SC-11 — QS-06 End-to-End Auditable Cost Plan Deliverable Export & Reopen `[[done]]`
+ * **Goal**: Package and export a complete professional Cost Plan package with transmittal metadata, classification breakdown (Elements / Sub-elements), basis of estimate, exclusions, and sealed SHA-256 hash.
+-* **Proof**: Exporter tests in `a2935a9`. Unmounted `QSCostPlanPackagePanel` + HVAC prep in `378bcd9` ([SOURCE-CHECKPOINT.md](proof/growth/2026-09-19-closeout-hygiene/SOURCE-CHECKPOINT.md)). Isolated PDF-layout overlay claims 41/41 tests and 46/46 browser on local `proof/growth/2026-09-19-sc11-pdf-qualification/` (not in `86e3dc2`). Panel is **not imported**. UI download/reopen, mounted screenshots, and production qualification remain open. No completion claim.
++* **Proof**: [SC11-MOUNTED-03](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MOUNTED-03.md): real worksheet mount, **379/379 browser PASS**, 22 inspected desktop/tablet captures, actual ZIP/PDF/CSV downloads, disk SHA-256 reopen, explicit whole-worksheet restore and saved reload, and changed-PDF rejection. [SC11-PDF-04](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-PDF-04.md): actual downloaded five-page PDF, **47/47 PASS**, all ten desktop/tablet page captures inspected. [Exact six-file code diff](proof/growth/2026-09-20-sc11-mounted-package/sc11-mounted.source.diff), frozen current-source digest `c9b41fd82e89` based on `6f82b93`; not an overlay.
+ * **DONE (machine)**:
+-  - Package/export module and tests exist.
+-  - Output bound to `deliveryRecordSchema` in source.
+-* **NOT DONE (human)**:
+-  - No mounted download/reopen UI. Inspected PDF/pages are overlay-only, not an accepted deliverable. Do not tick.
++  - [273/273 QS and state-boundary tests, TypeScript exit 0, scoped lint 0 errors / 10 existing warnings](proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MACHINE-01.md). The established broad gate remains 1951/1951 on `9abf`; no newer repository-wide pass is claimed.
++  - Eight-file package verifies all payload hashes and the manifest. Separately downloaded PDF/CSV equal their ZIP members. Delivery remains `saved-draft`; all four cost revisions and Unverified evidence survive explicit restore and reload unchanged.
++  - PDF SHA-256 `0fa7fcfe2bacdbc065f66d8f23dac565947095ae8635a5f4073bf753931213ef`; exact `5.999999930955706` quantity is preserved, wrapping within its table cell rather than silently rounded.
++* **DONE (human)**:
++  - Mounted export details, SHA-256 manifest, explicit unchecked restore gate, saved state, and tamper rejection inspected at 1600×1000 and 1024×768. Five PDF pages show summary, estimate basis/exclusions, classification breakdown, variance report and source/rate audit trail without clipping.
++* **Limits / retained failures**:
++  - Controlled development-app qualification only; no professional certification, external issue, native/platform, production-build or deployment claim. Legacy packages from older PDF renderers remain a compatibility limitation. Unsupported PDF glyphs are explicitly escaped (for example `\u{2014}`); originals remain in JSON/CSV.
++  - First app launch is preserved as INFRA_FAILURE (npm PATH). First PDF inspection is preserved as FAIL at op 3 (flat text extraction interleaved adjacent table cells); bounded harness correction reconstructs the exact quantity within its cell. Product bytes and downloaded PDF were unchanged for the passing rerun.
+ * **Files**:
+-  - `src/studio/industries/quantity-surveying/qsPackageExport.ts` (new)
+-  - `src/studio/industries/quantity-surveying/qsPackageExport.test.ts` (new)
+-  - `src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx` (unmounted)
++  - `src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx`
+   - `src/studio/industries/quantity-surveying/QSWorksheet.tsx`
++  - `src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx`
++  - `src/studio/industries/quantity-surveying/quantityForm.ts`
++  - `src/studio/industries/quantity-surveying/QuantityReportView.test.ts`
++  - `src/studio/industries/quantity-surveying/quantityForm.test.ts`
+ * **Depends on**: SC-01, SC-10
+-* **Commit**: `a2935a9`, `378bcd9`. Status remains `[[pending]]`.
++* **Commit**: exporter `a2935a9`, `378bcd9`; mounted-source diff based on `6f82b93`. This named SC-11 checkpoint is explicitly approved by Daniel for commit/push; its commit is the one containing this record. Shared workbench/host and HVAC source are unchanged.
+ 
+ ---
+ 
+@@ -573,7 +579,7 @@ graph TD
+ | **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[done]]` | 60 QS tests pass, tsc 0, live CDP exit 0 | Desktop 1600×1000 + Tablet 1024×768: overlap warning, hierarchy table, subtree filter and unassigned filter inspected | this commit |
+ | **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[partial]]` | 1951 on 9abf | combined2 84/84 + built2 89/89 (construction-run only; room/roof open) | `86e3dc2` |
+ | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
+-| **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[pending]]` | Exporter tests; panel unmounted | Overlay PDF only; no mounted UI | `378bcd9` WIP |
++| **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
+ | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[pending]]` | Pending | Required (3D Section Preview) | — |
+ | **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[pending]]` | Pending | Required (3D Clash Highlights)| — |
+ | **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[pending]]` | Pending | Required (Commissioning PDF) | — |
+diff --git a/XRAY-STATUS-AND-PROOF-DASHBOARD.html b/XRAY-STATUS-AND-PROOF-DASHBOARD.html
+index b60a1d0..5604ae1 100644
+--- a/XRAY-STATUS-AND-PROOF-DASHBOARD.html
++++ b/XRAY-STATUS-AND-PROOF-DASHBOARD.html
+@@ -1030,7 +1030,7 @@
+     }
+   </style>
+ </head>
+-<body data-source-slices="20" data-source-requirements="375" data-source-proofs="58">
++<body data-source-slices="20" data-source-requirements="375" data-source-proofs="60">
+ 
+   <header>
+     <div class="header-top">
+@@ -1058,13 +1058,13 @@
+ 
+     <!-- KPI ROW -->
+     <div class="kpi-row">
+-      <div class="kpi-card" data-kpi="slices" data-total="20" data-done="9" data-partial="1" data-blocked="0" data-pending="10">
++      <div class="kpi-card" data-kpi="slices" data-total="20" data-done="10" data-partial="1" data-blocked="0" data-pending="9">
+         <div class="kpi-title">
+           <span>Closeout Slices</span>
+-          <span style="color: #34d399;">9 / 20 DONE</span>
++          <span style="color: #34d399;">10 / 20 DONE</span>
+         </div>
+-        <div class="kpi-value">45%</div>
+-        <div class="kpi-sub">9 Done, 1 Partial, 0 Blocked, 10 Pending</div>
++        <div class="kpi-value">50%</div>
++        <div class="kpi-sub">10 Done, 1 Partial, 0 Blocked, 9 Pending</div>
+       </div>
+       <div class="kpi-card" data-kpi="tests" data-passing="1951" data-total="1951" data-suites="unknown" data-tsc="exit-0">
+         <div class="kpi-title">
+@@ -1074,12 +1074,12 @@
+         <div class="kpi-value">1,951</div>
+         <div class="kpi-sub">0 Failures · suite count not recorded</div>
+       </div>
+-      <div class="kpi-card" data-kpi="proofs" data-total="58">
++      <div class="kpi-card" data-kpi="proofs" data-total="60">
+         <div class="kpi-title">
+           <span>Visual & Executed Proofs</span>
+           <span style="color: #60a5fa;">ATTACHED</span>
+         </div>
+-        <div class="kpi-value">58</div>
++        <div class="kpi-value">60</div>
+         <div class="kpi-sub">Curated historical captures; not current qualification</div>
+       </div>
+       <div class="kpi-card" data-kpi="az" data-total="375" data-verified="6" data-partial="110" data-blocked="19" data-gap="239" data-failed="1">
+@@ -1101,11 +1101,11 @@
+         </button>
+         <button type="button" class="tab-btn" id="tab-button-gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" data-tab="gallery" tabindex="-1">
+           <span>🖼️ Visual Proof Gallery</span>
+-          <span class="tab-badge">58</span>
++          <span class="tab-badge">60</span>
+         </button>
+         <button type="button" class="tab-btn" id="tab-button-gaps" role="tab" aria-selected="false" aria-controls="tab-gaps" data-tab="gaps" tabindex="-1">
+           <span>🔍 What Hasn't Been Done</span>
+-          <span class="tab-badge">11</span>
++          <span class="tab-badge">10</span>
+         </button>
+         <button type="button" class="tab-btn" id="tab-button-az" role="tab" aria-selected="false" aria-controls="tab-az" data-tab="az" tabindex="-1">
+           <span>📋 Professional A–Z Catalogue</span>
+@@ -1130,9 +1130,9 @@
+       <div class="filter-bar" role="group" aria-label="Closeout slice filters">
+         <span class="filter-label">Filter Status:</span>
+         <button type="button" class="filter-chip active" data-filter-group="slice-status" data-filter-value="all" aria-pressed="true">All (20)</button>
+-        <button type="button" class="filter-chip" data-filter-group="slice-status" data-filter-value="done" aria-pressed="false">Done (9)</button>
++        <button type="button" class="filter-chip" data-filter-group="slice-status" data-filter-value="done" aria-pressed="false">Done (10)</button>
+         <button type="button" class="filter-chip" data-filter-group="slice-status" data-filter-value="partial" aria-pressed="false">Partial / Blocked (1)</button>
+-        <button type="button" class="filter-chip" data-filter-group="slice-status" data-filter-value="pending" aria-pressed="false">Pending (10)</button>
++        <button type="button" class="filter-chip" data-filter-group="slice-status" data-filter-value="pending" aria-pressed="false">Pending (9)</button>
+ 
+         <span class="filter-label" style="margin-left: 20px;">Portion:</span>
+         <button type="button" class="filter-chip active" data-filter-group="slice-portion" data-filter-value="all" aria-pressed="true">All Portions</button>
+@@ -1810,15 +1810,15 @@
+       </div>
+     </article>
+ 
+-    <article class="slice-card pending" data-slice-id="SC-11" data-status="pending" data-portion="3">
++    <article class="slice-card done" data-slice-id="SC-11" data-status="done" data-portion="3">
+       <button type="button" class="slice-top" id="slice-control-sc-11" aria-expanded="false" aria-controls="slice-details-sc-11">
+         <span class="slice-info">
+           <span class="slice-header">
+-            <span class="slice-tick" data-tick="open">☐</span>
++            <span class="slice-tick" data-tick="done">☑</span>
+             <span class="slice-id">SC-11</span>
+             <span class="slice-title">QS-06 End-to-End Auditable Cost Plan Deliverable Export &amp; Reopen</span>
+-            <span class="status-badge badge-pending">○ Pending</span>
+-
++            <span class="status-badge badge-done">✓ Done</span>
++            <span class="slice-completed">✔ date not recorded</span>
+           </span>
+           <span class="slice-goal">Package and export a complete professional Cost Plan package with transmittal metadata, classification breakdown (Elements / Sub-elements), basis of estimate, exclusions, and sealed SHA-256 hash.</span>
+         </span>
+@@ -1828,30 +1828,47 @@
+       <div class="slice-details" id="slice-details-sc-11" role="region" aria-labelledby="slice-control-sc-11" hidden>
+ 
+     <div class="detail-section">
+-      <div class="detail-heading" style="color: #f87171;">⚙️ Machine Completion Criteria (not yet closed)</div>
+-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Package/export module and tests exist.</li><li>Output bound to <code>deliveryRecordSchema</code> in source.</li></ul></div>
++      <div class="detail-heading">⚙️ Machine Gate Verification</div>
++      <div class="detail-body"><ul><li><a class="md-link" href="proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MACHINE-01.md">273/273 QS and state-boundary tests, TypeScript exit 0, scoped lint 0 errors / 10 existing warnings</a>. The established broad gate remains 1951/1951 on <code>9abf</code>; no newer repository-wide pass is claimed.</li><li>Eight-file package verifies all payload hashes and the manifest. Separately downloaded PDF/CSV equal their ZIP members. Delivery remains <code>saved-draft</code>; all four cost revisions and Unverified evidence survive explicit restore and reload unchanged.</li><li>PDF SHA-256 <code>0fa7fcfe2bacdbc065f66d8f23dac565947095ae8635a5f4073bf753931213ef</code>; exact <code>5.999999930955706</code> quantity is preserved, wrapping within its table cell rather than silently rounded.</li></ul></div>
+     </div>
+ 
+ 
+     <div class="detail-section">
+-      <div class="detail-heading" style="color: #f87171;">⚠️ Open Human / Visual Gate</div>
+-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>No mounted download/reopen UI. Inspected PDF/pages are overlay-only, not an accepted deliverable. Do not tick.</li></ul></div>
++      <div class="detail-heading">👁️ Human &amp; Visual Proof</div>
++      <div class="detail-body"><ul><li>Mounted export details, SHA-256 manifest, explicit unchecked restore gate, saved state, and tamper rejection inspected at 1600×1000 and 1024×768. Five PDF pages show summary, estimate basis/exclusions, classification breakdown, variance report and source/rate audit trail without clipping.</li></ul></div>
+     </div>
+ 
+ 
+     <div class="detail-section">
+       <div class="detail-heading">🔗 Recorded Proof</div>
+-      <div class="detail-body"><p>Exporter tests in <code>a2935a9</code>. Unmounted <code>QSCostPlanPackagePanel</code> + HVAC prep in <code>378bcd9</code> (<a class="md-link" href="proof/growth/2026-09-19-closeout-hygiene/SOURCE-CHECKPOINT.md">SOURCE-CHECKPOINT.md</a>). Isolated PDF-layout overlay claims 41/41 tests and 46/46 browser on local <code>proof/growth/2026-09-19-sc11-pdf-qualification/</code> (not in <code>86e3dc2</code>). Panel is <strong>not imported</strong>. UI download/reopen, mounted screenshots, and production qualification remain open. No completion claim.</p></div>
++      <div class="detail-body"><p><a class="md-link" href="proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-MOUNTED-03.md">SC11-MOUNTED-03</a>: real worksheet mount, <strong>379/379 browser PASS</strong>, 22 inspected desktop/tablet captures, actual ZIP/PDF/CSV downloads, disk SHA-256 reopen, explicit whole-worksheet restore and saved reload, and changed-PDF rejection. <a class="md-link" href="proof/growth/2026-09-20-sc11-mounted-package/steps/SC11-PDF-04.md">SC11-PDF-04</a>: actual downloaded five-page PDF, <strong>47/47 PASS</strong>, all ten desktop/tablet page captures inspected. <a class="md-link" href="proof/growth/2026-09-20-sc11-mounted-package/sc11-mounted.source.diff">Exact six-file code diff</a>, frozen current-source digest <code>c9b41fd82e89</code> based on <code>6f82b93</code>; not an overlay.</p></div>
+     </div>
+ 
+ 
+ 
+           <div class="detail-section">
+             <div class="detail-heading">📁 Associated Files</div>
+-            <div class="files-list"><a class="file-tag" href="src/studio/industries/quantity-surveying/qsPackageExport.ts">src/studio/industries/quantity-surveying/qsPackageExport.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsPackageExport.test.ts">src/studio/industries/quantity-surveying/qsPackageExport.test.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx">src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSWorksheet.tsx">src/studio/industries/quantity-surveying/QSWorksheet.tsx</a></div>
++            <div class="files-list"><a class="file-tag" href="src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx">src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSWorksheet.tsx">src/studio/industries/quantity-surveying/QSWorksheet.tsx</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx">src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx</a><a class="file-tag" href="src/studio/industries/quantity-surveying/quantityForm.ts">src/studio/industries/quantity-surveying/quantityForm.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QuantityReportView.test.ts">src/studio/industries/quantity-surveying/QuantityReportView.test.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/quantityForm.test.ts">src/studio/industries/quantity-surveying/quantityForm.test.ts</a></div>
+           </div>
+ 
+ 
++          <div class="detail-section">
++            <div class="detail-heading">📸 Attached Visual Proof</div>
++            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
++
++      <button type="button" class="proof-mini" data-lightbox data-src="proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png" data-title="SC-11 Disk-Reopened Package SHA-256" data-desc="Inspected DANS1 mounted-app capture of the actual disk-reopened eight-file cost-plan package, with package, content, manifest and per-file SHA-256 values visible. Controlled saved-draft qualification, not a certified estimate." data-path="proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png" aria-label="Inspect proof: SC-11 Disk-Reopened Package SHA-256">
++        <img src="proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png" alt="" loading="lazy">
++        <span style="display: block; padding: 8px; font-size: 11px;">SC-11 Disk-Reopened Package SHA-256</span>
++      </button>
++
++      <button type="button" class="proof-mini" data-lightbox data-src="proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png" data-title="SC-11 Downloaded PDF Elements and Trade Breakdown" data-desc="Inspected page 3 of the actual disk-downloaded five-page PDF: element subtotals, accepted scope, tax and the exact measured quantity remain legible within the table cell." data-path="proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png" aria-label="Inspect proof: SC-11 Downloaded PDF Elements and Trade Breakdown">
++        <img src="proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png" alt="" loading="lazy">
++        <span style="display: block; padding: 8px; font-size: 11px;">SC-11 Downloaded PDF Elements and Trade Breakdown</span>
++      </button>
++
++            </div>
++          </div>
++
+       </div>
+     </article>
+ 
+@@ -2245,8 +2262,8 @@
+     <section id="tab-gallery" class="tab-content" role="tabpanel" aria-labelledby="tab-button-gallery" hidden>
+       <div class="filter-bar" role="group" aria-label="Proof gallery filters">
+         <span class="filter-label">Filter Category:</span>
+-        <button type="button" class="filter-chip active" data-filter-group="gallery-category" data-filter-value="all" aria-pressed="true">All (58)</button>
+-        <button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="AI Assistant &amp; Drafting" aria-pressed="false">AI Assistant &amp; Drafting (3)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Alteration Stages &amp; Demolition" aria-pressed="false">Alteration Stages &amp; Demolition (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Architectural CAD &amp; 3D" aria-pressed="false">Architectural CAD &amp; 3D (6)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Coordinated Schedules" aria-pressed="false">Coordinated Schedules (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Drawing Register &amp; PDF" aria-pressed="false">Drawing Register &amp; PDF (7)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quality &amp; Verification" aria-pressed="false">Quality &amp; Verification (2)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying" aria-pressed="false">Quantity Surveying (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying &amp; Cost Plans" aria-pressed="false">Quantity Surveying &amp; Cost Plans (2)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Roofing &amp; Cladding" aria-pressed="false">Roofing &amp; Cladding (18)</button>
++        <button type="button" class="filter-chip active" data-filter-group="gallery-category" data-filter-value="all" aria-pressed="true">All (60)</button>
++        <button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="AI Assistant &amp; Drafting" aria-pressed="false">AI Assistant &amp; Drafting (3)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Alteration Stages &amp; Demolition" aria-pressed="false">Alteration Stages &amp; Demolition (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Architectural CAD &amp; 3D" aria-pressed="false">Architectural CAD &amp; 3D (6)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Coordinated Schedules" aria-pressed="false">Coordinated Schedules (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Drawing Register &amp; PDF" aria-pressed="false">Drawing Register &amp; PDF (7)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quality &amp; Verification" aria-pressed="false">Quality &amp; Verification (2)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying" aria-pressed="false">Quantity Surveying (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying &amp; Cost Plans" aria-pressed="false">Quantity Surveying &amp; Cost Plans (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Roofing &amp; Cladding" aria-pressed="false">Roofing &amp; Cladding (18)</button>
+       </div>
+ 
+       <div class="gallery-grid" id="galleryContainer">
+@@ -3237,6 +3254,40 @@
+       </span>
+     </button>
+ 
++    <button type="button" class="proof-card" data-category="Quantity Surveying &amp; Cost Plans" data-lightbox data-src="proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png" data-title="SC-11 Disk-Reopened Package SHA-256" data-desc="Inspected DANS1 mounted-app capture of the actual disk-reopened eight-file cost-plan package, with package, content, manifest and per-file SHA-256 values visible. Controlled saved-draft qualification, not a certified estimate." data-path="proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png" aria-label="Inspect proof: SC-11 Disk-Reopened Package SHA-256">
++      <span class="thumb-wrapper">
++        <img src="proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png" alt="" class="proof-thumb" loading="lazy">
++        <span class="thumb-overlay">
++          <span class="category-tag">Quantity Surveying &amp; Cost Plans</span>
++          <span class="proof-slice-tag">SC-11</span>
++        </span>
++      </span>
++      <span class="proof-content">
++        <span>
++          <span class="proof-title">SC-11 Disk-Reopened Package SHA-256</span>
++          <span class="proof-desc">Inspected DANS1 mounted-app capture of the actual disk-reopened eight-file cost-plan package, with package, content, manifest and per-file SHA-256 values visible. Controlled saved-draft qualification, not a certified estimate.</span>
++        </span>
++        <span class="proof-path">proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png</span>
++      </span>
++    </button>
++
++    <button type="button" class="proof-card" data-category="Quantity Surveying &amp; Cost Plans" data-lightbox data-src="proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png" data-title="SC-11 Downloaded PDF Elements and Trade Breakdown" data-desc="Inspected page 3 of the actual disk-downloaded five-page PDF: element subtotals, accepted scope, tax and the exact measured quantity remain legible within the table cell." data-path="proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png" aria-label="Inspect proof: SC-11 Downloaded PDF Elements and Trade Breakdown">
++      <span class="thumb-wrapper">
++        <img src="proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png" alt="" class="proof-thumb" loading="lazy">
++        <span class="thumb-overlay">
++          <span class="category-tag">Quantity Surveying &amp; Cost Plans</span>
++          <span class="proof-slice-tag">SC-11</span>
++        </span>
++      </span>
++      <span class="proof-content">
++        <span>
++          <span class="proof-title">SC-11 Downloaded PDF Elements and Trade Breakdown</span>
++          <span class="proof-desc">Inspected page 3 of the actual disk-downloaded five-page PDF: element subtotals, accepted scope, tax and the exact measured quantity remain legible within the table cell.</span>
++        </span>
++        <span class="proof-path">proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png</span>
++      </span>
++    </button>
++
+       </div>
+     </section>
+ 
+@@ -3245,10 +3296,10 @@
+       <div class="gap-section">
+         <h3>
+           <span style="color: #ef4444;">●</span>
+-          <span>Open Closeout Slices (11)</span>
++          <span>Open Closeout Slices (10)</span>
+         </h3>
+         <p style="color: var(--text-muted); font-size: 13.5px;">
+-          These 11 slices remain partial, blocked, or pending in <code>XRAY-PRODUCTION-CLOSEOUT-LEDGER.md</code>. Completed slices are intentionally omitted from this view.
++          These 10 slices remain partial, blocked, or pending in <code>XRAY-PRODUCTION-CLOSEOUT-LEDGER.md</code>. Completed slices are intentionally omitted from this view.
+         </p>
+ 
+         <div class="roadmap-timeline">
+@@ -3258,7 +3309,7 @@
+         <div>
+           <h4 style="color: #fff; font-size: 15px;">Portion 3: Active Trade Engines — Stage 2: Quantity Surveying &amp; Cost Consultancy (IND-38)</h4>
+           <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
+-            <strong>SC-09</strong> <span class="badge-state state-partial">partial</span> QS-03 Measured Item-Level Evidence Binding &bull; <strong>SC-11</strong> <span class="badge-state state-gap">pending</span> QS-06 End-to-End Auditable Cost Plan Deliverable Export &amp; Reopen
++            <strong>SC-09</strong> <span class="badge-state state-partial">partial</span> QS-03 Measured Item-Level Evidence Binding
+           </p>
+         </div>
+       </div>
+@@ -3305,7 +3356,7 @@
+           <div class="gap-card">
+             <h4>Pending closeout work</h4>
+             <p>
+-              10 slices remain pending, 1 remain partial, and 0 are blocked. Their open gates are shown above directly from the closeout ledger.
++              9 slices remain pending, 1 remain partial, and 0 are blocked. Their open gates are shown above directly from the closeout ledger.
+             </p>
+           </div>
+           <div class="gap-card">
+diff --git a/dashboard-curated-images.json b/dashboard-curated-images.json
+index 07babc6..e52249f 100644
+--- a/dashboard-curated-images.json
++++ b/dashboard-curated-images.json
+@@ -405,5 +405,19 @@
+     "slice": "SC-10",
+     "relPath": "proof/growth/2026-09-20-sc10-use-measured/browser/proof/growth/2026-09-19-sc10-qs-rate-delta/captures/sc10-new-removed-modified-tablet-1024x768.png",
+     "description": "Inspected 1024×768 capture: new, removed and modified costs reconcile; drawer bounds, keyboard containment and text contrast checked in the completed campaign."
++  },
++  {
++    "category": "Quantity Surveying & Cost Plans",
++    "title": "SC-11 Disk-Reopened Package SHA-256",
++    "slice": "SC-11",
++    "relPath": "proof/growth/2026-09-20-sc11-mounted-package/campaigns/sc11-c9b41fd82e89-mounted-dev2/output/captures/sc11-disk-reopened-sha256-desktop-1600x1000.png",
++    "description": "Inspected DANS1 mounted-app capture of the actual disk-reopened eight-file cost-plan package, with package, content, manifest and per-file SHA-256 values visible. Controlled saved-draft qualification, not a certified estimate."
++  },
++  {
++    "category": "Quantity Surveying & Cost Plans",
++    "title": "SC-11 Downloaded PDF Elements and Trade Breakdown",
++    "slice": "SC-11",
++    "relPath": "proof/growth/2026-09-20-sc11-mounted-package/pdf-campaigns/sc11-c9b41fd82e89-pdf2/output/browser/captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png",
++    "description": "Inspected page 3 of the actual disk-downloaded five-page PDF: element subtotals, accepted scope, tax and the exact measured quantity remain legible within the table cell."
+   }
+ ]

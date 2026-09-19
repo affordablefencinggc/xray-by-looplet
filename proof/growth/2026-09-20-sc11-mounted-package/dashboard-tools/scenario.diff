@@ -1,0 +1,51 @@
+diff --git a/proof/growth/2026-09-19-dashboard-refresh/build-scenario.mjs b/proof/growth/2026-09-20-sc11-mounted-package/dashboard-tools/build-scenario.mjs
+index 6039a18..23a5adf 100644
+--- a/proof/growth/2026-09-19-dashboard-refresh/build-scenario.mjs
++++ b/proof/growth/2026-09-20-sc11-mounted-package/dashboard-tools/build-scenario.mjs
+@@ -60,6 +60,29 @@ if (!requirements.length) throw Error("No A-Z source requirements parsed");
+ const countBy = (values, field, states) => Object.fromEntries(states.map(state => [state, values.filter(value => value[field] === state).length]));
+ const sliceCounts = countBy(slices, "status", ["done", "partial", "blocked", "pending"]);
+ const azCounts = countBy(requirements, "state", ["verified", "partial", "dependency-blocked", "gap", "failed"]);
++const qualificationExpectation = {
++  slices: { total: 20, done: 10, partial: 1, blocked: 0, pending: 9, percent: 50 },
++  statuses: { "SC-09": "partial", "SC-11": "done" },
++  az: { total: 375, verified: 6, partial: 110, "dependency-blocked": 19, failed: 1, gap: 239 },
++};
++const actualCloseout = {
++  total: slices.length,
++  ...sliceCounts,
++  percent: Math.round(sliceCounts.done / slices.length * 100),
++};
++const actualAz = { total: requirements.length, ...azCounts };
++const exactCounts = (actual, expected) => Object.keys(actual).length === Object.keys(expected).length
++  && Object.entries(expected).every(([field, value]) => actual[field] === value);
++if (!exactCounts(actualCloseout, qualificationExpectation.slices)) {
++  throw Error(`Unexpected closeout counts: ${JSON.stringify({ actual: actualCloseout, expected: qualificationExpectation.slices })}`);
++}
++if (!exactCounts(actualAz, qualificationExpectation.az)) {
++  throw Error(`Unexpected A-Z counts: ${JSON.stringify({ actual: actualAz, expected: qualificationExpectation.az })}`);
++}
++for (const [id, status] of Object.entries(qualificationExpectation.statuses)) {
++  const entry = slices.find(candidate => candidate.id === id);
++  if (!entry || entry.status !== status) throw Error(`Unexpected ${id} status: ${entry?.status ?? "missing"}; expected ${status}`);
++}
+ const gateLine = ledger.match(/^\*\*Last executed machine gate\*\*:\s*(.+)$/m)?.[1] ?? "";
+ const gateMatch = gateLine.match(/([\d,]+)\s*\/\s*([\d,]+)\s+passing\b/i);
+ const suitesMatch = gateLine.match(/\bacross\s+([\d,]+)\s+suites\b/i);
+@@ -96,7 +119,7 @@ const expected = {
+   requirements: requirements.map(({ description, ...rest }) => rest), azCounts,
+   gate, images, markdownLinks, markdownCodes,
+ };
+-const target = slices.find(entry => entry.id === "SC-09") ?? slices[0];
++const target = slices.find(entry => entry.id === "SC-11") ?? slices[0];
+ const targetPortion = portions.find(entry => entry.number === target.portion);
+ const filterStatus = target.status === "blocked" ? "partial" : target.status;
+ const filterLabel = {
+@@ -281,6 +304,7 @@ const scenario = {
+   executionHost: "DANS1",
+   sourceHashes,
+   expectedCounts: { slices: slices.length, sliceCounts, requirements: requirements.length, azCounts, proofs: images.length, machineGate: gate },
++  qualificationExpectation,
+   limitations: [
+     "Scenario generation is not execution evidence; use the DANS1 runner and inspect all captured screenshots.",
+     "Keyboard checks use raw CDP Input.dispatchKeyEvent down/up; physical keyboard and operating-system accessibility technology are outside this browser campaign.",

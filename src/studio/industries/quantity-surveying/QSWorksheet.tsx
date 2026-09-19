@@ -8,6 +8,7 @@ import {
 } from "./qsRateBook";
 import { compareQsCostPlans } from "./qsDeltaComparison";
 import { appendQsWorksheetSnapshot, type QsWorksheetAssignment, type QsWorksheetState } from "./qsWorksheetState";
+import { QSCostPlanPackagePanel } from "./QSCostPlanPackagePanel";
 import "./QSWorksheet.css";
 
 export type QSWorksheetProps = {
@@ -18,6 +19,8 @@ export type QSWorksheetProps = {
   value: QsWorksheetState;
   /** False means the host rejected the edit before its persistence queue. */
   onChange: (value: QsWorksheetState) => boolean | void;
+  worksheet: QuantityForm;
+  onRestoreWorksheet: (value: QuantityForm) => boolean;
   disabled?: boolean;
 };
 
@@ -114,7 +117,7 @@ export function keepQsComparisonFocus(event: KeyboardEvent<HTMLDialogElement>): 
 
 /** Controlled cost editor. Quantities, geometry and supplier records are inputs;
  * this component only changes pricing choices and appends immutable revisions. */
-export function QSWorksheet({ projectId, rows, entities, priceBooks, value, onChange, disabled = false }: QSWorksheetProps) {
+export function QSWorksheet({ projectId, rows, entities, priceBooks, value, onChange, worksheet, onRestoreWorksheet, disabled = false }: QSWorksheetProps) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [selectedItemKey, setSelectedItemKey] = useState(rows[0]?.key ?? "");
@@ -366,5 +369,6 @@ export function QSWorksheet({ projectId, rows, entities, priceBooks, value, onCh
         <p className="qs-cost-note">Quantity is valued at the earlier rate first; remaining rate, allowance and tax changes follow. Added or removed items, entity/unit changes and option membership changes are scope. Unaccepted proposals never inflate the accepted delta.</p>
       </>}
     </dialog>
+    <QSCostPlanPackagePanel projectId={projectId} value={worksheet} disabled={disabled} onRestore={onRestoreWorksheet} />
   </section>;
 }

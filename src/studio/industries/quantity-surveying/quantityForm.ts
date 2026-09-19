@@ -55,6 +55,17 @@ export function withQuantityPricing(form: QuantityForm, pricing: QsWorksheetStat
   return next;
 }
 
+/** Preflight an explicitly confirmed package replacement through the same draft
+ * size/project boundary. No storage is written and no evidence is promoted. */
+export function withRestoredQuantityWorksheet(form: QuantityForm, projectId: string, rawLibrary: string | null): QuantityForm {
+  const next = quantityFormSchema.parse(form);
+  if (!projectId || !next.pricing || next.pricing.projectId !== projectId ||
+      (next.binding && next.binding.projectId !== projectId) ||
+      next.items.some(item => item.entityBinding && item.entityBinding.projectId !== projectId))
+    throw Error("The restored worksheet and all its bindings must belong to this project.");
+  return withQuantityPricing(next, next.pricing, projectId, rawLibrary);
+}
+
 /** Form keys are UI identity only; explicit user codes identify the calculation. */
 export function quantityFormInput(raw: QuantityForm): ClassificationInput {
   const form = quantityFormSchema.parse(raw);

@@ -1,0 +1,13 @@
+diff --git a/.temp/sc11-pdf-agent/sc11-c9b41fd82e89-pdf1/input/pdf-viewer.html b/proof/growth/2026-09-20-sc11-mounted-package/tools/pdf-viewer.html
+index bc4cb32..0dc935b 100644
+--- a/.temp/sc11-pdf-agent/sc11-c9b41fd82e89-pdf1/input/pdf-viewer.html
++++ b/proof/growth/2026-09-20-sc11-mounted-package/tools/pdf-viewer.html
+@@ -21,7 +21,7 @@ try{
+   const content=await page.getTextContent(),text=content.items.map(item=>item.str).join('\n');
+   const bounds=content.items.filter(item=>item.str?.trim()).map(item=>({text:item.str,x:item.transform[4],y:item.transform[5],width:item.width,height:item.height}));
+   const outside=bounds.filter(item=>item.x<0||item.x+item.width>natural.width+0.5||item.y<0||item.y+item.height>natural.height+0.5);
+-  window.pdfProof.pages.push({index,width:natural.width,height:natural.height,text,outside,items:bounds.length});
++  window.pdfProof.pages.push({index,width:natural.width,height:natural.height,text,outside,items:bounds.length,textItems:bounds});
+  }
+  window.showPdfPage=index=>{document.querySelectorAll('.sheet').forEach(el=>{el.hidden=Number(el.dataset.page)!==index});window.pdfProof.current=index;document.querySelector('#status').textContent=`PDF page ${index} / ${pdf.numPages}`;scrollTo(0,0);return true};
+  window.showPdfPage(1);window.pdfProof.pageCount=pdf.numPages;window.pdfProof.ready=true;document.documentElement.dataset.ready='true';

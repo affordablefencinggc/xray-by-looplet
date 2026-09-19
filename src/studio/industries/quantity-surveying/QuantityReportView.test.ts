@@ -18,7 +18,7 @@ mkdirSync(resolve('node_modules/.cache'), { recursive: true });
 const dir = mkdtempSync(resolve('node_modules/.cache/quantity-report-'));
 // The worksheet panel imports the shared source-binding contract from the parent directory, so that
 // module is transpiled too and its relative require is rewritten alongside the same-directory ones.
-for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../../pricing/priceBooks.ts']) {
+for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../pricing/priceBooks.ts']) {
   const code = ts.transpileModule(readFileSync(join(here, name), 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
   }).outputText
@@ -112,6 +112,18 @@ function renderPricing(value: QuantityForm, pricing: QsPricingSource, disabled =
     React.createElement(QuantityDraftPanel, { value, disabled, source: SOURCE, onChange() {} })));
 }
 const PRICING_SOURCE: QsPricingSource = { projectId: 'p1', library: emptyPriceBookLibrary('p1'), loading: false, error: null, sourceReady: true };
+
+test('SC11 package panel is mounted inside the real measured worksheet and shares source/storage locks', () => {
+  for (const disabled of [false, true]) {
+    const html = renderPricing(form, PRICING_SOURCE, disabled);
+    assert.equal((html.match(/aria-label="Cost plan package"/g) ?? []).length, 1);
+    assert.ok(html.indexOf('data-testid="qs-cost-worksheet"') < html.indexOf('aria-label="Cost plan package"'));
+    assert.match(html, /Cost plan title/); assert.match(html, /Reopen and inspect/);
+    assert.match(html, /type="file"[^>]+disabled=""/, 'source hashing is pending in SSR; no import can bypass it');
+    assert.match(html, /Draft quantities remain draft/);
+  }
+  assert.doesNotMatch(renderPricing(form, { ...PRICING_SOURCE, projectId: 'other-project' }), /aria-label="Cost plan package"/);
+});
 
 test('SC10 real quantity panel mounts supplier-backed cost controls and withholds unbound pricing', () => {
   const html = renderPricing(form, PRICING_SOURCE);

@@ -1,0 +1,12 @@
+diff --git a/proof/growth/2026-09-19-dashboard-refresh/run-static.ps1 b/proof/growth/2026-09-20-sc11-mounted-package/dashboard-tools/run-static.ps1
+index a422863..e1900fe 100644
+--- a/proof/growth/2026-09-19-dashboard-refresh/run-static.ps1
++++ b/proof/growth/2026-09-20-sc11-mounted-package/dashboard-tools/run-static.ps1
+@@ -76,6 +76,7 @@ try{
+   if($servedHash -cne (Get-FileHash -LiteralPath $html -Algorithm SHA256).Hash.ToLowerInvariant()){throw 'Served HTML differs from generated source'}
+   & (Join-Path $source 'scripts/run-fast-cdp.ps1') -Scenario (Join-Path $source 'proof/growth/2026-09-19-dashboard-refresh/dashboard-refresh.scenario.json') -Output (Join-Path $output 'browser') -Workspace $source -Node $Node -RunId ($manifest.runId+'-browser') -PreviewPort 8090 -CdpPort 9338 -UseExistingPreview
+ }catch{$failure=$_}finally{
++  if($server -and -not $server.HasExited){try{if($server.CloseMainWindow()){$null=$server.WaitForExit(1500)}}catch{}}
+   if($server){
+     $current=Get-CimInstance Win32_Process -Filter "ProcessId=$($server.Id)" -ErrorAction SilentlyContinue
+     if($current){

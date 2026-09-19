@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>SC11 downloaded cost-plan PDF readback</title><style>
+*{box-sizing:border-box}body{margin:0;background:#dce3eb;color:#203147;font:14px Arial,sans-serif}header{height:62px;padding:8px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}header small{display:block;color:#43556b;font-size:11px;overflow-wrap:anywhere}main{display:flex;justify-content:center;padding:0 16px 8px}.sheet{background:white;box-shadow:0 2px 10px #182d4933}.sheet[hidden]{display:none}canvas{display:block;max-width:calc(100vw - 32px);max-height:calc(100vh - 72px);width:auto;height:auto}#status{font-weight:bold;white-space:nowrap}
+</style></head><body><header><div><strong>SC11 / disk-downloaded application PDF</strong><small>Controlled saved-draft qualification; not a certified commercial estimate</small><small id="digest"></small></div><span id="status">Reading all pages...</span></header><main></main><script type="module">
+import * as pdfjs from '/vendor/build/pdf.mjs';
+pdfjs.GlobalWorkerOptions.workerSrc='/vendor/build/pdf.worker.mjs';
+window.pdfProof={ready:false,pages:[],version:pdfjs.version};
+try{
+ const expected=await (await fetch('/expected.json')).json();
+ const response=await fetch('/downloaded.pdf');if(!response.ok)throw Error('Downloaded PDF disk readback failed');
+ const bytes=new Uint8Array(await response.arrayBuffer());
+ const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(value=>value.toString(16).padStart(2,'0')).join('');
+ if(hash!==expected.pdfSha256)throw Error('Served disk PDF differs from recorded browser download');
+ window.pdfProof.pdfSha256=hash;document.querySelector('#digest').textContent='SHA-256 '+hash;
+ const pdf=await pdfjs.getDocument({data:bytes,standardFontDataUrl:'/vendor/standard_fonts/',cMapUrl:'/vendor/cmaps/',cMapPacked:true,wasmUrl:'/vendor/wasm/'}).promise;
+ if(pdf.numPages!==expected.pageCount)throw Error('PDF page count differs from disk inspection');
+ for(let index=1;index<=pdf.numPages;index++){
+  const page=await pdf.getPage(index),viewport=page.getViewport({scale:1.5}),natural=page.getViewport({scale:1});
+  const section=document.createElement('section');section.className='sheet';section.hidden=true;section.dataset.page=String(index);
+  const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);section.append(canvas);document.querySelector('main').append(section);
+  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  const content=await page.getTextContent(),text=content.items.map(item=>item.str).join('\n');
+  const bounds=content.items.filter(item=>item.str?.trim()).map(item=>({text:item.str,x:item.transform[4],y:item.transform[5],width:item.width,height:item.height}));
+  const outside=bounds.filter(item=>item.x<0||item.x+item.width>natural.width+0.5||item.y<0||item.y+item.height>natural.height+0.5);
+  window.pdfProof.pages.push({index,width:natural.width,height:natural.height,text,outside,items:bounds.length,textItems:bounds});
+ }
+ window.showPdfPage=index=>{document.querySelectorAll('.sheet').forEach(el=>{el.hidden=Number(el.dataset.page)!==index});window.pdfProof.current=index;document.querySelector('#status').textContent=`PDF page ${index} / ${pdf.numPages}`;scrollTo(0,0);return true};
+ window.showPdfPage(1);window.pdfProof.pageCount=pdf.numPages;window.pdfProof.ready=true;document.documentElement.dataset.ready='true';
+}catch(error){window.pdfProof.error=String(error);document.querySelector('#status').textContent=String(error);throw error}
+</script></body></html>

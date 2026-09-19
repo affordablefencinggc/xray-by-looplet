@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "name": "SC11 actual disk-downloaded PDF all-page desktop and tablet readback",
+  "host": "DANS1",
+  "pdfSha256": "0fa7fcfe2bacdbc065f66d8f23dac565947095ae8635a5f4073bf753931213ef",
+  "pageCount": 5,
+  "operations": [
+    [
+      "set",
+      "viewport",
+      "1600",
+      "1000"
+    ],
+    [
+      "open",
+      "{{ORIGIN}}/viewer.html"
+    ],
+    [
+      "wait",
+      "--fn",
+      "() => { if(window.pdfProof?.error) throw Error(window.pdfProof.error); return window.pdfProof?.ready === true }",
+      30000
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof;if(p.pageCount!==5||p.pdfSha256!==\"0fa7fcfe2bacdbc065f66d8f23dac565947095ae8635a5f4073bf753931213ef\")throw Error('PDF disk identity mismatch');const all=p.pages.map(v=>v.text).join(String.fromCharCode(10));for(const token of [\"Executive summary\",\"Basis of estimate and exclusions\",\"Elements and trade breakdown\",\"Cost variance report\",\"Source and rate audit trail\",\"ACCEPTED TOTAL CHANGE\",\"saved-draft\",\"QS-WALL-A\",\"QS-WALL-C\",\"61c9b6bb6acaee9767a84673ec0b782b6a8b08237e35640f22dae8709b188f6b\"])if(!all.includes(token))throw Error('Missing exported PDF token: '+token);if(!all.replace(/\\s/g,'').includes('5.999999930955706'))throw Error('Exact measured decimal absent from exported PDF text after removing layout whitespace');if(p.pages.some(page=>page.outside.length))throw Error('PDF text outside physical page');return {pageCount:p.pageCount,pdfSha256:p.pdfSha256,renderer:p.version,allPagesWithinBounds:true,exactQuantityPresentIgnoringLayoutWhitespace:true,source:'actual separately downloaded application PDF; ZIP digest identical'}})()"
+    ],
+    [
+      "set",
+      "viewport",
+      "1600",
+      "1000"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(1)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===1 && !document.querySelector('[data-page=\"1\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[0],canvas=document.querySelector('[data-page=\"1\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('1 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-01-desktop-1600x1000.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(2)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===2 && !document.querySelector('[data-page=\"2\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[1],canvas=document.querySelector('[data-page=\"2\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('2 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-02-desktop-1600x1000.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(3)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===3 && !document.querySelector('[data-page=\"3\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[2],canvas=document.querySelector('[data-page=\"3\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('3 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-03-desktop-1600x1000.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(4)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===4 && !document.querySelector('[data-page=\"4\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[3],canvas=document.querySelector('[data-page=\"4\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('4 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-04-desktop-1600x1000.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(5)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===5 && !document.querySelector('[data-page=\"5\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[4],canvas=document.querySelector('[data-page=\"5\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('5 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-05-desktop-1600x1000.png"
+    ],
+    [
+      "set",
+      "viewport",
+      "1024",
+      "768"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(1)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===1 && !document.querySelector('[data-page=\"1\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[0],canvas=document.querySelector('[data-page=\"1\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('1 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-01-tablet-1024x768.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(2)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===2 && !document.querySelector('[data-page=\"2\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[1],canvas=document.querySelector('[data-page=\"2\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('2 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-02-tablet-1024x768.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(3)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===3 && !document.querySelector('[data-page=\"3\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[2],canvas=document.querySelector('[data-page=\"3\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('3 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-03-tablet-1024x768.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(4)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===4 && !document.querySelector('[data-page=\"4\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[3],canvas=document.querySelector('[data-page=\"4\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('4 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-04-tablet-1024x768.png"
+    ],
+    [
+      "eval",
+      "window.showPdfPage(5)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "()=>window.pdfProof.current===5 && !document.querySelector('[data-page=\"5\"]').hidden"
+    ],
+    [
+      "eval",
+      "(()=>{const p=window.pdfProof.pages[4],canvas=document.querySelector('[data-page=\"5\"] canvas'),r=canvas.getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('PDF canvas clipped');if(!p.text.includes('5 / 5'))throw Error('Missing page footer');const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonWhite=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<240||pixels[i+1]<240||pixels[i+2]<240)nonWhite++;if(nonWhite<5000)throw Error('Blank PDF render');return {...p,nonWhitePixels:nonWhite,viewport:[innerWidth,innerHeight],canvasWidth:canvas.width,canvasHeight:canvas.height}})()"
+    ],
+    [
+      "screenshot",
+      "captures/sc11-downloaded-pdf-page-05-tablet-1024x768.png"
+    ],
+    [
+      "errors"
+    ]
+  ]
+}

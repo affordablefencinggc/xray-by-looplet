@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "method": "raw CDP hot-socket declarative opcode batch; fail-fast; reactive readiness",
+  "host": "dans1",
+  "startedAt": "2026-09-19T15:23:19.168Z",
+  "completedAt": "2026-09-19T15:23:19.545Z",
+  "node": "v24.20.0",
+  "browserVersion": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/153.0.8010.50",
+    "revision": "@583c5b4655acea7450a3b5224ea5121ae8caca9b",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "jsVersion": "15.3.76.12"
+  },
+  "sourceHashes": {
+    "fast-cdp.mjs": "edb4d73ff17506e09782dc9cd45e5b7a2fec2ca3ec3a99bb0c8a496400995003",
+    "run-fast-cdp.ps1": "368f11cd0771b96efb4b438e1821ee6d161ca56c3019a0f4e2a5bb4bd410b220",
+    "invoke-dans1-fast-cdp.ps1": "29e174494fb34fa4acde2c8b0b8da1e82fd50945a31542f02e52bd2ca21f38e5",
+    "scenario:pdf-render.scenario.json": "70b10b36992498d5afeb5771c76c717c29616cb1a8daef875033ddcd42113fe4"
+  },
+  "scenarioSha256": "70b10b36992498d5afeb5771c76c717c29616cb1a8daef875033ddcd42113fe4",
+  "plannedOperations": 47,
+  "completedOperations": 3,
+  "elapsedMs": 375.87219999999996,
+  "verdict": "FAIL",
+  "error": {
+    "name": "ProductFailure",
+    "message": "Error: Exact measured decimal absent from exported PDF text after removing layout whitespace\n    at <anonymous>:1:662\n    at <anonymous>:1:1071"
+  },
+  "browserErrors": [],
+  "expectedCancellations": [],
+  "observedCancellations": [],
+  "screenshots": [
+    {
+      "eventId": "735f6858-b1f6-45f2-89b7-7042f9756890",
+      "context": "default",
+      "targetId": "25A7D6EB2F7D566593F960012F8F756B",
+      "file": "failure-op-3-default.png",
+      "bytes": 72334,
+      "sha256": "77c0d808a6b0674e99c5583e02574c825dd2e8a6a2efacbc23fc4b0ac26e2868"
+    }
+  ],
+  "cleanup": {
+    "attempted": true,
+    "disposed": [
+      "default"
+    ],
+    "errors": []
+  },
+  "receipts": [
+    {
+      "index": 0,
+      "opcode": "set",
+      "context": "viewport",
+      "elapsedMs": 66.91390000000001,
+      "value": {
+        "width": 1600,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "index": 1,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8090/viewer.html",
+      "elapsedMs": 5.898200000000003,
+      "value": {
+        "frameId": "25A7D6EB2F7D566593F960012F8F756B",
+        "url": "http://127.0.0.1:8090/viewer.html"
+      }
+    },
+    {
+      "index": 2,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 197.3152,
+      "value": true
+    },
+    {
+      "index": 3,
+      "opcode": "eval",
+      "context": "(()=>{const p=window.pdfProof;if(p.pageCount!==5||p.pdfSha256!==\"0fa7fcfe2bacdbc065f66d8f23dac565947095ae8635a5f4073bf753931213ef\")throw Error('PDF disk identity mismatch');const all=p.pages.map(v=>v.text).join(String.fromCharCode(10));for(const token of [\"Executive summary\",\"Basis of estimate and exclusions\",\"Elements and trade breakdown\",\"Cost variance report\",\"Source and rate audit trail\",\"ACCEPTED TOTAL CHANGE\",\"saved-draft\",\"QS-WALL-A\",\"QS-WALL-C\",\"61c9b6bb6acaee9767a84673ec0b782b6a8b08237e35640f22dae8709b188f6b\"])if(!all.includes(token))throw Error('Missing exported PDF token: '+token);if(!all.replace(/\\s/g,'').includes('5.999999930955706'))throw Error('Exact measured decimal absent from exported PDF text after removing layout whitespace');if(p.pages.some(page=>page.outside.length))throw Error('PDF text outside physical page');return {pageCount:p.pageCount,pdfSha256:p.pdfSha256,renderer:p.version,allPagesWithinBounds:true,exactQuantityPresentIgnoringLayoutWhitespace:true,source:'actual separately downloaded application PDF; ZIP digest identical'}})()",
+      "elapsedMs": 0.9893999999999892,
+      "error": "Error: Exact measured decimal absent from exported PDF text after removing layout whitespace\n    at <anonymous>:1:662\n    at <anonymous>:1:1071"
+    }
+  ],
+  "limitations": [
+    "Browser-level CDP is host authority and is never delegated to untrusted workers.",
+    "This runner proves the supplied loopback scenario only; it does not claim deployment or live-device verification."
+  ]
+}

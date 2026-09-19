@@ -191,7 +191,7 @@ export function QSCostPlanPackagePanel({ projectId, value, disabled = false, onR
       current = gate.begin(); setBusy({ scope, label: "Rechecking worksheet before restore…" }); setError(""); setNotice("");
       const outcome = await restoreInspectedQsPackage(preview, projectId, restoreConfirmed, next => currentRestore.current(next), current);
       if (outcome === "cancelled" || !current()) return;
-      setConfirmed(null); setNotice("The host accepted the restored worksheet. Check its save indicator; disk persistence is not established by package validation.");
+      setConfirmed(null); setNotice("The restored worksheet was submitted to the project host. Check its save indicator; disk persistence is not established by package validation.");
     } catch (cause) { if (!current || current()) setError(errorText(cause)); }
     finally { if (current?.()) setBusy(null); }
   }

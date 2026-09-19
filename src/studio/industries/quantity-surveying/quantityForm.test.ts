@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createEmptyQuantityForm, createQuantityBinding,
-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withMeasuredQuantityBinding, withQuantityPricing,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withMeasuredQuantityBinding, withQuantityPricing, withRestoredQuantityWorksheet,
   type QuantityBindingDraft, type QuantityForm,
 } from "./quantityForm.ts";
 import {
@@ -306,6 +306,35 @@ test("SC10 corrupt saved pricing snapshots fail strict form parsing", () => {
   const pricing = createEmptyQsWorksheetState('project-1');
   assert.equal(qsWorksheetStateSchema.safeParse({ ...pricing, snapshots: [{ format: 'xray.qs-cost-snapshot/v1', input: {} }] }).success, false);
   assert.equal(quantityFormSchema.safeParse({ ...fixture(), pricing: { ...pricing, currency: 'invented' } }).success, false);
+});
+
+test("SC11 confirmed worksheet replacement preserves every field without mutating package inputs", () => {
+  const form = { ...fixture(), calculated: true, pricing: createEmptyQsWorksheetState('project-1') };
+  const before = JSON.stringify(form);
+  const restored = withRestoredQuantityWorksheet(form, 'project-1', null);
+  assert.deepEqual(restored, form); assert.notEqual(restored, form);
+  assert.equal(JSON.stringify(form), before);
+  assert.throws(() => withRestoredQuantityWorksheet(form, 'another-project', null), /belong to this project/);
+  assert.throws(() => withRestoredQuantityWorksheet(fixture(), 'project-1', null), /belong to this project/);
+  assert.throws(() => withRestoredQuantityWorksheet(form, 'project-1', '{broken'), /./);
+  assert.throws(() => withRestoredQuantityWorksheet(boundForm(form, sourceState({ projectId: 'foreign' })), 'project-1', null), /belong to this project/);
+  const foreignItem = { ...form, items: form.items.map((item, index) => index ? item : { ...item, entityBinding: {
+    format: QS_ITEM_BINDING_SCHEMA, itemId: item.reference, projectId: 'foreign', entityId: 'run-1', entityType: 'wall-run' as const,
+    measuredQuantity: item.quantity, unit: item.unit, entityGeometrySha256: OTHER_SHA, sourceSha256: SHA,
+    calibrationId: 'cal-1', boundAt: BOUND_AT, boundBy: 'Estimator',
+  } }) };
+  assert.throws(() => withRestoredQuantityWorksheet(foreignItem, 'project-1', null), /belong to this project/);
+});
+
+test("SC11 worksheet restore respects shared storage quota before submitting replacement", () => {
+  const shell = { format: 'xray.industry-drafts/1', projectId: 'project-1', revision: 1,
+    drafts: { roofing: { revision: 1, form: { preserved: '' } } } };
+  shell.drafts.roofing.form.preserved = 'x'.repeat(2_000_000 - JSON.stringify(shell).length - 200);
+  const original = JSON.stringify(shell);
+  const form = { ...fixture(), pricing: createEmptyQsWorksheetState('project-1') }, before = JSON.stringify(form);
+  assert.throws(() => withRestoredQuantityWorksheet(form, 'project-1', original), /exceed the supported size/);
+  assert.equal(JSON.stringify(form), before);
+  assert.equal(parseIndustryDraftLibrary(original, 'project-1').drafts['quantity-surveying'], undefined);
 });
 test("SC10 draft size preflight preserves existing inputs and unrelated drafts on failure", () => {
   const shell = { format: 'xray.industry-drafts/1', projectId: 'project-1', revision: 1,
