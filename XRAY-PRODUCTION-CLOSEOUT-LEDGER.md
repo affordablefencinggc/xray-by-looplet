@@ -36,7 +36,9 @@ Every slice in this ledger must satisfy the following four proof criteria before
 * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
 * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
 
-**Last executed machine gate**: `npm test` — 1616/1616 passing across 91 suites; `npx tsc --noEmit` exit 0. Recorded 2026-09-19 alongside SC-09. The dashboard reads this line rather than carrying its own copy of the numbers.
+**Last executed machine gate**: `npm test` — 1829/1829 passing across 93 suites; `npx tsc --noEmit` exit 0. Recorded 2026-09-19 alongside SC-09. The dashboard reads this line rather than carrying its own copy of the numbers.
+
+The figure moved from 1616 because `src/studio/persistence/portableArchive.test.ts` (SC-15's archive container, 10 tests) was written but never added to the `test` script, so it ran in no suite at all — a green test nobody executed. `npm test` also exceeded Windows' 8191-character command limit once that path was added, so the source suites now run through `test:src`; the guard scripts stay in `test` ahead of it.
 
 ---
 
@@ -335,7 +337,7 @@ graph TD
 * **Proof**:
   - `node scripts/fast-cdp-test.mjs qa-sc09-final` — 28 opcodes, exit 0. Both directions asserted: fresh draft 3× `verified` with no withheld notice; typing `99` turns only row 1 to `stale-measurement` with pricing withheld and the notice naming `1 stale-measurement`; restoring `45.5` returns every row to `verified` with the notice gone.
   - Captures: [all-bound-verified](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-all-bound-verified-desktop-1600x1000.png), [stale-after-edit](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-stale-after-edit-desktop-1600x1000.png), [recovered](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-recovered-verified-desktop-1600x1000.png), [tablet 1024×768](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-tablet-1024x768.png).
-  - Gates: `tsc --noEmit` exit 0; full `npm test` 1616/1616. Three mutations on `shouldRepin()` all killed; one survived its first attempt and the test was rewritten (see `walkthrough.md`).
+  - Gates: `tsc --noEmit` exit 0; full `npm test` 1829/1829. Three mutations on `shouldRepin()` all killed; one survived its first attempt and the test was rewritten (see `walkthrough.md`).
   - Limit: staleness is proven by editing a worksheet quantity, not by moving geometry on the canvas. The panel derives live geometry from the worksheet rows, so a canvas-side geometry edit reaches the ledger through the same derived path only once that path exists — which is the open human gate above.
 * **Files**:
   - `src/studio/industries/quantity-surveying/qsItemBinding.ts` (new)
