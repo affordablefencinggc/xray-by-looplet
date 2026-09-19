@@ -12,6 +12,7 @@ import {
   type Roof3DEdge,
 } from "./roofGeometry.ts";
 import { CuttingListPanel } from "./CuttingListPanel.tsx";
+import { FlashingFixingsPanel } from "./FlashingFixingsPanel.tsx";
 
 export interface RoofingWorksheetProps {
   draftPlanes?: Array<{
@@ -52,7 +53,7 @@ function projectIsometric(p: Point3D, scale: number, center: [number, number]): 
 export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorksheetProps) {
   const prefix = useId();
   const [activePreset, setActivePreset] = useState<PresetType>("standard-hip");
-  const [viewMode, setViewMode] = useState<"3d-iso" | "2d-unfolded" | "stock-nesting">("3d-iso");
+  const [viewMode, setViewMode] = useState<"3d-iso" | "2d-unfolded" | "stock-nesting" | "flashings-schedules">("3d-iso");
   const [selectedFaceId, setSelectedFaceId] = useState<string | null>(null);
 
   // Custom preset parameters
@@ -184,6 +185,23 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
               }}
             >
               Stock Nesting &amp; Cut List (ROOF-04)
+            </button>
+            <button
+              type="button"
+              id={`${prefix}-tab-flashings-schedules`}
+              onClick={() => setViewMode("flashings-schedules")}
+              style={{
+                padding: "4px 12px",
+                fontSize: "0.8rem",
+                borderRadius: "4px",
+                border: "1px solid #475569",
+                background: viewMode === "flashings-schedules" ? "#0284c7" : "#1e293b",
+                color: "#f8fafc",
+                cursor: "pointer",
+                fontWeight: viewMode === "flashings-schedules" ? 600 : 400,
+              }}
+            >
+              Flashings &amp; Fixings (ROOF-05/06)
             </button>
           </div>
         </div>
@@ -326,7 +344,9 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
         </div>
       )}
 
-      {viewMode === "stock-nesting" ? (
+      {viewMode === "flashings-schedules" ? (
+        <FlashingFixingsPanel takeoff={takeoff} disabled={disabled} />
+      ) : viewMode === "stock-nesting" ? (
         <CuttingListPanel takeoff={takeoff} disabled={disabled} />
       ) : (
         <>
@@ -666,6 +686,11 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
       {/* Integrated Stock Sheet Cutting Diagram & Nesting */}
       <div style={{ marginTop: "1.5rem" }}>
         <CuttingListPanel takeoff={takeoff} disabled={disabled} />
+      </div>
+
+      {/* Integrated Flashing & Fixings Schedule Deliverable */}
+      <div style={{ marginTop: "1.5rem" }}>
+        <FlashingFixingsPanel takeoff={takeoff} disabled={disabled} />
       </div>
     </>
   )}

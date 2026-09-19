@@ -941,7 +941,7 @@
           <span>Visual & Executed Proofs</span>
           <span style="color: #60a5fa;">ATTACHED</span>
         </div>
-        <div class="kpi-value">43</div>
+        <div class="kpi-value">48</div>
         <div class="kpi-sub">Screenshots & Vector PDFs</div>
       </div>
       <div class="kpi-card">
@@ -963,7 +963,7 @@
         </button>
         <button class="tab-btn" onclick="switchTab('gallery')">
           <span>🖼️ Visual Proof Gallery</span>
-          <span class="tab-badge">43</span>
+          <span class="tab-badge">48</span>
         </button>
         <button class="tab-btn" onclick="switchTab('gaps')">
           <span>🔍 What Hasn't Been Done</span>
@@ -1468,13 +1468,13 @@
         </div>
       </div>
     
-      <div class="slice-card pending" data-status="pending" data-portion="PORTION 2: Active Trade Engines — Stage 1: Roofing &amp; Cladding (IND-29)">
+      <div class="slice-card done" data-status="done" data-portion="PORTION 2: Active Trade Engines — Stage 1: Roofing &amp; Cladding (IND-29)">
         <div class="slice-top" onclick="toggleSlice(this.parentElement)">
           <div class="slice-info">
             <div class="slice-header">
               <span class="slice-id">SC-07</span>
               <span class="slice-title">ROOF-05/06 Flashing, Fixing Schedules &amp; Full Takeoff Export Deliverable</span>
-              <span class="status-badge badge-pending">○ Pending</span>
+              <span class="status-badge badge-done">✓ Done</span>
             </div>
             <div class="slice-goal">Compile complete bill of quantities including ridge caps, valley gutters, barge flashings, fasteners (screws/clips per $m^2$ by wind region), and output an immutable `deliveryRecord`.</div>
           </div>
@@ -1485,17 +1485,26 @@
           
             <div class="detail-section">
               <div class="detail-heading">⚙️ Machine Gate Verification</div>
-              <div class="detail-body">- Fastener schedule calculates screw counts based on roof pitch, batten type (timber/steel), and wind zone (AS 4055 / AS 1170.2).
-  - Girth development for custom flashings (ridge, apron, box gutter) itemized with standard girths (300mm, 400mm, 600mm).
-  - Output bound to `deliveryRecordSchema` with SHA-256 seal.</div>
+              <div class="detail-body">- Fastener schedule calculates screw counts based on roof pitch, batten type, and AS 4055 wind classification in `src/studio/industries/roofing/flashingSchedules.ts`.
+  - Girth development for custom flashings (ridge, apron, box gutter) itemized with standard girths (300mm, 400mm, 600mm) and lap rules (+5%/+8%).
+  - Output bound to `deliveryRecordSchema` with canonical SHA-256 seal and tamper-detection via `assertDeliveryContentIntact`.
+  - 5/5 targeted unit tests pass in `src/studio/industries/roofing/flashingSchedules.test.ts`.
+  - Regression suite: 1548 pass / 0 fail across 89 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP live runner (`qa-sc07-final`) passes all 30 operations with exit code 0 in 3.53s.</div>
             </div>
           
 
           
             <div class="detail-section">
               <div class="detail-heading">👁️ Human & Visual Proof</div>
-              <div class="detail-body">- Full Roofing Takeoff Package exported as vector PDF and CSV.
-  - Inspected screenshots of Schedules tab under Desktop and Tablet viewports.</div>
+              <div class="detail-body">- Full Roofing Takeoff Package exported as CSV transmittal and JSON deliverable with cryptographic verification seal.
+  - Interactive UI (`FlashingFixingsPanel.tsx`) mounted in `RoofingWorksheet.tsx` with AS 4055 wind selector, batten substrate selector, and delivery seal card.
+  - 5 inspected captures verified in `screenshots/growth/sc07/` and `proof/growth/2026-09-19-sc07-flashing-schedules/captures/`:
+    - `sc07-flashing-kpi-controls-desktop-1600x1000.png`: Wind selector, batten substrate profiles, and 4 high-contrast KPI cards.
+    - `sc07-flashing-schedule-table-desktop-1600x1000.png`: Automated standard girth development (300/400/600mm), lap allowances, and order pieces.
+    - `sc07-fastener-and-seal-desktop-1600x1000.png`: Fixing schedule with general/perimeter densities and tamper-proof SH-03 delivery record with deterministic SHA-256 hash.
+    - `sc07-wind-n4-fastener-update-desktop-1600x1000.png`: Reactive high-wind N4 uplift scaling (7.5 field / 10.5 perimeter screws/m²) and AutoTek 20mm steel screw profile.
+    - `sc07-flashing-tablet-1024x768.png`: Tablet landscape verification showing non-clipping controls, fluid typography, and zero horizontal scrollbar.</div>
             </div>
           
 
@@ -1505,11 +1514,48 @@
             <div class="detail-section">
               <div class="detail-heading">📁 Associated Files</div>
               <div class="files-list">
-                <span class="file-tag">src/studio/industries/roofing/flashingSchedules.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/flashingSchedules.test.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/RoofingWorksheet.tsx</span>
+                <span class="file-tag">src/studio/industries/roofing/flashingSchedules.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/flashingSchedules.test.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/FlashingFixingsPanel.tsx` (new)</span><span class="file-tag">- `src/studio/industries/roofing/RoofingWorksheet.tsx` (integrated)</span><span class="file-tag">- `proof/growth/2026-09-19-sc07-flashing-schedules/build-scenario.mjs</span><span class="file-tag">- `screenshots/growth/sc07/` (5 visual proof captures)</span>
               </div>
             </div>
           
 
+          
+            <div class="detail-section">
+              <div class="detail-heading">📸 Attached Visual Proof</div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png', 'Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)', 'Interactive AS 4055 wind class selector, batten substrate profiles, and KPI summary cards (True Slope Area, Fasteners, Flashing Pieces, Total Cost).', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png', 'Flashing Girth Development &amp; Quantity Schedule (Desktop 1600x1000)', 'Automated standard girth development (300/400/600mm), lap allowances (+5%/+8%), and order pieces for ridges, valleys, and barges.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Flashing Girth Development &amp; Quantity Schedule (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Flashing Girth Development &amp; Quantity Schedule (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png', 'AS 1170.2 Fasteners &amp; Cryptographic Delivery Seal (Desktop 1600x1000)', 'Fixing schedule with general/perimeter densities and tamper-proof SH-03 delivery record with deterministic SHA-256 hash.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="AS 1170.2 Fasteners &amp; Cryptographic Delivery Seal (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">AS 1170.2 Fasteners &amp; Cryptographic Delivery Seal (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png', 'Reactive Wind Class N4 &amp; AutoTek Screw Scaling (Desktop 1600x1000)', 'High-wind N4 uplift scaling (7.5 field / 10.5 perimeter screws/m²) and AutoTek 20mm steel screw profile.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Reactive Wind Class N4 &amp; AutoTek Screw Scaling (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Reactive Wind Class N4 &amp; AutoTek Screw Scaling (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png', 'Flashing &amp; Fixing Schedule Responsive Viewport (Tablet 1024x768)', 'Tablet landscape verification showing non-clipping controls, fluid typography, and zero horizontal scroll.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png')">
+                    <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Flashing &amp; Fixing Schedule Responsive Viewport (Tablet 1024x768)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Flashing &amp; Fixing Schedule Responsive Viewport (Tablet 1024x768)</div>
+                  </div>
+                
+              </div>
+            </div>
           
         </div>
       </div>
@@ -2146,7 +2192,7 @@
     <section id="tab-gallery" class="tab-content">
       <div class="filter-bar">
         <span class="filter-label">Filter Category:</span>
-        <button class="filter-chip active" onclick="filterGallery('all', this)">All (43)</button>
+        <button class="filter-chip active" onclick="filterGallery('all', this)">All (48)</button>
         <button class="filter-chip" onclick="filterGallery('Drawing Register & PDF', this)">Drawing Register & PDF</button>
         <button class="filter-chip" onclick="filterGallery('Roofing & Cladding', this)">Roofing & Cladding</button>
         <button class="filter-chip" onclick="filterGallery('Alteration Stages & Demolition', this)">Alteration Stages</button>
@@ -2157,6 +2203,96 @@
 
       <div class="gallery-grid" id="galleryContainer">
         
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png', 'Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)', 'Interactive AS 4055 wind class selector, batten substrate profiles, and KPI summary cards (True Slope Area, Fasteners, Flashing Pieces, Total Cost).', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png" alt="Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-07</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)</h4>
+          <p class="proof-desc">Interactive AS 4055 wind class selector, batten substrate profiles, and KPI summary cards (True Slope Area, Fasteners, Flashing Pieces, Total Cost).</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png', 'Flashing Girth Development &amp; Quantity Schedule (Desktop 1600x1000)', 'Automated standard girth development (300/400/600mm), lap allowances (+5%/+8%), and order pieces for ridges, valleys, and barges.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png" alt="Flashing Girth Development &amp; Quantity Schedule (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-07</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Flashing Girth Development &amp; Quantity Schedule (Desktop 1600x1000)</h4>
+          <p class="proof-desc">Automated standard girth development (300/400/600mm), lap allowances (+5%/+8%), and order pieces for ridges, valleys, and barges.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-schedule-table-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png', 'AS 1170.2 Fasteners &amp; Cryptographic Delivery Seal (Desktop 1600x1000)', 'Fixing schedule with general/perimeter densities and tamper-proof SH-03 delivery record with deterministic SHA-256 hash.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png" alt="AS 1170.2 Fasteners &amp; Cryptographic Delivery Seal (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-07</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">AS 1170.2 Fasteners &amp; Cryptographic Delivery Seal (Desktop 1600x1000)</h4>
+          <p class="proof-desc">Fixing schedule with general/perimeter densities and tamper-proof SH-03 delivery record with deterministic SHA-256 hash.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-fastener-and-seal-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png', 'Reactive Wind Class N4 &amp; AutoTek Screw Scaling (Desktop 1600x1000)', 'High-wind N4 uplift scaling (7.5 field / 10.5 perimeter screws/m²) and AutoTek 20mm steel screw profile.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png" alt="Reactive Wind Class N4 &amp; AutoTek Screw Scaling (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-07</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Reactive Wind Class N4 &amp; AutoTek Screw Scaling (Desktop 1600x1000)</h4>
+          <p class="proof-desc">High-wind N4 uplift scaling (7.5 field / 10.5 perimeter screws/m²) and AutoTek 20mm steel screw profile.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-wind-n4-fastener-update-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png', 'Flashing &amp; Fixing Schedule Responsive Viewport (Tablet 1024x768)', 'Tablet landscape verification showing non-clipping controls, fluid typography, and zero horizontal scroll.', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png" alt="Flashing &amp; Fixing Schedule Responsive Viewport (Tablet 1024x768)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-07</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Flashing &amp; Fixing Schedule Responsive Viewport (Tablet 1024x768)</h4>
+          <p class="proof-desc">Tablet landscape verification showing non-clipping controls, fluid typography, and zero horizontal scroll.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-tablet-1024x768.png</div>
+      </div>
+    </div>
+  
     <div class="proof-card" data-category="Roofing &amp; Cladding"
          onclick="openLightbox('proof/growth/2026-09-19-sc06-stock-nesting/captures/sc06-stock-nesting-kpi-controls-desktop-1600x1000.png', 'Stock Nesting KPI Summary Cards &amp; Parameters (Desktop 1600x1000)', 'Interactive cutting stock controls (5mm kerf, stock sizes, 1.20m offcut threshold) and 5 KPI cards (Total Stock Ordered, Net Cut Length, Reusable Offcuts, Scrap Waste, Net Material Cost).', 'proof/growth/2026-09-19-sc06-stock-nesting/captures/sc06-stock-nesting-kpi-controls-desktop-1600x1000.png')">
       <div class="thumb-wrapper">

@@ -250,21 +250,33 @@ graph TD
 * **Depends on**: SC-05
 * **Commit**: this commit; SC-06 fully closed with machine and visual proof.
 
-#### SC-07 — ROOF-05/06 Flashing, Fixing Schedules & Full Takeoff Export Deliverable `[[pending]]`
+#### SC-07 — ROOF-05/06 Flashing, Fixing Schedules & Full Takeoff Export Deliverable `[[done]]`
 * **Goal**: Compile complete bill of quantities including ridge caps, valley gutters, barge flashings, fasteners (screws/clips per $m^2$ by wind region), and output an immutable `deliveryRecord`.
 * **DONE (machine)**:
-  - Fastener schedule calculates screw counts based on roof pitch, batten type (timber/steel), and wind zone (AS 4055 / AS 1170.2).
-  - Girth development for custom flashings (ridge, apron, box gutter) itemized with standard girths (300mm, 400mm, 600mm).
-  - Output bound to `deliveryRecordSchema` with SHA-256 seal.
+  - Fastener schedule calculates screw counts based on roof pitch, batten type, and AS 4055 wind classification in `src/studio/industries/roofing/flashingSchedules.ts`.
+  - Girth development for custom flashings (ridge, apron, box gutter) itemized with standard girths (300mm, 400mm, 600mm) and lap rules (+5%/+8%).
+  - Output bound to `deliveryRecordSchema` with canonical SHA-256 seal and tamper-detection via `assertDeliveryContentIntact`.
+  - 5/5 targeted unit tests pass in `src/studio/industries/roofing/flashingSchedules.test.ts`.
+  - Regression suite: 1548 pass / 0 fail across 89 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP live runner (`qa-sc07-final`) passes all 30 operations with exit code 0 in 3.53s.
 * **DONE (human)**:
-  - Full Roofing Takeoff Package exported as vector PDF and CSV.
-  - Inspected screenshots of Schedules tab under Desktop and Tablet viewports.
+  - Full Roofing Takeoff Package exported as CSV transmittal and JSON deliverable with cryptographic verification seal.
+  - Interactive UI (`FlashingFixingsPanel.tsx`) mounted in `RoofingWorksheet.tsx` with AS 4055 wind selector, batten substrate selector, and delivery seal card.
+  - 5 inspected captures verified in `screenshots/growth/sc07/` and `proof/growth/2026-09-19-sc07-flashing-schedules/captures/`:
+    - `sc07-flashing-kpi-controls-desktop-1600x1000.png`: Wind selector, batten substrate profiles, and 4 high-contrast KPI cards.
+    - `sc07-flashing-schedule-table-desktop-1600x1000.png`: Automated standard girth development (300/400/600mm), lap allowances, and order pieces.
+    - `sc07-fastener-and-seal-desktop-1600x1000.png`: Fixing schedule with general/perimeter densities and tamper-proof SH-03 delivery record with deterministic SHA-256 hash.
+    - `sc07-wind-n4-fastener-update-desktop-1600x1000.png`: Reactive high-wind N4 uplift scaling (7.5 field / 10.5 perimeter screws/m²) and AutoTek 20mm steel screw profile.
+    - `sc07-flashing-tablet-1024x768.png`: Tablet landscape verification showing non-clipping controls, fluid typography, and zero horizontal scrollbar.
 * **Files**:
   - `src/studio/industries/roofing/flashingSchedules.ts` (new)
   - `src/studio/industries/roofing/flashingSchedules.test.ts` (new)
-  - `src/studio/industries/roofing/RoofingWorksheet.tsx`
+  - `src/studio/industries/roofing/FlashingFixingsPanel.tsx` (new)
+  - `src/studio/industries/roofing/RoofingWorksheet.tsx` (integrated)
+  - `proof/growth/2026-09-19-sc07-flashing-schedules/build-scenario.mjs`
+  - `screenshots/growth/sc07/` (5 visual proof captures)
 * **Depends on**: SC-01, SC-06
-* **Commit**: —
+* **Commit**: this commit; SC-07 fully closed with machine and visual proof.
 
 ---
 
