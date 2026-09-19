@@ -349,16 +349,17 @@ graph TD
 * **Depends on**: SC-08
 * **Commit**: `0ea3f83`, `a2935a9`, `6a9d5b3`, `378bcd9`, `86e3dc2`. No completion date while partial.
 
-#### SC-10 — QS-04/05 Rate Books, Tax/Currency Normalization, Options & Cost Deltas `[[pending]]`
+#### SC-10 — QS-04/05 Rate Books, Tax/Currency Normalization, Options & Cost Deltas `[[done]]`
 * **Goal**: Connect contractor rate books with supplier references, support multi-currency/tax normalization (e.g. GST), alternative option sections, and compute cost deltas against prior revisions.
-* **Proof**: Source and mounted worksheet in `a2935a9`; focus tests in `6a9d5b3`; exact-quantity / use-measured source in `378bcd9`. Frozen 9abf machine gate is 1951/1951, tsc 0, scoped lint 0. Browser: `sc10-9abf4c807030-dev1` failed at 113/289 on Modified-badge contrast 4.16:1; CSS overlay later measured 5.34:1. Latest campaign `sc10-9abf4c807030-css1` is **FAIL 170/289**: typed `6` vs measured `5.999999930955706 m`. Pricing stayed withheld. Use-measured / 297-op scenario is authored, **not executed**. E-08/E-11 are catalogue **partial**, not verified. Evidence: `proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/` and [AZ-PARTIAL-ASSESSMENT.md](proof/growth/2026-09-19-sc10-qs-rate-delta/AZ-PARTIAL-ASSESSMENT.md).
+* **Proof**: [SC10-USE-MEASURED-01](proof/growth/2026-09-20-sc10-use-measured/steps/SC10-USE-MEASURED-01.md): DANS1 **297/297 PASS**, 14 inspected desktop/tablet screenshots, exact code diff, current tracked source `545d25f` (not an overlay). Actual measured-copy action persists `5.999999930955706 m`; typed `6` plus bind-only stays stale and unpriced. No evidence or geometry promotion. Historical `dev1` 113/289 and `css1` 170/289 FAIL receipts remain preserved. Catalogue E-08/E-11 remain partial; this is SC-10 acceptance, not native/deployment or supplier certification.
 * **DONE (machine)**:
   - Rate book schema supports unit rates, labor/material splits, markup percentages, and wastage factors.
   - Cost delta calculator computes: $\Delta\text{ Quantity}$, $\Delta\text{ Unit Rate}$, $\Delta\text{ Scope}$ between Revision N and Revision N-1.
   - Alternative scope options kept isolated from base tender sum until activated.
-  - Rate-book and delta unit tests exist on the 9abf snapshot; later use-measured tests in `378bcd9` are not a new full-suite receipt.
-* **NOT DONE (human)**:
-  - Cost Comparison Drawer exists (green/red/amber). Latest browser still **FAIL** at exact-metre vs six-decimal pricing. Contrast fix is overlay-only. No tablet/native/live-supplier acceptance. Do not tick.
+  - Current-source QS tests 270/270, full TypeScript exit 0; scoped lint 0 errors / 16 warnings. Existing broad gate remains 1951/1951 on 9abf. Additional npm-test diagnostic was incomplete because the transferred test package omitted three PDF fixtures; no newer full-suite pass is claimed.
+* **DONE (human)**:
+  - Real mounted drawer, green/red/amber labels, keyboard containment and text contrast passed the 297-op campaign. All 14 screenshots inspected at 1600×1000 and 1024×768. Exact stored measurement, distinct bind-only/copy actions, stale withholding, quantity/rate/scope reconciliation and reload passed. Controlled fixtures only; no live supplier, native or deployment acceptance.
+* **Completed**: 2026-09-20T00:40:37+10:00
 * **Files**:
   - `src/studio/industries/quantity-surveying/qsRateBook.ts` (new)
   - `src/studio/industries/quantity-surveying/qsRateBook.test.ts` (new)
@@ -366,7 +367,7 @@ graph TD
   - `src/studio/industries/quantity-surveying/QSWorksheet.tsx`
   - `src/studio/industries/quantity-surveying/quantityForm.ts`
 * **Depends on**: SC-09
-* **Commit**: `a2935a9`, `6a9d5b3`, `378bcd9`. Status remains `[[pending]]`.
+* **Commit**: implementation `a2935a9`, `6a9d5b3`, `378bcd9`; source qualified at `545d25f`. Proof/docs checkpoint awaiting Daniel's explicit path approval.
 
 #### SC-11 — QS-06 End-to-End Auditable Cost Plan Deliverable Export & Reopen `[[pending]]`
 * **Goal**: Package and export a complete professional Cost Plan package with transmittal metadata, classification breakdown (Elements / Sub-elements), basis of estimate, exclusions, and sealed SHA-256 hash.
@@ -571,7 +572,7 @@ graph TD
 | **SC-07** | ROOF-05/06 Flashing, Fixings & Takeoff Deliverable | Portion 2 | `[[done]]` | 5 fixtures pass, roofing suite 50 pass / 0 fail, tsc 0, live CDP exit 0 (41 ops, 1.83 s) | Desktop 1600×1000 + Tablet 1024×768: girth schedule, N4/steel fastener scaling, a real `.json` deliverable download, and a tampered seal rejected then restored | this commit |
 | **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[done]]` | 60 QS tests pass, tsc 0, live CDP exit 0 | Desktop 1600×1000 + Tablet 1024×768: overlap warning, hierarchy table, subtree filter and unassigned filter inspected | this commit |
 | **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[partial]]` | 1951 on 9abf | combined2 84/84 + built2 89/89 (construction-run only; room/roof open) | `86e3dc2` |
-| **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[pending]]` | 1951 on 9abf; later use-measured unexecuted | **FAIL** css1 170/289 (`6` vs `5.999999930955706 m`) | `378bcd9` WIP |
+| **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
 | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[pending]]` | Exporter tests; panel unmounted | Overlay PDF only; no mounted UI | `378bcd9` WIP |
 | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[pending]]` | Pending | Required (3D Section Preview) | — |
 | **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[pending]]` | Pending | Required (3D Clash Highlights)| — |

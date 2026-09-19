@@ -1,0 +1,336 @@
+diff --git a/src/studio/industries/quantity-surveying/QSWorksheet.css b/src/studio/industries/quantity-surveying/QSWorksheet.css
+index c97071d..45aa8a5 100644
+--- a/src/studio/industries/quantity-surveying/QSWorksheet.css
++++ b/src/studio/industries/quantity-surveying/QSWorksheet.css
+@@ -4,7 +4,8 @@
+   --qs-positive-surface: #eef9f0;
+   --qs-negative: var(--color-danger);
+   --qs-negative-surface: color-mix(in srgb, var(--color-danger) 8%, var(--color-paper));
+-  --qs-change: var(--color-warn);
++  /* Keep the amber meaning, with AA headroom on both light and navy skins. */
++  --qs-change: color-mix(in srgb, var(--color-warn) 80%, var(--color-ink));
+   --qs-change-surface: color-mix(in srgb, var(--color-warn) 8%, var(--color-paper));
+   color: var(--color-ink);
+   font: inherit;
+@@ -44,7 +45,7 @@
+ .qs-cost-workspace .qs-cost-check { display: flex; gap: 10px; align-items: center; min-height: 44px; color: var(--color-ink); }
+ .qs-cost-check input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: var(--color-action); }
+ .qs-cost-warning,
+-.qs-cost-blockers { margin: 0; padding: 12px; border: 1px solid var(--color-warn); border-radius: var(--radius-pill); color: var(--color-warn); background: var(--qs-change-surface); overflow-wrap: anywhere; }
++.qs-cost-blockers { margin: 0; padding: 12px; border: 1px solid var(--qs-change); border-radius: var(--radius-pill); color: var(--qs-change); background: var(--qs-change-surface); overflow-wrap: anywhere; }
+ .qs-cost-blockers h4 { font-size: 13px; margin: 0 0 8px; font-weight: 700; }
+ .qs-cost-blockers ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+ .qs-cost-notice { margin: 0; padding: 12px; border: 1px solid var(--qs-positive); border-radius: var(--radius-pill); background: var(--qs-positive-surface); color: var(--qs-positive); }
+diff --git a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+index 9208e19..5fb6bf4 100644
+--- a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
++++ b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+@@ -6,7 +6,7 @@ import type { IndustryDraftPanelProps, IndustryGeometryEntitySource } from "../d
+ import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
+ import {
+   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
+-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
++  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withMeasuredQuantityBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
+ } from "./quantityForm";
+ import { createEmptyQsWorksheetState, type QsWorksheetState } from "./qsWorksheetState";
+ import { useQsPricing } from "./qsPricingContext";
+@@ -135,6 +135,17 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
+     ? "A supplier library for the current project is not connected. Pricing remains withheld."
+     : pricingSource.error ?? (pricingSource.loading || !pricingSource.library ? "Loading this project's supplier library. Pricing remains withheld." : null);
+   const pricingProjectMismatch = pricing !== null && pricing.projectId !== source.projectId;
++  const measurementCopyReady = !disabled && !geometryPending && !pricingUnavailable && !pricingProjectMismatch && Boolean(pricingSource?.sourceReady);
++  const copyMeasuredQuantity = (itemKey: string) => {
++    try {
++      const item = value.items.find(row => row.key === itemKey);
++      const next = withMeasuredQuantityBinding(value, itemKey, { source,
++        entity: item?.entityBinding ? entities.get(item.entityBinding.entityId) ?? null : null,
++        ready: measurementCopyReady, boundAt: new Date().toISOString() });
++      setError("");
++      onChange(next);
++    } catch (cause) { setError(cause instanceof Error ? cause.message : "The current measured quantity could not be copied. Existing inputs were preserved."); }
++  };
+   const changePricing = (next: QsWorksheetState) => {
+     try {
+       if (disabled || pricingUnavailable || pricingProjectMismatch || !pricingSource?.sourceReady || geometryPending)
+@@ -304,6 +315,12 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
+         {item.entityBinding ? <button type="button" onClick={() => {
+           if (item.entityBinding) bindItem(item.key, item.entityBinding.entityId);
+         }}>Rebind current geometry</button> : null}
++        {item.entityBinding ? <button type="button"
++          disabled={!measurementCopyReady || item.evidence !== "unverified" || !entities.has(item.entityBinding.entityId)
++            || item.entityBinding.projectId !== source.projectId || !source.sourceRevision || !source.calibrationId
++            || entities.get(item.entityBinding.entityId)?.sourceSha256 !== source.sourceRevision.sha256
++            || entities.get(item.entityBinding.entityId)?.calibrationId !== source.calibrationId}
++          onClick={() => copyMeasuredQuantity(item.key)}>Use measured quantity and rebind</button> : null}
+         <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => removeQuantity(item.key)}>Remove quantity</button>
+       </div>)}
+       <button type="button" disabled={value.items.length >= 10000} onClick={() => edit({ ...value, items: [...value.items, { key: crypto.randomUUID(), reference: "", quantity: "", unit: "", evidence: "unverified", nodeKey: "" }] })}>Add quantity</button>
+diff --git a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+index 13469a0..1e6b2d2 100644
+--- a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
++++ b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+@@ -147,3 +147,18 @@ test('SC10 host storage errors keep mounted cost mutations disabled', () => {
+   assert.match(html, /<fieldset disabled="" class="qs-cost-section">/);
+   assert.match(html, /disabled="">Save immutable cost revision 1/);
+ });
++
++test('SC10 measured-copy action is distinct from bind-only and disabled before current geometry is ready', () => {
++  const value: QuantityForm = { ...form, items: form.items.map((item, index) => index ? item : { ...item,
++    entityBinding: { format: 'xray.qs-item-binding/v1', itemId: item.reference, projectId: SOURCE.projectId,
++      entityId: 'measured-run', entityType: 'wall-run', measuredQuantity: '5.999999930955706', unit: 'm',
++      entityGeometrySha256: 'b'.repeat(64), sourceSha256: SHA, calibrationId: 'cal-1',
++      boundAt: '2026-09-19T04:00:00.000Z', boundBy: 'Estimator' } }) };
++  for (const pricing of [PRICING_SOURCE, { ...PRICING_SOURCE, sourceReady: false }, { ...PRICING_SOURCE, projectId: 'old-project' }]) {
++    const html = renderPricing(value, pricing);
++    assert.match(html, /<button type="button">Rebind current geometry<\/button>/, 'existing action keeps bind-only semantics');
++    assert.match(html, /<button type="button" disabled="">Use measured quantity and rebind<\/button>/);
++    assert.match(html, /maxLength="80" value="0.1"/, 'mounting never copies measurement implicitly');
++  }
++  assert.doesNotMatch(renderPricing(form, PRICING_SOURCE), /Use measured quantity and rebind/, 'unbound rows must first choose an entity');
++});
+diff --git a/src/studio/industries/quantity-surveying/qsRateBook.test.ts b/src/studio/industries/quantity-surveying/qsRateBook.test.ts
+index 90b6d24..f62bc13 100644
+--- a/src/studio/industries/quantity-surveying/qsRateBook.test.ts
++++ b/src/studio/industries/quantity-surveying/qsRateBook.test.ts
+@@ -2,9 +2,10 @@ import test from "node:test";
+ import assert from "node:assert/strict";
+ import {
+   appendQsRateRevision, calculateQsCostPlan, canonicalQsJson, createQsRateBook,
+-  parseQsCostSnapshot, qsCostInputSchema, qsDecimalSchema, qsRateBookSchema,
++  parseQsCostSnapshot, qsCostInputSchema, qsDecimalSchema, qsQuantityDecimalSchema, qsRateBookSchema,
+   type QsCostInput, type QsCostSnapshot,
+ } from "./qsRateBook.ts";
++import { compareQsCostPlans } from "./qsDeltaComparison.ts";
+ 
+ const BOOK = "11111111-1111-4111-8111-111111111111";
+ const HASH = "a".repeat(64), GEOMETRY = "b".repeat(64);
+@@ -207,3 +208,43 @@ test("SC10-21 effective/import instants accept equality across equivalent timest
+   const input = fixture(); input.priceBooks.books[0].revisions[0].importedAt = "2026-09-19T04:00:00Z";
+   assert.equal(snapshot(input).baseTotal.totalMinor, 5148);
+ });
++
++test("SC10-22 actual canvas precision survives pricing, allowance, immutable reopen and exact delta", () => {
++  const input = fixture(); setQuantity(input, "5"); const previous = snapshot(input);
++  input.revision = 2; setQuantity(input, "5.999999930955706");
++  const current = snapshot(input), encoded = canonicalQsJson(current);
++  assert.equal(current.input.items[0].quantity, "5.999999930955706");
++  assert.equal(current.items[0].binding.measuredQuantity, "5.999999930955706");
++  assert.equal(current.items[0].adjustedMaterialQuantity, "6.5999999240512766");
++  assert.equal(current.baseTotal.totalMinor, 10296);
++  assert.equal(canonicalQsJson(parseQsCostSnapshot(JSON.parse(encoded))), encoded);
++  const delta = compareQsCostPlans(previous, current);
++  assert.equal(delta.rows[0].quantityDelta, "0.999999930955706");
++  assert.deepEqual(delta.totals, { quantityMinor: 1716, rateMinor: 0, scopeMinor: 0, totalMinor: 1716 });
++  input.items[0].quantity = "6";
++  blocked(input, "binding");
++  assert.equal(canonicalQsJson(current), encoded, "a later typed rounded quantity cannot alter the frozen snapshot");
++});
++
++test("SC10-23 quantity digits are never truncated before half-cent extension rounding", () => {
++  const input = fixture();
++  input.rateBook.rates[0].labour = null; input.rateBook.rates[0].wastagePercent = "0"; input.rateBook.rates[0].markupPercent = "0";
++  metadata(input).taxPercent = 0; supplierRows(input)[0].rate = 0.005;
++  setQuantity(input, `0.${"9".repeat(78)}`);
++  assert.equal(snapshot(input).baseTotal.totalMinor, 0, "every digit keeps the exact extension below half a cent");
++  setQuantity(input, "1");
++  assert.equal(snapshot(input).baseTotal.totalMinor, 1, "exactly half a cent rounds up only at the extension boundary");
++});
++
++test("SC10-24 bounded maximum-precision quantity and allowance remain exact", () => {
++  const input = fixture(), quantity = `0.${"0".repeat(77)}1`;
++  setQuantity(input, quantity); input.rateBook.rates[0].wastagePercent = "0.000001";
++  const current = snapshot(input);
++  assert.equal(current.items[0].quantity, quantity);
++  assert.equal(current.items[0].adjustedMaterialQuantity, `0.${"0".repeat(77)}100000001`);
++  assert.equal(current.baseTotal.totalMinor, 0);
++  assert.equal(qsQuantityDecimalSchema.parse("5.99999993095570600"), "5.999999930955706");
++  for (const value of ["1e-7", "-1", "+1", ".5", "01", "1000000000000", `0.${"1".repeat(79)}`, 5.999999930955706])
++    assert.equal(qsQuantityDecimalSchema.safeParse(value).success, false, String(value));
++  assert.equal(qsDecimalSchema.safeParse("5.999999930955706").success, false, "rate/tax/FX precision is unchanged");
++});
+diff --git a/src/studio/industries/quantity-surveying/qsRateBook.ts b/src/studio/industries/quantity-surveying/qsRateBook.ts
+index 186b917..3c4142b 100644
+--- a/src/studio/industries/quantity-surveying/qsRateBook.ts
++++ b/src/studio/industries/quantity-surveying/qsRateBook.ts
+@@ -22,6 +22,13 @@ export function normalizeQsRateUnit(value: string): (typeof QS_RATE_UNITS)[numbe
+ }
+ const canonical = (value: string) => value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value;
+ export const qsDecimalSchema = z.string().max(19).regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/).transform(canonical);
++/** Measured quantities retain every accepted digit. The 80-character bound
++ * matches the worksheet/binding contract; rates, percentages and FX retain
++ * their separate six-decimal contract. No display rounding enters pricing. */
++const MAX_QUANTITY_DECIMAL_CHARACTERS = 80;
++const MAX_QUANTITY_FRACTION_DIGITS = MAX_QUANTITY_DECIMAL_CHARACTERS - 2;
++export const qsQuantityDecimalSchema = z.string().max(MAX_QUANTITY_DECIMAL_CHARACTERS)
++  .regex(/^(?:0|[1-9]\d{0,11})(?:\.\d+)?$/).transform(canonical);
+ const percent = qsDecimalSchema.refine(value => decimal(value).n <= 1000n * decimal(value).d, "Percentage must not exceed 1000.");
+ export const qsRatePinSchema = z.object({ bookId: z.string().uuid(), bookRevision: revision, sourceLine: z.number().int().positive().max(1000000) }).strict();
+ export type QsRatePin = z.infer<typeof qsRatePinSchema>;
+@@ -73,7 +80,7 @@ export function appendQsRateRevision(rawBook: QsRateBook, rawRate: QsRateRevisio
+ }
+ 
+ export const qsCostItemSchema = z.object({
+-  itemId: text, description: text, quantity: qsDecimalSchema, unit: measuredUnit,
++  itemId: text, description: text, quantity: qsQuantityDecimalSchema, unit: measuredUnit,
+   evidence: z.enum(["unverified", "inferred", "sample"]),
+   binding: qsItemBindingSchema.nullable(), entity: qsEntityGeometrySchema.nullable(),
+   rateId: text, rateRevision: revision, optionId: text.nullable(),
+@@ -231,7 +238,8 @@ function rationalDecimal(value: Rational): string {
+   const d = value.d;
+   const whole = n / d; n %= d;
+   let fraction = "";
+-  while (n && fraction.length < 30) { n *= 10n; fraction += (n / d).toString(); n %= d; }
++  // A six-decimal percentage divided by 100 adds at most eight places.
++  while (n && fraction.length < MAX_QUANTITY_FRACTION_DIGITS + 8) { n *= 10n; fraction += (n / d).toString(); n %= d; }
+   if (n) throw Error("The physical allowance did not produce an exact bounded decimal.");
+   return `${whole}${fraction ? `.${fraction.replace(/0+$/, "")}` : ""}`;
+ }
+@@ -248,7 +256,7 @@ function priceComponent(quantity: Rational, source: QsRateSource, markup: string
+ /** Exported for exact counterfactual revision attribution; accepts the already
+  * resolved immutable supplier sources from a validated snapshot. */
+ export function priceQsComponents(quantity: string, rate: QsRateRevision, material: QsRateSource, labour: QsRateSource | null): QsCostTotals & { adjustedMaterialQuantity: string } {
+-  const measured = decimal(qsDecimalSchema.parse(quantity));
++  const measured = decimal(qsQuantityDecimalSchema.parse(quantity));
+   const adjusted = multiply(measured, allowance(rate.wastagePercent));
+   const m = priceComponent(adjusted, material, rate.markupPercent);
+   const l = labour ? priceComponent(measured, labour, rate.markupPercent) : { net: 0n, markup: 0n, tax: 0n };
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.test.ts b/src/studio/industries/quantity-surveying/quantityForm.test.ts
+index 5e7ef90..6c580b6 100644
+--- a/src/studio/industries/quantity-surveying/quantityForm.test.ts
++++ b/src/studio/industries/quantity-surveying/quantityForm.test.ts
+@@ -2,13 +2,13 @@ import { test } from "node:test";
+ import assert from "node:assert/strict";
+ import {
+   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createEmptyQuantityForm, createQuantityBinding,
+-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withQuantityPricing,
++  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withMeasuredQuantityBinding, withQuantityPricing,
+   type QuantityBindingDraft, type QuantityForm,
+ } from "./quantityForm.ts";
+ import {
+   describeIndustryBinding, isVerifiedEvidenceClass, type IndustrySourceState,
+ } from "../sourceBinding.ts";
+-import { QS_ITEM_BINDING_SCHEMA } from "./qsItemBinding.ts";
++import { QS_ITEM_BINDING_SCHEMA, evaluateItemBinding, type QsEntityGeometry } from "./qsItemBinding.ts";
+ import { createEmptyQsWorksheetState, qsWorksheetStateSchema } from "./qsWorksheetState.ts";
+ import { emptyPriceBookLibrary } from "../../pricing/priceBooks.ts";
+ import { parseIndustryDraftLibrary } from "../draftStorage.ts";
+@@ -328,3 +328,66 @@ test("SC10 pricing source never reuses another project or a corrupt session reco
+   assert.equal(corrupt.library, null); assert.equal(corrupt.loading, false); assert.equal(corrupt.error, 'Supplier data needs recovery.');
+   assert.equal(qsPricingSource('project-1', { value, raw: null, blocked: false, error: null }, true).library, value);
+ });
++
++function measuredCopyFixture() {
++  const source: IndustrySourceState = { projectId: "copy-project", sourceRevision: { id: "source-1", sha256: "a".repeat(64) }, calibrationId: "cal-1" };
++  const entity: QsEntityGeometry = { entityId: "run-a", entityType: "wall-run", geometrySha256: "c".repeat(64),
++    sourceSha256: source.sourceRevision!.sha256, calibrationId: source.calibrationId, unit: "m", measuredQuantity: "5.999999930955706" };
++  const form = fixture(); form.calculated = true; form.pricing = createEmptyQsWorksheetState(source.projectId);
++  form.items[0].entityBinding = { format: QS_ITEM_BINDING_SCHEMA, itemId: "a", projectId: source.projectId,
++    entityId: entity.entityId, entityType: entity.entityType, entityGeometrySha256: "b".repeat(64),
++    measuredQuantity: "5", unit: "m", sourceSha256: entity.sourceSha256, calibrationId: entity.calibrationId,
++    boundAt: BOUND_AT, boundBy: "Estimator" };
++  return { form, context: { source, entity: entity as QsEntityGeometry | null, ready: true, boundAt: "2026-09-19T04:00:00.000Z" } };
++}
++
++test("SC10 explicit measured copy rebinds exact quantity/unit without changing geometry, evidence or other rows", () => {
++  const { form, context } = measuredCopyFixture(), original = JSON.stringify({ form, context });
++  const next = withMeasuredQuantityBinding(form, "a-key", context), item = next.items[0];
++  assert.equal(item.quantity, "5.999999930955706"); assert.equal(item.unit, "m");
++  assert.equal(item.evidence, "unverified"); assert.equal(next.calculated, false);
++  assert.equal(item.entityBinding!.measuredQuantity, item.quantity);
++  assert.equal(item.entityBinding!.entityGeometrySha256, context.entity!.geometrySha256);
++  assert.equal(item.entityBinding!.boundBy, "estimator-use-measured-quantity");
++  assert.equal(next.items[1], form.items[1]); assert.equal(next.pricing, form.pricing);
++  assert.equal(evaluateItemBinding(item.entityBinding!, context.entity, { quantity: item.quantity, unit: item.unit,
++    evidence: item.evidence, projectId: context.source.projectId }).pricingPermitted, true);
++  assert.equal(evaluateItemBinding(item.entityBinding!, context.entity, { quantity: "6", unit: item.unit,
++    evidence: item.evidence, projectId: context.source.projectId }).status, "stale-measurement");
++  assert.deepEqual(quantityFormSchema.parse(JSON.parse(JSON.stringify(next))), next);
++  assert.equal(JSON.stringify({ form, context }), original);
++});
++
++test("SC10 measured copy fails closed for pending, missing, foreign, uncalibrated and ineligible evidence", () => {
++  const changes: Array<(value: ReturnType<typeof measuredCopyFixture>) => void> = [
++    value => { value.context.ready = false; },
++    value => { value.context.entity = null; },
++    value => { value.context.source.sourceRevision = null; },
++    value => { value.context.source.calibrationId = null; },
++    value => { value.context.entity!.sourceSha256 = null; },
++    value => { value.context.entity!.sourceSha256 = "d".repeat(64); },
++    value => { value.context.entity!.calibrationId = "old-cal"; },
++    value => { value.context.entity!.entityId = "different-run"; },
++    value => { value.context.entity!.measuredQuantity = "1e-7"; },
++    value => { value.context.source.projectId = "other-project"; },
++    value => { value.form.pricing = createEmptyQsWorksheetState("other-project"); },
++    value => { value.form.items[0].entityBinding = null; },
++    value => { value.form.items[0].reference = ""; },
++    value => { value.form.items[0].evidence = "sample"; },
++    value => { value.form.items[0].evidence = "inferred"; },
++  ];
++  for (const change of changes) {
++    const value = measuredCopyFixture(); change(value); const before = JSON.stringify(value);
++    assert.throws(() => withMeasuredQuantityBinding(value.form, "a-key", value.context));
++    assert.equal(JSON.stringify(value), before, "refusal preserves all existing inputs");
++  }
++});
++
++test("SC10 measured copy canonicalizes trailing zeroes without rounding or broadening quantity bounds", () => {
++  const { form, context } = measuredCopyFixture(); context.entity!.measuredQuantity = "0.0000001234500";
++  const next = withMeasuredQuantityBinding(form, "a-key", context);
++  assert.equal(next.items[0].quantity, "0.00000012345");
++  assert.equal(next.items[0].entityBinding!.measuredQuantity, "0.00000012345");
++  context.entity!.measuredQuantity = `0.${"1".repeat(79)}`;
++  assert.throws(() => withMeasuredQuantityBinding(form, "a-key", context));
++});
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.ts b/src/studio/industries/quantity-surveying/quantityForm.ts
+index 6c2f55c..d5edb82 100644
+--- a/src/studio/industries/quantity-surveying/quantityForm.ts
++++ b/src/studio/industries/quantity-surveying/quantityForm.ts
+@@ -1,7 +1,8 @@
+ import { z } from "zod";
+ import { classifyQuantities, type ClassificationInput } from "./classification.ts";
+ import type { QuantityReport } from "./report.ts";
+-import { qsItemBindingSchema } from "./qsItemBinding.ts";
++import { QS_ITEM_BINDING_SCHEMA, qsEntityGeometrySchema, qsItemBindingSchema, type QsEntityGeometry } from "./qsItemBinding.ts";
++import { qsQuantityDecimalSchema } from "./qsRateBook.ts";
+ import { qsWorksheetStateSchema, type QsWorksheetState } from "./qsWorksheetState.ts";
+ import { parseIndustryDraftLibrary, updateIndustryDraft } from "../draftStorage.ts";
+ import {
+@@ -95,6 +96,38 @@ export function assignQuantityItem(form: QuantityForm, itemKey: string, nodeKey:
+   return { ...form, calculated: false, items: form.items.map(item => item.key === itemKey ? { ...item, nodeKey } : item) };
+ }
+ 
++/** Explicit estimator action: copy a live exact measurement and bind that same
++ * quantity. It never edits geometry, promotes evidence, or changes the existing
++ * bind-only action. A caller's readiness flag cannot replace source checks. */
++export function withMeasuredQuantityBinding(
++  form: QuantityForm, itemKey: string,
++  context: { source: IndustrySourceState; entity: QsEntityGeometry | null; ready: boolean; boundAt: string },
++): QuantityForm {
++  const { source, ready, boundAt } = context;
++  if (!ready) throw Error("The current project's source and measured geometry must finish loading before copying a quantity.");
++  const item = form.items.find(row => row.key === itemKey);
++  if (!item || !item.entityBinding) throw Error("Select the measured entity for this quantity row first.");
++  if (item.evidence !== "unverified") throw Error("Sample or inferred quantities cannot be promoted to measured evidence.");
++  if (!source.projectId || item.entityBinding.projectId !== source.projectId ||
++      (form.pricing && form.pricing.projectId !== source.projectId))
++    throw Error("The selected quantity binding belongs to another project.");
++  const entity = qsEntityGeometrySchema.parse(context.entity);
++  if (entity.entityId !== item.entityBinding.entityId) throw Error("The selected measured entity changed. Select it explicitly before copying its quantity.");
++  if (!source.sourceRevision || !entity.sourceSha256 || entity.sourceSha256 !== source.sourceRevision.sha256)
++    throw Error("The measured quantity does not belong to the current source document.");
++  if (!source.calibrationId || entity.calibrationId !== source.calibrationId)
++    throw Error("The measured quantity needs the current locked source calibration.");
++  const quantity = qsQuantityDecimalSchema.parse(entity.measuredQuantity);
++  const entityBinding = qsItemBindingSchema.parse({
++    format: QS_ITEM_BINDING_SCHEMA, itemId: item.reference.trim(), projectId: source.projectId,
++    entityId: entity.entityId, entityType: entity.entityType, measuredQuantity: quantity, unit: entity.unit,
++    entityGeometrySha256: entity.geometrySha256, sourceSha256: entity.sourceSha256,
++    calibrationId: entity.calibrationId, boundAt, boundBy: "estimator-use-measured-quantity",
++  });
++  return { ...form, calculated: false, items: form.items.map(row => row.key === itemKey
++    ? { ...row, quantity, unit: entity.unit, entityBinding } : row) };
++}
++
+ /** What the user types to bind. Project, revision, hash and calibration are read from the live source
+  * state, never from these fields, so a typed value can never masquerade as source identity. Quantity
+  * rows carry their own units, so the source's length unit is an explicit choice, never an assumed one.
