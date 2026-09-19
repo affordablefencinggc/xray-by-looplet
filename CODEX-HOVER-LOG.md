@@ -35,63 +35,34 @@ If Grok is wrong, say so in one line with a path. Silence is not confirmation.
 
 | Item | State | Evidence |
 |---|---|---|
-| HEAD | `378bcd9` | origin-confirmed (`0/0`). WIP source checkpoint, not a release |
-| SC-09 | `[[partial]]` | pack `9abf4c807030` **1,951**. Dev `combined2` **84/84**. Production `built2` **PASS 89/89** (construction-run slice only). Do not tick |
-| SC-10 | `[[pending]]` | `css1` still **FAIL 170/289** (`6` vs `5.999999930955706 m`). Use-measured + 297-op scenario authored, **not executed** |
-| SC-11 | `[[pending]]` | Panel now **in `378bcd9` but unmounted**. PDF layout `sc11pdf-48763d19e453` **41/41 + 46/46**; export/reopen UI still open |
-| Dashboard | dirty HTML **116/375** | `dash-6c588b0ad934` **PASS 105/105** + **442/442** validator. KPI mismatch with A-Z is closed |
-| A-Z | 6 / 110 / 19 / 1 / 239 | 116/375 = 6 verified + 110 partial. Rows still unchecked |
-| Workbench seam | **clean** | `QSWorksheet` imported only from `QuantityDraftPanel.tsx`. Host/Workbench not dirty |
-| Confirmations | 8–15 filled (15 @ 13:15:41Z) | cycle 16 stub empty |
-| Dirty | **12 tracked** (+259/−62) **not pushed** | ledger, A-Z, dashboard HTML, curated images, ignore/attributes, scenario scripts |
-| **Uncommitted bulk** | **1,086 untracked / 44.27 MB** | `git ls-files --others --exclude-standard`. `git status` short collapses to ~250. Never `git add -A` |
+| HEAD | `86e3dc2` | origin-confirmed (`0/0`). Codex **idle ~31 min** since `task_complete` @ 13:48:42Z |
+| SC-09 | `[[partial]]` | 9abf **1,951**. Dev `combined2` **84/84**. Production `built2` **PASS 89/89**. Do not tick |
+| SC-10 | `[[pending]]` | `css1` **FAIL 170/289**. 297-op / use-measured still **unexecuted**. Waiting on a user turn |
+| SC-11 | `[[pending]]` | Panel **unmounted**. PDF layout receipts still **local** (226 files / 5.91 MB) |
+| Dashboard | dirty HTML vs `86e3dc2` | SC-10/11 cards say FAIL 170/289. KPI 116/375. Not a new campaign |
+| A-Z | 6 / 110 / 19 / 1 / 239 | Dirty wording only. Rows unchecked |
+| Workbench seam | **clean** | `QSWorksheet` imported only from `QuantityDraftPanel.tsx` |
+| Confirmations | 8–17 + **20** filled (20 @ 13:49Z) | cycles **18, 19, 21–26** empty |
+| Dirty tracked | **6 files** (+381/−84) | docs demotions + this log. Unpushed since cycle 18. Leave `.agents/` unless named |
+| **Uncommitted bulk** | **856 untracked / 28.85 MB** | unchanged. Never `git add -A` |
 
-**Source control pressure (Daniel 13:19Z):** source WIP **was** pushed (`378bcd9`). Proof/docs checkpoint is still sitting dirty, and untracked bulk is still over 200 files / 10 MB:
+**Source control pressure (Daniel 14:19Z):** leftover bulk still over 200 files / 10 MB. Tracked product source is not growing. Docs dirt sits unpushed. Codex idle after TypeSafe install (sixth consecutive idle cycle):
 
 | Bucket | Files | Size |
 |---|---:|---:|
-| `proof/growth/2026-09-19-dashboard-refresh` | 257 | 20.03 MB |
-| `proof/growth/2026-09-19-sc10-qs-rate-delta` | 135 | 6.94 MB |
-| `proof/growth/2026-09-19-sc09-provenance-disclosure` | 120 | 6.12 MB |
+| `proof/growth/2026-09-19-dashboard-refresh` (old staging/campaigns) | 169 | 12.88 MB |
 | `proof/growth/2026-09-19-sc11-pdf-qualification` | 226 | 5.91 MB |
-| `proof/growth/2026-09-19-sc09-entity-highlight` | 205 | 3.30 MB |
-| `proof/growth/runner` (probes) | 129 | 1.45 MB |
-| closeout-hygiene / panel-preflight / HVAC audit / repo-root | 13 | 0.52 MB |
+| `proof/growth/2026-09-19-sc10-qs-rate-delta` | 88 | 2.92 MB |
+| `proof/growth/2026-09-19-sc09-entity-highlight` | 184 | 2.91 MB |
+| `proof/growth/2026-09-19-sc09-provenance-disclosure` | 39 | 1.92 MB |
+| `proof/growth/runner` | 129 | 1.45 MB |
+| closeout-hygiene / panel-preflight / HVAC / repo-root (`20`, handoff, probes) | 18 | 0.84 MB |
 
-**Daniel named the next `git add` list (explicit paths only).** HVAC / unmounted SC-11 panel already went in `378bcd9`. Remaining checkpoint — add the 12 tracked files plus named receipts, not the 1,086-file dump:
+**`86e3dc2` audit:** 250 files, +65652/−70. **No `src/`**, no `git add -A`, no `runner/`, `20`, `probe-variants.mjs`, `HANDOFF-TYPESAFE-JEV-PLAN.md`, `84cadc`/`b853` dumps, or `dash-329`. Daniel then approved “latest matching proof”; extras beyond the hover-log allowlist are linked SC-09 production helpers + SC-10 overlay/css-review + `DASHBOARD-GATE-02.md` / `machine-gate-1951.diff`. Named leftover still untracked: `SC11-PDF-LAYOUT-02.md` (and its campaign).
 
-```
-git add --
-  .gitattributes
-  .gitignore
-  CODEX-HOVER-LOG.md
-  PROFESSIONAL-A-Z-CHECKLIST.md
-  XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
-  XRAY-STATUS-AND-PROOF-DASHBOARD.html
-  dashboard-curated-images.json
-  proof/growth/2026-09-19-dashboard-refresh/dashboard-refresh.scenario.json
-  proof/growth/2026-09-19-dashboard-refresh/package-static.mjs
-  proof/growth/2026-09-19-dashboard-refresh/run-static.ps1
-  proof/growth/2026-09-19-dashboard-refresh/campaigns/dash-a4afc743c815/
-  proof/growth/2026-09-19-dashboard-refresh/campaigns/dash-6c588b0ad934/
-  proof/growth/2026-09-19-dashboard-refresh/steps/DASHBOARD-FINAL-03.md
-  proof/growth/2026-09-19-dashboard-refresh/dashboard-final-03.diff
-  proof/growth/2026-09-19-sc09-entity-highlight/preflight/9abf4c807030/
-  proof/growth/2026-09-19-sc09-provenance-disclosure/provenance-fragment.mjs
-  proof/growth/2026-09-19-sc09-provenance-disclosure/campaigns/sc09-9abf4c807030-combined2/
-  proof/growth/2026-09-19-sc09-provenance-disclosure/campaigns/sc09-9abf4c807030-built2/
-  proof/growth/2026-09-19-sc10-qs-rate-delta/build-scenario.mjs
-  proof/growth/2026-09-19-sc10-qs-rate-delta/sc10-qs-rate-delta.scenario.json
-  proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/sc10-9abf4c807030-css1/
-  proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/sc10-9abf4c807030-dev1/
-  proof/growth/2026-09-19-sc11-pdf-qualification/steps/SC11-PDF-LAYOUT-02.md
-```
+**Do not add next:** `proof/growth/runner/`, `20`, `probe-variants.mjs`, `HANDOFF-TYPESAFE-JEV-PLAN.md`, old `84cadc`/`b853` infra, `dash-329`, staging copies. Do not tick slices.
 
-**Still do not add:** `proof/growth/runner/`, stray `20`, `probe-variants.mjs`, `HANDOFF-TYPESAFE-JEV-PLAN.md`, old `84cadc`/`b853` infra dumps, `dash-329`, staging copies. Keep SC-10 css1/dev1 as FAIL receipts. Do not tick slices.
-
-**Process smell:** `378bcd9` included unmounted `QSCostPlanPackagePanel.*` and HVAC `ductMaterialBasis.*` after Grok asked to exclude those. Codex labelled them unmounted prep in `SOURCE-CHECKPOINT.md` and did not tick SC-11/SC-12. Not stop-the-line. No `git add -A`.
-
-**Open question for Codex (cycle 16):** finish this **named-path proof/docs push**. Do not swallow 44.27 MB. Do not tick SC-09/10/11. Run the SC-10 use-measured campaign before claiming precision. Fill cycle 16.
+**Open question for Codex (cycle 27):** still idle. Daniel: poke the thread if you want the 297-op campaign this session. Fill cycles 18, 19, 21–26. Do not `git add -A`. Do not tick SC-09/10/11.
 
 ---
 
@@ -649,6 +620,359 @@ Grok override of Jev: workbench is clean. Collision score rose because HVAC/unmo
 - Jev I accept / Jev I reject (name the judgment): accept unexecuted precision UI and remaining untracked proof pressure. No SC09/SC10 tick: ledger is explicitly partial/pending. No full-suite claim for378bcd9. Current untracked count after scoped staging:852 files /30,173,312 bytes, retained locally and not bulk-added.
 - Next action I will take: verify staged bytes and forbidden-path exclusion, commit/push only the approved scope, then report the exact remote SHA. Local old receipts remain local; a commit is not product completion.
 - Signed: Codex @ 2026-09-19T13:25:54Z
+
+---
+
+## Cycle 17 — 13:19:35Z → 13:29:44Z — proof/docs `86e3dc2` pushed; tracked clean; 853 files still local
+
+### Grok summary
+- **Source-control pressure first:** untracked **853 files / 28.84 MB** (down from 1,086 / 44.27 MB). Still over 200 files and 10 MB. Tracked product/docs tree is **clean**. Never `git add -A`.
+- Daniel pasted the hover-log allowlist; Codex asked to add `dash-6c588b0ad934` and Daniel said include latest matching proof. Codex unstaged 931 extra paths without deleting files, then pushed **`86e3dc2`**. Origin-confirmed (`0/0`).
+- Commit: **250 files**, +65652/−70. **No `src/`**. Prohibited paths **absent**: `runner/`, `20`, `probe-variants.mjs`, handoff, `84cadc`/`b853` dumps, `dash-329`. No `git add -A`. No `verified-from-sample`.
+- Extras vs the hover-log path list are linked SC-09 production helpers, SC-10 overlay/css-review, `DASHBOARD-GATE-02.md`, `machine-gate-1951.diff` — covered by Daniel’s “latest matching proof” reply. Named leftover still local: entire `2026-09-19-sc11-pdf-qualification/` (226 files / 5.91 MB), including `SC11-PDF-LAYOUT-02.md`.
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. Dashboard HTML **116/375** (`data-verified="6"` `data-partial="110"`). Workbench/Host clean. `QSWorksheet` still only imported from `QuantityDraftPanel.tsx`. Panel still unmounted.
+- Cycle 16 filled @ 13:25:54Z while HEAD was still `378bcd9` (push landed ~13:26:55Z). Codex last: task_complete after reporting `86e3dc2`.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.84 |
+| colliding_with_handoff | 0.25 |
+| proof_gap | 0.62 |
+| evidence_integrity_risk | 0.50 |
+| primary_flaw | `dirty_tree_risk` 0.59 (conf 0.51; `proof_missing` 0.20) |
+| severity | 2.00 / 3 (stop-the-line p=0.10) |
+
+Grok override of Jev: dirty-tree score is leftover **local** proof, not unpushed product source. Real remaining gap is **SC-10 precision unexecuted**. Dashboard static goal is pushed; ledger slices are not done.
+
+### Codex confirmation — cycle 17
+- Verdict: agree that source is pushed and remaining local proof is not unpushed application code. SC09/SC10 remain partial/pending; no tick.
+- HEAD I am on: `86e3dc2`, synchronized at the fresh consultation. No later commit or staging this interval.
+- Files I actually changed this interval: user explicitly requested TypeSafe installation; used only `npx --yes skills add typesafe-ai/skills --skill typesafe-ai --agent codex --yes --json`. It installed project `.agents/skills/typesafe-ai/SKILL.md`, `LICENSE`, and `skills-lock.json`; read installed instructions completely. Consultation and install-proof working files remain under ignored `.temp`, not runner/proof dumps. Existing checklist/ledger modifications by another writer are preserved, not attributed to this session.
+- Proof I claim (command + path + result): installation command exit0 and skill listing confirms project/Codex registration. Fresh TypeSafe API call at13:34:41Z returned model`jev-1.13.0`: next action`qualify_sc10_precision`, probability0.91/confidence0.89; product-only choice0.93; defer additional feature-writing lanes noul0.86. Exact request/response: `.temp/jev-advice/2026-09-19T13-34-41-382Z/`. This is advisory, not product test evidence.
+- Jev I accept / Jev I reject (name the judgment): accept SC10 qualification priority. Correction to broad wording: SC10-22–24 and SC11-15 already passed in the41-test PDF overlay with current rate/export hashes; still missing are three measured-copy helper tests, one mounted-action test and the297-operation browser campaign. No current integrated/full-build claim.
+- Next action I will take: finish installation proof and report the advisory. Recommended subsequent engineering step is a frozen current-source DANS1 focused/typecheck pass followed by the strict297-operation browser scenario and14 screenshot inspections; no new feature lanes or status promotion implied.
+- Signed: Codex @ 2026-09-19T13:37:26Z
+
+---
+
+## Cycle 18 — 13:29:44Z → 13:35:06Z — Jev 91% SC-10 precision; TypeSafe skill installed; cycle 17 filled late
+
+### Grok summary
+- **Source-control pressure first:** untracked **853 files / 28.84 MB** at extract (13:35:06Z). Still over 200 files and 10 MB. Never `git add -A`.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`. Panel unmounted.
+- Daniel: “ask jiv what to do next,” then the TypeSafe install prompt. Codex filled cycle 17 @ 13:37:26Z: `npx --yes skills add typesafe-ai/skills --skill typesafe-ai --agent codex --yes --json` exit 0; skill under `.agents/skills/typesafe-ai/`. Fresh Jev @ 13:34:41Z: next `qualify_sc10_precision` **0.91** (conf 0.89). Receipt claimed in ignored `.temp/jev-advice/`.
+- Codex correction (do not treat as a tick): SC10-22–24 and SC11-15 already passed in the 41-test PDF overlay; still missing three measured-copy helper tests, one mounted-action test, and the **297-op browser campaign**.
+- Dirty tracked **4 files** (+82/−79): this log + honest A-Z/ledger/dashboard demotions (`DONE (human)` → **NOT DONE** / FAIL 170/289). Checkpoint-worthy docs if Daniel names them. No `git add -A`. No `verified-from-sample`. Ledger still `[[partial]]`/`[[pending]]`.
+
+### Jev (hover)
+| Judgment | Value |
+|---|---|
+| on_goal | 0.81 |
+| colliding_with_handoff | 0.26 |
+| proof_gap | 0.41 |
+| evidence_integrity_risk | 0.50 |
+| primary_flaw | `dirty_tree_risk` 0.43 (conf 0.31; `proof_missing` 0.34) |
+| severity | 1.90 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is local proof. Hover Jev and Codex’s Jev agree: **run SC-10 precision**, don’t write features.
+
+### Codex confirmation — cycle 18
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 19 — 13:35:06Z → 13:40:02Z — Codex names the use-measured gap; still no campaign; cycle 18 unfilled
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB** (was 853 / 28.84). Over 200 files and 10 MB. New untracked: `.agents/skills/typesafe-ai/` and `skills-lock.json`. Never `git add -A`.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex last @ 13:39:11Z: remaining gap is **“Use measured quantity and rebind”** and its full browser journey; decimal pricing/export tests already passed; Jev says verify that workflow, not another feature. **No DANS1/297-op receipt this interval.**
+- Cycle 18 confirmation **still empty**. Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Dirty tracked **6 files**: previous honest A-Z/ledger/dashboard demotions plus `INDUSTRY-REMAINING-WORK-PLAN.md` (QS-03..06 now match FAIL/unmounted) and `walkthrough.md` (retracts the old SC-09 `[[done]]` sentence). Checkpoint-worthy docs if Daniel names them.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.80 |
+| colliding_with_handoff | 0.21 |
+| proof_gap | 0.44 |
+| evidence_integrity_risk | 0.43 |
+| primary_flaw | `dirty_tree_risk` 0.58 (conf 0.50; `proof_missing` 0.32) |
+| severity | 1.90 / 3 (stop-the-line p=0.03) |
+
+Grok override: dirty tree is leftover proof + docs demotions, not unpushed product source. Live issue is still **SC-10 precision unexecuted**.
+
+### Codex confirmation — cycle 19
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 20 — 13:40:02Z → 13:45:10Z — stall: same 13:39Z prose; no campaign; 18/19 unfilled
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Tracked docs dirt (6 files) still unpushed >1 cycle after the last named push.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex last user-facing text is still 13:39:11Z (“Use measured quantity and rebind”). Session jsonl ticked to 13:43:48Z then went quiet. **No 297-op receipt, no new campaign directory, no src edit.**
+- Cycles 18 and 19 confirmation stubs **still empty**. Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Hover Jev: on_goal down 0.80→**0.74**, proof_gap up 0.44→**0.63**. That matches idle-after-naming.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.74 |
+| colliding_with_handoff | 0.20 |
+| proof_gap | 0.63 |
+| evidence_integrity_risk | 0.45 |
+| primary_flaw | `dirty_tree_risk` 0.49 (conf 0.39; `proof_missing` 0.45) |
+| severity | 1.87 / 3 (stop-the-line p=0.02) |
+
+Grok override: not a dirty-source emergency. Live issue is **stall** — named SC-10 precision, did not run it.
+
+### Codex confirmation — cycle 20
+- Verdict: latest user request was TypeSafe installation; installed once for Codex/project and finished its required receipt. No SC-10 execution or completion claimed. Cycles 18/19 were installation work, not a product campaign.
+- HEAD I am on: `86e3dc22087689a6ac3501f7cb673a63315fa3da`; index empty. Other writer's six tracked document changes preserved.
+- Files I actually changed this interval: installer created `.agents/skills/typesafe-ai/SKILL.md`, `.agents/skills/typesafe-ai/LICENSE`, `skills-lock.json`; this confirmation. Receipt helpers and outputs are ignored under `.temp/typesafe-install-proof/`.
+- Proof I claim (command + path + result): read-only Codex CLI listing exit 0; DANS1 installation-byte/registration checks 7/7 PASS and raw-CDP receipt 6/6 PASS, screenshot inspected; exact three-file diff. Linked record: `.temp/typesafe-install-proof/INSTALLATION.md`. No product qualification claimed.
+- Jev I accept / Jev I reject (name the judgment): accept next-product action `qualify_sc10_precision` (0.91 choice probability, confidence 0.89) and limit feature fanout. Distinguish latest installation request from advice-only request; neither receipt is a product proof or ledger tick.
+- Next action I will take: hand back installation result and Jev recommendation; no broad staging, no new feature lane, no SC-09/SC-10 tick.
+- Signed: Codex @ 2026-09-19T13:49Z
+
+---
+
+## Cycle 21 — 13:45:10Z → 13:50:10Z — TypeSafe install receipt PASS; still not SC-10; cycle 20 filled
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed. `.agents/skills/typesafe-ai/` + `skills-lock.json` remain untracked; install proof stayed in ignored `.temp/` — correct.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex filled **cycle 20** @ 13:49Z and `task_complete` @ 13:48:42Z. Claim: TypeSafe install via `npx --yes skills add typesafe-ai/skills --skill typesafe-ai --agent codex`. Receipt [INSTALLATION.md](.temp/typesafe-install-proof/INSTALLATION.md): DANS1 **7/7**, browser [browser-results.json](.temp/typesafe-install-proof/returned/64cefea79f1f/browser/browser-results.json) **PASS 6/6** (`verdict: PASS`). Screenshot is a **generated receipt**, not app UI. Codex correctly says this is **not** SC-09/SC-10 proof.
+- Cycles **18 and 19 still empty**. Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- 297-op / use-measured still **unexecuted**. Codex handed back after install; next product step is still that campaign.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.80 |
+| colliding_with_handoff | 0.19 |
+| proof_gap | 0.64 |
+| evidence_integrity_risk | 0.47 |
+| primary_flaw | `proof_missing` 0.51 (conf 0.40; `dirty_tree_risk` 0.44) |
+| severity | 1.91 / 3 (stop-the-line p=0.03) |
+
+Grok override: install receipt is real and scoped. Live gap is still **SC-10 precision unexecuted**. Do not confuse 6/6 receipt-browser with the 297-op product campaign.
+
+### Codex confirmation — cycle 21
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 22 — 13:50:10Z → 13:55:21Z — idle ~7 min after TypeSafe handback; no SC-10 campaign
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed since cycle 18.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex session jsonl **mtime 13:48:42Z** — no new tokens this interval. Last act remains TypeSafe install `task_complete` (“automatic discovery starts next turn”). **No 297-op receipt. No campaign directory. Cycle 21 stub empty.** Cycles 18/19 still empty.
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- This is waiting-for-user, not a product stall inside a running campaign. Watch stays on until Daniel stops it or SC-10 runs.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.78 |
+| colliding_with_handoff | 0.20 |
+| proof_gap | 0.65 |
+| evidence_integrity_risk | 0.47 |
+| primary_flaw | `dirty_tree_risk` 0.49 (conf 0.38; `proof_missing` 0.47) |
+| severity | 1.91 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is local proof, not unpushed source. Live gap is still **SC-10 precision unexecuted**, and Codex is **idle** until poked.
+
+### Codex confirmation — cycle 22
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 23 — 13:55:21Z → 14:00:22Z — still idle (~12 min); jsonl unchanged since 13:48:42Z
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed since cycle 18.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex session jsonl **mtime/size/lastTs frozen at 13:48:42Z**. Second consecutive idle cycle after TypeSafe handback. **No 297-op. No new campaign. Stubs 18, 19, 21, 22 empty.**
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Waiting-for-user. Watch stays on until Daniel stops it or SC-10 runs.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.80 |
+| colliding_with_handoff | 0.20 |
+| proof_gap | 0.63 |
+| evidence_integrity_risk | 0.47 |
+| primary_flaw | `proof_missing` 0.56 (conf 0.47; `dirty_tree_risk` 0.37) |
+| severity | 1.88 / 3 (stop-the-line p=0.02) |
+
+Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexecuted** plus **idle Codex**.
+
+### Codex confirmation — cycle 23
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 24 — 14:00:22Z → 14:05:33Z — still idle (~17 min); third consecutive no-token cycle
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed since cycle 18.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex session jsonl **still frozen at 13:48:42Z** (~17 min). Third consecutive idle cycle. **No 297-op. Stubs 18, 19, 21–23 empty.**
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Waiting-for-user. Watch stays on until Daniel stops it or SC-10 runs.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.80 |
+| colliding_with_handoff | 0.20 |
+| proof_gap | 0.63 |
+| evidence_integrity_risk | 0.43 |
+| primary_flaw | `proof_missing` 0.53 (conf 0.43; `dirty_tree_risk` 0.41) |
+| severity | 1.88 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexecuted** plus **idle Codex**.
+
+### Codex confirmation — cycle 24
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 25 — 14:05:33Z → 14:10:39Z — still idle (~22 min); fourth consecutive no-token cycle
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed since cycle 18.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex session jsonl **still frozen at 13:48:42Z** (~22 min). Fourth consecutive idle cycle. **No 297-op. Stubs 18, 19, 21–24 empty.**
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Waiting-for-user. Watch stays on until Daniel stops it or SC-10 runs.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.79 |
+| colliding_with_handoff | 0.19 |
+| proof_gap | 0.66 |
+| evidence_integrity_risk | 0.47 |
+| primary_flaw | `dirty_tree_risk` 0.47 (conf 0.37; `proof_missing` 0.48) |
+| severity | 1.90 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexecuted** plus **idle Codex**.
+
+### Codex confirmation — cycle 25
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 26 — 14:10:39Z → 14:14:51Z — still idle (~26 min); fifth consecutive no-token cycle
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed since cycle 18.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex session jsonl **still frozen at 13:48:42Z** (~26 min). Fifth consecutive idle cycle. **No 297-op. Stubs 18, 19, 21–25 empty.**
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Waiting-for-user. Watch stays on until Daniel stops it or SC-10 runs.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.80 |
+| colliding_with_handoff | 0.21 |
+| proof_gap | 0.64 |
+| evidence_integrity_risk | 0.47 |
+| primary_flaw | `proof_missing` 0.52 (conf 0.43; `dirty_tree_risk` 0.43) |
+| severity | 1.92 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexecuted** plus **idle Codex**.
+
+### Codex confirmation — cycle 26
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 27 — 14:14:51Z → 14:19:42Z — still idle (~31 min); sixth consecutive no-token cycle
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB**, unchanged. Over 200 files and 10 MB. Never `git add -A`. Six tracked docs still unpushed since cycle 18.
+- HEAD still **`86e3dc2`**, origin-confirmed (`0/0`). No new commit. No `src/` dirt. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Codex session jsonl **still frozen at 13:48:42Z** (~31 min). Sixth consecutive idle cycle. **No 297-op. Stubs 18, 19, 21–26 empty.**
+- Ledger unchanged: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. No ticks. No `git add -A`. No `verified-from-sample`.
+- Waiting-for-user. Watch stays on until Daniel stops it or SC-10 runs.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.80 |
+| colliding_with_handoff | 0.20 |
+| proof_gap | 0.66 |
+| evidence_integrity_risk | 0.49 |
+| primary_flaw | `proof_missing` 0.50 (conf 0.39; `dirty_tree_risk` 0.44) |
+| severity | 1.91 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexecuted** plus **idle Codex**.
+
+### Codex confirmation — cycle 27
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
 
 ---
 

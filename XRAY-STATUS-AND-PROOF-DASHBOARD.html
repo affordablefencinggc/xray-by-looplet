@@ -1767,26 +1767,26 @@
 
     <div class="detail-section">
       <div class="detail-heading" style="color: #f87171;">⚙️ Machine Completion Criteria (not yet closed)</div>
-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Rate book schema supports unit rates, labor/material splits, markup percentages, and wastage factors.</li><li>Cost delta calculator computes: $\Delta\text{ Quantity}$, $\Delta\text{ Unit Rate}$, $\Delta\text{ Scope}$ between Revision N and Revision N-1.</li><li>Alternative scope options kept isolated from base tender sum until activated.</li><li>12 unit tests verifying rate calculation, tax rounding, and revision delta accuracy.</li></ul></div>
+      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Rate book schema supports unit rates, labor/material splits, markup percentages, and wastage factors.</li><li>Cost delta calculator computes: $\Delta\text{ Quantity}$, $\Delta\text{ Unit Rate}$, $\Delta\text{ Scope}$ between Revision N and Revision N-1.</li><li>Alternative scope options kept isolated from base tender sum until activated.</li><li>Rate-book and delta unit tests exist on the 9abf snapshot; later use-measured tests in <code>378bcd9</code> are not a new full-suite receipt.</li></ul></div>
     </div>
 
 
     <div class="detail-section">
-      <div class="detail-heading" style="color: #f87171;">👁️ Human / Visual Completion Criteria (not yet closed)</div>
-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Cost Comparison Drawer renders clean color-coded diff table: Green (+New), Red (-Removed), Amber (~Modified).</li></ul></div>
+      <div class="detail-heading" style="color: #f87171;">⚠️ Open Human / Visual Gate</div>
+      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Cost Comparison Drawer exists (green/red/amber). Latest browser still <strong>FAIL</strong> at exact-metre vs six-decimal pricing. Contrast fix is overlay-only. No tablet/native/live-supplier acceptance. Do not tick.</li></ul></div>
     </div>
 
 
     <div class="detail-section">
       <div class="detail-heading">🔗 Recorded Proof</div>
-      <div class="detail-body"><p>Source and mounted worksheet checkpoint pushed in <code>a2935a9</code>; focus correction/eight regression tests pushed in <code>6a9d5b3</code>. The 1951-test 9abf snapshot passes typecheck and scoped lint. Earlier browser campaign failed keyboard focus at operation108; <code>sc10-9abf4c807030-dev1</code> now passes six keyboard checks but stops at operation113/289 on Modified badge contrast4.16:1. Supplier pins, GST, base/proposed/accepted option totals and immutable revisions passed before stopping. Remaining assertions and the CSS correction are unqualified. Evidence: <code>proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/</code>.</p></div>
+      <div class="detail-body"><p>Source and mounted worksheet in <code>a2935a9</code>; focus tests in <code>6a9d5b3</code>; exact-quantity / use-measured source in <code>378bcd9</code>. Frozen 9abf machine gate is 1951/1951, tsc 0, scoped lint 0. Browser: <code>sc10-9abf4c807030-dev1</code> failed at 113/289 on Modified-badge contrast 4.16:1; CSS overlay later measured 5.34:1. Latest campaign <code>sc10-9abf4c807030-css1</code> is <strong>FAIL 170/289</strong>: typed <code>6</code> vs measured <code>5.999999930955706 m</code>. Pricing stayed withheld. Use-measured / 297-op scenario is authored, <strong>not executed</strong>. E-08/E-11 are catalogue <strong>partial</strong>, not verified. Evidence: <code>proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/</code> and <a class="md-link" href="proof/growth/2026-09-19-sc10-qs-rate-delta/AZ-PARTIAL-ASSESSMENT.md">AZ-PARTIAL-ASSESSMENT.md</a>.</p></div>
     </div>
 
 
 
           <div class="detail-section">
             <div class="detail-heading">📁 Associated Files</div>
-            <div class="files-list"><a class="file-tag" href="src/studio/industries/quantity-surveying/qsRateBook.ts">src/studio/industries/quantity-surveying/qsRateBook.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsRateBook.test.ts">src/studio/industries/quantity-surveying/qsRateBook.test.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsDeltaComparison.ts">src/studio/industries/quantity-surveying/qsDeltaComparison.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSWorksheet.tsx">src/studio/industries/quantity-surveying/QSWorksheet.tsx</a></div>
+            <div class="files-list"><a class="file-tag" href="src/studio/industries/quantity-surveying/qsRateBook.ts">src/studio/industries/quantity-surveying/qsRateBook.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsRateBook.test.ts">src/studio/industries/quantity-surveying/qsRateBook.test.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsDeltaComparison.ts">src/studio/industries/quantity-surveying/qsDeltaComparison.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSWorksheet.tsx">src/studio/industries/quantity-surveying/QSWorksheet.tsx</a><a class="file-tag" href="src/studio/industries/quantity-surveying/quantityForm.ts">src/studio/industries/quantity-surveying/quantityForm.ts</a></div>
           </div>
 
 
@@ -1812,26 +1812,26 @@
 
     <div class="detail-section">
       <div class="detail-heading" style="color: #f87171;">⚙️ Machine Completion Criteria (not yet closed)</div>
-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Multi-page vector PDF cost plan and CSV schedule exported cleanly.</li><li>Reopening the exported package verifies integrity and restores exact worksheet state.</li><li>Output bound to <code>deliveryRecordSchema</code>.</li></ul></div>
+      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Package/export module and tests exist.</li><li>Output bound to <code>deliveryRecordSchema</code> in source.</li></ul></div>
     </div>
 
 
     <div class="detail-section">
-      <div class="detail-heading" style="color: #f87171;">👁️ Human / Visual Completion Criteria (not yet closed)</div>
-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>Inspected PDF export attached showing executive summary, trade breakdown, and cost variance report.</li></ul></div>
+      <div class="detail-heading" style="color: #f87171;">⚠️ Open Human / Visual Gate</div>
+      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><ul><li>No mounted download/reopen UI. Inspected PDF/pages are overlay-only, not an accepted deliverable. Do not tick.</li></ul></div>
     </div>
 
 
     <div class="detail-section">
       <div class="detail-heading">🔗 Recorded Proof</div>
-      <div class="detail-body"><p>Pure package/export code and its 14 tests were pushed in <code>a2935a9</code> and included in the 1943-test snapshot. Separate unmounted package-panel diagnostics passed 14 tests and typecheck on DANS1 <code>sc11-panel-cb3d0b8de15f</code>. UI download/reopen, inspected PDF, screenshots and integrated production qualification remain open; no completion claim.</p></div>
+      <div class="detail-body"><p>Exporter tests in <code>a2935a9</code>. Unmounted <code>QSCostPlanPackagePanel</code> + HVAC prep in <code>378bcd9</code> (<a class="md-link" href="proof/growth/2026-09-19-closeout-hygiene/SOURCE-CHECKPOINT.md">SOURCE-CHECKPOINT.md</a>). Isolated PDF-layout overlay claims 41/41 tests and 46/46 browser on local <code>proof/growth/2026-09-19-sc11-pdf-qualification/</code> (not in <code>86e3dc2</code>). Panel is <strong>not imported</strong>. UI download/reopen, mounted screenshots, and production qualification remain open. No completion claim.</p></div>
     </div>
 
 
 
           <div class="detail-section">
             <div class="detail-heading">📁 Associated Files</div>
-            <div class="files-list"><a class="file-tag" href="src/studio/industries/quantity-surveying/qsPackageExport.ts">src/studio/industries/quantity-surveying/qsPackageExport.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsPackageExport.test.ts">src/studio/industries/quantity-surveying/qsPackageExport.test.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSWorksheet.tsx">src/studio/industries/quantity-surveying/QSWorksheet.tsx</a></div>
+            <div class="files-list"><a class="file-tag" href="src/studio/industries/quantity-surveying/qsPackageExport.ts">src/studio/industries/quantity-surveying/qsPackageExport.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/qsPackageExport.test.ts">src/studio/industries/quantity-surveying/qsPackageExport.test.ts</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx">src/studio/industries/quantity-surveying/QSCostPlanPackagePanel.tsx</a><a class="file-tag" href="src/studio/industries/quantity-surveying/QSWorksheet.tsx">src/studio/industries/quantity-surveying/QSWorksheet.tsx</a></div>
           </div>
 
 
