@@ -246,3 +246,54 @@ test("SC11-14 long basis text paginates and Unicode remains explicit and recover
   assert.equal(reopened.transmittal.title, input.transmittal.title);
   assert.deepEqual(reopened.basisOfEstimate, value.basisOfEstimate);
 });
+
+test("SC11-15 exact measured quantity beyond six decimals survives export and editable reopen", async () => {
+  const quantity = "5.999999930955706", input = fixture();
+  input.current = priced(1, quantity);
+  input.worksheet.items[0].quantity = quantity;
+  input.worksheet.items[0].entityBinding = input.current.items[0].binding;
+  input.worksheet.pricing.snapshots = [input.current];
+  const { exported } = await build(input);
+  assert.equal(input.current.baseTotal.totalMinor, 8712);
+  assert.ok(exported.csv.includes(quantity), "CSV retains the exact measured quantity");
+  const reopened = await parseQsCostPlanPackage(exported.bytes, parseWorksheet);
+  const restored = await restoreQsCostPlanWorksheet(reopened, input.current.input.projectId, parseWorksheet);
+  assert.equal(restored.items[0].quantity, quantity);
+  assert.equal(restored.items[0].entityBinding.measuredQuantity, quantity);
+  assert.equal(reopened.current.items[0].quantity, quantity);
+  assert.equal(reopened.current.items[0].adjustedMaterialQuantity, "6.5999999240512766");
+  assert.equal(reopened.current.baseTotal.totalMinor, 8712);
+  const rounded = structuredClone(input); rounded.worksheet.items[0].quantity = "6";
+  await assert.rejects(createQsCostPlanPackage(rounded, parseWorksheet), /does not match its priced measured evidence/);
+});
+
+test("SC11-16 PDF wraps ordinary title and basis words at word boundaries", async () => {
+  const input = fixture();
+  input.transmittal.title = "Synthetic cost plan qualification - previous/current revisions, accepted and proposed options, long source references and pagination";
+  input.basisOfEstimate = ["Synthetic measured geometry is pinned to exact drawing, calibration and geometry identities. Historical supplier revisions remain immutable and accessible. ".repeat(4).trim()];
+  const { exported } = await build(input), doc = await PDFDocument.load(exported.pdf);
+  const plain = doc.getPageIndices().map(index => pdfStrings(doc, index)).join(" ").replace(/\s+/g, " ");
+  assert.ok(plain.includes(input.transmittal.title), "a line break must not insert whitespace inside an ordinary title word");
+  assert.ok(plain.includes(input.basisOfEstimate[0]), "ordinary basis words must remain whole across wrapped lines");
+});
+
+test("SC11-17 oversized audit blocks repeat the exact item identity before continuation text", async () => {
+  const input = fixture(), changed = structuredClone(input.current.input);
+  changed.priceBooks.books[0].revisions[0].metadata.sourceReference = "PROVENANCE-START " + "Long reviewed supplier source reference with retained record identity.\n".repeat(27) + " PROVENANCE-END";
+  changed.rateBook.rates[0].labour = { ...changed.rateBook.rates[0].material };
+  changed.rateBook.rates[0].labourAssumption = "Explicit labour basis and access assumptions. ".repeat(21).trim();
+  const priced = calculateQsCostPlan(changed);
+  assert.equal(priced.ok, true, priced.ok ? undefined : JSON.stringify(priced.blockers));
+  if (!priced.ok) throw Error("Long audit fixture did not calculate");
+  input.current = priced.snapshot;
+  input.worksheet.pricing.rateBook = priced.snapshot.input.rateBook;
+  input.worksheet.pricing.snapshots = [priced.snapshot];
+  const { exported } = await build(input), doc = await PDFDocument.load(exported.pdf);
+  const pages = doc.getPageIndices().map(index => pdfStrings(doc, index).split("\n"));
+  const continued = pages.filter(lines => lines.includes("Source and rate audit trail (continued)"));
+  assert.ok(continued.length > 0, "fixture must overflow one audit page");
+  for (const lines of continued) assert.equal(lines[2], "Item item-1 (continued)", "continuation begins with the exact priced item identity");
+  assert.equal(pages.flat().filter(line => line.includes("PROVENANCE-END")).length, 2, "material and labour source tails are retained");
+  const reopened = await parseQsCostPlanPackage(exported.bytes, parseWorksheet);
+  assert.equal(reopened.current.items[0].itemId, "item-1");
+});

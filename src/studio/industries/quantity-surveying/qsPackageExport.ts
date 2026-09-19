@@ -4,7 +4,7 @@ import { Unzip, UnzipInflate, zipSync } from "fflate";
 import { deliveryRecordSchema, type DeliveryRecord } from "../deliveryRecord.ts";
 import { classifyQuantities } from "./classification.ts";
 import { csvCell } from "./report.ts";
-import { canonicalQsJson, createQsRateBook, freeze, parseQsCostSnapshot, qsDecimalSchema, type QsCostSnapshot } from "./qsRateBook.ts";
+import { canonicalQsJson, createQsRateBook, freeze, parseQsCostSnapshot, qsQuantityDecimalSchema, type QsCostSnapshot } from "./qsRateBook.ts";
 import { compareQsCostPlans, type QsCostDelta } from "./qsDeltaComparison.ts";
 import { qsItemBindingSchema } from "./qsItemBinding.ts";
 
@@ -84,7 +84,7 @@ function inspectWorksheet<T extends Record<string, unknown>>(worksheet: T, curre
   for (const item of form.items) {
     const priced = current.items.find(row => row.itemId === item.reference);
     const assignment = state.assignments.find(row => row.itemKey === item.key);
-    if (!priced || qsDecimalSchema.parse(item.quantity) !== priced.quantity || unit(item.unit) !== unit(priced.unit) ||
+    if (!priced || qsQuantityDecimalSchema.parse(item.quantity) !== priced.quantity || unit(item.unit) !== unit(priced.unit) ||
         !same(item.entityBinding, priced.binding) || item.evidence === "sample" || item.evidence === "inferred")
       throw Error(`Worksheet item ${item.reference} does not match its priced measured evidence.`);
     if (!assignment || assignment.rateId !== priced.rate.id || assignment.rateRevision !== priced.rate.revision || assignment.optionId !== priced.optionId)
@@ -172,9 +172,16 @@ function wrap(value: string, font: PDFFont, size: number, width: number): string
   const lines: string[] = [];
   for (const paragraph of pdfText(value).split("\n")) {
     let line = "";
-    for (const char of paragraph) {
-      if (line && font.widthOfTextAtSize(line + char, size) > width) { lines.push(line); line = ""; }
-      line += char;
+    for (const word of paragraph.match(/\S+/g) ?? []) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, size) <= width) { line = candidate; continue; }
+      if (line) { lines.push(line); line = ""; }
+      // Prefer word boundaries. Only an individual over-width identifier (for
+      // example a long JSON/URL token) needs a lossless character fallback.
+      for (const char of word) {
+        if (line && font.widthOfTextAtSize(line + char, size) > width) { lines.push(line); line = ""; }
+        line += char;
+      }
     }
     lines.push(line || " ");
   }
@@ -186,7 +193,7 @@ async function pdf<T extends Record<string, unknown>>(value: QsVerifiedPackage<T
   doc.setTitle(value.transmittal.title); doc.setAuthor(value.transmittal.preparedBy); doc.setCreator("X-Ray cost plan"); doc.setProducer("X-Ray vector cost plan v1");
   doc.setCreationDate(created); doc.setModificationDate(created);
   const width = 841.89, height = 595.28, margin = 36, usable = width - margin * 2;
-  let page: PDFPage, y = 0, section = "";
+  let page: PDFPage, y = 0, section = "", auditContinuation: string | null = null;
   const newPage = (title: string) => {
     if (doc.getPageCount() >= 250) throw Error("Cost plan exceeds the 250-page export limit; split the issue into bounded packages.");
     section = title.replace(/(?: \(continued\))+$/, ""); page = doc.addPage([width, height]);
@@ -194,6 +201,12 @@ async function pdf<T extends Record<string, unknown>>(value: QsVerifiedPackage<T
     page.drawText("X-RAY  /  COST PLAN", { x: margin, y: height - 25, size: 10, font: bold, color: rgb(0.68, 0.83, 0.94) });
     page.drawText(title, { x: margin, y: height - 51, size: 20, font: bold, color: rgb(1, 1, 1) });
     y = height - 99;
+    if (auditContinuation) {
+      for (const line of wrap(auditContinuation, bold, 10, usable)) {
+        page.drawText(line, { x: margin, y, size: 10, font: bold, color: rgb(0.13, 0.18, 0.25) }); y -= 15;
+      }
+      y -= 5;
+    }
   };
   const paragraph = (value: string, size = 10, strong = false) => {
     const font = strong ? bold : regular;
@@ -271,13 +284,23 @@ async function pdf<T extends Record<string, unknown>>(value: QsVerifiedPackage<T
   }
   newPage("Source and rate audit trail");
   for (const item of value.current.items) {
-    paragraph(`${item.itemId} / ${item.description}`, 11, true);
-    paragraph(`Entity ${item.binding.entityId}; calibration ${item.binding.calibrationId}; drawing SHA-256 ${item.binding.sourceSha256}; geometry SHA-256 ${item.binding.entityGeometrySha256}`, 8);
+    const paragraphs: { text: string; size: number; strong: boolean }[] = [
+      { text: `${item.itemId} / ${item.description}`, size: 11, strong: true },
+      { text: `Entity ${item.binding.entityId}; calibration ${item.binding.calibrationId}; drawing SHA-256 ${item.binding.sourceSha256}; geometry SHA-256 ${item.binding.entityGeometrySha256}`, size: 8, strong: false },
+    ];
     for (const [kind, source] of [["Material", item.materialSource], ["Labour", item.labourSource]] as const) {
-      paragraph(source ? `${kind}: ${source.supplier}; ${source.sourceReference}; book ${source.bookId} revision ${source.bookRevision} line ${source.sourceLine}; source SHA-256 ${source.sourceSha256}; rate ${source.rate} ${source.currency}/${source.unit}; tax ${source.taxBasis} ${source.taxPercent}%.` : `Labour excluded: ${item.rate.labourAssumption}`, 8);
-      if (source?.exchangeRate) paragraph(`Reviewed FX: ${canonicalQsJson(source.exchangeRate)}`, 8);
+      paragraphs.push({ text: source ? `${kind}: ${source.supplier}; ${source.sourceReference}; book ${source.bookId} revision ${source.bookRevision} line ${source.sourceLine}; source SHA-256 ${source.sourceSha256}; rate ${source.rate} ${source.currency}/${source.unit}; tax ${source.taxBasis} ${source.taxPercent}%.` : `Labour excluded: ${item.rate.labourAssumption}`, size: 8, strong: false });
+      if (source?.exchangeRate) paragraphs.push({ text: `Reviewed FX: ${canonicalQsJson(source.exchangeRate)}`, size: 8, strong: false });
     }
-    paragraph(`Contractor rate ${item.rate.id} revision ${item.rate.revision}; wastage ${item.rate.wastagePercent}%; markup ${item.rate.markupPercent}%; labour basis: ${item.rate.labourAssumption}`, 8);
+    paragraphs.push({ text: `Contractor rate ${item.rate.id} revision ${item.rate.revision}; wastage ${item.rate.wastagePercent}%; markup ${item.rate.markupPercent}%; labour basis: ${item.rate.labourAssumption}`, size: 8, strong: false });
+    const blockHeight = paragraphs.reduce((sum, entry) => sum + wrap(entry.text, entry.strong ? bold : regular, entry.size, usable).length * (entry.size + 5) + 5, 0);
+    const headingHeight = wrap(paragraphs[0].text, bold, 11, usable).length * 16 + 5;
+    // Keep a bounded item together when it fits a fresh page. An oversized
+    // provenance block may span pages, but every continuation repeats identity.
+    if ((blockHeight <= height - 99 - 52 && y - blockHeight < 52) || y - headingHeight < 78) newPage(section + " (continued)");
+    auditContinuation = `Item ${item.itemId} (continued)`;
+    for (const entry of paragraphs) paragraph(entry.text, entry.size, entry.strong);
+    auditContinuation = null;
   }
   doc.getPages().forEach((sheet, index) => {
     sheet.drawText(`${value.delivery.state} | Revision ${value.delivery.revision} | ${value.delivery.contentSha256.slice(0, 16)}`, { x: margin, y: 22, font: regular, size: 8, color: rgb(0.35, 0.4, 0.46) });

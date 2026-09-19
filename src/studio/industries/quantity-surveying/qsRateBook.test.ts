@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   appendQsRateRevision, calculateQsCostPlan, canonicalQsJson, createQsRateBook,
-  parseQsCostSnapshot, qsCostInputSchema, qsDecimalSchema, qsRateBookSchema,
+  parseQsCostSnapshot, qsCostInputSchema, qsDecimalSchema, qsQuantityDecimalSchema, qsRateBookSchema,
   type QsCostInput, type QsCostSnapshot,
 } from "./qsRateBook.ts";
+import { compareQsCostPlans } from "./qsDeltaComparison.ts";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
 const HASH = "a".repeat(64), GEOMETRY = "b".repeat(64);
@@ -206,4 +207,44 @@ test("SC10-20 exact FX conversion rounds only after extension, and explicit area
 test("SC10-21 effective/import instants accept equality across equivalent timestamp precision", () => {
   const input = fixture(); input.priceBooks.books[0].revisions[0].importedAt = "2026-09-19T04:00:00Z";
   assert.equal(snapshot(input).baseTotal.totalMinor, 5148);
+});
+
+test("SC10-22 actual canvas precision survives pricing, allowance, immutable reopen and exact delta", () => {
+  const input = fixture(); setQuantity(input, "5"); const previous = snapshot(input);
+  input.revision = 2; setQuantity(input, "5.999999930955706");
+  const current = snapshot(input), encoded = canonicalQsJson(current);
+  assert.equal(current.input.items[0].quantity, "5.999999930955706");
+  assert.equal(current.items[0].binding.measuredQuantity, "5.999999930955706");
+  assert.equal(current.items[0].adjustedMaterialQuantity, "6.5999999240512766");
+  assert.equal(current.baseTotal.totalMinor, 10296);
+  assert.equal(canonicalQsJson(parseQsCostSnapshot(JSON.parse(encoded))), encoded);
+  const delta = compareQsCostPlans(previous, current);
+  assert.equal(delta.rows[0].quantityDelta, "0.999999930955706");
+  assert.deepEqual(delta.totals, { quantityMinor: 1716, rateMinor: 0, scopeMinor: 0, totalMinor: 1716 });
+  input.items[0].quantity = "6";
+  blocked(input, "binding");
+  assert.equal(canonicalQsJson(current), encoded, "a later typed rounded quantity cannot alter the frozen snapshot");
+});
+
+test("SC10-23 quantity digits are never truncated before half-cent extension rounding", () => {
+  const input = fixture();
+  input.rateBook.rates[0].labour = null; input.rateBook.rates[0].wastagePercent = "0"; input.rateBook.rates[0].markupPercent = "0";
+  metadata(input).taxPercent = 0; supplierRows(input)[0].rate = 0.005;
+  setQuantity(input, `0.${"9".repeat(78)}`);
+  assert.equal(snapshot(input).baseTotal.totalMinor, 0, "every digit keeps the exact extension below half a cent");
+  setQuantity(input, "1");
+  assert.equal(snapshot(input).baseTotal.totalMinor, 1, "exactly half a cent rounds up only at the extension boundary");
+});
+
+test("SC10-24 bounded maximum-precision quantity and allowance remain exact", () => {
+  const input = fixture(), quantity = `0.${"0".repeat(77)}1`;
+  setQuantity(input, quantity); input.rateBook.rates[0].wastagePercent = "0.000001";
+  const current = snapshot(input);
+  assert.equal(current.items[0].quantity, quantity);
+  assert.equal(current.items[0].adjustedMaterialQuantity, `0.${"0".repeat(77)}100000001`);
+  assert.equal(current.baseTotal.totalMinor, 0);
+  assert.equal(qsQuantityDecimalSchema.parse("5.99999993095570600"), "5.999999930955706");
+  for (const value of ["1e-7", "-1", "+1", ".5", "01", "1000000000000", `0.${"1".repeat(79)}`, 5.999999930955706])
+    assert.equal(qsQuantityDecimalSchema.safeParse(value).success, false, String(value));
+  assert.equal(qsDecimalSchema.safeParse("5.999999930955706").success, false, "rate/tax/FX precision is unchanged");
 });

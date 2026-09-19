@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { classifyQuantities, type ClassificationInput } from "./classification.ts";
 import type { QuantityReport } from "./report.ts";
-import { qsItemBindingSchema } from "./qsItemBinding.ts";
+import { QS_ITEM_BINDING_SCHEMA, qsEntityGeometrySchema, qsItemBindingSchema, type QsEntityGeometry } from "./qsItemBinding.ts";
+import { qsQuantityDecimalSchema } from "./qsRateBook.ts";
 import { qsWorksheetStateSchema, type QsWorksheetState } from "./qsWorksheetState.ts";
 import { parseIndustryDraftLibrary, updateIndustryDraft } from "../draftStorage.ts";
 import {
@@ -93,6 +94,38 @@ export function assignQuantityItem(form: QuantityForm, itemKey: string, nodeKey:
   if (!form.items.some(item => item.key === itemKey)) throw Error("Quantity row no longer exists.");
   if (nodeKey && !form.nodes.some(node => node.key === nodeKey)) throw Error("Classification no longer exists.");
   return { ...form, calculated: false, items: form.items.map(item => item.key === itemKey ? { ...item, nodeKey } : item) };
+}
+
+/** Explicit estimator action: copy a live exact measurement and bind that same
+ * quantity. It never edits geometry, promotes evidence, or changes the existing
+ * bind-only action. A caller's readiness flag cannot replace source checks. */
+export function withMeasuredQuantityBinding(
+  form: QuantityForm, itemKey: string,
+  context: { source: IndustrySourceState; entity: QsEntityGeometry | null; ready: boolean; boundAt: string },
+): QuantityForm {
+  const { source, ready, boundAt } = context;
+  if (!ready) throw Error("The current project's source and measured geometry must finish loading before copying a quantity.");
+  const item = form.items.find(row => row.key === itemKey);
+  if (!item || !item.entityBinding) throw Error("Select the measured entity for this quantity row first.");
+  if (item.evidence !== "unverified") throw Error("Sample or inferred quantities cannot be promoted to measured evidence.");
+  if (!source.projectId || item.entityBinding.projectId !== source.projectId ||
+      (form.pricing && form.pricing.projectId !== source.projectId))
+    throw Error("The selected quantity binding belongs to another project.");
+  const entity = qsEntityGeometrySchema.parse(context.entity);
+  if (entity.entityId !== item.entityBinding.entityId) throw Error("The selected measured entity changed. Select it explicitly before copying its quantity.");
+  if (!source.sourceRevision || !entity.sourceSha256 || entity.sourceSha256 !== source.sourceRevision.sha256)
+    throw Error("The measured quantity does not belong to the current source document.");
+  if (!source.calibrationId || entity.calibrationId !== source.calibrationId)
+    throw Error("The measured quantity needs the current locked source calibration.");
+  const quantity = qsQuantityDecimalSchema.parse(entity.measuredQuantity);
+  const entityBinding = qsItemBindingSchema.parse({
+    format: QS_ITEM_BINDING_SCHEMA, itemId: item.reference.trim(), projectId: source.projectId,
+    entityId: entity.entityId, entityType: entity.entityType, measuredQuantity: quantity, unit: entity.unit,
+    entityGeometrySha256: entity.geometrySha256, sourceSha256: entity.sourceSha256,
+    calibrationId: entity.calibrationId, boundAt, boundBy: "estimator-use-measured-quantity",
+  });
+  return { ...form, calculated: false, items: form.items.map(row => row.key === itemKey
+    ? { ...row, quantity, unit: entity.unit, entityBinding } : row) };
 }
 
 /** What the user types to bind. Project, revision, hash and calibration are read from the live source

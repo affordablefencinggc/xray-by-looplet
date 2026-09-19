@@ -22,6 +22,13 @@ export function normalizeQsRateUnit(value: string): (typeof QS_RATE_UNITS)[numbe
 }
 const canonical = (value: string) => value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value;
 export const qsDecimalSchema = z.string().max(19).regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/).transform(canonical);
+/** Measured quantities retain every accepted digit. The 80-character bound
+ * matches the worksheet/binding contract; rates, percentages and FX retain
+ * their separate six-decimal contract. No display rounding enters pricing. */
+const MAX_QUANTITY_DECIMAL_CHARACTERS = 80;
+const MAX_QUANTITY_FRACTION_DIGITS = MAX_QUANTITY_DECIMAL_CHARACTERS - 2;
+export const qsQuantityDecimalSchema = z.string().max(MAX_QUANTITY_DECIMAL_CHARACTERS)
+  .regex(/^(?:0|[1-9]\d{0,11})(?:\.\d+)?$/).transform(canonical);
 const percent = qsDecimalSchema.refine(value => decimal(value).n <= 1000n * decimal(value).d, "Percentage must not exceed 1000.");
 export const qsRatePinSchema = z.object({ bookId: z.string().uuid(), bookRevision: revision, sourceLine: z.number().int().positive().max(1000000) }).strict();
 export type QsRatePin = z.infer<typeof qsRatePinSchema>;
@@ -73,7 +80,7 @@ export function appendQsRateRevision(rawBook: QsRateBook, rawRate: QsRateRevisio
 }
 
 export const qsCostItemSchema = z.object({
-  itemId: text, description: text, quantity: qsDecimalSchema, unit: measuredUnit,
+  itemId: text, description: text, quantity: qsQuantityDecimalSchema, unit: measuredUnit,
   evidence: z.enum(["unverified", "inferred", "sample"]),
   binding: qsItemBindingSchema.nullable(), entity: qsEntityGeometrySchema.nullable(),
   rateId: text, rateRevision: revision, optionId: text.nullable(),
@@ -231,7 +238,8 @@ function rationalDecimal(value: Rational): string {
   const d = value.d;
   const whole = n / d; n %= d;
   let fraction = "";
-  while (n && fraction.length < 30) { n *= 10n; fraction += (n / d).toString(); n %= d; }
+  // A six-decimal percentage divided by 100 adds at most eight places.
+  while (n && fraction.length < MAX_QUANTITY_FRACTION_DIGITS + 8) { n *= 10n; fraction += (n / d).toString(); n %= d; }
   if (n) throw Error("The physical allowance did not produce an exact bounded decimal.");
   return `${whole}${fraction ? `.${fraction.replace(/0+$/, "")}` : ""}`;
 }
@@ -248,7 +256,7 @@ function priceComponent(quantity: Rational, source: QsRateSource, markup: string
 /** Exported for exact counterfactual revision attribution; accepts the already
  * resolved immutable supplier sources from a validated snapshot. */
 export function priceQsComponents(quantity: string, rate: QsRateRevision, material: QsRateSource, labour: QsRateSource | null): QsCostTotals & { adjustedMaterialQuantity: string } {
-  const measured = decimal(qsDecimalSchema.parse(quantity));
+  const measured = decimal(qsQuantityDecimalSchema.parse(quantity));
   const adjusted = multiply(measured, allowance(rate.wastagePercent));
   const m = priceComponent(adjusted, material, rate.markupPercent);
   const l = labour ? priceComponent(measured, labour, rate.markupPercent) : { net: 0n, markup: 0n, tax: 0n };

@@ -6,7 +6,7 @@ import type { IndustryDraftPanelProps, IndustryGeometryEntitySource } from "../d
 import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withMeasuredQuantityBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
 } from "./quantityForm";
 import { createEmptyQsWorksheetState, type QsWorksheetState } from "./qsWorksheetState";
 import { useQsPricing } from "./qsPricingContext";
@@ -135,6 +135,17 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
     ? "A supplier library for the current project is not connected. Pricing remains withheld."
     : pricingSource.error ?? (pricingSource.loading || !pricingSource.library ? "Loading this project's supplier library. Pricing remains withheld." : null);
   const pricingProjectMismatch = pricing !== null && pricing.projectId !== source.projectId;
+  const measurementCopyReady = !disabled && !geometryPending && !pricingUnavailable && !pricingProjectMismatch && Boolean(pricingSource?.sourceReady);
+  const copyMeasuredQuantity = (itemKey: string) => {
+    try {
+      const item = value.items.find(row => row.key === itemKey);
+      const next = withMeasuredQuantityBinding(value, itemKey, { source,
+        entity: item?.entityBinding ? entities.get(item.entityBinding.entityId) ?? null : null,
+        ready: measurementCopyReady, boundAt: new Date().toISOString() });
+      setError("");
+      onChange(next);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The current measured quantity could not be copied. Existing inputs were preserved."); }
+  };
   const changePricing = (next: QsWorksheetState) => {
     try {
       if (disabled || pricingUnavailable || pricingProjectMismatch || !pricingSource?.sourceReady || geometryPending)
@@ -304,6 +315,12 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
         {item.entityBinding ? <button type="button" onClick={() => {
           if (item.entityBinding) bindItem(item.key, item.entityBinding.entityId);
         }}>Rebind current geometry</button> : null}
+        {item.entityBinding ? <button type="button"
+          disabled={!measurementCopyReady || item.evidence !== "unverified" || !entities.has(item.entityBinding.entityId)
+            || item.entityBinding.projectId !== source.projectId || !source.sourceRevision || !source.calibrationId
+            || entities.get(item.entityBinding.entityId)?.sourceSha256 !== source.sourceRevision.sha256
+            || entities.get(item.entityBinding.entityId)?.calibrationId !== source.calibrationId}
+          onClick={() => copyMeasuredQuantity(item.key)}>Use measured quantity and rebind</button> : null}
         <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => removeQuantity(item.key)}>Remove quantity</button>
       </div>)}
       <button type="button" disabled={value.items.length >= 10000} onClick={() => edit({ ...value, items: [...value.items, { key: crypto.randomUUID(), reference: "", quantity: "", unit: "", evidence: "unverified", nodeKey: "" }] })}>Add quantity</button>

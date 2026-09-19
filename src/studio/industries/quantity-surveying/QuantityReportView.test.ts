@@ -147,3 +147,18 @@ test('SC10 host storage errors keep mounted cost mutations disabled', () => {
   assert.match(html, /<fieldset disabled="" class="qs-cost-section">/);
   assert.match(html, /disabled="">Save immutable cost revision 1/);
 });
+
+test('SC10 measured-copy action is distinct from bind-only and disabled before current geometry is ready', () => {
+  const value: QuantityForm = { ...form, items: form.items.map((item, index) => index ? item : { ...item,
+    entityBinding: { format: 'xray.qs-item-binding/v1', itemId: item.reference, projectId: SOURCE.projectId,
+      entityId: 'measured-run', entityType: 'wall-run', measuredQuantity: '5.999999930955706', unit: 'm',
+      entityGeometrySha256: 'b'.repeat(64), sourceSha256: SHA, calibrationId: 'cal-1',
+      boundAt: '2026-09-19T04:00:00.000Z', boundBy: 'Estimator' } }) };
+  for (const pricing of [PRICING_SOURCE, { ...PRICING_SOURCE, sourceReady: false }, { ...PRICING_SOURCE, projectId: 'old-project' }]) {
+    const html = renderPricing(value, pricing);
+    assert.match(html, /<button type="button">Rebind current geometry<\/button>/, 'existing action keeps bind-only semantics');
+    assert.match(html, /<button type="button" disabled="">Use measured quantity and rebind<\/button>/);
+    assert.match(html, /maxLength="80" value="0.1"/, 'mounting never copies measurement implicitly');
+  }
+  assert.doesNotMatch(renderPricing(form, PRICING_SOURCE), /Use measured quantity and rebind/, 'unbound rows must first choose an entity');
+});

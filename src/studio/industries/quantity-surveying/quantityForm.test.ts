@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createEmptyQuantityForm, createQuantityBinding,
-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withQuantityPricing,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withMeasuredQuantityBinding, withQuantityPricing,
   type QuantityBindingDraft, type QuantityForm,
 } from "./quantityForm.ts";
 import {
   describeIndustryBinding, isVerifiedEvidenceClass, type IndustrySourceState,
 } from "../sourceBinding.ts";
-import { QS_ITEM_BINDING_SCHEMA } from "./qsItemBinding.ts";
+import { QS_ITEM_BINDING_SCHEMA, evaluateItemBinding, type QsEntityGeometry } from "./qsItemBinding.ts";
 import { createEmptyQsWorksheetState, qsWorksheetStateSchema } from "./qsWorksheetState.ts";
 import { emptyPriceBookLibrary } from "../../pricing/priceBooks.ts";
 import { parseIndustryDraftLibrary } from "../draftStorage.ts";
@@ -327,4 +327,67 @@ test("SC10 pricing source never reuses another project or a corrupt session reco
   const corrupt = qsPricingSource('project-1', { value, raw: 'corrupt bytes', blocked: true, error: 'Supplier data needs recovery.' }, true);
   assert.equal(corrupt.library, null); assert.equal(corrupt.loading, false); assert.equal(corrupt.error, 'Supplier data needs recovery.');
   assert.equal(qsPricingSource('project-1', { value, raw: null, blocked: false, error: null }, true).library, value);
+});
+
+function measuredCopyFixture() {
+  const source: IndustrySourceState = { projectId: "copy-project", sourceRevision: { id: "source-1", sha256: "a".repeat(64) }, calibrationId: "cal-1" };
+  const entity: QsEntityGeometry = { entityId: "run-a", entityType: "wall-run", geometrySha256: "c".repeat(64),
+    sourceSha256: source.sourceRevision!.sha256, calibrationId: source.calibrationId, unit: "m", measuredQuantity: "5.999999930955706" };
+  const form = fixture(); form.calculated = true; form.pricing = createEmptyQsWorksheetState(source.projectId);
+  form.items[0].entityBinding = { format: QS_ITEM_BINDING_SCHEMA, itemId: "a", projectId: source.projectId,
+    entityId: entity.entityId, entityType: entity.entityType, entityGeometrySha256: "b".repeat(64),
+    measuredQuantity: "5", unit: "m", sourceSha256: entity.sourceSha256, calibrationId: entity.calibrationId,
+    boundAt: BOUND_AT, boundBy: "Estimator" };
+  return { form, context: { source, entity: entity as QsEntityGeometry | null, ready: true, boundAt: "2026-09-19T04:00:00.000Z" } };
+}
+
+test("SC10 explicit measured copy rebinds exact quantity/unit without changing geometry, evidence or other rows", () => {
+  const { form, context } = measuredCopyFixture(), original = JSON.stringify({ form, context });
+  const next = withMeasuredQuantityBinding(form, "a-key", context), item = next.items[0];
+  assert.equal(item.quantity, "5.999999930955706"); assert.equal(item.unit, "m");
+  assert.equal(item.evidence, "unverified"); assert.equal(next.calculated, false);
+  assert.equal(item.entityBinding!.measuredQuantity, item.quantity);
+  assert.equal(item.entityBinding!.entityGeometrySha256, context.entity!.geometrySha256);
+  assert.equal(item.entityBinding!.boundBy, "estimator-use-measured-quantity");
+  assert.equal(next.items[1], form.items[1]); assert.equal(next.pricing, form.pricing);
+  assert.equal(evaluateItemBinding(item.entityBinding!, context.entity, { quantity: item.quantity, unit: item.unit,
+    evidence: item.evidence, projectId: context.source.projectId }).pricingPermitted, true);
+  assert.equal(evaluateItemBinding(item.entityBinding!, context.entity, { quantity: "6", unit: item.unit,
+    evidence: item.evidence, projectId: context.source.projectId }).status, "stale-measurement");
+  assert.deepEqual(quantityFormSchema.parse(JSON.parse(JSON.stringify(next))), next);
+  assert.equal(JSON.stringify({ form, context }), original);
+});
+
+test("SC10 measured copy fails closed for pending, missing, foreign, uncalibrated and ineligible evidence", () => {
+  const changes: Array<(value: ReturnType<typeof measuredCopyFixture>) => void> = [
+    value => { value.context.ready = false; },
+    value => { value.context.entity = null; },
+    value => { value.context.source.sourceRevision = null; },
+    value => { value.context.source.calibrationId = null; },
+    value => { value.context.entity!.sourceSha256 = null; },
+    value => { value.context.entity!.sourceSha256 = "d".repeat(64); },
+    value => { value.context.entity!.calibrationId = "old-cal"; },
+    value => { value.context.entity!.entityId = "different-run"; },
+    value => { value.context.entity!.measuredQuantity = "1e-7"; },
+    value => { value.context.source.projectId = "other-project"; },
+    value => { value.form.pricing = createEmptyQsWorksheetState("other-project"); },
+    value => { value.form.items[0].entityBinding = null; },
+    value => { value.form.items[0].reference = ""; },
+    value => { value.form.items[0].evidence = "sample"; },
+    value => { value.form.items[0].evidence = "inferred"; },
+  ];
+  for (const change of changes) {
+    const value = measuredCopyFixture(); change(value); const before = JSON.stringify(value);
+    assert.throws(() => withMeasuredQuantityBinding(value.form, "a-key", value.context));
+    assert.equal(JSON.stringify(value), before, "refusal preserves all existing inputs");
+  }
+});
+
+test("SC10 measured copy canonicalizes trailing zeroes without rounding or broadening quantity bounds", () => {
+  const { form, context } = measuredCopyFixture(); context.entity!.measuredQuantity = "0.0000001234500";
+  const next = withMeasuredQuantityBinding(form, "a-key", context);
+  assert.equal(next.items[0].quantity, "0.00000012345");
+  assert.equal(next.items[0].entityBinding!.measuredQuantity, "0.00000012345");
+  context.entity!.measuredQuantity = `0.${"1".repeat(79)}`;
+  assert.throws(() => withMeasuredQuantityBinding(form, "a-key", context));
 });
