@@ -221,22 +221,34 @@ graph TD
 * **Depends on**: SC-04
 * **Commit**: this commit; SC-05 fully closed with machine and visual proof.
 
-#### SC-06 — ROOF-04 Stock Sheet Layout, Kerf, Nesting & Offcut Classification `[[pending]]`
+#### SC-06 — ROOF-04 Stock Sheet Layout, Kerf, Nesting & Offcut Classification `[[done]]`
 * **Goal**: Provide linear and panel nesting algorithms that layout standard supplier sheet lengths against true roof runs, factoring in kerf, cutting waste, and reusable offcuts.
 * **DONE (machine)**:
-  - 1D/2D bin-packing algorithm maps required sheet cut-lengths to standard stock (e.g. 3.6m, 4.2m, 4.8m, 6.0m).
-  - Kerf allowance ($5\text{ mm}$) deducted from cuts.
-  - Offcuts $\ge 1.2\text{ m}$ classified as "Reusable Stock"; offcuts $< 1.2\text{ m}$ classified as "Scrap/Waste".
-  - Tests verify minimum waste optimization and deterministic cutting lists.
+  - 1D bin-packing multi-stock nesting solver (Best-Fit Decreasing) implemented with Zod validation in `src/studio/industries/roofing/stockNesting.ts`.
+  - Kerf allowance ($5\text{ mm}$) deducted from cuts with exact spatial offset tracking and length conservation: $\text{usedLength} + \text{kerfLoss} + \text{offcut} \equiv \text{stockLength}$.
+  - Offcuts $\ge 1.2\text{ m}$ classified as "Reusable Stock" (earning salvage credit); offcuts $< 1.2\text{ m}$ classified as "Scrap/Waste" ($0 credit).
+  - 8/8 targeted unit tests pass in `src/studio/industries/roofing/stockNesting.test.ts` verifying boundary classification, kerf conservation, multi-stock optimization, and unfit cut errors.
+  - Regression suite: 1548 pass / 0 fail across 89 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP live runner (`qa-sc06-final`) passes all 30 operations with exit code 0 in 2.92s.
 * **DONE (human)**:
-  - Cutting List panel displays graphic visual cutting diagrams per stock sheet.
-  - Waste percentage and salvage credits clearly itemized.
+  - Cutting List panel (`CuttingListPanel.tsx`) displays graphic visual SVG cutting diagrams per stock sheet with proportional course blocks, 5mm red kerf dividers, emerald green reusable offcuts ($\ge 1.2\text{m}$), and dark crimson scrap offcuts ($< 1.2\text{m}$).
+  - 5 high-contrast KPI cards display Total Stock Ordered, Net Cut Length, Reusable Offcuts, Scrap & Kerf Waste, and Net Material Cost.
+  - Multi-stock length selection ([3.6m, 4.2m, 4.8m, 6.0m]) reduces cutting waste and optimizes material yield.
+  - 5 inspected captures verified in `screenshots/growth/sc06/` and `proof/growth/2026-09-19-sc06-stock-nesting/captures/`:
+    - `sc06-stock-nesting-kpi-controls-desktop-1600x1000.png`: High-contrast KPI cards and interactive nesting parameter controls.
+    - `sc06-stock-nesting-diagram-desktop-1600x1000.png`: Visual SVG stock bars showing cut courses, 5mm kerf divider, and offcut allocation.
+    - `sc06-stock-nesting-takeoff-table-desktop-1600x1000.png`: Tabular schedule itemizing sheet-by-sheet assignments, kerf loss mm, remaining offcut, SCRAP/REUSABLE classification badges, and net cost.
+    - `sc06-stock-nesting-sample-preset-desktop-1600x1000.png`: 12-cut multi-stock layout demonstrating discrete supplier length selection and Reusable Stock offcut allocation.
+    - `sc06-stock-nesting-tablet-1024x768.png`: Responsive tablet layout with fluid SVG bars, non-clipping text annotations, and zero horizontal scrollbar.
 * **Files**:
   - `src/studio/industries/roofing/stockNesting.ts` (new)
   - `src/studio/industries/roofing/stockNesting.test.ts` (new)
   - `src/studio/industries/roofing/CuttingListPanel.tsx` (new)
+  - `src/studio/industries/roofing/RoofingWorksheet.tsx` (integrated)
+  - `proof/growth/2026-09-19-sc06-stock-nesting/build-scenario.mjs`
+  - `screenshots/growth/sc06/` (5 visual proof captures)
 * **Depends on**: SC-05
-* **Commit**: —
+* **Commit**: this commit; SC-06 fully closed with machine and visual proof.
 
 #### SC-07 — ROOF-05/06 Flashing, Fixing Schedules & Full Takeoff Export Deliverable `[[pending]]`
 * **Goal**: Compile complete bill of quantities including ridge caps, valley gutters, barge flashings, fasteners (screws/clips per $m^2$ by wind region), and output an immutable `deliveryRecord`.

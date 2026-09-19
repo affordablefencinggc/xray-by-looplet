@@ -11,6 +11,7 @@ import {
   type Roof3DFace,
   type Roof3DEdge,
 } from "./roofGeometry.ts";
+import { CuttingListPanel } from "./CuttingListPanel.tsx";
 
 export interface RoofingWorksheetProps {
   draftPlanes?: Array<{
@@ -51,7 +52,7 @@ function projectIsometric(p: Point3D, scale: number, center: [number, number]): 
 export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorksheetProps) {
   const prefix = useId();
   const [activePreset, setActivePreset] = useState<PresetType>("standard-hip");
-  const [viewMode, setViewMode] = useState<"3d-iso" | "2d-unfolded">("3d-iso");
+  const [viewMode, setViewMode] = useState<"3d-iso" | "2d-unfolded" | "stock-nesting">("3d-iso");
   const [selectedFaceId, setSelectedFaceId] = useState<string | null>(null);
 
   // Custom preset parameters
@@ -134,7 +135,7 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
           </div>
 
           {/* View Mode Controls */}
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => setViewMode("3d-iso")}
@@ -166,6 +167,23 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
               }}
             >
               2D Unfolded Flat Patterns
+            </button>
+            <button
+              type="button"
+              id={`${prefix}-tab-stock-nesting`}
+              onClick={() => setViewMode("stock-nesting")}
+              style={{
+                padding: "4px 12px",
+                fontSize: "0.8rem",
+                borderRadius: "4px",
+                border: "1px solid #475569",
+                background: viewMode === "stock-nesting" ? "#0284c7" : "#1e293b",
+                color: "#f8fafc",
+                cursor: "pointer",
+                fontWeight: viewMode === "stock-nesting" ? 600 : 400,
+              }}
+            >
+              Stock Nesting &amp; Cut List (ROOF-04)
             </button>
           </div>
         </div>
@@ -308,9 +326,13 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
         </div>
       )}
 
-      {/* Main Graphical Canvas / SVG Viewport */}
-      <div
-        style={{
+      {viewMode === "stock-nesting" ? (
+        <CuttingListPanel takeoff={takeoff} disabled={disabled} />
+      ) : (
+        <>
+          {/* Main Graphical Canvas / SVG Viewport */}
+          <div
+            style={{
           background: "#090d16",
           border: "1px solid #1e293b",
           borderRadius: "8px",
@@ -640,6 +662,13 @@ export function RoofingWorksheet({ draftPlanes, disabled = false }: RoofingWorks
           </table>
         </div>
       </div>
-    </div>
+
+      {/* Integrated Stock Sheet Cutting Diagram & Nesting */}
+      <div style={{ marginTop: "1.5rem" }}>
+        <CuttingListPanel takeoff={takeoff} disabled={disabled} />
+      </div>
+    </>
+  )}
+</div>
   );
 }
