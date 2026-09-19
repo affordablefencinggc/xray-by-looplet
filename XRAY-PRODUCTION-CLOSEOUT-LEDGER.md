@@ -282,21 +282,37 @@ graph TD
 
 ### PORTION 3: Active Trade Engines — Stage 2: Quantity Surveying & Cost Consultancy (IND-38)
 
-#### SC-08 — QS-01/02 Hierarchy CSV Overlap Disclosure & Tablet Report Compilation `[[pending]]`
+#### SC-08 — QS-01/02 Hierarchy CSV Overlap Disclosure & Tablet Report Compilation `[[done]]`
 * **Goal**: Correct the assistant explanation and report UI regarding hierarchical CSV exports. Explicitly disclose that parent category rows are summary aggregates and cannot be summed together with leaf items (preventing double-counting).
 * **DONE (machine)**:
-  - CSV export formatter writes distinct record types: `SUMMARY_NODE` vs `LEAF_ITEM`.
-  - Export adds warning metadata header: `"NOTICE: Parent nodes represent aggregate sub-totals. Do not sum total column blindly."`
-  - Tablet layout of QS Classification Report optimized for touch: tree expand/collapse handles $\ge 44\text{ px}$.
-  - Unit tests verify tree traversal, non-duplication of leaf totals, and export formatting.
+  - CSV export formatter writes distinct record types: `SUMMARY_NODE` vs `LEAF_ITEM` in `src/studio/industries/quantity-surveying/qsReportFormatter.ts`.
+  - Export adds warning metadata header: `"NOTICE: Parent nodes represent aggregate sub-totals. Do not sum total column blindly."` with `#` comments.
+  - Tablet layout of QS Classification Report optimized for touch: tree expand/collapse handles $\ge 44\text{ px}$ (WCAG 2.5.5 touch target size).
+  - 7 unit tests pass in `src/studio/industries/quantity-surveying/qsReportFormatter.test.ts` verifying tree traversal, exact leaf total conservation, non-duplication invariant, formula neutralization, and mathematical proof of double-counting error ($\Delta_{\text{blind}} = \text{BlindSum} - T > 0$).
+  - Assistant boundary updated in `assistantTool.ts` with explicit `hierarchicalCsvNotice` and `hierarchicalCsvRecordRule` and verified by 11 unit tests in `assistantTool.test.ts`.
+  - Regression suite: 1579 pass / 0 fail across 91 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP live runner (`qa-sc08-final`) passes all 30 operations with exit code 0 in 3.08s.
 * **DONE (human)**:
-  - Tablet (1024×768) screenshot of QS Report showing expanded hierarchy, active filters (All/Classified/Unassigned), and clear parent/leaf visual distinction.
+  - Prominent high-contrast Amber Warning Banner rendered in `QSReportPanel.tsx` with mathematical proof demonstrating why blindly summing categories causes severe inflation (+70 m3, +48 ea, +300 lm).
+  - Touch-friendly classification tree breakdown table with purple/indigo `SUMMARY_NODE` badges, emerald `LEAF_ITEM` badges, $\ge 44\text{px}$ touch chevrons, and active filter tabs (All / Classified / Unassigned).
+  - Dual CSV export actions: "Download Hierarchical CSV (Disclosed)" and "Download shown item rows (CSV)".
+  - 5 inspected captures verified in `screenshots/growth/sc08/` and `proof/growth/2026-09-19-sc08-qs-hierarchy/captures/`:
+    - `sc08-qs-report-warning-desktop-1600x1000.png`: Double-counting overlap warning banner, mathematical inflation callout, and whole-draft totals.
+    - `sc08-qs-report-hierarchy-table-desktop-1600x1000.png`: Classification breakdown table showing distinct `SUMMARY_NODE` vs `LEAF_ITEM` pills, indentation depths, and double-counting safety rules.
+    - `sc08-qs-report-filter-subtree-desktop-1600x1000.png`: Active classification branch filter (01 Substructure) isolating direct Excavation and child Footings quantities.
+    - `sc08-qs-report-unassigned-desktop-1600x1000.png`: Filtered unassigned view isolating Site Storage Shed item with unassigned disclosure.
+    - `sc08-qs-report-tablet-1024x768.png`: Tablet landscape (1024×768) responsive layout with $\ge 44\text{px}$ touch targets and zero horizontal scrollbar.
 * **Files**:
-  - `src/studio/industries/quantity-surveying/qsReportFormatter.ts`
-  - `src/studio/industries/quantity-surveying/qsReportFormatter.test.ts`
-  - `src/studio/industries/quantity-surveying/QSReportPanel.tsx`
+  - `src/studio/industries/quantity-surveying/qsReportFormatter.ts` (new)
+  - `src/studio/industries/quantity-surveying/qsReportFormatter.test.ts` (new)
+  - `src/studio/industries/quantity-surveying/QSReportPanel.tsx` (new)
+  - `src/studio/industries/quantity-surveying/QuantityReportView.tsx` (integrated)
+  - `src/studio/industries/quantity-surveying/assistantTool.ts` (integrated)
+  - `src/studio/industries/quantity-surveying/assistantTool.test.ts` (integrated)
+  - `proof/growth/2026-09-19-sc08-qs-hierarchy/build-scenario.mjs`
+  - `screenshots/growth/sc08/` (5 visual proof captures)
 * **Depends on**: None
-* **Commit**: —
+* **Commit**: this commit; SC-08 fully closed with machine and visual proof.
 
 #### SC-09 — QS-03 Measured Item-Level Evidence Binding `[[pending]]`
 * **Goal**: Bind individual classified items in the cost plan directly to immutable measured geometry entities (wall run, room area, roof plane) rather than just the general worksheet header.

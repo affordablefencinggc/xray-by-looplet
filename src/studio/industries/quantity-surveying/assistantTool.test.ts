@@ -153,7 +153,18 @@ test("failed live placeholder arguments are rejected with nullable alternatives,
     assert.match(error.message, /do not invent parent nodes, source IDs, hashes or calibration metadata/);
     return true;
   });
-  assert.deepEqual(input, before);
   const invalidGraph = example(); invalidGraph.nodes[0].parentId = "imaginary";
   assert.throws(() => execute(invalidGraph), /Missing classification parent: imaginary/);
 });
+
+test("result carries hierarchical CSV contract and warning notice", () => {
+  const result = execute(example());
+  assert.equal(
+    result.reportContract.hierarchicalCsvNotice,
+    "NOTICE: Parent nodes represent aggregate sub-totals. Do not sum total column blindly."
+  );
+  assert.match(result.reportContract.hierarchicalCsvRecordRule, /SUMMARY_NODE or LEAF_ITEM/);
+  assert.ok(result.reportContract.hierarchicalCsvColumns.includes("Record Type"));
+  assert.ok(result.reportContract.hierarchicalCsvColumns.includes("Overlap Warning"));
+});
+

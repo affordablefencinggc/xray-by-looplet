@@ -941,7 +941,7 @@
           <span>Visual & Executed Proofs</span>
           <span style="color: #60a5fa;">ATTACHED</span>
         </div>
-        <div class="kpi-value">48</div>
+        <div class="kpi-value">53</div>
         <div class="kpi-sub">Screenshots & Vector PDFs</div>
       </div>
       <div class="kpi-card">
@@ -963,7 +963,7 @@
         </button>
         <button class="tab-btn" onclick="switchTab('gallery')">
           <span>🖼️ Visual Proof Gallery</span>
-          <span class="tab-badge">48</span>
+          <span class="tab-badge">53</span>
         </button>
         <button class="tab-btn" onclick="switchTab('gaps')">
           <span>🔍 What Hasn't Been Done</span>
@@ -1564,13 +1564,13 @@
           <span class="portion-title">📂 PORTION 3: Active Trade Engines — Stage 2: Quantity Surveying &amp; Cost Consultancy (IND-38)</span>
         </div>
       
-      <div class="slice-card pending" data-status="pending" data-portion="PORTION 3: Active Trade Engines — Stage 2: Quantity Surveying &amp; Cost Consultancy (IND-38)">
+      <div class="slice-card done" data-status="done" data-portion="PORTION 3: Active Trade Engines — Stage 2: Quantity Surveying &amp; Cost Consultancy (IND-38)">
         <div class="slice-top" onclick="toggleSlice(this.parentElement)">
           <div class="slice-info">
             <div class="slice-header">
               <span class="slice-id">SC-08</span>
               <span class="slice-title">QS-01/02 Hierarchy CSV Overlap Disclosure &amp; Tablet Report Compilation</span>
-              <span class="status-badge badge-pending">○ Pending</span>
+              <span class="status-badge badge-done">✓ Done</span>
             </div>
             <div class="slice-goal">Correct the assistant explanation and report UI regarding hierarchical CSV exports. Explicitly disclose that parent category rows are summary aggregates and cannot be summed together with leaf items (preventing double-counting).</div>
           </div>
@@ -1581,17 +1581,28 @@
           
             <div class="detail-section">
               <div class="detail-heading">⚙️ Machine Gate Verification</div>
-              <div class="detail-body">- CSV export formatter writes distinct record types: `SUMMARY_NODE` vs `LEAF_ITEM`.
-  - Export adds warning metadata header: `&quot;NOTICE: Parent nodes represent aggregate sub-totals. Do not sum total column blindly.&quot;`
-  - Tablet layout of QS Classification Report optimized for touch: tree expand/collapse handles $\ge 44\text{ px}$.
-  - Unit tests verify tree traversal, non-duplication of leaf totals, and export formatting.</div>
+              <div class="detail-body">- CSV export formatter writes distinct record types: `SUMMARY_NODE` vs `LEAF_ITEM` in `src/studio/industries/quantity-surveying/qsReportFormatter.ts`.
+  - Export adds warning metadata header: `&quot;NOTICE: Parent nodes represent aggregate sub-totals. Do not sum total column blindly.&quot;` with `#` comments.
+  - Tablet layout of QS Classification Report optimized for touch: tree expand/collapse handles $\ge 44\text{ px}$ (WCAG 2.5.5 touch target size).
+  - 7 unit tests pass in `src/studio/industries/quantity-surveying/qsReportFormatter.test.ts` verifying tree traversal, exact leaf total conservation, non-duplication invariant, formula neutralization, and mathematical proof of double-counting error ($\Delta_{\text{blind}} = \text{BlindSum} - T &gt; 0$).
+  - Assistant boundary updated in `assistantTool.ts` with explicit `hierarchicalCsvNotice` and `hierarchicalCsvRecordRule` and verified by 11 unit tests in `assistantTool.test.ts`.
+  - Regression suite: 1579 pass / 0 fail across 91 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP live runner (`qa-sc08-final`) passes all 30 operations with exit code 0 in 3.08s.</div>
             </div>
           
 
           
             <div class="detail-section">
               <div class="detail-heading">👁️ Human & Visual Proof</div>
-              <div class="detail-body">- Tablet (1024×768) screenshot of QS Report showing expanded hierarchy, active filters (All/Classified/Unassigned), and clear parent/leaf visual distinction.</div>
+              <div class="detail-body">- Prominent high-contrast Amber Warning Banner rendered in `QSReportPanel.tsx` with mathematical proof demonstrating why blindly summing categories causes severe inflation (+70 m3, +48 ea, +300 lm).
+  - Touch-friendly classification tree breakdown table with purple/indigo `SUMMARY_NODE` badges, emerald `LEAF_ITEM` badges, $\ge 44\text{px}$ touch chevrons, and active filter tabs (All / Classified / Unassigned).
+  - Dual CSV export actions: &quot;Download Hierarchical CSV (Disclosed)&quot; and &quot;Download shown item rows (CSV)&quot;.
+  - 5 inspected captures verified in `screenshots/growth/sc08/` and `proof/growth/2026-09-19-sc08-qs-hierarchy/captures/`:
+    - `sc08-qs-report-warning-desktop-1600x1000.png`: Double-counting overlap warning banner, mathematical inflation callout, and whole-draft totals.
+    - `sc08-qs-report-hierarchy-table-desktop-1600x1000.png`: Classification breakdown table showing distinct `SUMMARY_NODE` vs `LEAF_ITEM` pills, indentation depths, and double-counting safety rules.
+    - `sc08-qs-report-filter-subtree-desktop-1600x1000.png`: Active classification branch filter (01 Substructure) isolating direct Excavation and child Footings quantities.
+    - `sc08-qs-report-unassigned-desktop-1600x1000.png`: Filtered unassigned view isolating Site Storage Shed item with unassigned disclosure.
+    - `sc08-qs-report-tablet-1024x768.png`: Tablet landscape (1024×768) responsive layout with $\ge 44\text{px}$ touch targets and zero horizontal scrollbar.</div>
             </div>
           
 
@@ -1601,11 +1612,48 @@
             <div class="detail-section">
               <div class="detail-heading">📁 Associated Files</div>
               <div class="files-list">
-                <span class="file-tag">src/studio/industries/quantity-surveying/qsReportFormatter.ts</span><span class="file-tag">- `src/studio/industries/quantity-surveying/qsReportFormatter.test.ts</span><span class="file-tag">- `src/studio/industries/quantity-surveying/QSReportPanel.tsx</span>
+                <span class="file-tag">src/studio/industries/quantity-surveying/qsReportFormatter.ts` (new)</span><span class="file-tag">- `src/studio/industries/quantity-surveying/qsReportFormatter.test.ts` (new)</span><span class="file-tag">- `src/studio/industries/quantity-surveying/QSReportPanel.tsx` (new)</span><span class="file-tag">- `src/studio/industries/quantity-surveying/QuantityReportView.tsx` (integrated)</span><span class="file-tag">- `src/studio/industries/quantity-surveying/assistantTool.ts` (integrated)</span><span class="file-tag">- `src/studio/industries/quantity-surveying/assistantTool.test.ts` (integrated)</span><span class="file-tag">- `proof/growth/2026-09-19-sc08-qs-hierarchy/build-scenario.mjs</span><span class="file-tag">- `screenshots/growth/sc08/` (5 visual proof captures)</span>
               </div>
             </div>
           
 
+          
+            <div class="detail-section">
+              <div class="detail-heading">📸 Attached Visual Proof</div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png', 'Double-Counting Overlap Warning &amp; Mathematical Inflation Proof (Desktop 1600x1000)', 'High-contrast Amber Warning Banner explicitly disclosing that parent category rows are summary aggregates, with mathematical proof demonstrating blind sum inflation (+70 m3, +48 ea, +300 lm).', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Double-Counting Overlap Warning &amp; Mathematical Inflation Proof (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Double-Counting Overlap Warning &amp; Mathematical Inflation Proof (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png', 'Classification Breakdown Table with SUMMARY_NODE vs LEAF_ITEM (Desktop 1600x1000)', 'Touch-optimized breakdown schedule showing distinct SUMMARY_NODE (indigo) and LEAF_ITEM (emerald) badges, &gt;=44px chevron touch handles, and double-counting safety rules.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Classification Breakdown Table with SUMMARY_NODE vs LEAF_ITEM (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Classification Breakdown Table with SUMMARY_NODE vs LEAF_ITEM (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png', 'Active Classification Subtree Filter: 01 Substructure (Desktop 1600x1000)', 'Isolated Substructure branch filter showing direct Excavation and child Footings quantities with branch subtotal.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Active Classification Subtree Filter: 01 Substructure (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Active Classification Subtree Filter: 01 Substructure (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png', 'Filtered Unassigned Quantities Isolation (Desktop 1600x1000)', 'Unassigned filter view isolating unclassified Site Storage Shed takeoff items with unassigned disclosure.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Filtered Unassigned Quantities Isolation (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Filtered Unassigned Quantities Isolation (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png', 'Tablet Landscape Responsive Viewport (Tablet 1024x768)', 'Tablet verification showing &gt;=44px touch handles, fluid typography, non-clipping controls, and zero horizontal scrollbar.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png')">
+                    <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Tablet Landscape Responsive Viewport (Tablet 1024x768)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Tablet Landscape Responsive Viewport (Tablet 1024x768)</div>
+                  </div>
+                
+              </div>
+            </div>
           
         </div>
       </div>
@@ -2192,7 +2240,7 @@
     <section id="tab-gallery" class="tab-content">
       <div class="filter-bar">
         <span class="filter-label">Filter Category:</span>
-        <button class="filter-chip active" onclick="filterGallery('all', this)">All (48)</button>
+        <button class="filter-chip active" onclick="filterGallery('all', this)">All (53)</button>
         <button class="filter-chip" onclick="filterGallery('Drawing Register & PDF', this)">Drawing Register & PDF</button>
         <button class="filter-chip" onclick="filterGallery('Roofing & Cladding', this)">Roofing & Cladding</button>
         <button class="filter-chip" onclick="filterGallery('Alteration Stages & Demolition', this)">Alteration Stages</button>
@@ -2203,6 +2251,96 @@
 
       <div class="gallery-grid" id="galleryContainer">
         
+    <div class="proof-card" data-category="Quantity Surveying"
+         onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png', 'Double-Counting Overlap Warning &amp; Mathematical Inflation Proof (Desktop 1600x1000)', 'High-contrast Amber Warning Banner explicitly disclosing that parent category rows are summary aggregates, with mathematical proof demonstrating blind sum inflation (+70 m3, +48 ea, +300 lm).', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png" alt="Double-Counting Overlap Warning &amp; Mathematical Inflation Proof (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Quantity Surveying</span>
+          <span class="proof-slice-tag">SC-08</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Double-Counting Overlap Warning &amp; Mathematical Inflation Proof (Desktop 1600x1000)</h4>
+          <p class="proof-desc">High-contrast Amber Warning Banner explicitly disclosing that parent category rows are summary aggregates, with mathematical proof demonstrating blind sum inflation (+70 m3, +48 ea, +300 lm).</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-warning-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Quantity Surveying"
+         onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png', 'Classification Breakdown Table with SUMMARY_NODE vs LEAF_ITEM (Desktop 1600x1000)', 'Touch-optimized breakdown schedule showing distinct SUMMARY_NODE (indigo) and LEAF_ITEM (emerald) badges, &gt;=44px chevron touch handles, and double-counting safety rules.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png" alt="Classification Breakdown Table with SUMMARY_NODE vs LEAF_ITEM (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Quantity Surveying</span>
+          <span class="proof-slice-tag">SC-08</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Classification Breakdown Table with SUMMARY_NODE vs LEAF_ITEM (Desktop 1600x1000)</h4>
+          <p class="proof-desc">Touch-optimized breakdown schedule showing distinct SUMMARY_NODE (indigo) and LEAF_ITEM (emerald) badges, &gt;=44px chevron touch handles, and double-counting safety rules.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-hierarchy-table-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Quantity Surveying"
+         onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png', 'Active Classification Subtree Filter: 01 Substructure (Desktop 1600x1000)', 'Isolated Substructure branch filter showing direct Excavation and child Footings quantities with branch subtotal.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png" alt="Active Classification Subtree Filter: 01 Substructure (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Quantity Surveying</span>
+          <span class="proof-slice-tag">SC-08</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Active Classification Subtree Filter: 01 Substructure (Desktop 1600x1000)</h4>
+          <p class="proof-desc">Isolated Substructure branch filter showing direct Excavation and child Footings quantities with branch subtotal.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-filter-subtree-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Quantity Surveying"
+         onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png', 'Filtered Unassigned Quantities Isolation (Desktop 1600x1000)', 'Unassigned filter view isolating unclassified Site Storage Shed takeoff items with unassigned disclosure.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png" alt="Filtered Unassigned Quantities Isolation (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Quantity Surveying</span>
+          <span class="proof-slice-tag">SC-08</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Filtered Unassigned Quantities Isolation (Desktop 1600x1000)</h4>
+          <p class="proof-desc">Unassigned filter view isolating unclassified Site Storage Shed takeoff items with unassigned disclosure.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-unassigned-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Quantity Surveying"
+         onclick="openLightbox('proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png', 'Tablet Landscape Responsive Viewport (Tablet 1024x768)', 'Tablet verification showing &gt;=44px touch handles, fluid typography, non-clipping controls, and zero horizontal scrollbar.', 'proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png" alt="Tablet Landscape Responsive Viewport (Tablet 1024x768)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Quantity Surveying</span>
+          <span class="proof-slice-tag">SC-08</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Tablet Landscape Responsive Viewport (Tablet 1024x768)</h4>
+          <p class="proof-desc">Tablet verification showing &gt;=44px touch handles, fluid typography, non-clipping controls, and zero horizontal scrollbar.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc08-qs-hierarchy/captures/sc08-qs-report-tablet-1024x768.png</div>
+      </div>
+    </div>
+  
     <div class="proof-card" data-category="Roofing &amp; Cladding"
          onclick="openLightbox('proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png', 'Flashing Girth &amp; Fastener Controls (Desktop 1600x1000)', 'Interactive AS 4055 wind class selector, batten substrate profiles, and KPI summary cards (True Slope Area, Fasteners, Flashing Pieces, Total Cost).', 'proof/growth/2026-09-19-sc07-flashing-schedules/captures/sc07-flashing-kpi-controls-desktop-1600x1000.png')">
       <div class="thumb-wrapper">

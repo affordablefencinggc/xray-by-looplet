@@ -15,10 +15,10 @@ mkdirSync(resolve('node_modules/.cache'), { recursive: true });
 const dir = mkdtempSync(resolve('node_modules/.cache/quantity-report-'));
 // The worksheet panel imports the shared source-binding contract from the parent directory, so that
 // module is transpiled too and its relative require is rewritten alongside the same-directory ones.
-for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts']) {
+for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts']) {
   const code = ts.transpileModule(readFileSync(join(here, name), 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
-  }).outputText.replace(/require\("(?:\.\/|\.\.\/)(\w+)(?:\.ts)?"\)/g, 'require("./$1.cjs")');
+  }).outputText.replace(/require\("(?:\.\/|\.\.\/)(\w+)(?:\.tsx?)?"\)/g, 'require("./$1.cjs")');
   writeFileSync(join(dir, basename(name).replace(/\.tsx?$/, '.cjs')), code);
 }
 const require = createRequire(import.meta.url);
