@@ -13,7 +13,7 @@ export default [
     if (details.open) summary.click();
     return { initiallyClosed: !details.open };
   })()`],
-  ['click', `${disclosure} summary`],
+  ['find', 'role', 'DisclosureTriangle', 'click', '--name', 'Full binding provenance for QS-WALL-A', '--exact'],
   ['wait', '--fn', `document.querySelector('${disclosure}')?.open === true`],
   ['eval', `(() => {
     const details = document.querySelector('${disclosure}');
@@ -39,7 +39,7 @@ export default [
     return {geometrySha256:hash,sourceSha256:sourceHash,width:control.width,height:control.height,status:row.dataset.bindingStatus};
   })()`],
   ['screenshot', `${captures}/sc09-full-binding-provenance-tablet-1024x768.png`],
-  ['click', `${disclosure} summary`],
+  ['find', 'role', 'DisclosureTriangle', 'click', '--name', 'Full binding provenance for QS-WALL-A', '--exact'],
   ['eval', `(() => {
     const footer = document.querySelector('.workspace-diagnostics');
     const toggle = footer?.querySelector('.workspace-diagnostics-toggle');
@@ -57,7 +57,7 @@ export default [
     if (box.left < bounds.left - 1 || box.right > bounds.right + 1 || box.top < bounds.top - 1 || box.bottom > bounds.bottom + 1 || box.bottom > innerHeight + 1) throw Error('Collapsed diagnostics toggle is actually clipped');
     return {collapsed:true,footer:[bounds.left,bounds.top,bounds.width,bounds.height],toggle:[box.left,box.top,box.width,box.height]};
   })()`],
-  ['click', '.workspace-diagnostics-toggle'],
+  ['find', 'role', 'button', 'click', '--name', 'Expand workspace diagnostics', '--exact'],
   ['wait', '--fn', `document.querySelector('.workspace-diagnostics-toggle')?.getAttribute('aria-expanded') === 'true' && document.getElementById('workspace-diagnostics-content')`],
   ['eval', `(() => {
     const footer = document.querySelector('.workspace-diagnostics'), bounds = footer.getBoundingClientRect();

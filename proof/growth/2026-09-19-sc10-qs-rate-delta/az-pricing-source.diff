@@ -1,0 +1,1842 @@
+diff --git a/src/studio/industries/quantity-surveying/QSWorksheet.css b/src/studio/industries/quantity-surveying/QSWorksheet.css
+new file mode 100644
+index 0000000..c97071d
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/QSWorksheet.css
+@@ -0,0 +1,79 @@
++.qs-cost-workspace,
++.qs-cost-comparison {
++  --qs-positive: #166534;
++  --qs-positive-surface: #eef9f0;
++  --qs-negative: var(--color-danger);
++  --qs-negative-surface: color-mix(in srgb, var(--color-danger) 8%, var(--color-paper));
++  --qs-change: var(--color-warn);
++  --qs-change-surface: color-mix(in srgb, var(--color-warn) 8%, var(--color-paper));
++  color: var(--color-ink);
++  font: inherit;
++  min-width: 0;
++}
++.workbench[data-skin="navy"] .qs-cost-workspace,
++.workbench[data-skin="navy"] .qs-cost-comparison { --qs-positive: #a3ddb5; --qs-positive-surface: #20382b; }
++.qs-cost-workspace { display: grid; gap: 16px; padding-top: 20px; border-top: 1px solid var(--color-line); }
++.qs-cost-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
++.qs-cost-heading h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
++.qs-cost-heading p,
++.qs-cost-note { color: var(--color-muted); font-size: 12px; line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
++.qs-cost-draft-badge { flex: 0 0 auto; padding: 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--color-line); color: var(--color-muted); background: var(--color-paper); }
++.qs-cost-section { min-width: 0; display: grid; gap: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-panel); padding: 12px; }
++.qs-cost-section legend { padding: 0 6px; font-weight: 700; }
++.qs-cost-workspace label,
++.qs-cost-comparison label { min-width: 0; display: grid; gap: 5px; color: var(--color-muted); font-weight: 600; font-size: 12px; }
++.qs-cost-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; min-width: 0; }
++.qs-cost-workspace input:not([type="checkbox"]),
++.qs-cost-workspace select,
++.qs-cost-workspace textarea,
++.qs-cost-comparison select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--color-line); border-radius: var(--radius-pill); background: var(--color-field); color: var(--color-field-ink); padding: 10px 12px; font: inherit; }
++.qs-cost-workspace button,
++.qs-cost-comparison button { min-height: 44px; border: 1px solid var(--color-line); border-radius: var(--radius-pill); background: var(--color-card); color: var(--color-ink); padding: 10px 14px; font: inherit; font-weight: 600; white-space: normal; }
++.qs-cost-workspace button:disabled { cursor: not-allowed; opacity: .55; }
++.qs-cost-workspace :is(button,input,select,textarea):focus-visible,
++.qs-cost-comparison :is(button,select):focus-visible,
++.qs-cost-table-scroll:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }
++.qs-rate-source { display: grid; gap: 10px; border-top: 1px solid var(--color-line); padding-top: 12px; min-width: 0; }
++.qs-rate-source h5 { margin: 0; font-size: 12px; font-weight: 700; }
++.qs-source-provenance { display: grid; gap: 8px; margin: 0; padding: 12px; border-radius: var(--radius-pill); background: var(--color-paper); }
++.qs-source-provenance > div { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(0, 2fr); gap: 12px; }
++.qs-source-provenance dt { color: var(--color-muted); }
++.qs-source-provenance dd { margin: 0; overflow-wrap: anywhere; }
++.qs-source-provenance code { font-family: var(--font-mono); font-size: 11px; }
++.qs-cost-option { display: grid; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--color-line); }
++.qs-cost-workspace .qs-cost-check { display: flex; gap: 10px; align-items: center; min-height: 44px; color: var(--color-ink); }
++.qs-cost-check input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: var(--color-action); }
++.qs-cost-warning,
++.qs-cost-blockers { margin: 0; padding: 12px; border: 1px solid var(--color-warn); border-radius: var(--radius-pill); color: var(--color-warn); background: var(--qs-change-surface); overflow-wrap: anywhere; }
++.qs-cost-blockers h4 { font-size: 13px; margin: 0 0 8px; font-weight: 700; }
++.qs-cost-blockers ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
++.qs-cost-notice { margin: 0; padding: 12px; border: 1px solid var(--qs-positive); border-radius: var(--radius-pill); background: var(--qs-positive-surface); color: var(--qs-positive); }
++.qs-cost-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
++.qs-cost-total { padding: 14px; border: 1px solid var(--color-line); border-radius: var(--radius-panel); background: var(--color-paper); color: var(--color-ink); min-width: 0; }
++.qs-cost-total h4 { margin: 0 0 6px; font-size: 12px; color: var(--color-muted); }
++.qs-cost-total > strong { font-size: 20px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
++.qs-cost-total dl { margin: 12px 0 0; display: grid; gap: 6px; }
++.qs-cost-total dl > div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
++.qs-cost-total dt { color: var(--color-muted); }
++.qs-cost-total dd { margin: 0; font-variant-numeric: tabular-nums; }
++.qs-cost-option-total { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--color-line); }
++.qs-cost-option-total[data-active="false"] { color: var(--color-muted); }
++.qs-cost-table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--color-line); border-radius: var(--radius-panel); }
++.qs-cost-table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.5; }
++.qs-cost-table caption { padding: 12px; text-align: left; color: var(--color-muted); background: var(--color-paper); }
++.qs-cost-table :is(th,td) { padding: 12px; text-align: left; vertical-align: top; border-top: 1px solid var(--color-line); font-variant-numeric: tabular-nums; }
++.qs-cost-table thead { background: var(--color-paper); color: var(--color-muted); }
++.qs-cost-table tbody th { min-width: 160px; }
++.qs-cost-table td { min-width: 110px; }
++.qs-cost-table small { display: block; color: var(--color-muted); margin-top: 6px; font-size: 11px; font-weight: 400; }
++.qs-cost-actions { display: flex; flex-wrap: wrap; gap: 10px; }
++.qs-cost-comparison { margin: auto 0 auto auto; width: min(1180px, 96vw); max-width: 96vw; max-height: 94vh; padding: 24px; border: 1px solid var(--color-line); border-radius: var(--radius-panel) 0 0 var(--radius-panel); background: var(--color-card); overflow: auto; }
++.qs-cost-comparison[open] { display: grid; gap: 20px; }
++.qs-cost-comparison::backdrop { background: rgb(0 0 0 / 55%); }
++.qs-cost-delta-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
++.qs-cost-delta-summary > span { display: grid; gap: 6px; padding: 12px; background: var(--color-paper); color: var(--color-muted); border: 1px solid var(--color-line); border-radius: var(--radius-pill); }
++.qs-cost-delta-summary strong { color: var(--color-ink); font-size: 16px; font-variant-numeric: tabular-nums; }
++.qs-cost-table [data-change="new"] .qs-cost-change { color: var(--qs-positive); background: var(--qs-positive-surface); }
++.qs-cost-table [data-change="removed"] .qs-cost-change { color: var(--qs-negative); background: var(--qs-negative-surface); }
++.qs-cost-table [data-change="modified"] .qs-cost-change { color: var(--qs-change); background: var(--qs-change-surface); }
++.qs-cost-change { display: inline-block; padding: 3px 7px; border: 1px solid currentColor; border-radius: var(--radius-pill); white-space: nowrap; font-weight: 600; }
+diff --git a/src/studio/industries/quantity-surveying/QSWorksheet.tsx b/src/studio/industries/quantity-surveying/QSWorksheet.tsx
+new file mode 100644
+index 0000000..c8447dc
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/QSWorksheet.tsx
+@@ -0,0 +1,370 @@
++import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
++import type { PriceBookLibrary } from "../../pricing/priceBooks";
++import type { QsEntityGeometry } from "./qsItemBinding";
++import type { QuantityForm } from "./quantityForm";
++import {
++  QS_COST_INPUT_FORMAT, QS_CURRENCIES, appendQsRateRevision, calculateQsCostPlan, normalizeQsRateUnit, qsFxRateSchema,
++  type QsCostBlocker, type QsCostResult, type QsCostSnapshot, type QsCostTotals, type QsRatePin, type QsRateRevision,
++} from "./qsRateBook";
++import { compareQsCostPlans } from "./qsDeltaComparison";
++import { appendQsWorksheetSnapshot, type QsWorksheetAssignment, type QsWorksheetState } from "./qsWorksheetState";
++import "./QSWorksheet.css";
++
++export type QSWorksheetProps = {
++  projectId: string;
++  rows: QuantityForm["items"];
++  entities: ReadonlyMap<string, QsEntityGeometry>;
++  priceBooks: PriceBookLibrary;
++  value: QsWorksheetState;
++  /** False means the host rejected the edit before its persistence queue. */
++  onChange: (value: QsWorksheetState) => boolean | void;
++  disabled?: boolean;
++};
++
++type PinDraft = { bookId: string; bookRevision: string; sourceLine: string };
++type RateDraft = {
++  material: PinDraft; labour: PinDraft; labourMode: "" | "excluded" | "pinned";
++  labourAssumption: string; wastagePercent: string; markupPercent: string;
++};
++const emptyPin = (): PinDraft => ({ bookId: "", bookRevision: "", sourceLine: "" });
++const pinDraft = (pin: QsRatePin | null | undefined): PinDraft => pin
++  ? { bookId: pin.bookId, bookRevision: String(pin.bookRevision), sourceLine: String(pin.sourceLine) } : emptyPin();
++const rateDraft = (rate?: QsRateRevision): RateDraft => ({
++  material: pinDraft(rate?.material), labour: pinDraft(rate?.labour), labourMode: rate ? rate.labour ? "pinned" : "excluded" : "",
++  labourAssumption: rate?.labourAssumption ?? "", wastagePercent: rate?.wastagePercent ?? "0", markupPercent: rate?.markupPercent ?? "0",
++});
++function parsePin(draft: PinDraft, component: string): QsRatePin {
++  if (!draft.bookId || !draft.bookRevision || !draft.sourceLine) throw Error(`Choose the ${component} supplier book, revision and source line.`);
++  return { bookId: draft.bookId, bookRevision: Number(draft.bookRevision), sourceLine: Number(draft.sourceLine) };
++}
++function message(error: unknown): string {
++  return error instanceof Error ? error.message : "The cost calculation could not be completed.";
++}
++/** Formatting only: monetary calculation and rounding stay in qsRateBook. */
++export function formatQsMoney(minor: number, currency: string, signed = false): string {
++  const integer = BigInt(minor), absolute = integer < 0n ? -integer : integer;
++  return `${currency} ${integer < 0n ? "−" : signed && integer > 0n ? "+" : ""}${(absolute / 100n).toLocaleString("en-AU")}.${String(absolute % 100n).padStart(2, "0")}`;
++}
++
++function SupplierPinPicker({ label, value, onChange, priceBooks }: {
++  label: string; value: PinDraft; onChange: (value: PinDraft) => void; priceBooks: PriceBookLibrary;
++}) {
++  const book = priceBooks.books.find(entry => entry.id === value.bookId);
++  const revision = book?.revisions.find(entry => String(entry.revision) === value.bookRevision);
++  const row = revision?.rows.find(entry => String(entry.sourceLine) === value.sourceLine);
++  return <div className="qs-rate-source">
++    <h5>{label} supplier source</h5>
++    <div className="qs-cost-fields">
++      <label>{label} supplier book<select value={value.bookId} onChange={event => onChange({ bookId: event.target.value, bookRevision: "", sourceLine: "" })}>
++        <option value="">Choose a supplier book</option>
++        {priceBooks.books.map(entry => <option key={entry.id} value={entry.id} disabled={entry.archived}>{entry.name}{entry.archived ? " · archived" : ""}</option>)}
++      </select></label>
++      <label>{label} supplier revision<select value={value.bookRevision} disabled={!book || book.archived} onChange={event => onChange({ ...value, bookRevision: event.target.value, sourceLine: "" })}>
++        <option value="">Choose an exact revision</option>
++        {book?.revisions.map(entry => <option key={entry.revision} value={entry.revision}>Revision {entry.revision} · {entry.metadata.effectiveDate} · {entry.metadata.supplier}</option>)}
++      </select></label>
++      <label>{label} supplier source line<select value={value.sourceLine} disabled={!revision || book?.archived} onChange={event => onChange({ ...value, sourceLine: event.target.value })}>
++        <option value="">Choose a source rate</option>
++        {revision?.rows.map(entry => <option key={entry.sourceLine} value={entry.sourceLine}>Line {entry.sourceLine} · {entry.stockCode || entry.description} · {entry.rate} {revision.metadata.currency}/{entry.unit}</option>)}
++      </select></label>
++    </div>
++    {revision && row && <dl className="qs-source-provenance">
++      <div><dt>Selected rate</dt><dd>{row.description} · {row.rate} {revision.metadata.currency}/{row.unit}</dd></div>
++      <div><dt>Supplier tax / GST</dt><dd>{revision.metadata.taxBasis === "unspecified" ? "Not declared — pricing withheld" : `${revision.metadata.taxBasis} · ${revision.metadata.taxPercent === null ? "percentage not declared" : `${revision.metadata.taxPercent}%`}`}</dd></div>
++      <div><dt>Source reference</dt><dd>{revision.metadata.sourceReference}</dd></div>
++      <div><dt>Effective / imported</dt><dd>{revision.metadata.effectiveDate} / {revision.importedAt}</dd></div>
++      <div><dt>Source SHA-256</dt><dd><code>{revision.source.sha256}</code></dd></div>
++      {revision.source.worksheet && <div><dt>Workbook locator</dt><dd>{revision.source.worksheet} · header row {revision.source.headerRow} · source line {row.sourceLine}</dd></div>}
++    </dl>}
++  </div>;
++}
++
++function CostTotals({ title, value, currency, testId }: { title: string; value: QsCostTotals; currency: string; testId: string }) {
++  return <section className="qs-cost-total" data-testid={testId}>
++    <h4>{title}</h4>
++    <strong data-total-minor={value.totalMinor}>{formatQsMoney(value.totalMinor, currency)}</strong>
++    <dl><div><dt>Material</dt><dd>{formatQsMoney(value.materialMinor, currency)}</dd></div>
++      <div><dt>Labour</dt><dd>{formatQsMoney(value.labourMinor, currency)}</dd></div>
++      <div><dt>Markup</dt><dd>{formatQsMoney(value.markupMinor, currency)}</dd></div>
++      <div><dt>Net</dt><dd>{formatQsMoney(value.netMinor, currency)}</dd></div>
++      <div><dt>Tax / GST</dt><dd>{formatQsMoney(value.taxMinor, currency)}</dd></div></dl>
++  </section>;
++}
++
++/** Keep Tab at this dialog's boundaries. Native modal/Escape behaviour remains
++ * in charge; no document listener or background focus interception is added. */
++export function keepQsComparisonFocus(event: KeyboardEvent<HTMLDialogElement>): void {
++  const dialog = event.currentTarget;
++  if (event.key !== "Tab" || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !dialog.open) return;
++  const controls = Array.from(dialog.querySelectorAll<HTMLElement>("button, a[href], input, select, textarea, [tabindex]"))
++    .filter(element => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest('[hidden], [inert], [aria-hidden="true"]')
++      && element.getClientRects().length > 0
++      && !["hidden", "collapse"].includes(element.ownerDocument.defaultView?.getComputedStyle(element).visibility ?? "visible"))
++    // Positive tabindex precedes normal DOM order. Stable sort preserves the
++    // DOM order of the controls and the read-only scrollable change table.
++    .sort((a, b) => (a.tabIndex > 0 ? a.tabIndex : Infinity) - (b.tabIndex > 0 ? b.tabIndex : Infinity));
++  const first = controls[0], last = controls[controls.length - 1];
++  if (!first || !last) { event.preventDefault(); return; }
++  const active = dialog.ownerDocument.activeElement;
++  if (active === (event.shiftKey ? first : last) || active === dialog || !dialog.contains(active)) {
++    event.preventDefault();
++    (event.shiftKey ? last : first).focus();
++  }
++}
++
++/** Controlled cost editor. Quantities, geometry and supplier records are inputs;
++ * this component only changes pricing choices and appends immutable revisions. */
++export function QSWorksheet({ projectId, rows, entities, priceBooks, value, onChange, disabled = false }: QSWorksheetProps) {
++  const [error, setError] = useState("");
++  const [notice, setNotice] = useState("");
++  const [selectedItemKey, setSelectedItemKey] = useState(rows[0]?.key ?? "");
++  const activeRow = rows.find(row => row.key === selectedItemKey) ?? rows[0];
++  const assignment = value.assignments.find(entry => entry.itemKey === activeRow?.key);
++  const pinnedRate = value.rateBook.rates.find(rate => rate.id === assignment?.rateId && rate.revision === assignment?.rateRevision);
++  const [draft, setDraft] = useState<RateDraft>(() => rateDraft(pinnedRate));
++  const hasUnappliedRateEdits = JSON.stringify(draft) !== JSON.stringify(rateDraft(pinnedRate));
++  const [fxDraft, setFxDraft] = useState({ fromCurrency: "", rate: "", sourceReference: "", effectiveAt: "", validUntil: "" });
++  const pinnedRateJson = JSON.stringify(pinnedRate ?? null);
++  useEffect(() => {
++    setDraft(rateDraft(pinnedRateJson === "null" ? undefined : JSON.parse(pinnedRateJson) as QsRateRevision));
++    setError("");
++  }, [activeRow?.key, pinnedRateJson]);
++  const [comparisonOpen, setComparisonOpen] = useState(false);
++  const [previousRevision, setPreviousRevision] = useState(1);
++  const [currentRevision, setCurrentRevision] = useState("draft");
++  const comparisonId = useId();
++  const comparisonRef = useRef<HTMLDialogElement>(null);
++  const comparisonTrigger = useRef<HTMLButtonElement>(null);
++  useEffect(() => {
++    const dialog = comparisonRef.current;
++    if (!dialog) return;
++    if (comparisonOpen && !dialog.open) dialog.showModal();
++    if (!comparisonOpen && dialog.open) dialog.close();
++  }, [comparisonOpen]);
++
++  const edit = (next: QsWorksheetState): boolean => {
++    setError(""); setNotice("");
++    try {
++      if (disabled) throw Error("Cost changes are disabled while source or storage checks are pending.");
++      if (onChange(next) === false) throw Error("The project did not accept this cost change. Existing inputs are preserved; see the worksheet error for details.");
++      return true;
++    } catch (cause) { setError(message(cause)); return false; }
++  };
++  const replaceAssignment = (next: QsWorksheetAssignment): QsWorksheetAssignment[] => value.assignments.some(entry => entry.itemKey === next.itemKey)
++    ? value.assignments.map(entry => entry.itemKey === next.itemKey ? next : entry) : [...value.assignments, next];
++  const calculate = useCallback((createdAt: string): QsCostResult => {
++    const blockers: QsCostBlocker[] = [];
++    if (!projectId || value.projectId !== projectId || priceBooks.jobId !== projectId)
++      blockers.push({ itemId: null, code: "invalid-input", message: "Measured quantities, rate definitions and supplier library must belong to the current project." });
++    if (!rows.length) blockers.push({ itemId: null, code: "invalid-input", message: "Add and bind measured quantity rows before calculating a cost plan." });
++    if (!value.preparedBy.trim()) blockers.push({ itemId: null, code: "invalid-input", message: "Enter the preparer's name for the cost revision." });
++    for (const row of rows) {
++      const pin = value.assignments.find(entry => entry.itemKey === row.key);
++      if (!pin?.rateId || !pin.rateRevision) blockers.push({ itemId: row.reference || row.key, code: "missing-rate", message: "Save an explicit supplier rate definition for this row." });
++    }
++    if (blockers.length) return { ok: false, blockers };
++    return calculateQsCostPlan({
++      format: QS_COST_INPUT_FORMAT, projectId, revision: value.snapshots.length + 1, createdAt,
++      createdBy: value.preparedBy.trim(), currency: value.currency, priceBooks, rateBook: value.rateBook,
++      options: value.options, activeOptionIds: value.activeOptionIds, fxRates: value.fxRates,
++      items: rows.map(row => {
++        const pin = value.assignments.find(entry => entry.itemKey === row.key)!;
++        return { itemId: row.reference, description: row.reference, quantity: row.quantity, unit: row.unit,
++          evidence: row.evidence, binding: row.entityBinding ?? null,
++          entity: row.entityBinding ? entities.get(row.entityBinding.entityId) ?? null : null,
++          rateId: pin.rateId, rateRevision: pin.rateRevision, optionId: pin.optionId };
++      }),
++    });
++  }, [projectId, rows, entities, priceBooks, value]);
++  // A fresh render caused by changed source/rate inputs always recalculates. No
++  // ready/verified status is persisted or reused from the last cost revision.
++  const result = useMemo(() => calculate(new Date().toISOString()), [calculate]);
++  const saveRate = () => {
++    if (!activeRow) return;
++    try {
++      if (!value.preparedBy.trim()) throw Error("Enter the preparer's name before saving a rate revision.");
++      if (!activeRow.reference.trim()) throw Error("Enter an item reference before saving its rate definition.");
++      const unit = normalizeQsRateUnit(activeRow.unit);
++      if (unit === null) throw Error("This measured unit is not supported by the cost calculator. The source measurement unit has not been changed.");
++      if (!draft.labourMode) throw Error("Choose whether labour is pinned separately or explicitly excluded.");
++      const id = assignment?.rateId ?? crypto.randomUUID();
++      const rate: QsRateRevision = {
++        id, revision: value.rateBook.rates.filter(entry => entry.id === id).length + 1,
++        description: activeRow.reference, unit,
++        material: parsePin(draft.material, "material"), labour: draft.labourMode === "pinned" ? parsePin(draft.labour, "labour") : null,
++        labourAssumption: draft.labourAssumption, wastagePercent: draft.wastagePercent, markupPercent: draft.markupPercent,
++        createdAt: new Date().toISOString(), createdBy: value.preparedBy.trim(),
++      };
++      const rateBook = appendQsRateRevision(value.rateBook, rate, value.rateBook.revision);
++      if (!edit({ ...value, rateBook, assignments: replaceAssignment({ itemKey: activeRow.key, rateId: id, rateRevision: rate.revision, optionId: assignment?.optionId ?? null }) })) return;
++      setNotice(`Rate revision ${rate.revision} added for ${activeRow.reference}. The project save status below confirms when it is stored.`);
++    } catch (cause) { setError(message(cause)); }
++  };
++  const saveSnapshot = () => {
++    try {
++      const current = calculate(new Date().toISOString());
++      if (!current.ok) throw Error(current.blockers.map(blocker => blocker.message).join(" "));
++      if (!edit(appendQsWorksheetSnapshot(value, current.snapshot))) return;
++      setNotice(`Cost revision ${current.snapshot.input.revision} recorded with frozen quantities, supplier pins and option decisions. The project save status below confirms when it is stored.`);
++    } catch (cause) { setError(message(cause)); }
++  };
++  const saveFx = () => {
++    try {
++      if (!value.preparedBy.trim()) throw Error("Enter the preparer's name to record who reviewed this exchange rate.");
++      if (!fxDraft.fromCurrency || !fxDraft.effectiveAt) throw Error("Choose the supplier currency and the exchange rate's effective date and time.");
++      const previous = value.fxRates.find(rate => rate.fromCurrency === fxDraft.fromCurrency && rate.toCurrency === value.currency);
++      const record = qsFxRateSchema.parse({
++        id: previous?.id ?? crypto.randomUUID(), revision: (previous?.revision ?? 0) + 1,
++        fromCurrency: fxDraft.fromCurrency, toCurrency: value.currency, rate: fxDraft.rate, sourceReference: fxDraft.sourceReference,
++        effectiveAt: new Date(fxDraft.effectiveAt).toISOString(), validUntil: fxDraft.validUntil ? new Date(fxDraft.validUntil).toISOString() : null,
++        reviewedAt: new Date().toISOString(), reviewedBy: value.preparedBy.trim(),
++      });
++      if (!edit({ ...value, fxRates: [...value.fxRates.filter(rate => !(rate.fromCurrency === record.fromCurrency && rate.toCurrency === record.toCurrency)), record] })) return;
++      setFxDraft({ fromCurrency: "", rate: "", sourceReference: "", effectiveAt: "", validUntil: "" });
++      setNotice(`Selected reviewed ${record.fromCurrency} to ${record.toCurrency} exchange rate revision ${record.revision}. The project save status below confirms when this choice is stored.`);
++    } catch (cause) { setError(message(cause)); }
++  };
++  const selectedCurrent: QsCostSnapshot | null = currentRevision === "draft"
++    ? result.ok ? result.snapshot : null
++    : value.snapshots.find(snapshot => snapshot.input.revision === Number(currentRevision)) ?? null;
++  const earlierSnapshots = value.snapshots.filter(snapshot => snapshot.input.revision < (selectedCurrent?.input.revision ?? value.snapshots.length + 1));
++  const selectedPrevious = earlierSnapshots.find(snapshot => snapshot.input.revision === previousRevision) ?? earlierSnapshots[0];
++  const comparison = useMemo(() => {
++    if (!selectedCurrent) return { error: "Resolve the current pricing blockers or select a saved revision to compare.", delta: null };
++    if (!selectedPrevious) return { error: "Save an earlier cost revision before comparing changes.", delta: null };
++    try { return { error: "", delta: compareQsCostPlans(selectedPrevious, selectedCurrent) }; }
++    catch (cause) { return { error: message(cause), delta: null }; }
++  }, [selectedPrevious, selectedCurrent]);
++
++  return <section className="qs-cost-workspace" aria-label="Measured cost plan" data-testid="qs-cost-worksheet">
++    <div className="qs-cost-heading"><div><h3>Measured cost plan</h3><p>Pin supplier revisions, review allowances and keep each saved estimate intact.</p></div>
++      <span className="qs-cost-draft-badge">Draft estimate</span></div>
++    <p className="qs-cost-note">Rates use the existing project price library. Tax / GST follows each pinned supplier revision. This worksheet does not issue or approve a quotation.</p>
++    <fieldset disabled={disabled} className="qs-cost-section"><legend>Estimate basis</legend>
++      <div className="qs-cost-fields">
++        <label>Cost preparer<input value={value.preparedBy} maxLength={240} autoComplete="off" onChange={event => edit({ ...value, preparedBy: event.target.value })} /></label>
++        <label>Estimate currency<select value={value.currency} onChange={event => edit({ ...value, currency: event.target.value as QsWorksheetState["currency"] })}>
++          {QS_CURRENCIES.map(currency => <option key={currency}>{currency}</option>)}
++        </select></label>
++      </div>
++      <p className="qs-cost-note">Supplier currencies require an explicitly reviewed direct exchange rate when they differ from the estimate currency. Units must match; m²/m2 and m³/m3 are spelling equivalents only.</p>
++    </fieldset>
++
++    <fieldset disabled={disabled} className="qs-cost-section"><legend>Reviewed currency conversion</legend>
++      <p className="qs-cost-note">Enter the conversion you reviewed. No market rate is fetched or assumed. The preparer's name is recorded as reviewer when you select the rate.</p>
++      <div className="qs-cost-fields">
++        <label>Exchange source currency<select value={fxDraft.fromCurrency} onChange={event => setFxDraft({ ...fxDraft, fromCurrency: event.target.value })}>
++          <option value="">Choose supplier currency</option>{QS_CURRENCIES.filter(currency => currency !== value.currency).map(currency => <option key={currency}>{currency}</option>)}
++        </select></label>
++        <label>{value.currency} per 1 {fxDraft.fromCurrency || "source currency"}<input aria-label="Reviewed exchange rate" value={fxDraft.rate} inputMode="decimal" maxLength={19} onChange={event => setFxDraft({ ...fxDraft, rate: event.target.value })} /></label>
++      </div>
++      <label>Exchange source reference<input value={fxDraft.sourceReference} maxLength={1000} onChange={event => setFxDraft({ ...fxDraft, sourceReference: event.target.value })} /></label>
++      <div className="qs-cost-fields"><label>Exchange effective time (local)<input type="datetime-local" value={fxDraft.effectiveAt} onChange={event => setFxDraft({ ...fxDraft, effectiveAt: event.target.value })} /></label>
++        <label>Exchange valid until (local, blank = no expiry)<input type="datetime-local" value={fxDraft.validUntil} onChange={event => setFxDraft({ ...fxDraft, validUntil: event.target.value })} /></label></div>
++      <button type="button" disabled={value.fxRates.length >= 100} onClick={saveFx}>Review and select exchange rate</button>
++      {value.fxRates.map(rate => <div className="qs-cost-option" key={`${rate.id}-${rate.revision}`} data-testid={`qs-fx-${rate.fromCurrency}-${rate.toCurrency}`}>
++        <p><strong>{rate.fromCurrency} → {rate.toCurrency}: {rate.rate}</strong> · revision {rate.revision}</p>
++        <p className="qs-cost-note">{rate.sourceReference} · effective {rate.effectiveAt}{rate.validUntil ? ` until ${rate.validUntil}` : " · no expiry"}. Reviewed by {rate.reviewedBy} at {rate.reviewedAt}.</p>
++        <button type="button" onClick={() => edit({ ...value, fxRates: value.fxRates.filter(entry => !(entry.id === rate.id && entry.revision === rate.revision)) })}>Deselect {rate.fromCurrency} to {rate.toCurrency} exchange rate</button>
++      </div>)}
++    </fieldset>
++
++    <fieldset disabled={disabled || !activeRow} className="qs-cost-section"><legend>Rate definition</legend>
++      <label>Cost item to price<select value={activeRow?.key ?? ""} onChange={event => setSelectedItemKey(event.target.value)}>
++        {!rows.length && <option value="">No measured quantity rows</option>}
++        {rows.map(row => <option key={row.key} value={row.key}>{row.reference || "Unnamed item"} · {row.quantity || "—"} {row.unit || "unit not set"}</option>)}
++      </select></label>
++      {activeRow && <>
++        <p className="qs-cost-note">Measured quantity: <strong>{activeRow.quantity || "not set"} {activeRow.unit || "unit not set"}</strong>. {pinnedRate ? `Pinned contractor revision ${pinnedRate.revision}. Saving appends a revision.` : "No contractor rate is pinned yet."}</p>
++        <SupplierPinPicker label="Material" priceBooks={priceBooks} value={draft.material} onChange={material => setDraft({ ...draft, material })} />
++        <label>Labour treatment<select value={draft.labourMode} onChange={event => setDraft({ ...draft, labourMode: event.target.value as RateDraft["labourMode"] })}>
++          <option value="">Choose labour treatment</option><option value="pinned">Pin a separate labour rate per measured unit</option><option value="excluded">Explicitly exclude separate labour</option>
++        </select></label>
++        {draft.labourMode === "pinned" && <SupplierPinPicker label="Labour" priceBooks={priceBooks} value={draft.labour} onChange={labour => setDraft({ ...draft, labour })} />}
++        <label>Labour basis or exclusion reason<textarea value={draft.labourAssumption} maxLength={1000} rows={2} onChange={event => setDraft({ ...draft, labourAssumption: event.target.value })} /></label>
++        <div className="qs-cost-fields">
++          <label>Material wastage %<input value={draft.wastagePercent} inputMode="decimal" maxLength={19} onChange={event => setDraft({ ...draft, wastagePercent: event.target.value })} /></label>
++          <label>Net cost markup %<input value={draft.markupPercent} inputMode="decimal" maxLength={19} onChange={event => setDraft({ ...draft, markupPercent: event.target.value })} /></label>
++          <label>Cost scope<select value={assignment?.optionId ?? ""} onChange={event => edit({ ...value, assignments: replaceAssignment({ itemKey: activeRow.key, rateId: assignment?.rateId ?? null, rateRevision: assignment?.rateRevision ?? null, optionId: event.target.value || null }) })}>
++            <option value="">Base tender</option>{value.options.map(option => <option key={option.id} value={option.id}>{option.label || "Unnamed option"}</option>)}
++          </select></label>
++        </div>
++        <p className="qs-cost-note">Wastage applies to material quantities only. Markup applies to net material and labour; tax on markup follows each source's declared percentage.</p>
++        {hasUnappliedRateEdits && <p className="qs-cost-warning" role="status">Unapplied rate edits. {pinnedRate ? `Totals still use contractor revision ${pinnedRate.revision} until you save the next revision.` : "Save the rate definition before this row can contribute to totals."}</p>}
++        <button type="button" onClick={saveRate}>Save rate revision for {activeRow.reference || "item"}</button>
++      </>}
++      {!priceBooks.books.some(book => !book.archived) && <p className="qs-cost-warning">Import a supplier CSV or workbook in the project Price Books panel before choosing material or labour rates.</p>}
++    </fieldset>
++
++    <fieldset disabled={disabled} className="qs-cost-section"><legend>Alternative options</legend>
++      <p className="qs-cost-note">Base tender stays separate. Accepting an option adds only that option to the accepted total.</p>
++      {value.options.map((option, index) => <div className="qs-cost-option" key={option.id} data-option-id={option.id}>
++        <label>Option {index + 1} label<input value={option.label} maxLength={240} onChange={event => edit({ ...value, options: value.options.map(entry => entry.id === option.id ? { ...entry, label: event.target.value } : entry) })} /></label>
++        <label className="qs-cost-check"><input type="checkbox" checked={value.activeOptionIds.includes(option.id)} onChange={event => edit({ ...value, activeOptionIds: event.target.checked ? [...value.activeOptionIds, option.id] : value.activeOptionIds.filter(id => id !== option.id) })} />Accept {option.label || `option ${index + 1}`}</label>
++        <button type="button" disabled={value.assignments.some(row => row.optionId === option.id)} title="Reassign this option's rows before removing it" onClick={() => edit({ ...value, options: value.options.filter(entry => entry.id !== option.id), activeOptionIds: value.activeOptionIds.filter(id => id !== option.id) })}>Remove empty option {index + 1}</button>
++      </div>)}
++      <button type="button" disabled={value.options.length >= 100} onClick={() => edit({ ...value, options: [...value.options, { id: crypto.randomUUID(), label: `Option ${value.options.length + 1}` }] })}>Add alternative option</button>
++    </fieldset>
++
++    {error && <p className="qs-cost-warning" role="alert">{error}</p>}
++    {notice && <p className="qs-cost-notice" role="status">{notice}</p>}
++    {!result.ok ? <section className="qs-cost-blockers" aria-label="Cost plan blockers" data-testid="qs-cost-blockers">
++      <h4>Cost totals withheld</h4><ul>{result.blockers.map((blocker, index) => <li key={`${blocker.itemId}-${blocker.code}-${index}`} data-blocker-code={blocker.code}>
++        {blocker.itemId && <strong>{blocker.itemId}: </strong>}{blocker.message}
++      </li>)}</ul>
++    </section> : <>
++      <div className="qs-cost-totals"><CostTotals title="Base tender" value={result.snapshot.baseTotal} currency={value.currency} testId="qs-cost-base-total" />
++        <CostTotals title="Accepted total" value={result.snapshot.acceptedTotal} currency={value.currency} testId="qs-cost-accepted-total" /></div>
++      {result.snapshot.options.map(option => <div key={option.id} className="qs-cost-option-total" data-testid={`qs-cost-option-${option.id}`} data-active={option.active}>
++        <span>{option.label} · {option.active ? "accepted" : "proposed — excluded"}</span><strong data-total-minor={option.totals.totalMinor}>{formatQsMoney(option.totals.totalMinor, value.currency)}</strong>
++      </div>)}
++      <div className="qs-cost-table-scroll" role="region" aria-label="Priced item breakdown" tabIndex={0}><table className="qs-cost-table">
++        <caption>Current measured cost breakdown — tax included in each total</caption>
++        <thead><tr><th scope="col">Item / supplier pins</th><th scope="col">Measured / material quantity</th><th scope="col">Scope</th><th scope="col">Net</th><th scope="col">Tax / GST</th><th scope="col">Total</th></tr></thead>
++        <tbody>{result.snapshot.items.map(item => <tr key={item.itemId} data-testid={`qs-priced-item-${item.itemId}`}>
++          <th scope="row">{item.description}<small>Material: {item.materialSource.supplier} · r{item.materialSource.bookRevision} · line {item.materialSource.sourceLine}</small>
++            <small>Labour: {item.labourSource ? `${item.labourSource.supplier} · r${item.labourSource.bookRevision} · line ${item.labourSource.sourceLine}` : item.rate.labourAssumption}</small>
++            {item.materialSource.exchangeRate && <small>Material FX: {item.materialSource.exchangeRate.fromCurrency} → {item.materialSource.exchangeRate.toCurrency} at {item.materialSource.exchangeRate.rate} · reviewed by {item.materialSource.exchangeRate.reviewedBy}</small>}
++            {item.labourSource?.exchangeRate && <small>Labour FX: {item.labourSource.exchangeRate.fromCurrency} → {item.labourSource.exchangeRate.toCurrency} at {item.labourSource.exchangeRate.rate} · reviewed by {item.labourSource.exchangeRate.reviewedBy}</small>}</th>
++          <td>{item.quantity} {item.unit}<small>Material incl. wastage: {item.adjustedMaterialQuantity} {item.unit}</small></td>
++          <td>{item.optionId ? value.options.find(option => option.id === item.optionId)?.label : "Base"}<small>{item.included ? "Included" : "Proposed only"}</small></td>
++          <td>{formatQsMoney(item.netMinor, value.currency)}</td><td>{formatQsMoney(item.taxMinor, value.currency)}</td><td data-total-minor={item.totalMinor}>{formatQsMoney(item.totalMinor, value.currency)}</td>
++        </tr>)}</tbody>
++      </table></div>
++      <p className="qs-cost-note">Each component is rounded half up to cents; inclusive tax is extracted before net markup. Displayed totals sum integer minor units.</p>
++    </>}
++
++    <div className="qs-cost-actions"><button type="button" disabled={disabled || !result.ok || value.snapshots.length >= 50} onClick={saveSnapshot}>Save immutable cost revision {value.snapshots.length + 1}</button>
++      <button type="button" ref={comparisonTrigger} disabled={!value.snapshots.length} aria-expanded={comparisonOpen} aria-controls={comparisonId} onClick={() => setComparisonOpen(true)}>Compare cost revisions</button></div>
++    <p className="qs-cost-note" data-testid="qs-cost-history">{value.snapshots.length} recorded cost revision{value.snapshots.length === 1 ? "" : "s"}. Changing geometry, rates or options recalculates the draft and preserves recorded revisions. Project save status is shown below this worksheet.</p>
++
++    <dialog id={comparisonId} className="qs-cost-comparison" ref={comparisonRef} aria-labelledby={`${comparisonId}-title`} onKeyDown={keepQsComparisonFocus} onCancel={event => { event.preventDefault(); setComparisonOpen(false); }} onClose={() => { setComparisonOpen(false); comparisonTrigger.current?.focus(); }}>
++      <div className="qs-cost-heading"><div><h3 id={`${comparisonId}-title`}>Cost revision comparison</h3><p>Quantity, rate and scope contributions reconcile to the accepted total change.</p></div><button type="button" aria-label="Close cost revision comparison" onClick={() => setComparisonOpen(false)}>Close</button></div>
++      <div className="qs-cost-fields"><label>Earlier cost revision<select value={selectedPrevious?.input.revision ?? ""} onChange={event => setPreviousRevision(Number(event.target.value))}>
++        {!earlierSnapshots.length && <option value="">No earlier revision</option>}{earlierSnapshots.map(snapshot => <option key={snapshot.input.revision} value={snapshot.input.revision}>Revision {snapshot.input.revision} · {snapshot.input.createdBy} · {snapshot.input.currency}</option>)}
++      </select></label><label>Later cost revision<select value={currentRevision} onChange={event => setCurrentRevision(event.target.value)}>
++        <option value="draft">Current draft · revision {value.snapshots.length + 1}</option>{value.snapshots.slice(1).map(snapshot => <option key={snapshot.input.revision} value={snapshot.input.revision}>Recorded revision {snapshot.input.revision} · {snapshot.input.currency}</option>)}
++      </select></label></div>
++      {comparison.error && <p className="qs-cost-warning" role="status">{comparison.error}</p>}
++      {comparison.delta && <>
++        <div className="qs-cost-delta-summary" data-testid="qs-cost-delta-totals">
++          <span>Quantity <strong>{formatQsMoney(comparison.delta.totals.quantityMinor, comparison.delta.currency, true)}</strong></span>
++          <span>Rate / allowance / tax <strong>{formatQsMoney(comparison.delta.totals.rateMinor, comparison.delta.currency, true)}</strong></span>
++          <span>Scope / options <strong>{formatQsMoney(comparison.delta.totals.scopeMinor, comparison.delta.currency, true)}</strong></span>
++          <span>Accepted change <strong data-total-minor={comparison.delta.totals.totalMinor}>{formatQsMoney(comparison.delta.totals.totalMinor, comparison.delta.currency, true)}</strong></span>
++        </div>
++        <div className="qs-cost-table-scroll" role="region" aria-label="Cost revision change table" tabIndex={0}><table className="qs-cost-table">
++          <caption>Revision {comparison.delta.previousRevision} to {comparison.delta.currentRevision}. Green: new; red: removed; amber: modified.</caption>
++          <thead><tr><th scope="col">Item</th><th scope="col">Change</th><th scope="col">Quantity</th><th scope="col">Quantity cost Δ</th><th scope="col">Rate cost Δ</th><th scope="col">Scope cost Δ</th><th scope="col">Accepted Δ</th></tr></thead>
++          <tbody>{comparison.delta.rows.map(row => <tr key={row.itemId} data-change={row.status} data-testid={`qs-cost-delta-${row.itemId}`}>
++            <th scope="row">{row.description}</th><td><span className="qs-cost-change">{row.status === "new" ? "+ New" : row.status === "removed" ? "− Removed" : row.status === "modified" ? "~ Modified" : "Unchanged"}</span></td>
++            <td>{row.before ? `${row.before.quantity} ${row.before.unit}` : "—"} → {row.after ? `${row.after.quantity} ${row.after.unit}` : "—"}<small>Δ {row.quantityDelta ?? "scope change"}</small></td>
++            <td>{formatQsMoney(row.quantityMinor, comparison.delta!.currency, true)}</td><td>{formatQsMoney(row.rateMinor, comparison.delta!.currency, true)}</td><td>{formatQsMoney(row.scopeMinor, comparison.delta!.currency, true)}</td><td data-total-minor={row.totalMinor}>{formatQsMoney(row.totalMinor, comparison.delta!.currency, true)}</td>
++          </tr>)}</tbody>
++        </table></div>
++        {comparison.delta.options.map(option => <p className="qs-cost-note" key={option.id}>{option.label}: {option.beforeActive ? "accepted" : "proposed"} → {option.afterActive ? "accepted" : "proposed"}. Proposal change {formatQsMoney(option.proposalDeltaMinor, comparison.delta!.currency, true)}; accepted change {formatQsMoney(option.acceptedDeltaMinor, comparison.delta!.currency, true)}.</p>)}
++        <p className="qs-cost-note">Quantity is valued at the earlier rate first; remaining rate, allowance and tax changes follow. Added or removed items, entity/unit changes and option membership changes are scope. Unaccepted proposals never inflate the accepted delta.</p>
++      </>}
++    </dialog>
++  </section>;
++}
+diff --git a/src/studio/industries/quantity-surveying/QsMeasuredGeometryScope.tsx b/src/studio/industries/quantity-surveying/QsMeasuredGeometryScope.tsx
+new file mode 100644
+index 0000000..242a632
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/QsMeasuredGeometryScope.tsx
+@@ -0,0 +1,22 @@
++import { useMemo, type ReactNode } from "react";
++import type { FencingJob } from "../../domain.ts";
++import { qsMeasuredGeometry } from "./qsMeasuredGeometry.ts";
++import { QsMeasuredGeometryContext } from "./qsMeasuredGeometryContext.ts";
++import type { PriceBookSession } from "../../pricing/priceBooks.ts";
++import { QsPricingContext, qsPricingSource } from "./qsPricingContext.ts";
++
++/** Supplies QS with live measured entities without changing the shared
++ * roofing/HVAC/quantity workbench contract or coupling forms to the store. */
++export function QsMeasuredGeometryScope({ job, activeSheet, sourceReady, priceBookSession, children }: {
++  job: FencingJob;
++  activeSheet: number;
++  sourceReady: boolean;
++  priceBookSession?: PriceBookSession | null;
++  children: ReactNode;
++}) {
++  const entities = useMemo(() => qsMeasuredGeometry(job, activeSheet, sourceReady), [job, activeSheet, sourceReady]);
++  const pricing = useMemo(() => qsPricingSource(job.id, priceBookSession, sourceReady), [job.id, priceBookSession, sourceReady]);
++  return <QsMeasuredGeometryContext.Provider value={entities}>
++    <QsPricingContext.Provider value={pricing}>{children}</QsPricingContext.Provider>
++  </QsMeasuredGeometryContext.Provider>;
++}
+diff --git a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+index 2c348c8..9208e19 100644
+--- a/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
++++ b/src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx
+@@ -1,41 +1,55 @@
+ import { useEffect, useMemo, useState } from "react";
+ import { QuantityReportView } from "./QuantityReportView";
++import { QSWorksheet } from "./QSWorksheet";
+ import { QSItemBindingLedger, type QSBindingLedgerRow } from "./QSItemBindingLedger";
+-import type { IndustryDraftPanelProps } from "../draftPanel";
++import type { IndustryDraftPanelProps, IndustryGeometryEntitySource } from "../draftPanel";
+ import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
+ import {
+   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
+-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, type QuantityBindingDraft, type QuantityForm,
++  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
+ } from "./quantityForm";
++import { createEmptyQsWorksheetState, type QsWorksheetState } from "./qsWorksheetState";
++import { useQsPricing } from "./qsPricingContext";
++import { industryDraftKey } from "../draftStorage";
+ import {
+   QS_ITEM_BINDING_SCHEMA,
+   qsEntityGeometrySchema,
+   qsItemBindingSchema,
+-  shouldRepin,
+   type QsEntityGeometry,
+   type QsItemBinding,
+ } from "./qsItemBinding";
+ import { qsDigest } from "./qsItemBinding";
++import { useQsMeasuredGeometry } from "./qsMeasuredGeometryContext";
++import {
++  QS_ENTITY_HIGHLIGHT_SCHEMA,
++  QS_HIGHLIGHT_EVENT,
++  QS_HIGHLIGHT_SURFACE_SELECTOR,
++  qsHighlightRequestSchema,
++  type QsHighlightResolution,
++} from "./qsEntityHighlight";
+ 
+ /** Rendered when the host cannot supply a live project source: the worksheet stays manual and unbound. */
+ const MISSING_SOURCE: IndustrySourceState = { projectId: "", sourceRevision: null, calibrationId: null };
++const EMPTY_ENTITIES: ReadonlyMap<string, QsEntityGeometry> = new Map();
+ const EVIDENCE_LABELS: Record<string, string> = {
+   traced: "Traced source geometry", dimensioned: "Dimensioned source geometry",
+   inferred: "Inferred reconstruction", declared: "Declared typed reference",
+ };
+ 
+-/** One instant per session, so bindings do not churn their timestamp on every render. */
+-const BOUND_AT = new Date().toISOString();
+-
+ function parseBinding(input: unknown): QsItemBinding | null {
+   const result = qsItemBindingSchema.safeParse(input);
+   return result.success ? result.data : null;
+ }
+ 
+-export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource }: IndustryDraftPanelProps<QuantityForm>) {
++export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource, geometryEntities: suppliedGeometry }: IndustryDraftPanelProps<QuantityForm>) {
++  const scopedGeometry = useQsMeasuredGeometry();
++  const pricingSource = useQsPricing();
++  const geometryEntities = suppliedGeometry ?? scopedGeometry;
+   const [error, setError] = useState("");
++  const [geometryError, setGeometryError] = useState("");
+   const [draft, setDraft] = useState<QuantityBindingDraft>(() => createEmptyQuantityBindingDraft());
+   const source: IndustrySourceState = reportedSource ?? MISSING_SOURCE;
++  const pricing = useMemo(() => value.pricing ?? (source.projectId ? createEmptyQsWorksheetState(source.projectId) : null), [value.pricing, source.projectId]);
+   useEffect(() => { setError(""); }, [value]);
+   const { evaluation, report } = useMemo(() => evaluateQuantityFormBinding(value, source), [value, source]);
+   const binding = value.binding ?? null;
+@@ -59,129 +73,152 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
+     catch (cause) { setError(cause instanceof Error ? cause.message : "Check the classification and quantity inputs."); }
+   };
+ 
+-  // Bindings are derived from the draft's own rows, so the ledger cannot show a
+-  // verification that does not correspond to what the user actually entered. The
+-  // geometry hash is the real SHA-256 of the row's reference, quantity and unit —
+-  // change any of them and the binding goes stale on the next render without
+-  // anything needing to write a status. Hashing is async (crypto.subtle), so this
+-  // is state rather than a memo: a placeholder digest would be a fabricated
+-  // measurement wearing the shape of a real one.
+-  // The draft's rows, keyed as the report keys them (by reference). A row is
+-  // shown even when it cannot be bound yet — blank reference, mid-typed quantity —
+-  // because an item silently missing from an evidence ledger reads as evidence
+-  // that no longer needs checking.
++  // Whether anything is mounted that could draw a highlight. Read from the
++  // document rather than guessed from a prop: the canvases live in other panes,
++  // and the only honest answer to "can this be shown" is "is it there".
++  const [surfacesAvailable, setSurfacesAvailable] = useState(false);
++  useEffect(() => {
++    const read = () => {
++      const surfaces = new Set(
++        Array.from(document.querySelectorAll(QS_HIGHLIGHT_SURFACE_SELECTOR))
++          .map(element => element.getAttribute("data-qs-highlight-surface")),
++      );
++      setSurfacesAvailable(surfaces.has("plan-2d") && surfaces.has("model-3d"));
++    };
++    read();
++    // The canvases mount and unmount on pane switches, which are not React
++    // renders this component can observe. A MutationObserver is the honest way
++    // to notice; polling would sample the answer and sometimes report the wrong one.
++    const observer = new MutationObserver(read);
++    observer.observe(document.body, { childList: true, subtree: true });
++    return () => observer.disconnect();
++  }, []);
++
++  const highlightEntity = (itemId: string, resolution: QsHighlightResolution) => {
++    // Nothing resolvable, nothing to send. Emitting anyway would let a canvas
++    // record a highlight it never drew.
++    if (!resolution.resolvable) return;
++    window.dispatchEvent(new CustomEvent(QS_HIGHLIGHT_EVENT, {
++      detail: qsHighlightRequestSchema.parse({
++        format: QS_ENTITY_HIGHLIGHT_SCHEMA,
++        itemId,
++        entityId: resolution.entityId,
++        requestedAt: new Date().toISOString(),
++      }),
++    }));
++  };
++
++  // The draft's rows are keyed as the report keys them (by reference). Blank
++  // references stay out until they can name a binding; every named row is shown,
++  // including unbound or mid-edited rows.
+   const ledgerRows = useMemo<QSBindingLedgerRow[]>(
+     () => value.items
+       .filter(item => item.reference.trim() !== "")
+-      .map(item => ({ id: item.reference.trim(), quantity: item.quantity.trim(), unit: item.unit.trim() })),
+-    [value.items],
+-  );
+-  // The ledger's two halves come from different places on purpose, and that
+-  // separation is the whole mechanism. `bindings` are the *pinned* record: the
+-  // row as it was at the moment it was calculated. `entities` are the *live*
+-  // geometry: the row as it is right now. `evaluateItemBinding` compares one
+-  // against the other, so editing a quantity moves the entity out from under the
+-  // binding and the row goes stale.
+-  //
+-  // Deriving both from the same current value would make the comparison a
+-  // tautology — the hash could never disagree with itself, and the ledger would
+-  // report every row verified no matter what the user typed. That is a ledger
+-  // that cannot fail, which is a ledger that proves nothing.
+-  //
+-  // Hashing is async (crypto.subtle), so this is state rather than a memo: a
+-  // placeholder digest would be a fabricated measurement wearing the shape of a
+-  // real one. `committed` is the row set the bindings were pinned against, so a
+-  // re-render that changes nothing does not disturb them.
+-  const committed = useMemo(
+-    () =>
+-      value.items
+-        .map(item => ({
+-          id: item.reference.trim(),
+-          quantity: item.quantity.trim(),
+-          unit: item.unit.trim(),
+-          nodeKey: item.nodeKey,
+-        }))
+-        .filter(row => row.id !== ""),
+-    [value.items],
+-  );
+-  const [pinned, setPinned] = useState<{ bindings: Map<string, QsItemBinding>; pinnedFor: string }>(
+-    () => ({ bindings: new Map(), pinnedFor: "" }),
+-  );
+-  const [entities, setEntities] = useState<ReadonlyMap<string, QsEntityGeometry>>(() => new Map());
+-
+-  // The fingerprint of what the bindings were pinned against. Re-pinning is only
+-  // allowed when this changes *and* the draft is calculated, so typing a new
+-  // quantity leaves the old binding in place for the live entity to disagree with.
+-  const committedKey = useMemo(
+-    () => committed.map(row => `${row.id}${row.quantity}${row.unit}`).join(""),
+-    [committed],
++      .map(item => ({ id: item.reference.trim(), quantity: item.quantity.trim(), unit: item.unit.trim(), evidence: item.evidence, projectId: source.projectId })),
++    [value.items, source.projectId],
+   );
++  // Live entities and immutable bindings deliberately come from different
++  // records. A geometry hash is recomputed from the current project run, while
++  // each row retains the hash explicitly accepted by the estimator. The ledger
++  // can therefore fail closed after a canvas edit instead of comparing a value
++  // with itself. Hashing is asynchronous, so the live map is component state.
++  const [entitySnapshot, setEntitySnapshot] = useState<{
++    input: readonly IndustryGeometryEntitySource[];
++    entities: ReadonlyMap<string, QsEntityGeometry>;
++  } | null>(null);
++  // A source edit invalidates the old hash map in this render, before the effect
++  // can finish hashing its replacement. Pending work must not preserve a green
++  // pricing badge from the previous geometry or source.
++  const entities = entitySnapshot?.input === geometryEntities ? entitySnapshot.entities : EMPTY_ENTITIES;
++  const geometryPending = entitySnapshot?.input !== geometryEntities;
++  const pricingUnavailable = !pricingSource || pricingSource.projectId !== source.projectId
++    ? "A supplier library for the current project is not connected. Pricing remains withheld."
++    : pricingSource.error ?? (pricingSource.loading || !pricingSource.library ? "Loading this project's supplier library. Pricing remains withheld." : null);
++  const pricingProjectMismatch = pricing !== null && pricing.projectId !== source.projectId;
++  const changePricing = (next: QsWorksheetState) => {
++    try {
++      if (disabled || pricingUnavailable || pricingProjectMismatch || !pricingSource?.sourceReady || geometryPending)
++        throw Error("Pricing changes are unavailable until this project's source, geometry and supplier library are ready.");
++      const updated = withQuantityPricing(value, next, source.projectId, localStorage.getItem(industryDraftKey(source.projectId)));
++      setError("");
++      onChange(updated);
++      return true;
++    } catch (cause) { setError(cause instanceof Error ? cause.message : "Cost changes could not be saved. Existing inputs were preserved."); return false; }
++  };
++  const removeQuantity = (itemKey: string) => {
++    const next = { ...value, items: value.items.filter(row => row.key !== itemKey) };
++    if (next.pricing) next.pricing = { ...next.pricing, assignments: next.pricing.assignments.filter(row => row.itemKey !== itemKey) };
++    edit(next);
++  };
+ 
+-  // One effect, two outputs, deliberately not two effects: the pin is a function
+-  // of the entities built in the same pass, and splitting them would race the pin
+-  // against an entity map that had not been computed yet.
+-  //
+-  // The pin is only *replaced* when the draft is calculated — i.e. when the user
+-  // has just confirmed these numbers. An ordinary edit leaves the pin untouched,
+-  // which is exactly what makes the live entity disagree with it on the next
+-  // render. Folding the pin forward on every row change would re-derive the
+-  // binding from the edited value, the hash would match itself, and the ledger
+-  // would report a clean verification of a number nobody confirmed.
+   useEffect(() => {
+     let cancelled = false;
++    setGeometryError("");
+     void (async () => {
+       const live = new Map<string, QsEntityGeometry>();
+-      for (const row of committed) {
+-        if (!row.quantity || !row.unit) continue;
+-        const entityId = `measured:${row.id}`;
+-        // The hash covers the entity id alongside the values, so a row cannot
+-        // inherit another row's hash by happening to share a quantity.
++      for (const sourceEntity of geometryEntities) {
+         const geometry = qsEntityGeometrySchema.safeParse({
+-          entityId,
+-          entityType: "room-area",
+-          geometrySha256: await qsDigest(`${entityId} ${row.quantity} ${row.unit}`),
+-          calibrationId: source.calibrationId,
+-          unit: row.unit,
+-          measuredQuantity: row.quantity,
++          entityId: sourceEntity.entityId,
++          entityType: sourceEntity.entityType,
++          geometrySha256: await qsDigest(JSON.stringify({
++            entityId: sourceEntity.entityId,
++            revision: sourceEntity.revision,
++            points: sourceEntity.points,
++            measuredQuantity: sourceEntity.measuredQuantity,
++            unit: sourceEntity.unit,
++            calibrationId: sourceEntity.calibrationId,
++          })),
++          sourceSha256: sourceEntity.sourceSha256,
++          calibrationId: sourceEntity.calibrationId,
++          unit: sourceEntity.unit,
++          measuredQuantity: sourceEntity.measuredQuantity,
+         });
+-        if (geometry.success) live.set(entityId, geometry.data);
++        if (geometry.success) live.set(sourceEntity.entityId, geometry.data);
+       }
+       if (cancelled) return;
+-      setEntities(live);
+-
+-      if (!shouldRepin({ calculated: value.calculated, draftKey: committedKey, pinnedFor: pinned.pinnedFor })) return;
+-      const sourceSha256 = source.sourceRevision === null
+-        ? null
+-        : await qsDigest(`${source.projectId} ${source.sourceRevision}`);
+-      const bindings = new Map<string, QsItemBinding>();
+-      for (const row of committed) {
+-        const entity = live.get(`measured:${row.id}`);
+-        if (!entity) continue;
+-        const next = parseBinding({
+-          format: QS_ITEM_BINDING_SCHEMA,
+-          // itemId and entityId are different identities and must stay different:
+-          // the schema refuses a self-binding ("an item cannot be bound to
+-          // itself"). The item is identified by its reference because that is how
+-          // the report identifies its rows (quantityFormInput: `id:
+-          // item.reference`); the entity is the measured object.
+-          itemId: row.id,
+-          projectId: source.projectId || "local-draft",
+-          entityId: entity.entityId,
+-          entityType: "room-area",
+-          measuredQuantity: entity.measuredQuantity,
+-          unit: entity.unit,
+-          entityGeometrySha256: entity.geometrySha256,
+-          sourceSha256,
+-          calibrationId: source.calibrationId,
+-          boundAt: BOUND_AT,
+-          boundBy: "draft-worksheet",
+-        });
+-        if (next !== null) bindings.set(row.id, next);
+-      }
+-      if (!cancelled) setPinned({ bindings, pinnedFor: committedKey });
+-    })();
++      setEntitySnapshot({ input: geometryEntities, entities: live });
++    })().catch(() => {
++      if (cancelled) return;
++      setEntitySnapshot({ input: geometryEntities, entities: EMPTY_ENTITIES });
++      setGeometryError("Measured geometry could not be checked. Verification and pricing remain withheld.");
++    });
+     return () => { cancelled = true; };
+-  }, [value.calculated, committedKey, committed, source.projectId, source.sourceRevision, source.calibrationId, pinned.pinnedFor]);
++  }, [geometryEntities]);
++
++  const bindings = useMemo(() => new Map(
++    value.items.flatMap(item => {
++      const binding = parseBinding(item.entityBinding);
++      return binding && binding.itemId === item.reference.trim() ? [[binding.itemId, binding] as const] : [];
++    }),
++  ), [value.items]);
++
++  const bindItem = (itemKey: string, entityId: string) => {
++    try {
++      const item = value.items.find(row => row.key === itemKey);
++      const sourceEntity = geometryEntities.find(entity => entity.entityId === entityId);
++      const entity = entities.get(entityId);
++      if (!item || !sourceEntity || !entity) throw Error("That measured entity is still loading. Try again.");
++      if (!item.reference.trim()) throw Error("Enter the item reference before binding measured geometry.");
++      const next = qsItemBindingSchema.parse({
++        format: QS_ITEM_BINDING_SCHEMA,
++        itemId: item.reference.trim(),
++        projectId: source.projectId || "local-draft",
++        entityId: entity.entityId,
++        entityType: entity.entityType,
++        measuredQuantity: entity.measuredQuantity,
++        unit: entity.unit,
++        entityGeometrySha256: entity.geometrySha256,
++        sourceSha256: sourceEntity.sourceSha256,
++        calibrationId: entity.calibrationId,
++        boundAt: new Date().toISOString(),
++        boundBy: "estimator-selection",
++      });
++      setError("");
++      onChange({ ...value, calculated: false, items: value.items.map(row => row.key === itemKey ? { ...row, entityBinding: next } : row) });
++    } catch (cause) {
++      setError(cause instanceof Error ? cause.message : "The measured entity could not be bound.");
++    }
++  };
+ 
+   return <section className="industry-form" aria-label="Quantity surveying draft">
+     <p className="industry-note">Manual draft quantities. Binding records the source you pointed at; it does not verify the quantity. Classifications do not create prices or an issued cost plan.</p>
+@@ -241,7 +278,7 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
+       <legend>Quantity rows</legend>
+       {!value.items.length && <p className="industry-note">Add a quantity row and enter its quantity and unit.</p>}
+       {value.items.map((item, index) => <div className="industry-fields" key={item.key}>
+-        <label>Item reference {index + 1}<input value={item.reference} maxLength={240} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, reference: event.target.value } : row) })} /></label>
++        <label>Item reference {index + 1}<input value={item.reference} maxLength={240} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, reference: event.target.value, entityBinding: null } : row) })} /></label>
+         <label>Quantity {index + 1}<input inputMode="decimal" value={item.quantity} maxLength={80} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, quantity: event.target.value } : row) })} /></label>
+         <label>Unit {index + 1}<input value={item.unit} maxLength={240} placeholder="e.g. m2, lm, ea" onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, unit: event.target.value } : row) })} /></label>
+         <label>Evidence {index + 1}<select value={item.evidence} onChange={event => edit({ ...value, items: value.items.map(row => row.key === item.key ? { ...row, evidence: event.target.value as typeof item.evidence } : row) })}>
+@@ -250,20 +287,55 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
+         <label>Assign item {index + 1}<select value={item.nodeKey} onChange={event => { setError(""); onChange(assignQuantityItem(value, item.key, event.target.value)); }}>
+           <option value="">Unassigned</option>{value.nodes.map(node => <option key={node.key} value={node.key}>{nodeName(node.key)}</option>)}
+         </select></label>
+-        <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => edit({ ...value, items: value.items.filter(row => row.key !== item.key) })}>Remove quantity</button>
++        <label>Measured entity {index + 1}<select
++          data-testid={`qs-entity-select-${index + 1}`}
++          value={item.entityBinding?.entityId ?? ""}
++          onChange={event => {
++            const entityId = event.target.value;
++            if (entityId) bindItem(item.key, entityId);
++            else onChange({ ...value, calculated: false, items: value.items.map(row => row.key === item.key ? { ...row, entityBinding: null } : row) });
++          }}
++        >
++          <option value="">Not bound to measured geometry</option>
++          {geometryEntities.map(entity => <option key={entity.entityId} value={entity.entityId} disabled={!entities.has(entity.entityId)}>
++            {entity.label} · {entity.measuredQuantity} {entity.unit}{entity.calibrationId ? "" : " · uncalibrated"}
++          </option>)}
++        </select></label>
++        {item.entityBinding ? <button type="button" onClick={() => {
++          if (item.entityBinding) bindItem(item.key, item.entityBinding.entityId);
++        }}>Rebind current geometry</button> : null}
++        <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => removeQuantity(item.key)}>Remove quantity</button>
+       </div>)}
+       <button type="button" disabled={value.items.length >= 10000} onClick={() => edit({ ...value, items: [...value.items, { key: crypto.randomUUID(), reference: "", quantity: "", unit: "", evidence: "unverified", nodeKey: "" }] })}>Add quantity</button>
+     </fieldset>
+     <div className="industry-actions"><button type="button" disabled={disabled || !value.items.length || !value.nodes.length} onClick={calculate}>Calculate classification</button></div>
+-    {error && <p className="industry-error" role="alert">{error}</p>}
++    {(error || geometryError) && <p className="industry-error" role="alert">{error || geometryError}</p>}
+     {evaluation.status === "stale" && <p className="industry-result" role="status">Classification report withheld — {describeIndustryBinding(evaluation)}</p>}
+     {/* The ledger is rendered from the draft's own rows and deliberately sits
+         outside the report gate: editing a quantity withholds the report, and the
+         items a user is editing are exactly the ones whose evidence they need to
+         see. Inside the gate it would unmount on the first keystroke. */}
+     <div className="industry-result">
+-      <QSItemBindingLedger rows={ledgerRows} bindings={pinned.bindings} entities={entities} />
++      <QSItemBindingLedger
++        rows={ledgerRows}
++        bindings={bindings}
++        entities={entities}
++        onHighlight={highlightEntity}
++        surfacesAvailable={surfacesAvailable}
++      />
+     </div>
++    <section aria-label="Quantity cost pricing" aria-disabled={Boolean(disabled || pricingUnavailable || pricingProjectMismatch || !pricingSource?.sourceReady || geometryPending)}>
++      {pricingProjectMismatch
++        ? <p className="industry-error" role="alert">Saved cost choices belong to another project. They are preserved, and pricing changes are blocked.</p>
++        : pricingUnavailable
++          ? <p className={pricingSource?.error ? "industry-error" : "industry-note"} role={pricingSource?.error ? "alert" : "status"}>{pricingUnavailable}</p>
++          : pricing && pricingSource?.library && <>
++            {(!pricingSource.sourceReady || geometryPending) && <p className="industry-note" role="status">Checking source geometry. Cost changes remain disabled until current measurements are available.</p>}
++            <QSWorksheet key={source.projectId} projectId={source.projectId} rows={value.items} entities={entities}
++              priceBooks={pricingSource.library} value={pricing} onChange={changePricing}
++              disabled={disabled || !pricingSource.sourceReady || geometryPending} />
++          </>}
++    </section>
+     {report && <div className="industry-result" aria-live="polite"><QuantityReportView report={report} disabled={disabled} /></div>}
+   </section>;
+ }
+diff --git a/src/studio/industries/quantity-surveying/qsDeltaComparison.test.ts b/src/studio/industries/quantity-surveying/qsDeltaComparison.test.ts
+new file mode 100644
+index 0000000..d5956f3
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/qsDeltaComparison.test.ts
+@@ -0,0 +1,119 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { calculateQsCostPlan, canonicalQsJson, qsCostInputSchema, type QsCostInput, type QsCostSnapshot } from "./qsRateBook.ts";
++import { compareQsCostPlans, subtractQsDecimal } from "./qsDeltaComparison.ts";
++
++const BOOK = "11111111-1111-4111-8111-111111111111", HASH = "a".repeat(64), GEO = "b".repeat(64);
++function fixture(): QsCostInput {
++  return qsCostInputSchema.parse({ format: "xray.qs-cost-input/v1", projectId: "p", revision: 1,
++    createdAt: "2026-09-19T04:00:00Z", createdBy: "Estimator", currency: "AUD",
++    priceBooks: { schema: "xray.price-books/v1", jobId: "p", revision: 1, worksheet: [], books: [{ id: BOOK, name: "Supplier", archived: false, revisions: [{
++      revision: 1, importedAt: "2026-09-01T00:00:00Z", metadata: { supplier: "Supplier", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 0, effectiveDate: "2026-09-01", sourceReference: "Offer 1" },
++      source: { fileName: "rates.csv", sha256: HASH, sizeBytes: 40, delimiter: ",", headers: ["Description", "Unit", "Rate"], mapping: { stockCode: null, description: 0, unit: 1, rate: 2 } },
++      rows: [{ sourceLine: 2, stockCode: "W", description: "Wall material", unit: "m", rate: 10 }],
++    }] }] },
++    rateBook: { format: "xray.qs-rate-book/v1", projectId: "p", revision: 1, rates: [{ id: "r", revision: 1, description: "Supply only", unit: "m",
++      material: { bookId: BOOK, bookRevision: 1, sourceLine: 2 }, labour: null, labourAssumption: "Labour excluded from supplier's supply-only rate.", wastagePercent: "0", markupPercent: "0", createdAt: "2026-09-18T00:00:00Z", createdBy: "Estimator" }] },
++    items: [{ itemId: "a", description: "Measured wall A", quantity: "3", unit: "m", evidence: "unverified", rateId: "r", rateRevision: 1, optionId: null,
++      binding: { format: "xray.qs-item-binding/v1", itemId: "a", projectId: "p", entityId: "wall-a", entityType: "wall-run", measuredQuantity: "3", unit: "m", entityGeometrySha256: GEO, sourceSha256: HASH, calibrationId: "cal", boundAt: "2026-09-18T00:00:00Z", boundBy: "Estimator" },
++      entity: { entityId: "wall-a", entityType: "wall-run", geometrySha256: GEO, sourceSha256: HASH, calibrationId: "cal", unit: "m", measuredQuantity: "3" },
++    }], options: [], activeOptionIds: [],
++  });
++}
++function snapshot(input: QsCostInput): QsCostSnapshot {
++  const result = calculateQsCostPlan(input); assert.ok(result.ok, result.ok ? undefined : JSON.stringify(result.blockers));
++  if (!result.ok) throw Error("Blocked fixture"); return result.snapshot;
++}
++function quantity(input: QsCostInput, value: string, index = 0) {
++  input.items[index].quantity = value; input.items[index].binding!.measuredQuantity = value; input.items[index].entity!.measuredQuantity = value;
++}
++function addItem(input: QsCostInput, id: string, value: string, optionId: string | null = null) {
++  const item = structuredClone(input.items[0]); item.itemId = id; item.description = `Wall ${id}`; item.optionId = optionId;
++  item.binding!.itemId = id; item.binding!.entityId = `wall-${id}`; item.entity!.entityId = `wall-${id}`;
++  input.items.push(item); quantity(input, value, input.items.length - 1);
++}
++function setRate(input: QsCostInput, rate: number) {
++  const book = input.priceBooks.books[0], source = structuredClone(book.revisions[book.revisions.length - 1]);
++  source.revision++; source.rows[0].rate = rate; book.revisions.push(source); input.priceBooks.revision++;
++  const prior = input.rateBook.rates[input.rateBook.rates.length - 1];
++  input.rateBook.rates.push({ ...prior, revision: prior.revision + 1, material: { ...prior.material, bookRevision: source.revision } }); input.rateBook.revision++;
++  for (const item of input.items) item.rateRevision = prior.revision + 1;
++}
++
++test("SC10-D01 quantity and rate deltas use an exact old-rate counterfactual", () => {
++  const before = fixture(), after = fixture(); after.revision = 2; quantity(after, "5"); setRate(after, 12);
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  assert.equal(delta.rows[0].quantityDelta, "2");
++  assert.deepEqual(delta.totals, { quantityMinor: 2000, rateMinor: 1000, scopeMinor: 0, totalMinor: 3000 });
++  assert.equal(delta.rows[0].status, "modified"); assert.equal(delta.baseDeltaMinor, 3000);
++});
++test("SC10-D02 added and removed scope is separate and rows have stable deterministic ordering", () => {
++  const before = fixture(); addItem(before, "z-removed", "1");
++  const after = fixture(); after.revision = 2; addItem(after, "b-new", "2"); after.items.reverse();
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  assert.deepEqual(delta.rows.map(row => [row.itemId, row.status]), [["a", "unchanged"], ["b-new", "new"], ["z-removed", "removed"]]);
++  assert.deepEqual(delta.totals, { quantityMinor: 0, rateMinor: 0, scopeMinor: 1000, totalMinor: 1000 });
++  assert.equal(delta.rows[2].scopeMinor, -1000);
++});
++test("SC10-D03 an inactive proposal is visible but contributes zero accepted/base delta", () => {
++  const before = fixture(), after = fixture(); after.revision = 2; after.options.push({ id: "opt", label: "Upgrade" }); addItem(after, "opt-row", "2", "opt");
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  assert.equal(delta.totals.totalMinor, 0); assert.equal(delta.baseDeltaMinor, 0);
++  assert.equal(delta.rows[1].proposalDeltaMinor, 2000); assert.equal(delta.rows[1].totalMinor, 0);
++  assert.deepEqual(delta.options[0], { id: "opt", label: "Upgrade", beforeActive: false, afterActive: false, proposalDeltaMinor: 2000, acceptedDeltaMinor: 0 });
++});
++test("SC10-D04 activation is scope delta and leaves the base tender unchanged", () => {
++  const before = fixture(); before.options.push({ id: "opt", label: "Upgrade" }); addItem(before, "opt-row", "2", "opt");
++  const after = structuredClone(before); after.revision = 2; after.activeOptionIds = ["opt"];
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  assert.deepEqual(delta.totals, { quantityMinor: 0, rateMinor: 0, scopeMinor: 2000, totalMinor: 2000 });
++  assert.equal(delta.baseDeltaMinor, 0); assert.equal(delta.options[0].proposalDeltaMinor, 0); assert.equal(delta.options[0].acceptedDeltaMinor, 2000);
++});
++test("SC10-D05 removing acceptance reverses scope exactly, without erasing the proposal", () => {
++  const before = fixture(); before.options.push({ id: "opt", label: "Upgrade" }); addItem(before, "opt-row", "2", "opt"); before.activeOptionIds = ["opt"];
++  const after = structuredClone(before); after.revision = 2; after.activeOptionIds = [];
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  assert.equal(delta.totals.scopeMinor, -2000); assert.equal(delta.rows[1].proposalDeltaMinor, 0);
++});
++test("SC10-D06 markup and tax changes are rate-policy effects with exact awkward-cent reconciliation", () => {
++  const before = fixture(); quantity(before, "0.333333"); before.priceBooks.books[0].revisions[0].rows[0].rate = 0.05;
++  const after = structuredClone(before); after.revision = 2; quantity(after, "1.000001"); setRate(after, 0.07);
++  after.rateBook.rates[1].markupPercent = "17.5"; after.priceBooks.books[0].revisions[1].metadata.taxPercent = 10;
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  // Before 2 cents. Old rate/new quantity = 5 cents. New: 7 + 1 markup + 1 tax = 9.
++  assert.deepEqual(delta.totals, { quantityMinor: 3, rateMinor: 4, scopeMinor: 0, totalMinor: 7 });
++});
++test("SC10-D07 reassigning an existing row to a proposal is a scope effect", () => {
++  const before = fixture(), after = fixture(); after.revision = 2; after.options = [{ id: "opt", label: "Optional wall" }]; after.items[0].optionId = "opt";
++  const delta = compareQsCostPlans(snapshot(before), snapshot(after));
++  assert.equal(delta.totals.scopeMinor, -3000); assert.equal(delta.rows[0].proposalDeltaMinor, 0);
++});
++test("SC10-D08 incompatible project/currency/revision and corrupted snapshots are rejected", () => {
++  const a = snapshot(fixture()), next = fixture(); next.revision = 2;
++  assert.throws(() => compareQsCostPlans(a, a), /earlier/);
++  next.currency = "USD"; next.priceBooks.books[0].revisions[0].metadata.currency = "USD";
++  assert.throws(() => compareQsCostPlans(a, snapshot(next)), /currencies/);
++  const corrupt = structuredClone(a); corrupt.items[0].totalMinor++;
++  assert.throws(() => compareQsCostPlans(a, corrupt), /reconcile/);
++  const other = fixture(); other.revision = 2; other.projectId = "other"; other.priceBooks.jobId = "other"; other.rateBook.projectId = "other"; other.items[0].binding!.projectId = "other";
++  assert.throws(() => compareQsCostPlans(a, snapshot(other)), /projects/);
++});
++test("SC10-D09 reordering input does not affect comparison bytes; returned history is frozen", () => {
++  const before = fixture(); addItem(before, "b", "2"); const after = structuredClone(before); after.revision = 2; quantity(after, "4");
++  const a = compareQsCostPlans(snapshot(before), snapshot(after));
++  after.items.reverse(); before.items.reverse();
++  assert.equal(canonicalQsJson(a), canonicalQsJson(compareQsCostPlans(snapshot(before), snapshot(after))));
++  assert.ok(Object.isFrozen(a.rows[0].before)); assert.ok(Object.isFrozen(a.totals));
++});
++test("SC10-D10 quantity subtraction preserves fractional precision and signed zero canonicalization", () => {
++  assert.equal(subtractQsDecimal("1", "1.000000"), "0");
++  assert.equal(subtractQsDecimal("0.000001", "1"), "-0.999999");
++  assert.equal(subtractQsDecimal("999999999999.999999", "0.000001"), "999999999999.999998");
++});
++test("SC10-D11 historical supplier and contractor records cannot be rewritten under the same revision", () => {
++  const before = fixture(), after = fixture(); after.revision = 2;
++  after.priceBooks.books[0].revisions[0].rows[0].rate = 12;
++  assert.throws(() => compareQsCostPlans(snapshot(before), snapshot(after)), /Supplier revision history/);
++  const definition = fixture(); definition.revision = 2; definition.rateBook.rates[0].markupPercent = "20";
++  assert.throws(() => compareQsCostPlans(snapshot(before), snapshot(definition)), /Contractor rate history/);
++});
+diff --git a/src/studio/industries/quantity-surveying/qsDeltaComparison.ts b/src/studio/industries/quantity-surveying/qsDeltaComparison.ts
+new file mode 100644
+index 0000000..f9dc48c
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/qsDeltaComparison.ts
+@@ -0,0 +1,106 @@
++import {
++  canonicalQsJson, compareText, freeze, parseQsCostSnapshot, priceQsComponents,
++  type QsCostSnapshot, type QsPricedItem,
++} from "./qsRateBook.ts";
++
++export type QsCostDeltaRow = {
++  itemId: string; description: string; status: "new" | "removed" | "modified" | "unchanged";
++  before: QsPricedItem | null; after: QsPricedItem | null;
++  /** Null for additions/removals or incompatible units. Never sums unlike units. */
++  quantityDelta: string | null;
++  /** Exact financial attribution in integer minor units, including tax. */
++  quantityMinor: number; rateMinor: number; scopeMinor: number; totalMinor: number;
++  /** Includes proposed options, even when excluded from the accepted tender. */
++  proposalDeltaMinor: number;
++};
++export type QsCostDelta = {
++  format: "xray.qs-cost-delta/v1"; projectId: string;
++  currency: QsCostSnapshot["input"]["currency"];
++  previousRevision: number; currentRevision: number;
++  attribution: "quantity-at-old-rate-then-rate-at-new-quantity;scope-membership-separate/v1";
++  rows: QsCostDeltaRow[];
++  totals: { quantityMinor: number; rateMinor: number; scopeMinor: number; totalMinor: number };
++  baseDeltaMinor: number;
++  options: { id: string; label: string; beforeActive: boolean; afterActive: boolean; proposalDeltaMinor: number; acceptedDeltaMinor: number }[];
++};
++
++/** Compare independently revalidated immutable snapshots. The counterfactual is
++ * old rate/policy at the new measured quantity: quantity is attributed first,
++ * then all rate/allowance/markup/tax changes. Add/remove, changed entity/unit,
++ * option reassignment and option activation are scope. Each cent is assigned
++ * once; proposed options remain visible without changing the base tender. */
++export function compareQsCostPlans(rawPrevious: unknown, rawCurrent: unknown): QsCostDelta {
++  const previous = parseQsCostSnapshot(rawPrevious), current = parseQsCostSnapshot(rawCurrent);
++  if (previous.input.projectId !== current.input.projectId) throw Error("Cost revisions belong to different projects.");
++  if (previous.input.currency !== current.input.currency) throw Error("Cost revisions use different currencies; no implicit FX comparison is permitted.");
++  if (current.input.revision <= previous.input.revision) throw Error("Compare against an earlier immutable cost revision.");
++  if (current.input.createdAt < previous.input.createdAt) throw Error("The later cost revision cannot predate the earlier revision.");
++  for (const oldBook of previous.input.priceBooks.books) {
++    const nextBook = current.input.priceBooks.books.find(book => book.id === oldBook.id);
++    if (!nextBook || canonicalQsJson(nextBook.revisions.slice(0, oldBook.revisions.length)) !== canonicalQsJson(oldBook.revisions))
++      throw Error("Supplier revision history was removed or rewritten; append a new source revision.");
++  }
++  for (const oldRate of previous.input.rateBook.rates) {
++    const nextRate = current.input.rateBook.rates.find(rate => rate.id === oldRate.id && rate.revision === oldRate.revision);
++    if (!nextRate || canonicalQsJson(nextRate) !== canonicalQsJson(oldRate)) throw Error("Contractor rate history was removed or rewritten; append a new rate revision.");
++  }
++  for (const oldFx of previous.input.fxRates) {
++    const sameRevision = current.input.fxRates.find(rate => rate.id === oldFx.id && rate.revision === oldFx.revision);
++    if (sameRevision && canonicalQsJson(sameRevision) !== canonicalQsJson(oldFx)) throw Error("Exchange-rate provenance was rewritten under the same revision; select a new reviewed FX revision.");
++  }
++  const oldItems = new Map(previous.items.map(item => [item.itemId, item]));
++  const newItems = new Map(current.items.map(item => [item.itemId, item]));
++  const ids = [...new Set([...oldItems.keys(), ...newItems.keys()])].sort(compareText);
++  const rows = ids.map(itemId => {
++    const before = oldItems.get(itemId) ?? null, after = newItems.get(itemId) ?? null;
++    const oldAmount = BigInt(before?.included ? before.totalMinor : 0);
++    const newAmount = BigInt(after?.included ? after.totalMinor : 0);
++    let quantityMinor = 0n, rateMinor = 0n, scopeMinor = 0n;
++    const sameScope = before && after && before.unit === after.unit && before.optionId === after.optionId
++      && before.binding.entityId === after.binding.entityId && before.included === after.included;
++    if (!sameScope) scopeMinor = newAmount - oldAmount;
++    else if (before.included && after.included) {
++      const counterfactual = BigInt(priceQsComponents(after.quantity, before.rate, before.materialSource, before.labourSource).totalMinor);
++      quantityMinor = counterfactual - oldAmount;
++      rateMinor = newAmount - counterfactual;
++    }
++    const totalMinor = newAmount - oldAmount;
++    if (quantityMinor + rateMinor + scopeMinor !== totalMinor) throw Error("Item delta does not reconcile.");
++    const status: QsCostDeltaRow["status"] = !before ? "new" : !after ? "removed" : canonicalQsJson(before) === canonicalQsJson(after) ? "unchanged" : "modified";
++    return { itemId, description: after?.description ?? before!.description, status, before, after,
++      quantityDelta: before && after && before.unit === after.unit ? subtractQsDecimal(after.quantity, before.quantity) : null,
++      quantityMinor: signedMinor(quantityMinor), rateMinor: signedMinor(rateMinor), scopeMinor: signedMinor(scopeMinor), totalMinor: signedMinor(totalMinor),
++      proposalDeltaMinor: signedMinor(BigInt(after?.totalMinor ?? 0) - BigInt(before?.totalMinor ?? 0)) };
++  });
++  const total = (field: "quantityMinor" | "rateMinor" | "scopeMinor" | "totalMinor") => rows.reduce((sum, row) => sum + BigInt(row[field]), 0n);
++  const quantityMinor = total("quantityMinor"), rateMinor = total("rateMinor"), scopeMinor = total("scopeMinor"), totalMinor = total("totalMinor");
++  if (quantityMinor + rateMinor + scopeMinor !== totalMinor || totalMinor !== BigInt(current.acceptedTotal.totalMinor) - BigInt(previous.acceptedTotal.totalMinor))
++    throw Error("Revision deltas do not reconcile with the accepted totals.");
++  const oldOptions = new Map(previous.options.map(option => [option.id, option]));
++  const newOptions = new Map(current.options.map(option => [option.id, option]));
++  const options = [...new Set([...oldOptions.keys(), ...newOptions.keys()])].sort(compareText).map(id => {
++    const before = oldOptions.get(id), after = newOptions.get(id);
++    return { id, label: after?.label ?? before!.label, beforeActive: before?.active ?? false, afterActive: after?.active ?? false,
++      proposalDeltaMinor: signedMinor(BigInt(after?.totals.totalMinor ?? 0) - BigInt(before?.totals.totalMinor ?? 0)),
++      acceptedDeltaMinor: signedMinor(BigInt(after?.active ? after.totals.totalMinor : 0) - BigInt(before?.active ? before.totals.totalMinor : 0)) };
++  });
++  const baseDeltaMinor = signedMinor(BigInt(current.baseTotal.totalMinor) - BigInt(previous.baseTotal.totalMinor));
++  if (BigInt(baseDeltaMinor) + options.reduce((sum, option) => sum + BigInt(option.acceptedDeltaMinor), 0n) !== totalMinor) throw Error("Base and option deltas do not reconcile.");
++  return freeze<QsCostDelta>({ format: "xray.qs-cost-delta/v1", projectId: current.input.projectId, currency: current.input.currency,
++    previousRevision: previous.input.revision, currentRevision: current.input.revision,
++    attribution: "quantity-at-old-rate-then-rate-at-new-quantity;scope-membership-separate/v1", rows,
++    totals: { quantityMinor: signedMinor(quantityMinor), rateMinor: signedMinor(rateMinor), scopeMinor: signedMinor(scopeMinor), totalMinor: signedMinor(totalMinor) }, baseDeltaMinor, options });
++}
++
++export function subtractQsDecimal(next: string, previous: string): string {
++  const [ni, nf = ""] = next.split("."), [pi, pf = ""] = previous.split(".");
++  const scale = Math.max(nf.length, pf.length);
++  const delta = BigInt(ni + nf.padEnd(scale, "0")) - BigInt(pi + pf.padEnd(scale, "0"));
++  const negative = delta < 0n, digits = (negative ? -delta : delta).toString().padStart(scale + 1, "0");
++  const fraction = scale ? digits.slice(-scale).replace(/0+$/, "") : "";
++  return `${negative ? "-" : ""}${scale ? digits.slice(0, -scale) : digits}${fraction ? `.${fraction}` : ""}`;
++}
++function signedMinor(value: bigint): number {
++  if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < -BigInt(Number.MAX_SAFE_INTEGER)) throw Error("Delta exceeds the safe integer minor-unit limit.");
++  return Number(value);
++}
+diff --git a/src/studio/industries/quantity-surveying/qsRateBook.test.ts b/src/studio/industries/quantity-surveying/qsRateBook.test.ts
+new file mode 100644
+index 0000000..90b6d24
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/qsRateBook.test.ts
+@@ -0,0 +1,209 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import {
++  appendQsRateRevision, calculateQsCostPlan, canonicalQsJson, createQsRateBook,
++  parseQsCostSnapshot, qsCostInputSchema, qsDecimalSchema, qsRateBookSchema,
++  type QsCostInput, type QsCostSnapshot,
++} from "./qsRateBook.ts";
++
++const BOOK = "11111111-1111-4111-8111-111111111111";
++const HASH = "a".repeat(64), GEOMETRY = "b".repeat(64);
++function fixture(): QsCostInput {
++  return qsCostInputSchema.parse({
++    format: "xray.qs-cost-input/v1", projectId: "project-1", revision: 1,
++    createdAt: "2026-09-19T04:00:00Z", createdBy: "Estimator", currency: "AUD",
++    priceBooks: { schema: "xray.price-books/v1", jobId: "project-1", revision: 1, worksheet: [], books: [{
++      id: BOOK, name: "Confirmed supplier", archived: false, revisions: [{ revision: 1, importedAt: "2026-09-01T00:00:00Z",
++        metadata: { supplier: "Supplier A", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-01", sourceReference: "Quotation A-001" },
++        source: { fileName: "supplier.csv", sha256: HASH, sizeBytes: 100, delimiter: ",", headers: ["Code", "Description", "Unit", "Rate"], mapping: { stockCode: 0, description: 1, unit: 2, rate: 3 } },
++        rows: [{ sourceLine: 2, stockCode: "MAT", description: "Material", unit: "m", rate: 10 }, { sourceLine: 3, stockCode: "LAB", description: "Labour per measured metre", unit: "m", rate: 2 }],
++      }],
++    }] },
++    rateBook: { format: "xray.qs-rate-book/v1", projectId: "project-1", revision: 1, rates: [{
++      id: "wall-rate", revision: 1, description: "Measured wall", unit: "m",
++      material: { bookId: BOOK, bookRevision: 1, sourceLine: 2 }, labour: { bookId: BOOK, bookRevision: 1, sourceLine: 3 },
++      labourAssumption: "Supplier labour rate per measured metre, no productivity inference.", wastagePercent: "10", markupPercent: "20",
++      createdAt: "2026-09-18T00:00:00Z", createdBy: "Estimator",
++    }] },
++    items: [{ itemId: "item-1", description: "Wall", quantity: "3", unit: "m", evidence: "unverified", rateId: "wall-rate", rateRevision: 1, optionId: null,
++      binding: { format: "xray.qs-item-binding/v1", itemId: "item-1", projectId: "project-1", entityId: "wall-1", entityType: "wall-run",
++        measuredQuantity: "3", unit: "m", entityGeometrySha256: GEOMETRY, sourceSha256: HASH, calibrationId: "cal-1", boundAt: "2026-09-18T00:00:00Z", boundBy: "Estimator" },
++      entity: { entityId: "wall-1", entityType: "wall-run", geometrySha256: GEOMETRY, sourceSha256: HASH, calibrationId: "cal-1", unit: "m", measuredQuantity: "3" },
++    }], options: [], activeOptionIds: [],
++  });
++}
++function snapshot(input = fixture()): QsCostSnapshot {
++  const result = calculateQsCostPlan(input);
++  assert.equal(result.ok, true, result.ok ? undefined : JSON.stringify(result.blockers));
++  if (!result.ok) throw Error("No snapshot");
++  return result.snapshot;
++}
++function blocked(input: unknown, code?: string) {
++  const result = calculateQsCostPlan(input); assert.equal(result.ok, false);
++  if (result.ok) throw Error("Unexpected calculated price");
++  if (code) assert.ok(result.blockers.some(value => value.code === code), JSON.stringify(result.blockers));
++  assert.equal("snapshot" in result, false);
++}
++const metadata = (input: QsCostInput) => input.priceBooks.books[0].revisions[0].metadata;
++const supplierRows = (input: QsCostInput) => input.priceBooks.books[0].revisions[0].rows;
++function setQuantity(input: QsCostInput, quantity: string) {
++  input.items[0].quantity = quantity;
++  input.items[0].binding!.measuredQuantity = quantity;
++  input.items[0].entity!.measuredQuantity = quantity;
++}
++
++test("SC10-01 material wastage, explicit labour, markup and GST reconcile in integer cents", () => {
++  const value = snapshot();
++  assert.deepEqual(value.baseTotal, { materialMinor: 3300, labourMinor: 600, markupMinor: 780, netMinor: 4680, taxMinor: 468, totalMinor: 5148 });
++  assert.equal(value.items[0].adjustedMaterialQuantity, "3.3");
++  assert.equal(value.items[0].quantity, "3");
++  assert.equal(value.items[0].materialSource.sourceSha256, HASH);
++  assert.equal(value.items[0].materialSource.sourceReference, "Quotation A-001");
++  assert.equal(value.items[0].labourSource?.sourceLine, 3);
++});
++test("SC10-02 inclusive and exclusive supplier GST normalize to the same worked result", () => {
++  const input = fixture(); metadata(input).taxBasis = "inclusive";
++  supplierRows(input)[0].rate = 11; supplierRows(input)[1].rate = 2.2;
++  assert.deepEqual(snapshot(input).baseTotal, snapshot().baseTotal);
++});
++test("SC10-03 half-up component extension and inclusive extraction preserve the declared gross cent", () => {
++  const input = fixture(); setQuantity(input, "1");
++  input.rateBook.rates[0].labour = null; input.rateBook.rates[0].wastagePercent = "0"; input.rateBook.rates[0].markupPercent = "0";
++  metadata(input).taxBasis = "inclusive"; supplierRows(input)[0].rate = 0.05;
++  assert.deepEqual(snapshot(input).baseTotal, { materialMinor: 5, labourMinor: 0, markupMinor: 0, netMinor: 5, taxMinor: 0, totalMinor: 5 });
++  metadata(input).taxBasis = "exclusive"; metadata(input).taxPercent = 0; supplierRows(input)[0].rate = 0.005;
++  assert.equal(snapshot(input).baseTotal.totalMinor, 1);
++});
++test("SC10-04 proposed and accepted alternatives never change the base tender", () => {
++  const input = fixture(), item = structuredClone(input.items[0]);
++  item.itemId = "option-item"; item.binding!.itemId = item.itemId; item.binding!.entityId = "option-wall"; item.entity!.entityId = "option-wall"; item.optionId = "upgrade";
++  input.items.push(item); input.options.push({ id: "upgrade", label: "Alternative finish" });
++  const proposed = snapshot(input);
++  assert.equal(proposed.baseTotal.totalMinor, 5148); assert.equal(proposed.acceptedTotal.totalMinor, 5148);
++  assert.equal(proposed.options[0].totals.totalMinor, 5148); assert.equal(proposed.items[1].included, false);
++  input.activeOptionIds = ["upgrade"];
++  const accepted = snapshot(input);
++  assert.equal(accepted.baseTotal.totalMinor, 5148); assert.equal(accepted.acceptedTotal.totalMinor, 10296);
++});
++test("SC10-05 unknown/missing tax basis fails closed, while explicit zero tax remains zero", () => {
++  const input = fixture(); metadata(input).taxBasis = "unspecified"; metadata(input).taxPercent = null; blocked(input, "tax");
++  metadata(input).taxBasis = "exclusive"; blocked(input, "tax");
++  metadata(input).taxPercent = 0; assert.equal(snapshot(input).baseTotal.taxMinor, 0);
++});
++test("SC10-06 currencies stay explicit and cannot silently mix or convert", () => {
++  const input = fixture(); metadata(input).currency = "USD"; blocked(input, "currency");
++  input.currency = "USD"; assert.equal(snapshot(input).baseTotal.totalMinor, 5148);
++  metadata(input).amountDecimals = 3; blocked(input, "currency");
++});
++test("SC10-07 missing, archived, future and wrong-unit supplier pins withhold totals", () => {
++  const missing = fixture(); missing.rateBook.rates[0].material.sourceLine = 77; blocked(missing, "source");
++  const archived = fixture(); archived.priceBooks.books[0].archived = true; blocked(archived, "source");
++  const future = fixture(); metadata(future).effectiveDate = "2026-09-20"; blocked(future, "future-rate");
++  const incompatible = fixture(); supplierRows(incompatible)[1].unit = "h"; blocked(incompatible, "unit");
++});
++test("SC10-08 geometry edits, source replacements, missing entity and unbound quantities cannot price", () => {
++  for (const mutate of [
++    (input: QsCostInput) => { input.items[0].entity!.geometrySha256 = "c".repeat(64); },
++    (input: QsCostInput) => { input.items[0].entity!.sourceSha256 = "d".repeat(64); },
++    (input: QsCostInput) => { input.items[0].entity = null; },
++    (input: QsCostInput) => { input.items[0].binding = null; },
++    (input: QsCostInput) => { input.items[0].quantity = "4"; },
++    (input: QsCostInput) => { input.items[0].entity!.entityType = "roof-plane"; },
++    (input: QsCostInput) => { input.items[0].evidence = "sample"; },
++    (input: QsCostInput) => { input.items[0].evidence = "inferred"; },
++  ]) { const input = fixture(); mutate(input); blocked(input, "binding"); }
++});
++test("SC10-09 source-less and other-project bindings are rejected at the pricing boundary", () => {
++  const noSource = fixture(); noSource.items[0].binding!.sourceSha256 = null; noSource.items[0].entity!.sourceSha256 = null; blocked(noSource, "binding");
++  const other = fixture(); other.items[0].binding!.projectId = "other-project"; blocked(other, "binding");
++});
++test("SC10-10 decimal contract rejects exponents, signed values, floats and excess precision", () => {
++  for (const value of ["1e3", "-0", "+1", "01", ".5", "NaN", "Infinity", "1.0000001", "1000000000000", 1.2]) assert.equal(qsDecimalSchema.safeParse(value).success, false);
++  assert.equal(qsDecimalSchema.parse("18.500000"), "18.5");
++  assert.equal(qsDecimalSchema.parse("0.000001"), "0.000001");
++  const input = fixture(); input.rateBook.rates[0].markupPercent = "1001"; blocked(input, "invalid-input");
++});
++test("SC10-11 overflow fails closed instead of returning an unsafe amount", () => {
++  const input = fixture(); setQuantity(input, "999999999999"); supplierRows(input)[0].rate = 1000000000;
++  blocked(input, "overflow");
++});
++test("SC10-12 append preserves frozen history and rejects stale or replacement revisions", () => {
++  const original = createQsRateBook(fixture().rateBook), serialized = canonicalQsJson(original);
++  const revisedRate = { ...original.rates[0], revision: 2, markupPercent: "25" };
++  const next = appendQsRateRevision(original, revisedRate, 1);
++  assert.equal(next.revision, 2); assert.equal(next.rates[0].markupPercent, "20");
++  assert.equal(canonicalQsJson(original), serialized);
++  assert.ok(Object.isFrozen(next.rates[0].material));
++  assert.throws(() => appendQsRateRevision(original, revisedRate, 0), /changed/);
++  assert.throws(() => appendQsRateRevision(original, original.rates[0], 1), /historical/);
++});
++test("SC10-13 supplier revision pins remain historical until an explicit contractor revision selects the new source", () => {
++  const input = fixture(), old = input.priceBooks.books[0].revisions[0];
++  const next = structuredClone(old); next.revision = 2; next.rows[0].rate = 20;
++  input.priceBooks.books[0].revisions.push(next); input.priceBooks.revision = 2;
++  assert.equal(snapshot(input).baseTotal.totalMinor, 5148);
++  const revision = { ...input.rateBook.rates[0], revision: 2, material: { bookId: BOOK, bookRevision: 2, sourceLine: 2 } };
++  input.rateBook = appendQsRateRevision(input.rateBook, revision, 1); input.items[0].rateRevision = 2;
++  const priced = snapshot(input); assert.equal(priced.baseTotal.totalMinor, 9504);
++  assert.equal(priced.items[0].materialSource.bookRevision, 2);
++});
++test("SC10-14 strict input, unknown options and duplicate item identities cannot enter pricing", () => {
++  const input = fixture(); blocked({ ...input, verified: true }, "invalid-input");
++  blocked({ ...input, activeOptionIds: ["invented"] }, "invalid-input");
++  blocked({ ...input, items: [...input.items, input.items[0]] }, "invalid-input");
++  assert.equal(qsRateBookSchema.safeParse({ ...input.rateBook, rates: [{ ...input.rateBook.rates[0], material: { ...input.rateBook.rates[0].material, guessedRate: "1" } }] }).success, false);
++});
++test("SC10-15 snapshot is immutable, round-trips exactly, and rejects altered totals or unknown fields", () => {
++  const value = snapshot(), bytes = canonicalQsJson(value);
++  assert.equal(canonicalQsJson(parseQsCostSnapshot(JSON.parse(bytes))), bytes);
++  assert.ok(Object.isFrozen(value.input.priceBooks.books[0].revisions[0].rows[0]));
++  assert.throws(() => { value.baseTotal.totalMinor = 1; }, TypeError);
++  const changed = JSON.parse(bytes); changed.items[0].totalMinor++;
++  assert.throws(() => parseQsCostSnapshot(changed), /reconcile/);
++  assert.throws(() => parseQsCostSnapshot({ ...value, issued: true }), /reconcile/);
++});
++test("SC10-16 deterministic supplier row order, canonical decimal input and zero amounts", () => {
++  const a = fixture(), b = fixture(); supplierRows(b).reverse(); setQuantity(b, "3.000000");
++  assert.equal(canonicalQsJson(snapshot(a)), canonicalQsJson(snapshot(b)));
++  setQuantity(a, "0"); assert.deepEqual(snapshot(a).baseTotal, { materialMinor: 0, labourMinor: 0, markupMinor: 0, netMinor: 0, taxMinor: 0, totalMinor: 0 });
++});
++test("SC10-17 labour exclusion requires a declared assumption rather than a silent zero", () => {
++  const input = fixture(); input.rateBook.rates[0].labour = null; input.rateBook.rates[0].labourAssumption = "";
++  blocked(input, "invalid-input");
++  input.rateBook.rates[0].labourAssumption = "Labour excluded from this supply-only allowance.";
++  assert.equal(snapshot(input).baseTotal.labourMinor, 0);
++});
++test("SC10-18 a reviewed direct FX pair normalizes currency exactly and preserves both currency identities", () => {
++  const input = fixture(); metadata(input).currency = "USD";
++  input.fxRates = [{ id: "fx-usd-aud", revision: 1, fromCurrency: "USD", toCurrency: "AUD", rate: "1.5",
++    sourceReference: "Estimator-reviewed conversion quotation FX-01", effectiveAt: "2026-09-18T00:00:00.000Z", validUntil: "2026-09-20T00:00:00.000Z", reviewedAt: "2026-09-18T01:00:00.000Z", reviewedBy: "Estimator" }];
++  const value = snapshot(input);
++  assert.deepEqual(value.baseTotal, { materialMinor: 4950, labourMinor: 900, markupMinor: 1170, netMinor: 7020, taxMinor: 702, totalMinor: 7722 });
++  assert.equal(value.items[0].materialSource.currency, "USD"); assert.equal(value.items[0].materialSource.normalizedCurrency, "AUD");
++  assert.equal(value.items[0].materialSource.exchangeRate?.sourceReference, "Estimator-reviewed conversion quotation FX-01");
++});
++test("SC10-19 future, expired, inverse-only and ambiguous FX records cannot normalize a rate", () => {
++  const input = fixture(); metadata(input).currency = "USD";
++  const fx = { id: "fx", revision: 1, fromCurrency: "USD" as const, toCurrency: "AUD" as const, rate: "1.5", sourceReference: "Reviewed FX-01",
++    effectiveAt: "2026-09-18T00:00:00.000Z", validUntil: "2026-09-20T00:00:00.000Z", reviewedAt: "2026-09-18T01:00:00.000Z", reviewedBy: "Estimator" };
++  input.fxRates = [{ ...fx, validUntil: input.createdAt }]; blocked(input, "currency");
++  input.fxRates = [{ ...fx, effectiveAt: "2026-09-19T05:00:00.000Z" }]; blocked(input, "currency");
++  input.fxRates = [{ ...fx, reviewedAt: "2026-09-19T05:00:00.000Z" }]; blocked(input, "currency");
++  input.fxRates = [{ ...fx, fromCurrency: "AUD", toCurrency: "USD" }]; blocked(input, "currency");
++  input.fxRates = [fx, { ...fx, id: "another" }]; blocked(input, "currency");
++  input.fxRates = [{ ...fx, rate: "0" }]; blocked(input, "invalid-input");
++});
++test("SC10-20 exact FX conversion rounds only after extension, and explicit area aliases preserve measurement units", () => {
++  const input = fixture(); setQuantity(input, "3"); input.rateBook.rates[0].labour = null; input.rateBook.rates[0].wastagePercent = "0"; input.rateBook.rates[0].markupPercent = "0";
++  metadata(input).currency = "USD"; metadata(input).taxPercent = 0; supplierRows(input)[0].rate = 0.01;
++  input.fxRates = [{ id: "fx", revision: 1, fromCurrency: "USD", toCurrency: "AUD", rate: "1.5", sourceReference: "Reviewed FX-01",
++    effectiveAt: "2026-09-18T00:00:00.000Z", validUntil: null, reviewedAt: "2026-09-18T01:00:00.000Z", reviewedBy: "Estimator" }];
++  assert.equal(snapshot(input).baseTotal.totalMinor, 5); // 3 × .01 × 1.5 = .045, not 3 × .02.
++  input.items[0].unit = "m²"; input.items[0].binding!.unit = "m²"; input.items[0].entity!.unit = "m²";
++  input.rateBook.rates[0].unit = "m2"; supplierRows(input)[0].unit = "m2";
++  const value = snapshot(input); assert.equal(value.items[0].unit, "m²"); assert.equal(value.items[0].materialSource.unit, "m2"); assert.equal(value.baseTotal.totalMinor, 5);
++});
++test("SC10-21 effective/import instants accept equality across equivalent timestamp precision", () => {
++  const input = fixture(); input.priceBooks.books[0].revisions[0].importedAt = "2026-09-19T04:00:00Z";
++  assert.equal(snapshot(input).baseTotal.totalMinor, 5148);
++});
+diff --git a/src/studio/industries/quantity-surveying/qsRateBook.ts b/src/studio/industries/quantity-surveying/qsRateBook.ts
+new file mode 100644
+index 0000000..186b917
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/qsRateBook.ts
+@@ -0,0 +1,283 @@
++import { z } from "zod";
++import { priceBookLibrarySchema, type PriceBookLibrary } from "../../pricing/priceBooks.ts";
++import { evaluateItemBinding, qsEntityGeometrySchema, qsItemBindingSchema } from "./qsItemBinding.ts";
++
++/** Contractor definitions pin existing supplier records. This does not create a
++ * second supplier library or imply a reviewed/issued commercial quotation. */
++export const QS_RATE_BOOK_FORMAT = "xray.qs-rate-book/v1" as const;
++export const QS_COST_INPUT_FORMAT = "xray.qs-cost-input/v1" as const;
++export const QS_COST_SNAPSHOT_FORMAT = "xray.qs-cost-snapshot/v1" as const;
++export const QS_CURRENCIES = ["AUD", "NZD", "USD", "GBP", "EUR"] as const;
++export const QS_RATE_UNITS = ["m", "m2", "m3", "ea", "kg", "t", "h", "day", "item"] as const;
++export const QS_COST_ROUNDING = "exact-FX-before-extension;ROUND_HALF_UP:component-extension,inclusive-extraction,component-markup,markup-tax;sum-integer-minor-units" as const;
++const text = z.string().trim().min(1).max(240);
++const timestamp = z.string().datetime({ offset: true }).transform(value => new Date(value).toISOString());
++const revision = z.number().int().positive().max(1000000);
++const currency = z.enum(QS_CURRENCIES);
++const unit = z.enum(QS_RATE_UNITS);
++const measuredUnit = z.enum([...QS_RATE_UNITS, "m²", "m³"]);
++export function normalizeQsRateUnit(value: string): (typeof QS_RATE_UNITS)[number] | null {
++  const parsed = unit.safeParse(value === "m²" ? "m2" : value === "m³" ? "m3" : value);
++  return parsed.success ? parsed.data : null;
++}
++const canonical = (value: string) => value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value;
++export const qsDecimalSchema = z.string().max(19).regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/).transform(canonical);
++const percent = qsDecimalSchema.refine(value => decimal(value).n <= 1000n * decimal(value).d, "Percentage must not exceed 1000.");
++export const qsRatePinSchema = z.object({ bookId: z.string().uuid(), bookRevision: revision, sourceLine: z.number().int().positive().max(1000000) }).strict();
++export type QsRatePin = z.infer<typeof qsRatePinSchema>;
++export const qsFxRateSchema = z.object({
++  id: text, revision, fromCurrency: currency, toCurrency: currency,
++  rate: qsDecimalSchema.refine(value => decimal(value).n > 0n, "Exchange rate must be positive."),
++  sourceReference: z.string().trim().min(1).max(1000), effectiveAt: timestamp,
++  validUntil: timestamp.nullable(), reviewedAt: timestamp, reviewedBy: text,
++}).strict().superRefine((value, ctx) => {
++  if (value.fromCurrency === value.toCurrency) ctx.addIssue({ code: "custom", message: "Exchange rate requires two different currencies." });
++  if (value.validUntil !== null && value.validUntil <= value.effectiveAt) ctx.addIssue({ code: "custom", message: "Exchange validity must end after it starts." });
++});
++export type QsFxRate = z.infer<typeof qsFxRateSchema>;
++export const qsRateRevisionSchema = z.object({
++  id: text, revision, description: text, unit,
++  material: qsRatePinSchema, labour: qsRatePinSchema.nullable(),
++  /** Explicit per-measured-unit labour basis, or a reason for excluding labour. */
++  labourAssumption: z.string().trim().min(1).max(1000),
++  wastagePercent: percent, markupPercent: percent,
++  createdAt: timestamp, createdBy: text,
++}).strict();
++export type QsRateRevision = z.infer<typeof qsRateRevisionSchema>;
++export const qsRateBookSchema = z.object({
++  format: z.literal(QS_RATE_BOOK_FORMAT), projectId: text,
++  revision: z.number().int().nonnegative().max(1000000),
++  rates: z.array(qsRateRevisionSchema).max(10000),
++}).strict().superRefine((book, ctx) => {
++  const groups = new Map<string, number[]>();
++  for (const rate of book.rates) groups.set(rate.id, [...(groups.get(rate.id) ?? []), rate.revision]);
++  for (const [id, revisions] of groups) {
++    revisions.sort((a, b) => a - b);
++    if (revisions.some((value, index) => value !== index + 1)) ctx.addIssue({ code: "custom", message: `Rate ${id} revisions must be consecutive and preserved.` });
++  }
++  if (book.revision !== book.rates.length) ctx.addIssue({ code: "custom", message: "Rate book revision must match its append-only revision count." });
++});
++export type QsRateBook = z.infer<typeof qsRateBookSchema>;
++export function createQsRateBook(raw: unknown): QsRateBook {
++  const book = qsRateBookSchema.parse(raw);
++  book.rates.sort((a, b) => compareText(a.id, b.id) || a.revision - b.revision);
++  return freeze(book);
++}
++export function appendQsRateRevision(rawBook: QsRateBook, rawRate: QsRateRevision, expectedRevision: number): QsRateBook {
++  const book = createQsRateBook(rawBook), rate = qsRateRevisionSchema.parse(rawRate);
++  if (book.revision !== expectedRevision) throw Error("Rate book changed; reload before appending a revision.");
++  const previous = book.rates.filter(value => value.id === rate.id);
++  if (rate.revision !== previous.length + 1) throw Error("Append the next rate revision; historical supplier pins cannot be replaced.");
++  if (previous.length && rate.createdAt < previous[previous.length - 1].createdAt) throw Error("A rate revision cannot predate its predecessor.");
++  return createQsRateBook({ ...book, revision: book.revision + 1, rates: [...book.rates, rate] });
++}
++
++export const qsCostItemSchema = z.object({
++  itemId: text, description: text, quantity: qsDecimalSchema, unit: measuredUnit,
++  evidence: z.enum(["unverified", "inferred", "sample"]),
++  binding: qsItemBindingSchema.nullable(), entity: qsEntityGeometrySchema.nullable(),
++  rateId: text, rateRevision: revision, optionId: text.nullable(),
++}).strict();
++export const qsCostInputSchema = z.object({
++  format: z.literal(QS_COST_INPUT_FORMAT), projectId: text, revision,
++  createdAt: timestamp, createdBy: text, currency,
++  priceBooks: priceBookLibrarySchema, rateBook: qsRateBookSchema,
++  fxRates: z.array(qsFxRateSchema).max(100).default([]),
++  items: z.array(qsCostItemSchema).max(10000),
++  options: z.array(z.object({ id: text, label: text }).strict()).max(100),
++  activeOptionIds: z.array(text).max(100),
++}).strict().superRefine((input, ctx) => {
++  for (const [name, ids] of [["item", input.items.map(value => value.itemId)], ["option", input.options.map(value => value.id)], ["active option", input.activeOptionIds]] as const)
++    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", message: `Duplicate ${name} identity.` });
++  const options = new Set(input.options.map(value => value.id));
++  if (input.activeOptionIds.some(id => !options.has(id)) || input.items.some(item => item.optionId !== null && !options.has(item.optionId)))
++    ctx.addIssue({ code: "custom", message: "Every referenced option must be declared." });
++  if (input.priceBooks.jobId !== input.projectId || input.rateBook.projectId !== input.projectId)
++    ctx.addIssue({ code: "custom", message: "Supplier library and rate definitions must belong to this project." });
++  if (new Set(input.fxRates.map(value => `${value.id}:${value.revision}`)).size !== input.fxRates.length)
++    ctx.addIssue({ code: "custom", message: "Duplicate exchange-rate revision." });
++});
++export type QsCostInput = z.infer<typeof qsCostInputSchema>;
++export type QsCostItem = z.infer<typeof qsCostItemSchema>;
++export type QsCostBlocker = { itemId: string | null; code: "invalid-input" | "binding" | "missing-rate" | "source" | "unit" | "currency" | "tax" | "future-rate" | "overflow"; message: string };
++export type QsRateSource = QsRatePin & {
++  bookName: string; supplier: string; stockCode: string; description: string;
++  sourceReference: string; sourceSha256: string; effectiveDate: string;
++  importedAt: string; sourceWorksheet: string | null; sourceHeaderRow: number | null;
++  currency: (typeof QS_CURRENCIES)[number]; normalizedCurrency: (typeof QS_CURRENCIES)[number];
++  exchangeRate: QsFxRate | null; unit: QsCostItem["unit"];
++  rate: string; taxBasis: "exclusive" | "inclusive"; taxPercent: string;
++};
++export type QsCostTotals = { materialMinor: number; labourMinor: number; markupMinor: number; netMinor: number; taxMinor: number; totalMinor: number };
++export type QsPricedItem = QsCostTotals & {
++  itemId: string; description: string; quantity: string; unit: QsCostItem["unit"];
++  optionId: string | null; included: boolean; rate: QsRateRevision;
++  materialSource: QsRateSource; labourSource: QsRateSource | null;
++  adjustedMaterialQuantity: string;
++  binding: NonNullable<QsCostItem["binding"]>;
++};
++export type QsCostSnapshot = {
++  format: typeof QS_COST_SNAPSHOT_FORMAT; rounding: typeof QS_COST_ROUNDING;
++  input: QsCostInput; items: QsPricedItem[];
++  baseTotal: QsCostTotals;
++  options: { id: string; label: string; active: boolean; totals: QsCostTotals }[];
++  acceptedTotal: QsCostTotals;
++};
++export type QsCostResult = { ok: true; snapshot: QsCostSnapshot } | { ok: false; blockers: QsCostBlocker[] };
++
++/** No caller-supplied readiness flag is accepted. Current geometry and exact
++ * source pins are re-read on each calculation; stale rows withhold all totals. */
++export function calculateQsCostPlan(raw: unknown): QsCostResult {
++  const parsed = qsCostInputSchema.safeParse(raw);
++  if (!parsed.success) return { ok: false, blockers: parsed.error.issues.map(issue => ({ itemId: null, code: "invalid-input" as const, message: `${issue.path.join(".")}: ${issue.message}` })) };
++  const input = normalizeInput(parsed.data);
++  const blockers: QsCostBlocker[] = [], items: QsPricedItem[] = [];
++  for (const item of input.items) {
++    try {
++      if (!item.binding || item.binding.itemId !== item.itemId || item.binding.projectId !== input.projectId)
++        throw new CostFailure("binding", "Bind this row to its measured entity in the current project before pricing.");
++      if (!item.binding.sourceSha256) throw new CostFailure("binding", "Pricing requires a source document identity.");
++      if (Date.parse(item.binding.boundAt) > Date.parse(input.createdAt)) throw new CostFailure("binding", "The geometry binding postdates this cost revision.");
++      const evidence = evaluateItemBinding(item.binding, item.entity, { ...item, projectId: input.projectId });
++      if (!evidence.pricingPermitted) throw new CostFailure("binding", evidence.reasons.join(" "));
++      if (item.entity?.entityType !== item.binding.entityType) throw new CostFailure("binding", "The measured entity type changed.");
++      const rate = input.rateBook.rates.find(value => value.id === item.rateId && value.revision === item.rateRevision);
++      if (!rate) throw new CostFailure("missing-rate", "The pinned contractor rate revision is missing.");
++      if (rate.unit !== normalizeQsRateUnit(item.unit)) throw new CostFailure("unit", "Contractor rate and measured quantity units differ; no implicit conversion is permitted.");
++      if (rate.createdAt > input.createdAt) throw new CostFailure("future-rate", "The contractor rate revision postdates this cost plan.");
++      const materialSource = resolveSource(input.priceBooks, rate.material, item.unit, input.currency, input.createdAt, input.fxRates);
++      const labourSource = rate.labour ? resolveSource(input.priceBooks, rate.labour, item.unit, input.currency, input.createdAt, input.fxRates) : null;
++      const computed = priceQsComponents(item.quantity, rate, materialSource, labourSource);
++      items.push({ itemId: item.itemId, description: item.description, quantity: item.quantity, unit: item.unit,
++        optionId: item.optionId, included: item.optionId === null || input.activeOptionIds.includes(item.optionId),
++        rate, materialSource, labourSource, binding: item.binding, ...computed });
++    } catch (error) {
++      blockers.push({ itemId: item.itemId, code: error instanceof CostFailure ? error.code : "overflow", message: error instanceof Error ? error.message : "Calculation failed." });
++    }
++  }
++  if (blockers.length) return { ok: false, blockers };
++  try {
++    const baseTotal = sumQsTotals(items.filter(item => item.optionId === null));
++    const options = input.options.map(option => ({ ...option, active: input.activeOptionIds.includes(option.id), totals: sumQsTotals(items.filter(item => item.optionId === option.id)) }));
++    const acceptedTotal = sumQsTotals([baseTotal, ...options.filter(option => option.active).map(option => option.totals)]);
++    return { ok: true, snapshot: freeze<QsCostSnapshot>({ format: QS_COST_SNAPSHOT_FORMAT, rounding: QS_COST_ROUNDING, input, items, baseTotal, options, acceptedTotal }) };
++  } catch (error) { return { ok: false, blockers: [{ itemId: null, code: "overflow", message: error instanceof Error ? error.message : "Total overflow." }] }; }
++}
++
++/** Recompute every persisted field from its frozen inputs. Unknown fields,
++ * corrupt totals, altered provenance and unsupported versions are rejected. */
++export function parseQsCostSnapshot(raw: unknown): QsCostSnapshot {
++  if (!raw || typeof raw !== "object" || !("input" in raw)) throw Error("Cost snapshot has no frozen input.");
++  const result = calculateQsCostPlan(raw.input);
++  if (!result.ok) throw Error(result.blockers.map(value => value.message).join(" "));
++  if (canonicalQsJson(raw) !== canonicalQsJson(result.snapshot)) throw Error("Cost snapshot does not reconcile with its frozen inputs.");
++  return result.snapshot;
++}
++
++/** Canonical JSON is a serialization, not a claimed cryptographic signature. */
++export function canonicalQsJson(value: unknown): string {
++  if (value === null || typeof value !== "object") {
++    const encoded = JSON.stringify(value);
++    if (encoded === undefined) throw Error("Snapshot contains an unsupported JSON value.");
++    return encoded;
++  }
++  if (Array.isArray(value)) return `[${value.map(canonicalQsJson).join(",")}]`;
++  return `{${Object.entries(value).sort(([a], [b]) => compareText(a, b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalQsJson(entry)}`).join(",")}}`;
++}
++
++function resolveSource(library: PriceBookLibrary, pin: QsRatePin, expectedUnit: QsCostItem["unit"], expectedCurrency: QsCostInput["currency"], at: string, fxRates: QsFxRate[]): QsRateSource {
++  const book = library.books.find(value => value.id === pin.bookId);
++  const source = book?.revisions.find(value => value.revision === pin.bookRevision);
++  const row = source?.rows.find(value => value.sourceLine === pin.sourceLine);
++  if (!book || book.archived || !source || !row) throw new CostFailure("source", "Choose an existing, active supplier record at the exact pinned revision and source line.");
++  const metadata = source.metadata;
++  const sourceCurrency = currency.safeParse(metadata.currency);
++  if (!sourceCurrency.success) throw new CostFailure("currency", `Supplier currency ${metadata.currency} is not supported by this cost-plan version.`);
++  let exchangeRate: QsFxRate | null = null;
++  if (sourceCurrency.data !== expectedCurrency) {
++    const candidates = fxRates.filter(value => value.fromCurrency === sourceCurrency.data && value.toCurrency === expectedCurrency);
++    if (candidates.length !== 1) throw new CostFailure("currency", `Select exactly one reviewed ${sourceCurrency.data} to ${expectedCurrency} exchange rate; missing or ambiguous currency conversion is blocked.`);
++    exchangeRate = candidates[0];
++    if (exchangeRate.effectiveAt > at || exchangeRate.reviewedAt > at || (exchangeRate.validUntil !== null && at >= exchangeRate.validUntil))
++      throw new CostFailure("currency", "The selected exchange rate is future, unreviewed at this revision, or expired.");
++  }
++  if (metadata.amountDecimals !== 2) throw new CostFailure("currency", "This cost-plan version requires a declared two-decimal currency.");
++  if (metadata.taxBasis === "unspecified" || metadata.taxPercent === null) throw new CostFailure("tax", "Supplier tax basis and percentage must both be explicit.");
++  if (metadata.effectiveDate > at.slice(0, 10) || Date.parse(source.importedAt) > Date.parse(at)) throw new CostFailure("future-rate", "Supplier rate was not effective and available at this revision's creation time.");
++  if (normalizeQsRateUnit(row.unit) === null || normalizeQsRateUnit(row.unit) !== normalizeQsRateUnit(expectedUnit)) throw new CostFailure("unit", `Supplier unit ${row.unit} differs from measured unit ${expectedUnit}; use an explicitly compatible source rate.`);
++  // The pre-existing import contract stores up to six decimal places as numbers.
++  // Its canonical decimal representation is recovered once at this boundary;
++  // monetary multiplication, normalization and rounding below use only BigInt.
++  const rate = qsDecimalSchema.parse(row.rate.toFixed(6));
++  const parsedTax = qsDecimalSchema.safeParse(String(metadata.taxPercent));
++  if (!parsedTax.success) throw new CostFailure("tax", "Supplier tax percentage exceeds the supported exact decimal precision.");
++  const taxPercent = parsedTax.data;
++  return { ...pin, bookName: book.name, supplier: metadata.supplier, stockCode: row.stockCode, description: row.description,
++    sourceReference: metadata.sourceReference, sourceSha256: source.source.sha256,
++    effectiveDate: metadata.effectiveDate, importedAt: source.importedAt,
++    sourceWorksheet: source.source.worksheet ?? null, sourceHeaderRow: source.source.headerRow ?? null,
++    currency: sourceCurrency.data, normalizedCurrency: expectedCurrency, exchangeRate,
++    unit: row.unit as QsCostItem["unit"], rate, taxBasis: metadata.taxBasis, taxPercent };
++}
++
++type Rational = { n: bigint; d: bigint };
++function decimal(value: string): Rational { const [whole, fraction = ""] = value.split("."); return { n: BigInt(whole + fraction), d: 10n ** BigInt(fraction.length) }; }
++function multiply(a: Rational, b: Rational): Rational { return { n: a.n * b.n, d: a.d * b.d }; }
++function allowance(value: string): Rational { const percentValue = decimal(value); return { n: 100n * percentValue.d + percentValue.n, d: 100n * percentValue.d }; }
++function rounded(n: bigint, d: bigint): bigint { if (n < 0n || d <= 0n) throw Error("Invalid monetary calculation."); return (n * 2n + d) / (2n * d); }
++function minor(value: bigint): number { if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new CostFailure("overflow", "Amount exceeds the safe integer minor-unit limit."); return Number(value); }
++function rationalDecimal(value: Rational): string {
++  let n = value.n;
++  const d = value.d;
++  const whole = n / d; n %= d;
++  let fraction = "";
++  while (n && fraction.length < 30) { n *= 10n; fraction += (n / d).toString(); n %= d; }
++  if (n) throw Error("The physical allowance did not produce an exact bounded decimal.");
++  return `${whole}${fraction ? `.${fraction.replace(/0+$/, "")}` : ""}`;
++}
++function priceComponent(quantity: Rational, source: QsRateSource, markup: string) {
++  const sourcedRate = multiply(decimal(source.rate), decimal(source.exchangeRate?.rate ?? "1"));
++  const extension = multiply(quantity, sourcedRate), declared = rounded(extension.n * 100n, extension.d);
++  const tax = decimal(source.taxPercent);
++  const net = source.taxBasis === "inclusive" ? rounded(declared * 100n * tax.d, 100n * tax.d + tax.n) : declared;
++  const baseTax = source.taxBasis === "inclusive" ? declared - net : rounded(net * tax.n, tax.d * 100n);
++  const markupRate = decimal(markup), markupMinor = rounded(net * markupRate.n, markupRate.d * 100n);
++  const markupTax = rounded(markupMinor * tax.n, tax.d * 100n);
++  return { net, markup: markupMinor, tax: baseTax + markupTax };
++}
++/** Exported for exact counterfactual revision attribution; accepts the already
++ * resolved immutable supplier sources from a validated snapshot. */
++export function priceQsComponents(quantity: string, rate: QsRateRevision, material: QsRateSource, labour: QsRateSource | null): QsCostTotals & { adjustedMaterialQuantity: string } {
++  const measured = decimal(qsDecimalSchema.parse(quantity));
++  const adjusted = multiply(measured, allowance(rate.wastagePercent));
++  const m = priceComponent(adjusted, material, rate.markupPercent);
++  const l = labour ? priceComponent(measured, labour, rate.markupPercent) : { net: 0n, markup: 0n, tax: 0n };
++  const net = m.net + l.net + m.markup + l.markup, tax = m.tax + l.tax;
++  return { materialMinor: minor(m.net), labourMinor: minor(l.net), markupMinor: minor(m.markup + l.markup),
++    netMinor: minor(net), taxMinor: minor(tax), totalMinor: minor(net + tax), adjustedMaterialQuantity: rationalDecimal(adjusted) };
++}
++export function sumQsTotals(values: QsCostTotals[]): QsCostTotals {
++  const fields = ["materialMinor", "labourMinor", "markupMinor", "netMinor", "taxMinor", "totalMinor"] as const;
++  const result = Object.fromEntries(fields.map(field => [field, minor(values.reduce((sum, value) => sum + BigInt(value[field]), 0n))])) as QsCostTotals;
++  if (result.materialMinor + result.labourMinor + result.markupMinor !== result.netMinor || result.netMinor + result.taxMinor !== result.totalMinor) throw Error("Cost totals do not reconcile.");
++  return result;
++}
++function normalizeInput(input: QsCostInput): QsCostInput {
++  input.items.sort((a, b) => compareText(a.itemId, b.itemId));
++  input.options.sort((a, b) => compareText(a.id, b.id)); input.activeOptionIds.sort(compareText);
++  input.fxRates.sort((a, b) => compareText(a.id, b.id) || a.revision - b.revision);
++  input.rateBook = createQsRateBook(input.rateBook);
++  input.priceBooks.books.sort((a, b) => compareText(a.id, b.id));
++  for (const book of input.priceBooks.books) for (const version of book.revisions) version.rows.sort((a, b) => a.sourceLine - b.sourceLine);
++  input.priceBooks.worksheet.sort((a, b) => compareText(a.id, b.id));
++  return input;
++}
++export function compareText(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
++export function freeze<T>(value: T): T {
++  if (value && typeof value === "object" && !Object.isFrozen(value)) { for (const child of Object.values(value)) freeze(child); Object.freeze(value); }
++  return value;
++}
++class CostFailure extends Error {
++  code: QsCostBlocker["code"];
++  constructor(code: QsCostBlocker["code"], message: string) { super(message); this.code = code; }
++}
+diff --git a/src/studio/industries/quantity-surveying/qsWorksheetState.ts b/src/studio/industries/quantity-surveying/qsWorksheetState.ts
+new file mode 100644
+index 0000000..e47ca75
+--- /dev/null
++++ b/src/studio/industries/quantity-surveying/qsWorksheetState.ts
+@@ -0,0 +1,98 @@
++import { z } from "zod";
++import {
++  QS_CURRENCIES, QS_RATE_BOOK_FORMAT, canonicalQsJson, compareText, createQsRateBook, freeze, parseQsCostSnapshot,
++  qsFxRateSchema, qsRateBookSchema, type QsCostSnapshot,
++} from "./qsRateBook.ts";
++
++const identifier = z.string().trim().min(1).max(240);
++const snapshotSchema = z.unknown().transform((value, context): QsCostSnapshot => {
++  try { return parseQsCostSnapshot(value); }
++  catch (error) {
++    context.addIssue({ code: "custom", message: error instanceof Error ? error.message : "Invalid saved cost revision." });
++    return z.NEVER;
++  }
++});
++
++/** Persisted editing choices plus append-only cost snapshots. Supplier records
++ * remain in PriceBookLibrary; definitions only pin their exact source identity. */
++export const qsWorksheetStateSchema = z.object({
++  format: z.literal("xray.qs-worksheet-state/v1"),
++  projectId: identifier,
++  currency: z.enum(QS_CURRENCIES),
++  preparedBy: z.string().max(240),
++  rateBook: qsRateBookSchema,
++  /** Current explicit FX selections. Older selections remain inside snapshots. */
++  fxRates: z.array(qsFxRateSchema).max(100).default([]),
++  assignments: z.array(z.object({
++    itemKey: identifier,
++    rateId: identifier.nullable(),
++    rateRevision: z.number().int().positive().nullable(),
++    optionId: identifier.nullable(),
++  }).strict()).max(10000),
++  options: z.array(z.object({ id: identifier, label: z.string().max(240) }).strict()).max(100),
++  activeOptionIds: z.array(identifier).max(100),
++  snapshots: z.array(snapshotSchema).max(50),
++}).strict().superRefine((state, context) => {
++  const issue = (message: string) => context.addIssue({ code: "custom", message });
++  if (state.rateBook.projectId !== state.projectId) issue("Contractor rates belong to another project.");
++  if (new Set(state.fxRates.map(rate => `${rate.fromCurrency}:${rate.toCurrency}`)).size !== state.fxRates.length) issue("Select only one reviewed exchange rate for each currency pair.");
++  if (new Set(state.assignments.map(row => row.itemKey)).size !== state.assignments.length) issue("Duplicate worksheet item assignment.");
++  if (new Set(state.options.map(option => option.id)).size !== state.options.length) issue("Duplicate cost option identity.");
++  if (new Set(state.activeOptionIds).size !== state.activeOptionIds.length) issue("Duplicate accepted option identity.");
++  const options = new Set(state.options.map(option => option.id));
++  if (state.activeOptionIds.some(id => !options.has(id))) issue("An accepted option no longer exists.");
++  for (const row of state.assignments) {
++    if ((row.rateId === null) !== (row.rateRevision === null)) issue("A supplier definition pin needs both identity and revision.");
++    if (row.rateId !== null && !state.rateBook.rates.some(rate => rate.id === row.rateId && rate.revision === row.rateRevision)) issue("A worksheet rate revision is missing.");
++    if (row.optionId !== null && !options.has(row.optionId)) issue("A worksheet option no longer exists.");
++  }
++  for (const [index, snapshot] of state.snapshots.entries()) {
++    if (snapshot.input.projectId !== state.projectId) issue("A saved cost revision belongs to another project.");
++    if (snapshot.input.revision !== index + 1) issue("Saved cost revisions must be consecutive and preserved.");
++    if (index > 0 && snapshot.input.createdAt < state.snapshots[index - 1].input.createdAt) issue("A cost revision cannot predate its predecessor.");
++  }
++  // A removed live choice can remain in historical snapshots. Reusing its exact
++  // identity/revision with different source bytes, however, rewrites history.
++  const rates = new Map<string, string>(), fx = new Map<string, string>(), suppliers = new Map<string, string>();
++  const record = (seen: Map<string, string>, id: string, value: unknown, label: string) => {
++    const bytes = canonicalQsJson(value), previous = seen.get(id);
++    if (previous !== undefined && previous !== bytes) issue(`${label} revision history cannot be rewritten.`);
++    else seen.set(id, bytes);
++  };
++  for (const snapshot of state.snapshots) {
++    for (const rate of snapshot.input.rateBook.rates) record(rates, `${rate.id}:${rate.revision}`, rate, "Contractor rate");
++    for (const rate of snapshot.input.fxRates) record(fx, `${rate.id}:${rate.revision}`, rate, "Exchange rate");
++    for (const book of snapshot.input.priceBooks.books) for (const revision of book.revisions)
++      record(suppliers, `${book.id}:${revision.revision}`, revision, "Supplier source");
++  }
++  for (const rate of state.rateBook.rates) record(rates, `${rate.id}:${rate.revision}`, rate, "Contractor rate");
++  for (const rate of state.fxRates) record(fx, `${rate.id}:${rate.revision}`, rate, "Exchange rate");
++});
++export type QsWorksheetState = z.infer<typeof qsWorksheetStateSchema>;
++export type QsWorksheetAssignment = QsWorksheetState["assignments"][number];
++
++export function createEmptyQsWorksheetState(projectId: string): QsWorksheetState {
++  return qsWorksheetStateSchema.parse({
++    format: "xray.qs-worksheet-state/v1", projectId, currency: "AUD", preparedBy: "",
++    rateBook: createQsRateBook({ format: QS_RATE_BOOK_FORMAT, projectId, revision: 0, rates: [] }),
++    fxRates: [], assignments: [], options: [], activeOptionIds: [], snapshots: [],
++  });
++}
++
++/** The only UI operation that appends a historical cost revision. Existing
++ * entries are reparsed and copied without replacement, deletion or mutation. */
++export function appendQsWorksheetSnapshot(state: QsWorksheetState, rawSnapshot: unknown): QsWorksheetState {
++  const current = qsWorksheetStateSchema.parse(state);
++  const snapshot = parseQsCostSnapshot(rawSnapshot);
++  if (snapshot.input.projectId !== current.projectId) throw Error("Cost revision belongs to another project.");
++  if (snapshot.input.revision !== current.snapshots.length + 1) throw Error("Save the next cost revision; historical snapshots cannot be replaced.");
++  const config = (value: { currency: string; rateBook: QsWorksheetState["rateBook"]; options: QsWorksheetState["options"]; activeOptionIds: string[]; fxRates: QsWorksheetState["fxRates"] }, actor: string) => ({
++    currency: value.currency, actor: actor.trim(), rateBook: createQsRateBook(value.rateBook),
++    options: value.options.map(option => ({ id: option.id, label: option.label.trim() })).sort((a, b) => compareText(a.id, b.id)),
++    activeOptionIds: [...value.activeOptionIds].sort(compareText),
++    fxRates: [...value.fxRates].sort((a, b) => compareText(a.id, b.id) || a.revision - b.revision),
++  });
++  if (canonicalQsJson(config(current, current.preparedBy)) !== canonicalQsJson(config(snapshot.input, snapshot.input.createdBy)))
++    throw Error("Cost snapshot does not match the current preparer, currency, rate definitions, options or exchange-rate choices. Recalculate before saving.");
++  return freeze(qsWorksheetStateSchema.parse({ ...current, snapshots: [...current.snapshots, snapshot] }));
++}
+diff --git a/src/studio/industries/quantity-surveying/quantityForm.ts b/src/studio/industries/quantity-surveying/quantityForm.ts
+index 8af71ff..6c2f55c 100644
+--- a/src/studio/industries/quantity-surveying/quantityForm.ts
++++ b/src/studio/industries/quantity-surveying/quantityForm.ts
+@@ -1,6 +1,9 @@
+ import { z } from "zod";
+ import { classifyQuantities, type ClassificationInput } from "./classification.ts";
+ import type { QuantityReport } from "./report.ts";
++import { qsItemBindingSchema } from "./qsItemBinding.ts";
++import { qsWorksheetStateSchema, type QsWorksheetState } from "./qsWorksheetState.ts";
++import { parseIndustryDraftLibrary, updateIndustryDraft } from "../draftStorage.ts";
+ import {
+   INDUSTRY_SOURCE_BINDING_SCHEMA,
+   createIndustrySourceBinding,
+@@ -21,15 +24,34 @@ export const quantityFormSchema = z.object({
+   items: z.array(z.object({
+     key, reference: text, quantity: z.string().max(80), unit: text,
+     evidence: z.enum(["unverified", "inferred", "sample"]), nodeKey: text,
++    /** Optional for backwards compatibility with drafts saved before QS-03.
++     * `null` is an explicit unbound row; a record is the immutable measured
++     * entity snapshot chosen by the estimator. */
++    entityBinding: qsItemBindingSchema.nullable().optional(),
+   }).strict()).max(10000),
+   // Optional so drafts saved before source binding existed still open; `null` is an explicit unbound worksheet.
+   binding: industrySourceBindingSchema.nullable().optional(),
++  /** Commercial editing choices are distinct from measured classification data.
++   * Old quantity-only drafts need no migration or invented project identity. */
++  pricing: qsWorksheetStateSchema.nullable().optional(),
+   calculated: z.boolean(),
+ }).strict();
+ export type QuantityForm = z.infer<typeof quantityFormSchema>;
+ 
+ export function createEmptyQuantityForm(): QuantityForm {
+-  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], binding: null, calculated: false };
++  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], binding: null, pricing: null, calculated: false };
++}
++
++/** Preflight the existing draft transaction, including its shared storage cap,
++ * before replacing visible pricing choices. The host remains the only writer
++ * and rechecks its own revision/generation when the queued save executes. */
++export function withQuantityPricing(form: QuantityForm, pricing: QsWorksheetState, projectId: string, rawLibrary: string | null): QuantityForm {
++  if (pricing.projectId !== projectId) throw Error("Cost choices belong to another project. The current worksheet was preserved.");
++  const next = quantityFormSchema.parse({ ...form, pricing });
++  const library = rawLibrary === null ? null : parseIndustryDraftLibrary(rawLibrary, projectId);
++  updateIndustryDraft(rawLibrary, projectId, "quantity-surveying", library?.drafts["quantity-surveying"]?.revision ?? 0,
++    next, library?.generation ?? null);
++  return next;
+ }
+ 
+ /** Form keys are UI identity only; explicit user codes identify the calculation. */
+diff --git a/src/studio/pricing/PriceBookPanel.tsx b/src/studio/pricing/PriceBookPanel.tsx
+index daf036e..35e0960 100644
+--- a/src/studio/pricing/PriceBookPanel.tsx
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
+ import { Archive, Download, FileUp, Plus, RefreshCw } from "lucide-react";
+ import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, previewPriceRows, priceBookError,
+   priceCsvTemplate, priceImportSchema, priceLineAmount, priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readBrowserPriceBooks, removePricedLine,
+-  resolvePricedLine, savePriceBooks, suggestPriceMapping, PRICE_CSV_LIMIT,
++  resolvePricedLine, savePriceBooks, suggestPriceMapping, priceBookKey, PRICE_CSV_LIMIT,
+   type CsvTable, type PriceBook, type PriceBookLibrary, type PriceBookSession, type PriceImport, type PriceMapping } from "./priceBooks.ts";
+ import "./priceBooks.css";
+ import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
+@@ -18,7 +18,7 @@ function download(text: string, name: string) {
+ const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
+ 
+ /** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
+-export function PriceBookPanel({ jobId }: { jobId: string }) {
++export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void }) {
+   const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
+   const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
+   const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
+@@ -32,6 +32,20 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+     generation.current++; workbookRead.current?.abort(); setBusy(false); setReadingWorkbook(false); setSession(readBrowserPriceBooks(jobId)); setFile(null); setMapping(null); setReview(null); setSelection(null); setNotice(""); setTargetId(""); setTab("library");
+     return () => { generation.current++; workbookRead.current?.abort(); };
+   }, [jobId]);
++  useEffect(() => {
++    onSessionChange?.(session?.value.jobId === jobId ? session : null);
++  }, [session, jobId, onSessionChange]);
++  useEffect(() => {
++    const changed = (event: StorageEvent) => {
++      if (event.key !== null && event.key !== priceBookKey(jobId)) return;
++      if (event.storageArea !== null && event.storageArea !== localStorage) return;
++      setSession(readBrowserPriceBooks(jobId));
++      setReview(null);
++      setNotice("Supplier library changed in another window. Saved rates were reloaded; review any pending import again.");
++    };
++    window.addEventListener("storage", changed);
++    return () => window.removeEventListener("storage", changed);
++  }, [jobId]);
+   const value = session?.value.jobId === jobId ? session.value : null;
+   const selectedSheet = file?.kind === "xlsx" ? file.workbook.sheets.find(sheet => sheet.name === worksheet) : null;
+   const { table, parseError } = useMemo((): { table: CsvTable | null; parseError: string } => {
+@@ -94,7 +108,7 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+       setNotice("");
+     } catch (error) { setNotice(priceBookError(error)); }
+   }
+-  function useRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
++  function chooseRate(b: PriceBook, rev: number, sourceLine: number) { setSelection({ bookId: b.id, revision: rev, sourceLine }); setQuantity(""); setTab("worksheet"); setNotice(""); }
+   const disabled = busy || !value || session?.blocked;
+   return <section className="price-books" aria-label="Project price books" data-price-import-state={readingWorkbook ? "loading" : review ? "review" : file ? parseError || rows?.errors.length ? "invalid" : table && mapping ? "ready" : "choose-sheet" : "idle"} data-price-import-rows={rows?.rows.length ?? 0}>
+     <header><div><h2>Price books</h2><p>Import supplier sheets, preserve revisions and apply chosen rates to a priced worksheet.</p></div>
+@@ -143,7 +157,7 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
+     {tab === "library" && <>
+       <div className="price-toolbar"><label>Find a price book<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or supplier" /></label><button className="pill" aria-pressed={archived} onClick={() => setArchived(!archived)}><Archive size={16} />{archived ? "Show active" : "Show archived"}</button></div>
+       {!value?.books.some(b => b.archived === archived) && <div className="price-empty"><h3>{archived ? "No archived price books" : "Keep supplier pricing in one place"}</h3><p>Import a supplier sheet, check its columns and source, then save a named revision. Every applied line keeps the rate version you chose.</p></div>}
+-      {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => useRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
++      {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => chooseRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
+     </>}
+     {tab === "worksheet" && <>
+       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>

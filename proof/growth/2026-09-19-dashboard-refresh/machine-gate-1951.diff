@@ -1,0 +1,59 @@
+diff --git a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+index af26519..22db4e2 100644
+--- a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
++++ b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+@@ -36,7 +36,7 @@ Every slice in this ledger must satisfy the following four proof criteria before
+ * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
+ * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
+ 
+-**Last executed machine gate**: `npm test` — 1943/1943 passing (203 + 796 + 944 across three test processes); `npm run typecheck` exit 0. DANS1 frozen snapshot `4c87a0de13b6`, source SHA-256 `5666204bb6737ec331b1570be64b5f51a1e5ad9254579538fe273f1c12baeb8c`, recorded 2026-09-19. Evidence: `proof/growth/2026-09-19-sc09-entity-highlight/dans1-4c87a0de13b6/`. That snapshot's scoped lint reported three errors. Their subsequent corrections passed isolated scoped lint (0 errors, 10 warnings), typecheck and 32 targeted tests on DANS1 `sc11-panel-cb3d0b8de15f`; see `proof/growth/2026-09-19-sc11-package-panel-preflight/sc11-panel-cb3d0b8de15f/output/results.json`. This later diagnostic is not a new full-suite or production-build receipt. SC-09 completion remains open. The dashboard reads this line rather than carrying its own copy of the numbers.
++**Last executed machine gate**: `npm test` — 1951/1951 passing (203 + 796 + 952 across three test processes); `npm run typecheck` exit 0; scoped lint 0 errors / 9 warnings. DANS1 frozen snapshot `9abf4c807030`, source SHA-256 `363046a1168bf312022a3d8e3ed23844dd44cf6e4bbc3e658b3bac0da993af4f`, recorded 2026-09-19. Evidence: `proof/growth/2026-09-19-sc09-entity-highlight/preflight/9abf4c807030/`. All six preflight commands and final source-hash verification passed, including eight new dialog-focus tests. SC10 browser keyboard containment now passes six Tab checks, but the campaign fails the Modified badge contrast check (4.16:1, minimum 4.5:1); a later CSS correction needs its own run. SC09 disclosure and final production qualification remain open. Earlier 4c87 lint failures are retained as history, not rewritten. The dashboard reads this line rather than carrying its own copy of the numbers.
+ 
+ The figure moved from 1616 because `src/studio/persistence/portableArchive.test.ts` (SC-15's archive container, 10 tests) was written but never added to the `test` script, so it ran in no suite at all — a green test nobody executed. `npm test` also exceeded Windows' 8191-character command limit once that path was added, so the source suites now run through `test:src`; the guard scripts stay in `test` ahead of it.
+ 
+@@ -350,7 +350,7 @@ graph TD
+ 
+ #### SC-10 — QS-04/05 Rate Books, Tax/Currency Normalization, Options & Cost Deltas `[[pending]]`
+ * **Goal**: Connect contractor rate books with supplier references, support multi-currency/tax normalization (e.g. GST), alternative option sections, and compute cost deltas against prior revisions.
+-* **Proof**: Source and mounted worksheet checkpoint pushed in `a2935a9`; 21 rate-book and 11 delta tests are registered in the 1943-test snapshot. First DANS1 browser campaign `sc10-4c87a0de13b6-dev1` passed supplier pins, GST, base/proposed/accepted option totals and immutable revisions, then failed keyboard modal focus at operation 108 of 289. No browser acceptance or completion claimed. Evidence: `proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/`.
++* **Proof**: Source and mounted worksheet checkpoint pushed in `a2935a9`; focus correction/eight regression tests pushed in `6a9d5b3`. The 1951-test 9abf snapshot passes typecheck and scoped lint. Earlier browser campaign failed keyboard focus at operation108; `sc10-9abf4c807030-dev1` now passes six keyboard checks but stops at operation113/289 on Modified badge contrast4.16:1. Supplier pins, GST, base/proposed/accepted option totals and immutable revisions passed before stopping. Remaining assertions and the CSS correction are unqualified. Evidence: `proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/`.
+ * **DONE (machine)**:
+   - Rate book schema supports unit rates, labor/material splits, markup percentages, and wastage factors.
+   - Cost delta calculator computes: $\Delta\text{ Quantity}$, $\Delta\text{ Unit Rate}$, $\Delta\text{ Scope}$ between Revision N and Revision N-1.
+diff --git a/XRAY-STATUS-AND-PROOF-DASHBOARD.html b/XRAY-STATUS-AND-PROOF-DASHBOARD.html
+index 1328344..84f05f9 100644
+--- a/XRAY-STATUS-AND-PROOF-DASHBOARD.html
++++ b/XRAY-STATUS-AND-PROOF-DASHBOARD.html
+@@ -1044,7 +1044,7 @@
+       <div class="meta-pills">
+         <div class="pill pill-green">
+           <span class="dot"></span>
+-          <span>1,943 / 1,943 Passed</span>
++          <span>1,951 / 1,951 Passed</span>
+         </div>
+         <div class="pill pill-blue">
+           <span class="dot"></span>
+@@ -1066,12 +1066,12 @@
+         <div class="kpi-value">40%</div>
+         <div class="kpi-sub">8 Done, 1 Partial, 0 Blocked, 11 Pending</div>
+       </div>
+-      <div class="kpi-card" data-kpi="tests" data-passing="1943" data-total="1943" data-suites="unknown" data-tsc="exit-0">
++      <div class="kpi-card" data-kpi="tests" data-passing="1951" data-total="1951" data-suites="unknown" data-tsc="exit-0">
+         <div class="kpi-title">
+           <span>Machine Gate Tests</span>
+           <span style="color: #34d399;">100% PASS</span>
+         </div>
+-        <div class="kpi-value">1,943</div>
++        <div class="kpi-value">1,951</div>
+         <div class="kpi-sub">0 Failures · suite count not recorded</div>
+       </div>
+       <div class="kpi-card" data-kpi="proofs" data-total="53">
+@@ -1757,7 +1757,7 @@
+ 
+     <div class="detail-section">
+       <div class="detail-heading">🔗 Recorded Proof</div>
+-      <div class="detail-body"><p>Source and mounted worksheet checkpoint pushed in <code>a2935a9</code>; 21 rate-book and 11 delta tests are registered in the 1943-test snapshot. First DANS1 browser campaign <code>sc10-4c87a0de13b6-dev1</code> passed supplier pins, GST, base/proposed/accepted option totals and immutable revisions, then failed keyboard modal focus at operation 108 of 289. No browser acceptance or completion claimed. Evidence: <code>proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/</code>.</p></div>
++      <div class="detail-body"><p>Source and mounted worksheet checkpoint pushed in <code>a2935a9</code>; focus correction/eight regression tests pushed in <code>6a9d5b3</code>. The 1951-test 9abf snapshot passes typecheck and scoped lint. Earlier browser campaign failed keyboard focus at operation108; <code>sc10-9abf4c807030-dev1</code> now passes six keyboard checks but stops at operation113/289 on Modified badge contrast4.16:1. Supplier pins, GST, base/proposed/accepted option totals and immutable revisions passed before stopping. Remaining assertions and the CSS correction are unqualified. Evidence: <code>proof/growth/2026-09-19-sc10-qs-rate-delta/campaigns/</code>.</p></div>
+     </div>
+ 
+ 

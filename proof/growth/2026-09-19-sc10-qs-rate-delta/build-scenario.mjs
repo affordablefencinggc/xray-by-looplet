@@ -410,9 +410,46 @@ ui(u => {
   const button = [...row.querySelectorAll("button")].find(element => element.textContent.trim() === "Rebind current geometry");
   if (!button || button.disabled) u.fail("Explicit rebind control is unavailable");
   button.click();
-  return "Estimator explicitly accepted the changed measured geometry";
+  return "Existing rebind-only action does not overwrite the typed rounded quantity";
+});
+waitSaved();
+ui(u => {
+  const selected = u.control("Measured entity 1").selectedOptions[0]?.textContent;
+  const measured = selected?.match(/ · (\d+(?:\.\d+)?) ([^·]+)$/);
+  if (!measured) u.fail("Current measured quantity/unit are not visible in the selected entity");
+  window.__SC10_PROOF__.exactMeasurement = { quantity: measured[1], unit: measured[2].trim() };
+  u.equal(u.control("Quantity 1").value, "6", "Rebind-only preserves the estimator's typed input");
+  if (measured[1] === "6") u.fail("This precision regression needs the actual non-rounded canvas measurement, not nominal six");
+  u.equal(document.querySelector('[data-testid="qs-binding-row-QS-WALL-A"]')?.getAttribute("data-binding-status"), "stale-measurement", "Rounded quantity remains stale after rebind-only");
+  if (document.querySelector('[data-testid="qs-cost-base-total"]')) u.fail("Rounded quantity incorrectly regained pricing");
+  return { typed: "6", measured: measured[1], staleGuardExact: true };
+});
+evaluate(async () => {
+  const { useStudio } = await import("/src/studio/store.ts");
+  window.__SC10_PROOF__.beforeMeasuredCopyRuns = JSON.stringify(useStudio.getState().job.runs);
+  return "Recorded read-only geometry before the explicit measured-copy action";
+});
+ui(u => {
+  const row = u.control("Measured entity 1").closest(".industry-fields");
+  const button = [...row.querySelectorAll("button")].find(element => element.textContent.trim() === "Use measured quantity and rebind");
+  if (!button || button.matches(":disabled")) u.fail("Explicit measured-quantity copy action is unavailable");
+  button.click();
+  return "Estimator explicitly copied the live measured quantity and rebound it";
 });
 waitUI(() => document.querySelector('[data-testid="qs-binding-row-QS-WALL-A"]')?.getAttribute("data-binding-status") === "verified");
+waitSaved();
+evaluate(async projectId => {
+  const { useStudio } = await import("/src/studio/store.ts");
+  const { industryDraftKey } = await import("/src/studio/industries/draftStorage.ts");
+  const proof = window.__SC10_PROOF__, form = JSON.parse(localStorage.getItem(industryDraftKey(projectId))).drafts["quantity-surveying"].form;
+  const row = form.items.find(item => item.key === "item-wall-a");
+  if (row.quantity !== proof.exactMeasurement.quantity || row.unit !== proof.exactMeasurement.unit || row.entityBinding.measuredQuantity !== row.quantity)
+    throw Error("Explicit measured copy did not persist the exact visible quantity/unit and matching binding");
+  if (row.evidence !== "unverified") throw Error("Explicit measured copy promoted evidence");
+  if (JSON.stringify(useStudio.getState().job.runs) !== proof.beforeMeasuredCopyRuns) throw Error("Measured copy changed source geometry");
+  return { exactPersistedQuantity: row.quantity, unit: row.unit, evidenceUnchanged: true, geometryUnchanged: true };
+}, projectId);
+screenshot("sc10-exact-measured-copy-desktop-1600x1000", '[data-testid="qs-entity-select-1"]');
 totals(10296, 17160);
 set("Cost item to price", "item-wall-a");
 sourcePin("Material", 2, 2);

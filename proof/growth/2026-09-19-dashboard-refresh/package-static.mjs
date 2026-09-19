@@ -8,7 +8,8 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(directory, "../../..");
 const own = "proof/growth/2026-09-19-dashboard-refresh";
 const images = JSON.parse(readFileSync(resolve(root, "dashboard-curated-images.json"), "utf8"));
-if (images.length !== 53) throw Error("Curated input changed; explicitly review its scope before packaging");
+// Root reviewed the original 53 captures plus three SC09 built-output captures.
+if (images.length !== 56) throw Error("Curated input changed; explicitly review its scope before packaging");
 const files = [
   "XRAY-PRODUCTION-CLOSEOUT-LEDGER.md", "PROFESSIONAL-A-Z-CHECKLIST.md", "dashboard-curated-images.json",
   "scripts/build-full-dashboard.mjs", "scripts/validate-dashboard.mjs", "scripts/fast-cdp.mjs", "scripts/run-fast-cdp.ps1",
@@ -22,7 +23,7 @@ const entries = [...new Set(files)].sort().map(path => {
 });
 const digest = createHash("sha256").update(JSON.stringify(entries)).digest("hex");
 const runId = `dash-${digest.slice(0, 12)}`;
-const staging = resolve(directory, "staging", runId);
+const staging = resolve(root, ".temp", "dashboard-refresh", runId);
 if (existsSync(staging)) throw Error("Historical stage already exists; use a new reviewed source snapshot");
 mkdirSync(staging, { recursive: true });
 const source = resolve(staging, "source");
