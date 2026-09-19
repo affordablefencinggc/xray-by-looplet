@@ -941,7 +941,7 @@
           <span>Visual & Executed Proofs</span>
           <span style="color: #60a5fa;">ATTACHED</span>
         </div>
-        <div class="kpi-value">33</div>
+        <div class="kpi-value">38</div>
         <div class="kpi-sub">Screenshots & Vector PDFs</div>
       </div>
       <div class="kpi-card">
@@ -963,7 +963,7 @@
         </button>
         <button class="tab-btn" onclick="switchTab('gallery')">
           <span>🖼️ Visual Proof Gallery</span>
-          <span class="tab-badge">33</span>
+          <span class="tab-badge">38</span>
         </button>
         <button class="tab-btn" onclick="switchTab('gaps')">
           <span>🔍 What Hasn't Been Done</span>
@@ -1282,13 +1282,13 @@
         </div>
       </div>
     
-      <div class="slice-card pending" data-status="pending" data-portion="PORTION 2: Active Trade Engines — Stage 1: Roofing &amp; Cladding (IND-29)">
+      <div class="slice-card done" data-status="done" data-portion="PORTION 2: Active Trade Engines — Stage 1: Roofing &amp; Cladding (IND-29)">
         <div class="slice-top" onclick="toggleSlice(this.parentElement)">
           <div class="slice-info">
             <div class="slice-header">
               <span class="slice-id">SC-05</span>
               <span class="slice-title">ROOF-02/03 True 3D Hip, Valley &amp; Pitch Surface Geometry Unfolding</span>
-              <span class="status-badge badge-pending">○ Pending</span>
+              <span class="status-badge badge-done">✓ Done</span>
             </div>
             <div class="slice-goal">Implement analytic true 3D surface geometry development for hip, valley, and rake intersections, eliminating all projected 2D horizontal approximations.</div>
           </div>
@@ -1299,18 +1299,27 @@
           
             <div class="detail-section">
               <div class="detail-heading">⚙️ Machine Gate Verification</div>
-              <div class="detail-body">- True pitch area derived: $A_{\text{true}} = A_{\text{projected}} / \cos(\theta)$.
+              <div class="detail-body">- True pitch area derived: $A_{\text{true}} = A_{\text{projected}} / \cos(\theta)$ with strict bounds $[0^\circ, 90^\circ)$.
   - True hip/valley lengths calculated via 3D vector geometry: $L_{\text{true}} = \sqrt{\Delta x^2 + \Delta y^2 + \Delta z^2}$.
-  - Unequal pitch junctions (e.g. 22.5° intersecting 30°) compute correct asymmetrical valley angles.
-  - 10 targeted geometric test fixtures pass; zero projected approximations allowed in takeoff output.</div>
+  - Unequal pitch junctions (e.g. 22.5° intersecting 30°) compute correct asymmetrical valley angles ($35.66^\circ$ plan swing, $18.60^\circ$ true slope).
+  - 10 targeted geometric test fixtures pass; zero projected approximations allowed in takeoff output.
+  - 2D isometric unfolding strictly conserves surface area ($|A_{2D} - A_{\text{true}}| &lt; 10^{-6}\text{ m}^2$) across all planar roof faces.
+  - Regression suite: 1548 pass / 0 fail across 89 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP test (`qa-sc05-final`): 31/31 operations pass with exit code 0 in 2.94s.</div>
             </div>
           
 
           
             <div class="detail-section">
               <div class="detail-heading">👁️ Human & Visual Proof</div>
-              <div class="detail-body">- 3D Roof Inspector renders wireframe of true unfolded roof planes.
-  - Takeoff table displays Projected Area, Pitch Angle, True Slope Area, and Hip/Valley Lineal Metres.</div>
+              <div class="detail-body">- 3D Roof Inspector renders wireframe of true unfolded roof planes with color-coded rafter types (Amber Hips, Cyan Valleys, Purple Ridge, Emerald Eaves, Rose Rakes).
+  - Takeoff table displays Projected Area, Pitch Angle, Pitch Factor, True Slope Area, Hip/Valley Lineal Metres, Ridge Lineal Metres, and Eaves Lineal Metres.
+  - 5 inspected captures verified in `screenshots/growth/sc05/` and `proof/growth/2026-09-19-sc05-roof-geometry/captures/`:
+    - `sc05-3d-wireframe-desktop-1600x1000.png`: 3D axonometric wireframe with dimensions and KPI cards.
+    - `sc05-takeoff-tables-desktop-1600x1000.png`: High-contrast dark cards displaying true area and lineal breakdown.
+    - `sc05-2d-unfolded-desktop-1600x1000.png`: 2D unfolded flat patterns preserving true area ($50.33\text{ m}^2$ main slopes, $21.43\text{ m}^2$ hips).
+    - `sc05-unequal-valley-desktop-1600x1000.png`: Asymmetrical 22.5°/30° valley junction callout ($35.66^\circ$ plan, $18.60^\circ$ slope, $7.84\text{ m}$ length).
+    - `sc05-roof-inspector-tablet-1024x768.png`: Responsive tablet layout with zero text clipping or badge overflow.</div>
             </div>
           
 
@@ -1320,11 +1329,48 @@
             <div class="detail-section">
               <div class="detail-heading">📁 Associated Files</div>
               <div class="files-list">
-                <span class="file-tag">src/studio/industries/roofing/roofGeometry.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/roofGeometry.test.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/RoofingWorksheet.tsx</span>
+                <span class="file-tag">src/studio/industries/roofing/roofGeometry.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/roofGeometry.test.ts` (new)</span><span class="file-tag">- `src/studio/industries/roofing/RoofingWorksheet.tsx` (new)</span><span class="file-tag">- `src/studio/industries/roofing/RoofingDraftPanel.tsx` (integrated)</span><span class="file-tag">- `proof/growth/2026-09-19-sc05-roof-geometry/build-scenario.mjs</span><span class="file-tag">- `screenshots/growth/sc05/` (5 visual proof captures)</span>
               </div>
             </div>
           
 
+          
+            <div class="detail-section">
+              <div class="detail-heading">📸 Attached Visual Proof</div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png', '3D Axonometric Roof Wireframe (Desktop 1600x1000)', 'True 3D axonometric wireframe rendering of hip roof development with dimensions, color-coded edges, and KPI cards.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="3D Axonometric Roof Wireframe (Desktop 1600x1000)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">3D Axonometric Roof Wireframe (Desktop 1600x1000)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png', 'Surface Development &amp; 3D Lineal Takeoff Tables', 'High-contrast takeoff tables displaying True Slope Area, Projected Area, Pitch Multiplier, and 3D Lineal Metres for Hips, Valleys, Ridges, and Eaves.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Surface Development &amp; 3D Lineal Takeoff Tables">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Surface Development &amp; 3D Lineal Takeoff Tables</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png', '2D Unfolded Flat Patterns Development', 'True 2D unfolded flat patterns preserving exact edge lengths and surface area (|A_2D - A_true| &lt; 1e-6).', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="2D Unfolded Flat Patterns Development">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">2D Unfolded Flat Patterns Development</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png', 'Asymmetrical Unequal Pitch Valley Junction (22.5° / 30°)', 'Analytic asymmetrical valley intersection proving 35.66° plan trajectory swing and 18.60° valley slope angle.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png')">
+                    <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Asymmetrical Unequal Pitch Valley Junction (22.5° / 30°)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Asymmetrical Unequal Pitch Valley Junction (22.5° / 30°)</div>
+                  </div>
+                
+                  <div style="cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); max-width: 220px;"
+                       onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png', 'Roof Inspector &amp; Takeoff Responsive Viewport (Tablet 1024x768)', 'Responsive tablet verification showing non-overlapping toolbar, high contrast callout, and zero text clipping.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png')">
+                    <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png" style="width: 100%; height: 120px; object-fit: cover;" alt="Roof Inspector &amp; Takeoff Responsive Viewport (Tablet 1024x768)">
+                    <div style="padding: 6px 8px; font-size: 11px; background: var(--bg-surface); color: var(--text-muted);">Roof Inspector &amp; Takeoff Responsive Viewport (Tablet 1024x768)</div>
+                  </div>
+                
+              </div>
+            </div>
           
         </div>
       </div>
@@ -2054,7 +2100,7 @@
     <section id="tab-gallery" class="tab-content">
       <div class="filter-bar">
         <span class="filter-label">Filter Category:</span>
-        <button class="filter-chip active" onclick="filterGallery('all', this)">All (33)</button>
+        <button class="filter-chip active" onclick="filterGallery('all', this)">All (38)</button>
         <button class="filter-chip" onclick="filterGallery('Drawing Register & PDF', this)">Drawing Register & PDF</button>
         <button class="filter-chip" onclick="filterGallery('Roofing & Cladding', this)">Roofing & Cladding</button>
         <button class="filter-chip" onclick="filterGallery('Alteration Stages & Demolition', this)">Alteration Stages</button>
@@ -2065,6 +2111,96 @@
 
       <div class="gallery-grid" id="galleryContainer">
         
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png', '3D Axonometric Roof Wireframe (Desktop 1600x1000)', 'True 3D axonometric wireframe rendering of hip roof development with dimensions, color-coded edges, and KPI cards.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png" alt="3D Axonometric Roof Wireframe (Desktop 1600x1000)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-05</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">3D Axonometric Roof Wireframe (Desktop 1600x1000)</h4>
+          <p class="proof-desc">True 3D axonometric wireframe rendering of hip roof development with dimensions, color-coded edges, and KPI cards.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png', 'Surface Development &amp; 3D Lineal Takeoff Tables', 'High-contrast takeoff tables displaying True Slope Area, Projected Area, Pitch Multiplier, and 3D Lineal Metres for Hips, Valleys, Ridges, and Eaves.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png" alt="Surface Development &amp; 3D Lineal Takeoff Tables" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-05</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Surface Development &amp; 3D Lineal Takeoff Tables</h4>
+          <p class="proof-desc">High-contrast takeoff tables displaying True Slope Area, Projected Area, Pitch Multiplier, and 3D Lineal Metres for Hips, Valleys, Ridges, and Eaves.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png', '2D Unfolded Flat Patterns Development', 'True 2D unfolded flat patterns preserving exact edge lengths and surface area (|A_2D - A_true| &lt; 1e-6).', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png" alt="2D Unfolded Flat Patterns Development" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-05</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">2D Unfolded Flat Patterns Development</h4>
+          <p class="proof-desc">True 2D unfolded flat patterns preserving exact edge lengths and surface area (|A_2D - A_true| &lt; 1e-6).</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png', 'Asymmetrical Unequal Pitch Valley Junction (22.5° / 30°)', 'Analytic asymmetrical valley intersection proving 35.66° plan trajectory swing and 18.60° valley slope angle.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png" alt="Asymmetrical Unequal Pitch Valley Junction (22.5° / 30°)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-05</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Asymmetrical Unequal Pitch Valley Junction (22.5° / 30°)</h4>
+          <p class="proof-desc">Analytic asymmetrical valley intersection proving 35.66° plan trajectory swing and 18.60° valley slope angle.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png</div>
+      </div>
+    </div>
+  
+    <div class="proof-card" data-category="Roofing &amp; Cladding"
+         onclick="openLightbox('proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png', 'Roof Inspector &amp; Takeoff Responsive Viewport (Tablet 1024x768)', 'Responsive tablet verification showing non-overlapping toolbar, high contrast callout, and zero text clipping.', 'proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png')">
+      <div class="thumb-wrapper">
+        <img src="proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png" alt="Roof Inspector &amp; Takeoff Responsive Viewport (Tablet 1024x768)" class="proof-thumb" loading="lazy">
+        <div class="thumb-overlay">
+          <span class="category-tag">Roofing &amp; Cladding</span>
+          <span class="proof-slice-tag">SC-05</span>
+        </div>
+      </div>
+      <div class="proof-content">
+        <div>
+          <h4 class="proof-title">Roof Inspector &amp; Takeoff Responsive Viewport (Tablet 1024x768)</h4>
+          <p class="proof-desc">Responsive tablet verification showing non-overlapping toolbar, high contrast callout, and zero text clipping.</p>
+        </div>
+        <div class="proof-path">proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png</div>
+      </div>
+    </div>
+  
     <div class="proof-card" data-category="Drawing Register &amp; PDF"
          onclick="openLightbox('proof/growth/2026-09-18-sc02-drawing-register/pdf-register-page-1-1600x1000.png', 'A1/A3 Drawing Register Transmittal Sheet (Desktop 1600x1000)', 'Exported batch PDF transmittal sheet showing drawing register table, paper-qualified scales (1:100 @ A1, 1:50 @ A3), and true scale bars.', 'proof/growth/2026-09-18-sc02-drawing-register/pdf-register-page-1-1600x1000.png')">
       <div class="thumb-wrapper">

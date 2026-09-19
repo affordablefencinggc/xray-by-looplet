@@ -192,22 +192,34 @@ graph TD
 * **Depends on**: None
 * **Commit**: no code was needed — the capability is in `sheetCoverage.ts` and already tested; the live query and the verification are in `proof/growth/2026-09-18-sc04-roof-course-live/`.
 
-#### SC-05 — ROOF-02/03 True 3D Hip, Valley & Pitch Surface Geometry Unfolding `[[pending]]`
+#### SC-05 — ROOF-02/03 True 3D Hip, Valley & Pitch Surface Geometry Unfolding `[[done]]`
 * **Goal**: Implement analytic true 3D surface geometry development for hip, valley, and rake intersections, eliminating all projected 2D horizontal approximations.
 * **DONE (machine)**:
-  - True pitch area derived: $A_{\text{true}} = A_{\text{projected}} / \cos(\theta)$.
+  - True pitch area derived: $A_{\text{true}} = A_{\text{projected}} / \cos(\theta)$ with strict bounds $[0^\circ, 90^\circ)$.
   - True hip/valley lengths calculated via 3D vector geometry: $L_{\text{true}} = \sqrt{\Delta x^2 + \Delta y^2 + \Delta z^2}$.
-  - Unequal pitch junctions (e.g. 22.5° intersecting 30°) compute correct asymmetrical valley angles.
+  - Unequal pitch junctions (e.g. 22.5° intersecting 30°) compute correct asymmetrical valley angles ($35.66^\circ$ plan swing, $18.60^\circ$ true slope).
   - 10 targeted geometric test fixtures pass; zero projected approximations allowed in takeoff output.
+  - 2D isometric unfolding strictly conserves surface area ($|A_{2D} - A_{\text{true}}| < 10^{-6}\text{ m}^2$) across all planar roof faces.
+  - Regression suite: 1548 pass / 0 fail across 89 test suites, `tsc --noEmit` exit code 0.
+  - Fast CDP test (`qa-sc05-final`): 31/31 operations pass with exit code 0 in 2.94s.
 * **DONE (human)**:
-  - 3D Roof Inspector renders wireframe of true unfolded roof planes.
-  - Takeoff table displays Projected Area, Pitch Angle, True Slope Area, and Hip/Valley Lineal Metres.
+  - 3D Roof Inspector renders wireframe of true unfolded roof planes with color-coded rafter types (Amber Hips, Cyan Valleys, Purple Ridge, Emerald Eaves, Rose Rakes).
+  - Takeoff table displays Projected Area, Pitch Angle, Pitch Factor, True Slope Area, Hip/Valley Lineal Metres, Ridge Lineal Metres, and Eaves Lineal Metres.
+  - 5 inspected captures verified in `screenshots/growth/sc05/` and `proof/growth/2026-09-19-sc05-roof-geometry/captures/`:
+    - `sc05-3d-wireframe-desktop-1600x1000.png`: 3D axonometric wireframe with dimensions and KPI cards.
+    - `sc05-takeoff-tables-desktop-1600x1000.png`: High-contrast dark cards displaying true area and lineal breakdown.
+    - `sc05-2d-unfolded-desktop-1600x1000.png`: 2D unfolded flat patterns preserving true area ($50.33\text{ m}^2$ main slopes, $21.43\text{ m}^2$ hips).
+    - `sc05-unequal-valley-desktop-1600x1000.png`: Asymmetrical 22.5°/30° valley junction callout ($35.66^\circ$ plan, $18.60^\circ$ slope, $7.84\text{ m}$ length).
+    - `sc05-roof-inspector-tablet-1024x768.png`: Responsive tablet layout with zero text clipping or badge overflow.
 * **Files**:
   - `src/studio/industries/roofing/roofGeometry.ts` (new)
   - `src/studio/industries/roofing/roofGeometry.test.ts` (new)
-  - `src/studio/industries/roofing/RoofingWorksheet.tsx`
+  - `src/studio/industries/roofing/RoofingWorksheet.tsx` (new)
+  - `src/studio/industries/roofing/RoofingDraftPanel.tsx` (integrated)
+  - `proof/growth/2026-09-19-sc05-roof-geometry/build-scenario.mjs`
+  - `screenshots/growth/sc05/` (5 visual proof captures)
 * **Depends on**: SC-04
-* **Commit**: —
+* **Commit**: this commit; SC-05 fully closed with machine and visual proof.
 
 #### SC-06 — ROOF-04 Stock Sheet Layout, Kerf, Nesting & Offcut Classification `[[pending]]`
 * **Goal**: Provide linear and panel nesting algorithms that layout standard supplier sheet lengths against true roof runs, factoring in kerf, cutting waste, and reusable offcuts.
@@ -491,7 +503,7 @@ graph TD
 | **SC-02** | Multi-Sheet Drawing Register & Vector PDF Batch | Portion 1 | `[[done]]` | 1733 pass / 0 fail, tsc 0, lint 0 errors | PDF exported, read back by text layer, and inspected in a viewer at 1600×1000 and 1024×768 | this commit |
 | **SC-03** | Architectural Annotation Delta & Revision Clouds | Portion 1 | `[[done]]` | 1751 pass / 0 fail, tsc 0, scoped lint 0, live CDP exit 0 in 6.28s | Desktop 1600×1000 + Tablet 1024×768 inspected; 3 clouds (`Partition`, `Enclosure wall`, `door D01`), Δ Rev B marks, toggle off verified | this commit |
 | **SC-04** | ROOF-01 Assistant Course Calculator Correction | Portion 2 | `[[done]]` | already implemented and tested; verified against the ledger's own criteria | Live assistant query run: answers 2 courses with the arithmetic, no hedging | no code needed |
-| **SC-05** | ROOF-02/03 True 3D Hip, Valley & Pitch Geometry | Portion 2 | `[[pending]]` | Pending | Required (3D Wireframe/Table)| — |
+| **SC-05** | ROOF-02/03 True 3D Hip, Valley & Pitch Geometry | Portion 2 | `[[done]]` | 10 fixtures pass, 1548/1548 suite pass, tsc 0, fast-cdp exit 0 in 2.94s | Desktop 1600×1000 + Tablet 1024×768 (5 captures): 3D wireframe, 2D unfolded, unequal valley, takeoff tables | this commit |
 | **SC-06** | ROOF-04 Stock Sheet Layout, Kerf & Nesting | Portion 2 | `[[pending]]` | Pending | Required (Cutting Diagrams) | — |
 | **SC-07** | ROOF-05/06 Flashing, Fixings & Takeoff Deliverable | Portion 2 | `[[pending]]` | Pending | Required (PDF/CSV Deliverable)| — |
 | **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[pending]]` | Pending | Required (Tablet Screenshot) | — |

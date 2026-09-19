@@ -1,0 +1,134 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:8080/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status')==='ready'"
+  ],
+  [
+    "eval",
+    "(async () => {\n  const store = await import('/src/studio/store.ts');\n  const ws = await import('/src/studio/documentWorkspaces.ts');\n  const domain = await import('/src/studio/domain.ts');\n  const revision = {\n    id: 'doc-roof-sc05',\n    name: 'Roof Architectural Plan Rev D.pdf',\n    kind: 'pdf',\n    importedAt: new Date().toISOString(),\n    pageCount: 2,\n    sha256: 'c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffee9988',\n    source: 'web'\n  };\n  const before = store.useStudio.getState().job;\n  const opened = ws.restoreDocumentWorkspace({ ...before, documents: [...before.documents.filter(d => d.id !== revision.id), revision] }, revision);\n  const points = [{ x: 0, y: 0 }, { x: 400, y: 0 }];\n  const candidate = { id: 'cand-manual-1', source: 'manual', metresPerUnit: 0.0125, confidence: 1, inputDistance: { value: 5, unit: 'm' }, knownDistanceM: 5, points, provenance: { method: 'Two-point manual scale', evidence: 'Measured between grid lines A and B', documentId: revision.id } };\n  const calibration = { ...opened.calibrations[0], metresPerUnit: 0.0125, source: 'manual', confidence: 1, locked: true, knownDistanceM: 5, points, inputDistance: { value: 5, unit: 'm' }, candidates: [candidate], selectedCandidateId: candidate.id };\n  let job;\n  try { job = domain.fencingJobSchema.parse({ ...opened, calibrations: [calibration, ...opened.calibrations.slice(1)] }); }\n  catch (f) { throw Error('seed rejected: ' + JSON.stringify((f.issues ?? []).slice(0, 4))); }\n  store.useStudio.setState({ pane: 'cost', job });\n  return 'seeded ' + revision.name;\n})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.industry-workbench')"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  showSheet('roofing');\n  const w = document.querySelector('.industry-workbench');\n  if (w) w.open = true;\n  return 'roofing worksheet opened';\n})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.roofing-worksheet')"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  const rw = document.querySelector('.roofing-worksheet');\n  if (!rw) throw Error('No roofing worksheet in DOM');\n  const svg = rw.querySelector('svg');\n  if (!svg) throw Error('No SVG roof diagram rendered');\n  const polygons = svg.querySelectorAll('polygon');\n  if (polygons.length < 4) throw Error('Expected at least 4 roof plane polygons in 3D wireframe, got ' + polygons.length);\n  const lines = svg.querySelectorAll('line');\n  if (lines.length < 8) throw Error('Expected at least 8 edge lines in 3D wireframe, got ' + lines.length);\n  return '3D wireframe verified with ' + polygons.length + ' faces and ' + lines.length + ' edges';\n})()"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  return focusOn('.roofing-worksheet');\n})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-3d-wireframe-desktop-1600x1000.png"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/sc05/sc05-3d-wireframe-desktop-1600x1000.png"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\nfocusOn('.industry-table-wrap')})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-takeoff-tables-desktop-1600x1000.png"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/sc05/sc05-takeoff-tables-desktop-1600x1000.png"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  click('2D Unfolded Flat Patterns');\n  return 'switched to 2d unfolded view';\n})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.roofing-worksheet')?.textContent.includes('True Area:')"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  const svg = document.querySelector('.roofing-worksheet svg');\n  if (!svg) throw Error('No SVG in roofing worksheet');\n  const texts = [...svg.querySelectorAll('text')].map(t => t.textContent);\n  const hasTrueArea = texts.some(t => t.includes('True Area:'));\n  if (!hasTrueArea) throw Error('Unfolded view does not display true area labels');\n  return '2D unfolded patterns verified with true area annotations';\n})()"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  return focusOn('.roofing-worksheet');\n})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-2d-unfolded-desktop-1600x1000.png"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/sc05/sc05-2d-unfolded-desktop-1600x1000.png"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  const sel = document.querySelector('#' + CSS.escape([...document.querySelectorAll('label')].find(l => l.textContent.includes('Roof Model Preset:'))?.htmlFor));\n  if (!sel) throw Error('No preset selector found');\n  setValue(sel, 'unequal-valley');\n  click('3D Axonometric Wireframe');\n  return 'switched to unequal valley preset';\n})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.roofing-worksheet')?.textContent.includes('Analytic Asymmetrical Valley Intersection')"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  const notice = document.querySelector('.roofing-worksheet');\n  if (!notice || !notice.textContent.includes('Analytic Asymmetrical Valley Intersection')) {\n    throw Error('Unequal valley notice not found');\n  }\n  if (!notice.textContent.includes('35.66°') && !notice.textContent.includes('35.65°')) {\n    throw Error('Unequal valley plan angle not displayed accurately');\n  }\n  if (!notice.textContent.includes('18.60°')) {\n    throw Error('Unequal valley slope angle (18.60°) not displayed');\n  }\n  return 'Unequal valley asymmetrical geometry verified: plan angle ~35.66°, slope 18.60°';\n})()"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  return focusOn('.roofing-worksheet');\n})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-unequal-valley-desktop-1600x1000.png"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/sc05/sc05-unequal-valley-desktop-1600x1000.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "(() => {\nconst byLabel = (text) => [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(text));\nconst setValue = (el, value) => {\n  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;\n  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);\n  el.dispatchEvent(new Event('input', { bubbles: true }));\n  el.dispatchEvent(new Event('change', { bubbles: true }));\n};\nconst fill = (text, value) => { const el = byLabel(text)?.querySelector('input,select'); if (!el) throw Error('No field labelled: ' + text); setValue(el, value); return true; };\nconst click = (text) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === text); if (!b) throw Error('No button: ' + text); if (b.disabled) throw Error('Button disabled: ' + text); b.click(); return true; };\nconst showSheet = (value) => {\n  const w = document.querySelector('.industry-workbench');\n  if (!w) throw Error('No industry workbench');\n  w.open = true;\n  const sel = document.querySelector('.industry-picker select');\n  if (!sel) throw Error('No worksheet picker');\n  setValue(sel, value);\n  return value;\n};\nconst focusOn = (selector) => {\n  const el = document.querySelector(selector);\n  if (!el) throw Error('Nothing to show for ' + selector);\n  el.scrollIntoView({ block: 'center' });\n  return 'framed ' + selector;\n};\n\n  return focusOn('.roofing-worksheet');\n})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-19-sc05-roof-geometry/captures/sc05-roof-inspector-tablet-1024x768.png"
+  ],
+  [
+    "screenshot",
+    "screenshots/growth/sc05/sc05-roof-inspector-tablet-1024x768.png"
+  ],
+  [
+    "errors"
+  ]
+]

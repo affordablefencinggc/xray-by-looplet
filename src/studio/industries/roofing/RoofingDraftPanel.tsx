@@ -7,6 +7,7 @@ import {
 } from "./roofForm.ts";
 import { RoofSheetCoveragePanel } from "./RoofSheetCoveragePanel.tsx";
 import { createEmptySheetCoverage } from "./sheetCoverage.ts";
+import { RoofingWorksheet } from "./RoofingWorksheet.tsx";
 
 const EVIDENCE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "traced", label: "Traced from the source geometry" },
@@ -132,5 +133,13 @@ export function RoofingDraftPanel({ value, onChange, disabled, source }: Industr
     </section>}
     <RoofSheetCoveragePanel value={value.sheetCoverage ?? createEmptySheetCoverage()} disabled={disabled} source={source}
       onChange={sheetCoverage => onChange({ ...value, sheetCoverage })} />
+    <RoofingWorksheet
+      draftPlanes={value.planes.map(p => ({
+        id: p.id || "Unnamed Plane",
+        grossPlanAreaM2: parseFloat(p.grossPlanAreaM2) || 0,
+        pitchDegrees: parseFloat(p.pitchDegrees) || 0,
+      }))}
+      disabled={disabled}
+    />
   </section>;
 }
