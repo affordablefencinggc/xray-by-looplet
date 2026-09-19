@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Archive, Download, FileUp, Plus, RefreshCw } from "lucide-react";
 import { addPricedLine, appendPriceBookRevision, editPriceBook, parsePriceCsv, previewPriceRows, priceBookError,
   priceCsvTemplate, priceImportSchema, priceLineAmount, priceRevisionCsv, pricedWorksheetCsv, pricedWorksheetTotals, readBrowserPriceBooks, removePricedLine,
-  resolvePricedLine, savePriceBooks, suggestPriceMapping, PRICE_CSV_LIMIT,
+  resolvePricedLine, savePriceBooks, suggestPriceMapping, priceBookKey, PRICE_CSV_LIMIT,
   type CsvTable, type PriceBook, type PriceBookLibrary, type PriceBookSession, type PriceImport, type PriceMapping } from "./priceBooks.ts";
 import "./priceBooks.css";
 import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
@@ -18,7 +18,7 @@ function download(text: string, name: string) {
 const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
 
 /** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
-export function PriceBookPanel({ jobId }: { jobId: string }) {
+export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void }) {
   const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
   const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
   const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
@@ -31,6 +31,20 @@ export function PriceBookPanel({ jobId }: { jobId: string }) {
   useEffect(() => {
     generation.current++; workbookRead.current?.abort(); setBusy(false); setReadingWorkbook(false); setSession(readBrowserPriceBooks(jobId)); setFile(null); setMapping(null); setReview(null); setSelection(null); setNotice(""); setTargetId(""); setTab("library");
     return () => { generation.current++; workbookRead.current?.abort(); };
+  }, [jobId]);
+  useEffect(() => {
+    onSessionChange?.(session?.value.jobId === jobId ? session : null);
+  }, [session, jobId, onSessionChange]);
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== priceBookKey(jobId)) return;
+      if (event.storageArea !== null && event.storageArea !== localStorage) return;
+      setSession(readBrowserPriceBooks(jobId));
+      setReview(null);
+      setNotice("Supplier library changed in another window. Saved rates were reloaded; review any pending import again.");
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
   }, [jobId]);
   const value = session?.value.jobId === jobId ? session.value : null;
   const selectedSheet = file?.kind === "xlsx" ? file.workbook.sheets.find(sheet => sheet.name === worksheet) : null;

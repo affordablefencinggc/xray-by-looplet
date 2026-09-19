@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { QuantityReportView } from "./QuantityReportView";
+import { QSWorksheet } from "./QSWorksheet";
 import { QSItemBindingLedger, type QSBindingLedgerRow } from "./QSItemBindingLedger";
 import type { IndustryDraftPanelProps, IndustryGeometryEntitySource } from "../draftPanel";
 import { describeIndustryBinding, industryEvidenceClassSchema, industryLengthUnitSchema, type IndustrySourceState } from "../sourceBinding";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createQuantityBinding,
-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, type QuantityBindingDraft, type QuantityForm,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, withQuantityPricing, type QuantityBindingDraft, type QuantityForm,
 } from "./quantityForm";
+import { createEmptyQsWorksheetState, type QsWorksheetState } from "./qsWorksheetState";
+import { useQsPricing } from "./qsPricingContext";
+import { industryDraftKey } from "../draftStorage";
 import {
   QS_ITEM_BINDING_SCHEMA,
   qsEntityGeometrySchema,
@@ -39,11 +43,13 @@ function parseBinding(input: unknown): QsItemBinding | null {
 
 export function QuantityDraftPanel({ value, onChange, disabled, source: reportedSource, geometryEntities: suppliedGeometry }: IndustryDraftPanelProps<QuantityForm>) {
   const scopedGeometry = useQsMeasuredGeometry();
+  const pricingSource = useQsPricing();
   const geometryEntities = suppliedGeometry ?? scopedGeometry;
   const [error, setError] = useState("");
   const [geometryError, setGeometryError] = useState("");
   const [draft, setDraft] = useState<QuantityBindingDraft>(() => createEmptyQuantityBindingDraft());
   const source: IndustrySourceState = reportedSource ?? MISSING_SOURCE;
+  const pricing = useMemo(() => value.pricing ?? (source.projectId ? createEmptyQsWorksheetState(source.projectId) : null), [value.pricing, source.projectId]);
   useEffect(() => { setError(""); }, [value]);
   const { evaluation, report } = useMemo(() => evaluateQuantityFormBinding(value, source), [value, source]);
   const binding = value.binding ?? null;
@@ -124,6 +130,26 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
   // can finish hashing its replacement. Pending work must not preserve a green
   // pricing badge from the previous geometry or source.
   const entities = entitySnapshot?.input === geometryEntities ? entitySnapshot.entities : EMPTY_ENTITIES;
+  const geometryPending = entitySnapshot?.input !== geometryEntities;
+  const pricingUnavailable = !pricingSource || pricingSource.projectId !== source.projectId
+    ? "A supplier library for the current project is not connected. Pricing remains withheld."
+    : pricingSource.error ?? (pricingSource.loading || !pricingSource.library ? "Loading this project's supplier library. Pricing remains withheld." : null);
+  const pricingProjectMismatch = pricing !== null && pricing.projectId !== source.projectId;
+  const changePricing = (next: QsWorksheetState) => {
+    try {
+      if (disabled || pricingUnavailable || pricingProjectMismatch || !pricingSource?.sourceReady || geometryPending)
+        throw Error("Pricing changes are unavailable until this project's source, geometry and supplier library are ready.");
+      const updated = withQuantityPricing(value, next, source.projectId, localStorage.getItem(industryDraftKey(source.projectId)));
+      setError("");
+      onChange(updated);
+      return true;
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Cost changes could not be saved. Existing inputs were preserved."); return false; }
+  };
+  const removeQuantity = (itemKey: string) => {
+    const next = { ...value, items: value.items.filter(row => row.key !== itemKey) };
+    if (next.pricing) next.pricing = { ...next.pricing, assignments: next.pricing.assignments.filter(row => row.itemKey !== itemKey) };
+    edit(next);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -278,7 +304,7 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
         {item.entityBinding ? <button type="button" onClick={() => {
           if (item.entityBinding) bindItem(item.key, item.entityBinding.entityId);
         }}>Rebind current geometry</button> : null}
-        <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => edit({ ...value, items: value.items.filter(row => row.key !== item.key) })}>Remove quantity</button>
+        <button type="button" aria-label={`Remove quantity ${index + 1}`} onClick={() => removeQuantity(item.key)}>Remove quantity</button>
       </div>)}
       <button type="button" disabled={value.items.length >= 10000} onClick={() => edit({ ...value, items: [...value.items, { key: crypto.randomUUID(), reference: "", quantity: "", unit: "", evidence: "unverified", nodeKey: "" }] })}>Add quantity</button>
     </fieldset>
@@ -298,6 +324,18 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
         surfacesAvailable={surfacesAvailable}
       />
     </div>
+    <section aria-label="Quantity cost pricing" aria-disabled={Boolean(disabled || pricingUnavailable || pricingProjectMismatch || !pricingSource?.sourceReady || geometryPending)}>
+      {pricingProjectMismatch
+        ? <p className="industry-error" role="alert">Saved cost choices belong to another project. They are preserved, and pricing changes are blocked.</p>
+        : pricingUnavailable
+          ? <p className={pricingSource?.error ? "industry-error" : "industry-note"} role={pricingSource?.error ? "alert" : "status"}>{pricingUnavailable}</p>
+          : pricing && pricingSource?.library && <>
+            {(!pricingSource.sourceReady || geometryPending) && <p className="industry-note" role="status">Checking source geometry. Cost changes remain disabled until current measurements are available.</p>}
+            <QSWorksheet key={source.projectId} projectId={source.projectId} rows={value.items} entities={entities}
+              priceBooks={pricingSource.library} value={pricing} onChange={changePricing}
+              disabled={disabled || !pricingSource.sourceReady || geometryPending} />
+          </>}
+    </section>
     {report && <div className="industry-result" aria-live="polite"><QuantityReportView report={report} disabled={disabled} /></div>}
   </section>;
 }

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { classifyQuantities, type ClassificationInput } from "./classification.ts";
 import type { QuantityReport } from "./report.ts";
 import { qsItemBindingSchema } from "./qsItemBinding.ts";
+import { qsWorksheetStateSchema, type QsWorksheetState } from "./qsWorksheetState.ts";
+import { parseIndustryDraftLibrary, updateIndustryDraft } from "../draftStorage.ts";
 import {
   INDUSTRY_SOURCE_BINDING_SCHEMA,
   createIndustrySourceBinding,
@@ -29,12 +31,27 @@ export const quantityFormSchema = z.object({
   }).strict()).max(10000),
   // Optional so drafts saved before source binding existed still open; `null` is an explicit unbound worksheet.
   binding: industrySourceBindingSchema.nullable().optional(),
+  /** Commercial editing choices are distinct from measured classification data.
+   * Old quantity-only drafts need no migration or invented project identity. */
+  pricing: qsWorksheetStateSchema.nullable().optional(),
   calculated: z.boolean(),
 }).strict();
 export type QuantityForm = z.infer<typeof quantityFormSchema>;
 
 export function createEmptyQuantityForm(): QuantityForm {
-  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], binding: null, calculated: false };
+  return { hierarchyId: "", hierarchyRevision: "", nodes: [], items: [], binding: null, pricing: null, calculated: false };
+}
+
+/** Preflight the existing draft transaction, including its shared storage cap,
+ * before replacing visible pricing choices. The host remains the only writer
+ * and rechecks its own revision/generation when the queued save executes. */
+export function withQuantityPricing(form: QuantityForm, pricing: QsWorksheetState, projectId: string, rawLibrary: string | null): QuantityForm {
+  if (pricing.projectId !== projectId) throw Error("Cost choices belong to another project. The current worksheet was preserved.");
+  const next = quantityFormSchema.parse({ ...form, pricing });
+  const library = rawLibrary === null ? null : parseIndustryDraftLibrary(rawLibrary, projectId);
+  updateIndustryDraft(rawLibrary, projectId, "quantity-surveying", library?.drafts["quantity-surveying"]?.revision ?? 0,
+    next, library?.generation ?? null);
+  return next;
 }
 
 /** Form keys are UI identity only; explicit user codes identify the calculation. */

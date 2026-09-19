@@ -35,6 +35,37 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+export function matchesExpectedCancellation(event, request, expectation) {
+  return event.canceled === true && event.errorText === "net::ERR_ABORTED"
+    && event.type === "Fetch" && request?.method === "GET"
+    && request.url === expectation.url && expectation.observed < expectation.maximum;
+}
+
+export function waitForFunctionSource(predicate, timeout) {
+  const source = JSON.stringify(String(predicate));
+  return `new Promise((resolve,reject)=>{
+    const source=${source}; let observer; let frame=0; let timer; let running=false; let settled=false;
+    const clean=()=>{ observer?.disconnect(); if(frame) cancelAnimationFrame(frame); clearTimeout(timer); };
+    const test=async()=>{
+      if(settled || running) return settled;
+      running=true;
+      try {
+        const candidate=(0,eval)(source);
+        const value=await (typeof candidate==='function'?candidate():candidate);
+        if(settled) return true;
+        if(value){ settled=true; clean(); resolve(true); return true; }
+      } catch(error) { if(!settled){ settled=true; clean(); reject(error); } return true; }
+      finally { running=false; }
+      return false;
+    };
+    const tick=async()=>{ if(!await test() && !settled) frame=requestAnimationFrame(tick); };
+    observer=new MutationObserver(()=>{ void test(); });
+    observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});
+    timer=setTimeout(()=>{ settled=true; clean(); reject(Error('wait-for-function deadline: '+source)); },${timeout});
+    void tick();
+  })`;
+}
+
 function compact(value) {
   if (typeof value === "string" && value.length > 2_000) return `${value.slice(0, 2_000)}…`;
   const encoded = JSON.stringify(value);
@@ -196,6 +227,9 @@ class FastCdpCampaign {
     this.receipts = [];
     this.browserErrors = [];
     this.browserErrorKeys = new Set();
+    this.requests = new Map();
+    this.expectedCancellations = [];
+    this.observedCancellations = [];
     this.screenshots = [];
     this.cleanup = { attempted: false, disposed: [], errors: [] };
     this.removeEventListener = socket.onEvent((message) => this.receiveEvent(message));
@@ -225,6 +259,10 @@ class FastCdpCampaign {
     const contextName = this.sessions.get(message.sessionId);
     if (!contextName) return;
     const params = message.params ?? {};
+    const requestKey = `${message.sessionId}:${params.requestId}`;
+    if (message.method === "Network.requestWillBeSent") {
+      this.requests.set(requestKey, { url: params.request?.url, method: params.request?.method, initiator: params.initiator?.type });
+    }
     if (message.method === "Runtime.consoleAPICalled" && params.type === "error") {
       this.addBrowserError({
         context: contextName,
@@ -246,11 +284,18 @@ class FastCdpCampaign {
         url: params.entry.url,
       });
     } else if (message.method === "Network.loadingFailed") {
+      const request = this.requests.get(requestKey);
+      const expectation = this.expectedCancellations.find(entry => matchesExpectedCancellation(params, request, entry));
+      if (expectation) {
+        expectation.observed++;
+        this.observedCancellations.push({ context: contextName, url: request.url, reason: expectation.reason, event: params, timestamp: new Date().toISOString() });
+        return;
+      }
       this.addBrowserError({
         context: contextName,
         kind: "resource-load-failed",
         message: `${params.type ?? "Resource"}: ${params.errorText ?? "load failed"}${params.canceled ? " (cancelled)" : ""}`,
-        url: params.requestId,
+        url: this.requests.get(requestKey)?.url ?? params.requestId,
       });
     } else if (message.method === "Network.responseReceived" && Number(params.response?.status) >= 400) {
       this.addBrowserError({
@@ -308,25 +353,7 @@ class FastCdpCampaign {
   async waitForFunction(context, predicate, deadlineMs = 60_000) {
     const timeout = Number(deadlineMs);
     if (!Number.isFinite(timeout) || timeout < 100 || timeout > 120_000) throw new InfrastructureFailure(`Invalid wait deadline: ${deadlineMs}`);
-    const source = JSON.stringify(String(predicate));
-    return this.socket.evaluate(`new Promise((resolve,reject)=>{
-      const source=${source}; let observer; let frame=0; let timer;
-      const clean=()=>{ observer?.disconnect(); if(frame) cancelAnimationFrame(frame); clearTimeout(timer); };
-      const test=()=>{
-        try {
-          const candidate=(0,eval)(source);
-          const value=typeof candidate==='function'?candidate():candidate;
-          if(value){ clean(); resolve(value===true?true:value); return true; }
-        } catch(error) { clean(); reject(error); return true; }
-        return false;
-      };
-      const tick=()=>{ if(!test()) frame=requestAnimationFrame(tick); };
-      if(test()) return;
-      observer=new MutationObserver(test);
-      observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});
-      frame=requestAnimationFrame(tick);
-      timer=setTimeout(()=>{ clean(); reject(Error('wait-for-function deadline: '+source)); },${timeout});
-    })`, context.sessionId, { deadlineMs: timeout + 5_000 });
+    return this.socket.evaluate(waitForFunctionSource(predicate, timeout), context.sessionId, { deadlineMs: timeout + 5_000 });
   }
 
   async dispatchMouse(context, type, x, y, button = "none", buttons = 0, clickCount = 0) {
@@ -423,6 +450,15 @@ class FastCdpCampaign {
       throw new InfrastructureFailure("Each operation must be a non-empty opcode tuple");
     }
     const [rawOpcode, ...inputArgs] = operation;
+    if (rawOpcode === "expect-cancelled-fetch") {
+      const [url, maximum, reason] = inputArgs;
+      if (inputArgs.length !== 3 || typeof url !== "string" || !/^http:\/\/127\.0\.0\.1:\d+\/[^?#]*$/.test(url)
+        || !Number.isInteger(maximum) || maximum < 1 || maximum > 10 || typeof reason !== "string" || reason.length < 20) {
+        throw new InfrastructureFailure("Expected cancellation needs an exact loopback GET URL, a bounded count and a reviewed reason");
+      }
+      this.expectedCancellations.push({ url, maximum, reason, observed: 0 });
+      return { url, maximum, reason };
+    }
     let args = inputArgs;
     let compatibility = false;
     let compatibilityOpcode = rawOpcode;
@@ -587,6 +623,10 @@ class FastCdpCampaign {
         this.receipts.push({ index, opcode: operation[0], context: operation[1] ?? null, elapsedMs: performance.now() - started, value: compact(value) });
       } catch (error) {
         this.receipts.push({ index, opcode: operation?.[0] ?? null, context: operation?.[1] ?? null, elapsedMs: performance.now() - started, error: error.message });
+        for (const context of this.contexts.values()) {
+          try { await this.screenshot(context, `failure-op-${index}-${context.name}.png`); }
+          catch (captureError) { this.receipts.push({ index, diagnostic: "failure-screenshot", error: captureError.message }); }
+        }
         if (error instanceof ProductFailure || error instanceof InfrastructureFailure) throw error;
         throw new InfrastructureFailure(`Opcode ${index} (${operation?.[0] ?? "unknown"}) failed: ${error.message}`, { cause: error });
       }
@@ -730,6 +770,8 @@ async function main() {
     verdict,
     error: failure ? { name: failure.name, message: failure.message } : null,
     browserErrors: campaign?.browserErrors ?? [],
+    expectedCancellations: campaign?.expectedCancellations ?? [],
+    observedCancellations: campaign?.observedCancellations ?? [],
     screenshots: campaign?.screenshots ?? [],
     cleanup: campaign?.cleanup ?? { attempted: false, disposed: [], errors: [] },
     receipts: campaign?.receipts ?? [],
@@ -757,7 +799,7 @@ async function main() {
   if (failure) process.exitCode = verdict === "FAIL" ? 1 : 2;
 }
 
-main().catch((error) => {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => {
   process.stderr.write(`${error.stack ?? error}\n`);
   process.exitCode = 2;
 });

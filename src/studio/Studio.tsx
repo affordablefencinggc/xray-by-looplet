@@ -26,6 +26,7 @@ import { ProjectRecoveryNotice, ProjectSaveFailure } from "./ProjectRecoveryNoti
 import { SheetManager } from "./SheetManager";
 import { useSheetLifecycle } from "./useSheetLifecycle.ts";
 import { PriceBookPanel } from "./pricing/PriceBookPanel";
+import type { PriceBookSession } from "./pricing/priceBooks";
 import { IndustryDraftWorkbench } from "./industries/IndustryDraftWorkbench";
 import { QS_HIGHLIGHT_EVENT, qsHighlightRequestSchema } from "./industries/quantity-surveying/qsEntityHighlight";
 import { QsMeasuredGeometryPreview } from "./industries/quantity-surveying/QsMeasuredGeometryPreview";
@@ -1653,6 +1654,7 @@ function ReviewPane() {
 
 function CostPane() {
   const s = useStudio();
+  const [priceBookSession, setPriceBookSession] = useState<PriceBookSession | null>(null);
   const generalRuns = s.job.runs.filter((run) => run.specification.construction && run.specification.constructionEnabled !== false);
   const hasGeneralRuns = generalRuns.length > 0;
   const hasRecipeRuns = !hasGeneralRuns && s.job.runs.length > 0;
@@ -1877,10 +1879,10 @@ function CostPane() {
 
   return (
     <div className="cost-workspace">
-      {s.persistenceHydrated && !s.persistenceError && <QsMeasuredGeometryScope job={s.job} activeSheet={s.sheet} sourceReady={s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId && s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256}>
+      {s.persistenceHydrated && !s.persistenceError && <QsMeasuredGeometryScope job={s.job} activeSheet={s.sheet} priceBookSession={priceBookSession} sourceReady={s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId && s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256}>
         <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.sheet} calibrations={s.job.calibrations} />
       </QsMeasuredGeometryScope>}
-      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} />
+      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} />
         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">
         <header className="specification-heading-row"><div><span className="eyebrow">Measured geometry</span><h2>General construction quantities</h2></div></header>

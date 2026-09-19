@@ -2,13 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   assignQuantityItem, calculateQuantityForm, createEmptyQuantityBindingDraft, createEmptyQuantityForm, createQuantityBinding,
-  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema,
+  describeQuantityBindingEvidence, evaluateQuantityFormBinding, quantityFormInput, quantityFormSchema, withQuantityPricing,
   type QuantityBindingDraft, type QuantityForm,
 } from "./quantityForm.ts";
 import {
   describeIndustryBinding, isVerifiedEvidenceClass, type IndustrySourceState,
 } from "../sourceBinding.ts";
 import { QS_ITEM_BINDING_SCHEMA } from "./qsItemBinding.ts";
+import { createEmptyQsWorksheetState, qsWorksheetStateSchema } from "./qsWorksheetState.ts";
+import { emptyPriceBookLibrary } from "../../pricing/priceBooks.ts";
+import { parseIndustryDraftLibrary } from "../draftStorage.ts";
+import { qsPricingSource } from "./qsPricingContext.ts";
 
 function fixture(): QuantityForm {
   return {
@@ -281,4 +285,46 @@ test("evidence classes are described as supplied or source-derived, never promot
   assert.equal(isVerifiedEvidenceClass("declared"), false);
   assert.equal(isVerifiedEvidenceClass("inferred"), false);
   assert.equal(isVerifiedEvidenceClass("dimensioned"), true);
+});
+
+test("SC10 legacy quantity forms remain unchanged and new forms declare pricing separately", () => {
+  const legacy = fixture(); assert.equal('pricing' in legacy, false);
+  assert.deepEqual(quantityFormSchema.parse(legacy), legacy);
+  assert.equal(createEmptyQuantityForm().pricing, null);
+  const priced = { ...legacy, pricing: createEmptyQsWorksheetState('project-1') };
+  assert.deepEqual(quantityFormSchema.parse(JSON.parse(JSON.stringify(priced))), priced);
+  assert.deepEqual(quantityFormInput(priced), quantityFormInput(legacy), 'commercial state must not enter quantity classification');
+});
+test("SC10 pricing edits preserve classification completion and reject the wrong project", () => {
+  const form = { ...fixture(), calculated: true }, pricing = createEmptyQsWorksheetState('project-1');
+  const next = withQuantityPricing(form, pricing, 'project-1', null);
+  assert.equal(next.calculated, true); assert.deepEqual(next.items, form.items);
+  assert.throws(() => withQuantityPricing(form, pricing, 'other-project', null), /another project/);
+  assert.equal('pricing' in form, false, 'the previous form was not mutated');
+});
+test("SC10 corrupt saved pricing snapshots fail strict form parsing", () => {
+  const pricing = createEmptyQsWorksheetState('project-1');
+  assert.equal(qsWorksheetStateSchema.safeParse({ ...pricing, snapshots: [{ format: 'xray.qs-cost-snapshot/v1', input: {} }] }).success, false);
+  assert.equal(quantityFormSchema.safeParse({ ...fixture(), pricing: { ...pricing, currency: 'invented' } }).success, false);
+});
+test("SC10 draft size preflight preserves existing inputs and unrelated drafts on failure", () => {
+  const shell = { format: 'xray.industry-drafts/1', projectId: 'project-1', revision: 1,
+    drafts: { roofing: { revision: 1, form: { preserved: '' } } } };
+  const emptyLength = JSON.stringify(shell).length;
+  shell.drafts.roofing.form.preserved = 'x'.repeat(2_000_000 - emptyLength - 200);
+  const original = JSON.stringify(shell); assert.equal(original.length, 1_999_800);
+  parseIndustryDraftLibrary(original, 'project-1');
+  const form = fixture(), before = JSON.stringify(form);
+  assert.throws(() => withQuantityPricing(form, createEmptyQsWorksheetState('project-1'), 'project-1', original), /exceed the supported size/);
+  assert.equal(JSON.stringify(form), before);
+  assert.equal(parseIndustryDraftLibrary(original, 'project-1').drafts['quantity-surveying'], undefined);
+});
+test("SC10 pricing source never reuses another project or a corrupt session recovery value", () => {
+  const value = emptyPriceBookLibrary('project-1');
+  assert.deepEqual(qsPricingSource('project-1', null, false), { projectId: 'project-1', library: null, loading: true, error: null, sourceReady: false });
+  const wrong = qsPricingSource('other-project', { value, raw: null, blocked: false, error: null }, true);
+  assert.equal(wrong.library, null); assert.equal(wrong.loading, true);
+  const corrupt = qsPricingSource('project-1', { value, raw: 'corrupt bytes', blocked: true, error: 'Supplier data needs recovery.' }, true);
+  assert.equal(corrupt.library, null); assert.equal(corrupt.loading, false); assert.equal(corrupt.error, 'Supplier data needs recovery.');
+  assert.equal(qsPricingSource('project-1', { value, raw: null, blocked: false, error: null }, true).library, value);
 });

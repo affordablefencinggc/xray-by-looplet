@@ -1,207 +1,81 @@
-/**
- * The boot guard's three outcomes, each asserted separately.
- *
- * The guard exists because a frozen global reaches no render boundary. A check
- * that only ever reports success is not a check, so the non-configurable case —
- * the one that actually produced a white screen — has its own test asserting a
- * named panel is painted.
- */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BOOT_GUARD_SOURCE, bootGuard } from "./boot-guard.ts";
+import { createContext, runInContext, runInNewContext } from "node:vm";
+import ts from "typescript";
+import { BOOT_GUARD_SOURCE } from "./boot-guard.ts";
 
-/** Stands in for `#root` and the handful of DOM calls the guard makes. */
-interface StubElement {
-  attributes: Record<string, string>;
-  children: StubElement[];
-  cssText: string;
-  style: { cssText: string };
-  textContent: string;
-  readonly childElementCount: number;
-  readonly firstChild: StubElement | null;
+type ElementStub = {
+  tagName: string; attributes: Record<string, string>; children: ElementStub[];
+  textContent: string; style: { cssText: string }; readonly firstChild: ElementStub | null;
   setAttribute(name: string, value: string): void;
-  appendChild(child: StubElement): void;
-  removeChild(child: StubElement): void;
-}
-
-function makeElement(): StubElement {
-  const element: StubElement = {
-    attributes: {},
-    children: [],
-    cssText: "",
-    style: { cssText: "" },
-    textContent: "",
-    get childElementCount() {
-      return element.children.length;
-    },
-    get firstChild() {
-      return element.children[0] ?? null;
-    },
-    setAttribute(name, value) {
-      element.attributes[name] = value;
-    },
-    appendChild(child) {
-      element.children.push(child);
-    },
-    removeChild(child) {
-      const at = element.children.indexOf(child);
-      if (at !== -1) element.children.splice(at, 1);
-    },
+  appendChild(child: ElementStub): void; removeChild(child: ElementStub): void;
+};
+function element(tagName = "div"): ElementStub {
+  return {
+    tagName, attributes: {}, children: [], textContent: "", style: { cssText: "" },
+    get firstChild() { return this.children[0] ?? null; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    appendChild(child) { this.children.push(child); },
+    removeChild(child) { this.children.splice(this.children.indexOf(child), 1); },
   };
-  return element;
 }
-
-/** Runs the guard with `document` stubbed, restoring the global afterwards. */
-function withGuard<T>(
-  mutate: () => void,
-  body: (root: ReturnType<typeof makeElement>) => T,
-  options: { withRoot?: boolean } = {},
-): T {
-  const withRoot = options.withRoot !== false;
-  const root = makeElement();
-  const host = withRoot ? root : makeElement();
-  const saved = Object.getOwnPropertyDescriptor(Object.prototype, "toString")!;
-  const realDocument = globalThis.document;
-  globalThis.document = {
-    getElementById: (id: string) => (withRoot && id === "root" ? root : null),
-    querySelector: () => (withRoot ? null : host),
-    body: host,
-    createElement: () => makeElement(),
-  } as unknown as Document;
-  try {
-    mutate();
-    bootGuard();
-    return body(withRoot ? root : host);
-  } finally {
-    globalThis.document = realDocument;
-    try {
-      Object.defineProperty(Object.prototype, "toString", saved);
-    } catch {
-      // The non-configurable case cannot be undone; Node exits on a fresh
-      // process per test file, so the mutation cannot leak into another suite.
-    }
-  }
+function execute(prelude = "", hostKind: "root" | "marked" | "body" | "none" = "root") {
+  const host = element(), skeleton = element(); skeleton.textContent = "Opening your workspace"; host.appendChild(skeleton);
+  const document = {
+    getElementById: (id: string) => hostKind === "root" && id === "root" ? host : null,
+    querySelector: (selector: string) => hostKind === "marked" && selector === "[data-boot-host]" ? host : null,
+    body: hostKind === "none" ? null : host, createElement: element,
+  };
+  const context = createContext({ document });
+  if (prelude) runInContext(prelude, context);
+  runInContext(BOOT_GUARD_SOURCE, context);
+  return { host, skeleton, context };
 }
+function panelText(host: ElementStub) { return host.children.flatMap(child => child.children).map(child => child.textContent).join(" "); }
 
-test("a writable toString is left alone and no panel is painted", () => {
-  withGuard(
-    () => {},
-    (root) => {
-      assert.equal(root.attributes["data-boot-failure"], undefined);
-      assert.equal(root.childElementCount, 0);
-    },
-  );
+test("BOOT-01 emitted inline script is byte-identical under different server/client compilation targets", () => {
+  const moduleSource = readFileSync(new URL("./boot-guard.ts", import.meta.url), "utf8");
+  const emitted = [ts.ScriptTarget.ES5, ts.ScriptTarget.ES2018, ts.ScriptTarget.ES2022].map(target => {
+    const output = ts.transpileModule(moduleSource, { compilerOptions: { target, module: ts.ModuleKind.CommonJS, removeComments: target === ts.ScriptTarget.ES5 } }).outputText;
+    const exports: { BOOT_GUARD_SOURCE?: string } = {};
+    runInNewContext(output, { exports });
+    return exports.BOOT_GUARD_SOURCE;
+  });
+  for (const source of emitted) assert.equal(source, BOOT_GUARD_SOURCE);
+  assert.doesNotMatch(BOOT_GUARD_SOURCE, /<\/script/i);
 });
-
-test("a writable toString is still writable, so the library can assign to it", () => {
-  withGuard(
-    () => {},
-    () => {
-      const descriptor = Object.getOwnPropertyDescriptor(Object.prototype, "toString");
-      assert.equal(descriptor?.writable, true);
-    },
-  );
+test("BOOT-02 writable global leaves existing server content untouched", () => {
+  const { host, skeleton, context } = execute();
+  assert.deepEqual(host.children, [skeleton]); assert.equal(host.attributes["data-boot-failure"], undefined);
+  assert.equal(runInContext("Object.getOwnPropertyDescriptor(Object.prototype, 'toString').writable", context), true);
 });
-
-test("a read-only but configurable toString is repaired rather than reported", () => {
-  withGuard(
-    (saved => () => {
-      Object.defineProperty(Object.prototype, "toString", {
-        value: saved.value,
-        writable: false,
-        enumerable: saved.enumerable,
-        configurable: true,
-      });
-    })(Object.getOwnPropertyDescriptor(Object.prototype, "toString")!),
-    (root) => {
-      assert.equal(root.attributes["data-boot-failure"], undefined);
-      assert.equal(
-        Object.getOwnPropertyDescriptor(Object.prototype, "toString")?.writable,
-        true,
-      );
-    },
-  );
+test("BOOT-03 configurable read-only global is repaired before dependent code assigns to it", () => {
+  const { host, context } = execute("Object.defineProperty(Object.prototype, 'toString', { writable: false, configurable: true });");
+  assert.equal(host.attributes["data-boot-failure"], undefined);
+  assert.equal(runInContext("Object.getOwnPropertyDescriptor(Object.prototype, 'toString').writable", context), true);
+  assert.equal(runInContext("'use strict'; function Tree() {} Tree.prototype.toString = function () { return 'ready'; }; new Tree().toString();", context), "ready");
 });
-
-test("a read-only and non-configurable toString paints a named failure", () => {
-  withGuard(
-    () => {
-      Object.freeze(Object.prototype);
-    },
-    (root) => {
-      assert.equal(root.attributes["data-boot-failure"], "globals");
-      const card = root.children[0];
-      assert.ok(card, "a panel must be painted");
-      const text = card.children.map((child) => child.textContent).join(" ");
-      assert.match(text, /X-Ray could not start/);
-      assert.match(text, /not configurable/);
-      assert.match(text, /Object\.prototype\.toString is writable/);
-    },
-  );
-});
-
-/**
- * The server renders a startup skeleton ("Opening your workspace") before the
- * app mounts. A guard that refuses to touch a non-empty host would leave that
- * skeleton standing above the failure panel, and the page would still read as
- * a hang — which is the bug this replaced.
- */
-test("the server's startup skeleton is replaced, not left above the panel", () => {
-  const root = makeElement();
-  const skeleton = makeElement();
-  skeleton.textContent = "Opening your workspace";
-  root.appendChild(skeleton);
-
-  const saved = Object.getOwnPropertyDescriptor(Object.prototype, "toString")!;
-  const realDocument = globalThis.document;
-  globalThis.document = {
-    getElementById: (id: string) => (id === "root" ? root : null),
-    querySelector: () => null,
-    body: makeElement(),
-    createElement: () => makeElement(),
-  } as unknown as Document;
-  try {
-    Object.freeze(Object.prototype);
-    bootGuard();
-    assert.equal(root.attributes["data-boot-failure"], "globals");
-    assert.equal(root.childElementCount, 1, "the skeleton must be gone");
-    const card = root.children[0];
-    assert.ok(card);
-    assert.doesNotMatch(card.textContent, /Opening your workspace/);
-  } finally {
-    globalThis.document = realDocument;
-    try {
-      Object.defineProperty(Object.prototype, "toString", saved);
-    } catch {
-      // see above — nothing to restore once the prototype is frozen
-    }
+for (const hostKind of ["root", "marked", "body"] as const) {
+  test(`BOOT-04 frozen global replaces the ${hostKind} startup host with an actionable failure`, () => {
+    const { host, skeleton } = execute("Object.freeze(Object.prototype);", hostKind);
+    assert.equal(host.attributes["data-boot-failure"], "globals"); assert.equal(host.children.length, 1);
+    assert.ok(!host.children.includes(skeleton)); assert.equal(host.children[0].tagName, "main");
+    assert.match(panelText(host), /X-Ray could not start/); assert.match(panelText(host), /not configurable/);
+    assert.match(panelText(host), /Object\.prototype\.toString is writable/);
+  });
+}
+test("BOOT-05 missing and non-function descriptor values paint the named failure", () => {
+  for (const prelude of ["delete Object.prototype.toString;", "Object.defineProperty(Object.prototype, 'toString', { value: 7 });"]) {
+    const { host } = execute(prelude); assert.equal(host.attributes["data-boot-failure"], "globals");
+    assert.match(panelText(host), /missing or is not a method/);
   }
 });
-
-/**
- * The regression that shipped a no-op guard: the TanStack Start document has no
- * `#root`, so a guard that bails when `getElementById("root")` misses never runs
- * at all. The host must be resolved when the failure is reported, not up front.
- */
-test("a document with no #root still gets a named failure", () => {
-  withGuard(
-    () => {
-      Object.freeze(Object.prototype);
-    },
-    (host) => {
-      assert.equal(host.attributes["data-boot-failure"], "globals");
-      const card = host.children[0];
-      assert.ok(card, "a panel must be painted into the fallback host");
-      const text = card.children.map((child) => child.textContent).join(" ");
-      assert.match(text, /X-Ray could not start/);
-    },
-    { withRoot: false },
-  );
+test("BOOT-06 descriptor inspection failure retains its diagnostic detail", () => {
+  const { host } = execute("Object.getOwnPropertyDescriptor = function () { throw new Error('inspection denied'); };");
+  assert.equal(host.attributes["data-boot-failure"], "globals"); assert.match(panelText(host), /inspection denied/);
 });
-
-test("the exported source is the guard itself, ready to run inline", () => {
-  assert.match(BOOT_GUARD_SOURCE, /^\(function bootGuard\(\)/);
-  assert.match(BOOT_GUARD_SOURCE, /Object\.getOwnPropertyDescriptor/);
-  // A guard that never inspects the descriptor cannot detect the condition.
-  assert.match(BOOT_GUARD_SOURCE, /data-boot-failure/);
+test("BOOT-07 missing document hosts do not create a second uncaught error", () => {
+  const { host } = execute("Object.freeze(Object.prototype);", "none");
+  assert.equal(host.attributes["data-boot-failure"], undefined);
 });

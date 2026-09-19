@@ -90,6 +90,9 @@ function Stop-VerifiedTree(
   if ([string]$rootRecord.CommandLine -notlike "*$CommandMarker*") {
     throw "$Purpose root PID $($Root.Id) no longer contains its unique command marker."
   }
+  if ([math]::Abs((([datetime]$rootRecord.CreationDate).ToUniversalTime() - $Root.StartTime.ToUniversalTime()).TotalSeconds) -gt 1) {
+    throw "$Purpose root PID $($Root.Id) was reused; cleanup refused."
+  }
   $treeIds = @(Get-TreeIds $Root.Id $snapshot)
   $listeners = @(Get-ListeningConnections $Port)
   $unexpected = @($listeners | Where-Object { $treeIds -notcontains [int]$_.OwningProcess })
@@ -98,6 +101,14 @@ function Stop-VerifiedTree(
   foreach ($id in $ordered) {
     $record = $snapshot | Where-Object { $_.ProcessId -eq $id } | Select-Object -First 1
     if ($null -eq $record) { continue }
+    $current = Get-CimInstance Win32_Process -Filter "ProcessId=$id" -ErrorAction SilentlyContinue
+    if ($null -eq $current) { continue }
+    if ($current.CreationDate -ne $record.CreationDate -or $current.ExecutablePath -ne $record.ExecutablePath -or $current.CommandLine -ne $record.CommandLine) { throw "$Purpose descendant PID $id changed identity; cleanup refused." }
+    $owned = Get-Process -Id $id -ErrorAction SilentlyContinue
+    if ($owned -and $owned.CloseMainWindow()) { [void]$owned.WaitForExit(750) }
+    $current = Get-CimInstance Win32_Process -Filter "ProcessId=$id" -ErrorAction SilentlyContinue
+    if ($null -eq $current) { continue }
+    if ($current.CreationDate -ne $record.CreationDate -or $current.ExecutablePath -ne $record.ExecutablePath -or $current.CommandLine -ne $record.CommandLine) { throw "$Purpose descendant PID $id changed identity during close; cleanup refused." }
     Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
   }
   $deadline = [DateTime]::UtcNow.AddSeconds(10)

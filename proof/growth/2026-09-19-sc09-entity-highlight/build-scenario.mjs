@@ -425,6 +425,7 @@ const assertTablet = wrap(`
 `);
 
 const scenario = [
+  ["expect-cancelled-fetch", "http://127.0.0.1:8080/api/pricing-research", 4, "PricingResearchPanel effect cleanup aborts its GET provider-status probe on unmount (PricingResearchPanel.tsx:55-64); no search or failed asset is permitted."],
   ["set", "viewport", "1600", "1000"],
   ["open", "http://127.0.0.1:8080/"],
   ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.getAttribute('data-hydration-status') === 'ready'"],
