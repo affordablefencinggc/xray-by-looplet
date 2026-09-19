@@ -37,6 +37,20 @@ while ((match = sliceRegex.exec(closeoutLedger)) !== null) {
   const blockedMatch = body.match(/\*\s+\*\*BLOCKED.*?\*\*:\s*([\s\S]*?)(?=\*\s+\*\*Files|\*\s+\*\*Depends|\n\n)/);
   const blockedNote = blockedMatch ? blockedMatch[1].trim() : "";
 
+  // Completion timestamp: prefer an explicit "Completed:" line, else the ISO date
+  // in the slice's own Done records, else the date on the ledger's status heading.
+  const headerLine = closeoutLedger.substring(0, match.index).split("\n").filter(Boolean).pop() ?? "";
+  const completedMatch = body.match(/\*\s+\*\*Completed\*\*:\s*(\S+)/)
+    ?? body.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)/)
+    ?? body.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
+  let completedAt = "";
+  if (completedMatch) {
+    completedAt = completedMatch[2] ? `${completedMatch[1]}T${completedMatch[2]}` : completedMatch[1];
+  } else {
+    const headingDate = headerLine.match(/\((\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?\)/);
+    if (headingDate) completedAt = headingDate[2] ? `${headingDate[1]}T${headingDate[2]}` : headingDate[1];
+  }
+
   // associate images
   const matchingImages = curatedImages.filter(img => img.slice === id || (id === "SC-01" && img.slice === "SC-01") || (id === "SC-02" && img.slice === "SC-02") || (id === "SC-04" && img.slice === "SC-04"));
 
@@ -50,6 +64,7 @@ while ((match = sliceRegex.exec(closeoutLedger)) !== null) {
     humanDone,
     files,
     blockedNote,
+    completedAt,
     images: matchingImages
   });
 }
@@ -105,14 +120,23 @@ if (currentCat) categories.push(currentCat);
 
 console.log(`Parsed ${categories.length} A-Z categories with ${allRequirements.length} requirements.`);
 
-// Summary stats
+// Summary stats. The test and suite figures are read from the ledger's own
+// recorded test-count line rather than typed in here, because a hardcoded number
+// is a fabricated measurement wearing the shape of a result: it stays right for
+// exactly as long as nobody adds a test, and then quietly lies.
+const testsMatch = closeoutLedger.match(/(\d{1,6})\s*\/\s*(\d{1,6})\s*(?:tests|passing)/i)
+  ?? closeoutLedger.match(/(\d{1,6})\s*(?:tests\s+)?passing\b/i);
+const suitesMatch = closeoutLedger.match(/(\d{1,4})\s+suites\b/i);
+if (!testsMatch || !suitesMatch) {
+  console.warn("No test/suite count found in the ledger — the dashboard will show the literal values as unknown.");
+}
 const stats = {
   slicesTotal: slices.length,
   slicesDone: slices.filter(s => s.status === "done").length,
   slicesPartial: slices.filter(s => s.status === "partial").length,
   slicesPending: slices.filter(s => s.status === "pending").length,
-  testsPassing: 1751,
-  testSuites: 89,
+  testsPassing: testsMatch ? Number(testsMatch[1]) : 0,
+  testSuites: suitesMatch ? Number(suitesMatch[1]) : 0,
   tscStatus: "Clean (Exit 0)",
   azTotal: allRequirements.length,
   azVerified: allRequirements.filter(r => r.state === "verified").length,
@@ -565,6 +589,31 @@ const html = `<!DOCTYPE html>
       background: rgba(16, 185, 129, 0.15);
       color: #34d399;
       border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .slice-tick {
+      font-size: 16px;
+      line-height: 1;
+      flex: 0 0 auto;
+      color: var(--text-dim);
+      cursor: default;
+    }
+
+    .slice-tick[data-tick="done"] {
+      color: #34d399;
+      text-shadow: 0 0 10px rgba(52, 211, 153, 0.45);
+    }
+
+    .slice-completed {
+      font-size: 11px;
+      font-weight: 600;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.28);
+      border-radius: 999px;
+      padding: 2px 9px;
+      white-space: nowrap;
+      flex: 0 0 auto;
     }
 
     .badge-partial {
@@ -1051,10 +1100,10 @@ const html = `<!DOCTYPE html>
       <div class="kpi-card">
         <div class="kpi-title">
           <span>Closeout Slices</span>
-          <span style="color: #34d399;">3 / 20 DONE</span>
+          <span style="color: #34d399;">${stats.slicesDone} / ${stats.slicesTotal} DONE</span>
         </div>
-        <div class="kpi-value">15%</div>
-        <div class="kpi-sub">3 Done, 1 Partial, 16 Pending</div>
+        <div class="kpi-value">${Math.round((stats.slicesDone / stats.slicesTotal) * 100)}%</div>
+        <div class="kpi-sub">${stats.slicesDone} Done, ${stats.slicesTotal - stats.slicesDone - stats.slicesPending} Partial, ${stats.slicesPending} Pending</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-title">
@@ -1118,10 +1167,10 @@ const html = `<!DOCTYPE html>
     <section id="tab-slices" class="tab-content active">
       <div class="filter-bar">
         <span class="filter-label">Filter Status:</span>
-        <button class="filter-chip active" onclick="filterSlices('all', this)">All (20)</button>
-        <button class="filter-chip" onclick="filterSlices('done', this)">Done (3)</button>
-        <button class="filter-chip" onclick="filterSlices('partial', this)">Partial / Blocked (1)</button>
-        <button class="filter-chip" onclick="filterSlices('pending', this)">Pending (16)</button>
+        <button class="filter-chip active" onclick="filterSlices('all', this)">All (${slices.length})</button>
+        <button class="filter-chip" onclick="filterSlices('done', this)">Done (${slices.filter(s => s.status === "done").length})</button>
+        <button class="filter-chip" onclick="filterSlices('partial', this)">Partial / Blocked (${slices.filter(s => s.status !== "done" && s.status !== "pending").length})</button>
+        <button class="filter-chip" onclick="filterSlices('pending', this)">Pending (${slices.filter(s => s.status === "pending").length})</button>
 
         <span class="filter-label" style="margin-left: 20px;">Portion:</span>
         <button class="filter-chip active" onclick="filterPortion('all', this)">All Portions</button>
@@ -1164,7 +1213,7 @@ const html = `<!DOCTYPE html>
           <span>Active Pending Closeout Slices (SC-05 .. SC-20)</span>
         </h3>
         <p style="color: var(--text-muted); font-size: 13.5px;">
-          The following 16 atomic slices are defined in <code>XRAY-PRODUCTION-CLOSEOUT-LEDGER.md</code> with brutal mathematical precision and require implementation before the v1.0 Production Release:
+          The following ${stats.slicesTotal} atomic slices are defined in <code>XRAY-PRODUCTION-CLOSEOUT-LEDGER.md</code> with brutal mathematical precision and require implementation before the v1.0 Production Release:
         </p>
 
         <div class="roadmap-timeline">
@@ -1493,14 +1542,21 @@ function renderSlicesHtml(slices) {
     const statusBadgeClass = s.status === "done" ? "badge-done" : s.status === "partial" ? "badge-partial" : "badge-pending";
     const statusText = s.status === "done" ? "✓ Done" : s.status === "partial" ? "⚠ Partial" : "○ Pending";
 
+    const isDone = s.status === "done";
+    const tick = isDone ? "☑" : "☐";
+    const completedLabel = s.completedAt ? formatCompleted(s.completedAt) : (isDone ? "date not recorded" : "");
+    const completedTitle = s.completedAt ? ` title="Completed ${escapeHtml(s.completedAt)}"` : "";
+
     html += `
       <div class="slice-card ${s.status}" data-status="${s.status}" data-portion="${escapeHtml(s.portion)}">
         <div class="slice-top" onclick="toggleSlice(this.parentElement)">
           <div class="slice-info">
             <div class="slice-header">
+              <span class="slice-tick" data-tick="${isDone ? "done" : "open"}"${completedTitle}>${tick}</span>
               <span class="slice-id">${escapeHtml(s.id)}</span>
               <span class="slice-title">${escapeHtml(s.title)}</span>
               <span class="status-badge ${statusBadgeClass}">${statusText}</span>
+              ${completedLabel ? `<span class="slice-completed"${completedTitle}>✔ ${escapeHtml(completedLabel)}</span>` : ""}
             </div>
             <div class="slice-goal">${escapeHtml(s.goal)}</div>
           </div>
@@ -1596,6 +1652,19 @@ function renderAzRowsHtml(rows) {
       </tr>
     `;
   }).join("");
+}
+
+function formatCompleted(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  // Rendered in the viewer's own timezone; the raw value stays on the title attribute.
+  return parsed.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function escapeHtml(str) {

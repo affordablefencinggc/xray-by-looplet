@@ -36,6 +36,8 @@ Every slice in this ledger must satisfy the following four proof criteria before
 * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
 * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
 
+**Last executed machine gate**: `npm test` — 1616/1616 passing across 91 suites; `npx tsc --noEmit` exit 0. Recorded 2026-09-19 alongside SC-09. The dashboard reads this line rather than carrying its own copy of the numbers.
+
 ---
 
 ## 3. Fail-Safe Architecture & Invariants
@@ -108,6 +110,7 @@ graph TD
 ### PORTION 1: Core Architectural Deliverables & Delivery Hash Sealing (IND-01 / SH-03)
 
 #### SC-01 — Wire SH-03 Delivery Record to Residential Alteration Issue Sets `[[done]]`
+* **Completed**: 2026-09-18T16:01:32+10:00
 * **Goal**: Seal frozen alteration issues (`src/studio/architect/alterationIssues.ts`) with the unified `deliveryRecordSchema` from `src/studio/industries/deliveryRecord.ts`, enforcing immutable SHA-256 payload verification on historical reopen.
 * **DONE (machine)**:
   - `deliveryRecordSchema` integrated into `AlterationIssue`.
@@ -126,6 +129,7 @@ graph TD
 * **Commit**: the commit that carries this line; proof in `proof/growth/2026-09-18-sc01-delivery-seal/`.
 
 #### SC-02 — Multi-Sheet Drawing Register & Vector PDF Batch Publisher `[[done]]`
+* **Completed**: 2026-09-18T13:30:52+10:00
 * **Goal**: Expand `authoredSheetSet.ts` and `alterationIssueExport.ts` to output complete multi-page A3/A1 drawing packages with an automated Drawing Register (Transmittal Sheet), drawing scale verification, and title block metadata.
 * **DONE (machine)**:
   - Vector PDF generator renders Site Plan, Floor Plans, Sections, Elevations, and Schedules in a single batch PDF.
@@ -145,6 +149,7 @@ graph TD
 * **Commit**: the commit that carries this line; machine criteria proven in `proof/growth/2026-09-18-sc02-drawing-register/`, the human PDF inspection still outstanding.
 
 #### SC-03 — Architectural Annotation Delta & Drawing Revision Clouding `[[done]]`
+* **Completed**: 2026-09-19T12:28:00+10:00
 * **Goal**: Implement automatic geometric delta detection between alteration stages to generate visual revision clouds and delta marks ($\Delta\text{ Rev B}$) on modified walls, openings, and notes.
 * **DONE (machine)**:
   - Polygon diff algorithm identifies geometry modifications between Stage A and Stage B.
@@ -175,6 +180,7 @@ graph TD
 ### PORTION 2: Active Trade Engines — Stage 1: Roofing & Cladding (IND-29)
 
 #### SC-04 — ROOF-01 Assistant Course Calculator & Boundary Lap Correction `[[done]]`
+* **Completed**: 2026-09-18T16:01:32+10:00
 * **Goal**: Fix the assistant explanation and underlying calculator for sheet course counts, resolving the known failure where 9.80 m was misstated as requiring 3 courses instead of exactly 2 courses of 5.0 m sheets with 0.2 m end lap.
 * **DONE (machine)**:
   - `roofingCalculator.ts` strictly enforces: $\text{Effective Length} = (\text{Sheet Length} - \text{End Lap})$.
@@ -193,6 +199,7 @@ graph TD
 * **Commit**: no code was needed — the capability is in `sheetCoverage.ts` and already tested; the live query and the verification are in `proof/growth/2026-09-18-sc04-roof-course-live/`.
 
 #### SC-05 — ROOF-02/03 True 3D Hip, Valley & Pitch Surface Geometry Unfolding `[[done]]`
+* **Completed**: 2026-09-19T12:49:03+10:00
 * **Goal**: Implement analytic true 3D surface geometry development for hip, valley, and rake intersections, eliminating all projected 2D horizontal approximations.
 * **DONE (machine)**:
   - True pitch area derived: $A_{\text{true}} = A_{\text{projected}} / \cos(\theta)$ with strict bounds $[0^\circ, 90^\circ)$.
@@ -222,6 +229,7 @@ graph TD
 * **Commit**: this commit; SC-05 fully closed with machine and visual proof.
 
 #### SC-06 — ROOF-04 Stock Sheet Layout, Kerf, Nesting & Offcut Classification `[[done]]`
+* **Completed**: 2026-09-19T13:12:13+10:00
 * **Goal**: Provide linear and panel nesting algorithms that layout standard supplier sheet lengths against true roof runs, factoring in kerf, cutting waste, and reusable offcuts.
 * **DONE (machine)**:
   - 1D bin-packing multi-stock nesting solver (Best-Fit Decreasing) implemented with Zod validation in `src/studio/industries/roofing/stockNesting.ts`.
@@ -251,6 +259,7 @@ graph TD
 * **Commit**: this commit; SC-06 fully closed with machine and visual proof.
 
 #### SC-07 — ROOF-05/06 Flashing, Fixing Schedules & Full Takeoff Export Deliverable `[[done]]`
+* **Completed**: 2026-09-19T13:26:05+10:00
 * **Goal**: Compile complete bill of quantities including ridge caps, valley gutters, barge flashings, fasteners (screws/clips per $m^2$ by wind region), and output an immutable `deliveryRecord`.
 * **DONE (machine)**:
   - Fastener schedule calculates screw counts based on roof pitch, batten type, and AS 4055 wind classification in `src/studio/industries/roofing/flashingSchedules.ts`.
@@ -283,6 +292,7 @@ graph TD
 ### PORTION 3: Active Trade Engines — Stage 2: Quantity Surveying & Cost Consultancy (IND-38)
 
 #### SC-08 — QS-01/02 Hierarchy CSV Overlap Disclosure & Tablet Report Compilation `[[done]]`
+* **Completed**: 2026-09-19T13:43:15+10:00
 * **Goal**: Correct the assistant explanation and report UI regarding hierarchical CSV exports. Explicitly disclose that parent category rows are summary aggregates and cannot be summed together with leaf items (preventing double-counting).
 * **DONE (machine)**:
   - CSV export formatter writes distinct record types: `SUMMARY_NODE` vs `LEAF_ITEM` in `src/studio/industries/quantity-surveying/qsReportFormatter.ts`.
@@ -314,19 +324,27 @@ graph TD
 * **Depends on**: None
 * **Commit**: this commit; SC-08 fully closed with machine and visual proof.
 
-#### SC-09 — QS-03 Measured Item-Level Evidence Binding `[[pending]]`
+#### SC-09 — QS-03 Measured Item-Level Evidence Binding `[[partial]]`
 * **Goal**: Bind individual classified items in the cost plan directly to immutable measured geometry entities (wall run, room area, roof plane) rather than just the general worksheet header.
 * **DONE (machine)**:
   - `QSItemBinding` schema records: `entityId`, `sourceHash`, `entityType`, `measuredQuantity`, `unit`, `calibrationId`.
   - If a bound entity's geometry is modified on the canvas, the QS item status flips to `"stale-measurement"` and withholds pricing until re-verified.
   - Tests verify entity-level binding invalidation and audit trail tracking.
-* **DONE (human)**:
-  - Clicking a cost line item in the QS Panel automatically highlights the corresponding physical wall/room in 2D PlanCanvas and 3D Model Viewer.
+* **NOT DONE (human)**:
+  - Clicking a cost line item in the QS Panel automatically highlights the corresponding physical wall/room in 2D PlanCanvas and 3D Model Viewer. The ledger renders the binding and its entity id, but nothing is wired to the canvases: there is no click handler on a ledger row and no highlight selection travels to `PlanCanvas` or the 3D viewer. This gate stays open.
+* **Proof**:
+  - `node scripts/fast-cdp-test.mjs qa-sc09-final` — 28 opcodes, exit 0. Both directions asserted: fresh draft 3× `verified` with no withheld notice; typing `99` turns only row 1 to `stale-measurement` with pricing withheld and the notice naming `1 stale-measurement`; restoring `45.5` returns every row to `verified` with the notice gone.
+  - Captures: [all-bound-verified](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-all-bound-verified-desktop-1600x1000.png), [stale-after-edit](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-stale-after-edit-desktop-1600x1000.png), [recovered](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-recovered-verified-desktop-1600x1000.png), [tablet 1024×768](proof/growth/2026-09-19-sc09-item-binding/captures/sc09-binding-tablet-1024x768.png).
+  - Gates: `tsc --noEmit` exit 0; full `npm test` 1616/1616. Three mutations on `shouldRepin()` all killed; one survived its first attempt and the test was rewritten (see `walkthrough.md`).
+  - Limit: staleness is proven by editing a worksheet quantity, not by moving geometry on the canvas. The panel derives live geometry from the worksheet rows, so a canvas-side geometry edit reaches the ledger through the same derived path only once that path exists — which is the open human gate above.
 * **Files**:
   - `src/studio/industries/quantity-surveying/qsItemBinding.ts` (new)
   - `src/studio/industries/quantity-surveying/qsItemBinding.test.ts` (new)
-  - `src/studio/industries/quantity-surveying/QSWorksheet.tsx`
+  - `src/studio/industries/quantity-surveying/QSItemBindingLedger.tsx` (new)
+  - `src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx` (ledger wired in)
+  - `src/studio/industries/quantity-surveying/QuantityReportView.tsx`
 * **Depends on**: SC-08
+* **Completed**: 2026-09-19 (machine gates only; human highlight gate open)
 * **Commit**: —
 
 #### SC-10 — QS-04/05 Rate Books, Tax/Currency Normalization, Options & Cost Deltas `[[pending]]`
@@ -544,10 +562,10 @@ graph TD
 | **SC-03** | Architectural Annotation Delta & Revision Clouds | Portion 1 | `[[done]]` | 1751 pass / 0 fail, tsc 0, scoped lint 0, live CDP exit 0 in 6.28s | Desktop 1600×1000 + Tablet 1024×768 inspected; 3 clouds (`Partition`, `Enclosure wall`, `door D01`), Δ Rev B marks, toggle off verified | this commit |
 | **SC-04** | ROOF-01 Assistant Course Calculator Correction | Portion 2 | `[[done]]` | already implemented and tested; verified against the ledger's own criteria | Live assistant query run: answers 2 courses with the arithmetic, no hedging | no code needed |
 | **SC-05** | ROOF-02/03 True 3D Hip, Valley & Pitch Geometry | Portion 2 | `[[done]]` | 10 fixtures pass, 1548/1548 suite pass, tsc 0, fast-cdp exit 0 in 2.94s | Desktop 1600×1000 + Tablet 1024×768 (5 captures): 3D wireframe, 2D unfolded, unequal valley, takeoff tables | this commit |
-| **SC-06** | ROOF-04 Stock Sheet Layout, Kerf & Nesting | Portion 2 | `[[pending]]` | Pending | Required (Cutting Diagrams) | — |
-| **SC-07** | ROOF-05/06 Flashing, Fixings & Takeoff Deliverable | Portion 2 | `[[pending]]` | Pending | Required (PDF/CSV Deliverable)| — |
-| **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[pending]]` | Pending | Required (Tablet Screenshot) | — |
-| **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[pending]]` | Pending | Required (Entity Highlight) | — |
+| **SC-06** | ROOF-04 Stock Sheet Layout, Kerf & Nesting | Portion 2 | `[[done]]` | 8 fixtures pass, roofing suite 50 pass / 0 fail, tsc 0 | Desktop + Tablet captures of the cutting diagrams, offcut classification and salvage credit inspected | this commit |
+| **SC-07** | ROOF-05/06 Flashing, Fixings & Takeoff Deliverable | Portion 2 | `[[done]]` | 5 fixtures pass, roofing suite 50 pass / 0 fail, tsc 0, live CDP exit 0 (41 ops, 1.83 s) | Desktop 1600×1000 + Tablet 1024×768: girth schedule, N4/steel fastener scaling, a real `.json` deliverable download, and a tampered seal rejected then restored | this commit |
+| **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[done]]` | 60 QS tests pass, tsc 0, live CDP exit 0 | Desktop 1600×1000 + Tablet 1024×768: overlap warning, hierarchy table, subtree filter and unassigned filter inspected | this commit |
+| **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[partial]]` | Partial | Open (Entity Highlight) | — |
 | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[pending]]` | Pending | Required (Diff Drawer View) | — |
 | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[pending]]` | Pending | Required (PDF Cost Plan) | — |
 | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[pending]]` | Pending | Required (3D Section Preview) | — |
