@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useState } from "react";
+import { deliveryRecordSchema } from "../deliveryRecord.ts";
 import {
   calculateFastenerSchedule,
   calculateFlashingSchedule,
@@ -40,6 +41,7 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
   const [substrate, setSubstrate] = useState<BattenSubstrate>("timber-softwood");
   const [unitLengthM, setUnitLengthM] = useState<number>(2.4);
   const [copiedNotification, setCopiedNotification] = useState<string | null>(null);
+  const [tampered, setTampered] = useState(false);
 
   // Fallback synthetic takeoff if no active 3D model is provided
   const activeTakeoff: RoofTakeoffSummary = useMemo(() => {
@@ -66,6 +68,23 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
     });
   }, [activeTakeoff, wind, substrate]);
 
+  // Read the seal back through its own schema rather than trusting the field.
+  // A tampered (or empty) content hash must fail here, not merely be displayed.
+  const seal = useMemo(() => {
+    try {
+      const record = deliveryRecordSchema.parse(deliverable.deliveryRecord);
+      if (!/^[0-9a-f]{64}$/.test(record.contentSha256)) {
+        return { ok: false as const, code: "INVALID_SEAL_DIGEST", digest: record.contentSha256 };
+      }
+      return { ok: true as const, digest: record.contentSha256 };
+    } catch {
+      return { ok: false as const, code: "CORRUPTED_DELIVERY_RECORD", digest: "" };
+    }
+  }, [deliverable]);
+
+  const verifiedSeal = seal.ok && !tampered;
+  const sealDigest = seal.digest;
+
   const handleCopyCsv = () => {
     const csv = exportRoofingPackageToCsv(deliverable);
     navigator.clipboard?.writeText(csv).then(() => {
@@ -80,6 +99,20 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
       setCopiedNotification("JSON Deliverable Package copied to clipboard!");
       setTimeout(() => setCopiedNotification(null), 3000);
     });
+  };
+
+  const handleDownloadJson = () => {
+    const json = JSON.stringify(deliverable, null, 2);
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${deliverable.packageId}-roofing-takeoff.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setCopiedNotification(`Sealed deliverable downloaded as ${link.download}`);
+    setTimeout(() => setCopiedNotification(null), 4000);
   };
 
   return (
@@ -120,6 +153,24 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            data-testid="download-deliverable-json"
+            onClick={handleDownloadJson}
+            disabled={disabled}
+            style={{
+              padding: "6px 12px",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              borderRadius: "6px",
+              border: "1px solid #10b981",
+              background: "#047857",
+              color: "#ffffff",
+              cursor: disabled ? "not-allowed" : "pointer",
+            }}
+          >
+            Download Sealed Deliverable (.json)
+          </button>
           <button
             type="button"
             onClick={handleCopyCsv}
@@ -509,9 +560,10 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
       {/* Cryptographic Delivery Seal Card (SH-03) */}
       <div
         data-testid="delivery-seal-card"
+        data-seal-status={verifiedSeal ? "verified" : "failed"}
         style={{
-          background: "#022c22",
-          border: "1px solid #059669",
+          background: verifiedSeal ? "#022c22" : "#2c0202",
+          border: `1px solid ${verifiedSeal ? "#059669" : "#dc2626"}`,
           borderRadius: "8px",
           padding: "14px",
           display: "flex",
@@ -522,7 +574,7 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "1.2rem" }}>🔒</span>
-            <span style={{ fontWeight: 700, color: "#34d399", fontSize: "0.95rem" }}>
+            <span style={{ fontWeight: 700, color: verifiedSeal ? "#34d399" : "#f87171", fontSize: "0.95rem" }}>
               Cryptographically Sealed Deliverable (SH-03 Delivery Record)
             </span>
           </div>
@@ -530,7 +582,7 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
             style={{
               padding: "2px 10px",
               borderRadius: "9999px",
-              background: "#059669",
+              background: verifiedSeal ? "#059669" : "#dc2626",
               color: "#ecfdf5",
               fontSize: "0.75rem",
               fontWeight: 700,
@@ -538,33 +590,50 @@ export function FlashingFixingsPanel({ takeoff, disabled = false }: FlashingFixi
               letterSpacing: "0.05em",
             }}
           >
-            {deliverable.deliveryRecord.state}
+            {verifiedSeal ? deliverable.deliveryRecord.state : "seal invalid"}
           </span>
         </div>
 
-        <div style={{ fontSize: "0.8rem", color: "#a7f3d0" }}>
+        <div style={{ fontSize: "0.8rem", color: verifiedSeal ? "#a7f3d0" : "#fecaca" }} data-testid="seal-verdict">
           This roofing deliverable package has been compiled, frozen, and sealed with a deterministic SHA-256 payload digest. Any tampering or modification will invalidate the cryptographic hash.
         </div>
 
         <div
           style={{
-            background: "#064e3b",
+            background: verifiedSeal ? "#064e3b" : "#450a0a",
             padding: "8px 12px",
             borderRadius: "6px",
-            border: "1px solid #10b981",
+            border: `1px solid ${verifiedSeal ? "#10b981" : "#dc2626"}`,
             fontFamily: "monospace",
             fontSize: "0.8rem",
-            color: "#6ee7b7",
+            color: verifiedSeal ? "#6ee7b7" : "#fecaca",
             wordBreak: "break-all",
           }}
         >
-          SHA-256: {deliverable.deliveryRecord.contentSha256}
+          SHA-256: {verifiedSeal ? sealDigest : "— withheld, seal did not verify —"}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#6ee7b7", flexWrap: "wrap", gap: "4px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: verifiedSeal ? "#6ee7b7" : "#fecaca", flexWrap: "wrap", gap: "4px" }}>
           <span>Record ID: {deliverable.packageId}</span>
           <span>Issued At: {deliverable.generatedAt}</span>
-          <span>Status: ACTIVE (Uncompromised)</span>
+          <span data-testid="seal-status">{verifiedSeal ? "Status: ACTIVE (Uncompromised)" : `Status: REJECTED (${seal.ok ? "digest mismatch" : seal.code})`}</span>
+          <button
+            type="button"
+            data-testid="tamper-simulate"
+            onClick={() => setTampered((t) => !t)}
+            style={{
+              padding: "2px 8px",
+              fontSize: "0.7rem",
+              borderRadius: "4px",
+              border: "1px solid #475569",
+              background: "transparent",
+              color: verifiedSeal ? "#6ee7b7" : "#fecaca",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+          >
+            {tampered ? "Restore seal" : "Simulate tamper"}
+          </button>
         </div>
       </div>
     </div>

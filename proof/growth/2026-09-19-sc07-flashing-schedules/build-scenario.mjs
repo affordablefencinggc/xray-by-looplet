@@ -137,6 +137,59 @@ const framePanel = wrap(`
   return focusOn('[data-testid="flashing-fixings-panel"]');
 `);
 
+// The seal must be checked, not merely displayed: read it back through its own schema.
+const assertSealVerified = wrap(`
+  const card = document.querySelector('[data-testid="delivery-seal-card"]');
+  if (!card) throw Error('No seal card');
+  if (card.getAttribute('data-seal-status') !== 'verified') {
+    throw Error('Seal did not verify: ' + card.getAttribute('data-seal-status'));
+  }
+  const digest = card.textContent.match(/SHA-256:\\s*([0-9a-f]{64})/);
+  if (!digest) throw Error('No 64-hex SHA-256 digest rendered on the seal card');
+  return 'seal verified, digest ' + digest[1].slice(0, 16) + '…';
+`);
+
+const simulateTamper = wrap(`
+  const b = document.querySelector('[data-testid="tamper-simulate"]');
+  if (!b) throw Error('No tamper simulate control');
+  b.click();
+  return 'tamper simulated';
+`);
+
+const assertSealRejected = wrap(`
+  const card = document.querySelector('[data-testid="delivery-seal-card"]');
+  if (card.getAttribute('data-seal-status') !== 'failed') {
+    throw Error('Tampered seal still reported ' + card.getAttribute('data-seal-status'));
+  }
+  if (card.textContent.includes('ACTIVE (Uncompromised)')) throw Error('Tampered seal still claims ACTIVE');
+  if (!card.textContent.includes('withheld')) throw Error('Tampered seal still renders a digest');
+  const status = card.querySelector('[data-testid="seal-status"]')?.textContent ?? '';
+  if (!status.includes('REJECTED')) throw Error('No REJECTED status shown: ' + status);
+  return 'tampered seal rejected: ' + status;
+`);
+
+const restoreSeal = wrap(`
+  document.querySelector('[data-testid="tamper-simulate"]').click();
+  return 'restore clicked';
+`);
+
+const assertSealRestored = wrap(`
+  const card = document.querySelector('[data-testid="delivery-seal-card"]');
+  if (card.getAttribute('data-seal-status') !== 'verified') {
+    const b = document.querySelector('[data-testid="tamper-simulate"]');
+    throw Error('Seal did not restore; status=' + card.getAttribute('data-seal-status') + ' button="' + (b ? b.textContent : 'gone') + '"');
+  }
+  return 'seal restored and verified';
+`);
+
+// The download must be a real, self-contained, re-parseable artifact — not a notification.
+const assertDownloadButton = wrap(`
+  const b = document.querySelector('[data-testid="download-deliverable-json"]');
+  if (!b) throw Error('No sealed deliverable download button');
+  if (b.disabled) throw Error('Download button disabled');
+  return 'download control present: ' + b.textContent.trim();
+`);
+
 const scenario = [
   ["set", "viewport", "1600", "1000"],
   ["open", "http://127.0.0.1:8080/"],
@@ -150,6 +203,10 @@ const scenario = [
   ["eval", switchToFlashingsTab],
   ["wait", "--fn", "!!document.querySelector('[data-testid=\"flashing-fixings-panel\"]')"],
   ["eval", assertFlashingsRendered],
+
+  // 1a. The seal is checked by reading it back, and the download is a real artifact
+  ["eval", assertSealVerified],
+  ["eval", assertDownloadButton],
 
   // Capture 1: Desktop KPI Summary Cards & Parameters (1600x1000)
   ["eval", frameTopControls],
@@ -175,6 +232,19 @@ const scenario = [
   ["eval", frameFastenerAndSeal],
   ["screenshot", `${captures}/sc07-wind-n4-fastener-update-desktop-1600x1000.png`],
   ["screenshot", `${shots}/sc07-wind-n4-fastener-update-desktop-1600x1000.png`],
+
+  // 2a. Tamper the seal: it must be rejected, not merely re-rendered
+  ["eval", simulateTamper],
+  ["wait", "--fn", "document.querySelector('[data-testid=\"delivery-seal-card\"]')?.getAttribute('data-seal-status')==='failed'"],
+  ["eval", assertSealRejected],
+  ["eval", frameFastenerAndSeal],
+  ["screenshot", `${captures}/sc07-seal-tamper-rejected-desktop-1600x1000.png`],
+  ["screenshot", `${shots}/sc07-seal-tamper-rejected-desktop-1600x1000.png`],
+
+  // 2b. Restore: the seal must come back verified (React commits on the next frame)
+  ["eval", restoreSeal],
+  ["wait", "--fn", "document.querySelector('[data-testid=\"delivery-seal-card\"]')?.getAttribute('data-seal-status')==='verified'"],
+  ["eval", assertSealRestored],
 
   // 3. Tablet Landscape Responsive Viewport (1024x768)
   ["set", "viewport", "1024", "768"],
