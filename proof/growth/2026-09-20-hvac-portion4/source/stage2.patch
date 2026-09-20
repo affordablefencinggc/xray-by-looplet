@@ -1,0 +1,68 @@
+diff --git a/src/studio/industries/hvac/HvacCoordinationPanel.tsx b/src/studio/industries/hvac/HvacCoordinationPanel.tsx
+index 38a640e1..0fff6ba3 100644
+--- a/src/studio/industries/hvac/HvacCoordinationPanel.tsx
++++ b/src/studio/industries/hvac/HvacCoordinationPanel.tsx
+@@ -24,13 +24,17 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
+   const available = pack?.key === key && !stale ? pack : null;
+   const update = (next: HvacNetwork) => { setError(""); onChange(JSON.stringify(next, null, 2)); };
+   const edit = (collection: "nodes" | "edges", index: number, field: string, value: unknown) => {
+-    if (!network) return; const next = structuredClone(network); Object.assign(next[collection][index], { [field]: value }); update(next);
++    if (!network) return false;
++    const next = structuredClone(network); Object.assign(next[collection][index], { [field]: value });
++    const checked = hvacNetworkSchema.safeParse(next);
++    if (!checked.success) { setError(`${field}: ${checked.error.issues[0].message}`); return false; }
++    update(checked.data); return true;
+   };
+   const numeric = (collection: "nodes" | "edges", index: number, field: string, label: string, value: number | null) => <label key={field}>{label}<input aria-label={`${collection} ${index + 1} ${label}`} inputMode="decimal" key={`${field}:${value}`} defaultValue={value ?? ""} onBlur={event => {
+     const raw = event.target.value.trim(); if (!raw && value === null) return;
+     const n = raw ? Number(raw) : null;
+     if (n !== null && !Number.isFinite(n)) { setError(`${label}: enter a finite number.`); event.target.value = String(value ?? ""); return; }
+-    edit(collection, index, field, n);
++    if (!edit(collection, index, field, n)) event.target.value = String(value ?? "");
+   }} /></label>;
+   const download = (name: string, content: BlobPart, type: string) => { const url = URL.createObjectURL(new Blob([content], { type })); const a = document.createElement("a"); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+   return <section className="hvac-coordination" aria-label="HVAC network coordination">
+@@ -41,22 +45,22 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
+       {!text && <button type="button" onClick={() => update(structuredClone(example))}>Start with labelled sample network</button>}
+       <details open={!network && !!text}><summary>Import or edit network schedule</summary><label>Network JSON<textarea aria-label="Network JSON" value={text} onChange={e => onChange(e.target.value)} /></label><p className="industry-note">Portable schedule containing nodes, runs and beam bounds. Invalid or incomplete text is saved, but cannot be calculated or exported.</p></details>
+       {network && <>
+-        <div className="industry-fields"><label>Network source reference<input value={network.reference} onChange={e => update({ ...network!, reference: e.target.value })} /></label>
++        <div className="industry-fields"><label>Network source reference<input key={network.reference} defaultValue={network.reference} onBlur={e => { const reference = e.target.value.trim(); if (!reference || reference.length > 120) { setError("Source reference must contain 1 to 120 characters."); e.target.value = network!.reference; } else update({ ...network!, reference }); }} /></label>
+           <label>Network evidence<select value={network.evidence} onChange={e => update({ ...network!, evidence: e.target.value as HvacNetwork["evidence"] })}><option value="sample">Sample - not project data</option><option value="declared">Declared inputs - unverified</option></select></label>
+           <label>Occupancy threshold<select value={network.occupancy} onChange={e => update({ ...network!, occupancy: e.target.value as HvacNetwork["occupancy"] })}><option value="residential">Residential: 6 m/s</option><option value="commercial">Commercial: 8 m/s</option></select></label></div>
+         <p className="industry-note">Thresholds are project review criteria, not an assessment of applicable codes. Round runs use width as diameter.</p>
+         <details><summary>Equipment and terminals ({network.nodes.length})</summary>{network.nodes.map((node, i) => <fieldset key={i}><legend>{node.id} · {node.zone}</legend><div className="industry-fields">
+-          {(["id", "zone", "equipmentTag"] as const).map(field => <label key={field}>{field}<input aria-label={`nodes ${i + 1} ${field}`} defaultValue={node[field]} onBlur={e => edit("nodes", i, field, e.target.value)} /></label>)}
++          {(["id", "zone", "equipmentTag"] as const).map(field => <label key={field}>{field}<input aria-label={`nodes ${i + 1} ${field}`} key={node[field]} defaultValue={node[field]} onBlur={e => { if (!edit("nodes", i, field, e.target.value)) e.target.value = node[field]; }} /></label>)}
+           <label>Node type<select aria-label={`Node ${i + 1} type`} value={node.kind} onChange={e => edit("nodes", i, "kind", e.target.value)}>{["equipment", "junction", "reducer", "damper", "diffuser"].map(kind => <option key={kind}>{kind}</option>)}</select></label>
+           {numeric("nodes", i, "x", "X (m)", node.x)}{numeric("nodes", i, "y", "Elevation (m)", node.y)}{numeric("nodes", i, "z", "Z (m)", node.z)}{numeric("nodes", i, "designAirflowLs", "Design airflow (L/s)", node.designAirflowLs)}
+-        </div><button type="button" onClick={() => update({ ...network!, nodes: network!.nodes.filter((_, j) => i !== j) })}>Remove node {node.id}</button></fieldset>)}
++        </div><button type="button" disabled={network.nodes.length <= 1} onClick={() => update({ ...network!, nodes: network!.nodes.filter((_, j) => i !== j) })}>Remove node {node.id}</button></fieldset>)}
+           <button type="button" disabled={network.nodes.length >= 100} onClick={() => update({ ...network!, nodes: [...network!.nodes, { id: `node-${crypto.randomUUID().slice(0, 8)}`, zone: "Unassigned", kind: "diffuser", x: 0, y: 0, z: 0, designAirflowLs: null, equipmentTag: "" }] })}>Add terminal</button>
+         </details>
+         <details><summary>Duct runs ({network.edges.length})</summary>{network.edges.map((edge, i) => <fieldset key={i}><legend>{edge.id}</legend><div className="industry-fields">
+           {(["from", "to"] as const).map(field => <label key={field}>{field}<select aria-label={`Run ${i + 1} ${field}`} value={edge[field]} onChange={e => edit("edges", i, field, e.target.value)}>{network!.nodes.map(node => <option key={node.id}>{node.id}</option>)}</select></label>)}
+           <label>Shape<select aria-label={`Run ${i + 1} shape`} value={edge.shape} onChange={e => edit("edges", i, "shape", e.target.value)}><option value="rectangular">Rectangular</option><option value="round">Round</option></select></label>
+           {numeric("edges", i, "widthM", "Width or diameter (m)", edge.widthM)}{numeric("edges", i, "heightM", "Height (m)", edge.heightM)}{numeric("edges", i, "insulationM", "Insulation (m)", edge.insulationM)}{numeric("edges", i, "availablePlenumM", "Ceiling void (m)", edge.availablePlenumM)}{numeric("edges", i, "airflowLs", "Airflow (L/s)", edge.airflowLs)}{numeric("edges", i, "pressureAllowancePaPerM", "Entered pressure allowance (Pa/m)", edge.pressureAllowancePaPerM)}
+-        </div><button type="button" onClick={() => update({ ...network!, edges: network!.edges.filter((_, j) => i !== j) })}>Remove run {edge.id}</button></fieldset>)}
++        </div><button type="button" disabled={network.edges.length <= 1} onClick={() => update({ ...network!, edges: network!.edges.filter((_, j) => i !== j) })}>Remove run {edge.id}</button></fieldset>)}
+           <button type="button" disabled={network.edges.length >= 200 || network.nodes.length < 2} onClick={() => update({ ...network!, evidence: "sample", edges: [...network!.edges, { ...example.edges[0], id: `run-${crypto.randomUUID().slice(0, 8)}`, from: network!.nodes[0].id, to: network!.nodes[1].id, airflowLs: null, availablePlenumM: null }] })}>Add sample run</button>
+         </details>
+       </>}
+diff --git a/src/studio/industries/hvac/HvacDraftPanel.tsx b/src/studio/industries/hvac/HvacDraftPanel.tsx
+index cebc61ac..e78129f9 100644
+--- a/src/studio/industries/hvac/HvacDraftPanel.tsx
++++ b/src/studio/industries/hvac/HvacDraftPanel.tsx
+@@ -99,6 +99,12 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
+       <p className="industry-note">A stale binding cannot report a total. Rebind or clear the binding, then calculate again.</p>
+     </section>}
+     {outcome?.result && <section className="industry-result" aria-live="polite" aria-label="Duct draft result">
++      <HVACNetworkViewer label="Duct core and insulation section preview" runs={outcome.result.sections.map((section, index) => {
++        const input = section.inputs;
++        const wrap = outcome.result!.wrap?.sections.find(row => row.id === section.id);
++        return { id: section.id, a: [index * 2, 0, 0], b: [index * 2, 0, input.lengthM.value], width: input.shape === "round" ? input.diameterM.value : input.widthM.value,
++          height: input.shape === "round" ? input.diameterM.value : input.heightM.value, round: input.shape === "round", insulation: wrap?.inputs.insulationThicknessM.value ?? 0, clash: false };
++      })} />
+       <p><strong>Draft · not eligible for a verified quote</strong></p>
+       <p className="industry-note">{describeIndustryBinding(outcome.evaluation)}{binding && ` ${describeEvidenceClass(binding.evidenceClass)}.`}</p>
+       <p>Developed area: <strong>{outcome.result.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong> · Sheet mass: <strong>{outcome.result.sheetMassKg === null ? "Not calculated — supply mass per area for every section" : `${outcome.result.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })} kg`}</strong></p>

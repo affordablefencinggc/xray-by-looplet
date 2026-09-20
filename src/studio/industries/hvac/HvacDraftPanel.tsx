@@ -99,6 +99,12 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
       <p className="industry-note">A stale binding cannot report a total. Rebind or clear the binding, then calculate again.</p>
     </section>}
     {outcome?.result && <section className="industry-result" aria-live="polite" aria-label="Duct draft result">
+      <HVACNetworkViewer label="Duct core and insulation section preview" runs={outcome.result.sections.map((section, index) => {
+        const input = section.inputs;
+        const wrap = outcome.result!.wrap?.sections.find(row => row.id === section.id);
+        return { id: section.id, a: [index * 2, 0, 0], b: [index * 2, 0, input.lengthM.value], width: input.shape === "round" ? input.diameterM.value : input.widthM.value,
+          height: input.shape === "round" ? input.diameterM.value : input.heightM.value, round: input.shape === "round", insulation: wrap?.inputs.insulationThicknessM.value ?? 0, clash: false };
+      })} />
       <p><strong>Draft · not eligible for a verified quote</strong></p>
       <p className="industry-note">{describeIndustryBinding(outcome.evaluation)}{binding && ` ${describeEvidenceClass(binding.evidenceClass)}.`}</p>
       <p>Developed area: <strong>{outcome.result.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong> · Sheet mass: <strong>{outcome.result.sheetMassKg === null ? "Not calculated — supply mass per area for every section" : `${outcome.result.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })} kg`}</strong></p>

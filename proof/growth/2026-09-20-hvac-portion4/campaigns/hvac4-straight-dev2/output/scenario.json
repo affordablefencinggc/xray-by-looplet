@@ -1,0 +1,395 @@
+[
+  [
+    "expect-cancelled-fetch",
+    "{{ORIGIN}}/api/pricing-research",
+    8,
+    "PricingResearchPanel aborts its provider-status request when its pane unmounts; no failed asset or search is exempted."
+  ],
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/industry-coverage/index.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(() => location.pathname.endsWith(\"/industry-coverage/index.html\") && document.readyState === \"complete\" && !document.querySelector('script[type=\"module\"]'))()"
+  ],
+  [
+    "eval",
+    "(async function seedFixture(fixture) {\n  if (!location.pathname.endsWith(\"/industry-coverage/index.html\") || document.querySelector(\"[data-hydration-status]\") || document.querySelector('script[type=\"module\"]'))\n    throw Error(\"Fixture seed is restricted to the static pre-mount page\");\n  if (localStorage.getItem(fixture.projectStorageKey) !== null || localStorage.getItem(fixture.industryStorageKey) !== null)\n    throw Error(\"Fresh proof profile required; existing product data will not be overwritten\");\n  const bytes = Uint8Array.from(atob(fixture.source.bytesBase64), character => character.charCodeAt(0));\n  const digest = [...new Uint8Array(await crypto.subtle.digest(\"SHA-256\", bytes))].map(byte => byte.toString(16).padStart(2, \"0\")).join(\"\");\n  if (digest !== fixture.source.sha256 || bytes.byteLength !== fixture.source.sizeBytes) throw Error(\"Controlled SVG bytes failed identity verification\");\n  const database = await new Promise((resolve, reject) => {\n    const request = indexedDB.open(fixture.planDatabase, 1);\n    request.onupgradeneeded = () => request.result.createObjectStore(fixture.planStore, { keyPath: \"documentId\" });\n    request.onsuccess = () => resolve(request.result);\n    request.onerror = () => reject(request.error);\n    request.onblocked = () => reject(Error(\"Plan fixture database is blocked\"));\n  });\n  try {\n    await new Promise((resolve, reject) => {\n      const transaction = database.transaction(fixture.planStore, \"readwrite\");\n      const { bytesBase64, ...metadata } = fixture.source;\n      void bytesBase64;\n      transaction.objectStore(fixture.planStore).add({ ...metadata, bytes: bytes.buffer });\n      transaction.oncomplete = resolve;\n      transaction.onerror = () => reject(transaction.error);\n      transaction.onabort = () => reject(transaction.error ?? Error(\"Plan fixture transaction aborted\"));\n    });\n  } finally { database.close(); }\n  localStorage.setItem(fixture.projectStorageKey, JSON.stringify(fixture.job));\n  localStorage.setItem(fixture.industryStorageKey, JSON.stringify(fixture.library));\n  sessionStorage.setItem(\"sc09-room-roof-observer\", JSON.stringify({ sourceSha256: digest, expected: fixture.expected }));\n  return { seededBeforeProductMount: true, sourceSha256: digest, svgBytes: bytes.byteLength, areasUnclassified: 2, rowsUnbound: 2 };\n})({\"format\":\"xray.sc09-room-roof-browser-fixture/v1\",\"projectStorageKey\":\"xray:fencing-job:v2\",\"industryStorageKey\":\"xray.industry-drafts.v1:job-sc09-room-roof\",\"planDatabase\":\"xray-plan-content-v1\",\"planStore\":\"documents\",\"job\":{\"schemaVersion\":2,\"id\":\"job-sc09-room-roof\",\"revision\":1,\"name\":\"HVAC qualification sample\",\"trade\":\"general\",\"status\":\"draft\",\"createdAt\":\"2026-09-20T00:00:00.000Z\",\"updatedAt\":\"2026-09-20T00:00:00.000Z\",\"site\":{\"address\":\"\",\"estimator\":\"\",\"inspectionDate\":\"\",\"notes\":\"\"},\"documents\":[{\"id\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"importedAt\":\"2026-09-20T00:00:00.000Z\",\"pageCount\":1,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"source\":\"web\"}],\"activeDocumentId\":\"doc-sc09-room-roof\",\"calibrations\":[{\"sheet\":0,\"coordinateSpace\":\"source-page-v1\",\"metresPerUnit\":0.025,\"source\":\"manual\",\"confidence\":1,\"locked\":true,\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"transform\":{\"a\":1,\"b\":0,\"c\":0,\"d\":1,\"e\":0,\"f\":0},\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"candidates\":[{\"id\":\"cal-sc09-room-roof-10m\",\"source\":\"manual\",\"metresPerUnit\":0.025,\"confidence\":1,\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"provenance\":{\"method\":\"two-point\",\"evidence\":\"Explicit 10.000 m reference on the controlled source sheet\",\"documentId\":\"doc-sc09-room-roof\"}}],\"selectedCandidateId\":\"cal-sc09-room-roof-10m\",\"conflict\":null}],\"runs\":[],\"gates\":[],\"photos\":[],\"bom\":[],\"quoteDraft\":null,\"revisionHistory\":[],\"activeSheet\":0,\"annotations\":[{\"id\":\"area-sc09-room-a\",\"kind\":\"area\",\"label\":\"Room A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":80,\"y\":100},{\"x\":240,\"y\":100},{\"x\":240,\"y\":220},{\"x\":80,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"},{\"id\":\"area-sc09-roof-a\",\"kind\":\"area\",\"label\":\"Roof A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":340,\"y\":100},{\"x\":500,\"y\":100},{\"x\":500,\"y\":220},{\"x\":340,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"}]},\"library\":{\"format\":\"xray.industry-drafts/1\",\"projectId\":\"job-sc09-room-roof\",\"revision\":1,\"drafts\":{\"quantity-surveying\":{\"revision\":1,\"form\":{\"hierarchyId\":\"SC09 room and roof\",\"hierarchyRevision\":\"Controlled source Rev A\",\"calculated\":false,\"binding\":null,\"nodes\":[{\"key\":\"node-room\",\"code\":\"ROOM\",\"label\":\"Room areas\",\"parentKey\":\"\"},{\"key\":\"node-roof\",\"code\":\"ROOF\",\"label\":\"Roof planes\",\"parentKey\":\"\"}],\"items\":[{\"key\":\"item-room\",\"reference\":\"QS-ROOM-A\",\"quantity\":\"12\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-room\"},{\"key\":\"item-roof\",\"reference\":\"QS-ROOF-A\",\"quantity\":\"13.856406460551018\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-roof\"}]}}}},\"sourceBounds\":{\"x\":0,\"y\":0,\"width\":600,\"height\":400},\"source\":{\"documentId\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"mimeType\":\"image/svg+xml\",\"sizeBytes\":830,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"bytesBase64\":\"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNjAwIDQwMCI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjZjRmMWU4Ii8+CjxwYXRoIGQ9Ik04MCAxMDBIMjQwVjIyMEg4MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIzIi8+Cjx0ZXh0IHg9IjgwIiB5PSI4OCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlJPT00gQSBjbG9zZWQgcG9seWdvbjwvdGV4dD4KPHBhdGggZD0iTTM0MCAxMDBINTAwVjIyMEgzNDBaIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YzNhZWQiIHN0cm9rZS13aWR0aD0iMyIvPgo8dGV4dCB4PSIzNDAiIHk9Ijg4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Uk9PRiBBIGNsb3NlZCBwb2x5Z29uPC90ZXh0Pgo8cGF0aCBkPSJNMTAwIDM0MEg1MDAiIHN0cm9rZT0iI2I0NTMwOSIgc3Ryb2tlLXdpZHRoPSI0Ii8+CjxwYXRoIGQ9Ik0xMDAgMzMwVjM1ME01MDAgMzMwVjM1MCIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjMiLz4KPHRleHQgeD0iMjU1IiB5PSIzMzIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0Ij4xMC4wMDAgbSByZWZlcmVuY2U8L3RleHQ+Cjx0ZXh0IHg9IjMzMCIgeT0iMjUwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Um9vZiBwaXRjaCAzMCBkZWc7IHJpc2UgZGlyZWN0aW9uIDkwIGRlZyBjbG9ja3dpc2UgZnJvbSBwYWdlIHVwPC90ZXh0Pgo8L3N2Zz4=\"},\"expected\":{\"roomId\":\"area-sc09-room-a\",\"roofId\":\"area-sc09-roof-a\",\"roomItem\":\"QS-ROOM-A\",\"roofItem\":\"QS-ROOF-A\",\"room\":12,\"roof\":13.856406460551018,\"pitch\":30,\"azimuth\":90}})"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(() => document.querySelector(\"[data-hydration-status]\")?.getAttribute(\"data-hydration-status\") === \"ready\")()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Estimate",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.industry-workbench')"
+  ],
+  [
+    "eval",
+    "(()=>{const e=document.querySelector('.industry-workbench');if(!e)throw Error('No worksheets');e.open=true;const s=e.querySelector('select');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'hvac');s.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"HVAC network coordination\"]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add straight section",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Section name\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Section name\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"RECT-18.5\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Length (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Length (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"10\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Length (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Length (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic M-101 A\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Width (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Width (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"0.5\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Width (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Width (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic M-101 A\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Height (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Height (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"0.3\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Height (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Height (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic M-101 A\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Calculate duct draft",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"Duct core and insulation section preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"Duct draft result\"]');if(!r.textContent.includes('16 m')||!r.textContent.includes('Not calculated'))throw Error('Area or unknown mass incorrect');})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>l.textContent.includes(\"Include external insulation wrap\"));l.querySelector('input').click();})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Insulation thickness (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Insulation thickness (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"0.025\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Insulation thickness (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Insulation thickness (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic insulation detail\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Longitudinal overlap (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Longitudinal overlap (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"0.05\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Longitudinal overlap (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Longitudinal overlap (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic insulation detail\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>l.textContent.includes(\"Include supplied sheet mass per area\"));l.querySelector('input').click();})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Sheet mass (kg/m²)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Sheet mass (kg/m²)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"4\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 1');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Sheet mass (kg/m²) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Sheet mass (kg/m²) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Declared synthetic material fixture\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Calculate duct draft",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"Duct core and insulation section preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"Duct draft result\"]');if(!r.textContent.includes('18.5')||!r.textContent.includes('64 kg'))throw Error('Reference wrap/mass mismatch');r.scrollIntoView({block:'start'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/straight-wrap-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Duct draft result\"]').scrollIntoView({block:'start'})"
+  ],
+  [
+    "screenshot",
+    "captures/straight-wrap-tablet.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Add straight section",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 2');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Section name\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Section name\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"ROUND-1\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 2');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Shape\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Shape\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"round\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 2');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Length (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Length (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"2\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 2');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Length (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Length (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic M-101 A\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 2');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Diameter (m)\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Diameter (m)\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"0.4\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "eval",
+    "(()=>{const f=[...document.querySelectorAll('fieldset')].find(f=>f.querySelector(':scope > legend')?.textContent==='Section 2');const l=[...f.querySelectorAll('label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===\"Diameter (m) source reference\");const e=l?.querySelector('input,select');if(!e)throw Error('Missing field '+\"Diameter (m) source reference\");Object.getOwnPropertyDescriptor(e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,\"Synthetic M-101 A\");e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Calculate duct draft",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"Duct core and insulation section preview\"]')?.dataset.runCount==='2'&&document.querySelector('[aria-label=\"Duct core and insulation section preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"Duct draft result\"]');if(!r.textContent.includes('18.513274')||!r.textContent.includes('Not calculated'))throw Error('Round quantity or partial-mass withholding failed');r.scrollIntoView({block:'start'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/round-and-rectangular-desktop.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start with labelled sample network",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('textarea[aria-label=\"Network JSON\"]')?.value.includes('AHU-1')"
+  ],
+  [
+    "eval",
+    "(()=>{const summary=[...document.querySelectorAll('summary')].find(e=>e.textContent.startsWith('Duct runs ('));summary.click();const e=document.querySelector('[aria-label=\"edges 1 Width or diameter (m)\"]');e.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'0');e.dispatchEvent(new Event('input',{bubbles:true}));e.blur();})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"edges 1 Width or diameter (m)\"]')?.value==='0.4'&&document.querySelector('.hvac-coordination [role=\"alert\"]')?.textContent.includes('widthM')"
+  ],
+  [
+    "eval",
+    "(()=>{const n=JSON.parse(document.querySelector('[aria-label=\"Network JSON\"]').value);if(n.edges[0].widthM!==.4)throw Error('Invalid edit persisted');[...document.querySelectorAll('summary')].find(e=>e.textContent.startsWith('Duct runs (')).click();})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review network and schedules",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"HVAC network 3D preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"HVAC coordination result\"]');for(const t of ['Sample network','plenum','beam','transition','review-noise','Not tested','unknown'])if(!r.textContent.includes(t))throw Error('Missing '+t);if(r.querySelector('[data-clash-count]').dataset.clashCount!=='1')throw Error('Expected one red run');r.scrollIntoView({block:'start'});return {issues:r.querySelector('.hvac-issues').innerText,canvas:r.querySelector('canvas').getBoundingClientRect().toJSON()};})()"
+  ],
+  [
+    "screenshot",
+    "captures/network-clashes-desktop.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Prepare sealed draft package",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"Sealed HVAC draft package\"]')"
+  ],
+  [
+    "eval",
+    "(()=>{window.__hvacDownloads=[];const original=URL.createObjectURL.bind(URL);URL.createObjectURL=b=>{if(b instanceof Blob)window.__hvacDownloads.push(b.arrayBuffer().then(x=>({type:b.type,base64:btoa(Array.from(new Uint8Array(x),c=>String.fromCharCode(c)).join(''))})));return original(b)};document.querySelector('[aria-label=\"Sealed HVAC draft package\"]').scrollIntoView({block:'center'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/sealed-package-desktop.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download HVAC PDF",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download HVAC CSV",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download sealed HVAC JSON",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.querySelector('[aria-label=\"Network JSON\"]');const n=JSON.parse(t.value);n.nodes[1].kind='reducer';n.edges[0].availablePlenumM=.5;n.beams=[];n.edges[0].airflowLs=300;n.edges[1].airflowLs=150;Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,JSON.stringify(n,null,2));t.dispatchEvent(new Event('input',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!document.querySelector('[aria-label=\"Sealed HVAC draft package\"]')&&!document.querySelector('[aria-label=\"HVAC coordination result\"]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review network and schedules",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"HVAC network 3D preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"HVAC coordination result\"]');if(!r.textContent.includes('0 issues')||r.querySelector('[data-clash-count]').dataset.clashCount!=='0')throw Error('Correction not applied');r.scrollIntoView({block:'start'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/network-corrected-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"HVAC coordination result\"]').scrollIntoView({block:'start'})"
+  ],
+  [
+    "screenshot",
+    "captures/network-tablet.png"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.documentElement.scrollWidth>innerWidth+1)throw Error('Horizontal page overflow');const p=document.querySelector('[aria-label=\"HVAC network 3D preview\"]');if(p.getBoundingClientRect().width<200)throw Error('Collapsed preview');return {viewport:[innerWidth,innerHeight],scrollWidth:document.documentElement.scrollWidth};})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-draft-industry=\"hvac\"]')?.dataset.draftSave==='saved'"
+  ]
+]
