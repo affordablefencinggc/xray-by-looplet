@@ -3,17 +3,18 @@ import * as T from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { HvacNetwork } from "./hvacNetwork.ts";
 import { hvacRunFrame } from "./hvacRunGeometry.ts";
+import { fittingSurfacePositions, type HvacFitting } from "./hvacFittings.ts";
 import "./hvacCoordination.css";
 
 export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; service?: "duct" | "pipe"; clash: boolean };
 /** Display-only envelopes. Meshes never become measured or billable quantities. */
-export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D preview" }: { runs: HvacPreviewRun[]; beams?: HvacNetwork["beams"]; label?: string }) {
+export function HVACNetworkViewer({ runs, fittings = [], beams = [], label = "HVAC network 3D preview" }: { runs: HvacPreviewRun[]; fittings?: HvacFitting[]; beams?: HvacNetwork["beams"]; label?: string }) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState("loading"), [attempt, setAttempt] = useState(0);
-  const serialized = JSON.stringify({ runs, beams });
+  const serialized = JSON.stringify({ runs, fittings, beams });
   useEffect(() => {
     const element = host.current; if (!element) return;
-    const data: { runs: HvacPreviewRun[]; beams: HvacNetwork["beams"] } = JSON.parse(serialized);
+    const data: { runs: HvacPreviewRun[]; fittings: HvacFitting[]; beams: HvacNetwork["beams"] } = JSON.parse(serialized);
     const canvas = document.createElement("canvas");
     let context: WebGL2RenderingContext | null = null;
     try { context = canvas.getContext("webgl2", { antialias: true, alpha: true }); } catch { /* recoverable */ }
@@ -34,6 +35,11 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
       const core = add(geometry(0), run.clash ? 0xef4444 : run.service === "pipe" ? 0x34d399 : 0x38bdf8); core.userData.runId = run.id; place(core);
       if (run.insulation > 0) place(add(geometry(run.insulation), 0xfbbf24, .28));
     }
+    for (const fitting of data.fittings) for (const surface of fitting.surfaces) {
+      const geometry = (insulated: boolean) => { const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(fittingSurfacePositions(surface, insulated), 3)); g.computeVertexNormals(); return g; };
+      add(geometry(false), fitting.clash ? 0xef4444 : fitting.service === "pipe" ? 0x34d399 : 0x38bdf8);
+      if (surface.some(r => r.insulation > 0)) add(geometry(true), 0xfbbf24, .28);
+    }
     for (const beam of data.beams) { const size = beam.max.map((v, i) => v - beam.min[i]); const mesh = add(new T.BoxGeometry(...size as [number, number, number]), 0x94a3b8, .45); mesh.position.set(...beam.min.map((v, i) => (v + beam.max[i]) / 2) as [number, number, number]); }
     const bounds = new T.Box3().setFromObject(model), center = bounds.isEmpty() ? new T.Vector3() : bounds.getCenter(new T.Vector3());
     const span = Math.max(1, bounds.isEmpty() ? 1 : bounds.getSize(new T.Vector3()).length());
@@ -48,7 +54,7 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
     resize(); setStatus("ready");
     return () => { observer.disconnect(); controls.dispose(); canvas.removeEventListener("webglcontextlost", lost); canvas.removeEventListener("webglcontextrestored", restored); model.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); (o.material as T.Material).dispose(); } }); renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); };
   }, [serialized, attempt, label]);
-  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-pipe-count={runs.filter(r => r.service === "pipe").length} data-clash-count={runs.filter(r => r.clash).length}>
+  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-fitting-count={fittings.length} data-fitting-clash-count={fittings.filter(f => f.clash).length} data-pipe-count={runs.filter(r => r.service === "pipe").length} data-clash-count={runs.filter(r => r.clash).length}>
     <div ref={host} className="hvac-preview-canvas" />
     {(status === "unavailable" || status === "lost") && <div role="status"><p>3D preview {status}. Your worksheet is unchanged.</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry HVAC preview</button></div>}
     <p className="industry-note">Blue: duct core · Green: pipe · Gold: insulation envelope · Red: clearance review · Grey: beam. Drag to orbit; scroll to zoom. Display only.</p>

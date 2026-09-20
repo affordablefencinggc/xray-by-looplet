@@ -1,0 +1,44 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/hvac-fittings-status.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.readyState==='complete'&&!!document.querySelector('[data-slice-id=\"SC-13\"]')"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector('[data-slice-id=\"SC-13\"]');for(const t of ['SC13-FITTINGS-16','2097','375/375','round runs','fitting'])if(!c.textContent.toLowerCase().includes(t.toLowerCase()))throw Error('Missing proof/limit '+t);if(c.dataset.status!=='partial')throw Error('Premature completion');const q=document.querySelector('#globalSearch');q.value='SC-13';q.dispatchEvent(new Event('input',{bubbles:true}));c.querySelector('.slice-top').click();c.scrollIntoView({block:'start'});return {machine:2097,status:c.dataset.status};})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('[data-slice-id=\"SC-13\"] img')].every(i=>i.complete&&i.naturalWidth>0)"
+  ],
+  [
+    "screenshot",
+    "captures/fittings-dashboard-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector('[data-slice-id=\"SC-13\"]');c.scrollIntoView({block:'start'});if(document.documentElement.scrollWidth>innerWidth)throw Error('Dashboard overflow')})()"
+  ],
+  [
+    "screenshot",
+    "captures/fittings-dashboard-tablet.png"
+  ]
+]

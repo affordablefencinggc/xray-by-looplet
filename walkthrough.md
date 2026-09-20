@@ -909,3 +909,6 @@ Shared run orientation removes missed vertical/sloping beam clashes and false en
 
 ### SC13-PIPE-14 - 2026-09-20
 Separate multi-zone pipe flow, bore-based velocity, pump connectivity and exports qualified with readable tablet schedules. DANS1 2083 tests, clean TypeScript/lint, required build, dev 47/47, built 147/147, PDF 7/7. [Exact diffs, screenshots and tests](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md). Explicit fittings and broader ledger remain open. Branch feat/closeout-sc09-remainder after WIP 0933f492.
+
+### SC13-FITTINGS-16 - 2026-09-20
+Declared elbows, tees and reducers now coordinate duct/pipe runs with trimmed ports, explicit invalid/overlap withholding and fitting-only clash highlights. DANS1 2097 tests, clean TypeScript/lint, required build, dev 65/65 and built 375/375 operations, actual fitting PDF 7/7. [Exact diff, screenshots, tests and limits](proof/growth/2026-09-20-hvac-portion4/steps/SC13-FITTINGS-16.md). Full SC-13 dependency/reload and broader ledger remain open. Recovery branch feat/closeout-sc09-remainder after f879edf4.
