@@ -1,0 +1,25 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/process-parentage-report.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.readyState==='complete'"
+  ],
+  [
+    "eval",
+    "(() => {const rows=[...document.querySelectorAll('tr')].slice(1);if(rows.length!==5||rows.some(r=>r.cells[1].textContent!=='PASS'))throw Error('Result table mismatch');return {checks:5,result:'PASS'};})()"
+  ],
+  [
+    "screenshot",
+    "captures/process-parentage-proof.png"
+  ]
+]

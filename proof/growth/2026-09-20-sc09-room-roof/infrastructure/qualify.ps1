@@ -171,7 +171,15 @@ function Capture-OwnedTrees([object[]]$Steps) {
       $known -and $known.ExecutablePath -ceq $_.ExecutablePath -and $known.CommandLine -ceq $_.CommandLine
     } | ForEach-Object { [int]$_.ProcessId })
     do {
-      $children = @($snapshot | Where-Object { [int]$_.ParentProcessId -in $ownedPids })
+      $children = @($snapshot | Where-Object {
+        $child = $_
+        $parent = $snapshot | Where-Object { $_.ProcessId -eq $child.ParentProcessId } | Select-Object -First 1
+        # ParentProcessId can refer to an earlier incarnation of the PID. A
+        # child must have been created after this exact live parent and task.
+        [int]$child.ParentProcessId -in $ownedPids -and $parent.CreationDate -and $child.CreationDate -and
+          ([datetime]$child.CreationDate).ToUniversalTime() -ge ([datetime]$parent.CreationDate).ToUniversalTime() -and
+          ([datetime]$child.CreationDate).ToUniversalTime() -ge $step.started.ToUniversalTime()
+      })
       $added = $false
       foreach ($child in $children) {
         $key = [string]$child.ProcessId + '|' + [string]$child.CreationDate

@@ -37,11 +37,17 @@ function Get-ProcessSnapshot {
 
 function Get-TreeIds([int]$RootId, [object[]]$Snapshot) {
   $ids = [Collections.Generic.HashSet[int]]::new()
+  $rootRecord = $Snapshot | Where-Object { $_.ProcessId -eq $RootId } | Select-Object -First 1
+  if (-not $rootRecord.CreationDate) { return @() }
   [void]$ids.Add($RootId)
   do {
     $before = $ids.Count
     foreach ($process in $Snapshot) {
-      if ($ids.Contains([int]$process.ParentProcessId)) { [void]$ids.Add([int]$process.ProcessId) }
+      $parent = $Snapshot | Where-Object { $_.ProcessId -eq $process.ParentProcessId } | Select-Object -First 1
+      if ($ids.Contains([int]$process.ParentProcessId) -and $parent.CreationDate -and $process.CreationDate -and
+          ([datetime]$process.CreationDate).ToUniversalTime() -ge ([datetime]$parent.CreationDate).ToUniversalTime()) {
+        [void]$ids.Add([int]$process.ProcessId)
+      }
     }
   } while ($ids.Count -ne $before)
   return @($ids | ForEach-Object { [int]$_ })

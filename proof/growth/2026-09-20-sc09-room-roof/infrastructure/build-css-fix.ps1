@@ -1,4 +1,4 @@
-param([string]$RunId='sc09rr-fc02f13bc904')
+param([string]$RunId='sc09rr-fc02f13bc904', [string]$QualificationHelper='qualify-parentage.ps1')
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 if ([Net.Dns]::GetHostName().ToLowerInvariant() -cne 'dans1') { throw 'DANS1 required' }
@@ -19,7 +19,7 @@ $receipts=[Collections.Generic.List[object]]::new()
 $allSteps=[Collections.Generic.List[object]]::new()
 $failure=$null
 $tokens=$null;$parseErrors=$null
-$ast=[Management.Automation.Language.Parser]::ParseFile("$root/qualify.ps1",[ref]$tokens,[ref]$parseErrors)
+$ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $root $QualificationHelper),[ref]$tokens,[ref]$parseErrors)
 if($parseErrors.Count){throw 'Qualification helper parse failed'}
 foreach($function in $ast.FindAll({param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst]},$false)){
   . ([scriptblock]::Create($function.Extent.Text))
