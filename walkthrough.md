@@ -893,3 +893,9 @@ Recovery: branch `feat/closeout-sc09-remainder`, base `6477356`, uncommitted roo
 - [x] Measured preview survives unavailable WebGL and exposes Retry; real context loss/restoration preserves saved data. [SC09RR-WEBGL-10: exact diff, DANS1 2032-test gate, 61/61 dev and 64/64 built recovery checks, 138/138 built journey, inspected screenshots](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-WEBGL-10.md).
 - [x] Reject stale Windows parent PIDs in cleanup. [SC09RR-PARENTAGE-09: five tests, screenshot, diff, original incident and service-restoration receipt](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-PARENTAGE-09.md). Commit `cfe893c3`.
 - [ ] SC-09 remains partial: new-source development reload fails 118/135; production reload passes. No deployment/native acceptance or live Jev inference.
+
+## 2026-09-20 - HVAC Portion 4 bounded draft workflows
+
+Straight/wrap section preview, saved multi-zone duct graph with conservative clashes, safe numeric edits and sealed commissioning draft PDF/CSV/JSON are implemented. DANS1: 2058/2058 tests; TypeScript and scoped lint clean; required build worker PASS; bounded dev 76/76, final built 99/99 including reload and graphics restoration; actual PDF visual readback 7/7. Per-step records (each includes exact diff, executed checks, screenshots and limits): [SC12](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md), [SC13](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md), [SC14](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md).
+
+Broader ledger slices remain partial: reviewed material-table UI, pipe/fitting engineering and reviewed/issued commissioning remain open. Existing full dev reload failure remains open. No native/deployment acceptance or real Jev execution. Pushed checkpoints: 7f043fe6 and 3b42c063 on feat/closeout-sc09-remainder; automatic 100-file freeze / 150 ceiling rule recorded in AGENTS.project.md.

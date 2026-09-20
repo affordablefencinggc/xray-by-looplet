@@ -1,0 +1,12 @@
+# SC14-SCHEDULES-06 - sealed commissioning draft package
+
+Requirement: Q/A velocities, project thresholds, design commissioning ranges, equipment schedule and integrity-bound PDF/CSV outputs.
+
+Velocity converts L/s to m3/s before dividing by area. Project review flags are >6 m/s residential and >8 m/s commercial, not regulatory assertions. Design test ranges are +/-10%; measured flows remain Not tested. Pressure uses an explicitly entered Pa/m allowance; missing values remain unknown. Strict deliveryRecordSchema draft-export metadata and canonical SHA-256 content bind the network, schedules, project and source binding. Tests reject changed inputs, computed values and delivery identity; CSV guards formula prefixes.
+
+[Actual exported PDF](../exports-built1/hvac-commissioning-draft.pdf), [CSV](../exports-built1/hvac-commissioning-draft.csv), [sealed JSON](../exports-built1/hvac-commissioning-draft.json). Export implementation is byte-identical between freeze1 and freeze2. [PDF visual readback](HVAC-PDF-03.md): 7/7, every page rendered and text within bounds. Inspected [package screenshot](../campaigns/hvac4-final-built1/output/captures/sealed-package-desktop.png) and [PDF screenshot](../campaigns/hvac4-pdf-readback2/output/captures/hvac-pdf-desktop.png).
+
+SC-14 remains partial: issued/reviewed delivery lifecycle, measured commissioning records and a solved pressure-loss model are not implemented. SHA-256 is integrity evidence, not an engineering signature. The PDF preserves full original Unicode in its attached JSON but its built-in visible font substitutes unsupported characters. No real Jev service call was made.
+
+
+DANS1 final source: hvac4-b7c73f1b5f8d, [manifest](../source/freeze2.json). Exact code: commits 7f043fe6 and 3b42c063; [stage 1 diff](../source/stage1.patch), [stage 2 diff](../source/stage2.patch). [Machine gate](../machine2/results.json): 2058/2058 (203 + 858 + 997), TypeScript exit 0, scoped lint exit 0 with no warnings. [Required build worker](../build2/results.json) PASS, High priority/all 16 CPUs; [worker completion](../build2/worker-completion.json). [Development](../campaigns/hvac4-straight-dev2/output/browser-results.json) 76/76 and [final production](../campaigns/hvac4-final-built1/output/browser-results.json) 99/99 PASS, zero browser errors and owned-process cleanup recorded. No deployment, native package or live tablet certification. The historical development reload failure at 37/46 remains open; the bounded 76-operation dev pass excludes reload.

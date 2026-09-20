@@ -1,11 +1,15 @@
-﻿# HVAC closeout - Portion 4
-Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion".
-Branch: feat/closeout-sc09-remainder. Baseline: ea35b253.
+# HVAC closeout - Portion 4
 
-- [ ] SC-12: qualify straight/wrap arithmetic; duct core and insulation section preview; preserve unknown material mass.
-- [ ] SC-13: editable multi-zone graph, transition/connectivity validation, plenum and beam clashes, 3D evidence.
-- [ ] SC-14: airflow checks, equipment/commissioning schedule, SHA-256 draft package with PDF/CSV exports.
-- [ ] DANS1 dev, machine/type checks, built interaction and desktop/tablet screenshots.
-- [ ] Per-step proof, dashboard/ledger, explicit commits and pushes; continue automatically.
+Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion". Branch: feat/closeout-sc09-remainder.
 
-SC-09 remains partial due its recorded development reload failure. HVAC quantities remain declared drafts, not certification or verified quotes. Jev is not configured; arithmetic is not a live Jev judgment.
+- [x] Qualify straight/wrap draft arithmetic and visible rectangular/round insulation envelopes: [SC12 proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md).
+- [x] Implement editable saved multi-zone duct graph, connectivity/transition checks, conservative plenum/beam review and recoverable 3D: [SC13 proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md).
+- [x] Implement velocity checks, design commissioning ranges, equipment schedule and SHA-256 PDF/CSV/JSON draft exports: [SC14 proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md).
+- [x] DANS1 2058 tests, typecheck/lint clean, required web build, dev 76/76, built 99/99, PDF readback 7/7.
+- [x] Automatic checkpoints: 114 files -> 7f043fe6 pushed; 105-file trigger -> 3b42c063 pushed. Continued automatically after each.
+- [ ] Broader SC-12: reviewed gauge/thickness/density table UI; preserve independent velocity and mass unknowns.
+- [ ] Broader SC-13: hydraulic pipes, explicit fabrication fittings and exact solid clashes.
+- [ ] Broader SC-14: measured commissioning, reviewed/issued delivery lifecycle and solved pressure loss.
+- [ ] Shared development reload failure (SC09 historical 118/135; HVAC full dev 37/46). Production reload passes; no deployment/native claim.
+
+All inputs remain labelled declared/sample drafts. No certification or verified quote promotion. Jev is not configured; deterministic calculations are not live Jev judgments.

@@ -1,0 +1,12 @@
+# SC13-NETWORK-05 - qualified multi-zone duct draft
+
+Requirement: graph connectivity, explicit size transitions, plenum/beam clearance review, saved multi-zone network and a 3D view.
+
+Implemented nodes (equipment, junction, reducer, damper, diffuser), runs, zones and beam bounds. Missing endpoints, islands, duplicate IDs, zero-length runs and size changes without a reducer are flagged. Insulation is included in plenum checks; missing clearance stays unknown. Beam detection uses conservative swept envelopes and is explicitly a potential clash. Numeric zero-width edits restore the prior saved value. Editing a prepared package invalidates its visible seal/downloads.
+
+Inspected screenshots: [clashes](../campaigns/hvac4-final-built1/output/captures/network-clashes-desktop.png), [corrected](../campaigns/hvac4-final-built1/output/captures/network-corrected-desktop.png), [tablet](../campaigns/hvac4-final-built1/output/captures/network-tablet.png), [rejected edit](../campaigns/hvac4-final-built1/output/captures/rejected-zero-width.png), [graphics loss](../campaigns/hvac4-final-built1/output/captures/network-graphics-loss.png), [restored](../campaigns/hvac4-final-built1/output/captures/network-graphics-restored.png). Actual WEBGL_lose_context loss/restoration preserves the exact network input string.
+
+SC-13 remains partial: no hydraulic pipe solver, explicit elbow/tee/reducer fabrication geometry, exact solid-to-solid clash solver or authenticated drawing-derived network has been qualified. This completes the bounded declared-duct graph workflow only.
+
+
+DANS1 final source: hvac4-b7c73f1b5f8d, [manifest](../source/freeze2.json). Exact code: commits 7f043fe6 and 3b42c063; [stage 1 diff](../source/stage1.patch), [stage 2 diff](../source/stage2.patch). [Machine gate](../machine2/results.json): 2058/2058 (203 + 858 + 997), TypeScript exit 0, scoped lint exit 0 with no warnings. [Required build worker](../build2/results.json) PASS, High priority/all 16 CPUs; [worker completion](../build2/worker-completion.json). [Development](../campaigns/hvac4-straight-dev2/output/browser-results.json) 76/76 and [final production](../campaigns/hvac4-final-built1/output/browser-results.json) 99/99 PASS, zero browser errors and owned-process cleanup recorded. No deployment, native package or live tablet certification. The historical development reload failure at 37/46 remains open; the bounded 76-operation dev pass excludes reload.

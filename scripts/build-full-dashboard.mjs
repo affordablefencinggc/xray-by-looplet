@@ -3,6 +3,7 @@ import path from "node:path";
 
 console.log("Reading input files...");
 const closeoutLedger = fs.readFileSync("XRAY-PRODUCTION-CLOSEOUT-LEDGER.md", "utf8");
+const proofBranch = closeoutLedger.match(/^Current execution branch: `([^`]+)`/m)?.[1] ?? closeoutLedger.match(/^Baseline branch: `([^`]+)`/m)?.[1] ?? "Unrecorded";
 const azChecklist = fs.readFileSync("PROFESSIONAL-A-Z-CHECKLIST.md", "utf8");
 const curatedImages = JSON.parse(fs.readFileSync("dashboard-curated-images.json", "utf8"));
 
@@ -1224,7 +1225,7 @@ const html = `<!DOCTYPE html>
       <div class="title-group">
         <h1>
           <span>X-RAY PRODUCTION CLOSEOUT & PROOF DASHBOARD</span>
-          <span class="badge-branch">feat/architect-cad-engine</span>
+          <span class="badge-branch">${escapeHtml(proofBranch)}</span>
         </h1>
         <p>Recorded implementation status and proof index — local source snapshot, not deployment certification</p>
       </div>

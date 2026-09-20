@@ -3,6 +3,7 @@
 Approved: yes @ 2026-09-18 (User request: "write me a extensive md file ledger to finish the app with brutal precisiion and thoroughness please. break it up into portions with the most fail safe method")
 Baseline commit: `2e2b88e285098935c1ec8da781878b663b655787`
 Baseline branch: `feat/architect-cad-engine`
+Current execution branch: `feat/closeout-sc09-remainder`
 Graph / boundary: The complete standalone X-Ray web application, desktop Tauri shell (`src-tauri`), procedural 3D reconstruction engine, 2D drafting/takeoff canvas, active trade solvers (Residential, Roofing, HVAC, QS, Fencing), persistence subsystem, and document publishing pipeline. Looplet CRM code remains strictly external and unmutated per project policy.
 
 ---
@@ -36,7 +37,7 @@ Every slice in this ledger must satisfy the following four proof criteria before
 * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
 * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
 
-**Last executed machine gate**: 2032/2032 passing (203 + 858 + 971), TypeScript exit 0, scoped lint exit 0 with 16 warnings. DANS1 frozen product snapshot `1388723caf33`, source digest `1388723caf33f51447d43dd01424f332969de2fe32dc6149a32f49d46d544e73`; corrected ownership helper, fresh `machine-safe2` run. Evidence: `proof/growth/2026-09-20-sc09-room-roof/machine/machine-safe2/results.json`. The prior machine run remains FAIL because its cleanup adopted a pre-existing OneDrive process through a reused parent PID; tests themselves passed. Production room/roof journey 138/138 and graphics recovery 64/64 pass; development full-journey reload remains failed at 118/135. No native or deployment acceptance.
+**Last executed machine gate**: 2058/2058 passing (203 + 858 + 997), TypeScript exit 0, scoped HVAC lint exit 0 with no warnings. DANS1 source snapshot hvac4-b7c73f1b5f8d. Evidence: proof/growth/2026-09-20-hvac-portion4/machine2/results.json. Required sequential build worker PASS; bounded development 76/76, final production 99/99, PDF readback 7/7. The full development reload remains failed (HVAC 37/46; historical SC-09 118/135). No native/deployment acceptance. Prior SC-09 cleanup failure and its correction remain preserved in that campaign.
 
 The figure moved from 1616 because `src/studio/persistence/portableArchive.test.ts` (SC-15's archive container, 10 tests) was written but never added to the `test` script, so it ran in no suite at all — a green test nobody executed. `npm test` also exceeded Windows' 8191-character command limit once that path was added, so the source suites now run through `test:src`; the guard scripts stay in `test` ahead of it.
 
@@ -400,7 +401,7 @@ graph TD
 
 ### PORTION 4: Active Trade Engines — Stage 3: HVAC & Network Services (IND-30)
 
-#### SC-12 — HVAC-01/02 Straight-Duct & Insulation Wrap Built Qualification `[[pending]]`
+#### SC-12 — HVAC-01/02 Straight-Duct & Insulation Wrap Built Qualification `[[partial]]`
 * **Goal**: Qualify straight rectangular and round duct surface area and mass calculations, and insulation wrap geometry (accounting for double insulation thickness on outer girth).
 * **DONE (machine)**:
   - Outer insulation girth calculated accurately:
@@ -412,13 +413,15 @@ graph TD
 * **DONE (human)**:
   - HVAC Worksheet renders 3D section preview showing internal duct core and outer thermal barrier.
 * **Files**:
-  - `src/studio/industries/hvac/ductCalculator.ts`
-  - `src/studio/industries/hvac/ductCalculator.test.ts`
-  - `src/studio/industries/hvac/HVACWorksheet.tsx`
+  - `src/studio/industries/hvac/straightDuct.ts`
+  - `src/studio/industries/hvac/straightDuctWrap.test.ts`
+  - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: None
-* **Commit**: —
+* **Proof**: [SC12-STRAIGHT-WRAP-04](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md). Straight/wrap draft: 18.5 m2 reference, round/rectangular 3D envelopes, unknown partial mass and production reload verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
+* **BLOCKED / Remaining**: Reviewed material-table UI remains open; no normative gauge mapping is assumed. Velocity checks remain separate from physical sheet-mass arithmetic. Full development reload also remains open.
+* **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
-#### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[pending]]`
+#### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[partial]]`
 * **Goal**: Coordinate multi-zone distribution networks: connect branches, transitions, elbows, tees, and verify spatial clearances against architectural ceiling plenum heights.
 * **DONE (machine)**:
   - Network graph model connects nodes (equipment, dampers, diffusers) with edge segments.
@@ -432,9 +435,11 @@ graph TD
   - `src/studio/industries/hvac/hvacNetwork.test.ts` (new)
   - `src/studio/industries/hvac/HVACNetworkViewer.tsx` (new)
 * **Depends on**: SC-12
-* **Commit**: —
+* **Proof**: [SC13-NETWORK-05](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md). Multi-zone duct graph, reducers, connectivity, plenum and potential beam clashes, invalid-input rejection and WebGL recovery verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
+* **BLOCKED / Remaining**: Pipe hydraulics, explicit fitting geometry and exact solid clashes remain open. Full development reload also remains open.
+* **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
-#### SC-14 — HVAC-04/05/06 Airflow Sizing, Equipment & Commissioning Schedules `[[pending]]`
+#### SC-14 — HVAC-04/05/06 Airflow Sizing, Equipment & Commissioning Schedules `[[partial]]`
 * **Goal**: Calculate airflow velocities ($v = Q / A$), pressure drop allowances, generate equipment schedules (FCUs, AHUs, dampers, grilles), and export sealed commissioning report.
 * **DONE (machine)**:
   - Velocity checks flag noisy airflows ($v > 6.0\text{ m/s}$ in residential, $> 8.0\text{ m/s}$ in commercial).
@@ -445,9 +450,11 @@ graph TD
 * **Files**:
   - `src/studio/industries/hvac/hvacSchedules.ts` (new)
   - `src/studio/industries/hvac/hvacSchedules.test.ts` (new)
-  - `src/studio/industries/hvac/HVACWorksheet.tsx`
+  - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: SC-01, SC-13
-* **Commit**: —
+* **Proof**: [SC14-SCHEDULES-06](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md). Velocity thresholds, +/-10% design ranges, equipment schedule and SHA-256 draft PDF/CSV/JSON exports verified. PDF readback 7/7. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
+* **BLOCKED / Remaining**: Reviewed/issued lifecycle, measured commissioning and solved pressure loss remain open. Full development reload also remains open.
+* **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 ---
 
@@ -585,9 +592,9 @@ graph TD
 | **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[partial]]` | 2032/2032 + tsc/lint exit 0 on bf09; machine-3 PASS, machine-2 retained | Room/roof dev4 135/135, 16 inspected captures; built1 FAIL 6/135 (stylesheet 404); historical construction-run proof retained | room/roof uncommitted; base `6477356` |
 | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
 | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
-| **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[pending]]` | Pending | Required (3D Section Preview) | — |
-| **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[pending]]` | Pending | Required (3D Clash Highlights)| — |
-| **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[pending]]` | Pending | Required (Commissioning PDF) | — |
+| **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[partial]]` | 2058 tests; built 99/99 | Required (3D Section Preview) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md) |
+| **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[partial]]` | 2058 tests; built 99/99 | Required (3D Clash Highlights)| [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md) |
+| **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[partial]]` | 2058 tests; built 99/99 | Required (Commissioning PDF) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md) |
 | **SC-15** | Portable Project Archive (.xray ZIP) & Manifest | Portion 5 | `[[pending]]` | Pending | Required (Import/Export Flow) | — |
 | **SC-16** | Workspace Lock & Disaster Recovery Journal | Portion 5 | `[[pending]]` | Pending | Required (Multi-Tab Lock UI) | — |
 | **SC-17** | Concurrency, Quota & Corrupt Record Isolation | Portion 5 | `[[pending]]` | Pending | Required (Quota Alert Banner) | — |
