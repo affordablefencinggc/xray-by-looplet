@@ -1,0 +1,306 @@
+diff --git a/src/studio/industries/hvac/HVACNetworkViewer.tsx b/src/studio/industries/hvac/HVACNetworkViewer.tsx
+index 66e06bc9..bd7e0908 100644
+--- a/src/studio/industries/hvac/HVACNetworkViewer.tsx
++++ b/src/studio/industries/hvac/HVACNetworkViewer.tsx
+@@ -5,7 +5,7 @@ import type { HvacNetwork } from "./hvacNetwork.ts";
+ import { hvacRunFrame } from "./hvacRunGeometry.ts";
+ import "./hvacCoordination.css";
+ 
+-export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; clash: boolean };
++export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; service?: "duct" | "pipe"; clash: boolean };
+ /** Display-only envelopes. Meshes never become measured or billable quantities. */
+ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D preview" }: { runs: HvacPreviewRun[]; beams?: HvacNetwork["beams"]; label?: string }) {
+   const host = useRef<HTMLDivElement>(null);
+@@ -31,7 +31,7 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
+       const { length } = frame;
+       const geometry = (t: number) => run.round ? new T.CylinderGeometry(run.width / 2 + t, run.width / 2 + t, length, 32).rotateX(Math.PI / 2) : new T.BoxGeometry(run.width + 2 * t, run.height + 2 * t, length);
+       const place = (mesh: T.Mesh) => { mesh.position.copy(frame.center); mesh.quaternion.setFromRotationMatrix(frame.rotation); };
+-      const core = add(geometry(0), run.clash ? 0xef4444 : 0x38bdf8); core.userData.runId = run.id; place(core);
++      const core = add(geometry(0), run.clash ? 0xef4444 : run.service === "pipe" ? 0x34d399 : 0x38bdf8); core.userData.runId = run.id; place(core);
+       if (run.insulation > 0) place(add(geometry(run.insulation), 0xfbbf24, .28));
+     }
+     for (const beam of data.beams) { const size = beam.max.map((v, i) => v - beam.min[i]); const mesh = add(new T.BoxGeometry(...size as [number, number, number]), 0x94a3b8, .45); mesh.position.set(...beam.min.map((v, i) => (v + beam.max[i]) / 2) as [number, number, number]); }
+@@ -48,9 +48,9 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
+     resize(); setStatus("ready");
+     return () => { observer.disconnect(); controls.dispose(); canvas.removeEventListener("webglcontextlost", lost); canvas.removeEventListener("webglcontextrestored", restored); model.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); (o.material as T.Material).dispose(); } }); renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); };
+   }, [serialized, attempt, label]);
+-  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-clash-count={runs.filter(r => r.clash).length}>
++  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-pipe-count={runs.filter(r => r.service === "pipe").length} data-clash-count={runs.filter(r => r.clash).length}>
+     <div ref={host} className="hvac-preview-canvas" />
+     {(status === "unavailable" || status === "lost") && <div role="status"><p>3D preview {status}. Your worksheet is unchanged.</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry HVAC preview</button></div>}
+-    <p className="industry-note">Blue: duct core · Gold: insulation envelope · Red: clearance review · Grey: beam. Drag to orbit; scroll to zoom. Display only.</p>
++    <p className="industry-note">Blue: duct core · Green: pipe · Gold: insulation envelope · Red: clearance review · Grey: beam. Drag to orbit; scroll to zoom. Display only.</p>
+   </section>;
+ }
+diff --git a/src/studio/industries/hvac/HvacCoordinationPanel.tsx b/src/studio/industries/hvac/HvacCoordinationPanel.tsx
+index 0fff6ba3..087372c0 100644
+--- a/src/studio/industries/hvac/HvacCoordinationPanel.tsx
++++ b/src/studio/industries/hvac/HvacCoordinationPanel.tsx
+@@ -1,5 +1,5 @@
+ import { useRef, useState } from "react";
+-import { hvacNetworkSchema, type HvacNetwork } from "./hvacNetwork.ts";
++import { hvacNetworkSchema, isPipeNode, type HvacNetwork } from "./hvacNetwork.ts";
+ import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
+ import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, type HvacPackage } from "./hvacSchedules.ts";
+ import type { IndustrySourceBinding } from "../sourceBinding.ts";
+@@ -26,6 +26,7 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
+   const edit = (collection: "nodes" | "edges", index: number, field: string, value: unknown) => {
+     if (!network) return false;
+     const next = structuredClone(network); Object.assign(next[collection][index], { [field]: value });
++    if (collection === "edges" && field === "service") { const edge = next.edges[index]; edge.airflowLs = null; edge.pipeFlowLs = null; edge.innerDiameterM = null; if (value === "pipe") edge.shape = "round"; }
+     const checked = hvacNetworkSchema.safeParse(next);
+     if (!checked.success) { setError(`${field}: ${checked.error.issues[0].message}`); return false; }
+     update(checked.data); return true;
+@@ -39,7 +40,7 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
+   const download = (name: string, content: BlobPart, type: string) => { const url = URL.createObjectURL(new Blob([content], { type })); const a = document.createElement("a"); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+   return <section className="hvac-coordination" aria-label="HVAC network coordination">
+     <h3>Network and commissioning</h3>
+-    <p className="industry-note">Connect equipment and terminals across zones. Coordinates and duct sizes use metres; airflow uses L/s. Checks remain a draft for professional review.</p>
++    <p className="industry-note">Connect equipment and terminals across zones. Coordinates and sizes use metres; separate air and pipe flows use L/s. Pipe outside diameter controls clearance; inside diameter controls velocity. Checks remain a draft for professional review.</p>
+     <fieldset disabled={disabled || busy}>
+       <legend>Network schedule</legend>
+       {!text && <button type="button" onClick={() => update(structuredClone(example))}>Start with labelled sample network</button>}
+@@ -51,15 +52,16 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
+         <p className="industry-note">Thresholds are project review criteria, not an assessment of applicable codes. Round runs use width as diameter.</p>
+         <details><summary>Equipment and terminals ({network.nodes.length})</summary>{network.nodes.map((node, i) => <fieldset key={i}><legend>{node.id} · {node.zone}</legend><div className="industry-fields">
+           {(["id", "zone", "equipmentTag"] as const).map(field => <label key={field}>{field}<input aria-label={`nodes ${i + 1} ${field}`} key={node[field]} defaultValue={node[field]} onBlur={e => { if (!edit("nodes", i, field, e.target.value)) e.target.value = node[field]; }} /></label>)}
+-          <label>Node type<select aria-label={`Node ${i + 1} type`} value={node.kind} onChange={e => edit("nodes", i, "kind", e.target.value)}>{["equipment", "junction", "reducer", "damper", "diffuser"].map(kind => <option key={kind}>{kind}</option>)}</select></label>
+-          {numeric("nodes", i, "x", "X (m)", node.x)}{numeric("nodes", i, "y", "Elevation (m)", node.y)}{numeric("nodes", i, "z", "Z (m)", node.z)}{numeric("nodes", i, "designAirflowLs", "Design airflow (L/s)", node.designAirflowLs)}
++          <label>Node type<select aria-label={`Node ${i + 1} type`} value={node.kind} onChange={e => edit("nodes", i, "kind", e.target.value)}>{["equipment", "junction", "reducer", "damper", "diffuser", "pump", "valve", "pipe-terminal"].map(kind => <option key={kind}>{kind}</option>)}</select></label>
++          {numeric("nodes", i, "x", "X (m)", node.x)}{numeric("nodes", i, "y", "Elevation (m)", node.y)}{numeric("nodes", i, "z", "Z (m)", node.z)}{isPipeNode(node.kind) ? numeric("nodes", i, "designPipeFlowLs", "Design pipe flow (L/s)", node.designPipeFlowLs ?? null) : numeric("nodes", i, "designAirflowLs", "Design airflow (L/s)", node.designAirflowLs)}
+         </div><button type="button" disabled={network.nodes.length <= 1} onClick={() => update({ ...network!, nodes: network!.nodes.filter((_, j) => i !== j) })}>Remove node {node.id}</button></fieldset>)}
+           <button type="button" disabled={network.nodes.length >= 100} onClick={() => update({ ...network!, nodes: [...network!.nodes, { id: `node-${crypto.randomUUID().slice(0, 8)}`, zone: "Unassigned", kind: "diffuser", x: 0, y: 0, z: 0, designAirflowLs: null, equipmentTag: "" }] })}>Add terminal</button>
+         </details>
+-        <details><summary>Duct runs ({network.edges.length})</summary>{network.edges.map((edge, i) => <fieldset key={i}><legend>{edge.id}</legend><div className="industry-fields">
+-          {(["from", "to"] as const).map(field => <label key={field}>{field}<select aria-label={`Run ${i + 1} ${field}`} value={edge[field]} onChange={e => edit("edges", i, field, e.target.value)}>{network!.nodes.map(node => <option key={node.id}>{node.id}</option>)}</select></label>)}
+-          <label>Shape<select aria-label={`Run ${i + 1} shape`} value={edge.shape} onChange={e => edit("edges", i, "shape", e.target.value)}><option value="rectangular">Rectangular</option><option value="round">Round</option></select></label>
+-          {numeric("edges", i, "widthM", "Width or diameter (m)", edge.widthM)}{numeric("edges", i, "heightM", "Height (m)", edge.heightM)}{numeric("edges", i, "insulationM", "Insulation (m)", edge.insulationM)}{numeric("edges", i, "availablePlenumM", "Ceiling void (m)", edge.availablePlenumM)}{numeric("edges", i, "airflowLs", "Airflow (L/s)", edge.airflowLs)}{numeric("edges", i, "pressureAllowancePaPerM", "Entered pressure allowance (Pa/m)", edge.pressureAllowancePaPerM)}
++        <details><summary>Duct and pipe runs ({network.edges.length})</summary>{network.edges.map((edge, i) => <fieldset key={i}><legend>{edge.id}</legend><div className="industry-fields">
++          {(["from", "to"] as const).map(field => <label key={field}>{field}<select aria-label={`Run ${i + 1} ${field}`} value={edge[field]} onChange={e => edit("edges", i, field, e.target.value)}>{!network!.nodes.some(node => node.id === edge[field]) && <option value={edge[field]}>Missing: {edge[field]}</option>}{network!.nodes.map((node, j) => <option key={j}>{node.id}</option>)}</select></label>)}
++          <label>Service<select aria-label={`Run ${i + 1} service`} value={edge.service ?? "duct"} onChange={e => edit("edges", i, "service", e.target.value)}><option value="duct">Air duct</option><option value="pipe">Pipe</option></select></label>
++          <label>Shape<select disabled={edge.service === "pipe"} aria-label={`Run ${i + 1} shape`} value={edge.shape} onChange={e => edit("edges", i, "shape", e.target.value)}><option value="rectangular">Rectangular</option><option value="round">Round</option></select></label>
++          {numeric("edges", i, "widthM", "Width or diameter (m)", edge.widthM)}{numeric("edges", i, "heightM", "Height (m)", edge.heightM)}{numeric("edges", i, "insulationM", "Insulation (m)", edge.insulationM)}{numeric("edges", i, "availablePlenumM", "Ceiling void (m)", edge.availablePlenumM)}{edge.service === "pipe" ? <>{numeric("edges", i, "innerDiameterM", "Inside diameter (m)", edge.innerDiameterM ?? null)}{numeric("edges", i, "pipeFlowLs", "Pipe flow (L/s)", edge.pipeFlowLs ?? null)}</> : numeric("edges", i, "airflowLs", "Airflow (L/s)", edge.airflowLs)}{numeric("edges", i, "pressureAllowancePaPerM", "Entered pressure allowance (Pa/m)", edge.pressureAllowancePaPerM)}
+         </div><button type="button" disabled={network.edges.length <= 1} onClick={() => update({ ...network!, edges: network!.edges.filter((_, j) => i !== j) })}>Remove run {edge.id}</button></fieldset>)}
+           <button type="button" disabled={network.edges.length >= 200 || network.nodes.length < 2} onClick={() => update({ ...network!, evidence: "sample", edges: [...network!.edges, { ...example.edges[0], id: `run-${crypto.randomUUID().slice(0, 8)}`, from: network!.nodes[0].id, to: network!.nodes[1].id, airflowLs: null, availablePlenumM: null }] })}>Add sample run</button>
+         </details>
+@@ -71,11 +73,12 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
+     {error && <p role="alert" className="industry-error">{error}</p>}
+     {result && <section aria-label="HVAC coordination result" className="industry-result">
+       <p><strong>{result.network.evidence === "sample" ? "Sample network" : "Declared network"} · unverified · not eligible for a verified quote</strong></p>
+-      <HVACNetworkViewer beams={result.network.beams} runs={result.runs.flatMap(run => { const a = result.network.nodes.find(n => n.id === run.from), b = result.network.nodes.find(n => n.id === run.to); return a && b ? [{ id: run.id, a: [a.x, a.y, a.z], b: [b.x, b.y, b.z], width: run.widthM, height: run.shape === "round" ? run.widthM : run.heightM, round: run.shape === "round", insulation: run.insulationM, clash: result.issues.some(i => i.target === run.id && (i.code === "beam" || i.code === "plenum")) }] : []; })} />
++      <HVACNetworkViewer beams={result.network.beams} runs={result.runs.flatMap(run => { const a = result.network.nodes.find(n => n.id === run.from), b = result.network.nodes.find(n => n.id === run.to); return a && b ? [{ id: run.id, a: [a.x, a.y, a.z], b: [b.x, b.y, b.z], width: run.widthM, height: run.shape === "round" ? run.widthM : run.heightM, round: run.shape === "round", service: run.service, insulation: run.insulationM, clash: result.issues.some(i => i.target === run.id && (i.code === "beam" || i.code === "plenum")) }] : []; })} />
+       <h4>Network review · {result.issues.length} issues</h4><ul className="hvac-issues">{result.issues.map((issue, i) => <li key={i}><strong>{issue.target}: {issue.code}</strong> — {issue.message}</li>)}</ul>
+       {!result.issues.length && <p>No issues detected by the bounded network checks.</p>}
+-      <div className="industry-table-wrap"><table><caption>Airflow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Velocity (m/s)</th><th>Review</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.airflow.map(row => <tr key={row.id}><th>{row.id}</th><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.velocityStatus}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table></div>
+-      <div className="industry-table-wrap"><table><caption>Equipment and commissioning · ±10% design range</caption><thead><tr><th>Equipment / terminal</th><th>Zone</th><th>Design (L/s)</th><th>Test range (L/s)</th><th>Measured</th></tr></thead><tbody>{result.commissioning.map(row => <tr key={row.id}><th>{row.id} {row.tag}</th><td>{row.zone}</td><td>{row.designLs ?? "unknown"}</td><td>{row.minimumLs === null ? "unknown" : `${row.minimumLs.toFixed(2)} – ${row.maximumLs!.toFixed(2)}`}</td><td>Not tested</td></tr>)}</tbody></table></div>
++      <div className="industry-table-wrap"><table><caption>Airflow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Velocity (m/s)</th><th>Review</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.airflow.map((row, i) => <tr key={i}><th>{row.id}</th><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.velocityStatus}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table></div>
++      {result.pipeFlow.length > 0 && <div className="industry-table-wrap"><table><caption>Pipe flow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Outside / inside diameter (m)</th><th>Pipe flow (L/s)</th><th>Velocity (m/s)</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.pipeFlow.map((row, i) => <tr key={i}><th>{row.id}</th><td>{row.outsideDiameterM} / {row.insideDiameterM ?? "unknown"}</td><td>{row.flowLs ?? "unknown"}</td><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table><p className="industry-note">Pipe velocity uses declared inside diameter. No pipe design limit, friction or fitting loss is assessed. Air-duct noise thresholds do not apply.</p></div>}
++      <div className="industry-table-wrap"><table><caption>Equipment and commissioning · ±10% design range</caption><thead><tr><th>Equipment / terminal</th><th>Zone</th><th>Service</th><th>Design (L/s)</th><th>Test range (L/s)</th><th>Measured</th></tr></thead><tbody>{result.commissioning.map((row, i) => <tr key={i}><th>{row.id} {row.tag}</th><td>{row.zone}</td><td>{row.service}</td><td>{row.designLs ?? "unknown"}</td><td>{row.minimumLs === null ? "unknown" : `${row.minimumLs.toFixed(2)} – ${row.maximumLs!.toFixed(2)}`}</td><td>Not tested</td></tr>)}</tbody></table></div>
+     </section>}
+     {available && <section aria-label="Sealed HVAC draft package" className="industry-result"><p>Draft package prepared. The seal identifies content; it does not certify the design or commissioning.</p><p className="hvac-seal">SHA-256: {available.value.delivery.contentSha256}</p><div className="industry-actions">
+       <button type="button" onClick={() => download("hvac-commissioning-draft.pdf", Uint8Array.from(available.pdf), "application/pdf")}>Download HVAC PDF</button>
+diff --git a/src/studio/industries/hvac/hvacNetwork.test.ts b/src/studio/industries/hvac/hvacNetwork.test.ts
+index dd4f7d82..fd0fb0df 100644
+--- a/src/studio/industries/hvac/hvacNetwork.test.ts
++++ b/src/studio/industries/hvac/hvacNetwork.test.ts
+@@ -63,3 +63,34 @@ test("round collision remains explicitly conservative and zero-length run create
+   assert.equal(hvacRunFrame([0, 0, 0], [0, 0, 0]), null);
+   assert.equal(hvacRunIntersectsBeam([0, 0, 0], [0, 0, 0], 1, 1, 1, { min: [-1, -1, -1], max: [1, 1, 1] }), false);
+ });
++
++function pipeFixture(): HvacNetwork {
++  const n = fixture(); n.nodes[0].kind = "pump"; n.nodes[1].kind = "valve"; n.nodes[2].kind = "pipe-terminal";
++  for (const edge of n.edges) Object.assign(edge, { service: "pipe", shape: "round", widthM: .12, innerDiameterM: .1, pipeFlowLs: 2, insulationM: .02 });
++  return n;
++}
++test("multi-zone pipe circuit connects to a pump with round outer clearance and inner flow area", () => {
++  const n = pipeFixture(), r = evaluateHvacNetwork(n); assert.deepEqual(r.issues, []);
++  assert.equal(r.runs[0].outerHeightM, .16); assert.equal(r.runs[0].areaM2, Math.PI * .1 ** 2 / 4);
++  assert.equal(r.network.edges[0].service, "pipe"); assert.equal(r.verifiedQuoteEligible, false);
++});
++test("air equipment cannot satisfy pipe connectivity and vice versa", () => {
++  const n = pipeFixture(); n.nodes[0].kind = "equipment";
++  const codes = evaluateHvacNetwork(n).issues; assert.ok(codes.some(i => i.code === "service")); assert.ok(codes.some(i => i.code === "disconnected" && i.target === "D1"));
++  const d = fixture(); d.nodes[0].kind = "pump"; assert.ok(evaluateHvacNetwork(d).issues.some(i => i.code === "disconnected" && i.target === "D1"));
++});
++test("mixed services at a junction are explicit errors even when sizes match", () => {
++  const n = pipeFixture(); n.nodes[1].kind = "junction"; n.edges[1].service = "duct"; n.nodes[2].kind = "diffuser";
++  assert.ok(evaluateHvacNetwork(n).issues.some(i => i.code === "service" && i.target === "J1"));
++});
++test("pipe geometry rejects rectangular pipes and impossible bore but permits unknown bore", () => {
++  const n = pipeFixture(); n.edges[0].shape = "rectangular"; assert.throws(() => evaluateHvacNetwork(n));
++  n.edges[0].shape = "round"; n.edges[0].innerDiameterM = .2; assert.throws(() => evaluateHvacNetwork(n));
++  n.edges[0].innerDiameterM = null; assert.equal(evaluateHvacNetwork(n).runs[0].areaM2, null);
++});
++test("pipe insulation affects ceiling clearance and beam screening", () => {
++  const n = pipeFixture(); n.edges[0].availablePlenumM = .15;
++  n.beams = [{ id: "PIPE-BEAM", min: [1, 2.87, -.01], max: [2, 2.88, .01] }];
++  const r = evaluateHvacNetwork(n); assert.ok(r.issues.some(i => i.code === "plenum")); assert.ok(r.issues.some(i => i.code === "beam"));
++  n.edges[0].insulationM = 0; assert.ok(!evaluateHvacNetwork(n).issues.some(i => i.code === "beam" || i.code === "plenum"));
++});
+diff --git a/src/studio/industries/hvac/hvacNetwork.ts b/src/studio/industries/hvac/hvacNetwork.ts
+index 79722ecc..610a515a 100644
+--- a/src/studio/industries/hvac/hvacNetwork.ts
++++ b/src/studio/industries/hvac/hvacNetwork.ts
+@@ -4,16 +4,23 @@ import { hvacRunIntersectsBeam } from "./hvacRunGeometry.ts";
+ const id = z.string().trim().min(1).max(120);
+ const positive = z.number().finite().positive().max(1000000);
+ const coordinate = z.number().finite().min(-10000).max(10000);
+-export const hvacNodeSchema = z.object({ id, zone: id, kind: z.enum(["equipment", "junction", "reducer", "damper", "diffuser"]), x: coordinate, y: coordinate, z: coordinate,
+-  designAirflowLs: positive.nullable(), equipmentTag: z.string().max(120) }).strict();
++export const hvacNodeSchema = z.object({ id, zone: id, kind: z.enum(["equipment", "junction", "reducer", "damper", "diffuser", "pump", "valve", "pipe-terminal"]), x: coordinate, y: coordinate, z: coordinate,
++  designAirflowLs: positive.nullable(), designPipeFlowLs: positive.nullable().optional(), equipmentTag: z.string().max(120) }).strict();
+ export const hvacEdgeSchema = z.object({ id, from: id, to: id, shape: z.enum(["rectangular", "round"]), widthM: positive, heightM: positive,
+-  insulationM: z.number().finite().nonnegative().max(10), availablePlenumM: positive.nullable(), airflowLs: positive.nullable(), pressureAllowancePaPerM: positive.nullable() }).strict();
++  service: z.enum(["duct", "pipe"]).optional(), innerDiameterM: positive.nullable().optional(), pipeFlowLs: positive.nullable().optional(),
++  insulationM: z.number().finite().nonnegative().max(10), availablePlenumM: positive.nullable(), airflowLs: positive.nullable(), pressureAllowancePaPerM: positive.nullable() }).strict().superRefine((edge, ctx) => {
++    if (edge.service !== "pipe") return;
++    if (edge.shape !== "round") ctx.addIssue({ code: "custom", path: ["shape"], message: "Pipe runs require a round outside diameter." });
++    if (edge.innerDiameterM != null && edge.innerDiameterM > edge.widthM) ctx.addIssue({ code: "custom", path: ["innerDiameterM"], message: "Inside diameter cannot exceed outside diameter." });
++  });
+ export const hvacBeamSchema = z.object({ id, min: z.tuple([coordinate, coordinate, coordinate]), max: z.tuple([coordinate, coordinate, coordinate]) }).strict().refine(b => b.min.every((v, i) => v < b.max[i]), "Beam bounds must have positive dimensions.");
+ export const hvacNetworkSchema = z.object({ reference: id, evidence: z.enum(["declared", "sample"]), occupancy: z.enum(["residential", "commercial"]),
+   nodes: z.array(hvacNodeSchema).min(1).max(100), edges: z.array(hvacEdgeSchema).min(1).max(200), beams: z.array(hvacBeamSchema).max(100) }).strict();
+ export type HvacNetwork = z.infer<typeof hvacNetworkSchema>;
+ export type HvacEdge = HvacNetwork["edges"][number];
+-export type NetworkIssue = { code: "duplicate-id" | "missing-node" | "zero-length" | "disconnected" | "transition" | "plenum" | "beam" | "unknown-plenum"; target: string; message: string };
++export type NetworkIssue = { code: "duplicate-id" | "missing-node" | "zero-length" | "disconnected" | "transition" | "plenum" | "beam" | "unknown-plenum" | "service"; target: string; message: string };
++export const isPipeNode = (kind: HvacNetwork["nodes"][number]["kind"]) => ["pump", "valve", "pipe-terminal"].includes(kind);
++const supports = (kind: HvacNetwork["nodes"][number]["kind"], service: "duct" | "pipe") => kind === "junction" || kind === "reducer" || isPipeNode(kind) === (service === "pipe");
+ 
+ export function evaluateHvacNetwork(input: unknown) {
+   const network = hvacNetworkSchema.parse(input);
+@@ -24,15 +31,18 @@ export function evaluateHvacNetwork(input: unknown) {
+     for (const item of collection) { if (seen.has(item.id)) add("duplicate-id", item.id, "Identifiers must be unique within each schedule."); seen.add(item.id); }
+   }
+   const nodes = new Map(network.nodes.map(n => [n.id, n]));
+-  const adjacency = new Map(network.nodes.map(n => [n.id, [] as string[]]));
++  const adjacency = new Map(network.nodes.map(n => [n.id, [] as { id: string; service: "duct" | "pipe" }[]]));
+   const runs = network.edges.map(edge => {
+     const a = nodes.get(edge.from), b = nodes.get(edge.to);
+     const height = edge.shape === "round" ? edge.widthM : edge.heightM;
+-    const areaM2 = edge.shape === "round" ? Math.PI * edge.widthM ** 2 / 4 : edge.widthM * height;
++    const service = edge.service ?? "duct";
++    const areaM2 = service === "pipe" ? edge.innerDiameterM == null ? null : Math.PI * edge.innerDiameterM ** 2 / 4 : edge.shape === "round" ? Math.PI * edge.widthM ** 2 / 4 : edge.widthM * height;
+     const lengthM = a && b ? Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) : null;
+     if (!a || !b) add("missing-node", edge.id, "Both ends must reference existing nodes.");
+     else {
+-      adjacency.get(a.id)!.push(b.id); adjacency.get(b.id)!.push(a.id);
++      if (supports(a.kind, service) && supports(b.kind, service)) {
++        adjacency.get(a.id)!.push({ id: b.id, service }); adjacency.get(b.id)!.push({ id: a.id, service });
++      } else add("service", edge.id, "Run service does not match its connected equipment or terminal.");
+       if (!lengthM) add("zero-length", edge.id, "Run endpoints must occupy different positions.");
+       for (const beam of network.beams) {
+         if (hvacRunIntersectsBeam([a.x, a.y, a.z], [b.x, b.y, b.z], edge.widthM, height, edge.insulationM, beam)) add("beam", edge.id, edge.shape === "round"
+@@ -41,15 +51,19 @@ export function evaluateHvacNetwork(input: unknown) {
+       }
+     }
+     if (edge.availablePlenumM === null) add("unknown-plenum", edge.id, "Ceiling void is unknown; clearance has not been checked.");
+-    else if (height + 2 * edge.insulationM > edge.availablePlenumM) add("plenum", edge.id, "Insulated duct height exceeds the entered ceiling void.");
++    else if (height + 2 * edge.insulationM > edge.availablePlenumM) add("plenum", edge.id, "Insulated run height exceeds the entered ceiling void.");
+     return { ...edge, lengthM, areaM2, outerHeightM: height + 2 * edge.insulationM };
+   });
+   const reached = new Set<string>();
+-  const queue = network.nodes.filter(n => n.kind === "equipment").map(n => n.id);
+-  for (let i = 0; i < queue.length; i++) { const current = queue[i]; if (reached.has(current)) continue; reached.add(current); queue.push(...(adjacency.get(current) ?? []).filter(next => !reached.has(next))); }
++  for (const service of ["duct", "pipe"] as const) {
++    const visited = new Set<string>();
++    const queue = network.nodes.filter(n => n.kind === (service === "pipe" ? "pump" : "equipment")).map(n => n.id);
++    for (let i = 0; i < queue.length; i++) { const current = queue[i]; if (visited.has(current)) continue; visited.add(current); reached.add(current); queue.push(...(adjacency.get(current) ?? []).filter(next => next.service === service && !visited.has(next.id)).map(next => next.id)); }
++  }
+   for (const node of network.nodes) {
+-    if (!reached.has(node.id)) add("disconnected", node.id, "Node has no connection to equipment.");
++    if (!reached.has(node.id)) add("disconnected", node.id, "Node has no connection to matching air equipment or a pump.");
+     const attached = network.edges.filter(e => e.from === node.id || e.to === node.id);
++    if (new Set(attached.map(e => e.service ?? "duct")).size > 1) add("service", node.id, "Duct and pipe runs cannot share a fluid connection; use separate nodes.");
+     const dimensions = new Set(attached.map(e => `${e.shape}:${e.widthM}:${e.shape === "round" ? e.widthM : e.heightM}`));
+     if (dimensions.size > 1 && node.kind !== "reducer") add("transition", node.id, "Different duct dimensions meet without an explicit reducer.");
+   }
+diff --git a/src/studio/industries/hvac/hvacSchedules.test.ts b/src/studio/industries/hvac/hvacSchedules.test.ts
+index 3504a093..507c2030 100644
+--- a/src/studio/industries/hvac/hvacSchedules.test.ts
++++ b/src/studio/industries/hvac/hvacSchedules.test.ts
+@@ -11,3 +11,20 @@ test("commissioning tolerance and unknowns never fabricate measured results", ()
+ test("missing airflow and pressure operands remain unknown", () => { const n = input(); const s = calculateHvacSchedules({ ...n, edges: [{ ...n.edges[0], airflowLs: null, pressureAllowancePaPerM: null }] }); assert.equal(s.airflow[0].velocityMs, null); assert.equal(s.airflow[0].pressureAllowancePa, null); });
+ test("sealed draft rejects tampered network, computed schedule and delivery identity", async () => { const p = await createHvacPackage(input(), "project-test", null); await verifyHvacPackage(p); assert.match(p.delivery.contentSha256, /^[a-f0-9]{64}$/); for (const mutate of [(x: typeof p) => { x.content.network.reference = "other"; }, (x: typeof p) => { x.content.schedules.commissioning[0].designLs = 1; }, (x: typeof p) => { x.delivery.projectId = "other"; }]) { const copy = structuredClone(p); mutate(copy); await assert.rejects(verifyHvacPackage(copy)); } });
+ test("CSV escapes formula prefixes, retains unknown and seal; PDF is readable", async () => { const p = await createHvacPackage(input(), "project-test", null); const csv = await hvacPackageCsv(p); assert.ok(csv.includes("'=UNSAFE()")); assert.ok(csv.includes('"unknown"')); assert.ok(csv.includes(p.delivery.contentSha256)); const pdf = await PDFDocument.load(await hvacPackagePdf(p)); assert.ok(pdf.getPageCount() > 0); });
++
++const pipeInput = () => { const n = input(); return { ...n, nodes: n.nodes.map((node, i) => ({ ...node, kind: i === 0 ? "pump" : "pipe-terminal", designPipeFlowLs: i === 0 ? 2 : null })), edges: n.edges.map(edge => ({ ...edge, service: "pipe", shape: "round", widthM: .12, innerDiameterM: .1, pipeFlowLs: 2 })) }; };
++test("pipe velocity uses bore and separate liquid flow, never inherited airflow or noise thresholds", () => {
++  const s = calculateHvacSchedules(pipeInput()); assert.equal(s.airflow.length, 0); assert.equal(s.pipeFlow.length, 1);
++  assert.ok(Math.abs(s.pipeFlow[0].velocityMs! - .002 / (Math.PI * .1 ** 2 / 4)) < 1e-12);
++  assert.equal(s.pipeFlow[0].status, "no-pipe-design-limit"); assert.equal(s.commissioning[0].designLs, 2); assert.equal(s.commissioning[0].minimumLs, 1.8); assert.equal(s.commissioning[0].service, "pipe");
++  assert.equal(s.commissioning[1].designLs, null); assert.equal(s.commissioning[0].measuredLs, null);
++});
++test("unknown pipe flow or bore withholds velocity even when legacy airflow is populated", () => {
++  for (const field of ["pipeFlowLs", "innerDiameterM"] as const) { const n = pipeInput(); const s = calculateHvacSchedules({ ...n, edges: [{ ...n.edges[0], [field]: null }] }); assert.equal(s.pipeFlow[0].velocityMs, null); }
++});
++test("pipe CSV, sealed JSON and PDF retain service, both diameters and separate unknowns", async () => {
++  const p = await createHvacPackage(pipeInput(), "pipe-project", null); await verifyHvacPackage(p);
++  const csv = await hvacPackageCsv(p); for (const text of ["Pipe run", "Outside diameter m", "Inside diameter m", "Pipe flow L/s", '"pipe"', "no-pipe-design-limit"]) assert.ok(csv.includes(text));
++  assert.ok((await PDFDocument.load(await hvacPackagePdf(p))).getPageCount() > 0);
++  const tampered = structuredClone(p); tampered.content.network.edges[0].pipeFlowLs = 9; await assert.rejects(verifyHvacPackage(tampered));
++});
+diff --git a/src/studio/industries/hvac/hvacSchedules.ts b/src/studio/industries/hvac/hvacSchedules.ts
+index 84542eb8..9f4c6b96 100644
+--- a/src/studio/industries/hvac/hvacSchedules.ts
++++ b/src/studio/industries/hvac/hvacSchedules.ts
+@@ -1,18 +1,26 @@
+ import { PDFDocument, StandardFonts } from "pdf-lib";
+ import { deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
+-import { evaluateHvacNetwork, hvacNetworkSchema } from "./hvacNetwork.ts";
++import { evaluateHvacNetwork, hvacNetworkSchema, isPipeNode } from "./hvacNetwork.ts";
+ import type { IndustrySourceBinding } from "../sourceBinding.ts";
+ 
+ export function calculateHvacSchedules(input: unknown) {
+   const checked = evaluateHvacNetwork(input);
+   const limitMs = checked.network.occupancy === "residential" ? 6 : 8;
++  const allowance = (run: typeof checked.runs[number]) => run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM;
+   return { ...checked, limitMs,
+-    airflow: checked.runs.map(run => ({ id: run.id, velocityMs: run.airflowLs === null ? null : run.airflowLs / 1000 / run.areaM2,
+-      velocityStatus: run.airflowLs === null ? "unknown" : run.airflowLs / 1000 / run.areaM2 > limitMs ? "review-noise" : "within-project-threshold",
+-      pressureAllowancePa: run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM })),
+-    commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && n.kind !== "reducer").map(n => ({ id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag,
+-      designLs: n.designAirflowLs, minimumLs: n.designAirflowLs === null ? null : n.designAirflowLs * .9,
+-      maximumLs: n.designAirflowLs === null ? null : n.designAirflowLs * 1.1, measuredLs: null, status: "not-tested" as const })),
++    airflow: checked.runs.filter(run => run.service !== "pipe").map(run => {
++      const velocityMs = run.airflowLs === null || run.areaM2 === null ? null : run.airflowLs / 1000 / run.areaM2;
++      return { id: run.id, velocityMs, velocityStatus: velocityMs === null ? "unknown" : velocityMs > limitMs ? "review-noise" : "within-project-threshold", pressureAllowancePa: allowance(run) };
++    }),
++    pipeFlow: checked.runs.filter(run => run.service === "pipe").map(run => ({ id: run.id, outsideDiameterM: run.widthM, insideDiameterM: run.innerDiameterM ?? null,
++      flowLs: run.pipeFlowLs ?? null, velocityMs: run.pipeFlowLs == null || run.areaM2 === null ? null : run.pipeFlowLs / 1000 / run.areaM2,
++      status: "no-pipe-design-limit" as const, pressureAllowancePa: allowance(run) })),
++    commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && n.kind !== "reducer").map(n => {
++      const service = isPipeNode(n.kind) ? "pipe" : "duct";
++      const designLs = service === "pipe" ? n.designPipeFlowLs ?? null : n.designAirflowLs;
++      return { id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag, service, designLs,
++        minimumLs: designLs === null ? null : designLs * .9, maximumLs: designLs === null ? null : designLs * 1.1, measuredLs: null, status: "not-tested" as const };
++    }),
+   };
+ }
+ function canonical(value: unknown): string {
+@@ -42,9 +50,10 @@ export async function hvacPackageCsv(value: HvacPackage) {
+   await verifyHvacPackage(value);
+   const { schedules: s } = value.content;
+   const rows: unknown[][] = [["HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
+-    ["Node", "Zone", "Kind", "Equipment tag", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
+-    ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
++    ["Node", "Zone", "Kind", "Equipment tag", "Service", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
++    ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.service, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
+     [], ["Run", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.airflow.map(r => [r.id, r.velocityMs, r.velocityStatus, r.pressureAllowancePa]),
++    [], ["Pipe run", "Outside diameter m", "Inside diameter m", "Pipe flow L/s", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.pipeFlow.map(r => [r.id, r.outsideDiameterM, r.insideDiameterM, r.flowLs, r.velocityMs, r.status, r.pressureAllowancePa]),
+     [], ["Network issue", "Target", "Message"], ...s.issues.map(i => [i.code, i.target, i.message]),
+     [], ["Network inputs (metres; flow L/s)", canonical(s.network)], ["Delivery metadata", canonical(value.delivery)]];
+   return rows.map(row => row.map(csvCell).join(",")).join("\r\n");
+@@ -63,9 +72,10 @@ export async function hvacPackagePdf(value: HvacPackage) {
+   line(`Project: ${value.content.projectId} | Source: ${s.network.reference} | ${s.network.evidence}`);
+   line(`SHA-256: ${value.delivery.contentSha256}`); line("Integrity seal identifies content, not engineering approval."); line("");
+   line("Equipment / terminal schedule: design L/s; allowable test range +/-10%");
+-  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
++  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.service} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
+   line(""); line(`Airflow review (project threshold ${s.limitMs} m/s; not a code assessment)`);
+   for (const r of s.airflow) line(`${r.id} | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | ${r.velocityStatus} | Pressure allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`);
++  if (s.pipeFlow.length) { line(""); line("Pipe flow - inside diameter used for velocity; no design limit assessed"); for (const r of s.pipeFlow) line(`${r.id} | OD ${r.outsideDiameterM} m | ID ${r.insideDiameterM ?? "unknown"} m | ${r.flowLs ?? "unknown"} L/s | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | Allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`); }
+   line("Pressure allowance uses the entered Pa/m only; no friction or fitting solver."); line(""); line("Network review");
+   if (!s.issues.length) line("No issues detected by these bounded checks. Professional review still required.");
+   for (const i of s.issues) line(`${i.target}: ${i.code} - ${i.message}`);

@@ -63,3 +63,34 @@ test("round collision remains explicitly conservative and zero-length run create
   assert.equal(hvacRunFrame([0, 0, 0], [0, 0, 0]), null);
   assert.equal(hvacRunIntersectsBeam([0, 0, 0], [0, 0, 0], 1, 1, 1, { min: [-1, -1, -1], max: [1, 1, 1] }), false);
 });
+
+function pipeFixture(): HvacNetwork {
+  const n = fixture(); n.nodes[0].kind = "pump"; n.nodes[1].kind = "valve"; n.nodes[2].kind = "pipe-terminal";
+  for (const edge of n.edges) Object.assign(edge, { service: "pipe", shape: "round", widthM: .12, innerDiameterM: .1, pipeFlowLs: 2, insulationM: .02 });
+  return n;
+}
+test("multi-zone pipe circuit connects to a pump with round outer clearance and inner flow area", () => {
+  const n = pipeFixture(), r = evaluateHvacNetwork(n); assert.deepEqual(r.issues, []);
+  assert.equal(r.runs[0].outerHeightM, .16); assert.equal(r.runs[0].areaM2, Math.PI * .1 ** 2 / 4);
+  assert.equal(r.network.edges[0].service, "pipe"); assert.equal(r.verifiedQuoteEligible, false);
+});
+test("air equipment cannot satisfy pipe connectivity and vice versa", () => {
+  const n = pipeFixture(); n.nodes[0].kind = "equipment";
+  const codes = evaluateHvacNetwork(n).issues; assert.ok(codes.some(i => i.code === "service")); assert.ok(codes.some(i => i.code === "disconnected" && i.target === "D1"));
+  const d = fixture(); d.nodes[0].kind = "pump"; assert.ok(evaluateHvacNetwork(d).issues.some(i => i.code === "disconnected" && i.target === "D1"));
+});
+test("mixed services at a junction are explicit errors even when sizes match", () => {
+  const n = pipeFixture(); n.nodes[1].kind = "junction"; n.edges[1].service = "duct"; n.nodes[2].kind = "diffuser";
+  assert.ok(evaluateHvacNetwork(n).issues.some(i => i.code === "service" && i.target === "J1"));
+});
+test("pipe geometry rejects rectangular pipes and impossible bore but permits unknown bore", () => {
+  const n = pipeFixture(); n.edges[0].shape = "rectangular"; assert.throws(() => evaluateHvacNetwork(n));
+  n.edges[0].shape = "round"; n.edges[0].innerDiameterM = .2; assert.throws(() => evaluateHvacNetwork(n));
+  n.edges[0].innerDiameterM = null; assert.equal(evaluateHvacNetwork(n).runs[0].areaM2, null);
+});
+test("pipe insulation affects ceiling clearance and beam screening", () => {
+  const n = pipeFixture(); n.edges[0].availablePlenumM = .15;
+  n.beams = [{ id: "PIPE-BEAM", min: [1, 2.87, -.01], max: [2, 2.88, .01] }];
+  const r = evaluateHvacNetwork(n); assert.ok(r.issues.some(i => i.code === "plenum")); assert.ok(r.issues.some(i => i.code === "beam"));
+  n.edges[0].insulationM = 0; assert.ok(!evaluateHvacNetwork(n).issues.some(i => i.code === "beam" || i.code === "plenum"));
+});

@@ -1,18 +1,26 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
-import { evaluateHvacNetwork, hvacNetworkSchema } from "./hvacNetwork.ts";
+import { evaluateHvacNetwork, hvacNetworkSchema, isPipeNode } from "./hvacNetwork.ts";
 import type { IndustrySourceBinding } from "../sourceBinding.ts";
 
 export function calculateHvacSchedules(input: unknown) {
   const checked = evaluateHvacNetwork(input);
   const limitMs = checked.network.occupancy === "residential" ? 6 : 8;
+  const allowance = (run: typeof checked.runs[number]) => run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM;
   return { ...checked, limitMs,
-    airflow: checked.runs.map(run => ({ id: run.id, velocityMs: run.airflowLs === null ? null : run.airflowLs / 1000 / run.areaM2,
-      velocityStatus: run.airflowLs === null ? "unknown" : run.airflowLs / 1000 / run.areaM2 > limitMs ? "review-noise" : "within-project-threshold",
-      pressureAllowancePa: run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM })),
-    commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && n.kind !== "reducer").map(n => ({ id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag,
-      designLs: n.designAirflowLs, minimumLs: n.designAirflowLs === null ? null : n.designAirflowLs * .9,
-      maximumLs: n.designAirflowLs === null ? null : n.designAirflowLs * 1.1, measuredLs: null, status: "not-tested" as const })),
+    airflow: checked.runs.filter(run => run.service !== "pipe").map(run => {
+      const velocityMs = run.airflowLs === null || run.areaM2 === null ? null : run.airflowLs / 1000 / run.areaM2;
+      return { id: run.id, velocityMs, velocityStatus: velocityMs === null ? "unknown" : velocityMs > limitMs ? "review-noise" : "within-project-threshold", pressureAllowancePa: allowance(run) };
+    }),
+    pipeFlow: checked.runs.filter(run => run.service === "pipe").map(run => ({ id: run.id, outsideDiameterM: run.widthM, insideDiameterM: run.innerDiameterM ?? null,
+      flowLs: run.pipeFlowLs ?? null, velocityMs: run.pipeFlowLs == null || run.areaM2 === null ? null : run.pipeFlowLs / 1000 / run.areaM2,
+      status: "no-pipe-design-limit" as const, pressureAllowancePa: allowance(run) })),
+    commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && n.kind !== "reducer").map(n => {
+      const service = isPipeNode(n.kind) ? "pipe" : "duct";
+      const designLs = service === "pipe" ? n.designPipeFlowLs ?? null : n.designAirflowLs;
+      return { id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag, service, designLs,
+        minimumLs: designLs === null ? null : designLs * .9, maximumLs: designLs === null ? null : designLs * 1.1, measuredLs: null, status: "not-tested" as const };
+    }),
   };
 }
 function canonical(value: unknown): string {
@@ -42,9 +50,10 @@ export async function hvacPackageCsv(value: HvacPackage) {
   await verifyHvacPackage(value);
   const { schedules: s } = value.content;
   const rows: unknown[][] = [["HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
-    ["Node", "Zone", "Kind", "Equipment tag", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
-    ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
+    ["Node", "Zone", "Kind", "Equipment tag", "Service", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
+    ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.service, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
     [], ["Run", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.airflow.map(r => [r.id, r.velocityMs, r.velocityStatus, r.pressureAllowancePa]),
+    [], ["Pipe run", "Outside diameter m", "Inside diameter m", "Pipe flow L/s", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.pipeFlow.map(r => [r.id, r.outsideDiameterM, r.insideDiameterM, r.flowLs, r.velocityMs, r.status, r.pressureAllowancePa]),
     [], ["Network issue", "Target", "Message"], ...s.issues.map(i => [i.code, i.target, i.message]),
     [], ["Network inputs (metres; flow L/s)", canonical(s.network)], ["Delivery metadata", canonical(value.delivery)]];
   return rows.map(row => row.map(csvCell).join(",")).join("\r\n");
@@ -63,9 +72,10 @@ export async function hvacPackagePdf(value: HvacPackage) {
   line(`Project: ${value.content.projectId} | Source: ${s.network.reference} | ${s.network.evidence}`);
   line(`SHA-256: ${value.delivery.contentSha256}`); line("Integrity seal identifies content, not engineering approval."); line("");
   line("Equipment / terminal schedule: design L/s; allowable test range +/-10%");
-  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
+  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.service} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
   line(""); line(`Airflow review (project threshold ${s.limitMs} m/s; not a code assessment)`);
   for (const r of s.airflow) line(`${r.id} | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | ${r.velocityStatus} | Pressure allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`);
+  if (s.pipeFlow.length) { line(""); line("Pipe flow - inside diameter used for velocity; no design limit assessed"); for (const r of s.pipeFlow) line(`${r.id} | OD ${r.outsideDiameterM} m | ID ${r.insideDiameterM ?? "unknown"} m | ${r.flowLs ?? "unknown"} L/s | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | Allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`); }
   line("Pressure allowance uses the entered Pa/m only; no friction or fitting solver."); line(""); line("Network review");
   if (!s.issues.length) line("No issues detected by these bounded checks. Professional review still required.");
   for (const i of s.issues) line(`${i.target}: ${i.code} - ${i.message}`);

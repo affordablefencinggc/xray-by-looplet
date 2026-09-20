@@ -5,7 +5,7 @@ import type { HvacNetwork } from "./hvacNetwork.ts";
 import { hvacRunFrame } from "./hvacRunGeometry.ts";
 import "./hvacCoordination.css";
 
-export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; clash: boolean };
+export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; service?: "duct" | "pipe"; clash: boolean };
 /** Display-only envelopes. Meshes never become measured or billable quantities. */
 export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D preview" }: { runs: HvacPreviewRun[]; beams?: HvacNetwork["beams"]; label?: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -31,7 +31,7 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
       const { length } = frame;
       const geometry = (t: number) => run.round ? new T.CylinderGeometry(run.width / 2 + t, run.width / 2 + t, length, 32).rotateX(Math.PI / 2) : new T.BoxGeometry(run.width + 2 * t, run.height + 2 * t, length);
       const place = (mesh: T.Mesh) => { mesh.position.copy(frame.center); mesh.quaternion.setFromRotationMatrix(frame.rotation); };
-      const core = add(geometry(0), run.clash ? 0xef4444 : 0x38bdf8); core.userData.runId = run.id; place(core);
+      const core = add(geometry(0), run.clash ? 0xef4444 : run.service === "pipe" ? 0x34d399 : 0x38bdf8); core.userData.runId = run.id; place(core);
       if (run.insulation > 0) place(add(geometry(run.insulation), 0xfbbf24, .28));
     }
     for (const beam of data.beams) { const size = beam.max.map((v, i) => v - beam.min[i]); const mesh = add(new T.BoxGeometry(...size as [number, number, number]), 0x94a3b8, .45); mesh.position.set(...beam.min.map((v, i) => (v + beam.max[i]) / 2) as [number, number, number]); }
@@ -48,9 +48,9 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
     resize(); setStatus("ready");
     return () => { observer.disconnect(); controls.dispose(); canvas.removeEventListener("webglcontextlost", lost); canvas.removeEventListener("webglcontextrestored", restored); model.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); (o.material as T.Material).dispose(); } }); renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); };
   }, [serialized, attempt, label]);
-  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-clash-count={runs.filter(r => r.clash).length}>
+  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-pipe-count={runs.filter(r => r.service === "pipe").length} data-clash-count={runs.filter(r => r.clash).length}>
     <div ref={host} className="hvac-preview-canvas" />
     {(status === "unavailable" || status === "lost") && <div role="status"><p>3D preview {status}. Your worksheet is unchanged.</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry HVAC preview</button></div>}
-    <p className="industry-note">Blue: duct core · Gold: insulation envelope · Red: clearance review · Grey: beam. Drag to orbit; scroll to zoom. Display only.</p>
+    <p className="industry-note">Blue: duct core · Green: pipe · Gold: insulation envelope · Red: clearance review · Grey: beam. Drag to orbit; scroll to zoom. Display only.</p>
   </section>;
 }
