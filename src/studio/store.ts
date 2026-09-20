@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { browserSingleton } from './browserSingleton.ts';
+import { changeSourceArea, type SourceAreaChange } from "./sourceAreaChanges.ts";
 import { SHEETS, type SheetKind } from "./geometry.ts";
 import {
   createDefaultJob,
@@ -173,6 +174,7 @@ type StudioState = {
   bomState: BomStateEnvelope;
   bomPersistenceError: string | null;
   selectedRunId: string | null;
+  selectedAreaId: string | null;
   selectedVertexIndex: number | null;
   selectedGateId: string | null;
   traceError: string | null;
@@ -305,6 +307,8 @@ type StudioState = {
   commitPending: () => void;
   clearPending: () => void;
   removeMarkup: (id: string) => void;
+  selectSourceArea: (id: string | null) => void;
+  updateSourceArea: (id: string, expectedRevision: number, change: SourceAreaChange) => boolean;
   selectVertex: (runId: string, vertexIndex: number) => void;
   selectGate: (gateId: string) => void;
   executeTraceCommand: (command: TraceCommand) => void;
@@ -806,6 +810,7 @@ const studioInstance = browserSingleton('xray.studio.store.v1', () => create<Stu
   bomState: createBomState(initialJob.id),
   bomPersistenceError: null,
   selectedRunId: null,
+  selectedAreaId: null,
   selectedVertexIndex: null,
   selectedGateId: null,
   traceError: null,
@@ -1507,6 +1512,29 @@ const studioInstance = browserSingleton('xray.studio.store.v1', () => create<Stu
     }
   },
   clearPending: () => set({ pending: [] }),
+  selectSourceArea: (id) => {
+    const state = get();
+    if (id !== null && !state.job.annotations?.some(item => item.id === id && item.kind === "area" && item.sheet === state.sheet && item.documentId === state.job.activeDocumentId)) return;
+    set({ selectedAreaId: id, selectedRunId: null, selectedVertexIndex: null, selectedGateId: null, tool: "none", pending: [], traceError: null });
+  },
+  updateSourceArea: (id, expectedRevision, change) => {
+    const state = get();
+    try {
+      if (!state.persistenceHydrated || state.persistenceRecoveryBlocked || state.projectWriteStale || state.assetReadiness.document.state !== "ready")
+        throw Error("Source and project storage must be ready before editing this area.");
+      const document = state.job.documents.find(item => item.id === state.job.activeDocumentId);
+      if (state.activePlanBinary?.documentId !== document?.id || !document?.sha256 || state.activePlanBinary?.sha256 !== document.sha256)
+        throw Error("Reopen the matching original source bytes before editing this area.");
+      const annotation = state.job.annotations?.find(item => item.id === id);
+      if (annotation?.sheet !== state.sheet) throw Error("Open the source area's sheet before editing.");
+      const job = changeSourceArea(state.job, id, expectedRevision, change);
+      set({ job, markups: markupsFromJob(job), traceError: null });
+      return true;
+    } catch (error) {
+      set({ traceError: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
+  },
   selectVertex: (runId, vertexIndex) => {
     const run = get().job.runs.find((entry) => entry.id === runId);
     if (!run || vertexIndex < 0 || vertexIndex >= run.points.length) {
@@ -2036,7 +2064,7 @@ const studioInstance = browserSingleton('xray.studio.store.v1', () => create<Stu
     }
   },
   selectRun: (selectedRunId) =>
-    set({ selectedRunId, selectedVertexIndex: null, selectedGateId: null, traceError: null }),
+    set({ selectedRunId, selectedAreaId: null, selectedVertexIndex: null, selectedGateId: null, traceError: null }),
   addPhotos: async (files) => {
     if (files.length === 0) return;
     const timestamp = nowIso();

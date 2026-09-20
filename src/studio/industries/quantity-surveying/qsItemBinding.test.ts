@@ -172,6 +172,15 @@ test("B6: a unit change withholds pricing before any hash comparison", () => {
   assert.equal(result.pricingPermitted, false);
 });
 
+test("B5b: a changed entity family is stale even when every scalar and hash matches", () => {
+  for (const entityType of ["room-area", "roof-plane", "construction-run", "duct-run"] as const) {
+    const result = evaluateItemBinding(parseBinding(), parseGeometry({ entityType }));
+    assert.equal(result.status, "stale-measurement");
+    assert.equal(result.pricingPermitted, false);
+    assert.match(result.reasons[0], /Entity type changed/);
+  }
+});
+
 test("B7: an uncalibrated binding never verifies, even when hashes match", () => {
   const result = evaluateItemBinding(
     parseBinding({ sourceSha256: null, calibrationId: null }),

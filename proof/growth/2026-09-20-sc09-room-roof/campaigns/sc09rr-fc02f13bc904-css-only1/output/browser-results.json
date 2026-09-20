@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "method": "raw CDP hot-socket declarative opcode batch; fail-fast; reactive readiness",
+  "host": "dans1",
+  "startedAt": "2026-09-20T06:53:00.538Z",
+  "completedAt": "2026-09-20T06:53:01.677Z",
+  "node": "v24.20.0",
+  "browserVersion": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/153.0.8010.50",
+    "revision": "@583c5b4655acea7450a3b5224ea5121ae8caca9b",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "jsVersion": "15.3.76.12"
+  },
+  "sourceHashes": {
+    "fast-cdp.mjs": "edb4d73ff17506e09782dc9cd45e5b7a2fec2ca3ec3a99bb0c8a496400995003",
+    "run-fast-cdp.ps1": "368f11cd0771b96efb4b438e1821ee6d161ca56c3019a0f4e2a5bb4bd410b220",
+    "invoke-dans1-fast-cdp.ps1": "29e174494fb34fa4acde2c8b0b8da1e82fd50945a31542f02e52bd2ca21f38e5",
+    "scenario:scenario.json": "03c27250601a977d877f905ebd6577d5bffbbbcb60143aad431a47beea586d6c"
+  },
+  "scenarioSha256": "03c27250601a977d877f905ebd6577d5bffbbbcb60143aad431a47beea586d6c",
+  "plannedOperations": 21,
+  "completedOperations": 21,
+  "elapsedMs": 1137.8038,
+  "verdict": "PASS",
+  "error": null,
+  "browserErrors": [],
+  "expectedCancellations": [
+    {
+      "url": "http://127.0.0.1:8091/api/pricing-research",
+      "maximum": 8,
+      "reason": "PricingResearchPanel aborts its provider-status request when its pane unmounts; no failed asset or search is exempted.",
+      "observed": 0
+    }
+  ],
+  "observedCancellations": [],
+  "screenshots": [
+    {
+      "eventId": "8b11434c-8722-4f45-9eeb-a0c692b1c553",
+      "context": "default",
+      "targetId": "AA9F5943852FF5E518A4F363F4924D33",
+      "file": "captures/css-desktop-1600x1000.png",
+      "bytes": 68793,
+      "sha256": "2c81c63dac53aff2c7dc0d89bf3b6dffa144a2d73e68086e9dc6b37f441d0c75"
+    },
+    {
+      "eventId": "d7882f51-ba53-4899-a704-004e0b575a82",
+      "context": "default",
+      "targetId": "AA9F5943852FF5E518A4F363F4924D33",
+      "file": "captures/css-tablet-1024x768.png",
+      "bytes": 44151,
+      "sha256": "55424bfc602c7c133dc8ac29fc7fb2853eaae8ff1e42bb445cf6c476f666dbd9"
+    },
+    {
+      "eventId": "a9df878d-ca77-4657-9998-7595d6c7eb31",
+      "context": "default",
+      "targetId": "AA9F5943852FF5E518A4F363F4924D33",
+      "file": "captures/css-reloaded-tablet-1024x768.png",
+      "bytes": 44151,
+      "sha256": "55424bfc602c7c133dc8ac29fc7fb2853eaae8ff1e42bb445cf6c476f666dbd9"
+    }
+  ],
+  "cleanup": {
+    "attempted": true,
+    "disposed": [
+      "default"
+    ],
+    "errors": []
+  },
+  "receipts": [
+    {
+      "index": 0,
+      "opcode": "expect-cancelled-fetch",
+      "context": "http://127.0.0.1:8091/api/pricing-research",
+      "elapsedMs": 0.34079999999999444,
+      "value": {
+        "url": "http://127.0.0.1:8091/api/pricing-research",
+        "maximum": 8,
+        "reason": "PricingResearchPanel aborts its provider-status request when its pane unmounts; no failed asset or search is exempted."
+      }
+    },
+    {
+      "index": 1,
+      "opcode": "set",
+      "context": "viewport",
+      "elapsedMs": 64.885,
+      "value": {
+        "width": 1600,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "index": 2,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8091/industry-coverage/index.html",
+      "elapsedMs": 7.888300000000001,
+      "value": {
+        "frameId": "AA9F5943852FF5E518A4F363F4924D33",
+        "url": "http://127.0.0.1:8091/industry-coverage/index.html"
+      }
+    },
+    {
+      "index": 3,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 93.9102,
+      "value": true
+    },
+    {
+      "index": 4,
+      "opcode": "eval",
+      "context": "(async function seedFixture(fixture) {\n  if (!location.pathname.endsWith(\"/industry-coverage/index.html\") || document.querySelector(\"[data-hydration-status]\") || document.querySelector('script[type=\"module\"]'))\n    throw Error(\"Fixture seed is restricted to the static pre-mount page\");\n  if (localStorage.getItem(fixture.projectStorageKey) !== null || localStorage.getItem(fixture.industryStorageKey) !== null)\n    throw Error(\"Fresh proof profile required; existing product data will not be overwritten\");\n  const bytes = Uint8Array.from(atob(fixture.source.bytesBase64), character => character.charCodeAt(0));\n  const digest = [...new Uint8Array(await crypto.subtle.digest(\"SHA-256\", bytes))].map(byte => byte.toString(16).padStart(2, \"0\")).join(\"\");\n  if (digest !== fixture.source.sha256 || bytes.byteLength !== fixture.source.sizeBytes) throw Error(\"Controlled SVG bytes failed identity verification\");\n  const database = await new Promise((resolve, reject) => {\n    const request = indexedDB.open(fixture.planDatabase, 1);\n    request.onupgradeneeded = () => request.result.createObjectStore(fixture.planStore, { keyPath: \"documentId\" });\n    request.onsuccess = () => resolve(request.result);\n    request.onerror = () => reject(request.error);\n    request.onblocked = () => reject(Error(\"Plan fixture database is blocked\"));\n  });\n  try {\n    await new Promise((resolve, reject) => {\n      const transaction = database.transaction(fixture.planStore, \"readwrite\");\n      const { bytesBase64, ...metadata } = fixture.source;\n      void bytesBase64;\n      transaction.objectStore(fixture.planStore).add({ ...metadata, bytes: bytes.buffer });\n      transaction.oncomplete = resolve;\n      transaction.onerror = () => reject(transaction.error);\n      transaction.onabort = () => reject(transaction.error ?? Error(\"Plan fixture transaction aborted\"));\n    });\n  } finally { database.close(); }\n  localStorage.setItem(fixture.projectStorageKey, JSON.stringify(fixture.job));\n  localStorage.setItem(fixture.industryStorageKey, JSON.stringify(fixture.library));\n  sessionStorage.setItem(\"sc09-room-roof-observer\", JSON.stringify({ sourceSha256: digest, expected: fixture.expected }));\n  return { seededBeforeProductMount: true, sourceSha256: digest, svgBytes: bytes.byteLength, areasUnclassified: 2, rowsUnbound: 2 };\n})({\"format\":\"xray.sc09-room-roof-browser-fixture/v1\",\"projectStorageKey\":\"xray:fencing-job:v2\",\"industryStorageKey\":\"xray.industry-drafts.v1:job-sc09-room-roof\",\"planDatabase\":\"xray-plan-content-v1\",\"planStore\":\"documents\",\"job\":{\"schemaVersion\":2,\"id\":\"job-sc09-room-roof\",\"revision\":1,\"name\":\"SC09 room and roof source proof\",\"trade\":\"general\",\"status\":\"draft\",\"createdAt\":\"2026-09-20T00:00:00.000Z\",\"updatedAt\":\"2026-09-20T00:00:00.000Z\",\"site\":{\"address\":\"\",\"estimator\":\"\",\"inspectionDate\":\"\",\"notes\":\"\"},\"documents\":[{\"id\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"importedAt\":\"2026-09-20T00:00:00.000Z\",\"pageCount\":1,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"source\":\"web\"}],\"activeDocumentId\":\"doc-sc09-room-roof\",\"calibrations\":[{\"sheet\":0,\"coordinateSpace\":\"source-page-v1\",\"metresPerUnit\":0.025,\"source\":\"manual\",\"confidence\":1,\"locked\":true,\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"transform\":{\"a\":1,\"b\":0,\"c\":0,\"d\":1,\"e\":0,\"f\":0},\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"candidates\":[{\"id\":\"cal-sc09-room-roof-10m\",\"source\":\"manual\",\"metresPerUnit\":0.025,\"confidence\":1,\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"provenance\":{\"method\":\"two-point\",\"evidence\":\"Explicit 10.000 m reference on the controlled source sheet\",\"documentId\":\"doc-sc09-room-roof\"}}],\"selectedCandidateId\":\"cal-sc09-room-roof-10m\",\"conflict\":null}],\"runs\":[],\"gates\":[],\"photos\":[],\"bom\":[],\"quoteDraft\":null,\"revisionHistory\":[],\"activeSheet\":0,\"annotations\":[{\"id\":\"area-sc09-room-a\",\"kind\":\"area\",\"label\":\"Room A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":80,\"y\":100},{\"x\":240,\"y\":100},{\"x\":240,\"y\":220},{\"x\":80,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"},{\"id\":\"area-sc09-roof-a\",\"kind\":\"area\",\"label\":\"Roof A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":340,\"y\":100},{\"x\":500,\"y\":100},{\"x\":500,\"y\":220},{\"x\":340,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"}]},\"library\":{\"format\":\"xray.industry-drafts/1\",\"projectId\":\"job-sc09-room-roof\",\"revision\":1,\"drafts\":{\"quantity-surveying\":{\"revision\":1,\"form\":{\"hierarchyId\":\"SC09 room and roof\",\"hierarchyRevision\":\"Controlled source Rev A\",\"calculated\":false,\"binding\":null,\"nodes\":[{\"key\":\"node-room\",\"code\":\"ROOM\",\"label\":\"Room areas\",\"parentKey\":\"\"},{\"key\":\"node-roof\",\"code\":\"ROOF\",\"label\":\"Roof planes\",\"parentKey\":\"\"}],\"items\":[{\"key\":\"item-room\",\"reference\":\"QS-ROOM-A\",\"quantity\":\"12\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-room\"},{\"key\":\"item-roof\",\"reference\":\"QS-ROOF-A\",\"quantity\":\"13.856406460551018\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-roof\"}]}}}},\"sourceBounds\":{\"x\":0,\"y\":0,\"width\":600,\"height\":400},\"source\":{\"documentId\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"mimeType\":\"image/svg+xml\",\"sizeBytes\":830,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"bytesBase64\":\"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNjAwIDQwMCI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjZjRmMWU4Ii8+CjxwYXRoIGQ9Ik04MCAxMDBIMjQwVjIyMEg4MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIzIi8+Cjx0ZXh0IHg9IjgwIiB5PSI4OCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlJPT00gQSBjbG9zZWQgcG9seWdvbjwvdGV4dD4KPHBhdGggZD0iTTM0MCAxMDBINTAwVjIyMEgzNDBaIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YzNhZWQiIHN0cm9rZS13aWR0aD0iMyIvPgo8dGV4dCB4PSIzNDAiIHk9Ijg4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Uk9PRiBBIGNsb3NlZCBwb2x5Z29uPC90ZXh0Pgo8cGF0aCBkPSJNMTAwIDM0MEg1MDAiIHN0cm9rZT0iI2I0NTMwOSIgc3Ryb2tlLXdpZHRoPSI0Ii8+CjxwYXRoIGQ9Ik0xMDAgMzMwVjM1ME01MDAgMzMwVjM1MCIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjMiLz4KPHRleHQgeD0iMjU1IiB5PSIzMzIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0Ij4xMC4wMDAgbSByZWZlcmVuY2U8L3RleHQ+Cjx0ZXh0IHg9IjMzMCIgeT0iMjUwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Um9vZiBwaXRjaCAzMCBkZWc7IHJpc2UgZGlyZWN0aW9uIDkwIGRlZyBjbG9ja3dpc2UgZnJvbSBwYWdlIHVwPC90ZXh0Pgo8L3N2Zz4=\"},\"expected\":{\"roomId\":\"area-sc09-room-a\",\"roofId\":\"area-sc09-roof-a\",\"roomItem\":\"QS-ROOM-A\",\"roofItem\":\"QS-ROOF-A\",\"room\":12,\"roof\":13.856406460551018,\"pitch\":30,\"azimuth\":90}})",
+      "elapsedMs": 37.77259999999998,
+      "value": {
+        "seededBeforeProductMount": true,
+        "sourceSha256": "c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d",
+        "svgBytes": 830,
+        "areasUnclassified": 2,
+        "rowsUnbound": 2
+      }
+    },
+    {
+      "index": 5,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8091/",
+      "elapsedMs": 8.206799999999987,
+      "value": {
+        "frameId": "AA9F5943852FF5E518A4F363F4924D33",
+        "url": "http://127.0.0.1:8091/"
+      }
+    },
+    {
+      "index": 6,
+      "opcode": "eval",
+      "context": "(async () => {\n  const response = await fetch(location.origin + \"/\", { cache: \"no-store\", headers: { accept: \"text/html\" } });\n  const contentType = response.headers.get(\"content-type\") || \"\";\n  if (!response.ok || !/^text\\/html(?:;|$)/i.test(contentType)) throw Error(\"Raw SSR root was not HTTP 200 text/html\");\n  const html = await response.text();\n  if (!html.trim()) throw Error(\"Raw SSR root was empty\");\n  const parsed = new DOMParser().parseFromString(html, \"text/html\");\n  const hrefs = [...parsed.querySelectorAll('link[rel~=\"stylesheet\"][href]')].map(link => link.getAttribute(\"href\"));\n  if (hrefs.length < 1) throw Error(\"Raw SSR root did not declare a stylesheet\");\n  const receipts = [];\n  for (const href of hrefs) {\n    const url = new URL(href, location.origin);\n    if (url.origin !== location.origin) throw Error(\"Raw SSR stylesheet is not same-origin: \" + url.href);\n    const stylesheet = await fetch(url.href, { cache: \"no-store\" });\n    const stylesheetType = stylesheet.headers.get(\"content-type\") || \"\";\n    const bytes = (await stylesheet.arrayBuffer()).byteLength;\n    if (!stylesheet.ok || !/^text\\/css(?:;|$)/i.test(stylesheetType) || bytes < 1)\n      throw Error(\"SSR stylesheet failed its HTTP/CSS/body contract: \" + url.pathname + \" status=\" + stylesheet.status + \" type=\" + stylesheetType + \" bytes=\" + bytes);\n    receipts.push({ href: url.pathname + url.search, status: stylesheet.status, contentType: stylesheetType, bytes });\n  }\n  return { rawSsrHtmlBytes: new TextEncoder().encode(html).byteLength, stylesheets: receipts };\n})()",
+      "elapsedMs": 32.69009999999997,
+      "value": {
+        "rawSsrHtmlBytes": 6059,
+        "stylesheets": [
+          {
+            "href": "/assets/index-B9B94adg.css",
+            "status": 200,
+            "contentType": "text/css; charset=utf-8",
+            "bytes": 141827
+          },
+          {
+            "href": "/assets/routes-3ed3_3c6.css",
+            "status": 200,
+            "contentType": "text/css; charset=utf-8",
+            "bytes": 196773
+          }
+        ]
+      }
+    },
+    {
+      "index": 7,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 287.7403,
+      "value": true
+    },
+    {
+      "index": 8,
+      "opcode": "eval",
+      "context": "(() => {\n  const root = getComputedStyle(document.documentElement), body = getComputedStyle(document.body);\n  const receipt = {\n    stylesheetLinks: [...document.querySelectorAll('link[rel~=\"stylesheet\"][href]')].map(link => new URL(link.href, location.href).pathname),\n    colorBg: root.getPropertyValue(\"--color-bg\").trim(), colorInk: root.getPropertyValue(\"--color-ink\").trim(),\n    bodyBackground: body.backgroundColor, bodyColor: body.color, bodyFontFamily: body.fontFamily,\n  };\n  if (!receipt.stylesheetLinks.length || !receipt.colorBg || !receipt.colorInk || !receipt.bodyBackground || !receipt.bodyColor || !receipt.bodyFontFamily)\n    throw Error(\"Computed global theme receipt is incomplete\");\n  return receipt;\n})()",
+      "elapsedMs": 3.486599999999953,
+      "value": {
+        "stylesheetLinks": [
+          "/assets/index-B9B94adg.css",
+          "/assets/routes-3ed3_3c6.css"
+        ],
+        "colorBg": "#ebe4d4",
+        "colorInk": "#1c1812",
+        "bodyBackground": "rgb(235, 228, 212)",
+        "bodyColor": "rgb(28, 24, 18)",
+        "bodyFontFamily": "\"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif"
+      }
+    },
+    {
+      "index": 9,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 214.4588,
+      "value": true
+    },
+    {
+      "index": 10,
+      "opcode": "eval",
+      "context": "(f => {\n    const job = JSON.parse(localStorage.getItem(f.projectStorageKey) || \"null\");\n    if (job?.id !== f.job.id || job.annotations.length !== 2 || job.annotations.some(area => area.measurement)) throw Error(\"Product did not hydrate the exact two unclassified areas\");\n    if (document.querySelector(\"[data-boot-failure]\")) throw Error(\"Product boot failed\");\n    return { hydratedFromPersistence: true, projectId: job.id, sourceSha256: job.documents[0].sha256 };\n  })({\"format\":\"xray.sc09-room-roof-browser-fixture/v1\",\"projectStorageKey\":\"xray:fencing-job:v2\",\"industryStorageKey\":\"xray.industry-drafts.v1:job-sc09-room-roof\",\"planDatabase\":\"xray-plan-content-v1\",\"planStore\":\"documents\",\"job\":{\"schemaVersion\":2,\"id\":\"job-sc09-room-roof\",\"revision\":1,\"name\":\"SC09 room and roof source proof\",\"trade\":\"general\",\"status\":\"draft\",\"createdAt\":\"2026-09-20T00:00:00.000Z\",\"updatedAt\":\"2026-09-20T00:00:00.000Z\",\"site\":{\"address\":\"\",\"estimator\":\"\",\"inspectionDate\":\"\",\"notes\":\"\"},\"documents\":[{\"id\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"importedAt\":\"2026-09-20T00:00:00.000Z\",\"pageCount\":1,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"source\":\"web\"}],\"activeDocumentId\":\"doc-sc09-room-roof\",\"calibrations\":[{\"sheet\":0,\"coordinateSpace\":\"source-page-v1\",\"metresPerUnit\":0.025,\"source\":\"manual\",\"confidence\":1,\"locked\":true,\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"transform\":{\"a\":1,\"b\":0,\"c\":0,\"d\":1,\"e\":0,\"f\":0},\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"candidates\":[{\"id\":\"cal-sc09-room-roof-10m\",\"source\":\"manual\",\"metresPerUnit\":0.025,\"confidence\":1,\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"provenance\":{\"method\":\"two-point\",\"evidence\":\"Explicit 10.000 m reference on the controlled source sheet\",\"documentId\":\"doc-sc09-room-roof\"}}],\"selectedCandidateId\":\"cal-sc09-room-roof-10m\",\"conflict\":null}],\"runs\":[],\"gates\":[],\"photos\":[],\"bom\":[],\"quoteDraft\":null,\"revisionHistory\":[],\"activeSheet\":0,\"annotations\":[{\"id\":\"area-sc09-room-a\",\"kind\":\"area\",\"label\":\"Room A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":80,\"y\":100},{\"x\":240,\"y\":100},{\"x\":240,\"y\":220},{\"x\":80,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"},{\"id\":\"area-sc09-roof-a\",\"kind\":\"area\",\"label\":\"Roof A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":340,\"y\":100},{\"x\":500,\"y\":100},{\"x\":500,\"y\":220},{\"x\":340,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"}]},\"library\":{\"format\":\"xray.industry-drafts/1\",\"projectId\":\"job-sc09-room-roof\",\"revision\":1,\"drafts\":{\"quantity-surveying\":{\"revision\":1,\"form\":{\"hierarchyId\":\"SC09 room and roof\",\"hierarchyRevision\":\"Controlled source Rev A\",\"calculated\":false,\"binding\":null,\"nodes\":[{\"key\":\"node-room\",\"code\":\"ROOM\",\"label\":\"Room areas\",\"parentKey\":\"\"},{\"key\":\"node-roof\",\"code\":\"ROOF\",\"label\":\"Roof planes\",\"parentKey\":\"\"}],\"items\":[{\"key\":\"item-room\",\"reference\":\"QS-ROOM-A\",\"quantity\":\"12\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-room\"},{\"key\":\"item-roof\",\"reference\":\"QS-ROOF-A\",\"quantity\":\"13.856406460551018\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-roof\"}]}}}},\"sourceBounds\":{\"x\":0,\"y\":0,\"width\":600,\"height\":400},\"source\":{\"documentId\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"mimeType\":\"image/svg+xml\",\"sizeBytes\":830,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"bytesBase64\":\"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNjAwIDQwMCI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjZjRmMWU4Ii8+CjxwYXRoIGQ9Ik04MCAxMDBIMjQwVjIyMEg4MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIzIi8+Cjx0ZXh0IHg9IjgwIiB5PSI4OCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlJPT00gQSBjbG9zZWQgcG9seWdvbjwvdGV4dD4KPHBhdGggZD0iTTM0MCAxMDBINTAwVjIyMEgzNDBaIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YzNhZWQiIHN0cm9rZS13aWR0aD0iMyIvPgo8dGV4dCB4PSIzNDAiIHk9Ijg4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Uk9PRiBBIGNsb3NlZCBwb2x5Z29uPC90ZXh0Pgo8cGF0aCBkPSJNMTAwIDM0MEg1MDAiIHN0cm9rZT0iI2I0NTMwOSIgc3Ryb2tlLXdpZHRoPSI0Ii8+CjxwYXRoIGQ9Ik0xMDAgMzMwVjM1ME01MDAgMzMwVjM1MCIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjMiLz4KPHRleHQgeD0iMjU1IiB5PSIzMzIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0Ij4xMC4wMDAgbSByZWZlcmVuY2U8L3RleHQ+Cjx0ZXh0IHg9IjMzMCIgeT0iMjUwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Um9vZiBwaXRjaCAzMCBkZWc7IHJpc2UgZGlyZWN0aW9uIDkwIGRlZyBjbG9ja3dpc2UgZnJvbSBwYWdlIHVwPC90ZXh0Pgo8L3N2Zz4=\"},\"expected\":{\"roomId\":\"area-sc09-room-a\",\"roofId\":\"area-sc09-roof-a\",\"roomItem\":\"QS-ROOM-A\",\"roofItem\":\"QS-ROOF-A\",\"room\":12,\"roof\":13.856406460551018,\"pitch\":30,\"azimuth\":90}})",
+      "elapsedMs": 6.681600000000003,
+      "value": {
+        "hydratedFromPersistence": true,
+        "projectId": "job-sc09-room-roof",
+        "sourceSha256": "c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d"
+      }
+    },
+    {
+      "index": 11,
+      "opcode": "screenshot",
+      "context": "captures/css-desktop-1600x1000.png",
+      "elapsedMs": 54.10309999999993,
+      "value": {
+        "eventId": "8b11434c-8722-4f45-9eeb-a0c692b1c553",
+        "context": "default",
+        "targetId": "AA9F5943852FF5E518A4F363F4924D33",
+        "file": "captures/css-desktop-1600x1000.png",
+        "bytes": 68793,
+        "sha256": "2c81c63dac53aff2c7dc0d89bf3b6dffa144a2d73e68086e9dc6b37f441d0c75"
+      }
+    },
+    {
+      "index": 12,
+      "opcode": "set",
+      "context": "viewport",
+      "elapsedMs": 4.950599999999895,
+      "value": {
+        "width": 1024,
+        "height": 768,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "index": 13,
+      "opcode": "eval",
+      "context": "(() => { if(document.documentElement.scrollWidth > innerWidth) throw Error(\"Horizontal overflow\"); return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth}; })()",
+      "elapsedMs": 2.6217000000000326,
+      "value": {
+        "width": 1024,
+        "scrollWidth": 1024
+      }
+    },
+    {
+      "index": 14,
+      "opcode": "screenshot",
+      "context": "captures/css-tablet-1024x768.png",
+      "elapsedMs": 62.23620000000005,
+      "value": {
+        "eventId": "d7882f51-ba53-4899-a704-004e0b575a82",
+        "context": "default",
+        "targetId": "AA9F5943852FF5E518A4F363F4924D33",
+        "file": "captures/css-tablet-1024x768.png",
+        "bytes": 44151,
+        "sha256": "55424bfc602c7c133dc8ac29fc7fb2853eaae8ff1e42bb445cf6c476f666dbd9"
+      }
+    },
+    {
+      "index": 15,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8091/",
+      "elapsedMs": 7.780899999999974,
+      "value": {
+        "frameId": "AA9F5943852FF5E518A4F363F4924D33",
+        "url": "http://127.0.0.1:8091/"
+      }
+    },
+    {
+      "index": 16,
+      "opcode": "eval",
+      "context": "(async () => {\n  const response = await fetch(location.origin + \"/\", { cache: \"no-store\", headers: { accept: \"text/html\" } });\n  const contentType = response.headers.get(\"content-type\") || \"\";\n  if (!response.ok || !/^text\\/html(?:;|$)/i.test(contentType)) throw Error(\"Raw SSR root was not HTTP 200 text/html\");\n  const html = await response.text();\n  if (!html.trim()) throw Error(\"Raw SSR root was empty\");\n  const parsed = new DOMParser().parseFromString(html, \"text/html\");\n  const hrefs = [...parsed.querySelectorAll('link[rel~=\"stylesheet\"][href]')].map(link => link.getAttribute(\"href\"));\n  if (hrefs.length < 1) throw Error(\"Raw SSR root did not declare a stylesheet\");\n  const receipts = [];\n  for (const href of hrefs) {\n    const url = new URL(href, location.origin);\n    if (url.origin !== location.origin) throw Error(\"Raw SSR stylesheet is not same-origin: \" + url.href);\n    const stylesheet = await fetch(url.href, { cache: \"no-store\" });\n    const stylesheetType = stylesheet.headers.get(\"content-type\") || \"\";\n    const bytes = (await stylesheet.arrayBuffer()).byteLength;\n    if (!stylesheet.ok || !/^text\\/css(?:;|$)/i.test(stylesheetType) || bytes < 1)\n      throw Error(\"SSR stylesheet failed its HTTP/CSS/body contract: \" + url.pathname + \" status=\" + stylesheet.status + \" type=\" + stylesheetType + \" bytes=\" + bytes);\n    receipts.push({ href: url.pathname + url.search, status: stylesheet.status, contentType: stylesheetType, bytes });\n  }\n  return { rawSsrHtmlBytes: new TextEncoder().encode(html).byteLength, stylesheets: receipts };\n})()",
+      "elapsedMs": 33.09940000000006,
+      "value": {
+        "rawSsrHtmlBytes": 6059,
+        "stylesheets": [
+          {
+            "href": "/assets/index-B9B94adg.css",
+            "status": 200,
+            "contentType": "text/css; charset=utf-8",
+            "bytes": 141827
+          },
+          {
+            "href": "/assets/routes-3ed3_3c6.css",
+            "status": 200,
+            "contentType": "text/css; charset=utf-8",
+            "bytes": 196773
+          }
+        ]
+      }
+    },
+    {
+      "index": 17,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 0.7916000000000167,
+      "value": true
+    },
+    {
+      "index": 18,
+      "opcode": "eval",
+      "context": "(() => {\n  const root = getComputedStyle(document.documentElement), body = getComputedStyle(document.body);\n  const receipt = {\n    stylesheetLinks: [...document.querySelectorAll('link[rel~=\"stylesheet\"][href]')].map(link => new URL(link.href, location.href).pathname),\n    colorBg: root.getPropertyValue(\"--color-bg\").trim(), colorInk: root.getPropertyValue(\"--color-ink\").trim(),\n    bodyBackground: body.backgroundColor, bodyColor: body.color, bodyFontFamily: body.fontFamily,\n  };\n  if (!receipt.stylesheetLinks.length || !receipt.colorBg || !receipt.colorInk || !receipt.bodyBackground || !receipt.bodyColor || !receipt.bodyFontFamily)\n    throw Error(\"Computed global theme receipt is incomplete\");\n  return receipt;\n})()",
+      "elapsedMs": 0.4918999999999869,
+      "value": {
+        "stylesheetLinks": [
+          "/assets/index-B9B94adg.css",
+          "/assets/routes-3ed3_3c6.css"
+        ],
+        "colorBg": "#ebe4d4",
+        "colorInk": "#1c1812",
+        "bodyBackground": "rgb(235, 228, 212)",
+        "bodyColor": "rgb(28, 24, 18)",
+        "bodyFontFamily": "\"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif"
+      }
+    },
+    {
+      "index": 19,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 78.0687999999999,
+      "value": true
+    },
+    {
+      "index": 20,
+      "opcode": "screenshot",
+      "context": "captures/css-reloaded-tablet-1024x768.png",
+      "elapsedMs": 73.0824,
+      "value": {
+        "eventId": "a9df878d-ca77-4657-9998-7595d6c7eb31",
+        "context": "default",
+        "targetId": "AA9F5943852FF5E518A4F363F4924D33",
+        "file": "captures/css-reloaded-tablet-1024x768.png",
+        "bytes": 44151,
+        "sha256": "55424bfc602c7c133dc8ac29fc7fb2853eaae8ff1e42bb445cf6c476f666dbd9"
+      }
+    }
+  ],
+  "limitations": [
+    "Browser-level CDP is host authority and is never delegated to untrusted workers.",
+    "This runner proves the supplied loopback scenario only; it does not claim deployment or live-device verification."
+  ]
+}

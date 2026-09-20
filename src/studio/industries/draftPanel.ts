@@ -1,4 +1,6 @@
 import type { IndustrySourceState } from "./sourceBinding.ts";
+import type { SourceAreaMeasurement } from "../domain.ts";
+import type { Calibration } from "../calibration.ts";
 
 /** A real project entity that a worksheet may bind to. The geometry inputs are
  * hashed by the consumer; no verification verdict is stored here. */
@@ -12,6 +14,13 @@ export type IndustryGeometryEntitySource = {
   unit: string;
   calibrationId: string | null;
   sourceSha256: string | null;
+  areaGeometry?: {
+    holes: readonly (readonly { x: number; y: number }[])[];
+    pitchDegrees: number | null;
+    azimuthDegrees: number | null;
+    basis: SourceAreaMeasurement;
+    calibrationOperands: Calibration | null;
+  };
 };
 
 /** Controlled industry forms. The shared host owns project-scoped draft storage, and supplies the

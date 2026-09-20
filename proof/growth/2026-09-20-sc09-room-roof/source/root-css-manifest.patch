@@ -1,0 +1,23 @@
+diff --git a/src/routes/__root.tsx b/src/routes/__root.tsx
+index 7e5387d..9f17173 100644
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -2,7 +2,9 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
+ import { AuthProvider } from "@/lib/auth/provider";
+ import { PreviewHostBridge } from "@/components/preview-host-bridge";
+ import { BOOT_GUARD_SOURCE } from "@/lib/boot-guard";
+-import appCss from "../styles.css?url";
++// Let Start's client manifest supply the SSR stylesheet URL. A separate ?url
++// transform can produce a server-only CSS hash that the client build never emits.
++import "../styles.css";
+ 
+ const APP_NAME = "X-Ray by Looplet";
+ 
+@@ -21,7 +23,6 @@ export const Route = createRootRoute({
+     ],
+     links: [
+       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+-      { rel: "stylesheet", href: appCss },
+       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
+       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+     ],

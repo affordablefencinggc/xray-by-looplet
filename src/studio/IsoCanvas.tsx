@@ -16,6 +16,7 @@ import { SourceScopeContext } from "./DocumentPreview";
 import { PlanScope, type DrawScopeScene } from "./PlanScope";
 import { scopeFrame, throughScope, insideScope, routeScopeWheel, type ScopeFrame } from "./precisionScope";
 import "./planScope.css";
+import { sourceAreaDragCommitPoint, type SourceAreaDrag } from "./sourceAreaDrag.ts";
 const EMPTY_CALIBRATION_POINTS: readonly CalibrationPoint[] = [];
 
 export function IsoCanvas() {
@@ -212,11 +213,14 @@ export type PlanCanvasProps = {
   calibrationPoints?: readonly CalibrationPoint[];
   onCalibrationPoint?: (point: CalibrationPoint) => void;
   selectedRunId?: string | null;
+  selectedAreaId?: string | null;
   selectedVertexIndex?: number | null;
   editMode?: "select" | "move" | "insert";
   onSelectRun?: (runId: string | null) => void;
   onSelectVertex?: (runId: string, vertexIndex: number) => void;
   onMoveVertex?: (runId: string, vertexIndex: number, point: CalibrationPoint) => void;
+  onSelectArea?: (id: string) => void;
+  onMoveAreaVertex?: (id: string, ringIndex: number, vertexIndex: number, point: CalibrationPoint, revision: number) => void;
 };
 
 function getPlanCanvasGeometry(viewport: PlanCanvasViewport) {
@@ -415,11 +419,14 @@ export function PlanCanvas({
   calibrationPoints = EMPTY_CALIBRATION_POINTS,
   onCalibrationPoint,
   selectedRunId = null,
+  selectedAreaId = null,
   selectedVertexIndex = null,
   editMode = "select",
   onSelectRun,
   onSelectVertex,
   onMoveVertex,
+  onSelectArea,
+  onMoveAreaVertex,
 }: PlanCanvasProps) {
   const ref = useRef<HTMLCanvasElement>(null);
   const s = useStudio();
@@ -430,6 +437,14 @@ export function PlanCanvas({
   const [vertexPreview, setVertexPreview] = useState<VertexDragPreview | null>(null);
   const vertexPreviewRef = useRef<VertexDragPreview | null>(null);
   const updateVertexPreview = (preview: VertexDragPreview | null) => { vertexPreviewRef.current = preview; setVertexPreview(preview); };
+  const [areaPreview, setAreaPreview] = useState<SourceAreaDrag | null>(null);
+  const areaPreviewRef = useRef<SourceAreaDrag | null>(null);
+  const updateAreaPreview = (preview: SourceAreaDrag | null) => { areaPreviewRef.current = preview; setAreaPreview(preview); };
+  const currentAreas = (s.job.annotations ?? []).filter(area => area.kind === "area" && area.sheet === s.sheet && area.documentId === s.job.activeDocumentId).map(area => {
+    if (!areaPreview || !area.measurement || areaPreview.entityId !== area.id || areaPreview.revision !== area.measurement.revision) return area;
+    const ring = (points: typeof area.points, index: number) => index === areaPreview.ringIndex ? points.map((point, i) => i === areaPreview.vertexIndex ? areaPreview.point : point) : points;
+    return { ...area, points: ring(area.points, 0), measurement: { ...area.measurement, holes: area.measurement.holes.map((points, i) => ring(points, i + 1)) } };
+  });
   const currentRuns = s.job.runs.filter((run) => run.sheet === s.sheet).map(run =>
     vertexPreview && vertexPreview.runId === run.id && vertexPreview.documentId === s.job.activeDocumentId &&
     vertexPreview.sheet === s.sheet && vertexPreview.runRevision === (run.revision ?? 1)
@@ -440,6 +455,7 @@ export function PlanCanvas({
   const drag = useRef<
     | { kind: "pan"; x: number; y: number }
     | { kind: "vertex"; runId: string; vertexIndex: number }
+    | { kind: "area" }
     | null
   >(null);
   const lastPointerMode = useRef<ReturnType<typeof resolveTracingCanvasPointerMode> | null>(null);
@@ -456,13 +472,13 @@ export function PlanCanvas({
     [scopeEnabled, scopeAnchor, scopeZoom, canvasSize, sourceMode, sourceBounds]);
   const lensRef = useRef(precisionFrame); lensRef.current = precisionFrame;
   useEffect(() => {
-    setScopeAnchor(null); setPlacingScope(false); drag.current = null; updateVertexPreview(null); setIsDragging(false);
+    setScopeAnchor(null); setPlacingScope(false); drag.current = null; updateVertexPreview(null); updateAreaPreview(null); setIsDragging(false);
   }, [s.sheet, s.job.activeDocumentId]);
   useEffect(() => {
     const canvas = ref.current; if (!canvas) return;
     const resize = () => setCanvasSize({ width: canvas.clientWidth, height: canvas.clientHeight });
     resize(); const observer = new ResizeObserver(resize); observer.observe(canvas);
-    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") { setScopeEnabled(false); setPlacingScope(false); drag.current = null; updateVertexPreview(null); setIsDragging(false); } };
+    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") { setScopeEnabled(false); setPlacingScope(false); drag.current = null; updateVertexPreview(null); updateAreaPreview(null); setIsDragging(false); } };
     window.addEventListener("keydown", escape);
     return () => { observer.disconnect(); window.removeEventListener("keydown", escape); };
   }, []);
@@ -733,6 +749,7 @@ export function PlanCanvas({
         for (const m of s.markups) {
           if (m.sheet !== s.sheet) continue;
           if (currentRuns.some((run) => run.id === m.id)) continue;
+          if (currentAreas.some(area => area.id === m.id)) continue;
           if (m.points.length === 0) continue;
           ctx.beginPath();
           m.points.forEach((p, i) => {
@@ -748,6 +765,28 @@ export function PlanCanvas({
             ctx.arc(q[0], q[1], 4 / drawZoom, 0, Math.PI * 2);
             ctx.fill();
           }
+        }
+
+        for (const area of currentAreas) {
+          const selected = area.id === selectedAreaId;
+          const rings = [area.points, ...(area.measurement?.holes ?? [])];
+          ctx.save();
+          ctx.strokeStyle = selected ? "#ffb000" : PAL.manual;
+          ctx.fillStyle = selected ? "rgba(255,176,0,0.24)" : "rgba(110,155,184,0.10)";
+          ctx.lineWidth = (selected ? 4 : 1.5) / drawZoom;
+          ctx.beginPath();
+          for (const ring of rings) {
+            ring.forEach((point, index) => { const q = to(point.x, point.y); if (index === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]); });
+            ctx.closePath();
+          }
+          ctx.fill("evenodd"); ctx.stroke();
+          if (selected && interactive && onMoveAreaVertex && editMode === "move") {
+            for (const point of rings.flat()) {
+              const q = to(point.x, point.y); ctx.beginPath(); ctx.arc(q[0], q[1], 6 / drawZoom, 0, Math.PI * 2);
+              ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.stroke();
+            }
+          }
+          ctx.restore();
         }
 
         for (const run of currentRuns) {
@@ -958,6 +997,8 @@ export function PlanCanvas({
     s.markups,
     s.job.runs,
     vertexPreview,
+    areaPreview,
+    s.job.annotations,
     s.job.gates,
     s.pending,
     s.sheet,
@@ -975,6 +1016,9 @@ export function PlanCanvas({
     calibrationCaptureActive,
     calibrationPoints,
     selectedRunId,
+    selectedAreaId,
+    onMoveAreaVertex,
+    editMode,
     selectedVertexIndex,
     hoverSnap,
     zoom,
@@ -986,6 +1030,7 @@ export function PlanCanvas({
     <div className="relative h-full w-full select-none">
       <canvas
         ref={ref}
+        data-highlighted-entity={selectedAreaId ?? selectedRunId ?? undefined}
         aria-label={calibrationCaptureActive ? "Select calibration points on plan" : "Plan drawing canvas"}
         className={`block h-full w-full touch-none ${
           calibrationCaptureActive
@@ -1015,6 +1060,25 @@ export function PlanCanvas({
             sourceBounds,
           };
           const selectedRun = currentRuns.find((run) => run.id === selectedRunId);
+          if (interactive && !legacyReadOnly && !calibrationCaptureActive && s.tool === "none" && e.button === 0 && !e.shiftKey) {
+            const selectedArea = currentAreas.find(area => area.id === selectedAreaId);
+            if (selectedArea?.measurement && onMoveAreaVertex && editMode === "move") {
+              const rings = [selectedArea.points, ...selectedArea.measurement.holes];
+              for (let ringIndex = 0; ringIndex < rings.length; ringIndex += 1) {
+                const hit = hitTestRunVertices(canvasPoint, { id: selectedArea.id, points: rings[ringIndex] }, viewport, 12 / pointerMagnification(e));
+                if (!hit) continue;
+                const point = rings[ringIndex][hit.vertexIndex];
+                updateAreaPreview({ documentId: selectedArea.documentId, sourceSha256: selectedArea.sourceSha256, sheet: selectedArea.sheet,
+                  entityId: selectedArea.id, revision: selectedArea.measurement.revision, ringIndex, vertexIndex: hit.vertexIndex, originalPoint: { ...point }, point: { ...point } });
+                drag.current = { kind: "area" }; e.currentTarget.setPointerCapture(e.pointerId); e.preventDefault(); return;
+              }
+            }
+            if (onSelectArea) {
+              const paths = currentAreas.flatMap(area => [area.points, ...(area.measurement?.holes ?? [])].filter(ring => ring.length > 0).map(ring => ({ id: area.id, points: [...ring, ring[0]] })));
+              const hit = hitTestFenceRuns(canvasPoint, paths, viewport, 10 / pointerMagnification(e));
+              if (hit) { onSelectArea(hit.runId); e.preventDefault(); return; }
+            }
+          }
           const vertexHit = selectedRun && (onMoveVertex || onSelectVertex)
             ? hitTestRunVertices(canvasPoint, selectedRun, viewport, 12 / pointerMagnification(e))
             : null;
@@ -1086,6 +1150,11 @@ export function PlanCanvas({
           if (placingScope) return;
           if (calibrationCaptureActive && !legacyReadOnly) {
             if (hoverSnap) setHoverSnap(null);
+          } else if (drag.current?.kind === "area") {
+            const point = toWorld(e), preview = areaPreviewRef.current;
+            if (preview && editMode === "move" && s.tool === "none" && !legacyReadOnly &&
+              (sourceMode !== "overlay" || (sourceBounds && pointOnSource(point, sourceBounds)))) updateAreaPreview({ ...preview, point });
+            e.preventDefault();
           } else if (drag.current?.kind === "vertex") {
             const point = toWorld(e), preview = vertexPreviewRef.current;
             if (preview && editMode === "move" && s.tool === "none" && !legacyReadOnly &&
@@ -1123,6 +1192,16 @@ export function PlanCanvas({
           if (hoverSnap) setHoverSnap(null);
         }}
         onPointerUp={(e) => {
+          const areaDrag = areaPreviewRef.current;
+          if (drag.current?.kind === "area" && areaDrag) {
+            const state = useStudio.getState();
+            const point = sourceAreaDragCommitPoint(areaDrag, { documentId: state.job.activeDocumentId,
+              sourceSha256: state.job.documents.find(doc => doc.id === state.job.activeDocumentId)?.sha256 ?? null, sheet: state.sheet,
+              annotation: state.job.annotations?.find(area => area.id === areaDrag.entityId),
+              allowed: editMode === "move" && state.tool === "none" && !legacyReadOnly && !state.calibrationCapture });
+            if (point) onMoveAreaVertex?.(areaDrag.entityId, areaDrag.ringIndex, areaDrag.vertexIndex, point, areaDrag.revision);
+          }
+          updateAreaPreview(null);
           const preview = vertexPreviewRef.current;
           if (drag.current?.kind === "vertex" && preview) {
             const state = useStudio.getState();
@@ -1141,6 +1220,7 @@ export function PlanCanvas({
           }
         }}
         onPointerCancel={(e) => {
+          updateAreaPreview(null);
           updateVertexPreview(null);
           if (drag.current) {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) {

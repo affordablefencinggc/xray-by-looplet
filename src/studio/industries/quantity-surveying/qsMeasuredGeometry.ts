@@ -1,5 +1,6 @@
-import type { FencingJob } from "../../domain.ts";
+import { sourceAreaMeasurementSchema, type FencingJob } from "../../domain.ts";
 import { constructionRunQuantity } from "../../construction/runQuantity.ts";
+import { measureSourceArea } from "../../sourceAreaMeasurement.ts";
 import type { IndustryGeometryEntitySource } from "../draftPanel.ts";
 import { calibrationIdentity } from "../sourceBinding.ts";
 
@@ -27,7 +28,7 @@ export function qsMeasuredGeometry(
   sourceReady: boolean,
 ): IndustryGeometryEntitySource[] {
   const document = job.documents.find(entry => entry.id === job.activeDocumentId);
-  return job.runs.filter(run => run.sheet === activeSheet).map(run => {
+  const runs: IndustryGeometryEntitySource[] = job.runs.filter(run => run.sheet === activeSheet).map(run => {
     const measured = constructionRunQuantity(job, run, sourceReady);
     const valid = measured.value !== null;
     const calibration = job.calibrations.find(entry => entry.sheet === run.sheet);
@@ -45,4 +46,34 @@ export function qsMeasuredGeometry(
       sourceSha256: valid ? document?.sha256 ?? null : null,
     };
   });
+  const areas: IndustryGeometryEntitySource[] = (job.annotations ?? []).filter(annotation =>
+    annotation.kind === "area" && annotation.sheet === activeSheet && annotation.documentId === job.activeDocumentId
+    && (annotation.measurement?.entityType === "room-area" || annotation.measurement?.entityType === "roof-plane"),
+  ).map(annotation => {
+    const measured = measureSourceArea(job, annotation, sourceReady);
+    const valid = measured.value !== null;
+    const calibrations = job.calibrations.filter(entry => entry.sheet === annotation.sheet);
+    const calibration = calibrations.length === 1 ? calibrations[0] : null;
+    const parsedBasis = sourceAreaMeasurementSchema.safeParse(annotation.measurement);
+    const basis = parsedBasis.success ? parsedBasis.data : null;
+    return {
+      entityId: annotation.id,
+      entityType: annotation.measurement!.entityType,
+      label: `${annotation.label} · ${valid ? annotation.measurement!.entityType === "roof-plane" ? "true roof surface" : "net room area" : `unverified: ${measured.reason}`}`,
+      revision: basis?.revision ?? 1,
+      points: annotation.points,
+      measuredQuantity: decimalQuantity(measured.value ?? 0),
+      unit: "m²",
+      calibrationId: valid && calibration ? calibrationIdentity(calibration) : null,
+      sourceSha256: valid ? document?.sha256 ?? null : null,
+      ...(basis ? { areaGeometry: {
+        holes: basis.holes,
+        pitchDegrees: basis.roofSlope?.pitchDegrees ?? null,
+        azimuthDegrees: basis.roofSlope?.azimuthDegrees ?? null,
+        basis,
+        calibrationOperands: calibration,
+      } } : {}),
+    };
+  });
+  return [...runs, ...areas];
 }

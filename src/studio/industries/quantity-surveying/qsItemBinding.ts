@@ -194,6 +194,12 @@ export function evaluateItemBinding(
       reasons: [`Bound entity ${binding.entityId} resolved to ${entity.entityId}.`],
     });
 
+  if (entity.entityType !== binding.entityType)
+    return evaluate({
+      status: "stale-measurement",
+      reasons: [`Entity type changed from ${binding.entityType} to ${entity.entityType}; rebind the measured entity.`],
+    });
+
   if (entity.unit !== binding.unit)
     return evaluate({
       status: "unit-changed",

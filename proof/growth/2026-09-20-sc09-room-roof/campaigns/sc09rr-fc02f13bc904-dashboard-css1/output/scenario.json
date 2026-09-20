@@ -1,0 +1,39 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/sc09-status-review.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Boolean(document.querySelector('[data-slice-id=\"SC-09\"]'))"
+  ],
+  [
+    "eval",
+    "(() => {const c=document.querySelector('[data-slice-id=\"SC-09\"]'); if(c.dataset.status!=='partial')throw Error('SC09 incorrectly promoted'); const t=c.textContent; for(const x of ['SC09RR-CSS-06','21/21','118/135','39/138','WebGL'])if(!t.includes(x))throw Error('Missing current proof '+x); const a=c.querySelector('a[href$=\"SC09RR-CSS-06.md\"]'); if(!a)throw Error('Missing proof link'); const s=document.getElementById('globalSearch'); s.value='SC-09';s.dispatchEvent(new Event('input',{bubbles:true})); c.querySelector('.slice-top').click();c.scrollIntoView();return {status:c.dataset.status,proof:a.getAttribute('href')};})()"
+  ],
+  [
+    "screenshot",
+    "captures/dashboard-sc09-desktop-1600x1000.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "(() => {if(document.documentElement.scrollWidth>innerWidth)throw Error('Dashboard overflow');return {width:innerWidth};})()"
+  ],
+  [
+    "screenshot",
+    "captures/dashboard-sc09-tablet-1024x768.png"
+  ]
+]

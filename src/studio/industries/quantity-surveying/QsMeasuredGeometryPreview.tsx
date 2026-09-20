@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
 import * as T from "three";
+import type { IndustryGeometryEntitySource } from "../draftPanel.ts";
+import { createQsAreaPreviewGeometry, qsAreaPreviewSlope } from "./qsAreaPreviewGeometry.ts";
+import "./qsMeasuredGeometryPreview.css";
 
 export type QsMeasuredGeometryRun = Readonly<{
   id: string;
@@ -10,26 +13,33 @@ export type QsMeasuredGeometryRun = Readonly<{
 export type QsMeasuredGeometryPreviewProps = Readonly<{
   runs: readonly QsMeasuredGeometryRun[];
   selectedRunId: string | null;
+  areas?: readonly IndustryGeometryEntitySource[];
+  onSelectEntity?: (id: string) => void;
 }>;
 
 type PreviewApi = {
-  update: (runs: readonly QsMeasuredGeometryRun[], selectedRunId: string | null) => void;
+  update: (runs: readonly QsMeasuredGeometryRun[], selectedRunId: string | null, areas: readonly IndustryGeometryEntitySource[]) => void;
 };
 
 const MODEL_SPAN = 8;
 const WALL_HEIGHT = 0.72;
 const WALL_THICKNESS = 0.12;
+const EMPTY_AREAS: readonly IndustryGeometryEntitySource[] = [];
 
 /**
- * Compact, read-only 3D context for measured project runs.
+ * Compact 3D context for measured project runs and source polygons.
  *
  * Source-page coordinates are normalised only for presentation. The mesh keeps
- * every real run segment and its entity id, but makes no scale or verification
- * claim of its own.
+ * every real run segment, polygon boundary and entity id, but makes no scale or
+ * verification claim of its own. Selection reports an id; this view edits no source.
  */
-export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeometryPreviewProps) {
+export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_AREAS, onSelectEntity }: QsMeasuredGeometryPreviewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<PreviewApi | null>(null);
+  const selectionRef = useRef(onSelectEntity);
+  useEffect(() => { selectionRef.current = onSelectEntity; }, [onSelectEntity]);
+  const unknownRoofCount = areas.filter(area => area.entityType === "roof-plane" && !qsAreaPreviewSlope(area)).length;
+  const missingAnnotations = areas.filter(area => !area.areaGeometry).length;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -87,12 +97,45 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
     scene.add(grid);
 
     const render = () => renderer.render(scene, camera);
+    const pickable: T.Mesh[] = [];
+    const raycaster = new T.Raycaster();
+    let pointerStart: { x: number; y: number } | null = null;
+    let fitCentre = new T.Vector3();
+    let fitRadius = MODEL_SPAN;
+    let polygonView = false;
+    const fitCamera = () => {
+      if (polygonView) {
+        const halfVertical = T.MathUtils.degToRad(camera.fov / 2);
+        const halfHorizontal = Math.atan(Math.tan(halfVertical) * camera.aspect);
+        const distance = fitRadius / Math.sin(Math.min(halfVertical, halfHorizontal)) * 1.12;
+        camera.position.copy(fitCentre).add(new T.Vector3(0.88, 0.82, 1).normalize().multiplyScalar(distance));
+        camera.lookAt(fitCentre); camera.near = Math.max(distance / 1000, 0.01); camera.far = distance + fitRadius * 4 + 20;
+      }
+      camera.updateProjectionMatrix();
+    };
+    const pointerDown = (event: PointerEvent) => { pointerStart = event.button === 0 ? { x: event.clientX, y: event.clientY } : null; };
+    const pointerCancel = () => { pointerStart = null; };
+    const pointerUp = (event: PointerEvent) => {
+      const start = pointerStart; pointerStart = null;
+      if (!selectionRef.current || !start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 5) return;
+      const box = renderer.domElement.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      raycaster.setFromCamera(new T.Vector2((event.clientX - box.left) / box.width * 2 - 1, 1 - (event.clientY - box.top) / box.height * 2), camera);
+      const hit = raycaster.intersectObjects(pickable, false)[0];
+      if (typeof hit?.object.userData.entityId === "string") {
+        renderer.domElement.dataset.lastPickedEntity = hit.object.userData.entityId;
+        selectionRef.current(hit.object.userData.entityId);
+      }
+    };
+    renderer.domElement.addEventListener("pointerdown", pointerDown);
+    renderer.domElement.addEventListener("pointerup", pointerUp);
+    renderer.domElement.addEventListener("pointercancel", pointerCancel);
 
     const clearModel = () => {
       const geometries = new Set<T.BufferGeometry>();
       const materials = new Set<T.Material>();
       model.traverse((object) => {
-        if (!(object instanceof T.Mesh) && !(object instanceof T.LineSegments)) return;
+        if (!(object instanceof T.Mesh) && !(object instanceof T.Line)) return;
         geometries.add(object.geometry);
         const objectMaterials = Array.isArray(object.material)
           ? object.material
@@ -100,14 +143,15 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
         for (const material of objectMaterials) materials.add(material);
       });
       model.clear();
+      pickable.length = 0;
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
     };
 
-    const update: PreviewApi["update"] = (nextRuns, nextSelectedRunId) => {
+    const update: PreviewApi["update"] = (nextRuns, nextSelectedRunId, nextAreas) => {
       clearModel();
 
-      const finitePoints = nextRuns.flatMap((run) =>
+      const finitePoints = [...nextRuns, ...nextAreas].flatMap((run) =>
         run.points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)),
       );
       const minX = finitePoints.length ? Math.min(...finitePoints.map((point) => point.x)) : 0;
@@ -118,9 +162,12 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
       const scale = MODEL_SPAN / sourceSpan;
       const centreX = (minX + maxX) / 2;
       const centreY = (minY + maxY) / 2;
-      const selectedExists =
-        nextSelectedRunId !== null && nextRuns.some((run) => run.id === nextSelectedRunId);
+      const selectedExists = nextSelectedRunId !== null &&
+        (nextRuns.some((run) => run.id === nextSelectedRunId) || nextAreas.some(area => area.entityId === nextSelectedRunId));
       let meshCount = 0;
+      let areaCount = 0, roomCount = 0, roofCount = 0, unknownSlopes = 0, holes = 0, triangles = 0, invalidAreas = 0;
+      const renderedEntities = new Set<string>();
+      const areaStates: { entityId: string; family: string; status: string; holes: number; triangles: number; annotationAvailable: boolean; pitchDegrees: number | null; azimuthDegrees: number | null; previewHeightSpan: number }[] = [];
 
       for (const run of nextRuns) {
         const selected = selectedExists && run.id === nextSelectedRunId;
@@ -162,6 +209,8 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
           wall.castShadow = true;
           wall.receiveShadow = true;
           model.add(wall);
+          pickable.push(wall);
+          renderedEntities.add(run.id);
 
           const outline = new T.LineSegments(
             new T.EdgesGeometry(geometry),
@@ -179,8 +228,46 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
         }
       }
 
+      for (const area of nextAreas) {
+        const selected = area.entityId === nextSelectedRunId;
+        let face;
+        try { face = createQsAreaPreviewGeometry(area, { centreX, centreY, scale }); }
+        catch { invalidAreas++; continue; }
+        const unknownRoof = face.roof && !face.slopeKnown;
+        const mesh = new T.Mesh(face.geometry, new T.MeshStandardMaterial({
+          color: selected ? "#e8b339" : unknownRoof ? "#b87920" : face.roof ? "#966f88" : "#80a99e",
+          emissive: selected ? "#6b3f08" : "#000000", emissiveIntensity: selected ? 0.32 : 0,
+          side: T.DoubleSide, roughness: 0.7, metalness: 0, wireframe: unknownRoof,
+        }));
+        mesh.name = `${area.label} — ${face.status}`;
+        mesh.userData = { entityId: area.entityId, family: area.entityType, previewStatus: face.status };
+        mesh.castShadow = !unknownRoof; mesh.receiveShadow = true;
+        model.add(mesh); pickable.push(mesh); renderedEntities.add(area.entityId);
+        for (const boundary of face.boundaries) {
+          const line = new T.LineLoop(new T.BufferGeometry().setFromPoints(boundary), new T.LineBasicMaterial({ color: selected ? "#fff2b2" : unknownRoof ? "#794700" : "#33546a" }));
+          line.userData.entityId = area.entityId; model.add(line);
+        }
+        meshCount++; areaCount++; if (face.roof) roofCount++; else roomCount++;
+        if (unknownRoof) unknownSlopes++;
+        holes += face.holeCount; triangles += face.triangleCount;
+        areaStates.push({ entityId: area.entityId, family: area.entityType, status: face.status, holes: face.holeCount, triangles: face.triangleCount,
+          annotationAvailable: face.annotationAvailable, pitchDegrees: area.areaGeometry?.pitchDegrees ?? null, azimuthDegrees: area.areaGeometry?.azimuthDegrees ?? null,
+          previewHeightSpan: face.geometry.boundingBox!.max.y - face.geometry.boundingBox!.min.y });
+      }
+
       renderer.domElement.dataset.meshCount = String(meshCount);
-      if (selectedExists) {
+      renderer.domElement.dataset.areaMeshCount = String(areaCount);
+      renderer.domElement.dataset.roomMeshCount = String(roomCount);
+      renderer.domElement.dataset.roofMeshCount = String(roofCount);
+      renderer.domElement.dataset.unknownRoofCount = String(unknownSlopes);
+      renderer.domElement.dataset.areaHoleCount = String(holes);
+      renderer.domElement.dataset.areaTriangleCount = String(triangles);
+      renderer.domElement.dataset.invalidAreaCount = String(invalidAreas);
+      renderer.domElement.dataset.areaAnnotationUnavailableCount = String(nextAreas.filter(area => !area.areaGeometry).length);
+      renderer.domElement.dataset.areaStates = JSON.stringify(areaStates);
+      renderer.domElement.dataset.presentationOnly = "true";
+      renderer.domElement.dataset.measurementAuthority = "none";
+      if (selectedExists && renderedEntities.has(nextSelectedRunId)) {
         renderer.domElement.dataset.highlightedEntity = nextSelectedRunId;
       } else {
         delete renderer.domElement.dataset.highlightedEntity;
@@ -198,7 +285,8 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
       camera.lookAt(centre.x, Math.min(centre.y, WALL_HEIGHT * 0.45), centre.z);
       camera.near = Math.max(radius / 200, 0.02);
       camera.far = Math.max(radius * 12, 50);
-      camera.updateProjectionMatrix();
+      polygonView = areaCount > 0; fitCentre = centre; fitRadius = Math.max(size.length() / 2, 1);
+      fitCamera();
       render();
     };
 
@@ -209,7 +297,7 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      fitCamera();
       render();
     };
 
@@ -220,11 +308,15 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
 
     return () => {
       resizeObserver.disconnect();
+      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointerup", pointerUp);
+      renderer.domElement.removeEventListener("pointercancel", pointerCancel);
       clearModel();
       ground.geometry.dispose();
       (ground.material as T.Material).dispose();
       grid.geometry.dispose();
       for (const material of gridMaterials) material.dispose();
+      key.shadow.map?.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       apiRef.current = null;
@@ -232,13 +324,19 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId }: QsMeasuredGeo
   }, []);
 
   useEffect(() => {
-    apiRef.current?.update(runs, selectedRunId);
-  }, [runs, selectedRunId]);
+    apiRef.current?.update(runs, selectedRunId, areas);
+  }, [runs, selectedRunId, areas]);
 
   return (
     <div
       ref={hostRef}
-      className="qs-measured-model"
-    />
+      className="qs-measured-model qs-measured-polygon-model"
+    >
+      {areas.length > 0 && <p role="status" className="qs-measured-polygon-caption">
+        Normalised polygon preview, not measurement proof.
+        {unknownRoofCount > 0 && ` ${unknownRoofCount} roof footprint(s) only: pitch/rise direction unknown (wireframe).`}
+        {missingAnnotations > 0 && ` ${missingAnnotations} area annotation(s) unavailable.`}
+      </p>}
+    </div>
   );
 }

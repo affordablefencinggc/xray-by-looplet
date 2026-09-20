@@ -182,8 +182,10 @@ export function QuantityDraftPanel({ value, onChange, disabled, source: reported
           entityType: sourceEntity.entityType,
           geometrySha256: await qsDigest(JSON.stringify({
             entityId: sourceEntity.entityId,
+            entityType: sourceEntity.entityType,
             revision: sourceEntity.revision,
             points: sourceEntity.points,
+            areaGeometry: sourceEntity.areaGeometry,
             measuredQuantity: sourceEntity.measuredQuantity,
             unit: sourceEntity.unit,
             calibrationId: sourceEntity.calibrationId,

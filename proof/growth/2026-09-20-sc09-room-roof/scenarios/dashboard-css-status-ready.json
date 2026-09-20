@@ -1,0 +1,39 @@
+[
+    [
+        "set",
+        "viewport",
+        "1600",
+        "1000"
+    ],
+    [
+        "open",
+        "{{ORIGIN}}/sc09-status-review.html"
+    ],
+    [
+        "wait",
+        "--fn",
+        "document.readyState === \"complete\" \u0026\u0026 Boolean(document.querySelector(\u0027[data-slice-id=\"SC-09\"]\u0027))"
+    ],
+    [
+        "eval",
+        "(() =\u003e {const c=document.querySelector(\u0027[data-slice-id=\"SC-09\"]\u0027); if(c.dataset.status!==\u0027partial\u0027)throw Error(\u0027SC09 incorrectly promoted\u0027); const t=c.textContent; for(const x of [\u0027SC09RR-CSS-06\u0027,\u002721/21\u0027,\u0027118/135\u0027,\u002739/138\u0027,\u0027WebGL\u0027])if(!t.includes(x))throw Error(\u0027Missing current proof \u0027+x); const a=c.querySelector(\u0027a[href$=\"SC09RR-CSS-06.md\"]\u0027); if(!a)throw Error(\u0027Missing proof link\u0027); const s=document.getElementById(\u0027globalSearch\u0027); s.value=\u0027SC-09\u0027;s.dispatchEvent(new Event(\u0027input\u0027,{bubbles:true})); c.querySelector(\u0027.slice-top\u0027).click();if(c.querySelector(\".slice-top\").getAttribute(\"aria-expanded\")!==\"true\")throw Error(\"Details did not expand\"); const target=c.querySelector(\".detail-section:nth-child(2)\"); const header=document.querySelector(\"header\"); window.scrollTo(0,target.getBoundingClientRect().top+scrollY-header.getBoundingClientRect().height-16);return {status:c.dataset.status,proof:a.getAttribute(\u0027href\u0027)};})()"
+    ],
+    [
+        "screenshot",
+        "captures/dashboard-sc09-desktop-1600x1000.png"
+    ],
+    [
+        "set",
+        "viewport",
+        "1024",
+        "768"
+    ],
+    [
+        "eval",
+        "(() =\u003e {const c=document.querySelector(\u0027[data-slice-id=\"SC-09\"]\u0027); const target=c.querySelector(\".detail-section:nth-child(2)\");window.scrollTo(0,target.getBoundingClientRect().top+scrollY-16); if(document.documentElement.scrollWidth\u003einnerWidth)throw Error(\"Dashboard overflow\");if(c.querySelector(\".slice-top\").getAttribute(\"aria-expanded\")!==\"true\")throw Error(\"Details closed\");return {width:innerWidth};})()"
+    ],
+    [
+        "screenshot",
+        "captures/dashboard-sc09-tablet-1024x768.png"
+    ]
+]

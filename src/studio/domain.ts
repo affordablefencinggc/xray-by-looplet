@@ -274,6 +274,28 @@ export const quoteDraftSchema = z.object({
   loopletReceipt: z.string().nullable(),
 });
 
+/** Explicit, reviewed classification; absence preserves a legacy area markup. */
+export const sourceAreaMeasurementSchema = z.object({
+  entityType: z.enum(["room-area", "roof-plane"]),
+  revision: z.number().int().positive(),
+  holes: z.array(z.array(pointSchema.strict()).min(3).max(100000)).max(1000),
+  roofSlope: z.object({
+    pitchDegrees: z.number().finite().min(0).lt(90),
+    azimuthDegrees: z.number().finite().min(0).lt(360),
+    source: z.object({
+      documentId: z.string().trim().min(1),
+      sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      sheet: z.number().int().nonnegative(),
+      reference: z.string().trim().min(1).max(2000),
+    }).strict(),
+  }).strict().nullable(),
+}).strict().superRefine((measurement, context) => {
+  if (measurement.entityType === "room-area" && measurement.roofSlope !== null) {
+    context.addIssue({ code: "custom", path: ["roofSlope"], message: "A room area cannot carry a roof slope." });
+  }
+});
+export type SourceAreaMeasurement = z.infer<typeof sourceAreaMeasurementSchema>;
+
 export const sourceAnnotationSchema = z.object({
   id: z.string().min(1),
   kind: z.enum(["sketch", "area"]),
@@ -288,6 +310,7 @@ export const sourceAnnotationSchema = z.object({
     .regex(/^[a-f0-9]{64}$/)
     .nullable(),
   coordinateSpace: z.enum(["source-page-v1", "legacy-unverified"]),
+  measurement: sourceAreaMeasurementSchema.optional(),
 });
 export const documentWorkspaceSchema = z.object({
   documentId: z.string().min(1),

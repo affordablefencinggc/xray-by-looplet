@@ -31,6 +31,9 @@ import { IndustryDraftWorkbench } from "./industries/IndustryDraftWorkbench";
 import { QS_HIGHLIGHT_EVENT, qsHighlightRequestSchema } from "./industries/quantity-surveying/qsEntityHighlight";
 import { QsMeasuredGeometryPreview } from "./industries/quantity-surveying/QsMeasuredGeometryPreview";
 import { QsMeasuredGeometryScope } from "./industries/quantity-surveying/QsMeasuredGeometryScope";
+import { qsMeasuredGeometry } from "./industries/quantity-surveying/qsMeasuredGeometry";
+import { SourceAreaEditor } from "./SourceAreaEditor";
+import { measureSourceArea } from "./sourceAreaMeasurement";
 import { invalidateModelViews } from "./modelViewSnapshot";
 import { SourceBuildingViewer } from "./SourceBuildingViewer";
 import { SourceTakeoffPanel } from "./SourceTakeoffPanel";
@@ -436,14 +439,18 @@ function MeasurePane() {
             calibrationPoints={s.calibrationCapture?.points ?? []}
             onCalibrationPoint={s.addCalibrationPoint}
             selectedRunId={s.selectedRunId}
+            selectedAreaId={s.selectedAreaId}
             selectedVertexIndex={s.selectedVertexIndex}
             editMode={editMode}
             onSelectRun={s.selectRun}
             onSelectVertex={s.selectVertex}
             onMoveVertex={s.moveRunVertex}
+            onSelectArea={s.selectSourceArea}
+            onMoveAreaVertex={(id, ringIndex, vertexIndex, point, revision) => s.updateSourceArea(id, revision, { kind: "vertex", ringIndex, vertexIndex, point })}
           />}
         </DocumentPreview>
         <MarkupList />
+        <SourceAreaEditor sourceReady={sourceReady && !legacyReadOnly} editing={editMode === "move"} onEdit={() => { s.setTool("none"); setEditMode("move"); }} />
       </div>
       <fieldset className="measure-inspector-boundary" disabled={!sourceReady || legacyReadOnly}><MeasureInspector selectedRun={selectedRun} sourceReady={sourceReady} legacyReadOnly={legacyReadOnly} editMode={editMode} onEditModeChange={(mode) => { s.setTool("none"); setEditMode(mode); }} /></fieldset>
     </div>
@@ -1489,23 +1496,34 @@ function CostRightRail() {
   );
 }
 
-/** Coordinated 2D and 3D context beside the quantity worksheet.
- * A request is accepted only when the exact real run is on the active sheet;
- * both views then derive their selection from the same entity id. */
+/** Coordinated source geometry; selecting a shape never grants evidence authority. */
 function MeasuredGeometryEvidence() {
   const s = useStudio();
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  const visibleRuns = s.job.runs.filter(run => run.sheet === s.sheet);
-  const present = highlighted !== null && visibleRuns.some((run) => run.id === highlighted);
+  const sourceReady = s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId &&
+    s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256;
+  const entities = useMemo(() => qsMeasuredGeometry(s.job, s.sheet, sourceReady), [s.job, s.sheet, sourceReady]);
+  const visibleRuns = useMemo(() => s.job.runs.filter(run => run.sheet === s.sheet), [s.job.runs, s.sheet]);
+  const areas = useMemo(() => entities.filter(entity => entity.areaGeometry), [entities]);
+  const selected = entities.find(entity => entity.entityId === highlighted);
+  const present = Boolean(selected);
+  const chooseEntity = (id: string) => {
+    if (!entities.some(entity => entity.entityId === id)) return;
+    setHighlighted(id);
+    if (areas.some(area => area.entityId === id)) s.selectSourceArea(id);
+    else s.selectRun(id);
+  };
 
   useEffect(() => {
     const onHighlight = (event: Event) => {
       const request = qsHighlightRequestSchema.safeParse((event as CustomEvent).detail);
       if (!request.success) return;
       const current = useStudio.getState();
-      if (!current.job.runs.some(run => run.id === request.data.entityId && run.sheet === current.sheet)) return;
+      const area = current.job.annotations?.find(area => area.id === request.data.entityId && area.kind === "area" && area.measurement && area.sheet === current.sheet && area.documentId === current.job.activeDocumentId);
+      if (!area && !current.job.runs.some(run => run.id === request.data.entityId && run.sheet === current.sheet)) return;
       setHighlighted(request.data.entityId);
-      useStudio.getState().selectRun(request.data.entityId);
+      if (area) current.selectSourceArea(area.id);
+      else current.selectRun(request.data.entityId);
     };
     window.addEventListener(QS_HIGHLIGHT_EVENT, onHighlight);
     return () => window.removeEventListener(QS_HIGHLIGHT_EVENT, onHighlight);
@@ -1515,10 +1533,11 @@ function MeasuredGeometryEvidence() {
     <section className="evidence-geometry-preview" data-testid="qs-evidence-preview">
       <div className="kicker">Measured geometry</div>
       <p className="mt-2">{present
-        ? `Showing ${s.job.runs.find(run => run.id === highlighted)?.label ?? highlighted} in plan and 3D.`
+        ? `Showing ${selected?.label ?? highlighted} in plan and 3D. Selection is not verification.`
         : highlighted === null
           ? "Activate a measured item to highlight the geometry it was measured from."
           : "That entity is not present in this project's geometry."}</p>
+      {selected?.areaGeometry && <button type="button" className="pill" onClick={() => { s.selectSourceArea(selected.entityId); s.setPane("measure"); }}>Edit highlighted source area</button>}
       <div className="evidence-geometry-surfaces">
         <div>
           <span className="evidence-surface-label">2D measured plan</span>
@@ -1529,14 +1548,15 @@ function MeasuredGeometryEvidence() {
             data-highlighted-entity={present ? highlighted : undefined}
           >
             <DocumentPreview binary={s.activePlanBinary} pageIndex={s.sheet} zoom={s.zoom2d} pan={s.pan2d}>
-              {(page) => <PlanCanvas interactive={false} sourceMode="overlay" sourceBounds={page?.bounds ?? null} selectedRunId={present ? highlighted : null} />}
+              {(page) => <PlanCanvas interactive={false} sourceMode="overlay" sourceBounds={page?.bounds ?? null}
+                selectedRunId={present && !selected?.areaGeometry ? highlighted : null} selectedAreaId={present && selected?.areaGeometry ? highlighted : null} />}
             </DocumentPreview>
           </div>
         </div>
         <div>
           <span className="evidence-surface-label">3D measured model</span>
           <div className="evidence-surface-frame">
-            <QsMeasuredGeometryPreview runs={visibleRuns} selectedRunId={present ? highlighted : null} />
+            <QsMeasuredGeometryPreview runs={visibleRuns} areas={areas} selectedRunId={present ? highlighted : null} onSelectEntity={chooseEntity} />
           </div>
         </div>
       </div>
@@ -1585,21 +1605,24 @@ function MarkupList() {
   if (!s.markups.length) return <p className="text-muted">No markups yet.</p>;
   return (
     <ul className="space-y-1">
-      {s.markups.map((m) => (
+      {s.markups.map((m) => {
+        const area = m.kind === "area" ? s.job.annotations?.find(entry => entry.id === m.id && entry.measurement) : null;
+        const quantity = area ? measureSourceArea(s.job, area, s.assetReadiness.document.state === "ready") : null;
+        return (
         <li key={m.id} className="flex justify-between rounded-xl bg-card px-3 py-2">
           <span>
             {m.label} · sheet {m.sheet + 1}
           </span>
           <span>
-            {(m.kind === "length"
+            {area ? quantity?.value === null ? "Unverified area" : `${quantity?.value} m²` : <>{(m.kind === "length"
               ? s.job.runs.find((run) => run.id === m.id)?.netLengthM ?? m.value
-              : m.value).toFixed(m.kind === "count" ? 0 : 2)} {m.unit}
+              : m.value).toFixed(m.kind === "count" ? 0 : 2)} {m.unit}</>}
             <button type="button" className="pill ml-2" onClick={() => s.removeMarkup(m.id)}>
               ×
             </button>
           </span>
         </li>
-      ))}
+      ); })}
     </ul>
   );
 }
