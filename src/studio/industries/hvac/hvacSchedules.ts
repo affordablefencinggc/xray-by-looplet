@@ -1,0 +1,75 @@
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import { deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
+import { evaluateHvacNetwork, hvacNetworkSchema } from "./hvacNetwork.ts";
+import type { IndustrySourceBinding } from "../sourceBinding.ts";
+
+export function calculateHvacSchedules(input: unknown) {
+  const checked = evaluateHvacNetwork(input);
+  const limitMs = checked.network.occupancy === "residential" ? 6 : 8;
+  return { ...checked, limitMs,
+    airflow: checked.runs.map(run => ({ id: run.id, velocityMs: run.airflowLs === null ? null : run.airflowLs / 1000 / run.areaM2,
+      velocityStatus: run.airflowLs === null ? "unknown" : run.airflowLs / 1000 / run.areaM2 > limitMs ? "review-noise" : "within-project-threshold",
+      pressureAllowancePa: run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM })),
+    commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && n.kind !== "reducer").map(n => ({ id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag,
+      designLs: n.designAirflowLs, minimumLs: n.designAirflowLs === null ? null : n.designAirflowLs * .9,
+      maximumLs: n.designAirflowLs === null ? null : n.designAirflowLs * 1.1, measuredLs: null, status: "not-tested" as const })),
+  };
+}
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+async function digest(text: string) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map(v => v.toString(16).padStart(2, "0")).join(""); }
+export async function createHvacPackage(input: unknown, projectId: string, binding: IndustrySourceBinding | null, createdAt = new Date().toISOString()) {
+  const network = hvacNetworkSchema.parse(input);
+  const content = { format: "xray.hvac-draft-package/v1" as const, projectId, sourceBinding: binding, network, schedules: calculateHvacSchedules(network) };
+  const contentSha256 = await digest(canonical(content));
+  const delivery = deliveryRecordSchema.parse({ format: DELIVERY_RECORD_SCHEMA, id: `hvac-${contentSha256.slice(0, 16)}`, kind: "hvac-commissioning", projectId,
+    state: "draft-export", revision: 1, createdAt, sourceBinding: binding, contentSha256 });
+  return { content, delivery };
+}
+export type HvacPackage = Awaited<ReturnType<typeof createHvacPackage>>;
+export async function verifyHvacPackage(value: HvacPackage) {
+  const delivery: DeliveryRecord = deliveryRecordSchema.parse(value.delivery);
+  if (delivery.state !== "draft-export" || delivery.kind !== "hvac-commissioning" || value.content.format !== "xray.hvac-draft-package/v1" || delivery.projectId !== value.content.projectId || canonical(delivery.sourceBinding) !== canonical(value.content.sourceBinding)) throw Error("HVAC package delivery metadata does not match its draft content.");
+  if (canonical(calculateHvacSchedules(value.content.network)) !== canonical(value.content.schedules)) throw Error("HVAC schedule no longer matches its inputs.");
+  if (await digest(canonical(value.content)) !== delivery.contentSha256) throw Error("HVAC package SHA-256 mismatch.");
+  return value;
+}
+const csvCell = (v: unknown) => { const s = v === null ? "unknown" : String(v); return `"${/^[\s]*[=+\-@]/.test(s) ? "'" : ""}${s.replaceAll('"', '""')}"`; };
+export async function hvacPackageCsv(value: HvacPackage) {
+  await verifyHvacPackage(value);
+  const { schedules: s } = value.content;
+  const rows: unknown[][] = [["HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
+    ["Node", "Zone", "Kind", "Equipment tag", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
+    ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
+    [], ["Run", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.airflow.map(r => [r.id, r.velocityMs, r.velocityStatus, r.pressureAllowancePa]),
+    [], ["Network issue", "Target", "Message"], ...s.issues.map(i => [i.code, i.target, i.message]),
+    [], ["Network inputs (metres; flow L/s)", canonical(s.network)], ["Delivery metadata", canonical(value.delivery)]];
+  return rows.map(row => row.map(csvCell).join(",")).join("\r\n");
+}
+export async function hvacPackagePdf(value: HvacPackage) {
+  await verifyHvacPackage(value);
+  const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica);
+  let page = pdf.addPage([595, 842]), y = 796;
+  const line = (text: string) => {
+    // Built-in font has no arbitrary Unicode glyphs. JSON attachment retains original text.
+    const printable = text.replace(/[^\x20-\x7e]/g, "?");
+    for (let i = 0; i < Math.max(1, printable.length); i += 88) { if (y < 48) { page = pdf.addPage([595, 842]); y = 796; } page.drawText(printable.slice(i, i + 88), { x: 36, y, size: 10, font }); y -= 16; }
+  };
+  const s = value.content.schedules;
+  line("HVAC equipment and commissioning draft"); line("UNVERIFIED - no measured results, certification or verified quote eligibility.");
+  line(`Project: ${value.content.projectId} | Source: ${s.network.reference} | ${s.network.evidence}`);
+  line(`SHA-256: ${value.delivery.contentSha256}`); line("Integrity seal identifies content, not engineering approval."); line("");
+  line("Equipment / terminal schedule: design L/s; allowable test range +/-10%");
+  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
+  line(""); line(`Airflow review (project threshold ${s.limitMs} m/s; not a code assessment)`);
+  for (const r of s.airflow) line(`${r.id} | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | ${r.velocityStatus} | Pressure allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`);
+  line("Pressure allowance uses the entered Pa/m only; no friction or fitting solver."); line(""); line("Network review");
+  if (!s.issues.length) line("No issues detected by these bounded checks. Professional review still required.");
+  for (const i of s.issues) line(`${i.target}: ${i.code} - ${i.message}`);
+  line("Beam checks use conservative envelopes. Full source schedule is attached as JSON.");
+  await pdf.attach(new TextEncoder().encode(JSON.stringify(value, null, 2)), "hvac-draft-package.json", { mimeType: "application/json", description: "Original inputs, schedules, provenance and SHA-256 delivery record" });
+  return pdf.save();
+}

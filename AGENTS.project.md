@@ -36,3 +36,13 @@ Every top menu/header row must be independently adjustable and collapsible, with
 ## Separate proof file for every completed step (user instruction, 2026-09-14)
 
 Each completed checklist step must have its own named proof Markdown file under its campaign's `steps/` directory. Include the requirement, exact source diff or commit, separately named screenshot files for relevant visible states, executed checks, and remaining limits. Link this file from the checklist. Do not substitute a combined campaign summary for individual step records. For nonvisual checks, include executed output and state explicitly what the accompanying screenshot demonstrates. Historical backfills must retain original capture/build identities and must not claim a new screenshot was taken.
+
+## Automatic staged checkpoints (user instruction, 2026-09-20)
+
+User: "ensure that a freeze point between 100 - 150 changes triggers pushing changes in stages, then automaticly proceeding with the next. so you dont stop !"
+
+- Count changed and untracked files, including proof, with `git status --short --untracked-files=all` before each stage and after evidence campaigns.
+- At 100 files freeze feature scope, finish evidence, explicitly stage reviewed paths, commit and push the current feature branch to origin. Ceiling: 150 pending files. Checkpoint smaller coherent batches early when evidence would exceed it.
+- Ordinary feature-branch commits and pushes are authorized; force pushes, main merges, secrets publication and removal of unrelated work are not.
+- Record tests, screenshots, exact diff and limits. Label unproven checkpoints WIP; do not mark them complete.
+- Automatically proceed after a successful push, without asking or ending the task. On failure preserve the commit, report the real failure and respect repository protections.

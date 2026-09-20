@@ -1,0 +1,16 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { evaluateHvacNetwork, type HvacNetwork } from "./hvacNetwork.ts";
+export function fixture(): HvacNetwork { return { reference: "M-101 revision A", evidence: "sample", occupancy: "residential", nodes: [
+  { id: "AHU", zone: "Plant", kind: "equipment", x: 0, y: 2.8, z: 0, designAirflowLs: 300, equipmentTag: "AHU-1" },
+  { id: "J1", zone: "East", kind: "junction", x: 4, y: 2.8, z: 0, designAirflowLs: null, equipmentTag: "" },
+  { id: "D1", zone: "West", kind: "diffuser", x: 4, y: 2.8, z: 3, designAirflowLs: 150, equipmentTag: "GR-1" }],
+  edges: [{ id: "S1", from: "AHU", to: "J1", shape: "rectangular", widthM: .4, heightM: .3, insulationM: .025, availablePlenumM: .5, airflowLs: 300, pressureAllowancePaPerM: null },
+    { id: "S2", from: "J1", to: "D1", shape: "rectangular", widthM: .4, heightM: .3, insulationM: .025, availablePlenumM: .5, airflowLs: 150, pressureAllowancePaPerM: 1.2 }], beams: [] }; }
+test("connected multi-zone network retains reference and draft status", () => { const r = evaluateHvacNetwork(fixture()); assert.deepEqual(r.issues, []); assert.equal(r.runs[0].lengthM, 4); assert.equal(r.verifiedQuoteEligible, false); assert.equal(r.network.reference, "M-101 revision A"); });
+test("mismatched dimensions require an explicit reducer", () => { const n = fixture(); n.edges[1].widthM = .2; assert.ok(evaluateHvacNetwork(n).issues.some(i => i.code === "transition")); n.nodes[1].kind = "reducer"; assert.ok(!evaluateHvacNetwork(n).issues.some(i => i.code === "transition")); });
+test("plenum includes insulation on both sides and preserves unknown", () => { const n = fixture(); n.edges[0].availablePlenumM = .34; n.edges[1].availablePlenumM = null; const r = evaluateHvacNetwork(n); assert.ok(r.issues.some(i => i.code === "plenum" && i.target === "S1")); assert.ok(r.issues.some(i => i.code === "unknown-plenum")); });
+test("beam crossing is detected, separated beam is not", () => { const n = fixture(); n.beams = [{ id: "B1", min: [1, 2.6, -.5], max: [2, 3, .5] }, { id: "B2", min: [10, 1, 10], max: [11, 4, 11] }]; const clashes = evaluateHvacNetwork(n).issues.filter(i => i.code === "beam"); assert.equal(clashes.length, 1); assert.match(clashes[0].message, /B1/); });
+test("missing endpoints, islands, zero runs and duplicate identifiers cannot appear clean", () => { const n = fixture(); n.edges[0].to = "missing"; n.edges[1].to = "J1"; n.nodes.push({ ...n.nodes[2], id: "island" }); n.edges.push({ ...n.edges[0] }); const codes = evaluateHvacNetwork(n).issues.map(i => i.code); for (const code of ["missing-node", "disconnected", "zero-length", "duplicate-id"]) assert.ok(codes.includes(code as typeof codes[number])); });
+test("round cross-section uses diameter and rejects invalid geometry", () => { const n = fixture(); n.edges[0].shape = "round"; assert.equal(evaluateHvacNetwork(n).runs[0].areaM2, Math.PI * .4 ** 2 / 4); n.edges[0].widthM = 0; assert.throws(() => evaluateHvacNetwork(n)); });
+test("missing equipment marks every node disconnected; cyclic graph terminates", () => { const n = fixture(); n.nodes[0].kind = "junction"; n.edges.push({ ...n.edges[0], id: "S3", from: "D1", to: "AHU" }); assert.equal(evaluateHvacNetwork(n).issues.filter(i => i.code === "disconnected").length, 3); });

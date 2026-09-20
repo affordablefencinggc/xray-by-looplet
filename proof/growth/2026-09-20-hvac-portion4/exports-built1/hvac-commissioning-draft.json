@@ -1,0 +1,267 @@
+{
+  "content": {
+    "format": "xray.hvac-draft-package/v1",
+    "projectId": "job-sc09-room-roof",
+    "sourceBinding": null,
+    "network": {
+      "reference": "SAMPLE - replace with your drawing reference",
+      "evidence": "sample",
+      "occupancy": "residential",
+      "nodes": [
+        {
+          "id": "AHU-1",
+          "zone": "Plant",
+          "kind": "equipment",
+          "x": 0,
+          "y": 2.8,
+          "z": 0,
+          "designAirflowLs": 900,
+          "equipmentTag": "AHU-1"
+        },
+        {
+          "id": "J-1",
+          "zone": "East",
+          "kind": "junction",
+          "x": 4,
+          "y": 2.8,
+          "z": 0,
+          "designAirflowLs": null,
+          "equipmentTag": ""
+        },
+        {
+          "id": "GR-1",
+          "zone": "West",
+          "kind": "diffuser",
+          "x": 4,
+          "y": 2.8,
+          "z": 3,
+          "designAirflowLs": 450,
+          "equipmentTag": "GR-1"
+        }
+      ],
+      "edges": [
+        {
+          "id": "S-1",
+          "from": "AHU-1",
+          "to": "J-1",
+          "shape": "rectangular",
+          "widthM": 0.4,
+          "heightM": 0.3,
+          "insulationM": 0.025,
+          "availablePlenumM": 0.32,
+          "airflowLs": 900,
+          "pressureAllowancePaPerM": null
+        },
+        {
+          "id": "S-2",
+          "from": "J-1",
+          "to": "GR-1",
+          "shape": "rectangular",
+          "widthM": 0.2,
+          "heightM": 0.2,
+          "insulationM": 0.025,
+          "availablePlenumM": 0.4,
+          "airflowLs": 450,
+          "pressureAllowancePaPerM": 1.2
+        }
+      ],
+      "beams": [
+        {
+          "id": "B-1",
+          "min": [
+            1.5,
+            2.65,
+            -0.5
+          ],
+          "max": [
+            2,
+            3.1,
+            0.5
+          ]
+        }
+      ]
+    },
+    "schedules": {
+      "status": "draft-unverified",
+      "verifiedQuoteEligible": false,
+      "network": {
+        "reference": "SAMPLE - replace with your drawing reference",
+        "evidence": "sample",
+        "occupancy": "residential",
+        "nodes": [
+          {
+            "id": "AHU-1",
+            "zone": "Plant",
+            "kind": "equipment",
+            "x": 0,
+            "y": 2.8,
+            "z": 0,
+            "designAirflowLs": 900,
+            "equipmentTag": "AHU-1"
+          },
+          {
+            "id": "J-1",
+            "zone": "East",
+            "kind": "junction",
+            "x": 4,
+            "y": 2.8,
+            "z": 0,
+            "designAirflowLs": null,
+            "equipmentTag": ""
+          },
+          {
+            "id": "GR-1",
+            "zone": "West",
+            "kind": "diffuser",
+            "x": 4,
+            "y": 2.8,
+            "z": 3,
+            "designAirflowLs": 450,
+            "equipmentTag": "GR-1"
+          }
+        ],
+        "edges": [
+          {
+            "id": "S-1",
+            "from": "AHU-1",
+            "to": "J-1",
+            "shape": "rectangular",
+            "widthM": 0.4,
+            "heightM": 0.3,
+            "insulationM": 0.025,
+            "availablePlenumM": 0.32,
+            "airflowLs": 900,
+            "pressureAllowancePaPerM": null
+          },
+          {
+            "id": "S-2",
+            "from": "J-1",
+            "to": "GR-1",
+            "shape": "rectangular",
+            "widthM": 0.2,
+            "heightM": 0.2,
+            "insulationM": 0.025,
+            "availablePlenumM": 0.4,
+            "airflowLs": 450,
+            "pressureAllowancePaPerM": 1.2
+          }
+        ],
+        "beams": [
+          {
+            "id": "B-1",
+            "min": [
+              1.5,
+              2.65,
+              -0.5
+            ],
+            "max": [
+              2,
+              3.1,
+              0.5
+            ]
+          }
+        ]
+      },
+      "runs": [
+        {
+          "id": "S-1",
+          "from": "AHU-1",
+          "to": "J-1",
+          "shape": "rectangular",
+          "widthM": 0.4,
+          "heightM": 0.3,
+          "insulationM": 0.025,
+          "availablePlenumM": 0.32,
+          "airflowLs": 900,
+          "pressureAllowancePaPerM": null,
+          "lengthM": 4,
+          "areaM2": 0.12,
+          "outerHeightM": 0.35
+        },
+        {
+          "id": "S-2",
+          "from": "J-1",
+          "to": "GR-1",
+          "shape": "rectangular",
+          "widthM": 0.2,
+          "heightM": 0.2,
+          "insulationM": 0.025,
+          "availablePlenumM": 0.4,
+          "airflowLs": 450,
+          "pressureAllowancePaPerM": 1.2,
+          "lengthM": 3,
+          "areaM2": 0.04000000000000001,
+          "outerHeightM": 0.25
+        }
+      ],
+      "issues": [
+        {
+          "code": "beam",
+          "target": "S-1",
+          "message": "Potential clash with beam B-1; check the conservative envelope."
+        },
+        {
+          "code": "plenum",
+          "target": "S-1",
+          "message": "Insulated duct height exceeds the entered ceiling void."
+        },
+        {
+          "code": "transition",
+          "target": "J-1",
+          "message": "Different duct dimensions meet without an explicit reducer."
+        }
+      ],
+      "limitMs": 6,
+      "airflow": [
+        {
+          "id": "S-1",
+          "velocityMs": 7.500000000000001,
+          "velocityStatus": "review-noise",
+          "pressureAllowancePa": null
+        },
+        {
+          "id": "S-2",
+          "velocityMs": 11.249999999999998,
+          "velocityStatus": "review-noise",
+          "pressureAllowancePa": 3.5999999999999996
+        }
+      ],
+      "commissioning": [
+        {
+          "id": "AHU-1",
+          "zone": "Plant",
+          "kind": "equipment",
+          "tag": "AHU-1",
+          "designLs": 900,
+          "minimumLs": 810,
+          "maximumLs": 990.0000000000001,
+          "measuredLs": null,
+          "status": "not-tested"
+        },
+        {
+          "id": "GR-1",
+          "zone": "West",
+          "kind": "diffuser",
+          "tag": "GR-1",
+          "designLs": 450,
+          "minimumLs": 405,
+          "maximumLs": 495.00000000000006,
+          "measuredLs": null,
+          "status": "not-tested"
+        }
+      ]
+    }
+  },
+  "delivery": {
+    "format": "xray.delivery-record/v1",
+    "id": "hvac-4d70ee7b197ccea6",
+    "kind": "hvac-commissioning",
+    "projectId": "job-sc09-room-roof",
+    "state": "draft-export",
+    "revision": 1,
+    "createdAt": "2026-09-20T10:44:02.369Z",
+    "sourceBinding": null,
+    "contentSha256": "4d70ee7b197ccea63de1e2da223ba7fe1a1891e4db61a67a086e503ea4f605a9",
+    "status": "active"
+  }
+}

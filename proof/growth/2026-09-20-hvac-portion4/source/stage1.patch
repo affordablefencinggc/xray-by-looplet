@@ -1,0 +1,445 @@
+diff --git a/.gitattributes b/.gitattributes
+index 6ee243e3..4de31288 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -39,3 +39,4 @@
+ 
+ # Keep SC-09 captured receipts and their SHA-256 manifests byte-identical.
+ /proof/growth/2026-09-20-sc09-room-roof/** -text
++/proof/growth/2026-09-20-hvac-portion4/** -text
+diff --git a/AGENTS.project.md b/AGENTS.project.md
+index 2b5a6d1e..a041bc37 100644
+--- a/AGENTS.project.md
++++ b/AGENTS.project.md
+@@ -36,3 +36,13 @@ Every top menu/header row must be independently adjustable and collapsible, with
+ ## Separate proof file for every completed step (user instruction, 2026-09-14)
+ 
+ Each completed checklist step must have its own named proof Markdown file under its campaign's `steps/` directory. Include the requirement, exact source diff or commit, separately named screenshot files for relevant visible states, executed checks, and remaining limits. Link this file from the checklist. Do not substitute a combined campaign summary for individual step records. For nonvisual checks, include executed output and state explicitly what the accompanying screenshot demonstrates. Historical backfills must retain original capture/build identities and must not claim a new screenshot was taken.
++
++## Automatic staged checkpoints (user instruction, 2026-09-20)
++
++User: "ensure that a freeze point between 100 - 150 changes triggers pushing changes in stages, then automaticly proceeding with the next. so you dont stop !"
++
++- Count changed and untracked files, including proof, with `git status --short --untracked-files=all` before each stage and after evidence campaigns.
++- At 100 files freeze feature scope, finish evidence, explicitly stage reviewed paths, commit and push the current feature branch to origin. Ceiling: 150 pending files. Checkpoint smaller coherent batches early when evidence would exceed it.
++- Ordinary feature-branch commits and pushes are authorized; force pushes, main merges, secrets publication and removal of unrelated work are not.
++- Record tests, screenshots, exact diff and limits. Label unproven checkpoints WIP; do not mark them complete.
++- Automatically proceed after a successful push, without asking or ending the task. On failure preserve the commit, report the real failure and respect repository protections.
+diff --git a/package.json b/package.json
+index 77a15e58..a821d917 100644
+--- a/package.json
++++ b/package.json
+@@ -40,7 +40,7 @@
+     "model:preview": "node scripts/model-preview.mjs",
+     "model:check": "node scripts/model-preview.mjs --check-only",
+     "test:architect": "node --experimental-strip-types --test src/studio/architect/architect.test.ts src/lib/architectAi.server.test.ts",
+-    "test:src": "node --experimental-strip-types --test src/studio/sourceAreaStore.test.ts src/studio/sourceAreaMeasurement.test.ts src/studio/sourceAreaChanges.test.ts src/studio/sourceAreaDrag.test.ts src/studio/industries/quantity-surveying/qsAreaPreviewGeometry.test.ts src/lib/boot-guard.test.ts src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/persistence/portableArchive.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts && node --experimental-strip-types --test src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/roofing/roofGeometry.test.ts src/studio/industries/roofing/stockNesting.test.ts src/studio/industries/roofing/flashingSchedules.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/industries/quantity-surveying/qsReportFormatter.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/sourceBinding.test.ts src/studio/industries/deliveryRecord.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/industries/quantity-surveying/qsItemBinding.test.ts src/studio/industries/quantity-surveying/qsRateBook.test.ts src/studio/industries/quantity-surveying/qsDeltaComparison.test.ts src/studio/industries/quantity-surveying/qsPackageExport.test.ts src/studio/industries/quantity-surveying/QSWorksheet.focus.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts src/studio/architect/alterationDrafts.test.ts src/studio/architect/retainedApertureRendering.test.ts src/studio/architect/retainedOpeningLifecycle.test.ts src/studio/architect/alterationInfill.test.ts src/studio/architect/alterationEditIntegration.test.ts src/studio/architect/alterationPartialInfill.test.ts src/studio/architect/alterationLifecycleQuantities.test.ts src/studio/architect/alterationSchedules.test.ts src/studio/architect/alterationMaterialSync.test.ts src/studio/architect/alterationCoordination.test.ts src/studio/architect/alterationIssues.test.ts src/studio/architect/drawingRegister.test.ts src/studio/architect/titleBlock.test.ts src/studio/architect/sheetExport.test.ts src/studio/architect/issueSet.test.ts src/studio/architect/issueHistory.test.ts src/studio/architect/revisionDelta.test.ts src/studio/architect/issuedDrawing.test.ts src/studio/architect/issuedDrawingPdf.test.ts src/studio/architect/annotationDelta.test.ts src/studio/architect/revisionOverlay.test.ts src/studio/architect/revisionClouding.test.ts src/studio/architect/precisionSnap.test.ts"
++    "test:src": "node --experimental-strip-types --test src/studio/sourceAreaStore.test.ts src/studio/sourceAreaMeasurement.test.ts src/studio/sourceAreaChanges.test.ts src/studio/sourceAreaDrag.test.ts src/studio/industries/quantity-surveying/qsAreaPreviewGeometry.test.ts src/lib/boot-guard.test.ts src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/studio/snapping.test.ts src/studio/shortcuts.test.ts src/studio/crmBridge.test.ts src/studio/faces.test.ts src/studio/elevationStack.test.ts src/studio/domain.test.ts src/studio/persistence.test.ts src/studio/projectRecoveryStore.test.ts src/studio/projectBackup.test.ts src/studio/persistence/portableArchive.test.ts src/studio/backupRestorePreflight.test.ts src/studio/workspaceRestore.test.ts src/studio/workspaceRestoreStorage.test.ts src/studio/sheetLifecycle.test.ts src/studio/sheetBookmarks.test.ts src/studio/pricing/priceBooks.test.ts src/studio/pricing/priceWorkbook.test.ts src/studio/documents.test.ts src/studio/documentPreview.test.ts src/studio/calibration.test.ts src/studio/calibrationStore.test.ts src/studio/calibrationPanel.test.ts src/studio/calibrationCanvas.test.ts src/studio/tracing.test.ts src/studio/tracingStore.test.ts src/studio/tracingCanvas.test.ts src/studio/traceEditorPanel.test.ts src/studio/evidence.test.ts src/studio/evidenceCommands.test.ts src/studio/evidenceStore.test.ts src/studio/quoteReadiness.test.ts src/studio/specificationPanel.test.ts src/studio/photoEvidencePanel.test.ts src/studio/bomContract.test.ts src/studio/bomCompiler.test.ts src/studio/bomRules.test.ts src/studio/bomState.test.ts src/studio/bomPersistence.test.ts src/studio/bomTransport.test.ts src/studio/bomStore.test.ts src/studio/fencingRecipes.test.ts src/studio/BomPanel.test.ts src/studio/bomTauriAdapter.test.ts src/studio/fencingRecipePersistence.test.ts src/studio/engineHost.test.ts src/studio/construction/inventory.test.ts src/studio/construction/inventoryPersistence.test.ts src/studio/componentsPane.test.ts src/studio/construction/inventoryStore.test.ts src/studio/construction/altitudeTakeoff.test.ts src/studio/construction/materialRegister.test.ts src/studio/construction/takeoffTransfer.test.ts src/studio/construction/runQuantity.test.ts src/studio/sourceBuilding.test.ts src/studio/redburnBuilding.test.ts src/studio/crownWharfBuilding.test.ts src/studio/modelViewSnapshot.test.ts src/studio/FirstPersonNavigation.test.ts src/studio/walkStartPlacement.test.ts src/studio/cleanWalkPlan.test.ts src/studio/FirstPersonArm.test.ts src/studio/walkCollision.test.ts src/studio/WalkDoors.test.ts src/studio/sourceWalkDoors.test.ts src/studio/workspacePanels.test.ts src/studio/buildingAppearance.test.ts src/studio/inspectionMotion.test.ts src/studio/construction/connectionTrial.test.ts src/studio/construction/projectMaterials.test.ts src/studio/construction/aiMaterials.test.ts src/lib/materialAi.server.test.ts src/studio/architect/architect.test.ts src/studio/architect/authoredSheetSet.test.ts src/studio/architect/cadTransport.test.ts src/lib/architectAi.server.test.ts src/lib/voice.server.test.ts src/studio/MagicPencilDraftsman.test.ts src/studio/cinematicPencils.test.ts src/studio/floorDrawing.test.ts src/studio/assistant/panelGeometry.test.ts src/studio/assistant/draftsmanBridge.test.ts src/studio/architecturalDimensioning.test.ts src/studio/blueprintSheet.test.ts src/studio/blueprintBook.test.ts src/studio/assistant/appTools.test.ts src/studio/assistant/skills.test.ts src/studio/assistant/compactTranscript.test.ts src/studio/assistant/contextLog.test.ts src/studio/assistant/contextLogStore.test.ts src/studio/assistant/contextCapture.test.ts && node --experimental-strip-types --test src/studio/assistant/contextProfile.test.ts src/studio/assistant/pinnedContext.test.ts src/studio/assistant/contextTurn.test.ts src/studio/assistant/contextWiring.test.ts src/studio/assistant/manualNormalise.test.ts src/studio/assistant/replyMarkdown.test.ts src/studio/assistant/mindMapLayout.test.ts src/studio/assistant/toolReceipt.test.ts src/studio/assistant/permissions.test.ts src/studio/assistant/provider.test.ts src/studio/assistant/ProviderSwitch.test.ts src/studio/assistant/transportStatus.test.ts src/studio/assistant/canvasReference.test.ts src/studio/canvasContextMenu.test.ts src/studio/assistantRailMode.test.ts src/studio/assistantRailBounds.test.ts src/studio/assistant/contextBudget.test.ts src/studio/assistant/richReply.test.ts src/studio/architect/designedScene.test.ts src/studio/assistant/mcp.test.ts src/studio/assistant/conversation.test.ts src/studio/assistant/executionBudget.test.ts src/studio/assistant/actionOutcome.test.ts src/studio/assistant/workflowRouting.test.ts src/studio/assistant/workPacket.test.ts src/studio/assistant/attachmentFiles.test.ts src/lib/assistantAi.server.test.ts src/lib/minimaxAi.server.test.ts src/studio/projectRegistry.test.ts src/studio/projectArchive.test.ts src/studio/assistant/panelCorners.test.ts src/studio/assistant/projectSwitch.test.ts src/studio/assistant/chatHistory.test.ts src/lib/assistantTurnGate.test.ts src/lib/assistantConcurrency.test.ts src/studio/assistant/completionPreflight.test.ts src/studio/assistant/developerMode.test.ts src/studio/industries/roofing/roofArea.test.ts src/studio/industries/roofing/assistantTool.test.ts src/studio/industries/roofing/roofGeometry.test.ts src/studio/industries/roofing/stockNesting.test.ts src/studio/industries/roofing/flashingSchedules.test.ts src/studio/industries/hvac/straightDuct.test.ts src/studio/industries/hvac/ductMaterialBasis.test.ts src/studio/industries/hvac/hvacNetwork.test.ts src/studio/industries/hvac/hvacSchedules.test.ts src/studio/industries/hvac/assistantTool.test.ts src/studio/industries/quantity-surveying/classification.test.ts src/studio/industries/quantity-surveying/assistantTool.test.ts src/studio/industries/quantity-surveying/qsReportFormatter.test.ts src/studio/assistant/finalToolClaims.test.ts src/studio/assistant/shortInteraction.test.ts src/studio/assistant/namedToolRetry.test.ts src/studio/assistant/discussionOnly.test.ts src/studio/industries/draftStorage.test.ts src/studio/industries/sourceBinding.test.ts src/studio/industries/deliveryRecord.test.ts src/studio/industries/roofing/roofForm.test.ts src/studio/industries/hvac/ductForm.test.ts src/studio/industries/quantity-surveying/quantityForm.test.ts src/studio/industries/roofing/sheetCoverage.test.ts src/studio/industries/hvac/straightDuctWrap.test.ts src/studio/industries/quantity-surveying/report.test.ts src/studio/industries/quantity-surveying/QuantityReportView.test.ts src/studio/industries/quantity-surveying/qsItemBinding.test.ts src/studio/industries/quantity-surveying/qsRateBook.test.ts src/studio/industries/quantity-surveying/qsDeltaComparison.test.ts src/studio/industries/quantity-surveying/qsPackageExport.test.ts src/studio/industries/quantity-surveying/QSWorksheet.focus.test.ts src/studio/architect/lifecycle.test.ts src/studio/architect/lifecycleMaterialBridge.test.ts src/studio/architect/lifecycleIntegration.test.ts src/studio/architect/alterationStage.test.ts src/studio/architect/alterationStageIntegration.test.ts src/studio/architect/alterationQuantities.test.ts src/studio/architect/alterationExport.test.ts src/studio/architect/alterationDrafts.test.ts src/studio/architect/retainedApertureRendering.test.ts src/studio/architect/retainedOpeningLifecycle.test.ts src/studio/architect/alterationInfill.test.ts src/studio/architect/alterationEditIntegration.test.ts src/studio/architect/alterationPartialInfill.test.ts src/studio/architect/alterationLifecycleQuantities.test.ts src/studio/architect/alterationSchedules.test.ts src/studio/architect/alterationMaterialSync.test.ts src/studio/architect/alterationCoordination.test.ts src/studio/architect/alterationIssues.test.ts src/studio/architect/drawingRegister.test.ts src/studio/architect/titleBlock.test.ts src/studio/architect/sheetExport.test.ts src/studio/architect/issueSet.test.ts src/studio/architect/issueHistory.test.ts src/studio/architect/revisionDelta.test.ts src/studio/architect/issuedDrawing.test.ts src/studio/architect/issuedDrawingPdf.test.ts src/studio/architect/annotationDelta.test.ts src/studio/architect/revisionOverlay.test.ts src/studio/architect/revisionClouding.test.ts src/studio/architect/precisionSnap.test.ts"
+   },
+   "dependencies": {
+     "@electric-sql/pglite": "^0.5.4",
+diff --git a/src/studio/industries/hvac/HvacDraftPanel.tsx b/src/studio/industries/hvac/HvacDraftPanel.tsx
+index fd6cb977..cebc61ac 100644
+--- a/src/studio/industries/hvac/HvacDraftPanel.tsx
++++ b/src/studio/industries/hvac/HvacDraftPanel.tsx
+@@ -1,4 +1,6 @@
+ import { useId, useState } from "react";
++import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
++import { HvacCoordinationPanel } from "./HvacCoordinationPanel.tsx";
+ import type { IndustryDraftPanelProps } from "../draftPanel";
+ import { describeIndustryBinding, evaluateIndustryBinding } from "../sourceBinding.ts";
+ import { createDuctSourceBinding, createEmptyDuctSection, describeEvidenceClass, evaluateDuctFormBinding, EVIDENCE_CLASS_LABELS, type DuctBindingInputs, type DuctForm, type DuctSectionForm } from "./ductForm";
+@@ -109,5 +111,6 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
+       </section>}
+       <p className="industry-note">Sheet metal excludes: {outcome.result.exclusions.join(", ")}. Entered references are retained in your draft; they have not been verified.</p>
+     </section>}
++    <HvacCoordinationPanel text={value.networkJson ?? ""} onChange={networkJson => change({ ...value, networkJson })} disabled={disabled} stale={evaluation.status === "stale"} projectId={source.projectId} binding={binding} />
+   </form>;
+ }
+diff --git a/src/studio/industries/hvac/ductForm.ts b/src/studio/industries/hvac/ductForm.ts
+index f7018a81..689ec695 100644
+--- a/src/studio/industries/hvac/ductForm.ts
++++ b/src/studio/industries/hvac/ductForm.ts
+@@ -21,6 +21,7 @@ export const ductSectionFormSchema = z.object({
+ }).strict();
+ export const ductFormSchema = z.object({
+   sections: z.array(ductSectionFormSchema).max(100),
++  networkJson: z.string().max(500000).optional(),
+   binding: industrySourceBindingSchema.nullable().optional(),
+ }).strict();
+ export type DuctForm = z.infer<typeof ductFormSchema>;
+diff --git a/HVAC-CLOSEOUT-TODO.md b/HVAC-CLOSEOUT-TODO.md
+new file mode 100644
+index 00000000..f243a66f
+--- /dev/null
++++ b/HVAC-CLOSEOUT-TODO.md
+@@ -0,0 +1,11 @@
++﻿# HVAC closeout - Portion 4
++Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion".
++Branch: feat/closeout-sc09-remainder. Baseline: ea35b253.
++
++- [ ] SC-12: qualify straight/wrap arithmetic; duct core and insulation section preview; preserve unknown material mass.
++- [ ] SC-13: editable multi-zone graph, transition/connectivity validation, plenum and beam clashes, 3D evidence.
++- [ ] SC-14: airflow checks, equipment/commissioning schedule, SHA-256 draft package with PDF/CSV exports.
++- [ ] DANS1 dev, machine/type checks, built interaction and desktop/tablet screenshots.
++- [ ] Per-step proof, dashboard/ledger, explicit commits and pushes; continue automatically.
++
++SC-09 remains partial due its recorded development reload failure. HVAC quantities remain declared drafts, not certification or verified quotes. Jev is not configured; arithmetic is not a live Jev judgment.
+diff --git a/src/studio/industries/hvac/hvacCoordination.css b/src/studio/industries/hvac/hvacCoordination.css
+new file mode 100644
+index 00000000..5c28c285
+--- /dev/null
++++ b/src/studio/industries/hvac/hvacCoordination.css
+@@ -0,0 +1,11 @@
++.hvac-preview { border: 1px solid var(--border, #475569); border-radius: 12px; overflow: hidden; background: #1e293b; color: #f8fafc; margin: 16px 0; }
++.hvac-preview-canvas { height: 320px; width: 100%; }
++.hvac-preview canvas { display: block; width: 100%; height: 100%; touch-action: none; }
++.hvac-preview > p, .hvac-preview > div[role="status"] { margin: 12px 16px; color: #e2e8f0; }
++.hvac-coordination { min-width: 0; }
++.hvac-coordination textarea { width: 100%; min-height: 180px; font-family: monospace; }
++.hvac-coordination input, .hvac-coordination select, .hvac-coordination button { min-height: 44px; }
++.hvac-coordination .hvac-seal { overflow-wrap: anywhere; }
++.hvac-coordination details { margin-block: 12px; }
++.hvac-coordination summary { cursor: pointer; padding-block: 12px; }
++.hvac-coordination .hvac-issues { max-height: 240px; overflow: auto; }
+diff --git a/src/studio/industries/hvac/HvacCoordinationPanel.tsx b/src/studio/industries/hvac/HvacCoordinationPanel.tsx
+new file mode 100644
+index 00000000..38a640e1
+--- /dev/null
++++ b/src/studio/industries/hvac/HvacCoordinationPanel.tsx
+@@ -0,0 +1,81 @@
++import { useRef, useState } from "react";
++import { hvacNetworkSchema, type HvacNetwork } from "./hvacNetwork.ts";
++import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
++import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, type HvacPackage } from "./hvacSchedules.ts";
++import type { IndustrySourceBinding } from "../sourceBinding.ts";
++
++const example: HvacNetwork = { reference: "SAMPLE - replace with your drawing reference", evidence: "sample", occupancy: "residential", nodes: [
++  { id: "AHU-1", zone: "Plant", kind: "equipment", equipmentTag: "AHU-1", x: 0, y: 2.8, z: 0, designAirflowLs: 900 },
++  { id: "J-1", zone: "East", kind: "junction", equipmentTag: "", x: 4, y: 2.8, z: 0, designAirflowLs: null },
++  { id: "GR-1", zone: "West", kind: "diffuser", equipmentTag: "GR-1", x: 4, y: 2.8, z: 3, designAirflowLs: 450 }],
++  edges: [{ id: "S-1", from: "AHU-1", to: "J-1", shape: "rectangular", widthM: .4, heightM: .3, insulationM: .025, availablePlenumM: .32, airflowLs: 900, pressureAllowancePaPerM: null },
++    { id: "S-2", from: "J-1", to: "GR-1", shape: "rectangular", widthM: .2, heightM: .2, insulationM: .025, availablePlenumM: .4, airflowLs: 450, pressureAllowancePaPerM: 1.2 }],
++  beams: [{ id: "B-1", min: [1.5, 2.65, -.5], max: [2, 3.1, .5] }] };
++
++export function HvacCoordinationPanel({ text, onChange, disabled, stale, projectId, binding }: { text: string; onChange: (text: string) => void; disabled: boolean; stale: boolean; projectId: string; binding: IndustrySourceBinding | null }) {
++  const [error, setError] = useState("");
++  const [review, setReview] = useState<{ key: string; result: ReturnType<typeof calculateHvacSchedules> } | null>(null);
++  const [pack, setPack] = useState<{ key: string; value: HvacPackage; csv: string; pdf: Uint8Array } | null>(null);
++  const [busy, setBusy] = useState(false);
++  const key = JSON.stringify([text, binding, stale, projectId]); const current = useRef(key); current.current = key;
++  let network: HvacNetwork | null = null;
++  try { const parsed = hvacNetworkSchema.safeParse(JSON.parse(text)); if (parsed.success) network = parsed.data; } catch { /* incomplete saved draft */ }
++  const result = review?.key === key && !stale ? review.result : null;
++  const available = pack?.key === key && !stale ? pack : null;
++  const update = (next: HvacNetwork) => { setError(""); onChange(JSON.stringify(next, null, 2)); };
++  const edit = (collection: "nodes" | "edges", index: number, field: string, value: unknown) => {
++    if (!network) return; const next = structuredClone(network); Object.assign(next[collection][index], { [field]: value }); update(next);
++  };
++  const numeric = (collection: "nodes" | "edges", index: number, field: string, label: string, value: number | null) => <label key={field}>{label}<input aria-label={`${collection} ${index + 1} ${label}`} inputMode="decimal" key={`${field}:${value}`} defaultValue={value ?? ""} onBlur={event => {
++    const raw = event.target.value.trim(); if (!raw && value === null) return;
++    const n = raw ? Number(raw) : null;
++    if (n !== null && !Number.isFinite(n)) { setError(`${label}: enter a finite number.`); event.target.value = String(value ?? ""); return; }
++    edit(collection, index, field, n);
++  }} /></label>;
++  const download = (name: string, content: BlobPart, type: string) => { const url = URL.createObjectURL(new Blob([content], { type })); const a = document.createElement("a"); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
++  return <section className="hvac-coordination" aria-label="HVAC network coordination">
++    <h3>Network and commissioning</h3>
++    <p className="industry-note">Connect equipment and terminals across zones. Coordinates and duct sizes use metres; airflow uses L/s. Checks remain a draft for professional review.</p>
++    <fieldset disabled={disabled || busy}>
++      <legend>Network schedule</legend>
++      {!text && <button type="button" onClick={() => update(structuredClone(example))}>Start with labelled sample network</button>}
++      <details open={!network && !!text}><summary>Import or edit network schedule</summary><label>Network JSON<textarea aria-label="Network JSON" value={text} onChange={e => onChange(e.target.value)} /></label><p className="industry-note">Portable schedule containing nodes, runs and beam bounds. Invalid or incomplete text is saved, but cannot be calculated or exported.</p></details>
++      {network && <>
++        <div className="industry-fields"><label>Network source reference<input value={network.reference} onChange={e => update({ ...network!, reference: e.target.value })} /></label>
++          <label>Network evidence<select value={network.evidence} onChange={e => update({ ...network!, evidence: e.target.value as HvacNetwork["evidence"] })}><option value="sample">Sample - not project data</option><option value="declared">Declared inputs - unverified</option></select></label>
++          <label>Occupancy threshold<select value={network.occupancy} onChange={e => update({ ...network!, occupancy: e.target.value as HvacNetwork["occupancy"] })}><option value="residential">Residential: 6 m/s</option><option value="commercial">Commercial: 8 m/s</option></select></label></div>
++        <p className="industry-note">Thresholds are project review criteria, not an assessment of applicable codes. Round runs use width as diameter.</p>
++        <details><summary>Equipment and terminals ({network.nodes.length})</summary>{network.nodes.map((node, i) => <fieldset key={i}><legend>{node.id} · {node.zone}</legend><div className="industry-fields">
++          {(["id", "zone", "equipmentTag"] as const).map(field => <label key={field}>{field}<input aria-label={`nodes ${i + 1} ${field}`} defaultValue={node[field]} onBlur={e => edit("nodes", i, field, e.target.value)} /></label>)}
++          <label>Node type<select aria-label={`Node ${i + 1} type`} value={node.kind} onChange={e => edit("nodes", i, "kind", e.target.value)}>{["equipment", "junction", "reducer", "damper", "diffuser"].map(kind => <option key={kind}>{kind}</option>)}</select></label>
++          {numeric("nodes", i, "x", "X (m)", node.x)}{numeric("nodes", i, "y", "Elevation (m)", node.y)}{numeric("nodes", i, "z", "Z (m)", node.z)}{numeric("nodes", i, "designAirflowLs", "Design airflow (L/s)", node.designAirflowLs)}
++        </div><button type="button" onClick={() => update({ ...network!, nodes: network!.nodes.filter((_, j) => i !== j) })}>Remove node {node.id}</button></fieldset>)}
++          <button type="button" disabled={network.nodes.length >= 100} onClick={() => update({ ...network!, nodes: [...network!.nodes, { id: `node-${crypto.randomUUID().slice(0, 8)}`, zone: "Unassigned", kind: "diffuser", x: 0, y: 0, z: 0, designAirflowLs: null, equipmentTag: "" }] })}>Add terminal</button>
++        </details>
++        <details><summary>Duct runs ({network.edges.length})</summary>{network.edges.map((edge, i) => <fieldset key={i}><legend>{edge.id}</legend><div className="industry-fields">
++          {(["from", "to"] as const).map(field => <label key={field}>{field}<select aria-label={`Run ${i + 1} ${field}`} value={edge[field]} onChange={e => edit("edges", i, field, e.target.value)}>{network!.nodes.map(node => <option key={node.id}>{node.id}</option>)}</select></label>)}
++          <label>Shape<select aria-label={`Run ${i + 1} shape`} value={edge.shape} onChange={e => edit("edges", i, "shape", e.target.value)}><option value="rectangular">Rectangular</option><option value="round">Round</option></select></label>
++          {numeric("edges", i, "widthM", "Width or diameter (m)", edge.widthM)}{numeric("edges", i, "heightM", "Height (m)", edge.heightM)}{numeric("edges", i, "insulationM", "Insulation (m)", edge.insulationM)}{numeric("edges", i, "availablePlenumM", "Ceiling void (m)", edge.availablePlenumM)}{numeric("edges", i, "airflowLs", "Airflow (L/s)", edge.airflowLs)}{numeric("edges", i, "pressureAllowancePaPerM", "Entered pressure allowance (Pa/m)", edge.pressureAllowancePaPerM)}
++        </div><button type="button" onClick={() => update({ ...network!, edges: network!.edges.filter((_, j) => i !== j) })}>Remove run {edge.id}</button></fieldset>)}
++          <button type="button" disabled={network.edges.length >= 200 || network.nodes.length < 2} onClick={() => update({ ...network!, evidence: "sample", edges: [...network!.edges, { ...example.edges[0], id: `run-${crypto.randomUUID().slice(0, 8)}`, from: network!.nodes[0].id, to: network!.nodes[1].id, airflowLs: null, availablePlenumM: null }] })}>Add sample run</button>
++        </details>
++      </>}
++      <div className="industry-actions"><button type="button" disabled={!text || stale} onClick={() => { try { setReview({ key, result: calculateHvacSchedules(JSON.parse(text)) }); setError(""); } catch (e) { setReview(null); setError(e instanceof Error ? e.message : "Invalid network schedule"); } }}>Review network and schedules</button>
++        <button type="button" disabled={!result} onClick={async () => { setBusy(true); setError(""); try { const value = await createHvacPackage(JSON.parse(text), projectId, binding); const [csv, pdf] = await Promise.all([hvacPackageCsv(value), hvacPackagePdf(value)]); if (current.current === key) setPack({ key, value, csv, pdf }); } catch (e) { setError(e instanceof Error ? e.message : "Package generation failed"); } finally { setBusy(false); } }}>Prepare sealed draft package</button></div>
++    </fieldset>
++    {stale && <p role="alert">Network results withheld: the worksheet source binding is stale. Rebind or clear the binding before reviewing again.</p>}
++    {error && <p role="alert" className="industry-error">{error}</p>}
++    {result && <section aria-label="HVAC coordination result" className="industry-result">
++      <p><strong>{result.network.evidence === "sample" ? "Sample network" : "Declared network"} · unverified · not eligible for a verified quote</strong></p>
++      <HVACNetworkViewer beams={result.network.beams} runs={result.runs.flatMap(run => { const a = result.network.nodes.find(n => n.id === run.from), b = result.network.nodes.find(n => n.id === run.to); return a && b ? [{ id: run.id, a: [a.x, a.y, a.z], b: [b.x, b.y, b.z], width: run.widthM, height: run.shape === "round" ? run.widthM : run.heightM, round: run.shape === "round", insulation: run.insulationM, clash: result.issues.some(i => i.target === run.id && (i.code === "beam" || i.code === "plenum")) }] : []; })} />
++      <h4>Network review · {result.issues.length} issues</h4><ul className="hvac-issues">{result.issues.map((issue, i) => <li key={i}><strong>{issue.target}: {issue.code}</strong> — {issue.message}</li>)}</ul>
++      {!result.issues.length && <p>No issues detected by the bounded network checks.</p>}
++      <div className="industry-table-wrap"><table><caption>Airflow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Velocity (m/s)</th><th>Review</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.airflow.map(row => <tr key={row.id}><th>{row.id}</th><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.velocityStatus}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table></div>
++      <div className="industry-table-wrap"><table><caption>Equipment and commissioning · ±10% design range</caption><thead><tr><th>Equipment / terminal</th><th>Zone</th><th>Design (L/s)</th><th>Test range (L/s)</th><th>Measured</th></tr></thead><tbody>{result.commissioning.map(row => <tr key={row.id}><th>{row.id} {row.tag}</th><td>{row.zone}</td><td>{row.designLs ?? "unknown"}</td><td>{row.minimumLs === null ? "unknown" : `${row.minimumLs.toFixed(2)} – ${row.maximumLs!.toFixed(2)}`}</td><td>Not tested</td></tr>)}</tbody></table></div>
++    </section>}
++    {available && <section aria-label="Sealed HVAC draft package" className="industry-result"><p>Draft package prepared. The seal identifies content; it does not certify the design or commissioning.</p><p className="hvac-seal">SHA-256: {available.value.delivery.contentSha256}</p><div className="industry-actions">
++      <button type="button" onClick={() => download("hvac-commissioning-draft.pdf", Uint8Array.from(available.pdf), "application/pdf")}>Download HVAC PDF</button>
++      <button type="button" onClick={() => download("hvac-commissioning-draft.csv", available.csv, "text/csv;charset=utf-8")}>Download HVAC CSV</button>
++      <button type="button" onClick={() => download("hvac-commissioning-draft.json", JSON.stringify(available.value, null, 2), "application/json")}>Download sealed HVAC JSON</button></div></section>}
++  </section>;
++}
+diff --git a/src/studio/industries/hvac/hvacNetwork.test.ts b/src/studio/industries/hvac/hvacNetwork.test.ts
+new file mode 100644
+index 00000000..8d317182
+--- /dev/null
++++ b/src/studio/industries/hvac/hvacNetwork.test.ts
+@@ -0,0 +1,16 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { evaluateHvacNetwork, type HvacNetwork } from "./hvacNetwork.ts";
++export function fixture(): HvacNetwork { return { reference: "M-101 revision A", evidence: "sample", occupancy: "residential", nodes: [
++  { id: "AHU", zone: "Plant", kind: "equipment", x: 0, y: 2.8, z: 0, designAirflowLs: 300, equipmentTag: "AHU-1" },
++  { id: "J1", zone: "East", kind: "junction", x: 4, y: 2.8, z: 0, designAirflowLs: null, equipmentTag: "" },
++  { id: "D1", zone: "West", kind: "diffuser", x: 4, y: 2.8, z: 3, designAirflowLs: 150, equipmentTag: "GR-1" }],
++  edges: [{ id: "S1", from: "AHU", to: "J1", shape: "rectangular", widthM: .4, heightM: .3, insulationM: .025, availablePlenumM: .5, airflowLs: 300, pressureAllowancePaPerM: null },
++    { id: "S2", from: "J1", to: "D1", shape: "rectangular", widthM: .4, heightM: .3, insulationM: .025, availablePlenumM: .5, airflowLs: 150, pressureAllowancePaPerM: 1.2 }], beams: [] }; }
++test("connected multi-zone network retains reference and draft status", () => { const r = evaluateHvacNetwork(fixture()); assert.deepEqual(r.issues, []); assert.equal(r.runs[0].lengthM, 4); assert.equal(r.verifiedQuoteEligible, false); assert.equal(r.network.reference, "M-101 revision A"); });
++test("mismatched dimensions require an explicit reducer", () => { const n = fixture(); n.edges[1].widthM = .2; assert.ok(evaluateHvacNetwork(n).issues.some(i => i.code === "transition")); n.nodes[1].kind = "reducer"; assert.ok(!evaluateHvacNetwork(n).issues.some(i => i.code === "transition")); });
++test("plenum includes insulation on both sides and preserves unknown", () => { const n = fixture(); n.edges[0].availablePlenumM = .34; n.edges[1].availablePlenumM = null; const r = evaluateHvacNetwork(n); assert.ok(r.issues.some(i => i.code === "plenum" && i.target === "S1")); assert.ok(r.issues.some(i => i.code === "unknown-plenum")); });
++test("beam crossing is detected, separated beam is not", () => { const n = fixture(); n.beams = [{ id: "B1", min: [1, 2.6, -.5], max: [2, 3, .5] }, { id: "B2", min: [10, 1, 10], max: [11, 4, 11] }]; const clashes = evaluateHvacNetwork(n).issues.filter(i => i.code === "beam"); assert.equal(clashes.length, 1); assert.match(clashes[0].message, /B1/); });
++test("missing endpoints, islands, zero runs and duplicate identifiers cannot appear clean", () => { const n = fixture(); n.edges[0].to = "missing"; n.edges[1].to = "J1"; n.nodes.push({ ...n.nodes[2], id: "island" }); n.edges.push({ ...n.edges[0] }); const codes = evaluateHvacNetwork(n).issues.map(i => i.code); for (const code of ["missing-node", "disconnected", "zero-length", "duplicate-id"]) assert.ok(codes.includes(code as typeof codes[number])); });
++test("round cross-section uses diameter and rejects invalid geometry", () => { const n = fixture(); n.edges[0].shape = "round"; assert.equal(evaluateHvacNetwork(n).runs[0].areaM2, Math.PI * .4 ** 2 / 4); n.edges[0].widthM = 0; assert.throws(() => evaluateHvacNetwork(n)); });
++test("missing equipment marks every node disconnected; cyclic graph terminates", () => { const n = fixture(); n.nodes[0].kind = "junction"; n.edges.push({ ...n.edges[0], id: "S3", from: "D1", to: "AHU" }); assert.equal(evaluateHvacNetwork(n).issues.filter(i => i.code === "disconnected").length, 3); });
+diff --git a/src/studio/industries/hvac/hvacNetwork.ts b/src/studio/industries/hvac/hvacNetwork.ts
+new file mode 100644
+index 00000000..d300a1db
+--- /dev/null
++++ b/src/studio/industries/hvac/hvacNetwork.ts
+@@ -0,0 +1,66 @@
++import { z } from "zod";
++
++const id = z.string().trim().min(1).max(120);
++const positive = z.number().finite().positive().max(1000000);
++const coordinate = z.number().finite().min(-10000).max(10000);
++export const hvacNodeSchema = z.object({ id, zone: id, kind: z.enum(["equipment", "junction", "reducer", "damper", "diffuser"]), x: coordinate, y: coordinate, z: coordinate,
++  designAirflowLs: positive.nullable(), equipmentTag: z.string().max(120) }).strict();
++export const hvacEdgeSchema = z.object({ id, from: id, to: id, shape: z.enum(["rectangular", "round"]), widthM: positive, heightM: positive,
++  insulationM: z.number().finite().nonnegative().max(10), availablePlenumM: positive.nullable(), airflowLs: positive.nullable(), pressureAllowancePaPerM: positive.nullable() }).strict();
++export const hvacBeamSchema = z.object({ id, min: z.tuple([coordinate, coordinate, coordinate]), max: z.tuple([coordinate, coordinate, coordinate]) }).strict().refine(b => b.min.every((v, i) => v < b.max[i]), "Beam bounds must have positive dimensions.");
++export const hvacNetworkSchema = z.object({ reference: id, evidence: z.enum(["declared", "sample"]), occupancy: z.enum(["residential", "commercial"]),
++  nodes: z.array(hvacNodeSchema).min(1).max(100), edges: z.array(hvacEdgeSchema).min(1).max(200), beams: z.array(hvacBeamSchema).max(100) }).strict();
++export type HvacNetwork = z.infer<typeof hvacNetworkSchema>;
++export type HvacEdge = HvacNetwork["edges"][number];
++export type NetworkIssue = { code: "duplicate-id" | "missing-node" | "zero-length" | "disconnected" | "transition" | "plenum" | "beam" | "unknown-plenum"; target: string; message: string };
++
++/** Segment versus expanded beam bounds. Rectangular runs use a conservative
++ * horizontal envelope; the result is a potential clash requiring model review. */
++function intersects(a: number[], b: number[], min: number[], max: number[]) {
++  let lo = 0, hi = 1;
++  for (let i = 0; i < 3; i++) {
++    const delta = b[i] - a[i];
++    if (Math.abs(delta) < 1e-12) { if (a[i] < min[i] || a[i] > max[i]) return false; }
++    else { const t1 = (min[i] - a[i]) / delta, t2 = (max[i] - a[i]) / delta; lo = Math.max(lo, Math.min(t1, t2)); hi = Math.min(hi, Math.max(t1, t2)); if (lo > hi) return false; }
++  }
++  return true;
++}
++export function evaluateHvacNetwork(input: unknown) {
++  const network = hvacNetworkSchema.parse(input);
++  const issues: NetworkIssue[] = [];
++  const add = (code: NetworkIssue["code"], target: string, message: string) => issues.push({ code, target, message });
++  for (const collection of [network.nodes, network.edges, network.beams]) {
++    const seen = new Set<string>();
++    for (const item of collection) { if (seen.has(item.id)) add("duplicate-id", item.id, "Identifiers must be unique within each schedule."); seen.add(item.id); }
++  }
++  const nodes = new Map(network.nodes.map(n => [n.id, n]));
++  const adjacency = new Map(network.nodes.map(n => [n.id, [] as string[]]));
++  const runs = network.edges.map(edge => {
++    const a = nodes.get(edge.from), b = nodes.get(edge.to);
++    const height = edge.shape === "round" ? edge.widthM : edge.heightM;
++    const areaM2 = edge.shape === "round" ? Math.PI * edge.widthM ** 2 / 4 : edge.widthM * height;
++    const lengthM = a && b ? Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) : null;
++    if (!a || !b) add("missing-node", edge.id, "Both ends must reference existing nodes.");
++    else {
++      adjacency.get(a.id)!.push(b.id); adjacency.get(b.id)!.push(a.id);
++      if (!lengthM) add("zero-length", edge.id, "Run endpoints must occupy different positions.");
++      for (const beam of network.beams) {
++        const expansion = [edge.widthM / 2 + edge.insulationM, height / 2 + edge.insulationM, edge.widthM / 2 + edge.insulationM];
++        if (intersects([a.x, a.y, a.z], [b.x, b.y, b.z], beam.min.map((v, i) => v - expansion[i]), beam.max.map((v, i) => v + expansion[i]))) add("beam", edge.id, `Potential clash with beam ${beam.id}; check the conservative envelope.`);
++      }
++    }
++    if (edge.availablePlenumM === null) add("unknown-plenum", edge.id, "Ceiling void is unknown; clearance has not been checked.");
++    else if (height + 2 * edge.insulationM > edge.availablePlenumM) add("plenum", edge.id, "Insulated duct height exceeds the entered ceiling void.");
++    return { ...edge, lengthM, areaM2, outerHeightM: height + 2 * edge.insulationM };
++  });
++  const reached = new Set<string>();
++  const queue = network.nodes.filter(n => n.kind === "equipment").map(n => n.id);
++  for (let i = 0; i < queue.length; i++) { const current = queue[i]; if (reached.has(current)) continue; reached.add(current); queue.push(...(adjacency.get(current) ?? []).filter(next => !reached.has(next))); }
++  for (const node of network.nodes) {
++    if (!reached.has(node.id)) add("disconnected", node.id, "Node has no connection to equipment.");
++    const attached = network.edges.filter(e => e.from === node.id || e.to === node.id);
++    const dimensions = new Set(attached.map(e => `${e.shape}:${e.widthM}:${e.shape === "round" ? e.widthM : e.heightM}`));
++    if (dimensions.size > 1 && node.kind !== "reducer") add("transition", node.id, "Different duct dimensions meet without an explicit reducer.");
++  }
++  return { status: "draft-unverified" as const, verifiedQuoteEligible: false as const, network, runs, issues };
++}
+diff --git a/src/studio/industries/hvac/HVACNetworkViewer.tsx b/src/studio/industries/hvac/HVACNetworkViewer.tsx
+new file mode 100644
+index 00000000..3158a961
+--- /dev/null
++++ b/src/studio/industries/hvac/HVACNetworkViewer.tsx
+@@ -0,0 +1,54 @@
++import { useEffect, useRef, useState } from "react";
++import * as T from "three";
++import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
++import type { HvacNetwork } from "./hvacNetwork.ts";
++import "./hvacCoordination.css";
++
++export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; clash: boolean };
++/** Display-only envelopes. Meshes never become measured or billable quantities. */
++export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D preview" }: { runs: HvacPreviewRun[]; beams?: HvacNetwork["beams"]; label?: string }) {
++  const host = useRef<HTMLDivElement>(null);
++  const [status, setStatus] = useState("loading"), [attempt, setAttempt] = useState(0);
++  const serialized = JSON.stringify({ runs, beams });
++  useEffect(() => {
++    const element = host.current; if (!element) return;
++    const data: { runs: HvacPreviewRun[]; beams: HvacNetwork["beams"] } = JSON.parse(serialized);
++    const canvas = document.createElement("canvas");
++    let context: WebGL2RenderingContext | null = null;
++    try { context = canvas.getContext("webgl2", { antialias: true, alpha: true }); } catch { /* recoverable */ }
++    if (!context) { setStatus("unavailable"); return; }
++    let renderer: T.WebGLRenderer;
++    try { renderer = new T.WebGLRenderer({ canvas, context, antialias: true, alpha: true }); } catch { setStatus("unavailable"); return; }
++    canvas.setAttribute("role", "img"); canvas.setAttribute("aria-label", label); element.append(canvas);
++    const scene = new T.Scene(), model = new T.Group(); scene.add(model);
++    scene.add(new T.HemisphereLight(0xffffff, 0x334155, 3));
++    const light = new T.DirectionalLight(0xffffff, 3); light.position.set(4, 8, 6); scene.add(light);
++    const add = (geometry: T.BufferGeometry, color: number, opacity = 1) => { const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ color, transparent: opacity < 1, opacity, roughness: .6, depthWrite: opacity === 1 })); model.add(mesh); return mesh; };
++    for (const run of data.runs) {
++      const a = new T.Vector3(...run.a), b = new T.Vector3(...run.b), delta = b.clone().sub(a), length = delta.length();
++      if (length <= 0) continue;
++      const geometry = (t: number) => run.round ? new T.CylinderGeometry(run.width / 2 + t, run.width / 2 + t, length, 32).rotateX(Math.PI / 2) : new T.BoxGeometry(run.width + 2 * t, run.height + 2 * t, length);
++      const place = (mesh: T.Mesh) => { mesh.position.copy(a).add(b).multiplyScalar(.5); const forward = delta.clone().normalize(); const right = new T.Vector3(0, 1, 0).cross(forward); if (right.lengthSq() < 1e-10) right.set(1, 0, 0); right.normalize(); const up = forward.clone().cross(right).normalize(); mesh.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(right, up, forward)); };
++      const core = add(geometry(0), run.clash ? 0xef4444 : 0x38bdf8); core.userData.runId = run.id; place(core);
++      if (run.insulation > 0) place(add(geometry(run.insulation), 0xfbbf24, .28));
++    }
++    for (const beam of data.beams) { const size = beam.max.map((v, i) => v - beam.min[i]); const mesh = add(new T.BoxGeometry(...size as [number, number, number]), 0x94a3b8, .45); mesh.position.set(...beam.min.map((v, i) => (v + beam.max[i]) / 2) as [number, number, number]); }
++    const bounds = new T.Box3().setFromObject(model), center = bounds.isEmpty() ? new T.Vector3() : bounds.getCenter(new T.Vector3());
++    const span = Math.max(1, bounds.isEmpty() ? 1 : bounds.getSize(new T.Vector3()).length());
++    const camera = new T.PerspectiveCamera(40, 1, .01, span * 20); camera.position.copy(center).add(new T.Vector3(1, .8, 1).multiplyScalar(span * 1.2));
++    const controls = new OrbitControls(camera, canvas); controls.target.copy(center); controls.enableDamping = false; controls.update();
++    const render = () => renderer.render(scene, camera);
++    controls.addEventListener("change", render);
++    const resize = () => { const width = element.clientWidth, height = element.clientHeight; if (!width || !height) return; renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix(); render(); };
++    const observer = new ResizeObserver(resize); observer.observe(element);
++    const lost = (event: Event) => { event.preventDefault(); setStatus("lost"); }, restored = () => { setStatus("ready"); resize(); };
++    canvas.addEventListener("webglcontextlost", lost); canvas.addEventListener("webglcontextrestored", restored);
++    resize(); setStatus("ready");
++    return () => { observer.disconnect(); controls.dispose(); canvas.removeEventListener("webglcontextlost", lost); canvas.removeEventListener("webglcontextrestored", restored); model.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); (o.material as T.Material).dispose(); } }); renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); };
++  }, [serialized, attempt, label]);
++  return <section className="hvac-preview" aria-label={label} data-graphics-status={status} data-run-count={runs.length} data-clash-count={runs.filter(r => r.clash).length}>
++    <div ref={host} className="hvac-preview-canvas" />
++    {(status === "unavailable" || status === "lost") && <div role="status"><p>3D preview {status}. Your worksheet is unchanged.</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry HVAC preview</button></div>}
++    <p className="industry-note">Blue: duct core · Gold: insulation envelope · Red: clearance review · Grey: beam. Drag to orbit; scroll to zoom. Display only.</p>
++  </section>;
++}
+diff --git a/src/studio/industries/hvac/hvacSchedules.test.ts b/src/studio/industries/hvac/hvacSchedules.test.ts
+new file mode 100644
+index 00000000..3504a093
+--- /dev/null
++++ b/src/studio/industries/hvac/hvacSchedules.test.ts
+@@ -0,0 +1,13 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { PDFDocument } from "pdf-lib";
++import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, verifyHvacPackage } from "./hvacSchedules.ts";
++const input = () => ({ reference: "M-102", evidence: "declared", occupancy: "residential", nodes: [
++  { id: "AHU", zone: "West", kind: "equipment", x: 0, y: 3, z: 0, designAirflowLs: 100, equipmentTag: "=UNSAFE()" },
++  { id: "D1", zone: "East", kind: "diffuser", x: 5, y: 3, z: 0, designAirflowLs: null, equipmentTag: "" }],
++  edges: [{ id: "S1", from: "AHU", to: "D1", shape: "rectangular", widthM: .2, heightM: .1, insulationM: 0, availablePlenumM: null, airflowLs: 140, pressureAllowancePaPerM: 1.5 }], beams: [] });
++test("airflow conversion and occupancy-specific project thresholds", () => { const n = input(); assert.ok(Math.abs(calculateHvacSchedules(n).airflow[0].velocityMs! - 7) < 1e-12); assert.equal(calculateHvacSchedules(n).airflow[0].velocityStatus, "review-noise"); n.occupancy = "commercial"; assert.equal(calculateHvacSchedules(n).airflow[0].velocityStatus, "within-project-threshold"); });
++test("commissioning tolerance and unknowns never fabricate measured results", () => { const s = calculateHvacSchedules(input()); assert.equal(s.commissioning[0].minimumLs, 90); assert.ok(Math.abs(s.commissioning[0].maximumLs! - 110) < 1e-10); assert.equal(s.commissioning[1].minimumLs, null); assert.equal(s.commissioning[0].measuredLs, null); assert.equal(s.airflow[0].pressureAllowancePa, 7.5); });
++test("missing airflow and pressure operands remain unknown", () => { const n = input(); const s = calculateHvacSchedules({ ...n, edges: [{ ...n.edges[0], airflowLs: null, pressureAllowancePaPerM: null }] }); assert.equal(s.airflow[0].velocityMs, null); assert.equal(s.airflow[0].pressureAllowancePa, null); });
++test("sealed draft rejects tampered network, computed schedule and delivery identity", async () => { const p = await createHvacPackage(input(), "project-test", null); await verifyHvacPackage(p); assert.match(p.delivery.contentSha256, /^[a-f0-9]{64}$/); for (const mutate of [(x: typeof p) => { x.content.network.reference = "other"; }, (x: typeof p) => { x.content.schedules.commissioning[0].designLs = 1; }, (x: typeof p) => { x.delivery.projectId = "other"; }]) { const copy = structuredClone(p); mutate(copy); await assert.rejects(verifyHvacPackage(copy)); } });
++test("CSV escapes formula prefixes, retains unknown and seal; PDF is readable", async () => { const p = await createHvacPackage(input(), "project-test", null); const csv = await hvacPackageCsv(p); assert.ok(csv.includes("'=UNSAFE()")); assert.ok(csv.includes('"unknown"')); assert.ok(csv.includes(p.delivery.contentSha256)); const pdf = await PDFDocument.load(await hvacPackagePdf(p)); assert.ok(pdf.getPageCount() > 0); });
+diff --git a/src/studio/industries/hvac/hvacSchedules.ts b/src/studio/industries/hvac/hvacSchedules.ts
+new file mode 100644
+index 00000000..84542eb8
+--- /dev/null
++++ b/src/studio/industries/hvac/hvacSchedules.ts
+@@ -0,0 +1,75 @@
++import { PDFDocument, StandardFonts } from "pdf-lib";
++import { deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
++import { evaluateHvacNetwork, hvacNetworkSchema } from "./hvacNetwork.ts";
++import type { IndustrySourceBinding } from "../sourceBinding.ts";
++
++export function calculateHvacSchedules(input: unknown) {
++  const checked = evaluateHvacNetwork(input);
++  const limitMs = checked.network.occupancy === "residential" ? 6 : 8;
++  return { ...checked, limitMs,
++    airflow: checked.runs.map(run => ({ id: run.id, velocityMs: run.airflowLs === null ? null : run.airflowLs / 1000 / run.areaM2,
++      velocityStatus: run.airflowLs === null ? "unknown" : run.airflowLs / 1000 / run.areaM2 > limitMs ? "review-noise" : "within-project-threshold",
++      pressureAllowancePa: run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM })),
++    commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && n.kind !== "reducer").map(n => ({ id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag,
++      designLs: n.designAirflowLs, minimumLs: n.designAirflowLs === null ? null : n.designAirflowLs * .9,
++      maximumLs: n.designAirflowLs === null ? null : n.designAirflowLs * 1.1, measuredLs: null, status: "not-tested" as const })),
++  };
++}
++function canonical(value: unknown): string {
++  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
++  if (value !== null && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
++  return JSON.stringify(value);
++}
++async function digest(text: string) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map(v => v.toString(16).padStart(2, "0")).join(""); }
++export async function createHvacPackage(input: unknown, projectId: string, binding: IndustrySourceBinding | null, createdAt = new Date().toISOString()) {
++  const network = hvacNetworkSchema.parse(input);
++  const content = { format: "xray.hvac-draft-package/v1" as const, projectId, sourceBinding: binding, network, schedules: calculateHvacSchedules(network) };
++  const contentSha256 = await digest(canonical(content));
++  const delivery = deliveryRecordSchema.parse({ format: DELIVERY_RECORD_SCHEMA, id: `hvac-${contentSha256.slice(0, 16)}`, kind: "hvac-commissioning", projectId,
++    state: "draft-export", revision: 1, createdAt, sourceBinding: binding, contentSha256 });
++  return { content, delivery };
++}
++export type HvacPackage = Awaited<ReturnType<typeof createHvacPackage>>;
++export async function verifyHvacPackage(value: HvacPackage) {
++  const delivery: DeliveryRecord = deliveryRecordSchema.parse(value.delivery);
++  if (delivery.state !== "draft-export" || delivery.kind !== "hvac-commissioning" || value.content.format !== "xray.hvac-draft-package/v1" || delivery.projectId !== value.content.projectId || canonical(delivery.sourceBinding) !== canonical(value.content.sourceBinding)) throw Error("HVAC package delivery metadata does not match its draft content.");
++  if (canonical(calculateHvacSchedules(value.content.network)) !== canonical(value.content.schedules)) throw Error("HVAC schedule no longer matches its inputs.");
++  if (await digest(canonical(value.content)) !== delivery.contentSha256) throw Error("HVAC package SHA-256 mismatch.");
++  return value;
++}
++const csvCell = (v: unknown) => { const s = v === null ? "unknown" : String(v); return `"${/^[\s]*[=+\-@]/.test(s) ? "'" : ""}${s.replaceAll('"', '""')}"`; };
++export async function hvacPackageCsv(value: HvacPackage) {
++  await verifyHvacPackage(value);
++  const { schedules: s } = value.content;
++  const rows: unknown[][] = [["HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
++    ["Node", "Zone", "Kind", "Equipment tag", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
++    ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
++    [], ["Run", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.airflow.map(r => [r.id, r.velocityMs, r.velocityStatus, r.pressureAllowancePa]),
++    [], ["Network issue", "Target", "Message"], ...s.issues.map(i => [i.code, i.target, i.message]),
++    [], ["Network inputs (metres; flow L/s)", canonical(s.network)], ["Delivery metadata", canonical(value.delivery)]];
++  return rows.map(row => row.map(csvCell).join(",")).join("\r\n");
++}
++export async function hvacPackagePdf(value: HvacPackage) {
++  await verifyHvacPackage(value);
++  const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica);
++  let page = pdf.addPage([595, 842]), y = 796;
++  const line = (text: string) => {
++    // Built-in font has no arbitrary Unicode glyphs. JSON attachment retains original text.
++    const printable = text.replace(/[^\x20-\x7e]/g, "?");
++    for (let i = 0; i < Math.max(1, printable.length); i += 88) { if (y < 48) { page = pdf.addPage([595, 842]); y = 796; } page.drawText(printable.slice(i, i + 88), { x: 36, y, size: 10, font }); y -= 16; }
++  };
++  const s = value.content.schedules;
++  line("HVAC equipment and commissioning draft"); line("UNVERIFIED - no measured results, certification or verified quote eligibility.");
++  line(`Project: ${value.content.projectId} | Source: ${s.network.reference} | ${s.network.evidence}`);
++  line(`SHA-256: ${value.delivery.contentSha256}`); line("Integrity seal identifies content, not engineering approval."); line("");
++  line("Equipment / terminal schedule: design L/s; allowable test range +/-10%");
++  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
++  line(""); line(`Airflow review (project threshold ${s.limitMs} m/s; not a code assessment)`);
++  for (const r of s.airflow) line(`${r.id} | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | ${r.velocityStatus} | Pressure allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`);
++  line("Pressure allowance uses the entered Pa/m only; no friction or fitting solver."); line(""); line("Network review");
++  if (!s.issues.length) line("No issues detected by these bounded checks. Professional review still required.");
++  for (const i of s.issues) line(`${i.target}: ${i.code} - ${i.message}`);
++  line("Beam checks use conservative envelopes. Full source schedule is attached as JSON.");
++  await pdf.attach(new TextEncoder().encode(JSON.stringify(value, null, 2)), "hvac-draft-package.json", { mimeType: "application/json", description: "Original inputs, schedules, provenance and SHA-256 delivery record" });
++  return pdf.save();
++}

@@ -21,6 +21,7 @@ export const ductSectionFormSchema = z.object({
 }).strict();
 export const ductFormSchema = z.object({
   sections: z.array(ductSectionFormSchema).max(100),
+  networkJson: z.string().max(500000).optional(),
   binding: industrySourceBindingSchema.nullable().optional(),
 }).strict();
 export type DuctForm = z.infer<typeof ductFormSchema>;

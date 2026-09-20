@@ -1,4 +1,6 @@
 import { useId, useState } from "react";
+import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
+import { HvacCoordinationPanel } from "./HvacCoordinationPanel.tsx";
 import type { IndustryDraftPanelProps } from "../draftPanel";
 import { describeIndustryBinding, evaluateIndustryBinding } from "../sourceBinding.ts";
 import { createDuctSourceBinding, createEmptyDuctSection, describeEvidenceClass, evaluateDuctFormBinding, EVIDENCE_CLASS_LABELS, type DuctBindingInputs, type DuctForm, type DuctSectionForm } from "./ductForm";
@@ -109,5 +111,6 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
       </section>}
       <p className="industry-note">Sheet metal excludes: {outcome.result.exclusions.join(", ")}. Entered references are retained in your draft; they have not been verified.</p>
     </section>}
+    <HvacCoordinationPanel text={value.networkJson ?? ""} onChange={networkJson => change({ ...value, networkJson })} disabled={disabled} stale={evaluation.status === "stale"} projectId={source.projectId} binding={binding} />
   </form>;
 }
