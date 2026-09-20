@@ -1,0 +1,205 @@
+diff --git a/COMPLETE-CHECKLIST.md b/COMPLETE-CHECKLIST.md
+index 9e93c6c8..a10270ae 100644
+--- a/COMPLETE-CHECKLIST.md
++++ b/COMPLETE-CHECKLIST.md
+@@ -548,3 +548,6 @@ Reviewed material table linked to duct sections, with explicit review, edit inva
+ 
+ ### SC13-ORIENTED-10 - 2026-09-20
+ Shared run orientation removes missed vertical/sloping beam clashes and false end-cap collisions. DANS1 2075 tests, clean TypeScript/lint, required build, dev and built 41/41. [Tests, screenshots and exact diff](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md). Round checks remain conservative; full SC-13 and the ledger goal remain open. Recovery branch feat/closeout-sc09-remainder after 94a7c98a.
++
++### SC13-PIPE-14 - 2026-09-20
++Separate multi-zone pipe flow, bore-based velocity, pump connectivity and exports qualified with readable tablet schedules. DANS1 2083 tests, clean TypeScript/lint, required build, dev 47/47, built 147/147, PDF 7/7. [Exact diffs, screenshots and tests](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md). Explicit fittings and broader ledger remain open. Branch feat/closeout-sc09-remainder after WIP 0933f492.
+diff --git a/HVAC-CLOSEOUT-TODO.md b/HVAC-CLOSEOUT-TODO.md
+index e005f12e..fd768e6c 100644
+--- a/HVAC-CLOSEOUT-TODO.md
++++ b/HVAC-CLOSEOUT-TODO.md
+@@ -10,7 +10,8 @@ Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion". Branch: fea
+ - [x] Reviewed gauge/thickness/density table UI, invalidation and section linkage: [material proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md), dev 87/87, built 102/102.
+ - [ ] Resolve original SC-12 missing-velocity mass gate; full ledger scope remains unchanged.
+ - [x] Shared oriented rectangular envelope/beam checks and finite end caps: [proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md), 2075 tests, dev/built 41/41.
+-- [ ] Broader SC-13: pipe coordination and explicit fittings. Round checks remain conservative; hydraulics are not proven.
++- [x] Pipe service coordination, separate flow/bore, pump connectivity, exports and tablet table polish: [proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md), 2083 tests, dev 47/47, built 147/147, PDF 7/7.
++- [ ] Broader SC-13: explicit fittings. Round checks remain conservative; hydraulics are not proven.
+ - [ ] Broader SC-14: measured commissioning, reviewed/issued delivery lifecycle and solved pressure loss.
+ - [ ] Shared development reload failure (SC09 historical 118/135; HVAC full dev 37/46). Production reload passes; no deployment/native claim.
+ 
+diff --git a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+index 8b509678..a0a75f4e 100644
+--- a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
++++ b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+@@ -37,7 +37,7 @@ Every slice in this ledger must satisfy the following four proof criteria before
+ * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
+ * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
+ 
+-**Last executed machine gate**: 2075/2075 passing (203 + 858 + 1014), TypeScript exit 0, scoped HVAC lint exit 0 with no warnings. DANS1 hvac4-440603927c1f; proof/growth/2026-09-20-hvac-portion4/oriented-machine/results.json. Required build worker PASS; oriented clash workflow dev 41/41 and production 41/41. Earlier material production 102/102, network 99/99 and PDF readback 7/7 remain historical evidence. Full dev reload remains open (HVAC 37/46; SC-09 118/135); no native/deployment acceptance.
++**Last executed machine gate**: 2083/2083 passing (203 + 858 + 1022), TypeScript exit 0, scoped HVAC lint exit 0 with no warnings. DANS1 hvac4-53314df292f9; proof/growth/2026-09-20-hvac-portion4/pipe-polished-machine/results.json. Required build worker PASS; separate pipe workflow and tablet schedule polish dev 47/47 and production 147/147, including actual exports and reload. Pipe PDF readback 7/7. Earlier material production 102/102, network 99/99 and oriented clashes 41/41 remain historical evidence. Full dev reload remains open (HVAC 37/46; SC-09 118/135); no native/deployment acceptance.
+ 
+ The figure moved from 1616 because `src/studio/persistence/portableArchive.test.ts` (SC-15's archive container, 10 tests) was written but never added to the `test` script, so it ran in no suite at all — a green test nobody executed. `npm test` also exceeded Windows' 8191-character command limit once that path was added, so the source suites now run through `test:src`; the guard scripts stay in `test` ahead of it.
+ 
+@@ -435,8 +435,8 @@ graph TD
+   - `src/studio/industries/hvac/hvacNetwork.test.ts` (new)
+   - `src/studio/industries/hvac/HVACNetworkViewer.tsx` (new)
+ * **Depends on**: SC-12
+-* **Proof**: [SC13-ORIENTED-10](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md): shared preview/clash orientation, finite end caps and insulated rectangular beam intersection qualified; DANS1 2075 tests, dev 41/41, built 41/41. Earlier [SC13-NETWORK-05](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md). Multi-zone duct graph, reducers, connectivity, plenum and potential beam clashes, invalid-input rejection and WebGL recovery verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
+-* **BLOCKED / Remaining**: Pipe coordination and explicit fitting geometry remain open. Rectangular run envelopes now use oriented solid intersection; round runs still use conservative enclosing boxes. Hydraulic solving is not proven. Full development reload also remains open.
++* **Proof**: [SC13-PIPE-14](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md): separate pipe service/flow, pump connectivity, declared bore velocity, exports and readable tablet schedules qualified; DANS1 2083 tests, dev 47/47, built 147/147, PDF 7/7. Earlier [SC13-ORIENTED-10](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md): shared preview/clash orientation, finite end caps and insulated rectangular beam intersection qualified; DANS1 2075 tests, dev 41/41, built 41/41. Earlier [SC13-NETWORK-05](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md). Multi-zone duct graph, reducers, connectivity, plenum and potential beam clashes, invalid-input rejection and WebGL recovery verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
++* **BLOCKED / Remaining**: Explicit fitting geometry remains open. Pipe service connectivity, clearances and separate liquid-flow schedules are qualified. Rectangular run envelopes now use oriented solid intersection; round runs still use conservative enclosing boxes. Hydraulic solving is not proven. Full development reload also remains open.
+ * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
+ 
+ #### SC-14 — HVAC-04/05/06 Airflow Sizing, Equipment & Commissioning Schedules `[[partial]]`
+@@ -593,7 +593,7 @@ graph TD
+ | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
+ | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
+ | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[partial]]` | 2068 tests; built 102/102 | Required (3D Section Preview) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md) |
+-| **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[partial]]` | 2075 tests; built 41/41 | Required (3D Clash Highlights)| [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md) |
++| **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[partial]]` | 2083 tests; built 147/147 | Required (3D Clash Highlights)| [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md) |
+ | **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[partial]]` | 2058 tests; built 99/99 | Required (Commissioning PDF) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md) |
+ | **SC-15** | Portable Project Archive (.xray ZIP) & Manifest | Portion 5 | `[[pending]]` | Pending | Required (Import/Export Flow) | — |
+ | **SC-16** | Workspace Lock & Disaster Recovery Journal | Portion 5 | `[[pending]]` | Pending | Required (Multi-Tab Lock UI) | — |
+diff --git a/XRAY-STATUS-AND-PROOF-DASHBOARD.html b/XRAY-STATUS-AND-PROOF-DASHBOARD.html
+index d2e381f0..8987d9b0 100644
+--- a/XRAY-STATUS-AND-PROOF-DASHBOARD.html
++++ b/XRAY-STATUS-AND-PROOF-DASHBOARD.html
+@@ -1031,7 +1031,7 @@
+     }
+   </style>
+ </head>
+-<body data-source-slices="20" data-source-requirements="375" data-source-proofs="65">
++<body data-source-slices="20" data-source-requirements="375" data-source-proofs="66">
+ 
+   <header>
+     <div class="header-top">
+@@ -1045,7 +1045,7 @@
+       <div class="meta-pills">
+         <div class="pill pill-green">
+           <span class="dot"></span>
+-          <span>2,075 / 2,075 Passed</span>
++          <span>2,083 / 2,083 Passed</span>
+         </div>
+         <div class="pill pill-blue">
+           <span class="dot"></span>
+@@ -1067,20 +1067,20 @@
+         <div class="kpi-value">50%</div>
+         <div class="kpi-sub">10 Done, 4 Partial, 0 Blocked, 6 Pending</div>
+       </div>
+-      <div class="kpi-card" data-kpi="tests" data-passing="2075" data-total="2075" data-suites="unknown" data-tsc="exit-0">
++      <div class="kpi-card" data-kpi="tests" data-passing="2083" data-total="2083" data-suites="unknown" data-tsc="exit-0">
+         <div class="kpi-title">
+           <span>Machine Gate Tests</span>
+           <span style="color: #34d399;">100% PASS</span>
+         </div>
+-        <div class="kpi-value">2,075</div>
++        <div class="kpi-value">2,083</div>
+         <div class="kpi-sub">0 Failures · suite count not recorded</div>
+       </div>
+-      <div class="kpi-card" data-kpi="proofs" data-total="65">
++      <div class="kpi-card" data-kpi="proofs" data-total="66">
+         <div class="kpi-title">
+           <span>Visual & Executed Proofs</span>
+           <span style="color: #60a5fa;">ATTACHED</span>
+         </div>
+-        <div class="kpi-value">65</div>
++        <div class="kpi-value">66</div>
+         <div class="kpi-sub">Curated historical captures; not current qualification</div>
+       </div>
+       <div class="kpi-card" data-kpi="az" data-total="375" data-verified="6" data-partial="110" data-blocked="19" data-gap="239" data-failed="1">
+@@ -1102,7 +1102,7 @@
+         </button>
+         <button type="button" class="tab-btn" id="tab-button-gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" data-tab="gallery" tabindex="-1">
+           <span>🖼️ Visual Proof Gallery</span>
+-          <span class="tab-badge">65</span>
++          <span class="tab-badge">66</span>
+         </button>
+         <button type="button" class="tab-btn" id="tab-button-gaps" role="tab" aria-selected="false" aria-controls="tab-gaps" data-tab="gaps" tabindex="-1">
+           <span>🔍 What Hasn't Been Done</span>
+@@ -1978,13 +1978,13 @@
+ 
+     <div class="detail-section">
+       <div class="detail-heading">🔗 Recorded Proof</div>
+-      <div class="detail-body"><p><a class="md-link" href="proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md">SC13-ORIENTED-10</a>: shared preview/clash orientation, finite end caps and insulated rectangular beam intersection qualified; DANS1 2075 tests, dev 41/41, built 41/41. Earlier <a class="md-link" href="proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md">SC13-NETWORK-05</a>. Multi-zone duct graph, reducers, connectivity, plenum and potential beam clashes, invalid-input rejection and WebGL recovery verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.</p></div>
++      <div class="detail-body"><p><a class="md-link" href="proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md">SC13-PIPE-14</a>: separate pipe service/flow, pump connectivity, declared bore velocity, exports and readable tablet schedules qualified; DANS1 2083 tests, dev 47/47, built 147/147, PDF 7/7. Earlier <a class="md-link" href="proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md">SC13-ORIENTED-10</a>: shared preview/clash orientation, finite end caps and insulated rectangular beam intersection qualified; DANS1 2075 tests, dev 41/41, built 41/41. Earlier <a class="md-link" href="proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md">SC13-NETWORK-05</a>. Multi-zone duct graph, reducers, connectivity, plenum and potential beam clashes, invalid-input rejection and WebGL recovery verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.</p></div>
+     </div>
+ 
+ 
+     <div class="detail-section">
+       <div class="detail-heading" style="color: #f87171;">⚠️ Blocked / Environment Note</div>
+-      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><p>Pipe coordination and explicit fitting geometry remain open. Rectangular run envelopes now use oriented solid intersection; round runs still use conservative enclosing boxes. Hydraulic solving is not proven. Full development reload also remains open.</p></div>
++      <div class="detail-body" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); color: #fca5a5;"><p>Explicit fitting geometry remains open. Pipe service connectivity, clearances and separate liquid-flow schedules are qualified. Rectangular run envelopes now use oriented solid intersection; round runs still use conservative enclosing boxes. Hydraulic solving is not proven. Full development reload also remains open.</p></div>
+     </div>
+ 
+ 
+@@ -2008,6 +2008,11 @@
+         <span style="display: block; padding: 8px; font-size: 11px;">Oriented insulated duct clash</span>
+       </button>
+ 
++      <button type="button" class="proof-mini" data-lightbox data-src="proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png" data-title="Separate pipe flow and readable tablet schedules" data-desc="DANS1 2083 tests, dev 47/47, built 147/147 and actual PDF 7/7. Pipe flow remains separate from airflow; unknown bore/flow withholds velocity." data-path="proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png" aria-label="Inspect proof: Separate pipe flow and readable tablet schedules">
++        <img src="proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png" alt="" loading="lazy">
++        <span style="display: block; padding: 8px; font-size: 11px;">Separate pipe flow and readable tablet schedules</span>
++      </button>
++
+             </div>
+           </div>
+ 
+@@ -2339,8 +2344,8 @@
+     <section id="tab-gallery" class="tab-content" role="tabpanel" aria-labelledby="tab-button-gallery" hidden>
+       <div class="filter-bar" role="group" aria-label="Proof gallery filters">
+         <span class="filter-label">Filter Category:</span>
+-        <button type="button" class="filter-chip active" data-filter-group="gallery-category" data-filter-value="all" aria-pressed="true">All (65)</button>
+-        <button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="AI Assistant &amp; Drafting" aria-pressed="false">AI Assistant &amp; Drafting (3)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Alteration Stages &amp; Demolition" aria-pressed="false">Alteration Stages &amp; Demolition (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Architectural CAD &amp; 3D" aria-pressed="false">Architectural CAD &amp; 3D (6)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Coordinated Schedules" aria-pressed="false">Coordinated Schedules (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Drawing Register &amp; PDF" aria-pressed="false">Drawing Register &amp; PDF (7)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="HVAC and Building Services" aria-pressed="false">HVAC and Building Services (5)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quality &amp; Verification" aria-pressed="false">Quality &amp; Verification (2)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying" aria-pressed="false">Quantity Surveying (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying &amp; Cost Plans" aria-pressed="false">Quantity Surveying &amp; Cost Plans (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Roofing &amp; Cladding" aria-pressed="false">Roofing &amp; Cladding (18)</button>
++        <button type="button" class="filter-chip active" data-filter-group="gallery-category" data-filter-value="all" aria-pressed="true">All (66)</button>
++        <button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="AI Assistant &amp; Drafting" aria-pressed="false">AI Assistant &amp; Drafting (3)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Alteration Stages &amp; Demolition" aria-pressed="false">Alteration Stages &amp; Demolition (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Architectural CAD &amp; 3D" aria-pressed="false">Architectural CAD &amp; 3D (6)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Coordinated Schedules" aria-pressed="false">Coordinated Schedules (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Drawing Register &amp; PDF" aria-pressed="false">Drawing Register &amp; PDF (7)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="HVAC and Building Services" aria-pressed="false">HVAC and Building Services (6)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quality &amp; Verification" aria-pressed="false">Quality &amp; Verification (2)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying" aria-pressed="false">Quantity Surveying (8)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Quantity Surveying &amp; Cost Plans" aria-pressed="false">Quantity Surveying &amp; Cost Plans (4)</button><button type="button" class="filter-chip" data-filter-group="gallery-category" data-filter-value="Roofing &amp; Cladding" aria-pressed="false">Roofing &amp; Cladding (18)</button>
+       </div>
+ 
+       <div class="gallery-grid" id="galleryContainer">
+@@ -3450,6 +3455,23 @@
+       </span>
+     </button>
+ 
++    <button type="button" class="proof-card" data-category="HVAC and Building Services" data-lightbox data-src="proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png" data-title="Separate pipe flow and readable tablet schedules" data-desc="DANS1 2083 tests, dev 47/47, built 147/147 and actual PDF 7/7. Pipe flow remains separate from airflow; unknown bore/flow withholds velocity." data-path="proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png" aria-label="Inspect proof: Separate pipe flow and readable tablet schedules">
++      <span class="thumb-wrapper">
++        <img src="proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png" alt="" class="proof-thumb" loading="lazy">
++        <span class="thumb-overlay">
++          <span class="category-tag">HVAC and Building Services</span>
++          <span class="proof-slice-tag">SC-13</span>
++        </span>
++      </span>
++      <span class="proof-content">
++        <span>
++          <span class="proof-title">Separate pipe flow and readable tablet schedules</span>
++          <span class="proof-desc">DANS1 2083 tests, dev 47/47, built 147/147 and actual PDF 7/7. Pipe flow remains separate from airflow; unknown bore/flow withholds velocity.</span>
++        </span>
++        <span class="proof-path">proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png</span>
++      </span>
++    </button>
++
+       </div>
+     </section>
+ 
+diff --git a/dashboard-curated-images.json b/dashboard-curated-images.json
+index 254438f5..31816c6b 100644
+--- a/dashboard-curated-images.json
++++ b/dashboard-curated-images.json
+@@ -453,5 +453,12 @@
+     "slice": "SC-13",
+     "relPath": "proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-oriented-built1/output/captures/oriented-slope-hit-tablet.png",
+     "description": "DANS1 2075 tests; dev and built 41/41. Sloping rectangular insulation envelope intersects declared beam. Draft only; round checks remain conservative."
++  },
++  {
++    "category": "HVAC and Building Services",
++    "title": "Separate pipe flow and readable tablet schedules",
++    "slice": "SC-13",
++    "relPath": "proof/growth/2026-09-20-hvac-portion4/campaigns/hvac4-pipe-polished-built1/output/captures/pipe-table-spaced-left-tablet.png",
++    "description": "DANS1 2083 tests, dev 47/47, built 147/147 and actual PDF 7/7. Pipe flow remains separate from airflow; unknown bore/flow withholds velocity."
+   }
+ ]
+diff --git a/walkthrough.md b/walkthrough.md
+index a2980006..72e33eaf 100644
+--- a/walkthrough.md
++++ b/walkthrough.md
+@@ -906,3 +906,6 @@ Reviewed material table linked to duct sections, with explicit review, edit inva
+ 
+ ### SC13-ORIENTED-10 - 2026-09-20
+ Shared run orientation removes missed vertical/sloping beam clashes and false end-cap collisions. DANS1 2075 tests, clean TypeScript/lint, required build, dev and built 41/41. [Tests, screenshots and exact diff](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md). Round checks remain conservative; full SC-13 and the ledger goal remain open. Recovery branch feat/closeout-sc09-remainder after 94a7c98a.
++
++### SC13-PIPE-14 - 2026-09-20
++Separate multi-zone pipe flow, bore-based velocity, pump connectivity and exports qualified with readable tablet schedules. DANS1 2083 tests, clean TypeScript/lint, required build, dev 47/47, built 147/147, PDF 7/7. [Exact diffs, screenshots and tests](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md). Explicit fittings and broader ledger remain open. Branch feat/closeout-sc09-remainder after WIP 0933f492.

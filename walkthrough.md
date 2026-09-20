@@ -906,3 +906,6 @@ Reviewed material table linked to duct sections, with explicit review, edit inva
 
 ### SC13-ORIENTED-10 - 2026-09-20
 Shared run orientation removes missed vertical/sloping beam clashes and false end-cap collisions. DANS1 2075 tests, clean TypeScript/lint, required build, dev and built 41/41. [Tests, screenshots and exact diff](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md). Round checks remain conservative; full SC-13 and the ledger goal remain open. Recovery branch feat/closeout-sc09-remainder after 94a7c98a.
+
+### SC13-PIPE-14 - 2026-09-20
+Separate multi-zone pipe flow, bore-based velocity, pump connectivity and exports qualified with readable tablet schedules. DANS1 2083 tests, clean TypeScript/lint, required build, dev 47/47, built 147/147, PDF 7/7. [Exact diffs, screenshots and tests](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md). Explicit fittings and broader ledger remain open. Branch feat/closeout-sc09-remainder after WIP 0933f492.

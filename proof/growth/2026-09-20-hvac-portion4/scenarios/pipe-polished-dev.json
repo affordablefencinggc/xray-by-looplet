@@ -1,0 +1,252 @@
+[
+  [
+    "expect-cancelled-fetch",
+    "{{ORIGIN}}/api/pricing-research",
+    8,
+    "PricingResearchPanel aborts its provider-status request when its pane unmounts; no failed asset or search is exempted."
+  ],
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/industry-coverage/index.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(() => location.pathname.endsWith(\"/industry-coverage/index.html\") && document.readyState === \"complete\" && !document.querySelector('script[type=\"module\"]'))()"
+  ],
+  [
+    "eval",
+    "(async function seedFixture(fixture) {\n  if (!location.pathname.endsWith(\"/industry-coverage/index.html\") || document.querySelector(\"[data-hydration-status]\") || document.querySelector('script[type=\"module\"]'))\n    throw Error(\"Fixture seed is restricted to the static pre-mount page\");\n  if (localStorage.getItem(fixture.projectStorageKey) !== null || localStorage.getItem(fixture.industryStorageKey) !== null)\n    throw Error(\"Fresh proof profile required; existing product data will not be overwritten\");\n  const bytes = Uint8Array.from(atob(fixture.source.bytesBase64), character => character.charCodeAt(0));\n  const digest = [...new Uint8Array(await crypto.subtle.digest(\"SHA-256\", bytes))].map(byte => byte.toString(16).padStart(2, \"0\")).join(\"\");\n  if (digest !== fixture.source.sha256 || bytes.byteLength !== fixture.source.sizeBytes) throw Error(\"Controlled SVG bytes failed identity verification\");\n  const database = await new Promise((resolve, reject) => {\n    const request = indexedDB.open(fixture.planDatabase, 1);\n    request.onupgradeneeded = () => request.result.createObjectStore(fixture.planStore, { keyPath: \"documentId\" });\n    request.onsuccess = () => resolve(request.result);\n    request.onerror = () => reject(request.error);\n    request.onblocked = () => reject(Error(\"Plan fixture database is blocked\"));\n  });\n  try {\n    await new Promise((resolve, reject) => {\n      const transaction = database.transaction(fixture.planStore, \"readwrite\");\n      const { bytesBase64, ...metadata } = fixture.source;\n      void bytesBase64;\n      transaction.objectStore(fixture.planStore).add({ ...metadata, bytes: bytes.buffer });\n      transaction.oncomplete = resolve;\n      transaction.onerror = () => reject(transaction.error);\n      transaction.onabort = () => reject(transaction.error ?? Error(\"Plan fixture transaction aborted\"));\n    });\n  } finally { database.close(); }\n  localStorage.setItem(fixture.projectStorageKey, JSON.stringify(fixture.job));\n  localStorage.setItem(fixture.industryStorageKey, JSON.stringify(fixture.library));\n  sessionStorage.setItem(\"sc09-room-roof-observer\", JSON.stringify({ sourceSha256: digest, expected: fixture.expected }));\n  return { seededBeforeProductMount: true, sourceSha256: digest, svgBytes: bytes.byteLength, areasUnclassified: 2, rowsUnbound: 2 };\n})({\"format\":\"xray.sc09-room-roof-browser-fixture/v1\",\"projectStorageKey\":\"xray:fencing-job:v2\",\"industryStorageKey\":\"xray.industry-drafts.v1:job-sc09-room-roof\",\"planDatabase\":\"xray-plan-content-v1\",\"planStore\":\"documents\",\"job\":{\"schemaVersion\":2,\"id\":\"job-sc09-room-roof\",\"revision\":1,\"name\":\"SC09 room and roof source proof\",\"trade\":\"general\",\"status\":\"draft\",\"createdAt\":\"2026-09-20T00:00:00.000Z\",\"updatedAt\":\"2026-09-20T00:00:00.000Z\",\"site\":{\"address\":\"\",\"estimator\":\"\",\"inspectionDate\":\"\",\"notes\":\"\"},\"documents\":[{\"id\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"importedAt\":\"2026-09-20T00:00:00.000Z\",\"pageCount\":1,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"source\":\"web\"}],\"activeDocumentId\":\"doc-sc09-room-roof\",\"calibrations\":[{\"sheet\":0,\"coordinateSpace\":\"source-page-v1\",\"metresPerUnit\":0.025,\"source\":\"manual\",\"confidence\":1,\"locked\":true,\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"transform\":{\"a\":1,\"b\":0,\"c\":0,\"d\":1,\"e\":0,\"f\":0},\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"candidates\":[{\"id\":\"cal-sc09-room-roof-10m\",\"source\":\"manual\",\"metresPerUnit\":0.025,\"confidence\":1,\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"provenance\":{\"method\":\"two-point\",\"evidence\":\"Explicit 10.000 m reference on the controlled source sheet\",\"documentId\":\"doc-sc09-room-roof\"}}],\"selectedCandidateId\":\"cal-sc09-room-roof-10m\",\"conflict\":null}],\"runs\":[],\"gates\":[],\"photos\":[],\"bom\":[],\"quoteDraft\":null,\"revisionHistory\":[],\"activeSheet\":0,\"annotations\":[{\"id\":\"area-sc09-room-a\",\"kind\":\"area\",\"label\":\"Room A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":80,\"y\":100},{\"x\":240,\"y\":100},{\"x\":240,\"y\":220},{\"x\":80,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"},{\"id\":\"area-sc09-roof-a\",\"kind\":\"area\",\"label\":\"Roof A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":340,\"y\":100},{\"x\":500,\"y\":100},{\"x\":500,\"y\":220},{\"x\":340,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"}]},\"library\":{\"format\":\"xray.industry-drafts/1\",\"projectId\":\"job-sc09-room-roof\",\"revision\":1,\"drafts\":{\"quantity-surveying\":{\"revision\":1,\"form\":{\"hierarchyId\":\"SC09 room and roof\",\"hierarchyRevision\":\"Controlled source Rev A\",\"calculated\":false,\"binding\":null,\"nodes\":[{\"key\":\"node-room\",\"code\":\"ROOM\",\"label\":\"Room areas\",\"parentKey\":\"\"},{\"key\":\"node-roof\",\"code\":\"ROOF\",\"label\":\"Roof planes\",\"parentKey\":\"\"}],\"items\":[{\"key\":\"item-room\",\"reference\":\"QS-ROOM-A\",\"quantity\":\"12\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-room\"},{\"key\":\"item-roof\",\"reference\":\"QS-ROOF-A\",\"quantity\":\"13.856406460551018\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-roof\"}]}}}},\"sourceBounds\":{\"x\":0,\"y\":0,\"width\":600,\"height\":400},\"source\":{\"documentId\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"mimeType\":\"image/svg+xml\",\"sizeBytes\":830,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"bytesBase64\":\"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNjAwIDQwMCI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjZjRmMWU4Ii8+CjxwYXRoIGQ9Ik04MCAxMDBIMjQwVjIyMEg4MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIzIi8+Cjx0ZXh0IHg9IjgwIiB5PSI4OCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlJPT00gQSBjbG9zZWQgcG9seWdvbjwvdGV4dD4KPHBhdGggZD0iTTM0MCAxMDBINTAwVjIyMEgzNDBaIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YzNhZWQiIHN0cm9rZS13aWR0aD0iMyIvPgo8dGV4dCB4PSIzNDAiIHk9Ijg4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Uk9PRiBBIGNsb3NlZCBwb2x5Z29uPC90ZXh0Pgo8cGF0aCBkPSJNMTAwIDM0MEg1MDAiIHN0cm9rZT0iI2I0NTMwOSIgc3Ryb2tlLXdpZHRoPSI0Ii8+CjxwYXRoIGQ9Ik0xMDAgMzMwVjM1ME01MDAgMzMwVjM1MCIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjMiLz4KPHRleHQgeD0iMjU1IiB5PSIzMzIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0Ij4xMC4wMDAgbSByZWZlcmVuY2U8L3RleHQ+Cjx0ZXh0IHg9IjMzMCIgeT0iMjUwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Um9vZiBwaXRjaCAzMCBkZWc7IHJpc2UgZGlyZWN0aW9uIDkwIGRlZyBjbG9ja3dpc2UgZnJvbSBwYWdlIHVwPC90ZXh0Pgo8L3N2Zz4=\"},\"expected\":{\"roomId\":\"area-sc09-room-a\",\"roofId\":\"area-sc09-roof-a\",\"roomItem\":\"QS-ROOM-A\",\"roofItem\":\"QS-ROOF-A\",\"room\":12,\"roof\":13.856406460551018,\"pitch\":30,\"azimuth\":90}})"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(() => document.querySelector(\"[data-hydration-status]\")?.getAttribute(\"data-hydration-status\") === \"ready\")()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Estimate",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.industry-workbench')"
+  ],
+  [
+    "eval",
+    "(()=>{const e=document.querySelector('.industry-workbench');if(!e)throw Error('No worksheets');e.open=true;const s=e.querySelector('select');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'hvac');s.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"HVAC network coordination\"]')"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Start with labelled sample network",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('textarea[aria-label=\"Network JSON\"]')?.value.includes('AHU-1')"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.querySelector('[aria-label=\"Network JSON\"]');const n=JSON.parse(t.value);n.reference='Synthetic pipe workflow only';n.nodes.forEach((node,i)=>{node.kind=['pump','valve','pipe-terminal'][i];node.designPipeFlowLs=i===0?2:i===2?1:null});n.edges.forEach((edge,i)=>Object.assign(edge,{service:'pipe',shape:'round',widthM:.12,innerDiameterM:.1,pipeFlowLs:i===0?2:1,insulationM:.02,availablePlenumM:.5}));n.beams=[];Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,JSON.stringify(n));t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review network and schedules",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"HVAC network 3D preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"HVAC coordination result\"]');for(const t of ['0 issues','0.255','0.127','No pipe design limit'])if(!r.textContent.includes(t))throw Error('Missing pipe result '+t);if(r.querySelector('[data-pipe-count]').dataset.pipeCount!=='2')throw Error('Pipe preview missing');const table=[...r.querySelectorAll('table')].find(t=>t.caption.textContent.startsWith('Airflow'));if(table.tBodies[0].rows.length)throw Error('Pipe in airflow table');r.scrollIntoView({block:'start'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-network-desktop.png"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('[aria-label=\"HVAC coordination result\"] table')].find(t=>t.caption.textContent.startsWith('Pipe flow')).scrollIntoView({block:'start'})"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-schedules-desktop.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Prepare sealed draft package",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"Sealed HVAC draft package\"]')"
+  ],
+  [
+    "eval",
+    "(()=>{window.__hvacDownloads=[];const original=URL.createObjectURL.bind(URL);URL.createObjectURL=b=>{if(b instanceof Blob)window.__hvacDownloads.push(b.arrayBuffer().then(x=>({type:b.type,base64:btoa(Array.from(new Uint8Array(x),c=>String.fromCharCode(c)).join(''))})));return original(b)};document.querySelector('[aria-label=\"Sealed HVAC draft package\"]').scrollIntoView({block:'center'});})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download HVAC PDF",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download HVAC CSV",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download sealed HVAC JSON",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(async()=>{const files=await Promise.all(window.__hvacDownloads);window.__pipeFiles=files;const csv=atob(files[1].base64),j=JSON.parse(atob(files[2].base64));if(j.content.schedules.pipeFlow.length!==2||j.content.schedules.airflow.length||!csv.includes('Inside diameter m'))throw Error('Incorrect actual exports');if(j.content.schedules.commissioning[0].designLs!==2)throw Error('Legacy airflow reused');return {exports:files.map(x=>({type:x.type,bytes:atob(x.base64).length})),pipes:j.content.schedules.pipeFlow};})()"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('[aria-label=\"Run 1 service\"]');s.closest('details').open=true;Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'duct');s.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review network and schedules",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"HVAC network 3D preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"HVAC coordination result\"]');if(!r.textContent.includes('service'))throw Error('Cross-service connection silently accepted');const n=JSON.parse(document.querySelector('[aria-label=\"Network JSON\"]').value);if(n.edges[0].airflowLs!==null||n.edges[0].pipeFlowLs!==null||n.edges[0].innerDiameterM!==null)throw Error('Service change retained flow operands');r.scrollIntoView({block:'start'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-service-mismatch-desktop.png"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('[aria-label=\"Run 1 service\"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'pipe');s.dispatchEvent(new Event('change',{bubbles:true}));})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review network and schedules",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"HVAC network 3D preview\"]')?.dataset.graphicsStatus==='ready'"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"HVAC coordination result\"]');const t=[...r.querySelectorAll('table')].find(t=>t.caption.textContent.startsWith('Pipe flow'));if(t.tBodies[0].rows[0].cells[3].textContent!=='unknown')throw Error('Missing bore/flow fabricated velocity');t.scrollIntoView({block:'start'});if(document.documentElement.scrollWidth>innerWidth+1)throw Error('Overflow');})()"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-unknown-tablet.png"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.querySelector('[aria-label=\"edges 1 Inside diameter (m)\"]');t.closest('details').open=true;t.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(t,'.2');t.dispatchEvent(new Event('input',{bubbles:true}));t.blur();})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.hvac-coordination [role=\"alert\"]')?.textContent.includes('Inside diameter cannot exceed outside diameter')"
+  ],
+  [
+    "eval",
+    "(()=>{const n=JSON.parse(document.querySelector('[aria-label=\"Network JSON\"]').value);if(n.edges[0].innerDiameterM!==null)throw Error('Impossible bore persisted');document.querySelector('.hvac-coordination [role=\"alert\"]').scrollIntoView({block:'center'});})()"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-invalid-bore-tablet.png"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-draft-industry=\"hvac\"]')?.dataset.draftSave==='saved'"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[aria-label=\"HVAC coordination result\"]');const areas=[...r.querySelectorAll('[role=\"region\"]')];if(areas.length!==3)throw Error('Missing focusable schedule regions');for(const a of areas){const t=a.querySelector('table');if(a.tabIndex!==0||t.getBoundingClientRect().width<680||getComputedStyle(t.querySelector('td')??t.querySelector('th')).whiteSpace!=='nowrap')throw Error('Table spacing/focus contract failed');}const p=r.querySelector('[aria-label=\"Pipe flow schedule, scroll horizontally\"]');p.scrollIntoView({block:'start'});p.focus();p.scrollLeft=0;if(p.scrollWidth<=p.clientWidth)throw Error('Expected local tablet scroller');if(document.documentElement.scrollWidth>innerWidth+1)throw Error('Page overflow');return {tableWidth:p.scrollWidth,visibleWidth:p.clientWidth,focused:document.activeElement===p};})()"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-table-spaced-left-tablet.png"
+  ],
+  [
+    "eval",
+    "(()=>{const p=document.querySelector('[aria-label=\"Pipe flow schedule, scroll horizontally\"]');p.scrollLeft=p.scrollWidth;if(p.scrollLeft<=0)throw Error('Schedule cannot scroll');return {scrollLeft:p.scrollLeft};})()"
+  ],
+  [
+    "screenshot",
+    "captures/pipe-table-spaced-right-tablet.png"
+  ]
+]

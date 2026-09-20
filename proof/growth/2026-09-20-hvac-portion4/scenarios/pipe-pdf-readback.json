@@ -1,0 +1,35 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/proof-hvac/viewer.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{if(window.pdfProof?.error)throw Error(window.pdfProof.error);return window.pdfProof?.ready===true})()"
+  ],
+  [
+    "eval",
+    "(()=>{const p=window.pdfProof;if(p.pages.some(x=>x.outside.length))throw Error('Text outside physical page');for(const token of ['HVAC equipment','UNVERIFIED','SHA-256','pump','pipe-terminal','NOT TESTED','OD 0.12','ID 0.1','0.255','no design limit'])if(!p.pages.map(x=>x.text).join(' ').includes(token))throw Error('Missing PDF content: '+token);return {hash:p.pdfSha256,pages:p.pageCount,renderer:p.version,withinPage:true};})()"
+  ],
+  [
+    "screenshot",
+    "captures/hvac-pdf-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "screenshot",
+    "captures/hvac-pdf-tablet.png"
+  ]
+]

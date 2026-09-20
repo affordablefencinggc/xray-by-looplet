@@ -10,7 +10,8 @@ Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion". Branch: fea
 - [x] Reviewed gauge/thickness/density table UI, invalidation and section linkage: [material proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md), dev 87/87, built 102/102.
 - [ ] Resolve original SC-12 missing-velocity mass gate; full ledger scope remains unchanged.
 - [x] Shared oriented rectangular envelope/beam checks and finite end caps: [proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md), 2075 tests, dev/built 41/41.
-- [ ] Broader SC-13: pipe coordination and explicit fittings. Round checks remain conservative; hydraulics are not proven.
+- [x] Pipe service coordination, separate flow/bore, pump connectivity, exports and tablet table polish: [proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md), 2083 tests, dev 47/47, built 147/147, PDF 7/7.
+- [ ] Broader SC-13: explicit fittings. Round checks remain conservative; hydraulics are not proven.
 - [ ] Broader SC-14: measured commissioning, reviewed/issued delivery lifecycle and solved pressure loss.
 - [ ] Shared development reload failure (SC09 historical 118/135; HVAC full dev 37/46). Production reload passes; no deployment/native claim.
 
