@@ -338,7 +338,13 @@ try {
     'src/studio/sourceAreaChanges.ts',
     'src/studio/sourceAreaDrag.ts',
     'src/studio/sourceAreaMeasurement.ts',
-    'src/studio/industries/hvac'
+    'src/studio/industries/hvac',
+    'src/studio/persistence/portableArchive.ts',
+    'src/studio/persistence/projectArchive.ts',
+    'src/studio/persistence/projectArchive.test.ts',
+    'src/studio/persistence/ProjectPortableArchive.tsx',
+    'src/studio/ProjectLibrary.tsx',
+    'vite.config.ts'
   ) 300000 'serial'
   Wait-OwnedWave @($lint)
   $lintReceipt = Complete-OwnedStep $lint

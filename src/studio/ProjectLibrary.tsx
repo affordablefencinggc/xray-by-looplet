@@ -6,6 +6,7 @@ import { defaultProjectText, switchProject } from "./assistant/projectSwitch";
 import { PROJECT_REGISTRY_KEY, entriesNewestFirst, parseRegistry, upsertEntry, type ProjectSummary } from "./projectRegistry";
 import { PROJECT_LIBRARY_CHANGED, setProjectArchived, withProjectLifecycle } from "./projectArchive";
 import { WorkspaceDialog } from "./WorkspaceDialog";
+import { ProjectPortableArchive } from "./persistence/ProjectPortableArchive";
 import "./projectLibrary.css";
 
 export function ProjectLibrary() {
@@ -57,6 +58,7 @@ function LibraryContents() {
   }
   return <section className="project-library" aria-busy={busy}>
     <p>Open saved projects or put finished work away. Archiving keeps drawings, design, rates and conversation history on this device.</p>
+    <ProjectPortableArchive busy={busy} ready={ready} onBusyChange={setBusy} />
     <div className="project-library-new"><label>New project name<input aria-label="New project name" maxLength={120} value={name} onChange={e => setName(e.target.value)} disabled={busy} placeholder="Project name" /></label>
       <button className="pill" disabled={busy || !ready} onClick={() => void openProject(null)}>Create project</button></div>
     <div className="project-library-toolbar"><div role="group" aria-label="Project list"><button className="pill" aria-pressed={!archived} onClick={() => { setArchived(false); setReview(null); }}>Active</button><button className="pill" aria-pressed={archived} onClick={() => { setArchived(true); setReview(null); }}>Archived</button></div>
@@ -68,6 +70,6 @@ function LibraryContents() {
       <div className="project-library-actions">{archived ? <button className="pill" disabled={busy || !ready} onClick={() => void changeArchive(entry, false)}>Restore</button> : <><button className="pill" disabled={busy || !ready || entry.id === job.id} onClick={() => void openProject(entry.id)}>Open</button><button className="pill" disabled={busy || !ready || entry.id === job.id} title={entry.id === job.id ? "Open another project before archiving this one" : "Archive project"} onClick={() => { setError(""); setReviewRaw(raw); setReview(entry); }}>Archive</button></>}</div>
     </li>)}</ul>
     {!rows.length && <p>{filter ? "No projects match your search." : archived ? "No archived projects." : "No active projects."}</p>}
-    {!archived && <p className="project-library-note">To archive the open project, first open or create another project. This library is local to this device; portable backups are managed separately.</p>}
+    {!archived && <p className="project-library-note">To archive the open project, first open or create another project. Active and Archived lists stay on this device; export a portable archive to keep a separate copy.</p>}
   </section>;
 }

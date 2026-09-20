@@ -25,8 +25,8 @@ export async function sha256Text(value: string): Promise<string> {
 
 const RECORDS_PATH = "records/workspace.json";
 
-/** A two-entry manifest: what `archiveManifestSchema` requires at minimum (`.min(2)`) is one user
- *  entry plus the records entry, which is exactly the smallest honest archive. */
+/** A two-entry fixture with one original plus the workspace record. A project
+ *  without originals is also valid and needs only its workspace record. */
 export async function buildInput(overrides: Partial<Omit<ArchiveManifest, "sealSha256">> = {}) {
   const recordsBytes = encoder.encode('{"architecture":null}');
   const planBytes = encoder.encode("PLAN-BYTES");

@@ -461,6 +461,7 @@ graph TD
 ### PORTION 5: Persistence, Backup & Disaster Recovery (B & Z)
 
 #### SC-15 — Portable Project Archive (.xray ZIP) with Drawing Bytes & Manifest `[[pending]]`
+* **WIP source, not acceptance**: [SC15-CONTAINER-01](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md). ZIP packager/import verification and Project Library controls written with nine registered, unexecuted tests. DANS1 connectivity prevents execution. Original DWG bytes, full storage-wipe restoration, 20 MB timing, remaining record coverage, screenshots and build remain unproven.
 * **Goal**: Implement complete self-contained portable project package export and restore (`.xray` / ZIP format), containing raw drawing files, traces, 3D models, schedules, and cryptographic manifest.
 * **DONE (machine)**:
   - Zip packager bundles:

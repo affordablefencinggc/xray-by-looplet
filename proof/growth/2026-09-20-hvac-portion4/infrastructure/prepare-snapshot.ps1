@@ -31,6 +31,9 @@ $paths = @($listed | Where-Object {
 } | Sort-Object -Unique)
 
 $requiredSc09Sources = @(
+  'src/studio/persistence/projectArchive.ts',
+  'src/studio/persistence/projectArchive.test.ts',
+  'src/studio/persistence/ProjectPortableArchive.tsx',
   'src/studio/industries/hvac/hvacFittings.ts',
   'src/studio/industries/hvac/hvacFittings.test.ts',
   'src/studio/industries/hvac/hvacRunGeometry.ts',

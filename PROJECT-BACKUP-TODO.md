@@ -12,3 +12,5 @@ Preserve all existing changes and installed-app data. No merge, install or force
 SC-02 boundary: current job (including per-document workspaces, calibration, evidence and markups), architecture, BOM, component inventory, fencing recipes, source takeoff, connection review, project materials, saved reference rate sheet, and referenced original plans/photos. Separate construction-runtime jobs, source-model location notes, application preferences, credentials and undo history are outside this package format and must be stated in the UI.
 
 Proof directory: `proof/audit/IW-PROJECT-BACKUP`; screenshots: `screenshots/project-backup`. Nothing is checked before diff plus executed/visual evidence exists.
+
+- [ ] SC-15 portable archive: packager and Project Library integration written, not executed. [WIP diff and complete acceptance gaps](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md). Preserve original DWG bytes, prove complete clean-browser restoration and measure the original 20 MB / under-two-second requirement.

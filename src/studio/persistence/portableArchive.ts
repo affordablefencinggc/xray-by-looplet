@@ -62,12 +62,14 @@ export const archiveManifestSchema = z
     format: z.literal(PORTABLE_ARCHIVE_SCHEMA),
     createdAt: timestamp,
     jobId: z.string().min(1).max(240),
-    jobName: z.string().trim().min(1).max(120),
+    jobName: z.string().min(1).max(200),
     jobRevision: z.number().int().positive(),
+    client: z.string().trim().max(300).nullable().optional(),
     /** Which on-disk format the records payload came from. Drives the reader branch. */
     sourceFormat: z.enum([LEGACY_WORKSPACE_FORMAT_V1, LEGACY_WORKSPACE_FORMAT, PORTABLE_ARCHIVE_SCHEMA]),
     recordsPath: archivePath,
-    entries: z.array(archiveEntrySchema).min(2),
+    // A new project without originals still has a complete workspace record.
+    entries: z.array(archiveEntrySchema).min(1).max(2001),
     entryCount: z.number().int().nonnegative(),
     totalBytes: z.number().int().nonnegative(),
     sealSha256: sha256,
