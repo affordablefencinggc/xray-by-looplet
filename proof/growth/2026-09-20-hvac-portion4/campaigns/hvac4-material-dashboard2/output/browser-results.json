@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "method": "raw CDP hot-socket declarative opcode batch; fail-fast; reactive readiness",
+  "host": "dans1",
+  "startedAt": "2026-09-20T12:25:51.887Z",
+  "completedAt": "2026-09-20T12:25:52.733Z",
+  "node": "v24.20.0",
+  "browserVersion": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/153.0.8010.50",
+    "revision": "@583c5b4655acea7450a3b5224ea5121ae8caca9b",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "jsVersion": "15.3.76.12"
+  },
+  "sourceHashes": {
+    "fast-cdp.mjs": "edb4d73ff17506e09782dc9cd45e5b7a2fec2ca3ec3a99bb0c8a496400995003",
+    "run-fast-cdp.ps1": "7a9e664e5c3d99d072013e38f64924b0eb5f0917b9f663b95e0e34dd503bf24b",
+    "invoke-dans1-fast-cdp.ps1": "29e174494fb34fa4acde2c8b0b8da1e82fd50945a31542f02e52bd2ca21f38e5",
+    "scenario:scenario.json": "2bb1db4c74f28fa0b9253bddf7111c5e8440ef90ba689a6adf788441620791c3"
+  },
+  "scenarioSha256": "2bb1db4c74f28fa0b9253bddf7111c5e8440ef90ba689a6adf788441620791c3",
+  "plannedOperations": 10,
+  "completedOperations": 5,
+  "elapsedMs": 844.6376,
+  "verdict": "FAIL",
+  "error": {
+    "name": "ProductFailure",
+    "message": "Error: Incorrect status/proof for SC-12\n    at <anonymous>:1:245\n    at <anonymous>:1:716"
+  },
+  "browserErrors": [],
+  "expectedCancellations": [],
+  "observedCancellations": [],
+  "screenshots": [
+    {
+      "eventId": "dc4708a0-7e87-4d18-ad32-acd700220e6b",
+      "context": "default",
+      "targetId": "D7F79A7FC190B9EED17B4ABA97F152AA",
+      "file": "failure-op-5-default.png",
+      "bytes": 211633,
+      "sha256": "390e302e34007321eecc27ee91e6042411801611cd33fde2c7ac09dacfe4656d"
+    }
+  ],
+  "cleanup": {
+    "attempted": true,
+    "disposed": [
+      "default"
+    ],
+    "errors": []
+  },
+  "receipts": [
+    {
+      "index": 0,
+      "opcode": "set",
+      "context": "viewport",
+      "elapsedMs": 65.9325,
+      "value": {
+        "width": 1600,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "index": 1,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8091/hvac-material-status.html",
+      "elapsedMs": 7.287599999999998,
+      "value": {
+        "frameId": "D7F79A7FC190B9EED17B4ABA97F152AA",
+        "url": "http://127.0.0.1:8091/hvac-material-status.html"
+      }
+    },
+    {
+      "index": 2,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 623.6744,
+      "value": true
+    },
+    {
+      "index": 3,
+      "opcode": "eval",
+      "context": "(()=>{if(document.querySelector('.badge-branch')?.textContent!=='feat/closeout-sc09-remainder')throw Error('Wrong execution branch');return {branch:document.querySelector('.badge-branch').textContent};})()",
+      "elapsedMs": 0.9510999999999967,
+      "value": {
+        "branch": "feat/closeout-sc09-remainder"
+      }
+    },
+    {
+      "index": 4,
+      "opcode": "eval",
+      "context": "(()=>{const c=document.querySelector('[data-slice-id=\"SC-12\"]');for(const t of ['SC12-MATERIAL-08','102/102','87/87','missing-velocity'])if(!c.textContent.includes(t))throw Error('Missing material status '+t);if(c.dataset.status!=='partial')throw Error('Original acceptance question silently closed');return {status:c.dataset.status,materialWorkflow:'verified',fullSlice:'open'};})()",
+      "elapsedMs": 2.8395000000000437,
+      "value": {
+        "status": "partial",
+        "materialWorkflow": "verified",
+        "fullSlice": "open"
+      }
+    },
+    {
+      "index": 5,
+      "opcode": "eval",
+      "context": "(()=>{for(const id of ['SC-12','SC-13','SC-14']){const c=document.querySelector('[data-slice-id=\"'+id+'\"]');if(c.dataset.status!=='partial'||!c.textContent.includes('99/99')||!c.querySelector('a[href*=\"2026-09-20-hvac-portion4/steps/\"]'))throw Error('Incorrect status/proof for '+id)}if(document.querySelector('[data-slice-id=\"SC-09\"]').dataset.status!=='partial')throw Error('SC09 incorrectly promoted');const q=document.querySelector('#globalSearch');q.value='SC-12';q.dispatchEvent(new Event('input',{bubbles:true}));const c=document.querySelector('[data-slice-id=\"SC-12\"]');c.querySelector('.slice-top').click();c.scrollIntoView({block:'start'});return {machine:2058,slices:'10 done / 4 partial / 6 pending'};})()",
+      "elapsedMs": 1.0503999999999678,
+      "error": "Error: Incorrect status/proof for SC-12\n    at <anonymous>:1:245\n    at <anonymous>:1:716"
+    }
+  ],
+  "limitations": [
+    "Browser-level CDP is host authority and is never delegated to untrusted workers.",
+    "This runner proves the supplied loopback scenario only; it does not claim deployment or live-device verification."
+  ]
+}

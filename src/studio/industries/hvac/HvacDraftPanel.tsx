@@ -1,6 +1,8 @@
 import { useId, useState } from "react";
 import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
 import { HvacCoordinationPanel } from "./HvacCoordinationPanel.tsx";
+import { DuctMaterialTable } from "./DuctMaterialTable.tsx";
+import { evaluateDuctMaterialRow } from "./ductMaterialTable.ts";
 import type { IndustryDraftPanelProps } from "../draftPanel";
 import { describeIndustryBinding, evaluateIndustryBinding } from "../sourceBinding.ts";
 import { createDuctSourceBinding, createEmptyDuctSection, describeEvidenceClass, evaluateDuctFormBinding, EVIDENCE_CLASS_LABELS, type DuctBindingInputs, type DuctForm, type DuctSectionForm } from "./ductForm";
@@ -53,7 +55,19 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
         {fields(section, index, "lengthM", "Length (m)")}
         {section.shape === "rectangular" ? <>{fields(section, index, "widthM", "Width (m)")}{fields(section, index, "heightM", "Height (m)")}</> : fields(section, index, "diameterM", "Diameter (m)")}
         <label><input type="checkbox" checked={section.includeSheetMass} onChange={event => update(index, { includeSheetMass: event.target.checked })} /> Include supplied sheet mass per area</label>
-        {section.includeSheetMass && fields(section, index, "sheetMassKgPerM2", "Sheet mass (kg/m²)")}
+        {section.includeSheetMass && <>
+          <label>Sheet mass basis<select aria-label={`Section ${index + 1} mass basis`} value={section.materialRowId ?? ""} onChange={e => update(index, { materialRowId: e.target.value })}>
+            <option value="">Direct supplied kg/m²</option>
+            {section.materialRowId && !(value.materialRows ?? []).some(row => row.id === section.materialRowId) && <option value={section.materialRowId}>Missing material row - mass unknown</option>}
+            {(value.materialRows ?? []).map((row, i) => <option key={row.id} value={row.id}>Row {i + 1}: {row.material || "Unspecified material"} / {row.gauge || "No gauge"}</option>)}
+          </select></label>
+          {!section.materialRowId ? fields(section, index, "sheetMassKgPerM2", "Sheet mass (kg/m²)") : <p className="industry-note">{(() => {
+            const row = value.materialRows?.find(row => row.id === section.materialRowId);
+            if (!row) return "Material row missing: mass remains unknown. Select a reviewed row.";
+            const result = evaluateDuctMaterialRow(row);
+            return result.status === "declared" ? `Reviewed material basis: ${result.sheetMassKgPerM2.value} kg/m². Still a declared draft.` : `Material mass unknown: ${result.reasons.join(", ")}. Review the current material row below.`;
+          })()}</p>}
+        </>}
         <label><input type="checkbox" checked={section.includeWrap ?? false} onChange={event => update(index, { includeWrap: event.target.checked })} /> Include external insulation wrap</label>
         {section.includeWrap && <>
           {fields(section, index, "insulationThicknessM", "Insulation thickness (m)")}
@@ -64,6 +78,7 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
       </fieldset>)}
       <div className="industry-actions"><button type="button" disabled={value.sections.length >= 100} onClick={() => change({ ...value, sections: [...value.sections, createEmptyDuctSection()] })}>Add straight section</button><button type="submit">Calculate duct draft</button></div>
     </fieldset>
+    <DuctMaterialTable rows={value.materialRows ?? []} onChange={materialRows => change({ ...value, materialRows })} disabled={disabled} />
     <fieldset disabled={disabled}>
       <legend>Source binding</legend>
       <p className="industry-note">{describeIndustryBinding(evaluation)}</p>

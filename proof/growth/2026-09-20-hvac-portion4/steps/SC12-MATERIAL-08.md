@@ -1,0 +1,13 @@
+# SC12-MATERIAL-08 - reviewed material table integrated with worksheet
+
+Requirement: close the missing gauge/thickness/density review UI, preserve unknown quantities and link reviewed inputs to actual sections. This step is complete; the full ledger goal is not.
+
+Source: frozen hvac4-8d82a28ac17f based on b8e235bc. [Manifest](../source/material-freeze.json), [exact code diff](../source/material-table.patch).
+
+Executed on DANS1: [machine gate](../material-machine/results.json) 2068/2068 tests (10 new behavior tests), typecheck and scoped lint clean. [Required web build](../material-build/results.json) PASS using scripts/dans1-build-worker.ps1, High priority/all 16 logical processors. [Development browser](../campaigns/hvac4-material-dev1/output/browser-results.json) 87/87 PASS; [production browser](../campaigns/hvac4-material-built1/output/browser-results.json) 102/102 PASS, no browser errors.
+
+Public controls enter a declared supplier row, explicitly review it, and assign it to the rectangular section. 0.5 mm x 8000 kg/m3 gives 4 kg/m2 and 64 kg for 16 m2. Changing thickness to 0.6 mm withholds mass; re-review produces 4.8 kg/m2 and 76.8 kg. Revision edits also invalidate the review. Inferred data cannot be reviewed. Production reload retains exact reviewed values; removing the referenced row withholds mass and does not fall back to the old direct kg/m2 entry. Unit checks cover all three materials, unit conversion, malformed values, duplicate rows, sample/inferred evidence, source edits and legacy direct entry.
+
+Inspected screenshots: [reviewed desktop](../campaigns/hvac4-material-built1/output/captures/material-reviewed-desktop.png), [edited and withheld](../campaigns/hvac4-material-built1/output/captures/material-edited-withheld.png), [reloaded tablet](../campaigns/hvac4-material-built1/output/captures/material-reloaded-tablet.png), [removed row / mass withheld](../campaigns/hvac4-material-built1/output/captures/material-removed-withheld.png).
+
+Limits: declared supplier inputs, no normative gauge lookup or authenticated supplier document. Drafts remain ineligible for verified quotes. Mass uses geometric/material operands; the original SC-12 sentence also requiring airflow velocity is retained as an unresolved acceptance-policy question, not silently deleted. The user was asked whether velocity should be a separate unknown or an additional mass-display gate. Broader SC-12 remains partial until this is resolved; it no longer lacks the material-review UI. Shared full development reload remains a separate open issue. Goal continues across all original ledger slices, native packaging and working-day qualification.

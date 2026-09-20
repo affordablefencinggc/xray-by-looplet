@@ -31,6 +31,9 @@ $paths = @($listed | Where-Object {
 } | Sort-Object -Unique)
 
 $requiredSc09Sources = @(
+  'src/studio/industries/hvac/ductMaterialTable.ts',
+  'src/studio/industries/hvac/ductMaterialTable.test.ts',
+  'src/studio/industries/hvac/DuctMaterialTable.tsx',
   'src/studio/industries/hvac/assistantTool.test.ts',
   'src/studio/industries/hvac/assistantTool.ts',
   'src/studio/industries/hvac/ductForm.test.ts',

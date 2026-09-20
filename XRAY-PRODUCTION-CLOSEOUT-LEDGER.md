@@ -37,7 +37,7 @@ Every slice in this ledger must satisfy the following four proof criteria before
 * **Visual Proof**: For any visual, canvas, sheet, or UI modification, attach inspected screenshots captured at required viewports (Desktop 1600×1000, Tablet 1024×768, or Tablet Portrait 768×1024) demonstrating zero text clipping, zero horizontal overflow, and WCAG AA contrast compliance.
 * **Executed Proof**: For algorithmic, mathematical, file-system, or backend solvers, execute the actual code against deterministic fixtures and record the exact terminal stdout/stderr log with SHA-256 hashes.
 
-**Last executed machine gate**: 2058/2058 passing (203 + 858 + 997), TypeScript exit 0, scoped HVAC lint exit 0 with no warnings. DANS1 source snapshot hvac4-b7c73f1b5f8d. Evidence: proof/growth/2026-09-20-hvac-portion4/machine2/results.json. Required sequential build worker PASS; bounded development 76/76, final production 99/99, PDF readback 7/7. The full development reload remains failed (HVAC 37/46; historical SC-09 118/135). No native/deployment acceptance. Prior SC-09 cleanup failure and its correction remain preserved in that campaign.
+**Last executed machine gate**: 2068/2068 passing (203 + 858 + 1007), TypeScript exit 0, scoped HVAC lint exit 0 with no warnings. DANS1 hvac4-8d82a28ac17f; proof/growth/2026-09-20-hvac-portion4/material-machine/results.json. Required build worker PASS; material workflow dev 87/87 and production 102/102, including review persistence and removed-row mass withholding. Earlier network production 99/99 and PDF readback 7/7 remain historical evidence. Full dev reload remains open (HVAC 37/46; SC-09 118/135); no native/deployment acceptance.
 
 The figure moved from 1616 because `src/studio/persistence/portableArchive.test.ts` (SC-15's archive container, 10 tests) was written but never added to the `test` script, so it ran in no suite at all — a green test nobody executed. `npm test` also exceeded Windows' 8191-character command limit once that path was added, so the source suites now run through `test:src`; the guard scripts stay in `test` ahead of it.
 
@@ -417,8 +417,8 @@ graph TD
   - `src/studio/industries/hvac/straightDuctWrap.test.ts`
   - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: None
-* **Proof**: [SC12-STRAIGHT-WRAP-04](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md). Straight/wrap draft: 18.5 m2 reference, round/rectangular 3D envelopes, unknown partial mass and production reload verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
-* **BLOCKED / Remaining**: Reviewed material-table UI remains open; no normative gauge mapping is assumed. Velocity checks remain separate from physical sheet-mass arithmetic. Full development reload also remains open.
+* **Proof**: [SC12-MATERIAL-08](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md): reviewed material table, stale/removed-row withholding and persisted review verified; DANS1 2068/2068 tests, dev 87/87, built 102/102. [SC12-STRAIGHT-WRAP-04](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md) retains straight/wrap and round-section geometry qualification.
+* **BLOCKED / Remaining**: Original missing-velocity mass-display gate needs clarification; mass currently uses geometric/material operands while absent airflow stays independently unknown. No normative gauge mapping is assumed. The shared full development reload failure remains separately open.
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 #### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[partial]]`

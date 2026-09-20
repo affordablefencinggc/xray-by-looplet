@@ -7,7 +7,8 @@ Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion". Branch: fea
 - [x] Implement velocity checks, design commissioning ranges, equipment schedule and SHA-256 PDF/CSV/JSON draft exports: [SC14 proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md).
 - [x] DANS1 2058 tests, typecheck/lint clean, required web build, dev 76/76, built 99/99, PDF readback 7/7.
 - [x] Automatic checkpoints: 114 files -> 7f043fe6 pushed; 105-file trigger -> 3b42c063 pushed. Continued automatically after each.
-- [ ] Broader SC-12: reviewed gauge/thickness/density table UI; preserve independent velocity and mass unknowns.
+- [x] Reviewed gauge/thickness/density table UI, invalidation and section linkage: [material proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md), dev 87/87, built 102/102.
+- [ ] Resolve original SC-12 missing-velocity mass gate; full ledger scope remains unchanged.
 - [ ] Broader SC-13: hydraulic pipes, explicit fabrication fittings and exact solid clashes.
 - [ ] Broader SC-14: measured commissioning, reviewed/issued delivery lifecycle and solved pressure loss.
 - [ ] Shared development reload failure (SC09 historical 118/135; HVAC full dev 37/46). Production reload passes; no deployment/native claim.

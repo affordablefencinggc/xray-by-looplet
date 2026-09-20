@@ -1,0 +1,47 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/hvac-material-status.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.readyState==='complete'&&!!document.querySelector('[data-slice-id=\"SC-12\"]')"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.badge-branch')?.textContent!=='feat/closeout-sc09-remainder')throw Error('Wrong execution branch');return {branch:document.querySelector('.badge-branch').textContent};})()"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector('[data-slice-id=\"SC-12\"]');for(const t of ['SC12-MATERIAL-08','102/102','87/87','missing-velocity'])if(!c.textContent.includes(t))throw Error('Missing material status '+t);if(c.dataset.status!=='partial')throw Error('Original acceptance question silently closed');return {status:c.dataset.status,materialWorkflow:'verified',fullSlice:'open'};})()"
+  ],
+  [
+    "eval",
+    "(()=>{for(const id of ['SC-12','SC-13','SC-14']){const c=document.querySelector('[data-slice-id=\"'+id+'\"]');if(c.dataset.status!=='partial'||!(c.textContent.includes('99/99')||c.textContent.includes('102/102'))||!c.querySelector('a[href*=\"2026-09-20-hvac-portion4/steps/\"]'))throw Error('Incorrect status/proof for '+id)}if(document.querySelector('[data-slice-id=\"SC-09\"]').dataset.status!=='partial')throw Error('SC09 incorrectly promoted');const q=document.querySelector('#globalSearch');q.value='SC-12';q.dispatchEvent(new Event('input',{bubbles:true}));const c=document.querySelector('[data-slice-id=\"SC-12\"]');c.querySelector('.slice-top').click();c.scrollIntoView({block:'start'});return {machine:2058,slices:'10 done / 4 partial / 6 pending'};})()"
+  ],
+  [
+    "screenshot",
+    "captures/dashboard-hvac-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "(()=>{const c=document.querySelector('[data-slice-id=\"SC-12\"]');const target=c.querySelector('.detail-section:nth-child(2)');scrollTo(0,target.getBoundingClientRect().top+scrollY-16);if(document.documentElement.scrollWidth>innerWidth)throw Error('Dashboard overflow');})()"
+  ],
+  [
+    "screenshot",
+    "captures/dashboard-hvac-tablet.png"
+  ]
+]
