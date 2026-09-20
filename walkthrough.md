@@ -903,3 +903,6 @@ Broader ledger slices remain partial: reviewed material-table UI, pipe/fitting e
 
 ### SC12-MATERIAL-08 - 2026-09-20
 Reviewed material table linked to duct sections, with explicit review, edit invalidation, unknown deleted-row mass and reload persistence. DANS1 2068 tests, clean typecheck/lint, required build, dev 87/87 and built 102/102. [Exact diff, screenshots and executed proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md). Full SC-12 velocity-gate policy and the overall ledger goal remain open.
+
+### SC13-ORIENTED-10 - 2026-09-20
+Shared run orientation removes missed vertical/sloping beam clashes and false end-cap collisions. DANS1 2075 tests, clean TypeScript/lint, required build, dev and built 41/41. [Tests, screenshots and exact diff](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md). Round checks remain conservative; full SC-13 and the ledger goal remain open. Recovery branch feat/closeout-sc09-remainder after 94a7c98a.

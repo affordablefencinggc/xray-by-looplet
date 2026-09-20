@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hvacRunIntersectsBeam } from "./hvacRunGeometry.ts";
 
 const id = z.string().trim().min(1).max(120);
 const positive = z.number().finite().positive().max(1000000);
@@ -14,17 +15,6 @@ export type HvacNetwork = z.infer<typeof hvacNetworkSchema>;
 export type HvacEdge = HvacNetwork["edges"][number];
 export type NetworkIssue = { code: "duplicate-id" | "missing-node" | "zero-length" | "disconnected" | "transition" | "plenum" | "beam" | "unknown-plenum"; target: string; message: string };
 
-/** Segment versus expanded beam bounds. Rectangular runs use a conservative
- * horizontal envelope; the result is a potential clash requiring model review. */
-function intersects(a: number[], b: number[], min: number[], max: number[]) {
-  let lo = 0, hi = 1;
-  for (let i = 0; i < 3; i++) {
-    const delta = b[i] - a[i];
-    if (Math.abs(delta) < 1e-12) { if (a[i] < min[i] || a[i] > max[i]) return false; }
-    else { const t1 = (min[i] - a[i]) / delta, t2 = (max[i] - a[i]) / delta; lo = Math.max(lo, Math.min(t1, t2)); hi = Math.min(hi, Math.max(t1, t2)); if (lo > hi) return false; }
-  }
-  return true;
-}
 export function evaluateHvacNetwork(input: unknown) {
   const network = hvacNetworkSchema.parse(input);
   const issues: NetworkIssue[] = [];
@@ -45,8 +35,9 @@ export function evaluateHvacNetwork(input: unknown) {
       adjacency.get(a.id)!.push(b.id); adjacency.get(b.id)!.push(a.id);
       if (!lengthM) add("zero-length", edge.id, "Run endpoints must occupy different positions.");
       for (const beam of network.beams) {
-        const expansion = [edge.widthM / 2 + edge.insulationM, height / 2 + edge.insulationM, edge.widthM / 2 + edge.insulationM];
-        if (intersects([a.x, a.y, a.z], [b.x, b.y, b.z], beam.min.map((v, i) => v - expansion[i]), beam.max.map((v, i) => v + expansion[i]))) add("beam", edge.id, `Potential clash with beam ${beam.id}; check the conservative envelope.`);
+        if (hvacRunIntersectsBeam([a.x, a.y, a.z], [b.x, b.y, b.z], edge.widthM, height, edge.insulationM, beam)) add("beam", edge.id, edge.shape === "round"
+          ? `Potential clash with beam ${beam.id}; round run checked with a conservative enclosing box.`
+          : `Insulated rectangular envelope intersects beam ${beam.id} (including touching faces). Review declared geometry.`);
       }
     }
     if (edge.availablePlenumM === null) add("unknown-plenum", edge.id, "Ceiling void is unknown; clearance has not been checked.");

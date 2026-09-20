@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as T from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { HvacNetwork } from "./hvacNetwork.ts";
+import { hvacRunFrame } from "./hvacRunGeometry.ts";
 import "./hvacCoordination.css";
 
 export type HvacPreviewRun = { id: string; a: [number, number, number]; b: [number, number, number]; width: number; height: number; round: boolean; insulation: number; clash: boolean };
@@ -25,10 +26,11 @@ export function HVACNetworkViewer({ runs, beams = [], label = "HVAC network 3D p
     const light = new T.DirectionalLight(0xffffff, 3); light.position.set(4, 8, 6); scene.add(light);
     const add = (geometry: T.BufferGeometry, color: number, opacity = 1) => { const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ color, transparent: opacity < 1, opacity, roughness: .6, depthWrite: opacity === 1 })); model.add(mesh); return mesh; };
     for (const run of data.runs) {
-      const a = new T.Vector3(...run.a), b = new T.Vector3(...run.b), delta = b.clone().sub(a), length = delta.length();
-      if (length <= 0) continue;
+      const frame = hvacRunFrame(run.a, run.b);
+      if (!frame) continue;
+      const { length } = frame;
       const geometry = (t: number) => run.round ? new T.CylinderGeometry(run.width / 2 + t, run.width / 2 + t, length, 32).rotateX(Math.PI / 2) : new T.BoxGeometry(run.width + 2 * t, run.height + 2 * t, length);
-      const place = (mesh: T.Mesh) => { mesh.position.copy(a).add(b).multiplyScalar(.5); const forward = delta.clone().normalize(); const right = new T.Vector3(0, 1, 0).cross(forward); if (right.lengthSq() < 1e-10) right.set(1, 0, 0); right.normalize(); const up = forward.clone().cross(right).normalize(); mesh.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(right, up, forward)); };
+      const place = (mesh: T.Mesh) => { mesh.position.copy(frame.center); mesh.quaternion.setFromRotationMatrix(frame.rotation); };
       const core = add(geometry(0), run.clash ? 0xef4444 : 0x38bdf8); core.userData.runId = run.id; place(core);
       if (run.insulation > 0) place(add(geometry(run.insulation), 0xfbbf24, .28));
     }
