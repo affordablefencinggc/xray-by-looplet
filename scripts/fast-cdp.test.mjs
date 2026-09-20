@@ -1,7 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { matchesExpectedCancellation, waitForFunctionSource } from "./fast-cdp.mjs";
+import { matchesExpectedCancellation, waitForFunctionSource, waitAcrossNavigation } from "./fast-cdp.mjs";
+
+test("a reload restarts the readiness predicate with the remaining deadline", async () => {
+  const deadlines = [];
+  const result = await waitAcrossNavigation(async (source, deadline) => {
+    deadlines.push(deadline);
+    assert.match(source, /hydrated/);
+    if (deadlines.length === 1) throw Error("Runtime.evaluate: Inspected target navigated or closed");
+    return true;
+  }, "window.hydrated", 1000);
+  assert.equal(result, true);
+  assert.equal(deadlines.length, 2);
+  assert.ok(deadlines[1] <= deadlines[0]);
+});
+
+test("readiness rejects product failures and bounds repeated navigation loss", async () => {
+  let calls = 0;
+  await assert.rejects(waitAcrossNavigation(async () => { calls++; throw Error("Product assertion failed"); }, "false", 1000), /Product assertion failed/);
+  assert.equal(calls, 1);
+  calls = 0;
+  await assert.rejects(waitAcrossNavigation(async () => { calls++; throw Error("Runtime.evaluate: Inspected target navigated or closed"); }, "false", 1000), /navigated or closed/);
+  assert.equal(calls, 4);
+});
 
 const request = { url: "http://127.0.0.1:8080/api/pricing-research", method: "GET" };
 const event = { canceled: true, errorText: "net::ERR_ABORTED", type: "Fetch" };

@@ -169,10 +169,9 @@ export default defineConfig(({ command, isPreview }) => ({
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     tailwindcss(),
-    // The synthetic dev stylesheet walks the hydrated client/server module
-    // graph on reload and stalls this workspace's Vite server. Vite's normal
-    // CSS imports still provide development styles and HMR; production keeps
-    // Start's stylesheet manifest unchanged.
+    // The synthetic development stylesheet stalls post-edit reloads in the
+    // recorded local comparison. Keep normal Vite CSS imports/HMR; production
+    // continues to use Start's stylesheet manifest.
     tanstackStart({ dev: { ssrStyles: { enabled: false } } }),
     ...(command === "build" || isPreview
       ? [

@@ -13,4 +13,4 @@ SC-02 boundary: current job (including per-document workspaces, calibration, evi
 
 Proof directory: `proof/audit/IW-PROJECT-BACKUP`; screenshots: `screenshots/project-backup`. Nothing is checked before diff plus executed/visual evidence exists.
 
-- [ ] SC-15 portable archive: packager and Project Library integration written, not executed. [WIP diff and complete acceptance gaps](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md). Preserve original DWG bytes, prove complete clean-browser restoration and measure the original 20 MB / under-two-second requirement.
+- [ ] SC-15 portable archive: 19 archive tests and controlled local UI round trip 29/29 pass. [Tests, screenshots, exact diff and remaining gaps](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md). Preserve original DWG bytes, prove complete clean-browser restoration and measure the original 20 MB / under-two-second requirement; production and UI polish remain open.

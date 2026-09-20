@@ -46,3 +46,9 @@ User: "ensure that a freeze point between 100 - 150 changes triggers pushing cha
 - Ordinary feature-branch commits and pushes are authorized; force pushes, main merges, secrets publication and removal of unrelated work are not.
 - Record tests, screenshots, exact diff and limits. Label unproven checkpoints WIP; do not mark them complete.
 - Automatically proceed after a successful push, without asking or ending the task. On failure preserve the commit, report the real failure and respect repository protections.
+
+## Authorized local fallback (Daniel, 2026-09-21)
+
+User: "permissiion to fallback to local execution".
+
+Local product tests, browser proof and app execution are authorized while DANS1 is unavailable. This overrides the Fast CDP skill's DANS1-only restriction for this task. Use the existing raw-CDP runner with explicit local authorization; label evidence with the actual host and preserve isolated contexts, loopback binding and task-owned cleanup. Existing full-build resource limits remain in force, including the 20% aggregate CPU cap for local background builds. DANS1 evidence and local evidence are distinct.

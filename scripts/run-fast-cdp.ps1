@@ -6,6 +6,7 @@ param(
   [ValidateRange(1024, 65535)][int]$PreviewPort = 8080,
   [ValidateSet('dev', 'built')][string]$PreviewMode = 'dev',
   [switch]$UseExistingPreview,
+  [switch]$AllowLocalExecution,
   [string]$Chrome = 'C:\Program Files\Google\Chrome\Application\chrome.exe',
   [string]$Node = 'node',
   [ValidatePattern('^[a-zA-Z0-9_-]{1,80}$')][string]$RunId = ''
@@ -16,7 +17,7 @@ $ProgressPreference = 'SilentlyContinue'
 
 function Assert-Dans1 {
   $name = ([Net.Dns]::GetHostName() -split '\.')[0].Trim().ToLowerInvariant()
-  if ($name -cne 'dans1') { throw "Raw-CDP campaigns are restricted to DANS1; observed host '$name'." }
+  if ($name -cne 'dans1' -and -not ($AllowLocalExecution -and $name -ceq 'daniel')) { throw "Expected DANS1, or explicitly authorized local execution on DANIEL; observed '$name'." }
 }
 
 function Get-ListeningConnections([int]$Port) {
@@ -256,7 +257,8 @@ try {
   if ($websocket.Scheme -cne 'ws' -or $websocket.Host -cne '127.0.0.1' -or $websocket.Port -ne $CdpPort -or $websocket.AbsolutePath -notmatch '^/devtools/browser/[a-f0-9-]+$') { throw 'Browser endpoint does not match the verified loopback listener.' }
   @([string]$CdpPort, $websocket.AbsolutePath) | Set-Content -LiteralPath $endpointFile -Encoding ASCII
 
-  & $Node (Join-Path $PSScriptRoot 'fast-cdp.mjs') --endpoint-file $endpointFile --scenario $scenarioFull --output $outputFull --origin $previewUri.AbsoluteUri --run-id $RunId --close-browser true
+  $executionHost = if ($AllowLocalExecution) { 'daniel' } else { 'dans1' }
+  & $Node (Join-Path $PSScriptRoot 'fast-cdp.mjs') --execution-host $executionHost --endpoint-file $endpointFile --scenario $scenarioFull --output $outputFull --origin $previewUri.AbsoluteUri --run-id $RunId --close-browser true
   $nodeExitCode = $LASTEXITCODE
   if ($nodeExitCode -ne 0) { throw "Fast CDP runner exited with code $nodeExitCode." }
 } catch {
@@ -308,4 +310,4 @@ try {
 }
 
 if ($campaignError) { throw $campaignError }
-Write-Output ([ordered]@{ runId = $RunId; host = 'DANS1'; verdict = 'PASS'; output = $outputFull } | ConvertTo-Json -Compress)
+Write-Output ([ordered]@{ runId = $RunId; host = ([Net.Dns]::GetHostName()).ToLowerInvariant(); verdict = 'PASS'; output = $outputFull } | ConvertTo-Json -Compress)

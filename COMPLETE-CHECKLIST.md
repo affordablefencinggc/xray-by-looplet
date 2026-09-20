@@ -554,3 +554,9 @@ Separate multi-zone pipe flow, bore-based velocity, pump connectivity and export
 
 ### SC13-FITTINGS-16 - 2026-09-20
 Declared elbows, tees and reducers now coordinate duct/pipe runs with trimmed ports, explicit invalid/overlap withholding and fitting-only clash highlights. DANS1 2097 tests, clean TypeScript/lint, required build, dev 65/65 and built 375/375 operations, actual fitting PDF 7/7. [Exact diff, screenshots, tests and limits](proof/growth/2026-09-20-hvac-portion4/steps/SC13-FITTINGS-16.md). Full SC-13 dependency/reload and broader ledger remain open. Recovery branch feat/closeout-sc09-remainder after f879edf4.
+
+## 2026-09-21 — bounded local development verification
+
+- Branch: `feat/closeout-sc09-remainder`, after `3f4df26c1721ffe1498b154349af78bfaa7fcab5`. User authorized execution on Daniel.
+- [LOCAL-DEV-01](proof/growth/2026-09-21-local-verification/steps/LOCAL-DEV-01.md): 2106 registered tests, six runner checks, TypeScript/lint and HVAC development reload 75/75; links exact diff and inspected screenshots.
+- [SC15-LOCAL-02 WIP](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md): controlled archive UI round trip 29/29. Full SC-15 and release remain incomplete; no production/native claim.

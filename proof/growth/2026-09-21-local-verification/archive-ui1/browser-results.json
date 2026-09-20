@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 1,
+  "method": "raw CDP hot-socket declarative opcode batch; fail-fast; reactive readiness",
+  "host": "Daniel",
+  "startedAt": "2026-09-20T18:53:00.882Z",
+  "completedAt": "2026-09-20T18:53:35.898Z",
+  "node": "v24.20.0",
+  "browserVersion": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/152.0.7977.84",
+    "revision": "@4334922f44c77b1208072c4deac29db3af39bbea",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "jsVersion": "15.2.124.21"
+  },
+  "sourceHashes": {
+    "fast-cdp.mjs": "6bc595a1a33b47f2532f20d36eedd93bc48f57e2a646c26dd1f12194acd70293",
+    "run-fast-cdp.ps1": "cfb7bcf2a181a9e74f6adda70a629939f2c8af657af70b96ea603e1b32da5bbd",
+    "invoke-dans1-fast-cdp.ps1": "29e174494fb34fa4acde2c8b0b8da1e82fd50945a31542f02e52bd2ca21f38e5",
+    "scenario:archive-ui.json": "da97ee7088e1f1e0ae6fa42d3543595194da153c7d1657907f2783d1abdc7143"
+  },
+  "scenarioSha256": "da97ee7088e1f1e0ae6fa42d3543595194da153c7d1657907f2783d1abdc7143",
+  "plannedOperations": 26,
+  "completedOperations": 22,
+  "elapsedMs": 35014.8923,
+  "verdict": "INFRA_FAILURE",
+  "error": {
+    "name": "InfrastructureFailure",
+    "message": "Runtime.evaluate: Inspected target navigated or closed"
+  },
+  "browserErrors": [],
+  "expectedCancellations": [
+    {
+      "url": "http://127.0.0.1:8093/api/pricing-research",
+      "maximum": 8,
+      "reason": "PricingResearchPanel aborts its provider-status request when its pane unmounts; no failed asset or search is exempted.",
+      "observed": 0
+    }
+  ],
+  "observedCancellations": [],
+  "screenshots": [
+    {
+      "eventId": "e4b6c175-481b-4289-9239-bac625d2da67",
+      "context": "default",
+      "targetId": "24C43A74B5ADBD538C51679D451FF4D5",
+      "file": "captures/archive-controls.png",
+      "bytes": 102647,
+      "sha256": "b414261d2a3a7357a4cbdb959f9904c4de51f5ff9ed89a81c267ac2af38a1f6e"
+    },
+    {
+      "eventId": "4ee36ff2-f605-4fdb-9d97-5c4194ef7a13",
+      "context": "default",
+      "targetId": "24C43A74B5ADBD538C51679D451FF4D5",
+      "file": "captures/archive-verified.png",
+      "bytes": 96614,
+      "sha256": "8646b0ae60a12eb9b1c04eaeb82012e2ee856a7d80ec96f2ee057fa2d73c65ad"
+    },
+    {
+      "eventId": "8bf31df3-8f55-48af-a219-b4f8b614440d",
+      "context": "default",
+      "targetId": "24C43A74B5ADBD538C51679D451FF4D5",
+      "file": "captures/archive-restore-review.png",
+      "bytes": 108637,
+      "sha256": "b9e59a254fe1ad45311e3cebb8011e056bb8bea6b5e82374bc7deab10c258862"
+    }
+  ],
+  "cleanup": {
+    "attempted": true,
+    "disposed": [],
+    "errors": [
+      {
+        "context": "default",
+        "message": "Target.disposeBrowserContext deadline"
+      }
+    ]
+  },
+  "receipts": [
+    {
+      "index": 0,
+      "opcode": "expect-cancelled-fetch",
+      "context": "http://127.0.0.1:8093/api/pricing-research",
+      "elapsedMs": 0.30819999999999936,
+      "value": {
+        "url": "http://127.0.0.1:8093/api/pricing-research",
+        "maximum": 8,
+        "reason": "PricingResearchPanel aborts its provider-status request when its pane unmounts; no failed asset or search is exempted."
+      }
+    },
+    {
+      "index": 1,
+      "opcode": "set",
+      "context": "viewport",
+      "elapsedMs": 87.68109999999999,
+      "value": {
+        "width": 1600,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "index": 2,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8093/industry-coverage/index.html",
+      "elapsedMs": 15.980100000000022,
+      "value": {
+        "frameId": "24C43A74B5ADBD538C51679D451FF4D5",
+        "url": "http://127.0.0.1:8093/industry-coverage/index.html"
+      }
+    },
+    {
+      "index": 3,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 94.32939999999999,
+      "value": true
+    },
+    {
+      "index": 4,
+      "opcode": "eval",
+      "context": "(async function seedFixture(fixture) {\n  if (!location.pathname.endsWith(\"/industry-coverage/index.html\") || document.querySelector(\"[data-hydration-status]\") || document.querySelector('script[type=\"module\"]'))\n    throw Error(\"Fixture seed is restricted to the static pre-mount page\");\n  if (localStorage.getItem(fixture.projectStorageKey) !== null || localStorage.getItem(fixture.industryStorageKey) !== null)\n    throw Error(\"Fresh proof profile required; existing product data will not be overwritten\");\n  const bytes = Uint8Array.from(atob(fixture.source.bytesBase64), character => character.charCodeAt(0));\n  const digest = [...new Uint8Array(await crypto.subtle.digest(\"SHA-256\", bytes))].map(byte => byte.toString(16).padStart(2, \"0\")).join(\"\");\n  if (digest !== fixture.source.sha256 || bytes.byteLength !== fixture.source.sizeBytes) throw Error(\"Controlled SVG bytes failed identity verification\");\n  const database = await new Promise((resolve, reject) => {\n    const request = indexedDB.open(fixture.planDatabase, 1);\n    request.onupgradeneeded = () => request.result.createObjectStore(fixture.planStore, { keyPath: \"documentId\" });\n    request.onsuccess = () => resolve(request.result);\n    request.onerror = () => reject(request.error);\n    request.onblocked = () => reject(Error(\"Plan fixture database is blocked\"));\n  });\n  try {\n    await new Promise((resolve, reject) => {\n      const transaction = database.transaction(fixture.planStore, \"readwrite\");\n      const { bytesBase64, ...metadata } = fixture.source;\n      void bytesBase64;\n      transaction.objectStore(fixture.planStore).add({ ...metadata, bytes: bytes.buffer });\n      transaction.oncomplete = resolve;\n      transaction.onerror = () => reject(transaction.error);\n      transaction.onabort = () => reject(transaction.error ?? Error(\"Plan fixture transaction aborted\"));\n    });\n  } finally { database.close(); }\n  localStorage.setItem(fixture.projectStorageKey, JSON.stringify(fixture.job));\n  localStorage.setItem(fixture.industryStorageKey, JSON.stringify(fixture.library));\n  sessionStorage.setItem(\"sc09-room-roof-observer\", JSON.stringify({ sourceSha256: digest, expected: fixture.expected }));\n  return { seededBeforeProductMount: true, sourceSha256: digest, svgBytes: bytes.byteLength, areasUnclassified: 2, rowsUnbound: 2 };\n})({\"format\":\"xray.sc09-room-roof-browser-fixture/v1\",\"projectStorageKey\":\"xray:fencing-job:v2\",\"industryStorageKey\":\"xray.industry-drafts.v1:job-sc09-room-roof\",\"planDatabase\":\"xray-plan-content-v1\",\"planStore\":\"documents\",\"job\":{\"schemaVersion\":2,\"id\":\"job-sc09-room-roof\",\"revision\":1,\"name\":\"SC09 room and roof source proof\",\"trade\":\"general\",\"status\":\"draft\",\"createdAt\":\"2026-09-20T00:00:00.000Z\",\"updatedAt\":\"2026-09-20T00:00:00.000Z\",\"site\":{\"address\":\"\",\"estimator\":\"\",\"inspectionDate\":\"\",\"notes\":\"\"},\"documents\":[{\"id\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"importedAt\":\"2026-09-20T00:00:00.000Z\",\"pageCount\":1,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"source\":\"web\"}],\"activeDocumentId\":\"doc-sc09-room-roof\",\"calibrations\":[{\"sheet\":0,\"coordinateSpace\":\"source-page-v1\",\"metresPerUnit\":0.025,\"source\":\"manual\",\"confidence\":1,\"locked\":true,\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"transform\":{\"a\":1,\"b\":0,\"c\":0,\"d\":1,\"e\":0,\"f\":0},\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"candidates\":[{\"id\":\"cal-sc09-room-roof-10m\",\"source\":\"manual\",\"metresPerUnit\":0.025,\"confidence\":1,\"inputDistance\":{\"value\":10,\"unit\":\"m\"},\"knownDistanceM\":10,\"points\":[{\"x\":100,\"y\":340},{\"x\":500,\"y\":340}],\"provenance\":{\"method\":\"two-point\",\"evidence\":\"Explicit 10.000 m reference on the controlled source sheet\",\"documentId\":\"doc-sc09-room-roof\"}}],\"selectedCandidateId\":\"cal-sc09-room-roof-10m\",\"conflict\":null}],\"runs\":[],\"gates\":[],\"photos\":[],\"bom\":[],\"quoteDraft\":null,\"revisionHistory\":[],\"activeSheet\":0,\"annotations\":[{\"id\":\"area-sc09-room-a\",\"kind\":\"area\",\"label\":\"Room A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":80,\"y\":100},{\"x\":240,\"y\":100},{\"x\":240,\"y\":220},{\"x\":80,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"},{\"id\":\"area-sc09-roof-a\",\"kind\":\"area\",\"label\":\"Roof A outline\",\"value\":0,\"unit\":\"m²\",\"sheet\":0,\"points\":[{\"x\":340,\"y\":100},{\"x\":500,\"y\":100},{\"x\":500,\"y\":220},{\"x\":340,\"y\":220}],\"documentId\":\"doc-sc09-room-roof\",\"sourceSha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"coordinateSpace\":\"source-page-v1\"}]},\"library\":{\"format\":\"xray.industry-drafts/1\",\"projectId\":\"job-sc09-room-roof\",\"revision\":1,\"drafts\":{\"quantity-surveying\":{\"revision\":1,\"form\":{\"hierarchyId\":\"SC09 room and roof\",\"hierarchyRevision\":\"Controlled source Rev A\",\"calculated\":false,\"binding\":null,\"nodes\":[{\"key\":\"node-room\",\"code\":\"ROOM\",\"label\":\"Room areas\",\"parentKey\":\"\"},{\"key\":\"node-roof\",\"code\":\"ROOF\",\"label\":\"Roof planes\",\"parentKey\":\"\"}],\"items\":[{\"key\":\"item-room\",\"reference\":\"QS-ROOM-A\",\"quantity\":\"12\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-room\"},{\"key\":\"item-roof\",\"reference\":\"QS-ROOF-A\",\"quantity\":\"13.856406460551018\",\"unit\":\"m²\",\"evidence\":\"unverified\",\"nodeKey\":\"node-roof\"}]}}}},\"sourceBounds\":{\"x\":0,\"y\":0,\"width\":600,\"height\":400},\"source\":{\"documentId\":\"doc-sc09-room-roof\",\"name\":\"SC09 room and roof measured source.svg\",\"kind\":\"svg\",\"mimeType\":\"image/svg+xml\",\"sizeBytes\":830,\"sha256\":\"c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d\",\"bytesBase64\":\"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNjAwIDQwMCI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjZjRmMWU4Ii8+CjxwYXRoIGQ9Ik04MCAxMDBIMjQwVjIyMEg4MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIzIi8+Cjx0ZXh0IHg9IjgwIiB5PSI4OCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlJPT00gQSBjbG9zZWQgcG9seWdvbjwvdGV4dD4KPHBhdGggZD0iTTM0MCAxMDBINTAwVjIyMEgzNDBaIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YzNhZWQiIHN0cm9rZS13aWR0aD0iMyIvPgo8dGV4dCB4PSIzNDAiIHk9Ijg4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Uk9PRiBBIGNsb3NlZCBwb2x5Z29uPC90ZXh0Pgo8cGF0aCBkPSJNMTAwIDM0MEg1MDAiIHN0cm9rZT0iI2I0NTMwOSIgc3Ryb2tlLXdpZHRoPSI0Ii8+CjxwYXRoIGQ9Ik0xMDAgMzMwVjM1ME01MDAgMzMwVjM1MCIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjMiLz4KPHRleHQgeD0iMjU1IiB5PSIzMzIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0Ij4xMC4wMDAgbSByZWZlcmVuY2U8L3RleHQ+Cjx0ZXh0IHg9IjMzMCIgeT0iMjUwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Um9vZiBwaXRjaCAzMCBkZWc7IHJpc2UgZGlyZWN0aW9uIDkwIGRlZyBjbG9ja3dpc2UgZnJvbSBwYWdlIHVwPC90ZXh0Pgo8L3N2Zz4=\"},\"expected\":{\"roomId\":\"area-sc09-room-a\",\"roofId\":\"area-sc09-roof-a\",\"roomItem\":\"QS-ROOM-A\",\"roofItem\":\"QS-ROOF-A\",\"room\":12,\"roof\":13.856406460551018,\"pitch\":30,\"azimuth\":90}})",
+      "elapsedMs": 38.969799999999964,
+      "value": {
+        "seededBeforeProductMount": true,
+        "sourceSha256": "c54539cb287c9bc5f39a9e9b604476fdcf4473797ac59613cf6253b554c8453d",
+        "svgBytes": 830,
+        "areasUnclassified": 2,
+        "rowsUnbound": 2
+      }
+    },
+    {
+      "index": 5,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8093/",
+      "elapsedMs": 20.269900000000007,
+      "value": {
+        "frameId": "24C43A74B5ADBD538C51679D451FF4D5",
+        "url": "http://127.0.0.1:8093/"
+      }
+    },
+    {
+      "index": 6,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 4128.1522,
+      "value": true
+    },
+    {
+      "index": 7,
+      "opcode": "find",
+      "context": "role",
+      "elapsedMs": 80.27249999999913,
+      "value": {
+        "role": "button",
+        "name": "Project",
+        "exact": true,
+        "backendDOMNodeId": 7210,
+        "point": {
+          "x": 228.265625,
+          "y": 27
+        }
+      }
+    },
+    {
+      "index": 8,
+      "opcode": "find",
+      "context": "role",
+      "elapsedMs": 45.95300000000043,
+      "value": {
+        "role": "button",
+        "name": "Project library",
+        "exact": true,
+        "backendDOMNodeId": 7511,
+        "point": {
+          "x": 800,
+          "y": 735.03125
+        }
+      }
+    },
+    {
+      "index": 9,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 0.940599999999904,
+      "value": true
+    },
+    {
+      "index": 10,
+      "opcode": "eval",
+      "context": "(()=>{window.__archiveBlobs=[];const original=URL.createObjectURL.bind(URL);URL.createObjectURL=b=>{if(b instanceof Blob&&b.type==='application/zip')window.__archiveBlobs.push(b);return original(b)};const i=document.querySelector('[aria-label=\"Portable project archive\"] input:not([type=file])');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Local verification client');i.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[aria-label=\"Portable project archive\"]').scrollIntoView({block:'center'});})()",
+      "elapsedMs": 2.8851999999997133
+    },
+    {
+      "index": 11,
+      "opcode": "screenshot",
+      "context": "captures/archive-controls.png",
+      "elapsedMs": 108.88720000000012,
+      "value": {
+        "eventId": "e4b6c175-481b-4289-9239-bac625d2da67",
+        "context": "default",
+        "targetId": "24C43A74B5ADBD538C51679D451FF4D5",
+        "file": "captures/archive-controls.png",
+        "bytes": 102647,
+        "sha256": "b414261d2a3a7357a4cbdb959f9904c4de51f5ff9ed89a81c267ac2af38a1f6e"
+      }
+    },
+    {
+      "index": 12,
+      "opcode": "find",
+      "context": "role",
+      "elapsedMs": 17.766200000000026,
+      "value": {
+        "role": "button",
+        "name": "Export Portable Archive (.xray)",
+        "exact": true,
+        "backendDOMNodeId": 7582,
+        "point": {
+          "x": 321.9609375,
+          "y": 480.609375
+        }
+      }
+    },
+    {
+      "index": 13,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 30.153199999999742,
+      "value": true
+    },
+    {
+      "index": 14,
+      "opcode": "eval",
+      "context": "(async()=>{const b=window.__archiveBlobs[0];const bytes=new Uint8Array(await b.arrayBuffer());if(bytes[0]!==80||bytes[1]!==75)throw Error('Not a ZIP');const {parseProjectArchive}=await import('/src/studio/persistence/projectArchive.ts');const parsed=await parseProjectArchive(bytes);if(parsed.manifest.client!=='Local verification client'||parsed.backup.assets.filter(a=>a.kind==='plan').length!==1)throw Error('Export metadata missing');window.__archiveExpected=parsed;const dt=new DataTransfer();dt.items.add(new File([b],'local-trial.xray',{type:'application/zip'}));const input=document.querySelector('[aria-label=\"Import portable archive file\"]');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));return {size:bytes.length,client:parsed.manifest.client,drawings:parsed.backup.assets.filter(a=>a.kind==='plan').length};})()",
+      "elapsedMs": 11.873599999999897,
+      "value": {
+        "size": 57103,
+        "client": "Local verification client",
+        "drawings": 1
+      }
+    },
+    {
+      "index": 15,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 15.307300000000396,
+      "value": true
+    },
+    {
+      "index": 16,
+      "opcode": "screenshot",
+      "context": "captures/archive-verified.png",
+      "elapsedMs": 92.13940000000002,
+      "value": {
+        "eventId": "4ee36ff2-f605-4fdb-9d97-5c4194ef7a13",
+        "context": "default",
+        "targetId": "24C43A74B5ADBD538C51679D451FF4D5",
+        "file": "captures/archive-verified.png",
+        "bytes": 96614,
+        "sha256": "8646b0ae60a12eb9b1c04eaeb82012e2ee856a7d80ec96f2ee057fa2d73c65ad"
+      }
+    },
+    {
+      "index": 17,
+      "opcode": "find",
+      "context": "role",
+      "elapsedMs": 20.1233000000002,
+      "value": {
+        "role": "button",
+        "name": "Review restore impact",
+        "exact": true,
+        "backendDOMNodeId": 7675,
+        "point": {
+          "x": 299.953125,
+          "y": 756.9375
+        }
+      }
+    },
+    {
+      "index": 18,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 16.13010000000031,
+      "value": true
+    },
+    {
+      "index": 19,
+      "opcode": "eval",
+      "context": "(()=>{document.querySelector('.restore-review-result').scrollIntoView({block:'center'});return document.querySelector('.restore-review-result').textContent;})()",
+      "elapsedMs": 1.0679000000000087,
+      "value": "Integrity review complete. Workspace unchanged."
+    },
+    {
+      "index": 20,
+      "opcode": "screenshot",
+      "context": "captures/archive-restore-review.png",
+      "elapsedMs": 77.20750000000044,
+      "value": {
+        "eventId": "8bf31df3-8f55-48af-a219-b4f8b614440d",
+        "context": "default",
+        "targetId": "24C43A74B5ADBD538C51679D451FF4D5",
+        "file": "captures/archive-restore-review.png",
+        "bytes": 108637,
+        "sha256": "b9e59a254fe1ad45311e3cebb8011e056bb8bea6b5e82374bc7deab10c258862"
+      }
+    },
+    {
+      "index": 21,
+      "opcode": "find",
+      "context": "role",
+      "elapsedMs": 37.450300000000425,
+      "value": {
+        "role": "button",
+        "name": "Restore this snapshot and reload",
+        "exact": true,
+        "backendDOMNodeId": 7794,
+        "point": {
+          "x": 792.5,
+          "y": 548.40625
+        }
+      }
+    },
+    {
+      "index": 22,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 33.80569999999989,
+      "error": "Runtime.evaluate: Inspected target navigated or closed"
+    },
+    {
+      "index": 22,
+      "diagnostic": "failure-screenshot",
+      "error": "Page.captureScreenshot: Not attached to an active page"
+    }
+  ],
+  "limitations": [
+    "Browser-level CDP is host authority and is never delegated to untrusted workers.",
+    "This runner proves the supplied loopback scenario only; it does not claim deployment or live-device verification."
+  ]
+}

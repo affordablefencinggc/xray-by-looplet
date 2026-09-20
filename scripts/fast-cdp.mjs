@@ -7,7 +7,7 @@
  * Puppeteer, Selenium or agent-browser process participates in a campaign.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +28,21 @@ class ProductFailure extends Error {
   constructor(message, options) {
     super(message, options);
     this.name = "ProductFailure";
+  }
+}
+
+export async function waitAcrossNavigation(evaluate, predicate, timeout) {
+  const deadline = performance.now() + timeout;
+  for (let attempt = 0; ; attempt++) {
+    const remaining = Math.ceil(deadline - performance.now());
+    if (remaining <= 0) throw new InfrastructureFailure("wait-for-function navigation deadline");
+    try {
+      return await evaluate(waitForFunctionSource(predicate, remaining), remaining + 5_000);
+    } catch (error) {
+      // A product-triggered reload destroys the old document's pending promise.
+      // Re-evaluate in the new document without extending the original deadline.
+      if (attempt >= 3 || !/^Runtime\.evaluate: (Inspected target navigated or closed|Execution context was destroyed|Cannot find context with specified id)/.test(error.message)) throw error;
+    }
   }
 }
 
@@ -354,7 +369,7 @@ class FastCdpCampaign {
   async waitForFunction(context, predicate, deadlineMs = 60_000) {
     const timeout = Number(deadlineMs);
     if (!Number.isFinite(timeout) || timeout < 100 || timeout > 120_000) throw new InfrastructureFailure(`Invalid wait deadline: ${deadlineMs}`);
-    return this.socket.evaluate(waitForFunctionSource(predicate, timeout), context.sessionId, { deadlineMs: timeout + 5_000 });
+    return waitAcrossNavigation((source, remaining) => this.socket.evaluate(source, context.sessionId, { deadlineMs: remaining }), predicate, timeout);
   }
 
   async dispatchMouse(context, type, x, y, button = "none", buttons = 0, clickCount = 0) {
@@ -689,11 +704,12 @@ async function collectManifest(root, current = root) {
 }
 
 async function main() {
-  const executionHost = hostname().trim().split(".")[0].toLowerCase();
-  if (executionHost !== "dans1") {
-    throw new InfrastructureFailure(`Raw-CDP product execution is restricted to DANS1; observed ${executionHost}`);
-  }
   const options = parseArguments(process.argv.slice(2));
+  const executionHost = hostname().trim().split(".")[0].toLowerCase();
+  const expectedHost = options["execution-host"] ?? "dans1";
+  if (!["dans1", "daniel"].includes(expectedHost) || executionHost !== expectedHost) {
+    throw new InfrastructureFailure(`Raw-CDP execution expected ${expectedHost}; observed ${executionHost}`);
+  }
   const output = resolve(options.output);
   await mkdir(output, { recursive: true });
   const startedAt = new Date().toISOString();
