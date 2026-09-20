@@ -17,3 +17,5 @@ Authorized: Daniel, 2026-09-20, "lets proiceed with a huge portion". Branch: fea
 - [ ] Shared development reload failure (SC09 historical 118/135; HVAC full dev 37/46). Production reload passes; no deployment/native claim.
 
 All inputs remain labelled declared/sample drafts. No certification or verified quote promotion. Jev is not configured; deterministic calculations are not live Jev judgments.
+
+- WIP development reload investigation: [DEV-RELOAD-19](proof/growth/2026-09-20-hvac-portion4/steps/DEV-RELOAD-19-WIP.md). Minimal reload reproduced; candidate dev stylesheet configuration awaits DANS1 verification after SSH key-exchange timeout. No completion or new passing machine gate claimed.
