@@ -888,3 +888,8 @@ Brought [XRAY-PRODUCTION-CLOSEOUT-LEDGER.md](XRAY-PRODUCTION-CLOSEOUT-LEDGER.md)
 - [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md).
 
 Recovery: branch `feat/closeout-sc09-remainder`, base `6477356`, uncommitted root import fix bound by the frozen source manifest. TypeSafe skill consulted; no live Jev call because no credential was available.
+## 2026-09-20 — SC-09 graphics recovery and process ownership
+
+- [x] Measured preview survives unavailable WebGL and exposes Retry; real context loss/restoration preserves saved data. [SC09RR-WEBGL-10: exact diff, DANS1 2032-test gate, 61/61 dev and 64/64 built recovery checks, 138/138 built journey, inspected screenshots](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-WEBGL-10.md).
+- [x] Reject stale Windows parent PIDs in cleanup. [SC09RR-PARENTAGE-09: five tests, screenshot, diff, original incident and service-restoration receipt](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-PARENTAGE-09.md). Commit `cfe893c3`.
+- [ ] SC-09 remains partial: new-source development reload fails 118/135; production reload passes. No deployment/native acceptance or live Jev inference.

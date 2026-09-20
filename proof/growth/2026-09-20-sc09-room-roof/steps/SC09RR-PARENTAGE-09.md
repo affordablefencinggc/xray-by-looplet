@@ -14,3 +14,4 @@ The original machine run incorrectly counted OneDrive.Sync.Service.exe PID 15512
 - [Fresh machine run with corrected helper](../machine/machine-safe2/results.json): **2,032/2,032 PASS**, TypeScript exit 0, scoped lint exit 0 (16 existing warnings), no erroneous residual-child cleanup.
 
 Subsequent recovery and normal-production browser campaigns also completed their owned-process cleanup using the corrected launcher. This fixes the observed PID-reuse ownership defect; it is not universal process-supervision certification.
+Follow-up: the original OneDrive helper command launched successfully, but a later PID/executable check did not confirm it remained running. Ongoing OneDrive synchronization is unverified; no additional user services were started or stopped.

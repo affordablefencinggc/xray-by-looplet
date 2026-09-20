@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "method": "raw CDP hot-socket declarative opcode batch; fail-fast; reactive readiness",
+  "host": "dans1",
+  "startedAt": "2026-09-20T08:39:07.302Z",
+  "completedAt": "2026-09-20T08:39:07.670Z",
+  "node": "v24.20.0",
+  "browserVersion": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/153.0.8010.50",
+    "revision": "@583c5b4655acea7450a3b5224ea5121ae8caca9b",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "jsVersion": "15.3.76.12"
+  },
+  "sourceHashes": {
+    "fast-cdp.mjs": "edb4d73ff17506e09782dc9cd45e5b7a2fec2ca3ec3a99bb0c8a496400995003",
+    "run-fast-cdp.ps1": "368f11cd0771b96efb4b438e1821ee6d161ca56c3019a0f4e2a5bb4bd410b220",
+    "invoke-dans1-fast-cdp.ps1": "29e174494fb34fa4acde2c8b0b8da1e82fd50945a31542f02e52bd2ca21f38e5",
+    "scenario:scenario.json": "b7c109c75b0628885b22e8fa777739091719633d88f5d13b5e0e5a3018f569f0"
+  },
+  "scenarioSha256": "b7c109c75b0628885b22e8fa777739091719633d88f5d13b5e0e5a3018f569f0",
+  "plannedOperations": 5,
+  "completedOperations": 5,
+  "elapsedMs": 367.1568,
+  "verdict": "PASS",
+  "error": null,
+  "browserErrors": [],
+  "expectedCancellations": [],
+  "observedCancellations": [],
+  "screenshots": [
+    {
+      "eventId": "e6e66ec5-b57e-455b-a7f7-afd6c3acd302",
+      "context": "default",
+      "targetId": "387F04A929462312074B73567109AB64",
+      "file": "captures/static-webgl-probe.png",
+      "bytes": 62939,
+      "sha256": "46f28ac69ddea3539d603160ee06e9a6393eb486fa2bf089cb014b07f71eb9b1"
+    }
+  ],
+  "cleanup": {
+    "attempted": true,
+    "disposed": [
+      "default"
+    ],
+    "errors": []
+  },
+  "receipts": [
+    {
+      "index": 0,
+      "opcode": "set",
+      "context": "viewport",
+      "elapsedMs": 68.25919999999999,
+      "value": {
+        "width": 1600,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "index": 1,
+      "opcode": "open",
+      "context": "http://127.0.0.1:8091/industry-coverage/index.html",
+      "elapsedMs": 8.398900000000012,
+      "value": {
+        "frameId": "387F04A929462312074B73567109AB64",
+        "url": "http://127.0.0.1:8091/industry-coverage/index.html"
+      }
+    },
+    {
+      "index": 2,
+      "opcode": "wait",
+      "context": "--fn",
+      "elapsedMs": 99.67660000000001,
+      "value": true
+    },
+    {
+      "index": 3,
+      "opcode": "eval",
+      "context": "(async () => {const c=document.createElement('canvas');c.width=400;c.height=200;document.body.prepend(c);const gl=c.getContext('webgl2',{antialias:true,alpha:true,powerPreference:'low-power'});if(!gl)throw Error('Fresh static page cannot create WebGL2');gl.clearColor(0.1,0.6,0.3,1);gl.clear(gl.COLOR_BUFFER_BIT);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const ext=gl.getExtension('WEBGL_debug_renderer_info');const result={version:gl.getParameter(gl.VERSION),vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):null,renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):null,lost:gl.isContextLost(),error:gl.getError()};const pre=document.createElement('pre');pre.textContent=JSON.stringify(result,null,2);document.body.prepend(pre);if(result.lost||result.error)throw Error('Fresh graphics context failed '+JSON.stringify(result));return result;})()",
+      "elapsedMs": 47.76480000000001,
+      "value": {
+        "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "vendor": "Google Inc. (NVIDIA)",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Ti (0x00002208) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "lost": false,
+        "error": 0
+      }
+    },
+    {
+      "index": 4,
+      "opcode": "screenshot",
+      "context": "captures/static-webgl-probe.png",
+      "elapsedMs": 83.94640000000004,
+      "value": {
+        "eventId": "e6e66ec5-b57e-455b-a7f7-afd6c3acd302",
+        "context": "default",
+        "targetId": "387F04A929462312074B73567109AB64",
+        "file": "captures/static-webgl-probe.png",
+        "bytes": 62939,
+        "sha256": "46f28ac69ddea3539d603160ee06e9a6393eb486fa2bf089cb014b07f71eb9b1"
+      }
+    }
+  ],
+  "limitations": [
+    "Browser-level CDP is host authority and is never delegated to untrusted workers.",
+    "This runner proves the supplied loopback scenario only; it does not claim deployment or live-device verification."
+  ]
+}

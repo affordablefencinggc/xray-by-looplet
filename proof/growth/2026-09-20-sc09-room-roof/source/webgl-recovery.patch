@@ -1,0 +1,104 @@
+diff --git a/src/studio/industries/quantity-surveying/QsMeasuredGeometryPreview.tsx b/src/studio/industries/quantity-surveying/QsMeasuredGeometryPreview.tsx
+index 8a24d1a3..7d8754c3 100644
+--- a/src/studio/industries/quantity-surveying/QsMeasuredGeometryPreview.tsx
++++ b/src/studio/industries/quantity-surveying/QsMeasuredGeometryPreview.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useRef } from "react";
++import { useEffect, useRef, useState } from "react";
+ import * as T from "three";
+ import type { IndustryGeometryEntitySource } from "../draftPanel.ts";
+ import { createQsAreaPreviewGeometry, qsAreaPreviewSlope } from "./qsAreaPreviewGeometry.ts";
+@@ -37,6 +37,8 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
+   const hostRef = useRef<HTMLDivElement>(null);
+   const apiRef = useRef<PreviewApi | null>(null);
+   const selectionRef = useRef(onSelectEntity);
++  const [attempt, setAttempt] = useState(0);
++  const [graphicsStatus, setGraphicsStatus] = useState<"ready" | "unavailable" | "lost">("ready");
+   useEffect(() => { selectionRef.current = onSelectEntity; }, [onSelectEntity]);
+   const unknownRoofCount = areas.filter(area => area.entityType === "roof-plane" && !qsAreaPreviewSlope(area)).length;
+   const missingAnnotations = areas.filter(area => !area.areaGeometry).length;
+@@ -45,11 +47,23 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
+     const host = hostRef.current;
+     if (!host) return;
+ 
+-    const renderer = new T.WebGLRenderer({
++    const canvas = document.createElement("canvas");
++    const attributes: WebGLContextAttributes = {
+       antialias: true,
+       alpha: true,
+       powerPreference: "low-power",
+-    });
++    };
++    // Check availability before Three creates a renderer. A denied context is a
++    // recoverable preview failure, not a reason to unmount the worksheet.
++    let context: WebGL2RenderingContext | null;
++    try { context = canvas.getContext("webgl2", attributes); }
++    catch { context = null; }
++    if (!context) {
++      setGraphicsStatus("unavailable");
++      return;
++    }
++    const renderer = new T.WebGLRenderer({ canvas, context, ...attributes });
++    setGraphicsStatus("ready");
+     renderer.outputColorSpace = T.SRGBColorSpace;
+     renderer.toneMapping = T.ACESFilmicToneMapping;
+     renderer.toneMappingExposure = 1.08;
+@@ -97,6 +111,10 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
+     scene.add(grid);
+ 
+     const render = () => renderer.render(scene, camera);
++    const contextLost = () => setGraphicsStatus("lost");
++    const contextRestored = () => { setGraphicsStatus("ready"); render(); };
++    canvas.addEventListener("webglcontextlost", contextLost);
++    canvas.addEventListener("webglcontextrestored", contextRestored);
+     const pickable: T.Mesh[] = [];
+     const raycaster = new T.Raycaster();
+     let pointerStart: { x: number; y: number } | null = null;
+@@ -308,6 +326,8 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
+ 
+     return () => {
+       resizeObserver.disconnect();
++      canvas.removeEventListener("webglcontextlost", contextLost);
++      canvas.removeEventListener("webglcontextrestored", contextRestored);
+       renderer.domElement.removeEventListener("pointerdown", pointerDown);
+       renderer.domElement.removeEventListener("pointerup", pointerUp);
+       renderer.domElement.removeEventListener("pointercancel", pointerCancel);
+@@ -318,20 +338,26 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
+       for (const material of gridMaterials) material.dispose();
+       key.shadow.map?.dispose();
+       renderer.dispose();
++      renderer.forceContextLoss();
+       renderer.domElement.remove();
+       apiRef.current = null;
+     };
+-  }, []);
++  }, [attempt]);
+ 
+   useEffect(() => {
+     apiRef.current?.update(runs, selectedRunId, areas);
+-  }, [runs, selectedRunId, areas]);
++  }, [runs, selectedRunId, areas, attempt]);
+ 
+   return (
+     <div
+       ref={hostRef}
+       className="qs-measured-model qs-measured-polygon-model"
++      data-graphics-status={graphicsStatus}
+     >
++      {graphicsStatus !== "ready" && <div className="qs-measured-graphics-error" role="status">
++        <p>{graphicsStatus === "lost" ? "3D preview paused: the graphics connection was lost." : "3D preview unavailable: this browser could not start WebGL."} Your measurements and 2D plan are unchanged.</p>
++        <button type="button" className="pill" onClick={() => setAttempt(value => value + 1)}>Retry 3D preview</button>
++      </div>}
+       {areas.length > 0 && <p role="status" className="qs-measured-polygon-caption">
+         Normalised polygon preview, not measurement proof.
+         {unknownRoofCount > 0 && ` ${unknownRoofCount} roof footprint(s) only: pitch/rise direction unknown (wireframe).`}
+diff --git a/src/studio/industries/quantity-surveying/qsMeasuredGeometryPreview.css b/src/studio/industries/quantity-surveying/qsMeasuredGeometryPreview.css
+index d652db0d..5d08e53b 100644
+--- a/src/studio/industries/quantity-surveying/qsMeasuredGeometryPreview.css
++++ b/src/studio/industries/quantity-surveying/qsMeasuredGeometryPreview.css
+@@ -1,2 +1,5 @@
+ .qs-measured-polygon-model { position: relative; }
++.qs-measured-graphics-error { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; padding: 12px; background: var(--color-card); color: var(--color-ink); overflow: auto; }
++.qs-measured-graphics-error p { margin: 0; font-size: 13px; line-height: 1.4; }
++.qs-measured-graphics-error button { min-height: 44px; flex-shrink: 0; }
+ .qs-measured-polygon-caption { position: absolute; z-index: 1; bottom: 4px; left: 8px; right: 8px; margin: 0; padding: 4px 8px; background: var(--color-card); color: var(--color-ink); border: 1px solid var(--color-line); border-radius: 4px; font-size: 12px; line-height: 1.4; pointer-events: none; }

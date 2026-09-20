@@ -1,0 +1,25 @@
+[
+  [
+    "set",
+    "viewport",
+    "1600",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/industry-coverage/index.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.readyState === 'complete'"
+  ],
+  [
+    "eval",
+    "(async () => {const c=document.createElement('canvas');c.width=400;c.height=200;document.body.prepend(c);const gl=c.getContext('webgl2',{antialias:true,alpha:true,powerPreference:'low-power'});if(!gl)throw Error('Fresh static page cannot create WebGL2');gl.clearColor(0.1,0.6,0.3,1);gl.clear(gl.COLOR_BUFFER_BIT);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const ext=gl.getExtension('WEBGL_debug_renderer_info');const result={version:gl.getParameter(gl.VERSION),vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):null,renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):null,lost:gl.isContextLost(),error:gl.getError()};const pre=document.createElement('pre');pre.textContent=JSON.stringify(result,null,2);document.body.prepend(pre);if(result.lost||result.error)throw Error('Fresh graphics context failed '+JSON.stringify(result));return result;})()"
+  ],
+  [
+    "screenshot",
+    "captures/static-webgl-probe.png"
+  ]
+]

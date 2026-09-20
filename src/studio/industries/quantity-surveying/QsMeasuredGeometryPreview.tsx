@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as T from "three";
 import type { IndustryGeometryEntitySource } from "../draftPanel.ts";
 import { createQsAreaPreviewGeometry, qsAreaPreviewSlope } from "./qsAreaPreviewGeometry.ts";
@@ -37,6 +37,8 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
   const hostRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<PreviewApi | null>(null);
   const selectionRef = useRef(onSelectEntity);
+  const [attempt, setAttempt] = useState(0);
+  const [graphicsStatus, setGraphicsStatus] = useState<"ready" | "unavailable" | "lost">("ready");
   useEffect(() => { selectionRef.current = onSelectEntity; }, [onSelectEntity]);
   const unknownRoofCount = areas.filter(area => area.entityType === "roof-plane" && !qsAreaPreviewSlope(area)).length;
   const missingAnnotations = areas.filter(area => !area.areaGeometry).length;
@@ -45,11 +47,23 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
     const host = hostRef.current;
     if (!host) return;
 
-    const renderer = new T.WebGLRenderer({
+    const canvas = document.createElement("canvas");
+    const attributes: WebGLContextAttributes = {
       antialias: true,
       alpha: true,
       powerPreference: "low-power",
-    });
+    };
+    // Check availability before Three creates a renderer. A denied context is a
+    // recoverable preview failure, not a reason to unmount the worksheet.
+    let context: WebGL2RenderingContext | null;
+    try { context = canvas.getContext("webgl2", attributes); }
+    catch { context = null; }
+    if (!context) {
+      setGraphicsStatus("unavailable");
+      return;
+    }
+    const renderer = new T.WebGLRenderer({ canvas, context, ...attributes });
+    setGraphicsStatus("ready");
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
@@ -97,6 +111,10 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
     scene.add(grid);
 
     const render = () => renderer.render(scene, camera);
+    const contextLost = () => setGraphicsStatus("lost");
+    const contextRestored = () => { setGraphicsStatus("ready"); render(); };
+    canvas.addEventListener("webglcontextlost", contextLost);
+    canvas.addEventListener("webglcontextrestored", contextRestored);
     const pickable: T.Mesh[] = [];
     const raycaster = new T.Raycaster();
     let pointerStart: { x: number; y: number } | null = null;
@@ -308,6 +326,8 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
 
     return () => {
       resizeObserver.disconnect();
+      canvas.removeEventListener("webglcontextlost", contextLost);
+      canvas.removeEventListener("webglcontextrestored", contextRestored);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointercancel", pointerCancel);
@@ -318,20 +338,26 @@ export function QsMeasuredGeometryPreview({ runs, selectedRunId, areas = EMPTY_A
       for (const material of gridMaterials) material.dispose();
       key.shadow.map?.dispose();
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
       apiRef.current = null;
     };
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     apiRef.current?.update(runs, selectedRunId, areas);
-  }, [runs, selectedRunId, areas]);
+  }, [runs, selectedRunId, areas, attempt]);
 
   return (
     <div
       ref={hostRef}
       className="qs-measured-model qs-measured-polygon-model"
+      data-graphics-status={graphicsStatus}
     >
+      {graphicsStatus !== "ready" && <div className="qs-measured-graphics-error" role="status">
+        <p>{graphicsStatus === "lost" ? "3D preview paused: the graphics connection was lost." : "3D preview unavailable: this browser could not start WebGL."} Your measurements and 2D plan are unchanged.</p>
+        <button type="button" className="pill" onClick={() => setAttempt(value => value + 1)}>Retry 3D preview</button>
+      </div>}
       {areas.length > 0 && <p role="status" className="qs-measured-polygon-caption">
         Normalised polygon preview, not measurement proof.
         {unknownRoofCount > 0 && ` ${unknownRoofCount} roof footprint(s) only: pitch/rise direction unknown (wireframe).`}
