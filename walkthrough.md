@@ -881,3 +881,10 @@ The existing dev server on 8080 (PID 82668, this repo) was reused; one run faile
 ## Docs / dashboard refresh (2026-09-19, Grok)
 
 Brought [XRAY-PRODUCTION-CLOSEOUT-LEDGER.md](XRAY-PRODUCTION-CLOSEOUT-LEDGER.md), [PROFESSIONAL-A-Z-CHECKLIST.md](PROFESSIONAL-A-Z-CHECKLIST.md) and regenerated [XRAY-STATUS-AND-PROOF-DASHBOARD.html](XRAY-STATUS-AND-PROOF-DASHBOARD.html) into agreement. KPI: 8/20 slices done (40%), 1 partial, 11 pending; machine gate 1,951/1,951; A–Z **116/375** = 6 verified + 110 partial. SC-10 proof now states css1 **FAIL 170/289** (`6` vs `5.999999930955706 m`). SC-11 panel is unmounted. `node scripts/validate-dashboard.mjs` **442/442**. No slice ticked.
+
+## 2026-09-20 — SC-09 bounded stylesheet repair and dashboard update
+
+- [x] Production SSR stylesheet repair qualified on frozen fc02: [SC09RR-CSS-06 proof, tests, screenshots and exact diff](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-CSS-06.md). DANS1 21/21 focused built-browser operations; unchanged-source machine evidence 2032/2032 plus TypeScript. No deployment/native acceptance.
+- [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md).
+
+Recovery: branch `feat/closeout-sc09-remainder`, base `6477356`, uncommitted root import fix bound by the frozen source manifest. TypeSafe skill consulted; no live Jev call because no credential was available.

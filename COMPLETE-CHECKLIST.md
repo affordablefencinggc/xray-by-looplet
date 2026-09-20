@@ -523,3 +523,10 @@ Individual requirement, source diff, executed outputs, separately named screensh
 These are scoped source/web regression completions. ROOF-01, QS-01 and remaining residential native qualification are still open; no live-provider acceptance or native deployment is claimed. The ROOF-02/HVAC-02/QS-03 entries above are the source-binding half of those checklist items only, not the whole industry; the remaining halves are named in [INDUSTRY-REMAINING-WORK-PLAN.md](INDUSTRY-REMAINING-WORK-PLAN.md).
 
 Latest executed regression on this branch: 1,508 TypeScript + 203 script tests, 0 failures ([log](proof/growth/2026-09-16-plan-reconciliation/regression-full.log)). Also still open after the 2026-09-16 reconciliation: independent live assistant/Developer review (SH-04; roof and QS live answers remain failed evidence), the charcoal/ocean theme on the newer industry controls (SH-05), the per-platform release matrix (SH-06), wiring the SH-03 `deliveryRecord` into the issued set, and whole-industry acceptance for IND-01/29/30/38. Several residential slices are implemented but uncommitted in the working tree.
+
+## 2026-09-20 — SC-09 bounded stylesheet repair and dashboard update
+
+- [x] Production SSR stylesheet repair qualified on frozen fc02: [SC09RR-CSS-06 proof, tests, screenshots and exact diff](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-CSS-06.md). DANS1 21/21 focused built-browser operations; unchanged-source machine evidence 2032/2032 plus TypeScript. No deployment/native acceptance.
+- [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md).
+
+Recovery: branch `feat/closeout-sc09-remainder`, base `6477356`, uncommitted root import fix bound by the frozen source manifest. TypeSafe skill consulted; no live Jev call because no credential was available.
