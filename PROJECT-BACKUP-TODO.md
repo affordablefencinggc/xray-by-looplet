@@ -14,3 +14,5 @@ SC-02 boundary: current job (including per-document workspaces, calibration, evi
 Proof directory: `proof/audit/IW-PROJECT-BACKUP`; screenshots: `screenshots/project-backup`. Nothing is checked before diff plus executed/visual evidence exists.
 
 - [ ] SC-15 portable archive: 19 archive tests and controlled local UI round trip 29/29 pass. [Tests, screenshots, exact diff and remaining gaps](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md). Preserve original DWG bytes, prove complete clean-browser restoration and measure the original 20 MB / under-two-second requirement; production and UI polish remain open.
+
+- [x] Bounded clean-storage SVG recovery and tablet archive controls: [42/42 trial, screenshots and diff](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md). Full SC-15 remains open for all-record/DWG coverage, large-PDF timing and production acceptance.

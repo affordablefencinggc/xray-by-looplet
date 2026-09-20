@@ -560,3 +560,9 @@ Declared elbows, tees and reducers now coordinate duct/pipe runs with trimmed po
 - Branch: `feat/closeout-sc09-remainder`, after `3f4df26c1721ffe1498b154349af78bfaa7fcab5`. User authorized execution on Daniel.
 - [LOCAL-DEV-01](proof/growth/2026-09-21-local-verification/steps/LOCAL-DEV-01.md): 2106 registered tests, six runner checks, TypeScript/lint and HVAC development reload 75/75; links exact diff and inspected screenshots.
 - [SC15-LOCAL-02 WIP](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md): controlled archive UI round trip 29/29. Full SC-15 and release remain incomplete; no production/native claim.
+
+## 2026-09-21 — archive clean-storage trial and tablet controls
+
+- [SC15-CLEAN-03](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md): 42/42 browser operations, tamper rejection, isolated storage wipe/recovery, actual restored drawing hash and inspected tablet screenshots. Links exact CSS diff.
+- [PROOF-BYTES-04](proof/growth/2026-09-21-archive-clean/steps/PROOF-BYTES-04.md): 85 evidence entries match disk and Git index after exact-byte preservation.
+- Recovery: `feat/closeout-sc09-remainder` after `d7bc0d60`; full SC-15 and production remain incomplete.

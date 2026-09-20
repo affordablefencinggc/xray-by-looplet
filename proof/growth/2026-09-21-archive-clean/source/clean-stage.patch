@@ -1,0 +1,62 @@
+diff --git a/.gitattributes b/.gitattributes
+index 4de31288..1f12433a 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -40,3 +40,8 @@
+ # Keep SC-09 captured receipts and their SHA-256 manifests byte-identical.
+ /proof/growth/2026-09-20-sc09-room-roof/** -text
+ /proof/growth/2026-09-20-hvac-portion4/** -text
++
++# Local execution receipts retain the exact bytes hashed by the runner.
++/proof/growth/2026-09-21-local-verification/** -text whitespace=cr-at-eol
++/proof/growth/2026-09-21-verification-resume/** -text whitespace=cr-at-eol
++/proof/growth/2026-09-21-archive-clean/** -text whitespace=cr-at-eol
+diff --git a/PROJECT-BACKUP-TODO.md b/PROJECT-BACKUP-TODO.md
+index 56c2cc83..426b2a52 100644
+--- a/PROJECT-BACKUP-TODO.md
++++ b/PROJECT-BACKUP-TODO.md
+@@ -14,3 +14,5 @@ SC-02 boundary: current job (including per-document workspaces, calibration, evi
+ Proof directory: `proof/audit/IW-PROJECT-BACKUP`; screenshots: `screenshots/project-backup`. Nothing is checked before diff plus executed/visual evidence exists.
+ 
+ - [ ] SC-15 portable archive: 19 archive tests and controlled local UI round trip 29/29 pass. [Tests, screenshots, exact diff and remaining gaps](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md). Preserve original DWG bytes, prove complete clean-browser restoration and measure the original 20 MB / under-two-second requirement; production and UI polish remain open.
++
++- [x] Bounded clean-storage SVG recovery and tablet archive controls: [42/42 trial, screenshots and diff](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md). Full SC-15 remains open for all-record/DWG coverage, large-PDF timing and production acceptance.
+diff --git a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+index 80a72dfd..de6dc997 100644
+--- a/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
++++ b/XRAY-PRODUCTION-CLOSEOUT-LEDGER.md
+@@ -461,6 +461,7 @@ graph TD
+ ### PORTION 5: Persistence, Backup & Disaster Recovery (B & Z)
+ 
+ #### SC-15 — Portable Project Archive (.xray ZIP) with Drawing Bytes & Manifest `[[pending]]`
++* **Clean-storage development proof**: [SC15-CLEAN-03](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md): 42/42 operations, corrupted drawing rejection without saved-record mutation, restore after isolated storage wipe, actual original-byte SHA-256, tablet portrait/landscape control polish. Small controlled SVG project only; full record coverage, DWG, real 20 MB PDF timing and production remain open. [PROOF-BYTES-04](proof/growth/2026-09-21-archive-clean/steps/PROOF-BYTES-04.md) preserves exact receipt bytes in Git.
+ * **WIP, partial local execution**: [SC15-LOCAL-02](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md): 19 archive/manifest tests and controlled export/import/restore 29/29 pass locally, with inspected screenshots and exact diff. [Original source checkpoint](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md) retained. Original DWG bytes, full storage-wipe restoration, 20 MB timing, remaining record coverage and production build remain unproven.
+ * **Goal**: Implement complete self-contained portable project package export and restore (`.xray` / ZIP format), containing raw drawing files, traces, 3D models, schedules, and cryptographic manifest.
+ * **DONE (machine)**:
+diff --git a/src/studio/backupRestoreReview.css b/src/studio/backupRestoreReview.css
+index 2c2fe439..e882d55c 100644
+--- a/src/studio/backupRestoreReview.css
++++ b/src/studio/backupRestoreReview.css
+@@ -1,6 +1,6 @@
+ .backup-restore-review { display: grid; gap: 12px; border-top: 1px solid var(--color-line); padding-top: 16px; margin-top: 8px; }
+-.project-backups .restore-rate-option { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+-.project-backups .restore-rate-option input { width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; }
++.backup-restore-review .restore-rate-option { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
++.backup-restore-review .restore-rate-option input { width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; padding: 0; }
+ .restore-impact-list { display: grid; gap: 8px; }
+ .restore-impact-list article { border: 1px solid var(--color-line); border-radius: 6px; padding: 12px; background: var(--color-bg); }
+ .restore-impact-list article > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+diff --git a/src/studio/projectLibrary.css b/src/studio/projectLibrary.css
+index 7151f5a3..6aa20997 100644
+--- a/src/studio/projectLibrary.css
++++ b/src/studio/projectLibrary.css
+@@ -3,7 +3,8 @@
+ .project-library p { line-height: 1.5; }
+ .project-library label { display: grid; gap: 6px; font-size: 12px; flex: 1; }
+ .project-library input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 6px; width: 100%; }
+-.project-library .pill { min-height: 44px; }
++.project-library .pill { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
++.project-library .pill svg { flex-shrink: 0; }
+ .project-library-new, .project-library-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+ .project-library-toolbar [role=group], .project-library-actions, .project-archive-review > div { display: flex; gap: 8px; }
+ .project-library-list { display: grid; gap: 8px; }

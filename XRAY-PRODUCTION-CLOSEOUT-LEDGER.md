@@ -461,6 +461,7 @@ graph TD
 ### PORTION 5: Persistence, Backup & Disaster Recovery (B & Z)
 
 #### SC-15 — Portable Project Archive (.xray ZIP) with Drawing Bytes & Manifest `[[pending]]`
+* **Clean-storage development proof**: [SC15-CLEAN-03](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md): 42/42 operations, corrupted drawing rejection without saved-record mutation, restore after isolated storage wipe, actual original-byte SHA-256, tablet portrait/landscape control polish. Small controlled SVG project only; full record coverage, DWG, real 20 MB PDF timing and production remain open. [PROOF-BYTES-04](proof/growth/2026-09-21-archive-clean/steps/PROOF-BYTES-04.md) preserves exact receipt bytes in Git.
 * **WIP, partial local execution**: [SC15-LOCAL-02](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md): 19 archive/manifest tests and controlled export/import/restore 29/29 pass locally, with inspected screenshots and exact diff. [Original source checkpoint](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md) retained. Original DWG bytes, full storage-wipe restoration, 20 MB timing, remaining record coverage and production build remain unproven.
 * **Goal**: Implement complete self-contained portable project package export and restore (`.xray` / ZIP format), containing raw drawing files, traces, 3D models, schedules, and cryptographic manifest.
 * **DONE (machine)**:
