@@ -1,14 +1,42 @@
-param()
+param([switch]$DryRun)
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 $repo=(Get-Location).Path
-if((git branch --show-current) -cne 'feat/architect-cad-engine'){throw 'Unexpected branch'}
+$own='proof/growth/2026-09-20-sc11-mounted-package'
+
+# The snapshot list is derived from git, never from a previous pack's manifest.
+# Chaining the list pack-to-pack is what silently dropped engine/fixtures/*.pdf:
+# every later pack inherited the omission, so no pack could run the repo-wide
+# npm test gate and each slice fell back to the stale 9abf4c807030 receipt.
+$excludedTrees=@('proof/growth/','screenshots/','.temp/','dist/','src-tauri/target/','node_modules/')
+$paths=@(& git ls-files | Where-Object{
+  $p=$_
+  (($excludedTrees|Where-Object{ $p.StartsWith($_) }).Count -eq 0) -and $p -notmatch '__pycache__|\.pyc$'
+})
+# Evidence files the suite reads are not application input, but must still ship.
+$evidenceFixtures=@('proof/audit/IW-AI-MATERIALS/fixture-result.json')
+$paths=@($paths+$evidenceFixtures+@("$own/machine/qualify.ps1","$own/machine/prepare-snapshot.ps1")|Sort-Object -Unique)
+$missing=@($paths|Where-Object{ -not (Test-Path -LiteralPath (Join-Path $repo $_) -PathType Leaf)})
+if($missing.Count){throw "Snapshot list names $($missing.Count) path(s) not on disk: $($missing -join ', ')"}
+
+# Guard the exact omission class that broke the 2026-09-20 packs: every file the
+# npm scripts execute, and every engine fixture, has to be in the list.
+$pkg=Get-Content -Raw package.json|ConvertFrom-Json
+$scriptFiles=@([regex]::Matches(($pkg.scripts.test+' '+$pkg.scripts.'test:src'),'[A-Za-z0-9_./-]+/[A-Za-z0-9_./-]+\.(?:ts|tsx|mjs|js)')|ForEach-Object{$_.Value}|Sort-Object -Unique)
+$absentScripts=@($scriptFiles|Where-Object{ $paths -notcontains $_ })
+if($absentScripts.Count){throw "Snapshot list omits test file(s) named by package.json: $($absentScripts -join ', ')"}
+$absentFixtures=@(& git ls-files 'engine/fixtures/*'|Where-Object{ $paths -notcontains $_ })
+if($absentFixtures.Count){throw "Snapshot list omits engine fixture(s): $($absentFixtures -join ', ')"}
+
+if($DryRun){
+  [ordered]@{dryRun=$true;count=$paths.Count;scriptFiles=$scriptFiles.Count;engineFixtures=(@(& git ls-files 'engine/fixtures/*')).Count;entries=$paths}|ConvertTo-Json -Depth 4
+  exit 0
+}
+
 $observed=((& ssh tonys-test-pc hostname)-join '').Trim().ToLowerInvariant()
 if($LASTEXITCODE -ne 0 -or ($observed -split '\.')[0] -cne 'dans1'){throw 'DANS1 required'}
-$own='proof/growth/2026-09-20-sc11-mounted-package'
-$prior=Get-Content -Raw proof/growth/2026-09-20-sc10-use-measured/machine/verified-source-manifest.json|ConvertFrom-Json
-$paths=@($prior.entries.path)+@("$own/machine/qualify.ps1","$own/machine/prepare-snapshot.ps1")
-$entries=@($paths|Sort-Object -Unique|ForEach-Object{
+if((git branch --show-current) -cne 'feat/architect-cad-engine'){throw 'Unexpected branch'}
+$entries=@($paths|ForEach-Object{
   $file=Get-Item -LiteralPath (Join-Path $repo $_)
   [ordered]@{path=$_;bytes=$file.Length;sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
 })
@@ -26,7 +54,7 @@ foreach($entry in $entries){
   Copy-Item -LiteralPath (Join-Path $repo $entry.path) -Destination $target
   if((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry.sha256){throw 'Source changed during packaging'}
 }
-$manifest=[ordered]@{runId=$runId;head=(git rev-parse HEAD);sourceDigest=$digest;entries=$entries;scope='Complete prior tracked application input inventory at current working bytes plus SC11 machine helpers; not a CSS/layout overlay.'}
+$manifest=[ordered]@{runId=$runId;head=(git rev-parse HEAD);sourceDigest=$digest;entries=$entries;scope='Every tracked application input at current working bytes, derived from git ls-files minus the evidence/build trees, plus the evidence fixture the suite reads and the SC11 machine helpers; not a CSS/layout overlay.'}
 $manifest|ConvertTo-Json -Depth 7|Set-Content -LiteralPath (Join-Path $stage 'source-manifest.json') -Encoding utf8
 $archive=Join-Path $stage 'source.tar'
 & tar -cf $archive -C $source .

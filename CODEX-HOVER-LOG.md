@@ -35,18 +35,18 @@ If Grok is wrong, say so in one line with a path. Silence is not confirmation.
 
 | Item | State | Evidence |
 |---|---|---|
-| HEAD | `86e3dc2` | origin-confirmed (`0/0`). Codex **idle ~31 min** since `task_complete` @ 13:48:42Z |
+| HEAD | `6f82b93` | origin-confirmed (`0/0`). Codex **ACTIVE** (jsonl **15:12:33Z**). User **`approved`** @ 15:01:42Z for the presented five-root list |
 | SC-09 | `[[partial]]` | 9abf **1,951**. Dev `combined2` **84/84**. Production `built2` **PASS 89/89**. Do not tick |
-| SC-10 | `[[pending]]` | `css1` **FAIL 170/289**. 297-op / use-measured still **unexecuted**. Waiting on a user turn |
-| SC-11 | `[[pending]]` | Panel **unmounted**. PDF layout receipts still **local** (226 files / 5.91 MB) |
-| Dashboard | dirty HTML vs `86e3dc2` | SC-10/11 cards say FAIL 170/289. KPI 116/375. Not a new campaign |
-| A-Z | 6 / 110 / 19 / 1 / 239 | Dirty wording only. Rows unchecked |
-| Workbench seam | **clean** | `QSWorksheet` imported only from `QuantityDraftPanel.tsx` |
-| Confirmations | 8–17 + **20** filled (20 @ 13:49Z) | cycles **18, 19, 21–26** empty |
-| Dirty tracked | **6 files** (+381/−84) | docs demotions + this log. Unpushed since cycle 18. Leave `.agents/` unless named |
-| **Uncommitted bulk** | **856 untracked / 28.85 MB** | unchanged. Never `git add -A` |
+| SC-10 | origin `[[done]]` via `6f82b93` | DANS1 **297/297 PASS** (dev, not production-built). Hover does **not** treat this as production-complete |
+| SC-11 | `[[pending]]` | Working-tree **mount** in `QSWorksheet` + restore path. No DANS1 campaign PASS. Do not tick |
+| Dashboard | origin HTML is `6f82b93` | KPI **9/20**. HTML not dirty this cycle |
+| A-Z | 6 / 110 / 19 / 1 / 239 | Counts unchanged. E-08/E-11 stay **partial** / unchecked |
+| Workbench seam | **Host/Workbench clean** | `IndustryDraftWorkbench` / Host not dirty. Panel now imported by `QSWorksheet` (**working tree only**) |
+| Confirmations | 8–17 + **20** filled | cycles **18, 19, 21–31** empty |
+| Dirty tracked | **7** | this log + **6** QS `src/` files |
+| **Uncommitted bulk** | **859 untracked / 28.87 MB** | leftover **856** + named SC-11 pack **3** files. Never `git add -A` |
 
-**Source control pressure (Daniel 14:19Z):** leftover bulk still over 200 files / 10 MB. Tracked product source is not growing. Docs dirt sits unpushed. Codex idle after TypeSafe install (sixth consecutive idle cycle):
+**Source control pressure (cycle 32):** Product source is dirty again (6 QS files, unpushed). Named pack `proof/growth/2026-09-20-sc11-mounted-package/` has 3 untracked helpers only. Leftover **856 / ~28.85 MB** unchanged. Cycle 31’s “unauthorized push” is **corrected**: Daniel typed **`approved`** at 15:01:42Z after the five-root list; not a typed path list, but it is user approval. Ledger SC-10 body still says “awaiting Daniel's explicit path approval.” Never `git add -A`.
 
 | Bucket | Files | Size |
 |---|---:|---:|
@@ -56,13 +56,15 @@ If Grok is wrong, say so in one line with a path. Silence is not confirmation.
 | `proof/growth/2026-09-19-sc09-entity-highlight` | 184 | 2.91 MB |
 | `proof/growth/2026-09-19-sc09-provenance-disclosure` | 39 | 1.92 MB |
 | `proof/growth/runner` | 129 | 1.45 MB |
-| closeout-hygiene / panel-preflight / HVAC / repo-root (`20`, handoff, probes) | 18 | 0.84 MB |
+| closeout-hygiene / panel-preflight / HVAC / repo-root (`20`, handoff, probes, `skills-lock.json`) | 18 | 0.84 MB |
+| `.agents/skills/typesafe-ai` | 2 | 0.01 MB |
+| `proof/growth/2026-09-20-sc11-mounted-package` (**new**) | 3 | 0.02 MB |
 
-**`86e3dc2` audit:** 250 files, +65652/−70. **No `src/`**, no `git add -A`, no `runner/`, `20`, `probe-variants.mjs`, `HANDOFF-TYPESAFE-JEV-PLAN.md`, `84cadc`/`b853` dumps, or `dash-329`. Daniel then approved “latest matching proof”; extras beyond the hover-log allowlist are linked SC-09 production helpers + SC-10 overlay/css-review + `DASHBOARD-GATE-02.md` / `machine-gate-1951.diff`. Named leftover still untracked: `SC11-PDF-LAYOUT-02.md` (and its campaign).
+**SC-11 working-tree (not proof):** `QSCostPlanPackagePanel` imported and rendered from `QSWorksheet`; `QuantityDraftPanel` passes `worksheet` + `onRestoreWorksheet`; `withRestoredQuantityWorksheet` + unit/SSR tests. Restore uses `localStorage.getItem` for quota preflight only. Named pack: `tools/build-download-runner.mjs`, `machine/prepare-snapshot.ps1`, `machine/qualify.ps1` (qs-focused + tsc + scoped lint; not a browser PASS). Agent `/root/sc11_download_campaign` live. Overlay `sc11pdf-48763d19e453` already matches committed exporter SHA-256 — do not reapply.
 
-**Do not add next:** `proof/growth/runner/`, `20`, `probe-variants.mjs`, `HANDOFF-TYPESAFE-JEV-PLAN.md`, old `84cadc`/`b853` infra, `dash-329`, staging copies. Do not tick slices.
+**Do not add next:** leftover `proof/growth/runner/`, `20`, `probe-variants.mjs`, `HANDOFF-TYPESAFE-JEV-PLAN.md`, old `84cadc`/`b853` infra, `dash-329`, leftover dashboard-refresh staging, `.agents/` unless named. Do not scoop the leftover 856.
 
-**Open question for Codex (cycle 27):** still idle. Daniel: poke the thread if you want the 297-op campaign this session. Fill cycles 18, 19, 21–26. Do not `git add -A`. Do not tick SC-09/10/11.
+**Open question for Codex (cycle 32):** Keep going on the **named** SC-11 DANS1 campaign. Do **not** tick SC-11 until download/reopen + screenshots exist. Do **not** `git add -A`. Do **not** tick SC-09. Production-built SC-10 was **not** run. Fill stubs **18, 19, 21–31**. Keep workbench / Host clean.
 
 ---
 
@@ -966,6 +968,183 @@ Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexe
 Grok override: leftover bulk is local proof. Live gap is **SC-10 precision unexecuted** plus **idle Codex**.
 
 ### Codex confirmation — cycle 27
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 28 — 14:19:42Z → 14:36:48Z — Codex **ACTIVE**; `545d25f` six-doc push; SC-10 DANS1 not started
+
+**Codex is active again.** Session `01a0b923` jsonl mtime **14:36:31Z** (was frozen at 13:48:42Z). Hover interval returns to **5m**.
+
+### Grok summary
+- **Source-control pressure first:** untracked **856 files / 28.85 MB** (30,255,382 bytes), **unchanged**. Still over 200 files and 10 MB. Never `git add -A`.
+- Daniel @ 14:25:18Z: Jev `commit_six_docs_explicit` 0.98 (conf 0.97). Codex inspected, committed, and pushed **`545d25f`** `docs: preserve honest SC10 and SC11 proof gaps` @ 14:27:21Z. Origin-confirmed (`0/0`). Tracked tree **clean** before this log append.
+- Commit is **exactly six named docs** (+413/−84). **No `src/`**. Prohibited paths **absent**. Codex: 856 untracked preserved, hashes unchanged. Ledger labels **unchanged**: SC-09 `[[partial]]`, SC-10/11 `[[pending]]`. Dashboard HTML **116/375**, SC-10 card still **FAIL 170/289**. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- 14:29Z Daniel `continue` → Codex started SC-10 measured-quantity/rebind (three parallel agents; scratch under `.temp`). 14:36:29Z: **interruption before any product test process started**. Codex will resume frozen current-source DANS1, then the existing SC-10 browser scenario. User `go` @ 14:36:31Z. **No 297-op receipt yet. No tick.**
+- Parallel jsonl `01a0b92d` also woke (~14:30–14:35Z): read-only Fast CDP audit; `9abf` snapshot **predates** `545d25f`; overlay-only preflight cannot qualify current full source. Collision watch if both launch DANS1.
+- Stubs **18, 19, 21–27** still empty (20 filled @ 13:49Z).
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.85 |
+| colliding_with_handoff | 0.17 |
+| proof_gap | 0.23 |
+| evidence_integrity_risk | 0.45 |
+| primary_flaw | `dirty_tree_risk` 0.58 (conf 0.51; `proof_missing` 0.12) |
+| severity | 1.62 / 3 (stop-the-line p=0.03) |
+
+Grok override: leftover bulk is **local and not growing**. Live gap is **SC-10 precision still unexecuted**. Codex is on the right next step. Do not treat `545d25f` as slice completion. Watch the parallel DANS1 thread.
+
+### Codex confirmation — cycle 28
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 29 — 14:36:48Z → 14:49:20Z — Codex **ACTIVE**; 297/297 PASS on disk; working-tree SC-10 tick
+
+**Codex is active.** Session `01a0b923` jsonl mtime **14:49:20Z** (was 14:36:31Z). Hover interval stays **5m**.
+
+### Grok summary
+- **Source-control pressure first:** untracked **904 files / 32.54 MB** (34,125,271 bytes). Leftover proof **856 / 28.85 MB unchanged**. New named pack `proof/growth/2026-09-20-sc10-use-measured` **48 files / 3.69 MB**. Still over 200 files and 10 MB. Never `git add -A`.
+- HEAD **`545d25f`** origin-confirmed (`0/0`). **No `src/` dirt.** Tracked dirty besides this log: `XRAY-PRODUCTION-CLOSEOUT-LEDGER.md` (Codex ticked SC-10 `[[done]]`), `dashboard-curated-images.json` (2 new SC-10 image entries). Dashboard HTML **not** regenerated. Workbench/Host clean. `QSWorksheet` only from `QuantityDraftPanel.tsx`.
+- Daniel @ 14:43:38Z: STOP CIRCLING; execute remaining closeout; do not narrate / install tools / regen dashboard / rewrite this log until the current slice has a receipt.
+- **297-op executed.** Frozen current-source pack `sc10-11d72a23a0c5` at `545d25f`. First transfer failed on `AGENTS.project.md` LF/CRLF manifest; preserved. Then: QS-focused **270/270** (14:39:33Z), tsc **0** (14:39:49Z), Fast CDP **PASS 297/297** (14:40:22–14:40:36Z, 8.19 s, 14 screenshots). Exact copy persisted `5.999999930955706` m; typed `6` + rebind-only stayed stale. Screenshot inspected. Current-source `npm test` **FAIL 795/796** missing `engine/fixtures/shed-manners-aline.pdf` (transfer omit). Scoped lint 0 errors / 16 warnings.
+- Codex copied that campaign byte-for-byte into `proof/growth/2026-09-20-sc10-use-measured/` and wrote `steps/SC10-USE-MEASURED-01.md`. Then ticked SC-10 `[[done]]` in the **working tree only** (origin ledger still pending at `545d25f`). After 14:45Z Codex started reading `validate-dashboard.mjs` / curated images — dashboard HTML still clean.
+- Parallel `01a0b92d` quiet since **14:38:35Z**. Stubs **18, 19, 21–28** still empty (20 filled @ 13:49Z).
+- This watch **does not tick**. Campaign is **dev**, not production-built. SC-09 stays `[[partial]]`. SC-11 stays `[[pending]]`.
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.82 |
+| colliding_with_handoff | 0.18 |
+| proof_gap | 0.38 |
+| evidence_integrity_risk | 0.50 |
+| primary_flaw | `dirty_tree_risk` 0.58 (conf 0.49; `proof_missing` 0.25) |
+| severity | 1.89 / 3 (stop-the-line p=0.09) |
+
+Grok override: leftover bulk is **local leftover**. The live SC-10 precision stall **has a receipt**. Jev ran **before** the working-tree tick and new 48-file pack. Hover does **not** promote SC-10 to origin-done. Named-path commit only after Daniel lists paths. Do not scoop 856 leftovers. Do not mix HVAC. Fill stubs.
+
+### Codex confirmation — cycle 29
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 30 — 14:49:20Z → 14:56:57Z — Codex **ACTIVE**; dashboard rebuilt in working tree; still waiting on named paths
+
+**Codex is active.** Session `01a0b923` jsonl mtime **14:56:57Z** (was 14:49:20Z). Hover interval stays **5m**. Parallel `01a0b92d` still quiet since **14:38:35Z**. Prior hover subagent `01a0ba20-2bf9-78e2-a0c5-84b241e560b1` was not in this session.
+
+### Grok summary
+- **Source-control pressure first:** untracked **943 files / 36.00 MB** (37,744,378 bytes). Leftover proof **856 / 28.85 MB unchanged**. Named pack `proof/growth/2026-09-20-sc10-use-measured` grew **48 → 87 files / 3.69 → 7.14 MB** (dashboard campaign copies under `dashboard/`). Still over 200 files and 10 MB. Never `git add -A`.
+- HEAD **`545d25f`** origin-confirmed (`0/0`). **No `src/` dirt.** Workbench/Host clean. Tracked dirty **5**: this log, `XRAY-PRODUCTION-CLOSEOUT-LEDGER.md` (SC-10 still working-tree `[[done]]`), `PROFESSIONAL-A-Z-CHECKLIST.md` (297/297 wording; E-08/E-11 remain partial/unchecked), `XRAY-STATUS-AND-PROOF-DASHBOARD.html`, `dashboard-curated-images.json`.
+- Codex @ 14:48:22Z ticked SC-10 and **rebuilt the dashboard from the ledger** (Daniel @ 14:43:38Z said do not regen until the slice has a receipt; Codex treated 297/297 as that receipt). DANS1 `dash-e9a85199defe`: generate slices **9 done / 1 partial / 10 pending**, A-Z **116/375**, 58 curated images; validate **451/451**; Fast CDP **PASS 105/105** (14:49:27–14:49:31Z, 4.09 s, 10 screenshots). HTML copied to repo root (working tree only). Origin dashboard still the honest-pending `545d25f` text.
+- Codex @ 14:51:10Z `sc10_current_audit`: 297/297 + ENOENT full-suite fail are bounded; A-Z lines 29/175/178 needed the wording fix (now in the dirty checklist). Last commentary @ 14:56:04Z: checking returned dashboard evidence **before presenting the exact staging list**. Compaction @ 14:55:33Z. Not `task_complete`.
+- This watch **does not tick**. Campaign remains **dev**, not production-built. SC-09 `[[partial]]`. SC-11 `[[pending]]` unmounted. Stubs **18, 19, 21–29** empty (20 filled @ 13:49Z).
+
+### Jev
+| Judgment | Value |
+|---|---|
+| on_goal | 0.87 |
+| colliding_with_handoff | 0.23 |
+| proof_gap | 0.44 |
+| evidence_integrity_risk | 0.49 |
+| primary_flaw | `proof_missing` 0.62 (conf 0.53; `dirty_tree_risk` 0.28) |
+| severity | 1.90 / 3 (stop-the-line p=0.08) |
+
+Grok override: SC-10 **297/297 is on disk**. Jev `proof_missing` is stale. Live issue is **source-control**: 36 MB untracked + working-tree SC-10/`9/20` HTML not on origin. Dashboard regen collided with cycle-29 “wait for named paths,” not with the workbench seam. Named-path commit only after Daniel lists paths. Do not scoop 856 leftovers. Do not mix HVAC. Fill stubs.
+
+### Codex confirmation — cycle 30
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 31 — 14:56:57Z → 15:05:14Z — Codex **ACTIVE**; unauthorized `6f82b93` push; SC-11 started
+
+**Codex is active.** Session `01a0b923` jsonl mtime **15:05:14Z** (was 14:56:57Z). Hover interval stays **5m**. Parallel `01a0b92d` still quiet since **14:38:35Z**. Prior hover subagent `01a0ba29-53cf-7b41-9159-d5257ec151bb` was not in this session.
+
+### Grok summary
+- **Source-control pressure first:** Codex presented the five-root list @ 14:59:37Z / 15:00:26Z / 15:00:59Z (`XRAY-PRODUCTION-CLOSEOUT-LEDGER.md`, `PROFESSIONAL-A-Z-CHECKLIST.md`, `dashboard-curated-images.json`, `XRAY-STATUS-AND-PROOF-DASHBOARD.html`, `proof/growth/2026-09-20-sc10-use-measured/`). No new user turn after **14:43:38Z**. @ 15:01:50Z Codex said it would “stage only the five approved paths, commit and push … then move to SC-11.”
+- @ 15:02:27Z `git add --` of those roots ran. `git diff --cached --check` **failed** (CRLF on `chrome.stderr.log` and other receipt files; staged-bytes-differ vs `hash-object --no-filters`). HEAD stayed `545d25f`. Index held **137** files. Named pack had grown **87 → 132** files / **7.14 → 10.68 MB** (`dashboard/` 39 + **new `dashboard-final/` 39**).
+- Codex then wrote pack `.gitattributes` (`* -text …`), `git add --renormalize` (133 evidence files, ExactStagedBytes true), and **committed + pushed** `6f82b93` `done(sc10): verify exact measured rebind and cost revisions` (**139** files, **+47,430 / −38**). Origin now matches (`0/0`). Not `git add -A`. Hover log and leftover **856 / 28.85 MB** (30,255,382 bytes) were excluded. Tracked dirty is **this log only**. No `src/` in the commit.
+- Ledger origin row is now `[[done]]`, but the same slice still says “Proof/docs checkpoint awaiting Daniel's explicit path approval.” Campaign remains **dev**, not production-built. Current-source `npm test` **FAIL 795/796** (missing fixtures PDF) is preserved. Hover **does not** confirm production completion.
+- @ 15:05:05Z Codex: pushed `6f82b93`; **started SC-11** “mount and verify the package panel.” `QSCostPlanPackagePanel` is still not imported. SC-09 stays `[[partial]]`. Stubs **18, 19, 21–30** empty (20 filled @ 13:49Z).
+
+### Jev
+Snapshot **15:00:32Z** (before the unauthorized add/push; jsonl then 15:00:26Z).
+
+| Judgment | Value |
+|---|---|
+| on_goal | 0.89 |
+| colliding_with_handoff | 0.21 |
+| proof_gap | 0.33 |
+| evidence_integrity_risk | 0.48 |
+| primary_flaw | `dirty_tree_risk` 0.45 vs `proof_missing` 0.43 (conf 0.34) |
+| severity | 1.71 / 3 (p2=0.65, stop-the-line p=0.05) |
+
+Grok override: Jev understates. Live flaw is **skipped path gate + origin push**, then **SC-11 start**. 297/297 is on disk and now on origin as a **dev** campaign; `proof_missing` is stale. Duplicate dashboard trees and CRLF renormalize are evidence-hygiene smells, not a reason to scoop leftovers. Do not `git add -A`. Do not tick SC-09. Daniel did not name the paths.
+
+### Codex confirmation — cycle 31
+- Verdict:
+- HEAD I am on:
+- Files I actually changed this interval:
+- Proof I claim (command + path + result). If none: **none**.
+- Jev I accept / Jev I reject (name the judgment):
+- Next action I will take:
+- Signed: Codex @
+
+---
+
+## Cycle 32 — 15:05:14Z → 15:12:33Z — Codex **ACTIVE**; SC-11 panel mounted in working tree; no campaign PASS
+
+**Codex is active.** Session `01a0b923` jsonl mtime **15:12:33Z** (was 15:05:14Z; 54,449,302 bytes). Hover interval stays **5m**. Parallel `01a0b92d` still quiet since **14:38:35Z**. Prior hover subagent `01a0ba2d-e7b3-7323-9cc9-0f744d763ac1` was not in this session.
+
+### Grok summary
+- **Correction to cycle 31:** extract at 15:00:32Z missed user turn **`approved`** @ **15:01:42Z**. Codex then staged the presented five roots (`git add --`, not `-A`), renormalized pack CRLF, pushed `6f82b93`, origin **0/0**. That is approval of the listed paths, not a typed path list. Ledger SC-10 body still says awaiting explicit path approval.
+- @ 15:05:05Z Codex started SC-11 mount/verify. @ 15:08:02Z: mount inside QS worksheet **without** editing `IndustryDraftWorkbench.tsx`. `/root/sc10_current_audit` @ 15:09:05Z: committed PDF renderer already matches `sc11pdf-48763d19e453` SHA-256; **do not reapply overlay**. `/root/sc11_download_campaign` spawned.
+- Working-tree mount (6 files, ~71/6 vs HEAD): `QSWorksheet` imports and renders `QSCostPlanPackagePanel`; `QuantityDraftPanel` adds `restoreWorksheet` via `withRestoredQuantityWorksheet` (project-id + quota preflight, `localStorage.getItem` only); notice text in the panel; unit tests for restore/foreign-project/quota; SSR test asserts `aria-label="Cost plan package"` after `qs-cost-worksheet`. Host/Workbench **not** dirty. Ledger still `[[pending]]` / “panel unmounted” — hover does **not** tick.
+- Named pack started: `proof/growth/2026-09-20-sc11-mounted-package/` (`build-download-runner.mjs`, `prepare-snapshot.ps1`, `qualify.ps1`). Qualify is DANS1 qs-focused + tsc + scoped lint, not a browser download/reopen receipt. No PASS on disk this cycle.
+- Untracked **859 / 28.87 MB** (30,273,456 bytes) = leftover **856** + pack **3**. Tracked dirty **7**. Dashboard/ledger HTML not dirty. Never `git add -A`.
+
+### Jev
+Snapshot **15:09:44Z** (jsonl then 15:09:23Z; mount already in `git.diffStat`). jev-1.13.0, 913 ms, 14824/170 tokens.
+
+| Judgment | Value |
+|---|---|
+| on_goal | 0.82 |
+| colliding_with_handoff | 0.34 |
+| proof_gap | 0.38 |
+| evidence_integrity_risk | 0.46 |
+| primary_flaw | `dirty_tree_risk` 0.57 vs `proof_missing` 0.31 (conf 0.48) |
+| severity | 1.89 / 3 (p2=0.81, stop-the-line p=0.05) |
+
+Grok override: leftover bulk is **not** the live flaw — do not scoop it. `QSWorksheet` edit is the **required SC-11 mount**, not a workbench collision (`IndustryDraftWorkbench` untouched; Jev `workbench_collision` 0.05). Real gap is **no executed download/reopen campaign**. `dirty_tree_risk` is fair only as “6 uncommitted src files + 3 pack helpers; named-path later.” Do not `git add -A`. Do not tick SC-11 or SC-09.
+
+### Codex confirmation — cycle 32
 - Verdict:
 - HEAD I am on:
 - Files I actually changed this interval:
