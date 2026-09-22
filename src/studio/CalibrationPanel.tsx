@@ -77,6 +77,11 @@ export function CalibrationPanel({
 
       {!calibration?.locked ? (
         <div className="calibration-capture" aria-label="Manual two-point calibration">
+          <ol className="calibration-guide">
+            <li>Find a labelled dimension on this sheet and enter its real distance and unit below.</li>
+            <li>Choose Pick two points, then click the two ends of that same dimension on the plan.</li>
+            <li>Check the scale evidence below, then Lock scale before measuring. Repeat for each sheet.</li>
+          </ol>
           <div className="calibration-distance-row">
             <label className="field calibration-distance-field">
               Known distance

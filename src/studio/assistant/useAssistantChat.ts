@@ -23,6 +23,7 @@ export const CONTEXT_CARRIED_UNAVAILABLE = 'Carried context (your saved profile 
 // [SC-22 context] end
 // [SC-22 capture] begin
 import { captureTurn } from './contextCapture';
+import { captureScreenContext } from './screenContext';
 import { useDeveloperMode } from './developerPreferences';
 import { developerReviewInstruction, hasDeveloperReview } from './developerMode';
 import { archiveChat, chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
@@ -149,6 +150,13 @@ export function useAssistantChat(jobId: string) {
     if(changingChats.has(jobId))throw Error('Wait for the saved conversation to open.');
     const noTools = reviewOnly || prohibitsAllTools(text);
     const editsDeclared = !noTools && (allowProjectEdits || usePermissions.getState().mode !== 'readonly');
+    if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
+    if (!reviewOnly && !noTools) {
+      const screen = await captureScreenContext().catch(() => ({ text: 'Current screen capture failed. Do not claim to see the screen.', images: [] }));
+      if (useStudio.getState().job.id !== jobId || useStudio.getState().persistenceRecoveryBlocked) throw Error('Project changed during screen capture. Please send again.');
+      images = [...images, ...screen.images].slice(0, 8);
+      fileContext += `\n${screen.text}`;
+    }
     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
     const initial = useChats.getState().records[jobId] || empty();
     const controller = new AbortController(); controllers.set(jobId, controller);

@@ -1,4 +1,5 @@
 import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
+import { McpConnectionButton } from './McpConnectionButton';
 import { CLOSE_SETTINGS_EVENT } from "./railLayout";
 import { WorkspaceRails } from "./WorkspaceRails";
 import { WorkflowNavigation } from "./WorkflowNavigation";
@@ -224,6 +225,7 @@ function StudioContent() {
           <small>{!s.persistenceHydrated ? 'Restoring project…' : s.persistenceError ? 'Save needs attention' : s.lastSavedJobRevision === s.job.revision ? 'Project record saved on this device' : 'Project record save unconfirmed'}</small>
         </div>
         <div className="studio-header-actions ml-auto flex items-center gap-2">
+          <McpConnectionButton />
           <button type="button" className="pill" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(v=>!v)}>Settings</button>
           <AccountButton onClick={()=>{setSettingsSection("Account");setSettingsOpen(true);}} />
         </div>

@@ -750,12 +750,12 @@ export function LiveAssistant() {
               className="assistant-move-handle"
               aria-label="Move live assistant"
               title="Drag to move · arrow keys move · Home resets"
-              onPointerDown={(e) => panel.pointerDown(e, "move")}
+              onPointerDown={(e) => { if (!docked) panel.pointerDown(e, "move"); }}
               onPointerMove={panel.pointerMove}
               onPointerUp={panel.pointerUp}
               onPointerCancel={panel.pointerUp}
               onLostPointerCapture={panel.pointerUp}
-              onKeyDown={(e) => panel.keyboard(e, "move")}
+              onKeyDown={(e) => { if (!docked) panel.keyboard(e, "move"); }}
               onDoubleClick={panel.reset}
             >
               <Bot size={19} />
@@ -1243,6 +1243,7 @@ export function LiveAssistant() {
             <label className="sr-only" htmlFor="live-assistant-prompt">
               Message live assistant
             </label>
+            <small className="assistant-screen-context">Current X-Ray view is included when you send: visible controls and available drawing images.</small>
             <textarea
               ref={input}
               id="live-assistant-prompt"

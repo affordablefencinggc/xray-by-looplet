@@ -65,6 +65,7 @@ import { primitives, projectBounds, type View } from "./drawing";
 import { rooms, designQuantities } from "./geometry";
 import { DrawingPrimitives } from "./DrawingPrimitives";
 import { Architect3D } from "./Architect3D";
+import { PlanModelSplit } from './PlanModelSplit';
 import { ArchitectInspector, NumberField } from "./ArchitectInspector";
 import "./architect.css";
 type Tool =
@@ -950,7 +951,7 @@ export function ArchitectWorkspace() {
                   All levels in 3D
                 </label>
               </div>
-              <div className={"arch-canvases " + (show3D ? "with-three" : "")}>
+              <PlanModelSplit plan={
                 <svg
                   ref={svg}
                   className="architect-plan"
@@ -1034,7 +1035,7 @@ export function ArchitectWorkspace() {
                     />
                   )}
                 </svg>
-                {show3D && (
+                } model={show3D && (
                   <Architect3D
                     project={p}
                     levelId={allLevels ? "all" : levelId}
@@ -1043,8 +1044,7 @@ export function ArchitectWorkspace() {
                     roofVisible={showRoof}
                     fitToken={fitToken}
                   />
-                )}
-              </div>
+                )} />
               <div className="arch-status">
                 <b>{toolNames[tool]}</b>
                 <span>
