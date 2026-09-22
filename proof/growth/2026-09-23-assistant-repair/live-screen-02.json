@@ -1,0 +1,81 @@
+[
+    [
+        "open",
+        "http://127.0.0.1:8082/"
+    ],
+    [
+        "set",
+        "viewport",
+        "1440",
+        "900"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027.studio-header\u0027)"
+    ],
+    [
+        "eval",
+        "(async()=\u003e{const {useStudio}=await import(\u0027/src/studio/store.ts\u0027);const {inspectPlanBytes}=await import(\u0027/src/studio/documents.ts\u0027);const bytes=new Uint8Array(await(await fetch(\u0027/models/redburn/source.pdf\u0027)).arrayBuffer());const imported=await inspectPlanBytes({name:\u002721-08-26_Redburn_BR250157_Prelim_Council (1).pdf\u0027,bytes,source:\u0027web\u0027});await useStudio.getState().importPlan(imported);useStudio.getState().setSheet(11);useStudio.getState().setPane(\u0027measure\u0027);window.__sourceTest=useStudio;return imported.binary.sha256})()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "document.querySelector(\u0027img.document-source-page\u0027)?.complete"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const original=window.fetch.bind(window);window.fetch=async(...args)=\u003e{const url=String(args[0]);if(url.includes(\u0027/api/minimax-ai\u0027)\u0026\u0026args[1]?.method===\u0027POST\u0027){const payload=JSON.parse(args[1].body);const parts=payload.contents.flatMap(c=\u003ec.parts);window.__screenRequest={images:parts.filter(p=\u003ep.inlineData).length,text:parts.filter(p=\u003ep.text).map(p=\u003ep.text).join(\u0027\\n\u0027).slice(-16000)};const response=await original(...args);const data=await response.clone().json();window.__screenResponse={status:response.status,text:data.content?.parts?.map(p=\u003ep.text||\u0027\u0027).join(\u0027\\n\u0027)||data.error};return response;}return original(...args)};document.querySelector(\u0027.live-assistant-launcher\u0027).click();return true})()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027#live-assistant-prompt\u0027) \u0026\u0026 !document.querySelector(\u0027#live-assistant-prompt\u0027).disabled"
+    ],
+    [
+        "eval",
+        "(()=\u003e{const input=document.querySelector(\u0027#live-assistant-prompt\u0027);Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,\u0027value\u0027).set.call(input,\u0027Look at the attached current-screen images and tell me the PDF page number and printed scale visible. Keep the answer brief and do not change the project.\u0027);input.dispatchEvent(new Event(\u0027input\u0027,{bubbles:true}));return true})()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!document.querySelector(\u0027[aria-label=\"Send assistant message\"]\u0027).disabled"
+    ],
+    [
+        "eval",
+        "document.querySelector(\u0027[aria-label=\"Send assistant message\"]\u0027).click()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!window.__screenRequest",
+        30000
+    ],
+    [
+        "eval",
+        "(()=\u003e{if(window.__screenRequest.images\u003c1||!window.__screenRequest.text.includes(\u0027Current PDF page selected in X-Ray: Page 12\u0027))throw Error(\u0027Automatic screenshot/page identity not sent\u0027);return {images:window.__screenRequest.images,page12:true}})()"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!window.__screenResponse",
+        60000
+    ],
+    [
+        "eval",
+        "window.__screenResponse"
+    ],
+    [
+        "wait",
+        "--fn",
+        "!!document.querySelector(\u0027[aria-label=\"Send assistant message\"]\u0027)",
+        60000
+    ],
+    [
+        "screenshot",
+        "live-screen-response.png"
+    ],
+    [
+        "errors"
+    ]
+]

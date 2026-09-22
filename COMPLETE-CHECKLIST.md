@@ -566,3 +566,7 @@ Declared elbows, tees and reducers now coordinate duct/pipe runs with trimmed po
 - [SC15-CLEAN-03](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md): 42/42 browser operations, tamper rejection, isolated storage wipe/recovery, actual restored drawing hash and inspected tablet screenshots. Links exact CSS diff.
 - [PROOF-BYTES-04](proof/growth/2026-09-21-archive-clean/steps/PROOF-BYTES-04.md): 85 evidence entries match disk and Git index after exact-byte preservation.
 - Recovery: `feat/closeout-sc09-remainder` after `d7bc0d60`; full SC-15 and production remain incomplete.
+
+## 2026-09-23 - assistant and calibration repair
+
+Bounded local browser fixes: [AR-01 layout](proof/growth/2026-09-23-assistant-repair/steps/AR-01.md), [AR-02 external MCP](proof/growth/2026-09-23-assistant-repair/steps/AR-02.md), [AR-03 divider](proof/growth/2026-09-23-assistant-repair/steps/AR-03.md), [AR-04 screen context](proof/growth/2026-09-23-assistant-repair/steps/AR-04.md), [AR-05 calibration clicks](proof/growth/2026-09-23-assistant-repair/steps/AR-05.md). Each links executed tests, screenshots, exact diff and limitations. 94 focused tests, TypeScript, production build, development 66/66 and actual screen request 17/17. No deployment/native acceptance; broader ledger remains open.

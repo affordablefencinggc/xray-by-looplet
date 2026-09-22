@@ -11,6 +11,9 @@ export async function captureScreenContext(doc: Document = document): Promise<Sc
   if (doc.visibilityState === 'hidden') return { text: 'X-Ray is hidden; no current screen observation is available.', images };
   const root = doc.querySelector('.workspace-rails');
   if (!root) return { text: 'X-Ray workspace is not mounted; screen context unavailable.', images };
+  const pageIdentity = [...root.querySelectorAll('.document-preview-page')]
+    .filter(el => visible(el, doc)).map(el => el.textContent?.trim()).filter(Boolean).join(' | ');
+  if (pageIdentity) notes.push(`Current PDF page selected in X-Ray: ${pageIdentity}. This is the document page index, which may differ from a sheet number printed inside the drawing.`);
   const labels = [...root.querySelectorAll('button,h1,h2,h3,label,[role="status"]')]
     .filter(el => !el.closest('.live-assistant,.workspace-settings,dialog') && visible(el, doc))
     .map(el => (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ')).filter(Boolean);
