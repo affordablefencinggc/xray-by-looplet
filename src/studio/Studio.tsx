@@ -28,6 +28,7 @@ import { ProjectRecoveryNotice, ProjectSaveFailure } from "./ProjectRecoveryNoti
 import { SheetManager } from "./SheetManager";
 import { useSheetLifecycle } from "./useSheetLifecycle.ts";
 import { PriceBookPanel } from "./pricing/PriceBookPanel";
+import { bomLineKey } from "./pricing/bomPricing";
 import type { PriceBookSession } from "./pricing/priceBooks";
 import { IndustryDraftWorkbench } from "./industries/IndustryDraftWorkbench";
 import { QS_HIGHLIGHT_EVENT, qsHighlightRequestSchema } from "./industries/quantity-surveying/qsEntityHighlight";
@@ -1905,12 +1906,18 @@ function CostPane() {
     }
   }
 
+  const bomSnapshot = s.bomState.snapshot;
+  const pricingBom = useMemo(() => bomSnapshot && bomSnapshot.binding.jobId === s.job.id ? {
+    commitRevision: bomSnapshot.commitRevision,
+    current: !s.bomState.invalidation && !s.bomState.pending,
+    lines: bomSnapshot.response.bom.lines.map(line => ({ key: bomLineKey(line), description: line.description, quantity: line.quantity.value, unit: line.quantity.unit })),
+  } : null, [bomSnapshot, s.bomState.invalidation, s.bomState.pending, s.job.id]);
   return (
     <div className="cost-workspace">
       {s.persistenceHydrated && !s.persistenceError && <QsMeasuredGeometryScope job={s.job} activeSheet={s.sheet} priceBookSession={priceBookSession} sourceReady={s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId && s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256}>
         <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.sheet} calibrations={s.job.calibrations} />
       </QsMeasuredGeometryScope>}
-      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} />
+      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} bom={pricingBom} />
         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">
         <header className="specification-heading-row"><div><span className="eyebrow">Measured geometry</span><h2>General construction quantities</h2></div></header>

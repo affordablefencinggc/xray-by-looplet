@@ -54,13 +54,23 @@ export type PriceImport = z.infer<typeof priceImportSchema>;
 const revisionSchema = z.object({ ...priceImportSchema.shape, revision: z.number().int().positive(), importedAt: z.string().datetime() }).strict()
   .superRefine((v, ctx) => { const parsed = priceImportSchema.safeParse({ metadata: v.metadata, source: v.source, rows: v.rows });
     if (!parsed.success) for (const issue of parsed.error.issues) ctx.addIssue({ code: "custom", message: issue.message }); });
+const bomKey = z.string().trim().min(1).max(500);
+const decimalFactor = z.string().regex(/^(?:0|[1-9]\d{0,9})(?:\.\d{1,6})?$/, "Use a decimal factor with up to six decimal places.").refine(v => Number(v) > 0 && Number(v) <= 1e6, "Factor must be greater than zero.");
+/** Maps one material-register item (item code, or group key when uncoded) to a saved rate. */
+export const bomMappingSchema = z.object({ key: bomKey, bookId: z.string().uuid(), bookRevision: z.number().int().positive(), sourceLine: z.number().int().positive(),
+  factor: decimalFactor, rounding: z.enum(["exact", "up"]) }).strict();
+export type BomMapping = z.infer<typeof bomMappingSchema>;
+/** A worksheet line whose quantity is derived from a committed material-register line. */
+const bomLinkSchema = z.object({ key: bomKey, commitRevision: z.number().int().positive(), bomQuantity: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/), unit: z.string().min(1).max(20),
+  factor: decimalFactor, rounding: z.enum(["exact", "up"]) }).strict();
 export const priceBookLibrarySchema = z.object({
   schema: z.literal("xray.price-books/v1"), jobId: z.string().min(1).max(200), revision: z.number().int().nonnegative(),
   books: z.array(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), archived: z.boolean(),
     revisions: z.array(revisionSchema).min(1).max(50) }).strict()).max(100),
   worksheet: z.array(z.object({ id: z.string().uuid(), bookId: z.string().uuid(), bookRevision: z.number().int().positive(),
     sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
-    addedAt: z.string().datetime() }).strict()).max(5000),
+    addedAt: z.string().datetime(), bom: bomLinkSchema.optional() }).strict()).max(5000),
+  bomMappings: z.array(bomMappingSchema).max(500).optional(),
 }).strict().superRefine((v, ctx) => {
   if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
   for (const book of v.books) if (book.revisions.some((r, i) => r.revision !== i + 1))
@@ -70,6 +80,12 @@ export const priceBookLibrarySchema = z.object({
   if (new Set(v.worksheet.map(line => line.id)).size !== v.worksheet.length) ctx.addIssue({ code: "custom", message: "Duplicate priced line identity." });
   for (const line of v.worksheet) if (!v.books.find(b => b.id === line.bookId)?.revisions.find(r => r.revision === line.bookRevision)?.rows.some(row => row.sourceLine === line.sourceLine))
     ctx.addIssue({ code: "custom", message: "A priced line references a missing source rate." });
+  const rateExists = (bookId: string, bookRevision: number, sourceLine: number) => v.books.find(b => b.id === bookId)?.revisions.find(r => r.revision === bookRevision)?.rows.some(row => row.sourceLine === sourceLine);
+  const mappings = v.bomMappings ?? [];
+  if (new Set(mappings.map(m => m.key)).size !== mappings.length) ctx.addIssue({ code: "custom", message: "Each material register item can be mapped to one rate." });
+  for (const m of mappings) if (!rateExists(m.bookId, m.bookRevision, m.sourceLine)) ctx.addIssue({ code: "custom", message: `Material mapping ${m.key} references a missing source rate.` });
+  const linked = v.worksheet.filter(line => line.bom).map(line => line.bom!.key);
+  if (new Set(linked).size !== linked.length) ctx.addIssue({ code: "custom", message: "A material register item can price only one worksheet line." });
 });
 export type PriceBookLibrary = z.infer<typeof priceBookLibrarySchema>;
 export type PriceBook = PriceBookLibrary["books"][number];
@@ -229,10 +245,11 @@ export function pricedWorksheetTotals(library: PriceBookLibrary) {
 }
 export function pricedWorksheetCsv(library: PriceBookLibrary) {
   const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
-  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at", "Source worksheet", "Header row"],
+  return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at", "Source worksheet", "Header row", "Quantity source"],
     ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
       return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
-        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt, r.revision.source.worksheet ?? "", r.revision.source.headerRow ?? ""]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+        r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt, r.revision.source.worksheet ?? "", r.revision.source.headerRow ?? "",
+        line.bom ? `material register ${line.bom.commitRevision}: ${line.bom.key} ${line.bom.bomQuantity} ${line.bom.unit} x ${line.bom.factor}${line.bom.rounding === "up" ? " rounded up" : ""}` : "entered"]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
   const r = book.revisions.find(v => v.revision === revisionNumber);

@@ -8,6 +8,13 @@ import "./priceBooks.css";
 import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
 import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
 import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
+import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
+import { priceBookLibrarySchema } from "./priceBooks.ts";
+
+/** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
+export type PriceBookBomSource = BomPricingSource & { current: boolean };
+const describeChanges = (changes: BomPricingChange[]) => changes.map(change => change.kind === "updated" ? `${change.key} ${change.from} → ${change.to}`
+  : change.kind === "added" ? `${change.key} added (${change.quantity})` : `${change.key} removed`).join("; ");
 
 type SourceFile = { fileName: string; sizeBytes: number; sha256: string } & ({ kind: "csv"; text: string } | { kind: "xlsx"; workbook: PriceWorkbook });
 type RateSelection = { bookId: string; revision: number; sourceLine: number };
@@ -18,7 +25,7 @@ function download(text: string, name: string) {
 const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
 
 /** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
-export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void }) {
+export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void; bom?: PriceBookBomSource | null }) {
   const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
   const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
   const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
@@ -73,6 +80,26 @@ export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSe
     catch (error) { if (currentJob.current === savingJob) setNotice(priceBookError(error)); return false; }
     finally { setBusy(false); }
   }
+  // Linked lines follow each new committed material register; a stale register never changes prices.
+  const bomSignature = bom?.current ? JSON.stringify([bom.commitRevision, bom.lines]) : null;
+  useEffect(() => {
+    if (!bom?.current || !value || busy || session?.blocked || !(value.bomMappings?.length || value.worksheet.some(line => line.bom))) return;
+    try {
+      const synced = syncBomPricedLines(value, bom);
+      if (synced.library.revision !== value.revision)
+        void save(synced.library, synced.changes.length ? `Priced lines updated from material register ${bom.commitRevision}: ${describeChanges(synced.changes)}.` : `Priced lines linked to material register ${bom.commitRevision}.`);
+    } catch (error) { setNotice(priceBookError(error)); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bomSignature, value?.revision, busy]);
+  function saveMapping(key: string, rate: string, factor: string, roundUp: boolean) {
+    if (!value || !bom) return;
+    try {
+      const [bookId, revision, sourceLine] = rate.split("|");
+      const mapped = rate ? setBomMapping(value, { key, bookId, bookRevision: Number(revision), sourceLine: Number(sourceLine), factor: factor.trim() || "1", rounding: roundUp ? "up" : "exact" }) : clearBomMapping(value, key);
+      const synced = bom.current ? syncBomPricedLines(mapped, bom).library : mapped;
+      void save(priceBookLibrarySchema.parse({ ...synced, revision: value.revision + 1 }), rate ? `${key} priced from the material register.` : `${key} is no longer priced from the material register.`);
+    } catch (error) { setNotice(priceBookError(error)); }
+  }
   async function chooseFile(candidate: File | undefined) {
     if (!candidate) return;
     const ticket = ++generation.current; setBusy(true); setNotice(""); setReview(null); setFile(null); setMapping(null);
@@ -120,7 +147,7 @@ export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSe
     </div>
     {session?.error && <p className="price-notice" role="alert">{session.error}</p>}
     {notice && <p className="price-notice" role="status">{notice}</p>}
-    <p className="price-help">Saved with this project on this device. Your existing reference sheet remains available in Settings. Worksheet quantities are entered by you; takeoff quantities and quotes are separate.</p>
+    <p className="price-help">Saved with this project on this device. Your existing reference sheet remains available in Settings. Map material-register items to rates once and their priced lines follow each new material build; other worksheet quantities are entered by you.</p>
     {tab === "import" && <>
       <div className="price-actions"><button className="pill" disabled={disabled} onClick={() => input.current?.click()}><FileUp size={16} />Choose CSV or Excel workbook</button>
         <button className="pill" onClick={() => download(priceCsvTemplate(), "price-book-template.csv")}><Download size={16} />CSV template</button></div>
@@ -160,6 +187,7 @@ export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSe
       {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => chooseRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
     </>}
     {tab === "worksheet" && <>
+      {bom && value && <BomPricingSection bom={bom} library={value} disabled={!!disabled} onSave={saveMapping} />}
       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
       {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
       {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{rate.rate} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
@@ -169,7 +197,7 @@ export function PriceBookPanel({ jobId, onSessionChange }: { jobId: string; onSe
         <div className="price-actions"><button className="pill primary" disabled={disabled || !amount} onClick={() => { if (value && selection) { try { void save(addPricedLine(value, selection.bookId, selection.revision, selection.sourceLine, quantity), "Reviewed rate applied to the priced worksheet.").then(ok => { if (ok) setSelection(null); }); } catch (error) { setNotice(priceBookError(error)); } } }}><Plus size={16} />Add reviewed priced line</button><button className="pill" onClick={() => setSelection(null)}>Cancel line</button></div>
       </div>}
       {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
-      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}<details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details></article>; })}
+      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}{line.bom ? <p className="price-help" data-bom-linked={line.bom.key}>From material register {line.bom.commitRevision}: {line.bom.key} {line.bom.bomQuantity} {line.bom.unit} × {line.bom.factor}{line.bom.rounding === "up" ? ", rounded up" : ""}. Change or clear its mapping above to change this line.</p> : <details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details>}</article>; })}
     </>}
     <PricingResearchPanel projectId={jobId} />
   </section>;
@@ -186,4 +214,32 @@ function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: Pric
       <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{row.rate}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
     </details>
   </article>;
+}
+
+function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
+  const options = library.books.filter(book => !book.archived).flatMap(book => { const revision = book.revisions.at(-1)!;
+    return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${row.rate} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
+  const mapped = library.bomMappings ?? [];
+  return <div className="price-review" aria-label="Price from material register" data-bom-commit={bom.commitRevision} data-bom-current={bom.current}>
+    <h3>Price from material register</h3>
+    {bom.current ? <p className="price-help">Material register {bom.commitRevision} · {bom.lines.length} lines. Choose a rate for each material once; priced lines update whenever the materials are rebuilt. Factor converts the material unit to the rate unit (for example 1 ÷ 2.4 m lengths).</p>
+      : <p role="alert">The takeoff changed after material register {bom.commitRevision}. Priced lines still show that register; rebuild the materials to update them.</p>}
+    {!options.length && <p>Import a price book first to map materials to rates.</p>}
+    <div className="price-table-wrap"><table className="bom-pricing-table"><thead><tr><th>Material</th><th>Quantity</th><th>Rate</th><th>Factor</th><th><span className="sr-only">Action</span></th></tr></thead><tbody>
+      {bom.lines.map(line => { const current = mapped.find(m => m.key === line.key);
+        return <BomPricingRow key={`${line.key}-${current ? `${current.bookId}${current.bookRevision}${current.sourceLine}${current.factor}${current.rounding}` : "none"}`} line={line} options={options} disabled={disabled}
+          initial={current ? { rate: `${current.bookId}|${current.bookRevision}|${current.sourceLine}`, factor: current.factor, roundUp: current.rounding === "up" } : null} onSave={onSave} />; })}
+    </tbody></table></div>
+  </div>;
+}
+
+function BomPricingRow({ line, options, disabled, initial, onSave }: { line: PriceBookBomSource["lines"][number]; options: { value: string; label: string }[]; disabled: boolean;
+  initial: { rate: string; factor: string; roundUp: boolean } | null; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
+  const [rate, setRate] = useState(initial?.rate ?? ""), [factor, setFactor] = useState(initial?.factor ?? "1"), [roundUp, setRoundUp] = useState(initial?.roundUp ?? false);
+  const changed = rate !== (initial?.rate ?? "") || factor !== (initial?.factor ?? "1") || roundUp !== (initial?.roundUp ?? false);
+  return <tr data-bom-key={line.key}><td><strong>{line.key}</strong><br />{line.description}</td><td className="price-scalar">{line.quantity} {line.unit}</td>
+    <td><select aria-label={`Rate for ${line.key}`} value={rate} disabled={disabled} onChange={event => setRate(event.target.value)}><option value="">Not priced</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></td>
+    <td><input aria-label={`Factor for ${line.key}`} inputMode="decimal" value={factor} disabled={disabled || !rate} onChange={event => setFactor(event.target.value)} />
+      <label className="bom-round-up"><input aria-label={`Round up ${line.key}`} type="checkbox" checked={roundUp} disabled={disabled || !rate} onChange={event => setRoundUp(event.target.checked)} />Round up</label></td>
+    <td><button className="pill" disabled={disabled || !changed || (!rate && !initial)} onClick={() => onSave(line.key, rate, factor, roundUp)}>{!rate && initial ? "Clear" : "Save"}</button></td></tr>;
 }
