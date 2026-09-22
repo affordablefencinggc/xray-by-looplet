@@ -8,7 +8,17 @@ export function PrintedScaleAction() {
   const [error, setError] = useState('');
   const source = s.activePlanBinary;
   const reviewed = source ? reviewedPrintedScale(source.sha256, s.sheet) : null;
-  if (!source || source.kind !== 'pdf' || (s.currentCalibration.locked && s.currentCalibration.coordinateSpace === 'source-page-v1')) return null;
+  if (!source || source.kind !== 'pdf') return null;
+  if (s.currentCalibration.locked && s.currentCalibration.coordinateSpace === 'source-page-v1') {
+    const candidate = s.currentCalibration.candidates.find(item => item.id === s.currentCalibration.selectedCandidateId);
+    if (candidate?.provenance.method !== 'printed PDF scale') return null;
+    const drawing = s.pane === 'sketch';
+    return <section className="integrity-notice printed-scale-ready" role="status">
+      <strong>Scale set: 1:{Math.round(s.currentCalibration.metresPerUnit * 72 / 0.0254)} · Sheet {s.sheet + 1}</strong>
+      <span>{drawing ? 'Choose Draw on this sheet, click points on the plan, then Commit trace.' : 'Choose Measure a run, click the start and end on the plan, then Finish trace.'}</span>
+      <button className="pill" type="button" onClick={() => s.setTool(drawing ? 'sketch' : 'length')}>{drawing ? 'Draw on this sheet' : 'Measure a run'}</button>
+    </section>;
+  }
   function apply() {
     try {
       const state = useStudio.getState();

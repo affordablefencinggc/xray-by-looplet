@@ -3,20 +3,20 @@
    custom properties; the panel (portaled to <body>) is docked into that box.
    Rails are only measured from 941 px, so the docking is scoped the same way. */
 @media (min-width: 941px) {
-  :root[data-assistant-rail="true"] .workspace-rails .studio-right-rail,
-  :root[data-assistant-rail="true"] .workspace-rails .building-inspector,
-  :root[data-assistant-rail="true"] .workspace-rails .measure-inspector,
-  :root[data-assistant-rail="true"] .workspace-rails .arch-inspector {
+  :root[data-assistant-rail="true"] .workspace-rails[data-assistant-open="true"] .studio-right-rail,
+  :root[data-assistant-rail="true"] .workspace-rails[data-assistant-open="true"] .building-inspector,
+  :root[data-assistant-rail="true"] .workspace-rails[data-assistant-open="true"] .measure-inspector,
+  :root[data-assistant-rail="true"] .workspace-rails[data-assistant-open="true"] .arch-inspector {
     visibility: hidden;
   }
-  :root[data-assistant-rail="true"] .live-assistant {
+  :root[data-assistant-rail="true"] .live-assistant.is-open {
     position: fixed !important;
     left: var(--assistant-rail-left, auto) !important;
     top: var(--assistant-rail-top, 0px) !important;
     right: 0 !important;
-    bottom: auto !important;
+    bottom: var(--assistant-column-bottom, 0px) !important;
     width: var(--assistant-rail-width, var(--right-menu-width, 400px)) !important;
-    height: var(--assistant-rail-height, 100dvh);
+    height: auto !important;
     display: flex;
     flex-direction: column;
     /* Below the settings drawer (30) and the seam controls (35/36) so both stay usable in rail mode. */
@@ -36,7 +36,7 @@
     box-shadow: -3px 0 7px -4px #0005;
     animation: none;
   }
-  :root[data-assistant-rail="true"] .live-assistant-launcher {
+  :root[data-assistant-rail="true"] .live-assistant.is-open .live-assistant-launcher {
     display: none;
   }
   :root[data-assistant-rail="true"] .assistant-drag-grip,
@@ -114,6 +114,21 @@
   }
 }
 @media (max-width: 940px) {
+  :root[data-assistant-rail="true"] .live-assistant.is-open {
+    position: fixed !important;
+    left: auto !important;
+    right: 0 !important;
+    top: var(--assistant-column-top, 90px) !important;
+    bottom: 0 !important;
+    width: min(100vw, 400px) !important;
+    height: auto !important;
+    display: flex;
+    flex-direction: column;
+  }
+  :root[data-assistant-rail="true"] .live-assistant-panel { flex: 1; min-height: 0; height: 100% !important; max-height: none; margin: 0; }
+  :root[data-assistant-rail="true"] .live-assistant.is-open .live-assistant-launcher,
+  :root[data-assistant-rail="true"] .assistant-corner,
+  :root[data-assistant-rail="true"] .assistant-drag-grip { display: none; }
   .rail-assistant-toggle {
     display: none;
   }

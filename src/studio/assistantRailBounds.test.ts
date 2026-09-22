@@ -68,27 +68,20 @@ describe("SC-19 collapsed rail bounds", () => {
     );
   });
 
-  it("docks the OPEN panel to the same column instead of floating it", () => {
-    // Opening must grow the rail upward, not turn it into a free window over the workspace. The
-    // inline style carries left/top/width from the undocked panel rect, so the docked rule has to
-    // override all three or the panel escapes the column the moment it opens.
+  it("keeps a closed launcher at the bottom of the column instead of pinning an open chat to the top", () => {
     const rule = collapsedRailDesktopRule();
-    const open = rule.slice(rule.indexOf(".live-assistant.is-open"));
-    assert.match(open, /left:\s*var\(--assistant-seam-left,\s*0px\)\s*!important/, "the open panel must start at the seam");
-    assert.match(open, /right:\s*0\s*!important/, "the open panel must reach the right edge");
-    assert.match(open, /width:\s*auto\s*!important/, "the open panel must not keep the free-floating width");
-    assert.match(open, /top:\s*var\(--assistant-column-top,\s*90px\)\s*!important/, "the panel must begin at the workbench top");
-    assert.match(open, /bottom:\s*var\(--assistant-column-bottom,\s*0px\)\s*!important/, "the panel must reach the workbench bottom without a gap");
-    assert.match(open, /border-radius:\s*0/, "the full-height panel must have square corners");
+    assert.match(rule, /top:\s*auto\s*!important/, "a closed launcher must not be pinned to the top of the window");
+    assert.match(rule, /bottom:\s*var\(--assistant-column-bottom,\s*0px\)\s*!important/, "a closed launcher sits on the bottom of the column");
+    assert.equal(rule.includes(".live-assistant.is-open {"), false, "opening the chat must not turn it into a full-width bar at the top");
   });
 
-  it("hides the collapsed launcher once the panel is open", () => {
-    // The launcher IS the collapsed rail; the open panel's header carries the same title and the
-    // close control. Rendering both stacks a second bar under the panel. It is never unmounted
-    // (focus returns to it on close), so it must be hidden rather than removed.
-    const rule = collapsedRailDesktopRule();
-    const launcher = rule.slice(rule.indexOf(".live-assistant.is-open .live-assistant-launcher"));
-    assert.match(launcher, /display:\s*none/, "the launcher must be hidden while the panel is open");
+  it("docks the open chat into the right rail, with the composer at the bottom of that column", () => {
+    const rail = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "assistantRail.css"), "utf8");
+    assert.match(rail, /data-assistant-rail="true"\] \.live-assistant\.is-open \.live-assistant-launcher/, "the launcher is hidden only while the docked chat is open");
+    const docked = css.slice(css.indexOf(':root[data-assistant-rail="true"] .live-assistant.is-open {'));
+    assert.match(docked, /top:\s*var\(--assistant-column-top,\s*90px\)\s*!important/);
+    assert.match(docked, /bottom:\s*var\(--assistant-column-bottom,\s*0px\)\s*!important/);
+    assert.match(docked, /left:\s*var\(--assistant-seam-left,\s*auto\)\s*!important/, "the docked chat starts at the right column, not the left edge of the window");
   });
 
   it("is not overridden by the later launcher width rule", () => {
@@ -110,15 +103,14 @@ describe("SC-19 collapsed rail bounds", () => {
     );
   });
 
-  it("does not depend on [data-assistant-rail], which is already cleared when the panel closes", () => {
-    // WorkspaceRails.tsx:96 dispatches "assistant-closed" on close and nextRailState clears rail
-    // mode for that action, removing the attribute and its four --assistant-rail-* variables.
-    // A rule keyed off them would never apply in exactly the state this fixes.
+  it("does not depend on [data-assistant-rail] for the closed launcher", () => {
+    // Closing the chat keeps the column, but the closed launcher is also shown when the user has
+    // chosen the floating panel. That bar must sit in the right column without reading rail vars.
     const rule = collapsedRailDesktopRule();
     assert.equal(
       /data-assistant-rail/.test(rule),
       false,
-      "the collapsed-rail rule must not key off an attribute that is cleared before it renders",
+      "the closed launcher must not key off rail mode",
     );
     assert.equal(
       /--assistant-rail-(left|width|top|height)/.test(rule),

@@ -5,7 +5,7 @@
  * attribute, and `assistantRail.css` docks the existing panel into that box.
  * Desktop and tablet only (the rails are not measured under 941 px).
  */
-export const ASSISTANT_RAIL_KEY = "xray:assistant-rail:v1";
+export const ASSISTANT_RAIL_KEY = "xray:assistant-rail:v3";
 /** Dispatched on window by the panel's own dock/undock header button; WorkspaceRails toggles rail mode on it. */
 export const ASSISTANT_RAIL_TOGGLE_EVENT = "xray:assistant-rail-toggle";
 export const ASSISTANT_RAIL_MIN_VIEWPORT = 941;
@@ -15,7 +15,9 @@ export type RailState = { rail: boolean; rightCollapsed: boolean };
 export type RailAction = "toggle-rail" | "collapse-right" | "expand-right" | "assistant-closed";
 
 export function readAssistantRail(raw: string | null): boolean {
-  return raw === "1" || raw === "true";
+  // The right column is the assistant unless the user has chosen the floating panel.
+  if (raw === null || raw === "") return true;
+  return raw !== "0" && raw !== "false";
 }
 export function serializeAssistantRail(on: boolean): string {
   return on ? "1" : "0";
@@ -33,19 +35,20 @@ export function assistantRailBox(rail: RailBox | null, viewportWidth: number, vi
 }
 /**
  * State machine for the two toggles that share the right menu. Entering rail mode
- * needs the menu expanded (its box is the dock); collapsing the menu or closing the
- * assistant leaves rail mode so the ordinary menu comes back.
+ * needs the menu expanded (its box is the dock). Collapsing preserves docking preference.
+ * Only the explicit dock/undock control changes that preference. Closing keeps the column: the launcher
+ * stays at the bottom of that rail instead of turning into a box at the top of the page.
  */
 export function nextRailState(current: RailState, action: RailAction): RailState {
   switch (action) {
     case "toggle-rail":
       return current.rail ? { ...current, rail: false } : { rail: true, rightCollapsed: false };
     case "collapse-right":
-      return { rail: false, rightCollapsed: true };
+      return { ...current, rightCollapsed: true };
     case "expand-right":
       return { ...current, rightCollapsed: false };
     case "assistant-closed":
-      return { ...current, rail: false };
+      return current;
   }
 }
 /** CSS custom properties published on the document root for the docked panel. */

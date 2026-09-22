@@ -35,9 +35,8 @@ const ASSISTANT_RAIL_VARS = ["--assistant-rail-left", "--assistant-rail-top", "-
  *
  * The panel is portaled to document.body (LiveAssistant.tsx:1307), so it is outside this
  * component's subtree and cannot inherit --right-menu-width from the container style below. The
- * collapsed rail needs the seam to sit flush against it, and unlike the four --assistant-rail-*
- * vars this one must survive the panel closing: nextRailState clears rail mode on "assistant-closed",
- * which is exactly the state the collapsed rail renders in.
+ * collapsed rail needs the seam to sit flush against it. Closing the chat keeps the column, and
+ * the floating-panel option still needs this seam after the user undocks.
  */
 const ASSISTANT_SEAM_VAR = "--assistant-seam-left";
 
@@ -62,7 +61,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     return () => document.documentElement.removeAttribute("data-right-menu-collapsed");
   }, [rightCollapsed]);
   // Assistant rail mode: the right menu's box becomes the Live assistant (assistantRailMode.ts).
-  const [railMode, setRailMode] = useState(false);
+  const [railMode, setRailMode] = useState(true);
   const [dock, setDock] = useState<AssistantRailBox | null>(null);
   const assistantOpen = useLiveAssistant(s => s.open);
   const assistantWasOpen = useRef(false);
@@ -71,7 +70,8 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
     setRailMode(next.rail);
     if (next.rightCollapsed !== rightCollapsed) useStudio.setState({ rightCollapsed: next.rightCollapsed });
     if (next.rail || action === "collapse-right") window.dispatchEvent(new Event(CLOSE_SETTINGS_EVENT));
-    if (next.rail) useLiveAssistant.setState({ open: true });
+    if (action === "collapse-right") useLiveAssistant.setState({ open: false });
+    else if (next.rail) useLiveAssistant.setState({ open: true });
   };
   const setCollapsed = (side: keyof RailWidths, value: boolean) => {
     if (side === "left") setLeftCollapsed(value);
@@ -90,11 +90,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
       setWidths(readRailWidths(localStorage.getItem(RAIL_LAYOUT_KEY)));
     } catch { /* storage unavailable */ }
     try {
-      if (readAssistantRail(localStorage.getItem(ASSISTANT_RAIL_KEY))) {
-        setRailMode(true);
-        useStudio.setState({ rightCollapsed: false });
-        useLiveAssistant.setState({ open: true });
-      }
+      setRailMode(readAssistantRail(localStorage.getItem(ASSISTANT_RAIL_KEY)));
     } catch { /* storage unavailable */ }
     setReady(true);
     const update = (event: Event) =>
@@ -118,6 +114,9 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
         localStorage.setItem(ASSISTANT_RAIL_KEY, serializeAssistantRail(railMode));
       } catch { /* storage unavailable */ }
   }, [railMode, ready]);
+  useEffect(() => {
+    if (assistantOpen && railMode && rightCollapsed) useStudio.setState({ rightCollapsed: false });
+  }, [assistantOpen, railMode, rightCollapsed]);
   // The panel header's dock/undock button reaches rail mode through a window event.
   const applyRailRef = useRef(applyRail);
   applyRailRef.current = applyRail;
@@ -145,7 +144,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
       : null;
     const vars = assistantRailVars(box);
     setDock((previous) => (JSON.stringify(previous) === JSON.stringify(box) ? previous : box));
-    if (box) root.setAttribute("data-assistant-rail", "true");
+    if (railMode && !rightCollapsed) root.setAttribute("data-assistant-rail", "true");
     else root.removeAttribute("data-assistant-rail");
     for (const name of ASSISTANT_RAIL_VARS) {
       if (vars[name]) root.style.setProperty(name, vars[name]);
@@ -287,6 +286,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
       data-left-collapsed={leftCollapsed}
       data-right-collapsed={rightCollapsed}
       data-assistant-rail={railMode}
+      data-assistant-open={assistantOpen}
       data-canvas-focus={canvasFocus}
       style={
         {
@@ -370,7 +370,7 @@ export function WorkspaceRails({ children, pane }: { children: ReactNode; pane: 
               top: Math.max(0, r.top + r.height / 2 - 17.5),
             }}
             onClick={() => {
-              if (rightCollapsed) applyRail('toggle-rail');
+              if (rightCollapsed) { setRailMode(true); useStudio.setState({ rightCollapsed: false }); useLiveAssistant.setState({ open: true }); }
               else { applyRail('collapse-right'); useLiveAssistant.setState({open: false}); }
             }}
           >

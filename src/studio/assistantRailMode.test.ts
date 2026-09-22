@@ -12,11 +12,12 @@ import {
 
 describe("assistant rail persistence", () => {
   it("round-trips and ignores junk", () => {
-    assert.equal(ASSISTANT_RAIL_KEY, "xray:assistant-rail:v1");
+    assert.equal(ASSISTANT_RAIL_KEY, "xray:assistant-rail:v3");
     assert.equal(readAssistantRail(serializeAssistantRail(true)), true);
     assert.equal(readAssistantRail(serializeAssistantRail(false)), false);
-    assert.equal(readAssistantRail(null), false);
-    assert.equal(readAssistantRail("{}"), false);
+    assert.equal(readAssistantRail(null), true);
+    assert.equal(readAssistantRail(""), true);
+    assert.equal(readAssistantRail("{}"), true);
     assert.equal(readAssistantRail("true"), true);
   });
 });
@@ -51,9 +52,9 @@ describe("nextRailState", () => {
     assert.deepEqual(nextRailState({ rail: false, rightCollapsed: true }, "toggle-rail"), { rail: true, rightCollapsed: false });
     assert.deepEqual(nextRailState({ rail: true, rightCollapsed: false }, "toggle-rail"), { rail: false, rightCollapsed: false });
   });
-  it("collapsing the menu or closing the assistant leaves rail mode", () => {
-    assert.deepEqual(nextRailState({ rail: true, rightCollapsed: false }, "collapse-right"), { rail: false, rightCollapsed: true });
-    assert.deepEqual(nextRailState({ rail: true, rightCollapsed: false }, "assistant-closed"), { rail: false, rightCollapsed: false });
+  it("collapsing the menu preserves docking, and closing the chat keeps the column", () => {
+    assert.deepEqual(nextRailState({ rail: true, rightCollapsed: false }, "collapse-right"), { rail: true, rightCollapsed: true });
+    assert.deepEqual(nextRailState({ rail: true, rightCollapsed: false }, "assistant-closed"), { rail: true, rightCollapsed: false });
     assert.deepEqual(nextRailState({ rail: false, rightCollapsed: true }, "expand-right"), { rail: false, rightCollapsed: false });
     assert.deepEqual(nextRailState({ rail: true, rightCollapsed: false }, "expand-right"), { rail: true, rightCollapsed: false });
   });
