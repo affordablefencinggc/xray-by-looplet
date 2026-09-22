@@ -1,0 +1,29 @@
+▶ SC-16 recovery journal
+  ✔ B3 rejects a journal whose sequences go backwards (3.8459ms)
+  ✔ B4 rejects two uncommitted entries (0.4037ms)
+  ✔ B8 rolls back the in-flight save and leaves the committed entry (1.1273ms)
+  ✔ B9 quarantines two in-flight entries and does not change stored bytes (0.7262ms)
+  ✔ refuses a second staged write while one save is in flight (0.1827ms)
+✔ SC-16 recovery journal (7.0907ms)
+▶ SC-16 workspace lock
+  ✔ B1 rejects a heartbeat that precedes acquisition (3.2848ms)
+  ✔ B2 rejects an expiry equal to the heartbeat (0.2858ms)
+  ✔ B5 gives the exclusive lock to exactly one of two racing tabs (1.3089ms)
+  ✔ B6 keeps a clock-skewed lease read-only instead of taking it over (0.2059ms)
+  ✔ B7 reclaims a holder that missed three heartbeats after its own expiry (0.1488ms)
+  ✔ times out a takeover while the holder is still heartbeating and still holds the lock (0.4788ms)
+  ✔ releases the lock so the read-only tab can acquire it (0.5172ms)
+  ✔ hands a live session to the tab that asks to take over (0.5379ms)
+  ✔ reclaims a dead holder once the lock is free and the lease is stale (0.3957ms)
+  ✔ elects one leader when Web Locks is missing and both tabs announce together (0.6382ms)
+  ✔ shows the read-only notice and Take Over Session without mounting the studio (4.5399ms)
+✔ SC-16 workspace lock (13.4183ms)
+ℹ tests 16
+ℹ suites 2
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180.1166
+EXIT:0

@@ -1,0 +1,19 @@
+run dfc1941c8ba1
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+#< CLIXML
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><S S="Error">Invoke-VerifiedBundledEngineStage : Exception calling "IsPathRooted" with "1" argument(s): "Illegal characters in _x000D__x000A_</S><S S="Error">path."_x000D__x000A_</S><S S="Error">At C:\Users\danie\XRayBuilds\incoming\dfc1941c8ba1\worker.ps1:59 char:35_x000D__x000A_</S><S S="Error">+ ... GINE_SHA256=Invoke-VerifiedBundledEngineStage -PackageDir $EnginePack ..._x000D__x000A_</S><S S="Error">+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~_x000D__x000A_</S><S S="Error">    + CategoryInfo          : NotSpecified: (:) [Invoke-VerifiedBundledEngineStage], MethodInvocationException_x000D__x000A_</S><S S="Error">    + FullyQualifiedErrorId : ArgumentException,Invoke-VerifiedBundledEngineStage_x000D__x000A_</S><S S="Error"> _x000D__x000A_</S></Objs>file:///C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-23-dans1-engine-build/orchestrate.mjs:10
+function exec(program, args, inherit = false) { const r = spawnSync(program, args, { encoding: 'utf8', windowsHide: true, stdio: inherit ? 'inherit' : 'pipe', maxBuffer: 64e6 }); if (!inherit) { process.stdout.write(r.stdout ?? ''); process.stderr.write((r.stderr ?? '').replace(/^\*\*.*\n/gm, '')); } if (r.status !== 0) throw Error(`${program} failed (${r.status})`); return r.stdout; }
+                                                                                                                                                                                                                                                                                                                                        ^
+
+Error: ssh failed (1)
+    at exec (file:///C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-23-dans1-engine-build/orchestrate.mjs:10:329)
+    at ssh (file:///C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-23-dans1-engine-build/orchestrate.mjs:11:40)
+    at file:///C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-23-dans1-engine-build/orchestrate.mjs:24:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.20.0
+exit 1

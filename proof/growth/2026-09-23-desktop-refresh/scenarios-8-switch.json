@@ -1,0 +1,7 @@
+[
+ ["find","role","button","click","--name","Save and start new project","--exact"],
+ ["wait","--fn","(()=>{try{return JSON.parse(localStorage.getItem('xray:fencing-job:v2')).id!=='job-df991d5a-85f2-40a6-9222-ec0e7c2c2a26'}catch{return false}})()","--timeout","30000"],
+ ["wait","--fn","document.readyState==='complete' && !!document.querySelector('[aria-label=\"Drawing assistant panel\"]')","--timeout","30000"],
+ ["eval","(()=>{const j=JSON.parse(localStorage.getItem('xray.recovery-journal/v1'));return {second:JSON.parse(localStorage.getItem('xray:fencing-job:v2')).id,journalProject:j.projectId,entries:j.entries.length,inFlight:j.entries.filter(e=>e.committedAt===null).length,journalErrorOnScreen:/Recovery journal/.test(document.body.innerText),shelved:Object.keys(localStorage).filter(k=>/shelf/.test(k))}})()"],
+ ["screenshot","proof/growth/2026-09-23-desktop-refresh/second-project.png"]
+]

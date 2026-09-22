@@ -1,0 +1,6 @@
+[["eval","(()=>{const t=window.__TAURI_INTERNALS__;if(!t.__wrapped){const o=t.invoke.bind(t);window.__inv=[];t.invoke=async(c,a,opt)=>{try{return await o(c,a,opt)}catch(e){window.__inv.push(c+': '+(typeof e==='string'?e:JSON.stringify(e)).slice(0,600));throw e}};t.__wrapped=true}return 'wrapped'})()"],
+ ["fill","#live-assistant-prompt","Read only. What is the net length of Run 02? One line."],
+ ["find","role","button","click","--name","Send assistant message","--exact"],
+ ["wait","--fn","!document.querySelector('[aria-label=\"Stop assistant response\"]')&&(document.querySelectorAll('.assistant-chat-entry.is-assistant').length>0||document.querySelectorAll('.assistant-chat-error').length>0)&&true","--timeout","240000"],
+ ["wait","--fn","true"],
+ ["eval","JSON.stringify({inv:window.__inv,errors:[...document.querySelectorAll('.assistant-chat-error')].map(e=>e.innerText),reply:[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(e=>e.innerText).join(' || ').slice(0,800)})"]]
