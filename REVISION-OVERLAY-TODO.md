@@ -1,6 +1,7 @@
 # D-10 plan revision overlay
 Authorized by user "continue on". Existing feat/architect-cad-engine branch, no commit or release.
-- [x] SC-01: Render both saved/current plan projections with explicit revision/level selection and change highlighting.
-- [x] SC-02: Temporary baseline translation/rotation, visibility and reset; preserve source data and comparison values.
-- [x] SC-03: Geometry/alignment tests, desktop/tablet interaction proof, build/typecheck and cleanup.
+- [x] SC-01: Render both saved/current plan projections with explicit revision/level selection and change highlighting. Proof: `proof/growth/2026-09-13-revision-overlay/browser/browser-results.json`.
+- [x] SC-02: Temporary baseline translation/rotation, visibility and reset; preserve source data and comparison values. Proof: `proof/growth/2026-09-13-revision-overlay/browser/browser-results.json`.
+- [x] SC-03: Geometry/alignment tests, desktop/tablet interaction proof, build/typecheck and cleanup. Proof: `proof/growth/2026-09-13-revision-overlay/browser/browser-results.json`.
 Scope: authored plan projection; not scanned-sheet registration, original-PDF slip-sheeting or 3D boolean comparison.
+Document status: closed

@@ -13,3 +13,4 @@ User correction: "chats a dispearing . models are swapping all over the shop".
 - [complete] SC-05: user clarified models meant AI providers (Gemini credits exhausted). Removed automatic Gemini search fallback, pinned provider for each message, excluded and refused Gemini-only tools under MiniMax. Real MiniMax reply and zero-request refusal proof passed. The temporary 3D-selection changes were reverted; older model proof is superseded.
 
 Do not infer tool availability from a manually reconstructed declaration list or first-call selection. Tests use an isolated browser project. No deployment or native release is included.
+Document status: closed

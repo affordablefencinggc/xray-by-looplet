@@ -2,12 +2,12 @@
 
 Authorized 2026-09-13: "continue with perfecting 1 industry at a time". Baseline ba805bf on feat/architect-cad-engine. Other industries wait; no whole-industry completion claim.
 
-- [x] SC-00 Source-control cleanup: all 288 local files retained, source status empty; cleanup pushed through ba805bf.
-- [ ] SC-01 / SO-01 Explicit bay division (implementation and development checks passed; package acceptance still open): preserve legacy equal-bay recipes; add reviewed modular full-bay/terminal-cut rule to both kernels, record recipe revision/digest, expose choice in the materials workflow. Test exact division, remainders, gates, corners, invalid choices and cross-language parity before advancing.
-- [ ] SC-02 / SO-02 Stock nesting and cut lists with explicit stock and kerf inputs.
-- [ ] SC-03 / SO-05 Slope/rake constraints from a reviewed product schedule.
-- [ ] SC-04 Repair matching, gate hardware and installation evidence journeys.
-- [ ] SC-05 Full fencing walkthrough: source, measure, specification, set-out, materials, review, issue/reopen; identify external engineering and supplier dependencies.
+- [ ] SC-00 Source-control cleanup: all 288 local files retained, source status empty; cleanup pushed through ba805bf. Gap: this file does not cite an on-disk proof path for that cleanup. Blocker: the cleanup proof is not named here. Next: cite the cleanup proof before checking this box.
+- [ ] SC-01 / SO-01 Explicit bay division (implementation and development checks passed; package acceptance still open): preserve legacy equal-bay recipes; add reviewed modular full-bay/terminal-cut rule to both kernels, record recipe revision/digest, expose choice in the materials workflow. Test exact division, remainders, gates, corners, invalid choices and cross-language parity before advancing. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-02 / SO-02 Stock nesting and cut lists with explicit stock and kerf inputs. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-03 / SO-05 Slope/rake constraints from a reviewed product schedule. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-04 Repair matching, gate hardware and installation evidence journeys. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-05 Full fencing walkthrough: source, measure, specification, set-out, materials, review, issue/reopen; identify external engineering and supplier dependencies. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
 
 SC-01 boundaries: BOM recipe contract/schema, TypeScript/Python rules, recipe revision helper, Cost pane layout choice, focused tests and proof. Preserve archived BOMs and fixture bytes. No automatic compliance, rate, stock-width or engineering approval. No changes to other industry implementations.
 
@@ -19,3 +19,4 @@ SC-01 boundaries: BOM recipe contract/schema, TypeScript/Python rules, recipe re
 2026-09-13 DANS1 build recovery: e173b12b942c passed current-source type checking, focused tests, web build, native compilation and NSIS packaging. PowerShell verified the successful a8a4 dependency cache, invalidated only copied local app/host packages and required fresh executable output. Smart App Control remained enabled. Native host suites previously passed 37 tests plus 41 Tauri tests; browser provider status passed 22 development operations and production navigation passed 19 desktop/tablet operations. Native generation remains pending actual visible UI acceptance; SC-01 stays open. Evidence: proof/growth/2026-09-13-industry-agents/build-e173b12b942c/.
 
 2026-09-13 correction after c46ac1e: SC-01 package generation/readback is now accepted within the synthetic fixture scope; see native full/equal evidence d334/0cbb and default bundled full-layout build7a55db807d34. SC-02 received a read-only API/UI audit only. Latest user direction restores three concurrent roofing/HVAC/QS upgrades; fencing cutting-plan implementation is deferred. No stock-planner source edits exist and no whole-industry readiness is claimed.
+Document status: open (6)

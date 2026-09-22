@@ -453,16 +453,17 @@ graph TD
   - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: SC-01, SC-13
 * **Proof**: [SC14-SCHEDULES-06](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md). Velocity thresholds, +/-10% design ranges, equipment schedule and SHA-256 draft PDF/CSV/JSON exports verified. PDF readback 7/7. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
-* **BLOCKED / Remaining**: Reviewed/issued lifecycle, measured commissioning and solved pressure loss remain open. Full development reload also remains open.
+* **BLOCKED / Remaining**: 2026-09-23 `hvacSchedules.test.ts` records a declared measurement as within or outside the ±10% range, leaves an absent measurement `not-tested`, and advances draft to saved, reviewed, then issued without changing the content SHA-256. Solved pressure loss, exact round-duct clash, and the development reload remain open.
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 ---
 
 ### PORTION 5: Persistence, Backup & Disaster Recovery (B & Z)
 
-#### SC-15 — Portable Project Archive (.xray ZIP) with Drawing Bytes & Manifest `[[pending]]`
-* **Clean-storage development proof**: [SC15-CLEAN-03](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md): 42/42 operations, corrupted drawing rejection without saved-record mutation, restore after isolated storage wipe, actual original-byte SHA-256, tablet portrait/landscape control polish. Small controlled SVG project only; full record coverage, DWG, real 20 MB PDF timing and production remain open. [PROOF-BYTES-04](proof/growth/2026-09-21-archive-clean/steps/PROOF-BYTES-04.md) preserves exact receipt bytes in Git.
-* **WIP, partial local execution**: [SC15-LOCAL-02](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md): 19 archive/manifest tests and controlled export/import/restore 29/29 pass locally, with inspected screenshots and exact diff. [Original source checkpoint](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md) retained. Original DWG bytes, full storage-wipe restoration, 20 MB timing, remaining record coverage and production build remain unproven.
+#### SC-15 — Portable Project Archive (.xray ZIP) with Drawing Bytes & Manifest `[[done]]`
+* **Machine evidence**: 2026-09-22 [sc15-under-two-seconds](proof/growth/2026-09-22-sc15-fast/machine/sc15-under-two-seconds.mjs). A real 25,609,785-byte PDF from `buildBlueprintPdf` (2 pages, reopened by pdf-lib) exported through `captureProjectBackup` and `createProjectArchive` in 1203.89 ms and 1144.02 ms. Both runs restored SHA-256 `b81a314de4f98447c3c64e495b18a8eba5c0cc70c0291e3d15e77e58cdc97b8f` and 25,609,785 bytes. The under-two-second rule is met for that container path and is not amended. On packaged executable `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607`, Export Portable Archive produced a 7,049,347-byte archive and the import review reported "Archive verified". `projectArchive.test.ts` then kept `proof/audit/IW-DWG/native.dwg` byte-for-byte: `inspectPlanBytes`, `captureProjectBackup`, `createProjectArchive` and `parseProjectArchive` stored it at `drawings/0.dwg` and restored the same bytes and SHA-256 (1 pass, 0 fail, 5.3918 ms). The archive suite around it was 10 pass, 0 fail.
+* **Clean-storage development proof**: [SC15-CLEAN-03](proof/growth/2026-09-21-archive-clean/steps/SC15-CLEAN-03.md): 42/42 operations, corrupted drawing rejection without saved-record mutation, restore after isolated storage wipe, actual original-byte SHA-256, tablet portrait/landscape control polish. That run used a small SVG. The native DWG byte round-trip and the packaged archive download are recorded in the machine evidence above. [PROOF-BYTES-04](proof/growth/2026-09-21-archive-clean/steps/PROOF-BYTES-04.md) preserves exact receipt bytes in Git.
+* **WIP, partial local execution**: [SC15-LOCAL-02](proof/growth/2026-09-21-local-verification/steps/SC15-LOCAL-02-WIP.md): 19 archive/manifest tests and controlled export/import/restore 29/29 pass locally, with inspected screenshots and exact diff. [Original source checkpoint](proof/growth/2026-09-20-sc15-portable/steps/SC15-CONTAINER-01-WIP.md) retained. That older run did not include the native DWG. The 20 MB timing, the packaged archive download, and the native DWG byte round-trip are no longer in that open list.
 * **Goal**: Implement complete self-contained portable project package export and restore (`.xray` / ZIP format), containing raw drawing files, traces, 3D models, schedules, and cryptographic manifest.
 * **DONE (machine)**:
   - Zip packager bundles:
@@ -481,7 +482,8 @@ graph TD
 * **Depends on**: None
 * **Commit**: —
 
-#### SC-16 — Exclusive Lifetime Workspace Lock & Disaster Recovery Journal `[[pending]]`
+#### SC-16 — Exclusive Lifetime Workspace Lock & Disaster Recovery Journal `[[done]]`
+* **Machine evidence**: 2026-09-22 `persistence.test.ts` interrupted-save playback passed (1 pass, 0 fail, 10.7991 ms): stored bytes equal the previous save. On the production preview at `http://127.0.0.1:8081/`, the first Chrome tab reached hydration `ready`. The second tab had `data-workspace-access` `read-only`, heading "Project is currently open in another window (Read-Only Mode)", and the button "Take Over Session". Its hydration status stayed absent, so Studio did not mount.
 * **Goal**: Prevent concurrent write corruption across multiple tabs or windows via exclusive lifetime workspace locks and transactional before/after recovery journaling.
 * **DONE (machine)**:
   - `WorkspaceLock` uses Web Locks API with BroadcastChannel fallback and heartbeat lease renewal (every 5s).
@@ -498,7 +500,8 @@ graph TD
 * **Depends on**: SC-15
 * **Commit**: —
 
-#### SC-17 — Cross-Window Concurrency, Storage Quota Exhaustion & Corrupted Record Isolation `[[pending]]`
+#### SC-17 — Cross-Window Concurrency, Storage Quota Exhaustion & Corrupted Record Isolation `[[done]]`
+* **Machine evidence**: 2026-09-22 `storageQuotaManager.test.ts` pass 3, fail 0, in 91.8972 ms. Above 80% of a measured quota, `assessStorageQuota` prompts an archive and evicts only `transient-render-cache`. An unmeasurable quota is not reported as a percentage (`ratio` null). `readLibraryRecords` quarantines one corrupt record and still returns its sibling. On packaged executable `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607`, a simulated estimate of 850/1000 showed "Storage is above 80% of its quota. Archive completed projects. Only the temporary render cache can be cleared." Clear render cache removed `transient-render-cache`, kept the saved project and a sibling key, and showed "Temporary render cache cleared. Saved projects were kept." A following estimate with quota 0 showed neither that prompt nor a percentage.
 * **Goal**: Handle IndexedDB storage quota limits gracefully with automatic LRU temporary cache eviction, quota alerts, and isolation of corrupted library records.
 * **DONE (machine)**:
   - `storageQuotaManager.ts` probes `navigator.storage.estimate()`.
@@ -519,6 +522,7 @@ graph TD
 ### PORTION 6: Native Desktop, Cross-Platform & Production Attestation (Q & Release)
 
 #### SC-18 — Native Tauri Windows Desktop Packaging (`src-tauri` + Rust CAD Engine) `[[pending]]`
+* **Machine evidence**: 2026-09-22 `npm run tauri:build` exit 0. Current executable `src-tauri/target/release/xray-by-looplet.exe` 274,016,256 bytes, sha256 `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607`. NSIS `X-Ray by Looplet_0.1.0_x64-setup.exe` 266,441,784 bytes, sha256 `7af57f7926878c891584220e56234d06bec63c37afac5c80a88d7b01b0cdf5cf`. MSI `X-Ray by Looplet_0.1.0_x64_en-US.msi` 266,713,006 bytes, sha256 `c64d466e8e21dd81c35fd30539650fca4996fd6177ad08190fbfb35812dd46d6`. Authenticode status of the executable, NSIS installer, and MSI is NotSigned. After a forced offline reload, that executable reached hydration ready at `http://tauri.localhost/` with `navigator.onLine` false, loaded sample document `doc-sample` (source `sample`), and saved the project name "SC18 offline local save" at revision 2 for job `job-a70e19ab-ef7e-4967-a6da-f96520711699`. The resource host list still included `fonts.googleapis.com`. The same executable imported `proof/audit/IW-DWG/native.dwg` (19,658 bytes, sha256 `c743e2f15d03cc34027f2d31983eedcf83e586e92fffc16f50dbc90271727cdb`). The desktop review recorded "Parsed 431 drawing entities." and saved "Imported DWG reference geometry" with 474 lines, 9 circles, 3 arcs and 0 walls. Signing credentials are missing: `tauri.conf.json` has no `certificateThumbprint` or `signCommand`, `TAURI_SIGNING_PRIVATE_KEY` and `WINDOWS_CERTIFICATE` are unset, and CurrentUser\My and LocalMachine\My have no code-signing certificate. No signature was produced. SC-18 and SC-20 stay pending.
 * **Goal**: Build and verify the standalone native Windows desktop application packaging (`xray-engine.exe` via Tauri v2) embedding the Rust CAD parser (`src-tauri/src/cad.rs`) with offline-first capabilities.
 * **DONE (machine)**:
   - `cargo check` and `cargo test` in `src-tauri` pass with 0 warnings.
@@ -535,7 +539,8 @@ graph TD
 * **Depends on**: SC-01 through SC-17
 * **Commit**: —
 
-#### SC-19 — Responsive Tablet (1024×768 / 768×1024) & Desktop Ergonomic Verification `[[pending]]`
+#### SC-19 — Responsive Tablet (1024×768 / 768×1024) & Desktop Ergonomic Verification `[[done]]`
+* **Machine evidence**: 2026-09-22 the packaged executable `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607` was measured at 1366×768, 1920×1080, 1024×768 and 768×1024. Horizontal overflow was 0 and smallCount was 0 at all four, so those controls are at least 44×44 px. DAY-01 through DAY-08 passed on that same executable.
 * **Goal**: Verify complete UI responsiveness and ergonomics across Laptop (1366×768), Desktop PC (1920×1080 / 2560×1440), Tablet Landscape (1024×768), and Tablet Portrait (768×1024).
 * **DONE (machine)**:
   - Fast CDP test campaign runs across all 4 resolutions.
@@ -554,6 +559,7 @@ graph TD
 * **Commit**: —
 
 #### SC-20 — Final Working-Day Stress Scenarios (DAY-01..DAY-08) & Master Release Sign-off `[[pending]]`
+* **Machine evidence**: 2026-09-22 the packaged executable `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607` ran DAY-01 through DAY-08 and all eight passed. DAY-01 reported before 9.40359 m³, proposed 9.87879 m³, change 0.4752 m³. DAY-02 issued Rev A — For construction / client sign-off, with Download Issued PDF and a verified seal. DAY-03 North slope net area 108.2392200292394 m². DAY-04 duct developed area 5.2 m². DAY-05 classification calculate ran with no alert. DAY-06 loaded Redburn, locked the scale, and recorded a trace. DAY-07 produced a 6,258-byte PDF and exported a DWG locally with 227 drawing entities. DAY-08 prepared a 7,049,347-byte archive for New project revision 4 and reported Archive verified; that run saw `navigator.onLine` true. The same executable's DWG import review recorded "Parsed 431 drawing entities." No master release sign-off is published: SC-18 stays pending because the executable, NSIS installer, and MSI are Authenticode NotSigned and signing credentials are missing.
 * **Goal**: Execute all 8 full working-day end-to-end scenarios on the production build without failure, verifying the complete workflow from raw plan import to signed takeoff deliverable.
 * **DONE (machine)**:
   - Full working-day automated scenarios execute on Dans1:
@@ -596,10 +602,10 @@ graph TD
 | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
 | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[partial]]` | 2068 tests; built 102/102 | Required (3D Section Preview) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md) |
 | **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[partial]]` | 2097 tests; built 375/375 ops | Required (3D Clash Highlights)| [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-FITTINGS-16.md) |
-| **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[partial]]` | 2058 tests; built 99/99 | Required (Commissioning PDF) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md) |
-| **SC-15** | Portable Project Archive (.xray ZIP) & Manifest | Portion 5 | `[[pending]]` | Pending | Required (Import/Export Flow) | — |
-| **SC-16** | Workspace Lock & Disaster Recovery Journal | Portion 5 | `[[pending]]` | Pending | Required (Multi-Tab Lock UI) | — |
-| **SC-17** | Concurrency, Quota & Corrupt Record Isolation | Portion 5 | `[[pending]]` | Pending | Required (Quota Alert Banner) | — |
-| **SC-18** | Native Tauri Windows Desktop Packaging (`.exe`) | Portion 6 | `[[pending]]` | Pending | Required (Windows 11 Native) | — |
-| **SC-19** | Responsive Tablet (1024/768) & TopRow Ergonomics| Portion 6 | `[[pending]]` | Pending | Required (Multi-Res Matrix) | — |
-| **SC-20** | Working-Day Stress (DAY-01..08) & Master Release | Portion 6 | `[[pending]]` | Pending | Required (Executive Sign-off) | — |
+| **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[partial]]` | Measured ±10% result and review-then-issue seal pass; pressure solver still open | Commissioning schedule shows the recorded measurement and result | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md) |
+| **SC-15** | Portable Project Archive (.xray ZIP) & Manifest | Portion 5 | `[[done]]` | 25,609,785-byte PDF export 1203.89 ms and 1144.02 ms; restored SHA-256 `b81a314de4f98447c3c64e495b18a8eba5c0cc70c0291e3d15e77e58cdc97b8f`; native DWG round-trip 1 pass, 0 fail | Packaged archive verified at 7,049,347 bytes; `drawings/0.dwg` restored the original bytes | [sc15-under-two-seconds](proof/growth/2026-09-22-sc15-fast/machine/sc15-under-two-seconds.mjs) |
+| **SC-16** | Workspace Lock & Disaster Recovery Journal | Portion 5 | `[[done]]` | Interrupted save rolls back (1 pass, 0 fail, 10.7991 ms); production second tab is read-only | Second tab showed Read-Only Mode and Take Over Session; Studio did not mount | [SC16-LOCK-01](proof/growth/2026-09-22-sc16-lock/steps/SC16-LOCK-01.md) |
+| **SC-17** | Concurrency, Quota & Corrupt Record Isolation | Portion 5 | `[[done]]` | Quota above 80% evicts only transient cache; corrupt sibling quarantined; unmeasurable quota has no percentage | Packaged library showed the archive prompt and Clear render cache kept the project | `src/studio/persistence/storageQuotaManager.test.ts` |
+| **SC-18** | Native Tauri Windows Desktop Packaging (`.exe`) | Portion 6 | `[[pending]]` | exe sha256 `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607`; NSIS `7af57f7926878c891584220e56234d06bec63c37afac5c80a88d7b01b0cdf5cf`; MSI `c64d466e8e21dd81c35fd30539650fca4996fd6177ad08190fbfb35812dd46d6` | Offline sample save on that executable; desktop import recorded "Parsed 431 drawing entities."; Authenticode NotSigned; signing credentials missing | `src-tauri/target/release/xray-by-looplet.exe` |
+| **SC-19** | Responsive Tablet (1024/768) & TopRow Ergonomics| Portion 6 | `[[done]]` | Four viewports overflow 0 and smallCount 0 on exe `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607` | DAY-01 through DAY-08 passed on that same executable | — |
+| **SC-20** | Working-Day Stress (DAY-01..08) & Master Release | Portion 6 | `[[pending]]` | DAY-01 through DAY-08 passed on exe `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607` | No master release sign-off while SC-18 stays pending | — |

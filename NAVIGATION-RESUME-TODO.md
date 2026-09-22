@@ -7,35 +7,35 @@ Scope: standalone X-Ray; preserve working data, top settings and all five bottom
 
 ## SC-01 — Supported starting positions [done]
 
-- [x] Infer floor support, body clearance and useful heading from actual source geometry.
-- [x] Reject unsupported/obstructed manual placements and test both Redburn floors.
-- [x] Inspect the resulting interior camera view in the real app.
+- [x] Infer floor support, body clearance and useful heading from actual source geometry. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Reject unsupported/obstructed manual placements and test both Redburn floors. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Inspect the resulting interior camera view in the real app. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
 
-Files: `src/studio/WalkStartDialog.tsx`, `src/studio/walkStartPlacement.ts`, focused tests.
+Files: `proof/growth/2026-09-08-07-navigation-source/`, `src/studio/walkStartPlacement.ts`, focused tests.
 
 ## SC-02 — Reliable input and capture recovery [done]
 
-- [x] Preserve usable drag-to-look navigation when pointer lock is refused.
-- [x] Allow fresh-gesture capture; guard stop/dispose and pending-request races.
-- [x] Prove W/A/S/D signs, Escape/re-entry and held-key cleanup with executed tests.
+- [x] Preserve usable drag-to-look navigation when pointer lock is refused. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Allow fresh-gesture capture; guard stop/dispose and pending-request races. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Prove W/A/S/D signs, Escape/re-entry and held-key cleanup with executed tests. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
 
 Files: `src/studio/FirstPersonNavigation.ts`, focused controller tests.
 
 ## SC-03 — Integrated viewer journeys [done]
 
-- [x] Integrate clear capture-state instructions in source and architectural viewers.
-- [x] Execute actual camera displacement and exit/re-entry journeys in persistent browser sessions.
-- [x] Verify lower buttons and tablet/laptop visibility; inspect screenshots.
-- [x] Run typecheck and focused regression tests.
+- [x] Integrate clear capture-state instructions in source and architectural viewers. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Execute actual camera displacement and exit/re-entry journeys in persistent browser sessions. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Verify lower buttons and tablet/laptop visibility; inspect screenshots. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Run typecheck and focused regression tests. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
 
 Files: both viewer components, scenario JSON files, explicit test registration.
 
 ## SC-04 — Release evidence and staged push [blocked: publication approval]
 
-- [x] Freeze source identity, build web/native on Dans1, verify artifact hashes.
-- [x] Test production/native journeys and retain failures alongside final passing runs.
-- [x] Save an image-embedded HTML report and PNG; append exact tests/diff/status to PROGRESS.md.
-- [ ] Commit explicit verified paths and push the approved branch in stages.
+- [x] Freeze source identity, build web/native on Dans1, verify artifact hashes. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Test production/native journeys and retain failures alongside final passing runs. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [x] Save an image-embedded HTML report and PNG; append exact tests/diff/status to PROGRESS.md. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
+- [ ] Commit explicit verified paths and push the approved branch in stages. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
 
 Checklist mapping: R-02 (partial), R-01, U-02, U-05, U-06, U-09. Full R-02 remains open: wall collision is not implemented by this bounded repair. macOS/Linux native acceptance remains separately blocked by the current Windows-only CAD build.
 
@@ -53,3 +53,4 @@ Final acceptance: candidate aa8d81a110ac, 110 tests and both builds pass; browse
 ### Stage 07 publication held after automatic approval review
 
 Navigation source commit `6b55950` is local. Build, 110 tests, final browser/Windows journeys and inspected HTML/PNG evidence passed. Automatic approval review rejected uploading the source to `https://github.com/affordablefencinggc/xray-by-looplet.git`, branch `feat/architect-cad-engine`, because it requires trusted user approval naming this payload and destination. Read-only remote verification still shows `93a94a8`; no Stage 07 upload occurred. Curated evidence is being archived as a separate local commit. Explicit approval for both local commits is the only remaining publication step. This note supersedes earlier wording that publication was underway. Exact rejection and file manifest: `proof/growth/2026-09-08-navigation-release/publication-blocked.md` and `proof/growth/staged-push/navigation-evidence-manifest.json`. No installation, merge or CRM changes.
+Document status: open (1)
