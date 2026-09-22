@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PDFDocument } from "pdf-lib";
-import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, verifyHvacPackage } from "./hvacSchedules.ts";
+import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, issueHvacPackage, reviewHvacPackage, saveHvacDraft, verifyHvacPackage } from "./hvacSchedules.ts";
 const input = () => ({ reference: "M-102", evidence: "declared", occupancy: "residential", nodes: [
   { id: "AHU", zone: "West", kind: "equipment", x: 0, y: 3, z: 0, designAirflowLs: 100, equipmentTag: "=UNSAFE()" },
   { id: "D1", zone: "East", kind: "diffuser", x: 5, y: 3, z: 0, designAirflowLs: null, equipmentTag: "" }],
@@ -21,6 +21,32 @@ test("pipe velocity uses bore and separate liquid flow, never inherited airflow 
 });
 test("unknown pipe flow or bore withholds velocity even when legacy airflow is populated", () => {
   for (const field of ["pipeFlowLs", "innerDiameterM"] as const) { const n = pipeInput(); const s = calculateHvacSchedules({ ...n, edges: [{ ...n.edges[0], [field]: null }] }); assert.equal(s.pipeFlow[0].velocityMs, null); }
+});
+test("a declared measurement is judged against the plus or minus 10 percent range", () => {
+  const within = { ...input(), nodes: input().nodes.map((node, index) => ({ ...node, measuredLs: index === 0 ? 100 : 0 })) };
+  const inside = calculateHvacSchedules(within);
+  assert.equal(inside.commissioning[0].status, "within-tolerance");
+  assert.equal(inside.commissioning[0].measuredLs, 100);
+  assert.equal(inside.commissioning[1].status, "unknown");
+  const outside = { ...input(), nodes: input().nodes.map(node => ({ ...node, measuredLs: 120 })) };
+  assert.equal(calculateHvacSchedules(outside).commissioning[0].status, "outside-tolerance");
+  assert.equal(calculateHvacSchedules(input()).commissioning[0].status, "not-tested");
+});
+test("review and issue keep the same content seal and cannot skip a step", async () => {
+  const draft = await createHvacPackage(input(), "project-test", null);
+  await assert.rejects(reviewHvacPackage(draft, "2026-09-23T00:00:00.000Z"));
+  const saved = await saveHvacDraft(draft);
+  const reviewed = await reviewHvacPackage(saved, "2026-09-23T00:00:00.000Z");
+  const issued = await issueHvacPackage(reviewed, "2026-09-23T01:00:00.000Z");
+  assert.equal(saved.delivery.state, "saved-draft");
+  assert.equal(reviewed.delivery.state, "reviewed-estimate");
+  assert.equal(issued.delivery.state, "issued-deliverable");
+  assert.equal(issued.delivery.contentSha256, draft.delivery.contentSha256);
+  assert.equal(issued.delivery.reviewedAt, "2026-09-23T00:00:00.000Z");
+  assert.equal(issued.delivery.issuedAt, "2026-09-23T01:00:00.000Z");
+  await verifyHvacPackage(issued);
+  const tampered = structuredClone(saved); tampered.content.network.reference = "changed";
+  await assert.rejects(reviewHvacPackage(tampered, "2026-09-23T00:00:00.000Z"));
 });
 test("pipe CSV, sealed JSON and PDF retain service, both diameters and separate unknowns", async () => {
   const p = await createHvacPackage(pipeInput(), "pipe-project", null); await verifyHvacPackage(p);

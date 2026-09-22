@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { unzipSync, zipSync } from "fflate";
 import { createDefaultJob } from "../domain.ts";
 import { demonstration } from "../architect/model.ts";
@@ -43,6 +44,31 @@ describe("SC-15 portable ZIP container", () => {
     assert.deepEqual(parsed.backup, backup);
     assert.equal(parsed.manifest.client, "Declared client");
     assert.deepEqual(new Uint8Array(decodeBackupBytes(parsed.backup.assets[0].bytesBase64)), original);
+  });
+  it("keeps an original DWG drawing byte-for-byte through archive export and import", async () => {
+    const original = new Uint8Array(readFileSync(new URL("../../../proof/audit/IW-DWG/native.dwg", import.meta.url)));
+    const plan = await inspectPlanBytes({ name: "Two-level native.dwg", bytes: original, source: "desktop" });
+    assert.equal(plan.revision.kind, "dwg");
+    assert.equal(plan.binary.mimeType, "application/acad");
+    assert.equal(plan.binary.sizeBytes, original.byteLength);
+    const job = { ...createDefaultJob(), documents: [plan.revision], activeDocumentId: plan.revision.id };
+    const records = emptyBackupRecords();
+    const backup = await captureProjectBackup(job, "DWG portable issue", {
+      currentJob: () => job,
+      records: async () => records,
+      photo: async () => null,
+      plan: async () => ({ ...plan.binary, bytes: original.buffer.slice(original.byteOffset, original.byteOffset + original.byteLength) as ArrayBuffer }),
+    });
+    const archive = await createProjectArchive(backup, "Declared client");
+    const files = unzipSync(archive.bytes);
+    assert.equal(files["drawings/0.dwg"]?.length, original.byteLength);
+    assert.deepEqual(files["drawings/0.dwg"], original);
+    const parsed = await parseProjectArchive(archive.bytes);
+    const restored = new Uint8Array(decodeBackupBytes(parsed.backup.assets[0].bytesBase64));
+    assert.equal(restored.byteLength, original.byteLength);
+    assert.deepEqual(restored, original);
+    assert.equal(parsed.backup.assets[0].sha256, plan.revision.sha256);
+    assert.equal(parsed.backup.job.documents[0]?.kind, "dwg");
   });
   it("preserves a project with no original drawing instead of inventing an asset", async () => {
     const { archive, backup } = await fixture(false);

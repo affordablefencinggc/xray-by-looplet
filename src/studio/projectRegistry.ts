@@ -49,6 +49,28 @@ export function summarize(job: JobSummarySource): ProjectSummary {
   return summary;
 }
 
+export type QuarantinedLibraryRecord = { id: string | null; reason: string };
+
+/** One damaged record is quarantined. Every sibling that still parses is returned. */
+export function readLibraryRecords(texts: readonly string[]): { records: ProjectSummary[]; quarantined: QuarantinedLibraryRecord[] } {
+  const records: ProjectSummary[] = [];
+  const quarantined: QuarantinedLibraryRecord[] = [];
+  for (const text of texts) {
+    try {
+      records.push(readJobSummary(text));
+    } catch (error) {
+      let id: string | null = null;
+      try {
+        const parsed: unknown = JSON.parse(text);
+        if (parsed && typeof parsed === "object" && typeof (parsed as { id?: unknown }).id === "string")
+          id = (parsed as { id: string }).id;
+      } catch { /* The bytes are not JSON, so there is no id to report. */ }
+      quarantined.push({ id, reason: error instanceof Error ? error.message : "The project record could not be read." });
+    }
+  }
+  return { records, quarantined };
+}
+
 /** The summary of a stored project record (main key or shelf bytes). Throws on unreadable text. */
 export function readJobSummary(text: string): ProjectSummary {
   let value: unknown;

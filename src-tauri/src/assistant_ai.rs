@@ -9,7 +9,7 @@ use std::time::Duration;
 use tauri::State;
 
 const MAX_REQUEST: usize = 12 * 1024 * 1024;
-const MAX_RESPONSE: usize = 2 * 1024 * 1024;
+pub(crate) const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 // [SC-22 context] begin
 // The 21 safety clauses, byte-identical to ASSISTANT_SAFETY_MANUAL in
 // src/studio/assistant/skills.ts; skills.test.ts compares the two literals.
@@ -50,7 +50,7 @@ fn normalise_manual_markdown(text: &str) -> String {
 /// (src/studio/assistant/context/WIRING.md), and the guardrails lead so a truncation at any
 /// length keeps them. LazyLock rather than a const because the normalisation runs at runtime;
 /// it is computed once per process on first send.
-static SYSTEM_INSTRUCTION: LazyLock<String> = LazyLock::new(|| {
+pub(crate) static SYSTEM_INSTRUCTION: LazyLock<String> = LazyLock::new(|| {
     let brief = CONTEXT_SECTIONS
         .iter()
         .map(|section| normalise_manual_markdown(section))
@@ -66,7 +66,7 @@ pub struct AssistantAiState {
     active: Mutex<Option<(String, AbortHandle)>>,
 }
 impl AssistantAiState {
-    fn begin(&self, id: &str) -> Result<AbortRegistration, String> {
+    pub(crate) fn begin(&self, id: &str) -> Result<AbortRegistration, String> {
         let mut active = self
             .active
             .lock()
@@ -96,9 +96,9 @@ impl AssistantAiState {
     }
 }
 // Drop also cleans up if the invocation future is dropped before completion.
-struct ActiveTurn<'a> {
-    state: &'a AssistantAiState,
-    id: &'a str,
+pub(crate) struct ActiveTurn<'a> {
+    pub(crate) state: &'a AssistantAiState,
+    pub(crate) id: &'a str,
 }
 impl Drop for ActiveTurn<'_> {
     fn drop(&mut self) {
@@ -251,7 +251,7 @@ fn check_part(part: &Value, role: &str) -> Result<(), String> {
     }
     Ok(())
 }
-fn check_content(content: &Value, expected_role: Option<&str>) -> Result<(), String> {
+pub(crate) fn check_content(content: &Value, expected_role: Option<&str>) -> Result<(), String> {
     fields(content, &["role", "parts"])?;
     let role = content["role"]
         .as_str()
@@ -270,7 +270,7 @@ fn check_content(content: &Value, expected_role: Option<&str>) -> Result<(), Str
     }
     Ok(())
 }
-fn check_request(raw: &str) -> Result<Value, String> {
+pub(crate) fn check_request(raw: &str) -> Result<Value, String> {
     if raw.len() > MAX_REQUEST {
         return Err("Assistant request exceeds the size limit.".into());
     }
@@ -345,6 +345,24 @@ fn provider_body(request: &Value) -> Value {
     }
     body
 }
+/// Validates the whole response before returning any calls. A mixed batch
+/// containing an undeclared call must not partially reach the tool runner.
+pub(crate) fn declared_tools_only(content: &Value, request: &Value) -> Result<(), String> {
+    let declared: HashSet<&str> = request["declarations"]
+        .as_array()
+        .ok_or("Assistant declarations are required.")?
+        .iter()
+        .filter_map(|tool| tool["name"].as_str())
+        .collect();
+    for part in content["parts"].as_array().ok_or("Assistant content requires parts.")? {
+        if let Some(call) = part.get("functionCall") {
+            if request["webSearch"] == true || !call["name"].as_str().is_some_and(|name| declared.contains(name)) {
+                return Err("Assistant returned a tool not declared for this turn. This response was not executed; previously completed actions remain.".into());
+            }
+        }
+    }
+    Ok(())
+}
 fn response_envelope(body: &Value, request: &Value, model: &str) -> Result<Value, String> {
     let candidate = &body["candidates"][0];
     if candidate["finishReason"] != "STOP" {
@@ -354,21 +372,7 @@ fn response_envelope(body: &Value, request: &Value, model: &str) -> Result<Value
     }
     let content = &candidate["content"];
     check_content(content, Some("model"))?;
-    // Validate the whole response before returning any calls. A mixed batch
-    // containing an undeclared call must not partially reach the tool runner.
-    let declared: HashSet<&str> = request["declarations"]
-        .as_array()
-        .ok_or("Assistant declarations are required.")?
-        .iter()
-        .filter_map(|tool| tool["name"].as_str())
-        .collect();
-    for part in content["parts"].as_array().unwrap() {
-        if let Some(call) = part.get("functionCall") {
-            if request["webSearch"] == true || !declared.contains(call["name"].as_str().unwrap()) {
-                return Err("Assistant returned a tool not declared for this turn. This response was not executed; previously completed actions remain.".into());
-            }
-        }
-    }
+    declared_tools_only(content, request)?;
     let mut sources = Vec::new();
     let mut urls = HashSet::new();
     if let Some(chunks) = candidate["groundingMetadata"]["groundingChunks"].as_array() {
@@ -440,7 +444,7 @@ async fn request_gemini(request: &Value, key: &str, model: &str) -> Result<Value
     }
     Ok(result)
 }
-fn contains_secret(value: &Value, key: &str) -> bool {
+pub(crate) fn contains_secret(value: &Value, key: &str) -> bool {
     if key.is_empty() {
         return false;
     }

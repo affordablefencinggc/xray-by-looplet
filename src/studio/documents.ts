@@ -13,7 +13,9 @@ const MIME_BY_KIND: Record<SupportedPlanKind, string> = {
   pdf: "application/pdf",
   dxf: "application/dxf",
   svg: "image/svg+xml",
+  dwg: "application/acad",
 };
+const DWG_SIGNATURES = ["AC1014", "AC1015", "AC1018", "AC1021", "AC1024", "AC1027", "AC1032"];
 
 let fallbackId = 0;
 
@@ -75,7 +77,7 @@ export async function inspectPlanBytes(
   if (!expected) {
     throw new PlanInspectionError(
       "unsupported",
-      `${name} is not supported. Import a PDF, DXF, or SVG plan.`,
+      `${name} is not supported. Import a PDF, DXF, SVG, or DWG plan.`,
     );
   }
 
@@ -134,10 +136,12 @@ export async function inspectPlanBytes(
 function kindFromName(name: string): SupportedPlanKind | null {
   const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
   const extension = match?.[1];
-  return extension === "pdf" || extension === "dxf" || extension === "svg" ? extension : null;
+  return extension === "pdf" || extension === "dxf" || extension === "svg" || extension === "dwg" ? extension : null;
 }
 
 function detectKind(bytes: Uint8Array): SupportedPlanKind | null {
+  const signature = decode(bytes.subarray(0, Math.min(bytes.byteLength, 6)));
+  if (DWG_SIGNATURES.includes(signature)) return "dwg";
   const head = decode(bytes.subarray(0, Math.min(bytes.byteLength, 4096)));
   if (head.slice(0, 1024).includes("%PDF-")) return "pdf";
   if (head.startsWith("AutoCAD Binary DXF\r\n\u001a\0")) return "dxf";
@@ -370,7 +374,7 @@ function isStoredPlanContent(value: unknown): value is StoredPlanContent {
   return (
     typeof record.documentId === "string" && record.documentId.length > 0 &&
     typeof record.name === "string" && record.name.length > 0 &&
-    (record.kind === "pdf" || record.kind === "dxf" || record.kind === "svg") &&
+    (record.kind === "pdf" || record.kind === "dxf" || record.kind === "svg" || record.kind === "dwg") &&
     typeof record.mimeType === "string" &&
     Number.isSafeInteger(record.sizeBytes) && Number(record.sizeBytes) >= 0 &&
     typeof record.sha256 === "string" && /^[a-f0-9]{64}$/.test(record.sha256) &&

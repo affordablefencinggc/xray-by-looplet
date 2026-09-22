@@ -5,6 +5,7 @@ import { saveFencingJob } from "./persistence";
 import { defaultProjectText, switchProject } from "./assistant/projectSwitch";
 import { PROJECT_REGISTRY_KEY, entriesNewestFirst, parseRegistry, upsertEntry, type ProjectSummary } from "./projectRegistry";
 import { PROJECT_LIBRARY_CHANGED, setProjectArchived, withProjectLifecycle } from "./projectArchive";
+import { assessStorageQuota } from "./persistence/storageQuotaManager";
 import { WorkspaceDialog } from "./WorkspaceDialog";
 import { ProjectPortableArchive } from "./persistence/ProjectPortableArchive";
 import "./projectLibrary.css";
@@ -22,6 +23,7 @@ function LibraryContents() {
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [name, setName] = useState("");
   const [review, setReview] = useState<ProjectSummary | null>(null);
   const [reviewRaw, setReviewRaw] = useState<string | null>(null);
+  const [quotaNotice, setQuotaNotice] = useState("");
   const refresh = () => { try { setRaw(localStorage.getItem(PROJECT_REGISTRY_KEY)); } catch { setError("Project storage is unavailable."); } };
   useEffect(() => {
     refresh();
@@ -29,8 +31,25 @@ function LibraryContents() {
     window.addEventListener(PROJECT_LIBRARY_CHANGED, refresh);
     return () => { window.removeEventListener("storage", refresh); window.removeEventListener(PROJECT_LIBRARY_CHANGED, refresh); };
   }, [job.id]);
+  useEffect(() => {
+    const estimate = navigator.storage?.estimate?.bind(navigator.storage);
+    if (!estimate) return;
+    let cancelled = false;
+    void estimate().then((value) => {
+      if (cancelled) return;
+      const assessment = assessStorageQuota(value);
+      setQuotaNotice(assessment.promptArchive
+        ? "Storage is above 80% of its quota. Archive completed projects. Only the temporary render cache can be cleared."
+        : "");
+    }).catch(() => { if (!cancelled) setQuotaNotice(""); });
+    return () => { cancelled = true; };
+  }, []);
   const registry = upsertEntry(parseRegistry(raw), job);
   const rows = entriesNewestFirst(registry).filter(e => Boolean(e.archived) === archived && `${e.name} ${e.id}`.toLowerCase().includes(filter.toLowerCase()));
+  const clearRenderCache = () => {
+    try { localStorage.removeItem("transient-render-cache"); setNotice("Temporary render cache cleared. Saved projects were kept."); }
+    catch { setError("The temporary render cache could not be cleared."); }
+  };
   async function openProject(id: string | null) {
     if (busy) return;
     setBusy(true); setError(""); setNotice(""); setReview(null);
@@ -58,6 +77,7 @@ function LibraryContents() {
   }
   return <section className="project-library" aria-busy={busy}>
     <p>Open saved projects or put finished work away. Archiving keeps drawings, design, rates and conversation history on this device.</p>
+    {quotaNotice && <p role="status">{quotaNotice} <button className="pill" type="button" onClick={clearRenderCache}>Clear render cache</button></p>}
     <ProjectPortableArchive busy={busy} ready={ready} onBusyChange={setBusy} />
     <div className="project-library-new"><label>New project name<input aria-label="New project name" maxLength={120} value={name} onChange={e => setName(e.target.value)} disabled={busy} placeholder="Project name" /></label>
       <button className="pill" disabled={busy || !ready} onClick={() => void openProject(null)}>Create project</button></div>

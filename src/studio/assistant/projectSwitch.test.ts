@@ -23,6 +23,10 @@ import {
   type ProjectSwitchDeps,
   type ProjectSwitchStoreState,
 } from "./projectSwitch.ts";
+import { RECOVERY_BEFORE_STORAGE_KEY, RECOVERY_JOURNAL_STORAGE_KEY } from "../persistence/recoveryJournal.ts";
+
+/** The recovery journal wraps every project save and has its own tests; these assertions cover the switch's own keys. */
+const isJournalKey = (key: string) => key === RECOVERY_JOURNAL_STORAGE_KEY || key === RECOVERY_BEFORE_STORAGE_KEY;
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -33,15 +37,15 @@ class MemoryStorage {
   }
   setItem(key: string, value: string) {
     if (this.failSetItem?.test(key)) throw new Error(`quota exceeded for ${key}`);
-    this.log.push(`set ${key}`);
+    if (!isJournalKey(key)) this.log.push(`set ${key}`);
     this.values.set(key, value);
   }
   removeItem(key: string) {
-    this.log.push(`remove ${key}`);
+    if (!isJournalKey(key)) this.log.push(`remove ${key}`);
     this.values.delete(key);
   }
   keys() {
-    return [...this.values.keys()].sort();
+    return [...this.values.keys()].filter((key) => !isJournalKey(key)).sort();
   }
 }
 

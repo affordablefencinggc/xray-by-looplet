@@ -4,6 +4,7 @@
 mod bundled_engine;
 mod material_ai;
 mod assistant_ai;
+mod minimax_ai;
 mod voice;
 mod cad;
 #[cfg(target_os = "windows")]
@@ -684,6 +685,7 @@ pub fn run() {
 
         .manage(MaterialAiState::default())
         .manage(assistant_ai::AssistantAiState::default())
+        .manage(minimax_ai::MinimaxState::default())
         .manage(cad::CadState::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -694,6 +696,7 @@ pub fn run() {
             ));
             app.manage(BomInvocationState::production(Arc::clone(&engine)));
             app.manage(engine);
+            app.state::<minimax_ai::MinimaxState>().load_saved(app.path().app_config_dir().ok());
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
                 window_chrome::apply(&window.as_ref().window());
@@ -721,6 +724,9 @@ pub fn run() {
             assistant_ai::xray_assistant_status,
             assistant_ai::xray_assistant_turn,
             assistant_ai::xray_cancel_assistant,
+            minimax_ai::xray_minimax_status,
+            minimax_ai::xray_minimax_turn,
+            minimax_ai::xray_configure_minimax,
             xray_configure_material_ai,
             xray_interpret_material_ai,
             xray_propose_architect_ai,

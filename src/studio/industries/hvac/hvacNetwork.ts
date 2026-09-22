@@ -7,7 +7,7 @@ const positive = z.number().finite().positive().max(1000000);
 const coordinate = z.number().finite().min(-10000).max(10000);
 export const hvacNodeSchema = z.object({ id, zone: id, kind: z.enum(["equipment", "junction", "reducer", "elbow", "tee", "damper", "diffuser", "pump", "valve", "pipe-terminal"]), x: coordinate, y: coordinate, z: coordinate,
   fitting: z.object({ reference: z.string().trim().max(120), radiusM: positive.nullable(), lengthM: positive.nullable() }).strict().optional(),
-  designAirflowLs: positive.nullable(), designPipeFlowLs: positive.nullable().optional(), equipmentTag: z.string().max(120) }).strict();
+  designAirflowLs: positive.nullable(), designPipeFlowLs: positive.nullable().optional(), measuredLs: z.number().finite().nonnegative().max(1000000).nullable().optional(), equipmentTag: z.string().max(120) }).strict();
 export const hvacEdgeSchema = z.object({ id, from: id, to: id, shape: z.enum(["rectangular", "round"]), widthM: positive, heightM: positive,
   service: z.enum(["duct", "pipe"]).optional(), innerDiameterM: positive.nullable().optional(), pipeFlowLs: positive.nullable().optional(),
   insulationM: z.number().finite().nonnegative().max(10), availablePlenumM: positive.nullable(), airflowLs: positive.nullable(), pressureAllowancePaPerM: positive.nullable() }).strict().superRefine((edge, ctx) => {

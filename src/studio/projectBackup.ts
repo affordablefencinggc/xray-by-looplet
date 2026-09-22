@@ -71,11 +71,18 @@ export function encodeBackupBytes(bytes: ArrayBuffer): string {
     binary += String.fromCharCode(...array.subarray(offset, offset + 16384));
   return btoa(binary);
 }
-export function decodeBackupBytes(value: string): ArrayBuffer {
+function decodeBackupAlphabet(value: string): Uint8Array<ArrayBuffer> {
   if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value))
     throw Error("Original file contains invalid base64.");
+  const bufferApi = (globalThis as { Buffer?: { from(value: string, encoding: "base64"): Uint8Array } }).Buffer;
+  if (bufferApi) return new Uint8Array(bufferApi.from(value, "base64"));
   const binary = atob(value);
-  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+export function decodeBackupBytes(value: string): ArrayBuffer {
+  const bytes = decodeBackupAlphabet(value);
   if (encodeBackupBytes(bytes.buffer) !== value) throw Error("Original file encoding is not canonical.");
   return bytes.buffer;
 }
@@ -116,10 +123,10 @@ export async function validateProjectBackup(input: unknown): Promise<ProjectBack
   if (value.assets.length !== originals.length + photos.length)
     throw Error("Backup must include exactly every referenced original plan and photo.");
   for (const asset of value.assets) {
-    const bytes = decodeBackupBytes(asset.bytesBase64);
+    const bytes = decodeBackupAlphabet(asset.bytesBase64).buffer;
     if (asset.kind === "plan") {
       const document = originals.find(d => d.id === asset.id);
-      if (!document || !["pdf", "dxf", "svg"].includes(document.kind)) throw Error("Unreferenced or unsupported original plan.");
+      if (!document || !["pdf", "dxf", "svg", "dwg"].includes(document.kind)) throw Error("Unreferenced or unsupported original plan.");
       if (asset.name !== document.name) throw Error("Original plan name does not match its document.");
       const inspected = await inspectPlanBytes({ name: asset.name, bytes: new Uint8Array(bytes), source: "web" });
       if (inspected.binary.sha256 !== asset.sha256 || asset.sha256 !== document.sha256 ||

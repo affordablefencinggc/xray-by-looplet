@@ -1,7 +1,7 @@
 import { Unzip, UnzipInflate, zipSync } from "fflate";
 import { z } from "zod";
 import {
-  backupDigest, decodeBackupBytes, encodeBackupBytes, parseProjectBackup,
+  backupDigest, encodeBackupBytes, parseProjectBackup,
   type ProjectBackup,
 } from "../projectBackup.ts";
 import {
@@ -31,7 +31,7 @@ function readJson(bytes: Uint8Array): unknown {
   return value;
 }
 function supportedPath(path: string) {
-  return path === "manifest.json" || path === RECORDS || /^(drawings|photos)\/[0-9]{1,4}\.(pdf|dxf|svg|bin)$/.test(path);
+  return path === "manifest.json" || path === RECORDS || /^(drawings|photos)\/[0-9]{1,4}\.(pdf|dxf|svg|dwg|bin)$/.test(path);
 }
 
 /** ZIP directory and local headers must agree before any inflater sees bytes.
@@ -101,21 +101,38 @@ function unpack(bytes: Uint8Array): Record<string, Uint8Array> {
   return files;
 }
 
-/** Pure container step. Capture/restore owns storage and concurrency; this writes no workspace data. */
+/** Base64 is the JSON backup envelope. The ZIP stores the original bytes, so this decode
+ * does not re-encode them to prove canonicity. SHA-256 against the asset record does that. */
+function rawAssetBytes(value: string): Uint8Array {
+  if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value))
+    throw Error("Original file contains invalid base64.");
+  const bufferApi = (globalThis as { Buffer?: { from(value: string, encoding: "base64"): Uint8Array } }).Buffer;
+  if (bufferApi) return new Uint8Array(bufferApi.from(value, "base64"));
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+/** Pure container step. Capture/restore owns storage and concurrency; this writes no workspace data.
+ * Plan and photo bytes are copied out of the backup envelope once and stored verbatim. */
 export async function createProjectArchive(input: ProjectBackup, client: string | null = null) {
-  // Until restoration consumes raw assets directly, enforce its legacy reader
-  // limit here too: never emit an archive that this reader cannot reopen.
-  const backup = await parseProjectBackup(JSON.stringify(input));
   const files: Record<string, Uint8Array> = Object.create(null), entries: ArchiveEntry[] = [];
-  const assets = backup.assets.map((asset, index) => {
+  const assets = input.assets.map((asset, index) => {
     const { bytesBase64, ...metadata } = asset;
-    const kind = backup.job.documents.find(d => d.id === asset.id)?.kind;
-    const extension = asset.kind === "plan" && kind && ["pdf", "dxf", "svg"].includes(kind) ? kind : "bin";
+    const kind = input.job.documents.find(d => d.id === asset.id)?.kind;
+    const extension = asset.kind === "plan" && kind && ["pdf", "dxf", "svg", "dwg"].includes(kind) ? kind : "bin";
     const path = `${asset.kind === "plan" ? "drawings" : "photos"}/${index}.${extension}`;
-    const bytes = new Uint8Array(decodeBackupBytes(bytesBase64)); files[path] = bytes;
+    const bytes = rawAssetBytes(bytesBase64);
+    files[path] = bytes;
     entries.push({ path, kind: asset.kind, id: asset.id, sha256: asset.sha256, sizeBytes: bytes.length });
     return { ...metadata, path };
   });
+  for (const entry of entries) {
+    if (await digest(files[entry.path]) !== entry.sha256)
+      throw Error(`Original file ${entry.path} failed SHA-256 verification.`);
+  }
+  const backup = input;
   files[RECORDS] = jsonBytes({ ...backup, assets });
   entries.push({ path: RECORDS, kind: "record", id: "workspace", sha256: await digest(files[RECORDS]), sizeBytes: files[RECORDS].length });
   const base = { format: PORTABLE_ARCHIVE_SCHEMA, createdAt: backup.createdAt, jobId: backup.job.id,

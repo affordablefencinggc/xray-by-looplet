@@ -15,6 +15,7 @@ import { Route as ApiArchitectAiRouteImport } from './routes/api.architect-ai'
 import { Route as ApiAssistantAiRouteImport } from './routes/api.assistant-ai'
 import { Route as ApiLoopletSiteRenderRouteImport } from './routes/api.looplet-site-render'
 import { Route as ApiMaterialAiRouteImport } from './routes/api.material-ai'
+import { Route as ApiMcpConnectionRouteImport } from './routes/api.mcp-connection'
 import { Route as ApiMinimaxAiRouteImport } from './routes/api.minimax-ai'
 import { Route as ApiPricingResearchRouteImport } from './routes/api.pricing-research'
 import { Route as ApiRenderAiRouteImport } from './routes/api.render-ai'
@@ -50,6 +51,11 @@ const ApiLoopletSiteRenderRoute = ApiLoopletSiteRenderRouteImport.update({
 const ApiMaterialAiRoute = ApiMaterialAiRouteImport.update({
   id: '/api/material-ai',
   path: '/api/material-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpConnectionRoute = ApiMcpConnectionRouteImport.update({
+  id: '/api/mcp-connection',
+  path: '/api/mcp-connection',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMinimaxAiRoute = ApiMinimaxAiRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/looplet-site-render': typeof ApiLoopletSiteRenderRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
+  '/api/mcp-connection': typeof ApiMcpConnectionRoute
   '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/looplet-site-render': typeof ApiLoopletSiteRenderRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
+  '/api/mcp-connection': typeof ApiMcpConnectionRoute
   '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/api/assistant-ai': typeof ApiAssistantAiRoute
   '/api/looplet-site-render': typeof ApiLoopletSiteRenderRoute
   '/api/material-ai': typeof ApiMaterialAiRoute
+  '/api/mcp-connection': typeof ApiMcpConnectionRoute
   '/api/minimax-ai': typeof ApiMinimaxAiRoute
   '/api/pricing-research': typeof ApiPricingResearchRoute
   '/api/render-ai': typeof ApiRenderAiRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/api/assistant-ai'
     | '/api/looplet-site-render'
     | '/api/material-ai'
+    | '/api/mcp-connection'
     | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/api/assistant-ai'
     | '/api/looplet-site-render'
     | '/api/material-ai'
+    | '/api/mcp-connection'
     | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/api/assistant-ai'
     | '/api/looplet-site-render'
     | '/api/material-ai'
+    | '/api/mcp-connection'
     | '/api/minimax-ai'
     | '/api/pricing-research'
     | '/api/render-ai'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   ApiAssistantAiRoute: typeof ApiAssistantAiRoute
   ApiLoopletSiteRenderRoute: typeof ApiLoopletSiteRenderRoute
   ApiMaterialAiRoute: typeof ApiMaterialAiRoute
+  ApiMcpConnectionRoute: typeof ApiMcpConnectionRoute
   ApiMinimaxAiRoute: typeof ApiMinimaxAiRoute
   ApiPricingResearchRoute: typeof ApiPricingResearchRoute
   ApiRenderAiRoute: typeof ApiRenderAiRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/api/material-ai'
       fullPath: '/api/material-ai'
       preLoaderRoute: typeof ApiMaterialAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp-connection': {
+      id: '/api/mcp-connection'
+      path: '/api/mcp-connection'
+      fullPath: '/api/mcp-connection'
+      preLoaderRoute: typeof ApiMcpConnectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/minimax-ai': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAssistantAiRoute: ApiAssistantAiRoute,
   ApiLoopletSiteRenderRoute: ApiLoopletSiteRenderRoute,
   ApiMaterialAiRoute: ApiMaterialAiRoute,
+  ApiMcpConnectionRoute: ApiMcpConnectionRoute,
   ApiMinimaxAiRoute: ApiMinimaxAiRoute,
   ApiPricingResearchRoute: ApiPricingResearchRoute,
   ApiRenderAiRoute: ApiRenderAiRoute,

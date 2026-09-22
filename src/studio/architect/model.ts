@@ -502,15 +502,15 @@ export function demonstration(projectId: string) {
     [9000, 6000],
     [0, 6000],
   ];
-  for (let i = 0; i < 4; i++) p.walls.push(newWall(p, l, points[i], points[(i + 1) % 4]));
+  const physicalLayers = (): Layer[] => [
+    { id: uuid(), name: "Brickwork", thickness: 110, kind: "solid", hatch: "brick", densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0 },
+    { id: uuid(), name: "Cavity", thickness: 50, kind: "void", hatch: "none", densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0 },
+  ];
+  for (let i = 0; i < 4; i++) p.walls.push(newWall(p, l, points[i], points[(i + 1) % 4], physicalLayers()));
   p.walls.push(
-    newWall(
-      p,
-      l,
-      [6000, 0],
-      [6000, 6000],
-      [{ ...defaultLayers()[3], name: "Internal lining", thickness: 90, kind: "assembly" }],
-    ),
+    newWall(p, l, [6000, 0], [6000, 6000], [
+      { id: uuid(), name: "Internal lining", thickness: 90, kind: "solid", hatch: "timber", densityKgM3: null, rateM2: null, supplierReference: "", rateRevision: "", wastePercent: 0 },
+    ]),
   );
   p.openings.push(
     {

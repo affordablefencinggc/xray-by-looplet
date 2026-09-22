@@ -1,7 +1,17 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { WORKSPACE_ACCESS_LOCK, executeWorkspaceRestore, type RestoreOperation } from "./workspaceRestore";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { executeWorkspaceRestore, type RestoreOperation } from "./workspaceRestore";
 import { browserRestorePorts, finishPendingRestore, readPendingRestore } from "./workspaceRestoreStorage";
 import { readProjectBackup } from "./projectBackupStorage";
+import { FENCING_JOB_STORAGE_KEY } from "./persistence";
+import { recoverStoredJournal } from "./persistence/recoveryJournal";
+import {
+  browserLockBackend,
+  browserLockBus,
+  openWorkspaceLock,
+  WorkspaceLockUnavailableError,
+  type WorkspaceLockSession,
+} from "./persistence/workspaceLock";
+import { canMountStudio, WorkspaceRecoveryScreen } from "./workspaceRecoveryScreen";
 import "./workspaceStartup.css";
 
 function download(serialized: string, name: string) {
@@ -9,33 +19,93 @@ function download(serialized: string, name: string) {
   const link = document.createElement("a"); link.href = url; link.download = `${name}.xray-backup.json`;
   link.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
-/** Nothing in Studio (including persistence effects) mounts before the workspace lease is acquired. */
+
+function startupProjectId(storage: Pick<Storage, "getItem">): string {
+  try {
+    const raw = storage.getItem(FENCING_JOB_STORAGE_KEY);
+    if (!raw) return "workspace";
+    const id = (JSON.parse(raw) as { id?: unknown }).id;
+    return typeof id === "string" && id.length > 0 && id.length <= 240 ? id : "workspace";
+  } catch {
+    return "workspace";
+  }
+}
+
+let pageSession: Promise<WorkspaceLockSession> | null = null;
+let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+let pagehideBound = false;
+
+function bindPagehide() {
+  if (pagehideBound || typeof window === "undefined") return;
+  pagehideBound = true;
+  window.addEventListener("pagehide", () => {
+    const pending = pageSession;
+    pageSession = null;
+    void pending?.then((session) => session.release());
+  });
+}
+
+function acquirePageSession(projectId: string): Promise<WorkspaceLockSession> {
+  bindPagehide();
+  if (releaseTimer) {
+    clearTimeout(releaseTimer);
+    releaseTimer = null;
+  }
+  if (!pageSession) {
+    pageSession = openWorkspaceLock({
+      projectId,
+      backend: browserLockBackend(),
+      bus: browserLockBus(),
+    }).catch((error: unknown) => {
+      pageSession = null;
+      throw error;
+    });
+  }
+  return pageSession;
+}
+
+function schedulePageRelease() {
+  if (releaseTimer) clearTimeout(releaseTimer);
+  releaseTimer = setTimeout(() => {
+    releaseTimer = null;
+    const pending = pageSession;
+    pageSession = null;
+    void pending?.then((session) => session.release());
+  }, 0);
+}
+
+/** Nothing in Studio mounts before this tab holds the exclusive workspace lease. */
 export function WorkspaceStartup({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false), [busy, setBusy] = useState(true);
   const [operation, setOperation] = useState<RestoreOperation | null>(null), [error, setError] = useState("");
-  const [exclusive, setExclusive] = useState(false);
+  const [exclusive, setExclusive] = useState(false), [readOnly, setReadOnly] = useState(false);
+  const [quarantined, setQuarantined] = useState(false), [foreignHolderId, setForeignHolderId] = useState<string | null>(null);
+  const sessionRef = useRef<WorkspaceLockSession | null>(null);
+  const takeoverBusy = useRef(false);
+
   useEffect(() => {
-    let disposed = false, release = () => {};
-    const hold = new Promise<void>(resolve => { release = resolve; });
-    async function start() {
+    let disposed = false;
+    let unsubscribe = () => {};
+    let entered = false;
+    let paused = false;
+    const storage = window.localStorage;
+
+    async function enterExclusive(session: WorkspaceLockSession) {
+      if (disposed || paused || entered || session.mode !== "exclusive") return;
+      entered = true;
       const pending = await readPendingRestore();
-      if (disposed) return;
-      setOperation(pending);
-      if (!navigator.locks) {
-        if (pending) throw Error("This browser cannot protect restoration. Open this workspace in a browser with Web Locks support.");
-        setReady(true); setBusy(false); return;
+      if (disposed || session.mode !== "exclusive") {
+        entered = false;
+        return;
       }
-      await navigator.locks.request(WORKSPACE_ACCESS_LOCK, { mode: pending ? "exclusive" : "shared", ifAvailable: true }, async lock => {
-        if (disposed) return;
-        if (!lock) throw Error("Close other X-Ray tabs or windows, then retry. Their editing sessions prevent restoration from starting.");
-        const latest = await readPendingRestore();
-        if (disposed) return;
-        if (!pending && latest) throw Error("A restore was requested in another window. Reload to review it.");
-        if (!latest) { setReady(true); setBusy(false); await hold; return; }
-        setExclusive(true); setOperation(latest);
+      if (pending) {
+        setOperation(pending);
+        setExclusive(true);
+        setReadOnly(false);
+        setReady(false);
         try {
-          const result = await executeWorkspaceRestore(latest, browserRestorePorts());
-          if (!disposed) setOperation(result);
+          const result = await executeWorkspaceRestore(pending, browserRestorePorts());
+          if (!disposed && session.mode === "exclusive") setOperation(result);
         } catch (failure) {
           if (!disposed) {
             setError(failure instanceof Error ? failure.message : "Restoration did not finish.");
@@ -43,34 +113,117 @@ export function WorkspaceStartup({ children }: { children: ReactNode }) {
           }
         }
         if (!disposed) setBusy(false);
-        await hold;
-      });
+        return;
+      }
+      setExclusive(true);
+      setReadOnly(false);
+      setReady(true);
+      setBusy(false);
     }
-    void start().catch(failure => { if (!disposed) { setExclusive(false); setError(failure instanceof Error ? failure.message : String(failure)); setBusy(false); } });
-    return () => { disposed = true; release(); };
+
+    async function start() {
+      const recovery = recoverStoredJournal(storage);
+      if (disposed) return;
+      if (recovery.status === "quarantined") {
+        paused = true;
+        setQuarantined(true);
+        setError(recovery.reason);
+        setReady(false);
+      }
+      let session: WorkspaceLockSession;
+      try {
+        session = await acquirePageSession(startupProjectId(storage));
+      } catch (failure) {
+        if (disposed) return;
+        setExclusive(false);
+        setError(failure instanceof WorkspaceLockUnavailableError || failure instanceof Error ? failure.message : String(failure));
+        setBusy(false);
+        return;
+      }
+      if (disposed) return;
+      sessionRef.current = session;
+      const apply = () => {
+        if (disposed) return;
+        setForeignHolderId(session.foreignHolderId);
+        if (session.mode === "read-only") {
+          entered = false;
+          setExclusive(false);
+          setReadOnly(true);
+          setReady(false);
+          if (!takeoverBusy.current) setBusy(false);
+          return;
+        }
+        setExclusive(true);
+        setReadOnly(false);
+        if (paused) {
+          setBusy(false);
+          return;
+        }
+        void enterExclusive(session);
+      };
+      unsubscribe = session.subscribe(apply);
+      apply();
+    }
+
+    void start().catch((failure) => {
+      if (!disposed) {
+        setExclusive(false);
+        setError(failure instanceof Error ? failure.message : String(failure));
+        setBusy(false);
+      }
+    });
+    return () => {
+      disposed = true;
+      unsubscribe();
+      sessionRef.current = null;
+      schedulePageRelease();
+    };
   }, []);
-  if (ready) return <>{children}</>;
+
   async function finish() {
     if (!operation || !exclusive) return;
     setBusy(true); setError("");
     try { await finishPendingRestore(operation); location.reload(); }
     catch (failure) { setError(failure instanceof Error ? failure.message : String(failure)); setBusy(false); }
   }
-  const terminal = operation?.phase === "verified" || operation?.phase === "rolled-back";
-  return <main className="workspace-startup" aria-busy={busy}>
-    <section aria-label="Workspace recovery">
-      <header><p>X-Ray workspace</p><h1>{ready ? "Workspace ready" : operation ? "Restore project" : "Opening your workspace"}</h1></header>
-      {busy ? <p role="status">{operation ? "Checking the saved snapshot and recovery journal. Editing will open after verification." : "Checking saved work…"}</p> : <>
-        {operation?.message && <p role="status">{operation.message}</p>}
-        {error && <p role="alert">{error}</p>}
-        {operation?.phase === "recovery-required" && <p>Keep both packages below. Retry recovery before making further edits.</p>}
-        <div className="workspace-startup-actions">
-          {exclusive && operation && (terminal || operation.phase === "requested") && <button onClick={() => void finish()}>{terminal ? "Open workspace" : "Cancel restore and open workspace"}</button>}
-          <button onClick={() => location.reload()}>Retry</button>
-          {operation && <button onClick={() => download(operation.backup, "Requested restore")}>Download requested backup</button>}
-          {operation?.plan && <button onClick={() => void readProjectBackup(operation.plan!.recoveryBackupId).then(v => download(v.serialized, "Before restore")).catch(e => setError(String(e)))}>Download recovery copy</button>}
-        </div>
-      </>}
-    </section>
-  </main>;
+
+  async function takeOver() {
+    const session = sessionRef.current;
+    if (!session || quarantined || takeoverBusy.current) return;
+    takeoverBusy.current = true;
+    setBusy(true); setError("");
+    try {
+      const result = await session.requestTakeover();
+      if (result === "still-held") {
+        setError("The other window still has this project open. Editing stays locked.");
+        setBusy(false);
+      }
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+      setBusy(false);
+    } finally {
+      takeoverBusy.current = false;
+    }
+  }
+
+  if (canMountStudio({ ready, readOnly, quarantined })) return <>{children}</>;
+  return <WorkspaceRecoveryScreen
+    busy={busy}
+    error={error}
+    operation={operation}
+    exclusive={exclusive}
+    readOnly={readOnly}
+    quarantined={quarantined}
+    foreignHolderId={foreignHolderId}
+    onRetry={() => location.reload()}
+    onFinish={() => void finish()}
+    onTakeOver={() => void takeOver()}
+    onDownloadRequested={() => { if (operation) download(operation.backup, "Requested restore"); }}
+    onDownloadRecovery={() => {
+      if (!operation?.plan) return;
+      void readProjectBackup(operation.plan.recoveryBackupId)
+        .then((value) => download(value.serialized, "Before restore"))
+        .catch((failure) => setError(String(failure)));
+    }}
+  />;
 }

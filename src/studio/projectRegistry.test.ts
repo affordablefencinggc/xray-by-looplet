@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createDefaultJob, parseFencingJob } from "./domain.ts";
 import { FENCING_JOB_STORAGE_KEY, loadFencingJob, saveFencingJob } from "./persistence.ts";
+import { RECOVERY_JOURNAL_STORAGE_KEY } from "./persistence/recoveryJournal.ts";
 import {
   ASSISTANT_PROJECT_TABS_KEY,
   MAX_PROJECT_TABS,
@@ -206,7 +207,8 @@ describe("project switch planner", () => {
     assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), firstRaw, "the first project comes back byte-identical");
     assert.equal(hasShelvedJob(storage, first.id), false);
     assert.equal(storage.getItem(shelfKey(toNew.targetId)), secondRaw);
-    assert.deepEqual(storage.keys().sort(), [FENCING_JOB_STORAGE_KEY, PROJECT_REGISTRY_KEY, shelfKey(toNew.targetId)].sort());
+    assert.deepEqual(storage.keys().sort(), [FENCING_JOB_STORAGE_KEY, PROJECT_REGISTRY_KEY, RECOVERY_JOURNAL_STORAGE_KEY, shelfKey(toNew.targetId)].sort());
+    assert.equal(JSON.parse(storage.getItem(RECOVERY_JOURNAL_STORAGE_KEY)!).projectId, first.id, "the committed journal follows the project saved last");
   });
 
   it("leaves the main key alone when the compare-and-swap is stale and the rollback undoes its writes", () => {

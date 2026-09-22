@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createDefaultJob } from "./domain.ts";
+import { recoverStoredJournal } from "./persistence/recoveryJournal.ts";
 import {
   FENCING_JOB_STORAGE_KEY,
   LEGACY_FENCING_JOB_STORAGE_KEY,
@@ -105,7 +106,7 @@ describe("project persistence", () => {
     const saved = saveFencingJob(job, replaced, { expectedRaw: '{"another":"record"}' });
     assert.equal(saved.ok, false);
     assert.equal(saved.stale, undefined);
-    assert.match(saved.error ?? "", /could not be verified/);
+    assert.match(saved.error ?? "", /could not be verified|Recovery journal could not be staged/);
   });
 
   it("reports a read failure during the compare-and-swap check instead of writing blind", () => {
@@ -183,7 +184,7 @@ describe("project persistence", () => {
     const dropped = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
     assert.equal(saveFencingJob(job, dropped).ok, false);
     const replaced = { ...dropped, getItem: () => '{"another":"record"}' };
-    assert.match(saveFencingJob(job, replaced).error ?? "", /could not be verified/);
+    assert.match(saveFencingJob(job, replaced).error ?? "", /could not be verified|Recovery journal could not be staged/);
   });
 
   it("reports a failed readback and permits an explicit retry without mutating the open job", () => {
@@ -194,5 +195,25 @@ describe("project persistence", () => {
     assert.equal(JSON.stringify(job), original);
     assert.equal(saveFencingJob(job, backing).ok, true);
     assert.deepEqual(loadFencingJob(backing).job, job);
+  });
+
+  it("rolls an interrupted project save back to the previous bytes on startup playback", () => {
+    const storage = new MemoryStorage();
+    const original = createDefaultJob("2026-09-22T00:00:00.000Z");
+    const first = saveFencingJob(original, storage);
+    assert.equal(first.ok, true);
+    const previous = storage.getItem(FENCING_JOB_STORAGE_KEY);
+    const edited = { ...original, name: "Interrupted edit" };
+    const interrupted = saveFencingJob(edited, storage, {
+      expectedRaw: previous,
+      beforeCommit: () => { throw Error("process stopped"); },
+    });
+    assert.equal(interrupted.ok, false);
+    assert.match(interrupted.error ?? "", /interrupted before its recovery journal committed/);
+    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY)?.includes("Interrupted edit"), true);
+    const played = recoverStoredJournal(storage);
+    assert.equal(played.status, "rolled-back");
+    assert.equal(storage.getItem(FENCING_JOB_STORAGE_KEY), previous);
+    assert.equal(loadFencingJob(storage).job?.name, original.name);
   });
 });

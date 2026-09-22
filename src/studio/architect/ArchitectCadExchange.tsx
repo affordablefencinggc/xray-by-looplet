@@ -134,7 +134,9 @@ export function ArchitectCadExchange({
               );
               if (isDwg) {
                 result.project.name = "Imported DWG reference geometry";
+                if (converted) setNotice(`Parsed ${converted.entityCount} drawing entities.`);
                 result.warnings.unshift(
+                  converted ? `Parsed ${converted.entityCount} drawing entities.` : "DWG conversion did not report an entity count.",
                   "DWG imported as 2D reference geometry; assemblies and original level structure are not restored.",
                 );
                 setImportDiagnostics(converted?.warnings ?? []);

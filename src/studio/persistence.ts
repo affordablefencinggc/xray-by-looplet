@@ -5,6 +5,7 @@ import {
   parseFencingJob,
   type FencingJob,
 } from "./domain.ts";
+import { commitStagedWrite, stageJournalledWrite } from "./persistence/recoveryJournal.ts";
 
 export const FENCING_JOB_STORAGE_KEY = "xray:fencing-job:v2";
 export const LEGACY_FENCING_JOB_STORAGE_KEY = "xray:fencing-job:v1";
@@ -32,6 +33,11 @@ export type JobSaveOptions = {
    * window cannot silently overwrite a newer revision. Omit to skip the guard.
    */
   expectedRaw?: string | null;
+  /**
+   * Runs after the new bytes and the in-flight recovery journal are stored, before the journal
+   * is committed. A throw leaves the save uncommitted so startup playback can roll it back.
+   */
+  beforeCommit?: () => void;
 };
 
 export const STALE_PROJECT_WRITE_MESSAGE =
@@ -116,9 +122,23 @@ export function saveFencingJob(
 
   try {
     const serialized = JSON.stringify(parsed.data);
-    storage.setItem(FENCING_JOB_STORAGE_KEY, serialized);
+    const staged = stageJournalledWrite({
+      storage,
+      projectId: parsed.data.id,
+      operation: "save-project",
+      targetKey: FENCING_JOB_STORAGE_KEY,
+      next: serialized,
+      now: new Date(),
+    });
+    if (staged.status !== "staged") return { ok: false, error: staged.reason };
     if (storage.getItem(FENCING_JOB_STORAGE_KEY) !== serialized)
       return { ok: false, error: "The project save could not be verified. Keep this window open and retry saving; the open work has been retained." };
+    try {
+      options.beforeCommit?.();
+    } catch (error) {
+      return { ok: false, error: `Project save was interrupted before its recovery journal committed. ${messageOf(error)}` };
+    }
+    commitStagedWrite(storage, new Date());
     return { ok: true, error: null, raw: serialized };
   } catch (error) {
     return { ok: false, error: `Could not save the project: ${messageOf(error)}` };

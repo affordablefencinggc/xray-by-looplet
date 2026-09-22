@@ -67,7 +67,7 @@ export const siteDetailsSchema = z.object({
 export const documentRevisionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(300),
-  kind: z.enum(["pdf", "dxf", "svg", "ifc", "unknown"]),
+  kind: z.enum(["pdf", "dxf", "svg", "dwg", "ifc", "unknown"]),
   importedAt: isoDateTime,
   pageCount: z.number().int().positive().nullable(),
   sha256: z

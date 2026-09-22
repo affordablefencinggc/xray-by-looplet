@@ -4,7 +4,7 @@ export const MAX_PLAN_BYTES = 100 * 1024 * 1024;
 export const PLAN_CONTENT_DB = "xray-plan-content-v1";
 export const PLAN_CONTENT_STORE = "documents";
 
-export type SupportedPlanKind = Extract<DocumentRevision["kind"], "pdf" | "dxf" | "svg">;
+export type SupportedPlanKind = Extract<DocumentRevision["kind"], "pdf" | "dxf" | "svg" | "dwg">;
 
 export type PlanBinary = {
   documentId: string;

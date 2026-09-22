@@ -82,7 +82,7 @@ function pickWebPlan(): Promise<File> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/pdf,.pdf,.dxf,.svg,image/svg+xml";
+    input.accept = "application/pdf,.pdf,.dxf,.svg,.dwg,image/svg+xml,application/acad";
     input.hidden = true;
     document.body.append(input);
 
@@ -106,7 +106,7 @@ function parseDesktopPayload(value: unknown): DesktopPlanPayload {
     throw new PlanInspectionError("malformed", "The desktop host returned an invalid plan payload.");
   }
   const payload = value as Partial<DesktopPlanPayload>;
-  const kindOk = payload.kind === "pdf" || payload.kind === "dxf" || payload.kind === "svg";
+  const kindOk = payload.kind === "pdf" || payload.kind === "dxf" || payload.kind === "svg" || payload.kind === "dwg";
   const sizeOk =
     Number.isSafeInteger(payload.sizeBytes) &&
     Number(payload.sizeBytes) > 0 &&

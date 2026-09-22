@@ -30,17 +30,13 @@ function options(native: boolean, provider: 'minimax' | 'gemini', disabled = fal
   return { chosen, buttons, markup: renderToStaticMarkup(tree) };
 }
 
-test('native unsupported selection stays checked and cannot call a fallback provider', () => {
-  const { buttons, chosen, markup } = options(true, 'minimax');
-  assert.equal(buttons[0].props.disabled, true);
-  assert.equal(buttons[0].props['aria-checked'], true);
-  assert.equal(buttons[1].props['aria-checked'], false);
+test('desktop offers both providers and says where the MiniMax key is configured', () => {
+  const { buttons, chosen, markup } = options(true, 'gemini');
+  assert.ok(buttons.every(button => !button.props.disabled));
   buttons[0].props.onClick();
-  assert.deepEqual(chosen, []);
-  assert.match(markup, /Unavailable on desktop/);
-  assert.match(markup, /selection is preserved/);
-  buttons[1].props.onClick();
-  assert.deepEqual(chosen, ['gemini'], 'only explicit supported selection changes provider');
+  assert.deepEqual(chosen, ['minimax']);
+  assert.doesNotMatch(markup, /Unavailable/);
+  assert.match(markup, /add your MiniMax key in assistant settings/);
 });
 
 test('web choices remain available and describe the actual capture scope', () => {
@@ -58,14 +54,14 @@ test('an already open menu cannot change provider during a running turn', () => 
   assert.deepEqual(chosen, []);
 });
 
-test('collapsed native control explains unavailable selected provider without changing stored choice', () => {
+test('collapsed native control shows the selected MiniMax provider without changing stored choice', () => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   Object.defineProperty(globalThis, 'window', { value: { __TAURI_INTERNALS__: {} }, configurable: true });
   useAssistantProvider.setState({ provider: 'minimax' });
   try {
     const markup = renderToStaticMarkup(React.createElement(ProviderSwitch));
-    assert.match(markup, /Provider: MiniMax\. Unavailable in this desktop build\. Change provider/);
-    assert.match(markup, />Unavailable<\/span>/);
+    assert.match(markup, /Provider: MiniMax\. Change provider/);
+    assert.doesNotMatch(markup, /Unavailable/);
     assert.equal(useAssistantProvider.getState().provider, 'minimax');
   } finally {
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);

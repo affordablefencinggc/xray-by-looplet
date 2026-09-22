@@ -21,17 +21,18 @@ test('status probes use their captured provider even when the stored selection d
   }
 });
 
-test('an unsupported native provider status never falls back or performs a network request', async () => {
+test('native MiniMax status comes from its own desktop command, never Gemini or the network', async () => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const originalFetch = globalThis.fetch;
   let requests = 0;
-  Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: {} } });
+  const commands: string[] = [];
+  const invoke = async (command: string) => { commands.push(command); return { provider: 'MiniMax', model: 'MiniMax-M3', configured: false, available: false, message: 'MiniMax is not configured.' }; };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: { invoke, transformCallback: () => 0 } } });
   globalThis.fetch = async () => { requests++; throw Error('Unexpected network request'); };
   try {
     const status = await assistantStatus('minimax');
-    assert.equal(status.available, false);
     assert.equal(status.provider, 'MiniMax');
-    assert.match(status.message, /unavailable in this native build/);
+    assert.deepEqual(commands, ['xray_minimax_status']);
     assert.equal(requests, 0);
   } finally {
     globalThis.fetch = originalFetch;
@@ -39,3 +40,4 @@ test('an unsupported native provider status never falls back or performs a netwo
     else Reflect.deleteProperty(globalThis, 'window');
   }
 });
+

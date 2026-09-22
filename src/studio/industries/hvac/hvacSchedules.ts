@@ -1,6 +1,6 @@
 import { isFittingKind } from "./hvacFittings.ts";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
+import { advanceDelivery, deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
 import { evaluateHvacNetwork, hvacNetworkSchema, isPipeNode } from "./hvacNetwork.ts";
 import type { IndustrySourceBinding } from "../sourceBinding.ts";
 
@@ -19,8 +19,14 @@ export function calculateHvacSchedules(input: unknown) {
     commissioning: checked.network.nodes.filter(n => n.kind !== "junction" && !isFittingKind(n.kind)).map(n => {
       const service = isPipeNode(n.kind) ? "pipe" : "duct";
       const designLs = service === "pipe" ? n.designPipeFlowLs ?? null : n.designAirflowLs;
-      return { id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag, service, designLs,
-        minimumLs: designLs === null ? null : designLs * .9, maximumLs: designLs === null ? null : designLs * 1.1, measuredLs: null, status: "not-tested" as const };
+      const minimumLs = designLs === null ? null : designLs * .9;
+      const maximumLs = designLs === null ? null : designLs * 1.1;
+      const measuredLs = n.measuredLs ?? null;
+      const tolerance = 1e-6;
+      const status = measuredLs === null ? "not-tested" as const
+        : designLs === null || minimumLs === null || maximumLs === null ? "unknown" as const
+        : measuredLs >= minimumLs - tolerance && measuredLs <= maximumLs + tolerance ? "within-tolerance" as const : "outside-tolerance" as const;
+      return { id: n.id, zone: n.zone, kind: n.kind, tag: n.equipmentTag, service, designLs, minimumLs, maximumLs, measuredLs, status };
     }),
   };
 }
@@ -41,16 +47,29 @@ export async function createHvacPackage(input: unknown, projectId: string, bindi
 export type HvacPackage = Awaited<ReturnType<typeof createHvacPackage>>;
 export async function verifyHvacPackage(value: HvacPackage) {
   const delivery: DeliveryRecord = deliveryRecordSchema.parse(value.delivery);
-  if (delivery.state !== "draft-export" || delivery.kind !== "hvac-commissioning" || value.content.format !== "xray.hvac-draft-package/v1" || delivery.projectId !== value.content.projectId || canonical(delivery.sourceBinding) !== canonical(value.content.sourceBinding)) throw Error("HVAC package delivery metadata does not match its draft content.");
+  if (delivery.kind !== "hvac-commissioning" || value.content.format !== "xray.hvac-draft-package/v1" || delivery.projectId !== value.content.projectId || canonical(delivery.sourceBinding) !== canonical(value.content.sourceBinding)) throw Error("HVAC package delivery metadata does not match its content.");
   if (canonical(calculateHvacSchedules(value.content.network)) !== canonical(value.content.schedules)) throw Error("HVAC schedule no longer matches its inputs.");
   if (await digest(canonical(value.content)) !== delivery.contentSha256) throw Error("HVAC package SHA-256 mismatch.");
-  return value;
+  return { ...value, delivery };
+}
+async function advanceHvacPackage(value: HvacPackage, nextState: DeliveryRecord["state"], options: { reviewedAt?: string; issuedAt?: string } = {}) {
+  const checked = await verifyHvacPackage(value);
+  return verifyHvacPackage({ ...checked, delivery: advanceDelivery(checked.delivery, nextState, options) });
+}
+export function saveHvacDraft(value: HvacPackage) {
+  return advanceHvacPackage(value, "saved-draft");
+}
+export function reviewHvacPackage(value: HvacPackage, reviewedAt: string) {
+  return advanceHvacPackage(value, "reviewed-estimate", { reviewedAt });
+}
+export function issueHvacPackage(value: HvacPackage, issuedAt: string) {
+  return advanceHvacPackage(value, "issued-deliverable", { issuedAt });
 }
 const csvCell = (v: unknown) => { const s = v === null ? "unknown" : String(v); return `"${/^[\s]*[=+\-@]/.test(s) ? "'" : ""}${s.replaceAll('"', '""')}"`; };
 export async function hvacPackageCsv(value: HvacPackage) {
   await verifyHvacPackage(value);
   const { schedules: s } = value.content;
-  const rows: unknown[][] = [["HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
+  const rows: unknown[][] = [[value.delivery.state === "issued-deliverable" ? "HVAC issue - frozen declared record; not an independent commissioning certificate" : value.delivery.state === "reviewed-estimate" ? "HVAC review - frozen declared record; not an independent commissioning certificate" : "HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
     ["Node", "Zone", "Kind", "Equipment tag", "Service", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
     ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.service, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
     [], ["Run", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.airflow.map(r => [r.id, r.velocityMs, r.velocityStatus, r.pressureAllowancePa]),
@@ -70,11 +89,15 @@ export async function hvacPackagePdf(value: HvacPackage) {
     for (let i = 0; i < Math.max(1, printable.length); i += 88) { if (y < 48) { page = pdf.addPage([595, 842]); y = 796; } page.drawText(printable.slice(i, i + 88), { x: 36, y, size: 10, font }); y -= 16; }
   };
   const s = value.content.schedules;
-  line("HVAC equipment and commissioning draft"); line("UNVERIFIED - no measured results, certification or verified quote eligibility.");
+  const issued = value.delivery.state === "issued-deliverable";
+  const reviewed = value.delivery.state === "reviewed-estimate";
+  const measured = s.commissioning.some(row => row.measuredLs !== null);
+  line(issued ? "HVAC equipment and commissioning issue" : reviewed ? "HVAC equipment and commissioning review" : "HVAC equipment and commissioning draft");
+  line(measured ? "Declared measurements are compared with the +/-10% design range. This record does not certify independent commissioning." : "UNVERIFIED - no measured results, certification or verified quote eligibility.");
   line(`Project: ${value.content.projectId} | Source: ${s.network.reference} | ${s.network.evidence}`);
   line(`SHA-256: ${value.delivery.contentSha256}`); line("Integrity seal identifies content, not engineering approval."); line("");
   line("Equipment / terminal schedule: design L/s; allowable test range +/-10%");
-  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.service} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | NOT TESTED`);
+  for (const n of s.commissioning) line(`${n.id} | ${n.zone} | ${n.kind} ${n.tag} | ${n.service} | ${n.designLs ?? "unknown"} | ${n.minimumLs?.toFixed(2) ?? "unknown"} to ${n.maximumLs?.toFixed(2) ?? "unknown"} | ${n.measuredLs ?? "unknown"} | ${n.status}`);
   line(""); line(`Airflow review (project threshold ${s.limitMs} m/s; not a code assessment)`);
   for (const r of s.airflow) line(`${r.id} | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | ${r.velocityStatus} | Pressure allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`);
   if (s.pipeFlow.length) { line(""); line("Pipe flow - inside diameter used for velocity; no design limit assessed"); for (const r of s.pipeFlow) line(`${r.id} | OD ${r.outsideDiameterM} m | ID ${r.insideDiameterM ?? "unknown"} m | ${r.flowLs ?? "unknown"} L/s | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | Allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`); }

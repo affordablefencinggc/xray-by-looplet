@@ -219,6 +219,8 @@ export function DocumentPreview({ binary, pageIndex = 0, pageCount = null, class
         if(!dxf)throw Error("No supported LINE, LWPOLYLINE or POLYLINE geometry was found in this ASCII DXF.");
         const [x,y,width,height]=dxf.viewBox.split(" ").map(Number);
         if(!cancelled)setReadySource({key,kind:"dxf",url:null,page:{bounds:{x,y,width,height},rotation:0,crop:null}});
+      } else if(binary!.kind === "dwg") {
+        throw Error("This DWG is stored as the original drawing. Its bytes stay attached for archive and desktop conversion; this preview does not redraw them.");
       } else if(binary!.kind === "svg") {
         const xml=new TextDecoder().decode(binary!.bytes);
         const parsed=new DOMParser().parseFromString(xml,"image/svg+xml");

@@ -25,7 +25,7 @@ export function WorkflowNavigation({ pane, onSelect }: { pane: Pane; onSelect: (
           onClick={() => select(checking ? pane : 'review')}>Checks</button>
       </nav>
     </AdjustableTopRow>
-    <AdjustableTopRow id="mode" label="Workspace tools" minHeight={32} compact>
+    <AdjustableTopRow id="mode" label="Workspace tools" minHeight={44} compact>
       <nav className="workflow-context" aria-label="Workspace tools">
         <div className="workflow-context-controls">
         <span className="workflow-context-label">{checking ? 'Checks' : workflow?.label ?? 'Project'}</span>
