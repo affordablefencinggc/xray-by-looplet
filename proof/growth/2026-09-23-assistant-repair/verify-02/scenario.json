@@ -1,0 +1,247 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:8082/"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "900"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.live-assistant-launcher')"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('.live-assistant').getBoundingClientRect();if(r.height>50||Math.abs(r.bottom-innerHeight)>4)throw Error('Closed assistant is not at bottom');return r.toJSON()})()"
+  ],
+  [
+    "screenshot",
+    "closed-desktop.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('#live-assistant-prompt') && document.documentElement.dataset.assistantRail==='true'"
+  ],
+  [
+    "eval",
+    "(()=>{const p=document.querySelector('#live-assistant-prompt').getBoundingClientRect(),h=document.querySelector('.live-assistant-header').getBoundingClientRect(),b=document.querySelector('[aria-label=\"Collapse live assistant\"]').getBoundingClientRect();if(p.bottom>innerHeight||p.width<100||h.right-b.right>16)throw Error('Composer or header bounds wrong');return {composer:p.toJSON(),headerRightGap:h.right-b.right}})()"
+  ],
+  [
+    "screenshot",
+    "open-desktop.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Collapse assistant rail\"]').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.workspace-rails').dataset.rightCollapsed==='true' && !document.querySelector('.live-assistant.is-open')"
+  ],
+  [
+    "screenshot",
+    "collapsed-right.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Expand assistant rail\"]').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.documentElement.dataset.assistantRail==='true' && !!document.querySelector('#live-assistant-prompt')"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Undock from the right menu\"]').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.documentElement.dataset.assistantRail!=='true'"
+  ],
+  [
+    "screenshot",
+    "manual-floating.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Dock into the right menu\"]').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.documentElement.dataset.assistantRail==='true'"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Collapse live assistant\"]').click(); [...document.querySelectorAll('.workflow-main-tabs button')].find(b=>b.textContent==='Design').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('button')].some(b=>b.textContent==='Architectural workspace')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Architectural workspace').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.arch-view-divider')"
+  ],
+  [
+    "eval",
+    "document.querySelector('.arch-view-divider').scrollIntoView({block:'center'});document.querySelector('.arch-view-divider').focus()"
+  ],
+  [
+    "key",
+    "ArrowLeft"
+  ],
+  [
+    "eval",
+    "(()=>{if(document.querySelector('.arch-view-divider').getAttribute('aria-valuenow')!=='50')throw Error('Keyboard resize failed');return true})()"
+  ],
+  [
+    "drag",
+    "--from",
+    "(()=>{const r=document.querySelector('.arch-view-divider').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()",
+    "--to",
+    "(()=>{const r=document.querySelector('.arch-view-divider').getBoundingClientRect();return {x:r.x+100,y:r.y+r.height/2}})()",
+    "--steps",
+    "8"
+  ],
+  [
+    "wait",
+    "--fn",
+    "Number(document.querySelector('.arch-view-divider').getAttribute('aria-valuenow'))>50 && Number(document.querySelector('.arch-view-divider').getAttribute('aria-valuenow'))===Number(localStorage.getItem('xray:plan-model-split:v1'))"
+  ],
+  [
+    "screenshot",
+    "plan-model-resized.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const {captureScreenContext}=await import('/src/studio/assistant/screenContext.ts');const s=await captureScreenContext();if(!s.images.length||!s.text.includes('Visible controls'))throw Error('No screen context');return {text:s.text,images:s.images.map(i=>({mimeType:i.mimeType,bytes:i.data.length}))}})()"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"MCP connections\"]').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.mcp-connection-body')?.textContent.includes('Configuration ready')"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Test external connection')).click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('.mcp-connection-body')?.textContent.includes('External MCP verified: 6')"
+  ],
+  [
+    "screenshot",
+    "mcp-connected.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Close External model connections\"]').click()"
+  ],
+  [
+    "set",
+    "viewport",
+    "1024",
+    "768"
+  ],
+  [
+    "eval",
+    "document.querySelector('.live-assistant-launcher').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('#live-assistant-prompt')"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('#live-assistant-prompt').getBoundingClientRect();if(r.bottom>innerHeight||r.width<100||document.documentElement.scrollWidth>innerWidth)throw Error('Tablet composer overflow');return r.toJSON()})()"
+  ],
+  [
+    "screenshot",
+    "tablet-open.png"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Collapse live assistant\"]').click()"
+  ],
+  [
+    "screenshot",
+    "tablet-closed.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "900"
+  ],
+  [
+    "eval",
+    "(async()=>{const {useStudio}=await import('/src/studio/store.ts');const {inspectPlanBytes}=await import('/src/studio/documents.ts');const bytes=new Uint8Array(await(await fetch('/models/redburn/source.pdf')).arrayBuffer());const imported=await inspectPlanBytes({name:'21-08-26_Redburn_BR250157_Prelim_Council (1).pdf',bytes,source:'web'});await useStudio.getState().importPlan(imported);useStudio.getState().setSheet(11);useStudio.getState().setPane('measure');window.__sourceTest=useStudio;return imported.binary.sha256})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('.printed-scale-action') && document.querySelector('img.document-source-page')?.complete"
+  ],
+  [
+    "eval",
+    "(()=>{const s=window.__sourceTest.getState();const legacy={...s.currentCalibration,coordinateSpace:undefined};window.__sourceTest.setState({job:{...s.job,calibrations:s.job.calibrations.map(c=>c.sheet===s.sheet?legacy:c)},currentCalibration:legacy});return 'legacy calibration fixture on exact original source'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('button')].some(b=>b.textContent==='Use drawing scale 1:250')"
+  ],
+  [
+    "screenshot",
+    "scale-found-page12.png"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('button')].find(b=>b.textContent==='Use drawing scale 1:250').click()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "window.__sourceTest.getState().currentCalibration.locked && window.__sourceTest.getState().currentCalibration.coordinateSpace==='source-page-v1'"
+  ],
+  [
+    "eval",
+    "(()=>{const s=window.__sourceTest.getState();if(Math.abs(s.scaleM-250*.0254/72)>1e-12||s.calibrationError)throw Error('Scale wrong');return {sheet:s.sheet,calibration:s.currentCalibration,source:s.activePlanBinary.sha256,recoveryKeys:Object.keys(localStorage).filter(k=>k.startsWith('xray:scale-recovery:'))}})()"
+  ],
+  [
+    "screenshot",
+    "scale-applied-page12.png"
+  ],
+  [
+    "eval",
+    "(async()=>{const {captureScreenContext}=await import('/src/studio/assistant/screenContext.ts');const s=await captureScreenContext();if(!s.images.length||!s.text.includes('source plan'))throw Error('PDF not visible to assistant');return {text:s.text,images:s.images.map(i=>({mimeType:i.mimeType,bytes:i.data.length}))}})()"
+  ],
+  [
+    "errors"
+  ]
+]

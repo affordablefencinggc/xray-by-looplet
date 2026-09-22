@@ -51,6 +51,31 @@ function declared(id: string, metresPerUnit: number) {
 
 describe("studio calibration store", () => {
   beforeEach(() => resetStore());
+  it('applies a printed PDF scale only after preserving the prior calibration and refuses stale or measured sheets', () => {
+    const job = twoPageJob(); const sha = 'a'.repeat(64);
+    job.documents[0].sha256 = sha; job.documents[0].kind = 'pdf';
+    delete job.calibrations[0].coordinateSpace;
+    resetStore(job);
+    useStudio.setState({activePlanBinary:{documentId:job.activeDocumentId!,name:'plan.pdf',kind:'pdf',mimeType:'application/pdf',sizeBytes:1,sha256:sha,bytes:new Uint8Array([1])}});
+    const archive = JSON.stringify({projectId:job.id,revision:job.revision,sha256:sha,calibration:job.calibrations[0]});
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+    Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>key==='saved'?archive:null}});
+    try {
+      useStudio.getState().applyPrintedSheetScale(250,'Printed 1:250',job.revision,'missing');
+      assert.equal(useStudio.getState().currentCalibration.locked,false);
+      useStudio.getState().applyPrintedSheetScale(250,'Printed 1:250',job.revision+1,'saved');
+      assert.equal(useStudio.getState().currentCalibration.locked,false);
+      useStudio.getState().applyPrintedSheetScale(250,'Printed 1:250',job.revision,'saved');
+      const next=useStudio.getState();
+      assert.equal(next.calibrationError,null);assert.equal(next.currentCalibration.coordinateSpace,'source-page-v1');assert.equal(next.currentCalibration.locked,true);
+      assert.ok(Math.abs(next.scaleM-250*0.0254/72)<1e-12);
+      assert.equal(JSON.parse(archive).calibration.coordinateSpace,undefined);
+      next.setTool('length');useStudio.getState().addPoint({x:0,y:0});useStudio.getState().addPoint({x:100,y:0});useStudio.getState().commitPending();
+      const measured=JSON.stringify(useStudio.getState().job);
+      useStudio.getState().applyPrintedSheetScale(100,'Changed scale',useStudio.getState().job.revision,'saved');
+      assert.equal(JSON.stringify(useStudio.getState().job),measured);assert.match(useStudio.getState().calibrationError!,/measurements/);
+    } finally { if(descriptor)Object.defineProperty(globalThis,'localStorage',descriptor);else Reflect.deleteProperty(globalThis,'localStorage'); }
+  });
   it("preserves imported legacy evidence and rejects lock, retrace and recalibration authority",()=>{
     const store=useStudio.getState();store.ingestCalibrationCandidate(declared("old",.1));store.lockCurrentCalibration();
     const original=structuredClone(useStudio.getState().job);delete original.calibrations[0].coordinateSpace;

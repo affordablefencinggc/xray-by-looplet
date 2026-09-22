@@ -26,6 +26,7 @@ import type { ImportedPlan, PlanBinary, StoredPlanContent } from "./documentCont
 import type { SourceBuilding } from "./sourceBuilding.ts";
 // [SC-21 designed model] end
 import { createBrowserPlanStore } from "./documents.ts";
+import { printedScaleMetresPerPoint } from './printedScale.ts';
 import {
   calibrationSchema,
   createScaleCalibrationCandidate,
@@ -289,6 +290,7 @@ type StudioState = {
   setDist: (dist: number) => void;
   setHeight: (h: number) => void;
   setScale: (m: number) => void;
+  applyPrintedSheetScale: (denominator: number, evidence: string, expectedRevision: number, recoveryKey: string) => void;
   startCalibrationCapture: () => void;
   cancelCalibrationCapture: () => void;
   addCalibrationPoint: (point: CalibrationPoint) => void;
@@ -1040,6 +1042,22 @@ const studioInstance = browserSingleton('xray.studio.store.v1', () => create<Stu
   setHeight: (h) => set({ height: h }),
   setScale: () =>
     set(calibrationFailure("Use a verified calibration candidate and lock it before measuring.")),
+  applyPrintedSheetScale: (denominator, evidence, expectedRevision, recoveryKey) => {
+    try {
+      const state = get();
+      if (state.job.revision !== expectedRevision) throw Error('The project changed. Try applying the scale again.');
+      const document = state.job.documents.find(item => item.id === state.job.activeDocumentId);
+      if (!document || document.source === 'sample' || document.kind !== 'pdf' || !document.sha256 || state.activePlanBinary?.sha256 !== document.sha256) throw Error('Open the original PDF before applying its printed scale.');
+      if (calibrationHasGeometry(state.job, state.sheet)) throw Error('This sheet already has measurements. They are preserved; a new scale cannot silently change them.');
+      const prior = activeCalibration(state.job, state.sheet);
+      const archive = JSON.parse(localStorage.getItem(recoveryKey) || 'null');
+      if (archive?.projectId !== state.job.id || archive?.revision !== expectedRevision || archive?.sha256 !== document.sha256 || JSON.stringify(archive?.calibration) !== JSON.stringify(prior)) throw Error('The previous calibration must be saved before applying a new scale.');
+      const candidate = createScaleCalibrationCandidate({ id: `printed-${state.sheet}-${denominator}`, source: 'declared', metresPerUnit: printedScaleMetresPerPoint(denominator), confidence: 0.95, provenance: { method: 'printed PDF scale', evidence, documentId: document.id } });
+      const fresh = { ...createUnverifiedCalibration(state.sheet), coordinateSpace: 'source-page-v1' as const };
+      const next = lockCalibration(unlockedCalibrationWithCandidates(fresh, [candidate]), candidate.id);
+      set({ job: revisedCalibration(state.job, next, `Applied printed 1:${denominator} on sheet ${state.sheet + 1}; prior calibration preserved in ${recoveryKey}.`), currentCalibration: next, scaleM: next.metresPerUnit, calibrationError: null, calibrationCapture: null, pending: [], tool: 'none', traceUndoStack: [], traceRedoStack: [] });
+    } catch (error) { set(calibrationFailure(error instanceof Error ? error.message : String(error))); }
+  },
   startCalibrationCapture: () => {
     const { sheet, job } = get();
     if (hasLegacySourceEvidence(job, sheet)) {

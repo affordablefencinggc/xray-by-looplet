@@ -1,5 +1,6 @@
 import {ArchitectWorkspace} from './architect/ArchitectWorkspace';
 import { McpConnectionButton } from './McpConnectionButton';
+import { PrintedScaleAction } from './PrintedScaleAction';
 import { CLOSE_SETTINGS_EVENT } from "./railLayout";
 import { WorkspaceRails } from "./WorkspaceRails";
 import { WorkflowNavigation } from "./WorkflowNavigation";
@@ -416,6 +417,7 @@ function MeasurePane() {
   return (
     <div className="measure-workspace">
       <div className="measure-main-column">
+        <PrintedScaleAction />
         <fieldset className="measure-tools" aria-label="Measurement tools" disabled={!sourceReady || legacyReadOnly || !calibration.locked}>
           <button type="button" className="pill" aria-pressed={s.tool === "length"} onClick={() => s.setTool("length")}>Run <kbd>L</kbd></button>
           <button type="button" className="pill" aria-pressed={s.tool === "area"} onClick={() => s.setTool("area")}>Area <kbd>A</kbd></button>
@@ -589,6 +591,7 @@ function SourceSketchPane() {
         </button>
       </div>
       <p className="text-muted">Draw source-linked annotation paths on the original plan, then commit the trace.</p>
+      <PrintedScaleAction />
       {(!calibration.locked || legacyReadOnly) && <div className="integrity-notice" role="status"><strong>Calibrate this source before drawing</strong><span>Sketch points use the original page coordinates and its locked scale.</span><button type="button" className="pill" onClick={() => s.setPane("measure")}>Open Measure to calibrate</button></div>}
       {s.calibrationError && <IntegrityNotice title="Calibration needs attention" message={s.calibrationError} />}
       <SheetBookmarks />
