@@ -1,0 +1,9 @@
+# SC-13 — native build remains incomplete
+
+The canonical DANS1 worker completed dependencies, typecheck, 88 focused tests and web build for `c56ad63e9ee7`; [results](../build-c56ad63e9ee7/results.json), [artifact/source identity](../build-c56ad63e9ee7/completion.json). It then rejected the selected `8a6226fc93a6` dependency cache: `Previously successful Tauri dependency helper is absent or changed.` No security or cache guard was changed.
+
+Read-only inspection found the trusted helper digest `01726dc031376a32594b30c80ab20119caa278a1afff79c4e6788235cc803ba2` in the previously successful `7a55db807d34` cache, with matching Cargo dependency inputs. The corrected orchestration selects that cache and retains the expected prior app identity `fe6dbb5ddcb6820f4c209b97af47cf3b21e6c0f502063ebd2b528502a2a64a7e`.
+
+The same-source retry `c56ad63e9ee8` failed during transfer because DANS1 C: had zero free bytes. No retry build began. Two incomplete files created by this retry alone were removed after exact path/identity checks: `incoming/c56ad63e9ee8/source.tar` (274,956,288 bytes, SHA-256 `7488768bade2da1fbaf31492f44e6c3f0f56a5dd3ae95e980a04f1b1e248b994`) and `node-runtime.tar` (98,304 bytes, `bb7f8d8c357394a988dd73e127c171f7c6566a4e0c7f258631e5ae3eec7ee27b`). Complete original archives, source, logs, existing apps and profiles remain. A later read showed 252,727,296 bytes free. Older cache removal awaits the user's answer.
+
+No new native-close or installation acceptance is claimed. [Existing ten-close evidence](../../2026-09-24-stability/steps/SC-02-native-close-gate.md) retains its original executable identity. [Current web screenshot](../closeout-qs-built-c56ad63e9ee7/captures/dev-reloaded-roof-highlight-desktop-1600x1000.png) demonstrates only successful built-browser reload, not a native build. [Exact orchestration diff](../proof-tools.diff). This is a WIP record, not a completed slice.

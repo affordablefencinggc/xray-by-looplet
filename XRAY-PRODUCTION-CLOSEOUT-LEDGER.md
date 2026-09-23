@@ -327,14 +327,15 @@ graph TD
 * **Depends on**: None
 * **Commit**: this commit; SC-08 fully closed with machine and visual proof.
 
-#### SC-09 — QS-03 Measured Item-Level Evidence Binding `[[partial]]`
+#### SC-09 — QS-03 Measured Item-Level Evidence Binding `[[done]]`
 * **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
+* **Closeout (2026-09-23)**: [SC-01 / SC-09 proof](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md): DANS1 dev 163/163, built 163/163, additional tablet readability 149/149; real edits, selective stale withholding, rebind, reload and CSV interaction. Source 281f2479; web build c56ad63e9ee7. Historical failure records below retain their original status and capture identity. No claim about their cause or native/deployment acceptance.
 * **Goal**: Bind individual classified items in the cost plan directly to immutable measured geometry entities (wall run, room area, roof plane) rather than just the general worksheet header.
 * **DONE (machine)**:
   - `QSItemBinding` schema records: `entityId`, `sourceHash`, `entityType`, `measuredQuantity`, `unit`, `calibrationId`.
   - If a bound entity's geometry is modified on the canvas, the QS item status flips to `"stale-measurement"` and withholds pricing until re-verified.
   - Tests verify entity-level binding invalidation and audit trail tracking.
-* **NOT DONE (human)**:
+* **DONE (human)**:
   - Construction-run acceptance remains recorded below. Room-area and roof-plane development proof now passes on frozen `sc09rr-bf09e36e3100`: 135/135 operations, 16 inspected desktop/tablet captures, real edits of both families, selective stale withholding, explicit rebind and reload. Full provenance hashes are readable without hover. The stylesheet mismatch is now repaired and separately proven on fc02 (21/21 built-browser CSS checks). Current source 1388 now passes the full production journey (138/138), plus WebGL unavailability/retry/context restoration checks (61/61 development, 64/64 production). The earlier 39/138 failure remains historical. Historical blocker: new-source development post-edit reload failed at 118/135; the current 2026-09-23 rerun above passes. Historical causation remains open; production reload passes. No cause or universal graphics reliability is asserted. No installed/native or live-device acceptance is claimed.
 * **Proof**:
   - [SC09RR-WEBGL-10: graphics recovery, 2,032-test gate, production journey, screenshots and exact diff](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-WEBGL-10.md). [SC09RR-PARENTAGE-09](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-PARENTAGE-09.md) records the cleanup ownership correction and original incident. SC-09 remains partial.
@@ -354,7 +355,7 @@ graph TD
   - `src/studio/industries/quantity-surveying/QuantityDraftPanel.tsx` (ledger wired in)
   - `src/studio/industries/quantity-surveying/QuantityReportView.tsx`
 * **Depends on**: SC-08
-* **Commit**: `0ea3f83`, `a2935a9`, `6a9d5b3`, `378bcd9`, `86e3dc2`. No completion date while partial.
+* **Commit**: `0ea3f83`, `a2935a9`, `6a9d5b3`, `378bcd9`, `86e3dc2`. Browser worksheet acceptance completed 2026-09-23.
 
 #### SC-10 — QS-04/05 Rate Books, Tax/Currency Normalization, Options & Cost Deltas `[[done]]`
 * **Goal**: Connect contractor rate books with supplier references, support multi-currency/tax normalization (e.g. GST), alternative option sections, and compute cost deltas against prior revisions.
@@ -601,7 +602,7 @@ graph TD
 | **SC-06** | ROOF-04 Stock Sheet Layout, Kerf & Nesting | Portion 2 | `[[done]]` | 8 fixtures pass, roofing suite 50 pass / 0 fail, tsc 0 | Desktop + Tablet captures of the cutting diagrams, offcut classification and salvage credit inspected | this commit |
 | **SC-07** | ROOF-05/06 Flashing, Fixings & Takeoff Deliverable | Portion 2 | `[[done]]` | 5 fixtures pass, roofing suite 50 pass / 0 fail, tsc 0, live CDP exit 0 (41 ops, 1.83 s) | Desktop 1600×1000 + Tablet 1024×768: girth schedule, N4/steel fastener scaling, a real `.json` deliverable download, and a tampered seal rejected then restored | this commit |
 | **SC-08** | QS-01/02 Hierarchy CSV Overlap & Tablet Report | Portion 3 | `[[done]]` | 60 QS tests pass, tsc 0, live CDP exit 0 | Desktop 1600×1000 + Tablet 1024×768: overlap warning, hierarchy table, subtree filter and unassigned filter inspected | this commit |
-| **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[partial]]` | 2032/2032 + tsc/lint exit 0 on bf09; machine-3 PASS, machine-2 retained | Room/roof dev4 135/135, 16 inspected captures; built1 FAIL 6/135 (stylesheet 404); historical construction-run proof retained | room/roof uncommitted; base `6477356` |
+| **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[done]]` | Current source 1964/1964, typecheck/lint exit 0 | Dev 163/163, built 163/163, tablet 149/149; edited room/roof, rebind, reload and CSV | [Closeout proof](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md) |
 | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
 | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
 | **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[partial]]` | 2068 tests; built 102/102 | Required (3D Section Preview) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md) |

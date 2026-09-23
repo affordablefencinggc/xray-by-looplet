@@ -5,7 +5,7 @@ Baseline: `f6987a1a`, branch `feat/closeout-sc09-remainder`. Reuse this branch a
 
 Completion requires an executed behaviour check, inspected screenshot, exact diff and a separate named step record. DANS1 development checks precede one final web/native build. Desktop and both tablet orientations are in scope. Business inputs remain explicit; fixture prices and geometry cannot become real-job proof.
 
-- [ ] SC-01 [section 02] Requalify QS-03, reconcile current reload evidence and complete portrait/landscape tablet report interaction.
+- [x] SC-01 [section 02] QS-03 dev 163/163, built 163/163, tablet readability 149/149. [Executed tests, screenshots, exact diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md). Historical reload causation remains unconfirmed.
 - [ ] SC-02 [section 02] Approved mass rule implemented and development-qualified: [source tests, UI evidence and exact diff](proof/growth/2026-09-23-fencing-v1/steps/SC-02-mass-rule.md). Final build qualification remains.
 - [ ] SC-03 [section 02] Qualify multi-zone coordination with explicit conservative round/fitting clearance labels.
 - [ ] SC-04 [section 02] Declared-input straight/fitting pressure estimates and durable reviewed/issued records pass development qualification: [proof](proof/growth/2026-09-23-fencing-v1/steps/SC-04-pressure-delivery.md). Final build qualification remains.
