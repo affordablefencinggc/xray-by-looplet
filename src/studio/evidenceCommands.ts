@@ -292,6 +292,7 @@ export function applyEvidenceCommand(
     }
     case "review-run": {
       const run = requireRun(job, command.runId, command.expectedRevision);
+      if (command.decision === "approve" && run.review.status === "approved") throw new Error(`${run.label} is already approved at this revision.`);
       const review = decision(command.decision, command.actor, command.note, occurredAt);
       next = {
         ...job,
@@ -309,6 +310,7 @@ export function applyEvidenceCommand(
     }
     case "review-gate": {
       const gate = requireGate(job, command.gateId, command.expectedRevision);
+      if (command.decision === "approve" && gate.review.status === "approved") throw new Error(`${gate.label} is already approved at this revision.`);
       const review = decision(command.decision, command.actor, command.note, occurredAt);
       next = {
         ...job,

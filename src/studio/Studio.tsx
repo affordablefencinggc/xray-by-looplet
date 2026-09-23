@@ -29,6 +29,7 @@ import { SheetManager } from "./SheetManager";
 import { useSheetLifecycle } from "./useSheetLifecycle.ts";
 import { PriceBookPanel } from "./pricing/PriceBookPanel";
 import { bomLineKey } from "./pricing/bomPricing";
+import { sheetDisplayName } from "./sourceSheetTitles";
 import type { PriceBookSession } from "./pricing/priceBooks";
 import { IndustryDraftWorkbench } from "./industries/IndustryDraftWorkbench";
 import { QS_HIGHLIGHT_EVENT, qsHighlightRequestSchema } from "./industries/quantity-surveying/qsEntityHighlight";
@@ -272,7 +273,7 @@ function StudioContent() {
                 title={activeDocument?.name ?? "No source plan"}
                 onClick={() => s.setSheet(index)}
               >
-                {String(index + 1).padStart(2, "0")} {name}
+                {String(index + 1).padStart(2, "0")} {sheetDisplayName(name, index, activeDocument?.sha256)}
               </button>
             ))}
             {archivedSheetCount > 0 && <button className="pill" onClick={() => s.setPane("sheets")}>Sheet register · {archivedSheetCount} archived</button>}
@@ -1623,7 +1624,8 @@ function MarkupList() {
             {area ? quantity?.value === null ? "Unverified area" : `${quantity?.value} m²` : <>{(m.kind === "length"
               ? s.job.runs.find((run) => run.id === m.id)?.netLengthM ?? m.value
               : m.value).toFixed(m.kind === "count" ? 0 : 2)} {m.unit}</>}
-            <button type="button" className="pill ml-2" onClick={() => s.removeMarkup(m.id)}>
+            <button type="button" className="pill ml-2" aria-label={`Remove ${m.label}`} title={`Remove ${m.label}`}
+              onClick={() => { if (window.confirm(`Remove ${m.label} from sheet ${m.sheet + 1}? Its measurement and any linked gate or review decision go with it.`)) s.removeMarkup(m.id); }}>
               ×
             </button>
           </span>
@@ -1671,7 +1673,7 @@ function ReviewPane() {
             const selected = isRun ? selectedRun?.id === entity.id : selectedGate?.id === entity.id;
             return <article key={entity.id} className={selected ? "selected" : ""}>
               <button type="button" className="review-entity-select" onClick={() => isRun ? s.selectRun(entity.id) : s.selectGate(entity.id)}><strong>{entity.label}</strong><span>Rev {entity.revision} · {entity.review.status}</span></button>
-              <div><button type="button" disabled={!canDecide} onClick={() => isRun ? s.approveRun(entity.id, entity.revision ?? 1, actor.trim(), note) : s.approveGate(entity.id, entity.revision ?? 1, actor.trim(), note)}>Approve</button><button type="button" disabled={!canDecide} onClick={() => isRun ? s.rejectRun(entity.id, entity.revision ?? 1, actor.trim(), note) : s.rejectGate(entity.id, entity.revision ?? 1, actor.trim(), note)}>Reject</button></div>
+              <div><button type="button" disabled={!canDecide || entity.review.status === "approved"} title={entity.review.status === "approved" ? "Already approved at this revision" : undefined} onClick={() => isRun ? s.approveRun(entity.id, entity.revision ?? 1, actor.trim(), note) : s.approveGate(entity.id, entity.revision ?? 1, actor.trim(), note)}>Approve</button><button type="button" disabled={!canDecide} onClick={() => isRun ? s.rejectRun(entity.id, entity.revision ?? 1, actor.trim(), note) : s.rejectGate(entity.id, entity.revision ?? 1, actor.trim(), note)}>Reject</button></div>
             </article>;
           })}
           {s.job.runs.length + s.job.gates.length === 0 ? <p>No measured runs or openings are available for review.</p> : null}
@@ -1919,6 +1921,8 @@ function CostPane() {
       </QsMeasuredGeometryScope>}
       {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} bom={pricingBom} />
         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
+      {generalRuns.length && s.job.runs.some(run => !(run.specification.construction && run.specification.constructionEnabled !== false)) ? <IntegrityNotice title="Fence materials are paused"
+        message={`Fence materials, bay layout and recipe review are built only when every run is a fence run. ${generalRuns.map(run => run.label).join(", ")} ${generalRuns.length === 1 ? "is a" : "are"} general construction ${generalRuns.length === 1 ? "run" : "runs"}; change ${generalRuns.length === 1 ? "it" : "them"} to fencing or remove ${generalRuns.length === 1 ? "it" : "them"} in Takeoff to build fence materials.`} /> : null}
       {generalRuns.length ? <section className="specification-panel" aria-label="General construction quantities">
         <header className="specification-heading-row"><div><span className="eyebrow">Measured geometry</span><h2>General construction quantities</h2></div></header>
         <p>Gross quantities by run. Openings, overlap and waste are not deducted. Review assembly rules, material specifications and unit conversions before ordering.</p>

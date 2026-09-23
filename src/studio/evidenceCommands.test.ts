@@ -101,6 +101,18 @@ function photo(
 }
 
 describe("revision-safe evidence commands", () => {
+  it("refuses a second approval of an already approved run or gate, but still allows rejecting it", () => {
+    const approvedRun = applyEvidenceCommand(populatedJob(), { type: "review-run", runId: "run-1", expectedRevision: 1, decision: "approve", actor: "Reviewer" }, NOW);
+    assert.throws(() => applyEvidenceCommand(approvedRun, { type: "review-run", runId: "run-1", expectedRevision: 2, decision: "approve", actor: "Reviewer" }, NOW), /already approved/);
+    assert.equal(approvedRun.revisionHistory.filter(event => event.action === "approve").length, 1);
+    const rejected = applyEvidenceCommand(approvedRun, { type: "review-run", runId: "run-1", expectedRevision: 2, decision: "reject", actor: "Reviewer", note: "Recheck" }, NOW);
+    assert.equal(rejected.runs[0].review.status, "rejected");
+    const gateId = populatedJob().gates[0]?.id;
+    if (gateId) {
+      const approvedGate = applyEvidenceCommand(populatedJob(), { type: "review-gate", gateId, expectedRevision: populatedJob().gates[0].revision ?? 1, decision: "approve", actor: "Reviewer" }, NOW);
+      assert.throws(() => applyEvidenceCommand(approvedGate, { type: "review-gate", gateId, expectedRevision: approvedGate.gates[0].revision ?? 2, decision: "approve", actor: "Reviewer" }, NOW), /already approved/);
+    }
+  });
   it("approves/rejects atomically and rejects stale decisions", () => {
     const original = populatedJob();
     const approved = applyEvidenceCommand(
