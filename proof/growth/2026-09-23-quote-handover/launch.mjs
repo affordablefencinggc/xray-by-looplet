@@ -1,8 +1,8 @@
 // Launches the locally built candidate (not installed) in a fresh isolated profile with loopback CDP.
 import fs from 'node:fs'; import path from 'node:path'; import net from 'node:net'; import {createHash} from 'node:crypto'; import {spawn} from 'node:child_process'; import {once} from 'node:events';
-const exe=path.resolve('.temp/dans1-929fb8819f56/xray-by-looplet.exe'), expected=process.argv[2];
+const exe=path.resolve('.temp/dans1-4b9d247a3600-r2/xray-by-looplet.exe'), expected=process.argv[2];
 const sha256=createHash('sha256').update(fs.readFileSync(exe)).digest('hex'); if(sha256!==expected) throw Error('EXE hash mismatch '+sha256);
-const profile=path.resolve('.temp/quote-handover-qa'), out=path.resolve('proof/growth/2026-09-23-quote-handover/qa-launch.json');
+const profile=path.resolve('.temp/quote-handover-qa4'), out=path.resolve('proof/growth/2026-09-23-quote-handover/qa-launch.json');
 if(fs.existsSync(profile)) throw Error('profile exists'); if(fs.existsSync(out)) throw Error('launch record exists');
 const cdpPort=9297, probe=net.createServer(); probe.listen(cdpPort,'127.0.0.1'); await once(probe,'listening'); await new Promise(r=>probe.close(r));
 fs.mkdirSync(profile,{recursive:true});
