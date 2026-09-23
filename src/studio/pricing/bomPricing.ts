@@ -3,7 +3,7 @@ import { priceBookLibrarySchema, priceLineAmount, type BomMapping, type PriceBoo
 /** The committed material-register lines the worksheet may price. Only a current (not invalidated) snapshot is passed. */
 export type BomPricingSource = {
   commitRevision: number;
-  lines: ReadonlyArray<{ key: string; description: string; quantity: string; unit: string }>;
+  lines: ReadonlyArray<{ key: string; description: string; quantity: string; unit: string; noRateReason?: string }>;
 };
 export type BomPricingChange =
   | { kind: "added"; key: string; quantity: string }
@@ -44,7 +44,32 @@ export function setBomMapping(library: PriceBookLibrary, mapping: BomMapping): P
   if (!book || book.archived || !book.revisions.find(r => r.revision === mapping.bookRevision)?.rows.some(r => r.sourceLine === mapping.sourceLine))
     throw Error("Choose an active saved rate for this material.");
   const mappings = [...(current.bomMappings ?? []).filter(m => m.key !== mapping.key), mapping];
-  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, bomMappings: mappings });
+  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, bomMappings: mappings,
+    ...(current.bomNoRates ? { bomNoRates: current.bomNoRates.filter(n => n.key !== mapping.key) } : {}) });
+}
+
+/** A no-rate decision belongs to the reviewed register and material, never silently to a later takeoff. */
+export function setBomNoRate(library: PriceBookLibrary, source: BomPricingSource & { current: boolean }, key: string, reason: string, now = new Date().toISOString()): PriceBookLibrary {
+  if (!source.current) throw Error("Rebuild the materials before reviewing no-rate reasons.");
+  const current = priceBookLibrarySchema.parse(library), line = source.lines.find(l => l.key === key);
+  if (!line) throw Error("That material is no longer in the current register.");
+  if (line.noRateReason) throw Error("This quantity is covered by its reviewed stock plan. Edit the stock rule instead.");
+  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
+    bomMappings: (current.bomMappings ?? []).filter(m => m.key !== key),
+    bomNoRates: [...(current.bomNoRates ?? []).filter(n => n.key !== key), { ...line, commitRevision: source.commitRevision, reason, reviewedAt: now }] });
+}
+
+export function materialPriceCoverage(library: PriceBookLibrary, source: BomPricingSource) {
+  return source.lines.map(line => {
+    const { key, description, quantity, unit } = line, material = { key, description, quantity, unit };
+    if (line.noRateReason) return { ...material, status: "no-rate" as const, reason: line.noRateReason };
+    const priced = library.worksheet.find(p => p.bom?.key === line.key && p.bom.commitRevision === source.commitRevision && p.bom.bomQuantity === line.quantity && p.bom.unit === line.unit);
+    if (priced) return { ...material, status: "priced" as const, reason: "Included in the priced lines." };
+    const decision = library.bomNoRates?.find(n => n.key === line.key);
+    const current = decision && decision.commitRevision === source.commitRevision && decision.description === line.description && decision.quantity === line.quantity && decision.unit === line.unit;
+    return { ...material, status: current ? "no-rate" as const : "unreviewed" as const,
+      reason: current ? decision.reason : decision ? `Review again after the material change. Previous reason: ${decision.reason}` : "No rate or reason recorded." };
+  });
 }
 
 export function clearBomMapping(library: PriceBookLibrary, key: string): PriceBookLibrary {
@@ -69,7 +94,7 @@ export function syncBomPricedLines(library: PriceBookLibrary, source: BomPricing
   for (const line of current.worksheet) {
     if (!line.bom) { worksheet.push(line); continue; }
     const mapping = current.bomMappings?.find(m => m.key === line.bom!.key), material = byKey.get(line.bom.key);
-    if (!mapping || !material) { changes.push({ kind: "removed", key: line.bom.key, quantity: line.quantity }); continue; }
+    if (!mapping || !material || material.noRateReason) { changes.push({ kind: "removed", key: line.bom.key, quantity: line.quantity }); continue; }
     handled.add(mapping.key);
     const quantity = derivedQuantity(material.quantity, mapping.factor, mapping.rounding);
     const next = { ...line, bookId: mapping.bookId, bookRevision: mapping.bookRevision, sourceLine: mapping.sourceLine, quantity,
@@ -81,7 +106,7 @@ export function syncBomPricedLines(library: PriceBookLibrary, source: BomPricing
   }
   for (const mapping of current.bomMappings ?? []) {
     const material = byKey.get(mapping.key);
-    if (handled.has(mapping.key) || !material) continue;
+    if (handled.has(mapping.key) || !material || material.noRateReason) continue;
     const quantity = derivedQuantity(material.quantity, mapping.factor, mapping.rounding);
     worksheet.push({ id: makeId(), bookId: mapping.bookId, bookRevision: mapping.bookRevision, sourceLine: mapping.sourceLine, quantity, addedAt: now,
       bom: { key: mapping.key, commitRevision: source.commitRevision, bomQuantity: material.quantity, unit: material.unit, factor: mapping.factor, rounding: mapping.rounding } });

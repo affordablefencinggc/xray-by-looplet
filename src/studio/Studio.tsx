@@ -60,7 +60,7 @@ import type { GateRecord } from "./domain";
 import type { EditableFenceRun, PlacedGate } from "./tracing";
 import { BomPanel, type BomEvidenceRef, type BomTransportStatus } from "./BomPanel";
 import { compileBomRequest } from "./bomCompiler";
-import type { BomIssue, BomRecipeSet } from "./bomContract";
+import type { BomIssue, BomRecipeSet, BomBuildRequest } from "./bomContract";
 import { acceptRecipeAssumption, changeRecipeBayLayout, createCandidateFencingRecipeSet, reopenRecipeAssumption } from "./fencingRecipes";
 import { createTauriBomAdapter } from "./bomTauriAdapter";
 import { runBomTransport, sameBomSourceBinding } from "./bomTransport";
@@ -1695,6 +1695,7 @@ function CostPane() {
   const [recipePersistenceError, setRecipePersistenceError] = useState<string | null>(null);
   const [reviewer, setReviewer] = useState("");
   const [layoutSaving, setLayoutSaving] = useState(false);
+  const [stockRequest, setStockRequest] = useState<BomBuildRequest | null>(null);
   const buildToken = useRef(0);
   const buildAbort = useRef<AbortController | null>(null);
 
@@ -1914,12 +1915,22 @@ function CostPane() {
     current: !s.bomState.invalidation && !s.bomState.pending,
     lines: bomSnapshot.response.bom.lines.map(line => ({ key: bomLineKey(line), description: line.description, quantity: line.quantity.value, unit: line.quantity.unit })),
   } : null, [bomSnapshot, s.bomState.invalidation, s.bomState.pending, s.job.id]);
+  useEffect(() => {
+    let active = true;
+    setStockRequest(null);
+    if (pricingBom?.current && bomSnapshot && recipeSet && hasRecipeRuns) {
+      void compileBomRequest({ job: s.job, runtimeAssets: s.assetReadiness, hydrationSettled: s.persistenceHydrated, recipeSet, requestId: crypto.randomUUID() })
+        .then(result => { if (active && result.ok && result.request.inputDigest === bomSnapshot.binding.inputDigest) setStockRequest(result.request); })
+        .catch(error => { if (active) setRecipePersistenceError(`Stock source check failed: ${error instanceof Error ? error.message : String(error)}`); });
+    }
+    return () => { active = false; };
+  }, [s.job, s.assetReadiness, s.persistenceHydrated, recipeSet, pricingBom, bomSnapshot, hasRecipeRuns]);
   return (
     <div className="cost-workspace">
       {s.persistenceHydrated && !s.persistenceError && <QsMeasuredGeometryScope job={s.job} activeSheet={s.sheet} priceBookSession={priceBookSession} sourceReady={s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId && s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256}>
         <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.sheet} calibrations={s.job.calibrations} />
       </QsMeasuredGeometryScope>}
-      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} bom={pricingBom} />
+      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} bom={pricingBom} stockRequest={stockRequest} />
         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
       {generalRuns.length && s.job.runs.some(run => !(run.specification.construction && run.specification.constructionEnabled !== false)) ? <IntegrityNotice title="Fence materials are paused"
         message={`Fence materials, bay layout and recipe review are built only when every run is a fence run. ${generalRuns.map(run => run.label).join(", ")} ${generalRuns.length === 1 ? "is a" : "are"} general construction ${generalRuns.length === 1 ? "run" : "runs"}; change ${generalRuns.length === 1 ? "it" : "them"} to fencing or remove ${generalRuns.length === 1 ? "it" : "them"} in Takeoff to build fence materials.`} /> : null}

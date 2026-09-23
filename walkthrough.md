@@ -924,3 +924,7 @@ Executed 2026-09-23 on DANS1: Windows test:src 1943/1943, original 208-suite lis
 ## 2026-09-23: bounded V1 stability qualification
 
 DANS1 SC-09 dev135/135, built138/138; startup probes138/138 and141/141; current HVAC fixture46/46 dev/built and fittings75/75; native full-workload close gate10/10, zero forced,52.7583-85.9238ms. [Per-step tests, inspected screenshots, source identities and diff](proof/growth/2026-09-24-stability/README.md). Historical causes not reproduced; no persistence/Rust fix, install or deployment claimed.
+
+## 2026-09-23 — reviewed fencing cuts and quote coverage
+
+Reviewed level rail/post schedules now produce stock purchases and a cut list with kerf/offcuts. Pricing those purchases suppresses a second raw-material charge. Each other material needs a current rate or an explicit no-rate reason before issue; frozen PDF/JSON/CSV preserve the reasons. Dated generic Bunnings gate allowances are available with explicit leaf-width limits. [Stock step](proof/growth/2026-09-23-fencing-cutting/steps/SC-07-stock-cutting.md) and [coverage step](proof/growth/2026-09-23-fencing-cutting/steps/SC-09-pricing-coverage.md) link 1,964 source tests, 157/157 development operations, inspected screenshots/actual PDF and exact diffs. Final build/native, slopes and real-job acceptance remain open.

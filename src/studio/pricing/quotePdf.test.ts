@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { addPricedLine, appendPriceBookRevision, emptyPriceBookLibrary, parsePriceBookLibrary, persistPriceBooks, priceBookKey, readPriceBooks, type PriceImport } from "./priceBooks.ts";
-import { setBomMapping, syncBomPricedLines } from "./bomPricing.ts";
+import { setBomMapping, setBomNoRate, syncBomPricedLines } from "./bomPricing.ts";
+import { quoteHandoverJson, materialCoverageCsv } from "./quoteHandover.ts";
 import { buildQuoteDraft, issueQuote, quoteDraftPdf } from "./quotePdf.ts";
 import { quoteRate } from "./quoteRecord.ts";
 
@@ -18,6 +19,32 @@ const rates: PriceImport = {
   ],
 };
 const details = { from: "Affordable Fencing Gold Coast", customer: "QA customer", siteAddress: "74-78 Annie Street, Auchenflower", reference: "Q-TEST-1", validDays: 30, notes: "Training fixture." };
+
+test("unpriced materials remain visible, block an unreviewed issue and freeze explicit exclusions in every handover", async () => {
+  const register = { commitRevision: 3, current: true, lines: [
+    { key: "TP-PALING", description: "Timber palings", quantity: "815", unit: "ea" },
+    { key: "TP-GATE-OPENING", description: "3m opening", quantity: "1", unit: "ea" },
+  ] };
+  let library = priced();
+  assert.equal(buildQuoteDraft(library, details, register).materialCoverage!.lines[1].status, "unreviewed");
+  assert.throws(() => issueQuote(library, details, register), /Review every material/);
+  library = setBomNoRate(library, register, "TP-GATE-OPENING", "Supplier gate quote required; 900mm leaves do not fit this opening.", now);
+  library = issueQuote(library, details, register, new Date(now), makeId);
+  const quote = library.issuedQuotes![0], frozen = JSON.stringify(quote);
+  assert.equal(quote.totals[0].totalWithTax, "2750.55");
+  assert.equal(quote.materialCoverage!.lines[1].status, "no-rate");
+  assert.match(quoteHandoverJson(quote), /Supplier gate quote required/);
+  assert.match(materialCoverageCsv(quote), /"TP-GATE-OPENING".*"no-rate"/);
+  library = setBomNoRate(library, register, "TP-GATE-OPENING", "Changed later", now);
+  assert.equal(JSON.stringify(library.issuedQuotes![0]), frozen);
+  assert.throws(() => issueQuote(library, { ...details, reference: "R2" }, { ...register, commitRevision: 4 }), /materials changed/);
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs"), task = getDocument({ data: await quoteDraftPdf(quote) }), doc = await task.promise;
+  try {
+    let text = "";
+    for (let n = 1; n <= doc.numPages; n++) text += (await (await doc.getPage(n)).getTextContent()).items.map(i => "str" in i ? i.str : "").join(" ");
+    assert.match(text, /Materials without a separate price/); assert.match(text, /Supplier gate quote required/);
+  } finally { await task.destroy(); }
+});
 function priced() {
   let lib = appendPriceBookRevision(emptyPriceBookLibrary("job-q"), rates, "AFGC", null, () => bookId, now);
   lib = setBomMapping(lib, { key: "TP-PALING", bookId, bookRevision: 1, sourceLine: 4, factor: "1", rounding: "exact" });

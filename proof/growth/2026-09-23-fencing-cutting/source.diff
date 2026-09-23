@@ -1,0 +1,923 @@
+diff --git a/scripts/src-test-files.json b/scripts/src-test-files.json
+index aa450f6e..24d4a63e 100644
+--- a/scripts/src-test-files.json
++++ b/scripts/src-test-files.json
+@@ -1,4 +1,5 @@
+ [
++  "src/studio/fencingStock.test.ts",
+   "src/studio/sourceAreaStore.test.ts",
+   "src/studio/sourceAreaMeasurement.test.ts",
+   "src/studio/sourceAreaChanges.test.ts",
+diff --git a/src/studio/FencingStockPanel.tsx b/src/studio/FencingStockPanel.tsx
+new file mode 100644
+index 00000000..1e0271f4
+--- /dev/null
++++ b/src/studio/FencingStockPanel.tsx
+@@ -0,0 +1,85 @@
++import { useState } from "react";
++import type { BomBuildRequest } from "./bomContract.ts";
++import { fencingStockCandidates, fencingStockCsv, type FencingStockPlan } from "./fencingStock.ts";
++import { fencingStockRuleSchema, type FencingStockRule } from "./fencingStockContract.ts";
++import type { BomPricingSource } from "./pricing/bomPricing.ts";
++import { priceBookError } from "./pricing/priceBooks.ts";
++
++export function FencingStockPanel({ request, source, rules, plan, error, disabled, onSave }: {
++  request: BomBuildRequest | null; source: BomPricingSource & { current: boolean }; rules: readonly FencingStockRule[];
++  plan: FencingStockPlan | null; error: string; disabled: boolean; onSave: (rules: FencingStockRule[]) => Promise<void>;
++}) {
++  const candidates = request ? fencingStockCandidates(request, source) : [];
++  const [selected, setSelected] = useState("");
++  const [notice, setNotice] = useState("");
++  const candidate = candidates.find(c => `${c.recipe.id}:${c.component.id}` === selected) ?? candidates[0];
++  const saved = candidate ? rules.find(r => r.recipeId === candidate.recipe.id && r.componentId === candidate.component.id) : undefined;
++  function download() {
++    if (!plan) return;
++    const url = URL.createObjectURL(new Blob([fencingStockCsv(plan)], { type: "text/csv;charset=utf-8" }));
++    const link = document.createElement("a"); link.href = url; link.download = `fencing-cuts-register-${plan.commitRevision}.csv`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
++  }
++  return <details className="price-review" aria-label="Fencing stock cutting">
++    <summary>Fencing stock lengths and cutting plan</summary>
++    <p>Enter supplier stock lengths and finished cuts. Rails use bay spacing plus your joint/post adjustment. Post lengths include embedment and top allowance. Each component is nested separately.</p>
++    <p className="price-help">Largest cuts are placed first into the smallest suitable stock; this is a repeatable packing heuristic, not an optimal purchasing guarantee. Exact stock-end use needs no trailing kerf. Reusable offcuts receive no automatic credit.</p>
++    {error && <p role="alert">{error}</p>}
++    {notice && <p role="alert">{notice}</p>}
++    {!request && <p>Cutting requires a current material register matched to its source and reviewed recipe.</p>}
++    {candidate && <><label>Material to cut<select aria-label="Stock component" value={`${candidate.recipe.id}:${candidate.component.id}`} disabled={disabled || !source.current} onChange={e => setSelected(e.target.value)}>
++      {candidates.map(c => <option key={`${c.recipe.id}:${c.component.id}`} value={`${c.recipe.id}:${c.component.id}`}>{c.component.itemCode} · {c.component.description}</option>)}
++    </select></label><StockRuleForm key={`${candidate.recipe.id}:${candidate.component.id}:${JSON.stringify(saved)}`} candidate={candidate} saved={saved} disabled={disabled || !source.current}
++      onSave={rule => onSave([...rules.filter(r => !(r.recipeId === rule.recipeId && r.componentId === rule.componentId)), rule])} /></>}
++    {!!rules.length && <div className="price-actions">{rules.map(rule => <button className="pill" key={`${rule.recipeId}:${rule.componentId}`} disabled={disabled}
++      onClick={() => void onSave(rules.filter(r => r !== rule)).catch(failure => setNotice(failure instanceof Error ? failure.message : String(failure)))}>Remove stock rule: {rule.profile} ({rule.componentId})</button>)}</div>}
++    {plan && plan.groups.length > 0 && <div aria-label="Fencing cutting result" data-register-revision={plan.commitRevision}>
++      <h3>Stock to buy · register {plan.commitRevision}</h3>
++      <p>Purchase lines are available in the rate mapping below. Their underlying cut and linear-metre quantities have no separate price, avoiding a second material charge.</p>
++      <button className="pill" onClick={download}>Download fencing cut list CSV</button>
++      {plan.groups.map(group => <div className="price-book-card" key={`${group.rule.recipeId}:${group.rule.componentId}`}>
++        <h3>{group.component.itemCode} · {group.rule.profile}</h3>
++        <p>{group.purchases.map(p => `${p.quantity} × ${p.description}`).join("; ")}</p>
++        <p>{group.layout.totalRequiredCutLengthM.toFixed(3)} m cuts · {group.layout.totalKerfLossM.toFixed(4)} m kerf · {group.layout.totalReusableOffcutM.toFixed(4)} m reusable offcut · {group.layout.totalScrapM.toFixed(4)} m scrap.</p>
++        <p className="price-help">Reviewed by {group.rule.reviewedBy} · {group.rule.reference} · {group.rule.reviewedAt}</p>
++        <details><summary>View {group.cuts.length} cuts in {group.layout.totalStockSheets} stock pieces</summary>
++          <div className="price-table-wrap"><table><thead><tr><th>Stock piece</th><th>Cuts and positions (mm)</th><th>Kerf / offcut (mm)</th></tr></thead><tbody>
++            {group.layout.sheets.map(sheet => <tr key={sheet.sheetIndex}><td>#{sheet.sheetIndex + 1} · {sheet.stockLengthM * 1000} mm</td>
++              <td>{sheet.cuts.map(cut => <p key={cut.cutId}>{cut.label}: {(cut.lengthM * 1000).toFixed(1)} · {(cut.startOffsetM * 1000).toFixed(1)}–{(cut.endOffsetM * 1000).toFixed(1)}</p>)}</td>
++              <td>{(sheet.kerfLossM * 1000).toFixed(1)} / {(sheet.offcutLengthM * 1000).toFixed(1)} · {sheet.offcutClassification}</td></tr>)}
++          </tbody></table></div>
++        </details>
++      </div>)}
++    </div>}
++  </details>;
++}
++
++function StockRuleForm({ candidate, saved, disabled, onSave }: { candidate: ReturnType<typeof fencingStockCandidates>[number]; saved?: FencingStockRule; disabled: boolean; onSave: (rule: FencingStockRule) => Promise<void> }) {
++  const [profile, setProfile] = useState(saved?.profile ?? ""), [lengths, setLengths] = useState(saved?.stockLengthsMm.join(", ") ?? "");
++  const [kerf, setKerf] = useState(saved ? String(saved.kerfMm) : ""), [offcut, setOffcut] = useState(saved ? String(saved.reusableOffcutMm) : "");
++  const [adjustment, setAdjustment] = useState(saved ? String(saved.railAdjustmentMm) : ""), [post, setPost] = useState(saved?.postLengthMm ? String(saved.postLengthMm) : "");
++  const [reviewer, setReviewer] = useState(saved?.reviewedBy ?? ""), [reference, setReference] = useState(saved?.reference ?? ""), [error, setError] = useState("");
++  async function save() {
++    try {
++      if (![lengths, kerf, offcut, candidate.kind === "rail" ? adjustment : post].every(value => value.trim())) throw Error("Enter each dimension explicitly, including zero kerf or rail adjustment where intended.");
++      const rule = fencingStockRuleSchema.parse({ recipeId: candidate.recipe.id, recipeRevision: candidate.recipe.revision, componentId: candidate.component.id,
++        profile, stockLengthsMm: lengths.split(",").map(value => value.trim() ? Number(value) : NaN), kerfMm: Number(kerf), reusableOffcutMm: Number(offcut),
++        railAdjustmentMm: candidate.kind === "rail" ? Number(adjustment) : 0, postLengthMm: candidate.kind === "post" ? Number(post) : null,
++        reference, reviewedBy: reviewer, reviewedAt: new Date().toISOString() });
++      await onSave(rule); setError("");
++    } catch (failure) { setError(priceBookError(failure)); }
++  }
++  return <fieldset disabled={disabled}><legend>Review {candidate.component.itemCode} stock rule</legend>
++    <div className="price-fields">
++      <label>Stock profile / grade<input aria-label="Stock profile" value={profile} maxLength={120} onChange={e => setProfile(e.target.value)} /></label>
++      <label>Available lengths (mm, comma separated)<input aria-label="Available stock lengths mm" value={lengths} onChange={e => setLengths(e.target.value)} placeholder="2400, 4800" /></label>
++      <label>Saw kerf (mm)<input aria-label="Stock kerf mm" inputMode="decimal" value={kerf} onChange={e => setKerf(e.target.value)} /></label>
++      <label>Minimum reusable offcut (mm)<input aria-label="Reusable offcut mm" inputMode="numeric" value={offcut} onChange={e => setOffcut(e.target.value)} /></label>
++      {candidate.kind === "rail" ? <label>Rail cut adjustment to bay spacing (mm)<input aria-label="Rail cut adjustment mm" inputMode="decimal" value={adjustment} onChange={e => setAdjustment(e.target.value)} placeholder="Enter 0 if no adjustment" /></label>
++        : <label>Finished post length (mm)<input aria-label="Finished post length mm" inputMode="numeric" value={post} onChange={e => setPost(e.target.value)} /></label>}
++      <label>Reviewed by<input aria-label="Stock reviewed by" value={reviewer} maxLength={120} onChange={e => setReviewer(e.target.value)} /></label>
++      <label className="price-wide">Supplier / cutting schedule reference<input aria-label="Stock schedule reference" value={reference} maxLength={1000} onChange={e => setReference(e.target.value)} /></label>
++    </div>
++    {error && <p role="alert">{error}</p>}
++    <button className="pill" onClick={() => void save()}>Save reviewed stock rule</button>
++  </fieldset>;
++}
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index 5dd7a891..c3359c08 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -60,7 +60,7 @@ import type { GateRecord } from "./domain";
+ import type { EditableFenceRun, PlacedGate } from "./tracing";
+ import { BomPanel, type BomEvidenceRef, type BomTransportStatus } from "./BomPanel";
+ import { compileBomRequest } from "./bomCompiler";
+-import type { BomIssue, BomRecipeSet } from "./bomContract";
++import type { BomIssue, BomRecipeSet, BomBuildRequest } from "./bomContract";
+ import { acceptRecipeAssumption, changeRecipeBayLayout, createCandidateFencingRecipeSet, reopenRecipeAssumption } from "./fencingRecipes";
+ import { createTauriBomAdapter } from "./bomTauriAdapter";
+ import { runBomTransport, sameBomSourceBinding } from "./bomTransport";
+@@ -1695,6 +1695,7 @@ function CostPane() {
+   const [recipePersistenceError, setRecipePersistenceError] = useState<string | null>(null);
+   const [reviewer, setReviewer] = useState("");
+   const [layoutSaving, setLayoutSaving] = useState(false);
++  const [stockRequest, setStockRequest] = useState<BomBuildRequest | null>(null);
+   const buildToken = useRef(0);
+   const buildAbort = useRef<AbortController | null>(null);
+ 
+@@ -1914,12 +1915,22 @@ function CostPane() {
+     current: !s.bomState.invalidation && !s.bomState.pending,
+     lines: bomSnapshot.response.bom.lines.map(line => ({ key: bomLineKey(line), description: line.description, quantity: line.quantity.value, unit: line.quantity.unit })),
+   } : null, [bomSnapshot, s.bomState.invalidation, s.bomState.pending, s.job.id]);
++  useEffect(() => {
++    let active = true;
++    setStockRequest(null);
++    if (pricingBom?.current && bomSnapshot && recipeSet && hasRecipeRuns) {
++      void compileBomRequest({ job: s.job, runtimeAssets: s.assetReadiness, hydrationSettled: s.persistenceHydrated, recipeSet, requestId: crypto.randomUUID() })
++        .then(result => { if (active && result.ok && result.request.inputDigest === bomSnapshot.binding.inputDigest) setStockRequest(result.request); })
++        .catch(error => { if (active) setRecipePersistenceError(`Stock source check failed: ${error instanceof Error ? error.message : String(error)}`); });
++    }
++    return () => { active = false; };
++  }, [s.job, s.assetReadiness, s.persistenceHydrated, recipeSet, pricingBom, bomSnapshot, hasRecipeRuns]);
+   return (
+     <div className="cost-workspace">
+       {s.persistenceHydrated && !s.persistenceError && <QsMeasuredGeometryScope job={s.job} activeSheet={s.sheet} priceBookSession={priceBookSession} sourceReady={s.assetReadiness.document.state === "ready" && s.activePlanBinary?.documentId === s.job.activeDocumentId && s.activePlanBinary?.sha256 === s.job.documents.find(document => document.id === s.job.activeDocumentId)?.sha256}>
+         <IndustryDraftWorkbench key={s.job.id} projectId={s.job.id} documents={s.job.documents} activeDocumentId={s.job.activeDocumentId ?? null} activeSheet={s.sheet} calibrations={s.job.calibrations} />
+       </QsMeasuredGeometryScope>}
+-      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} bom={pricingBom} />
++      {s.persistenceHydrated && !s.persistenceError ? <PriceBookPanel key={s.job.id} jobId={s.job.id} onSessionChange={setPriceBookSession} bom={pricingBom} stockRequest={stockRequest} />
+         : <IntegrityNotice title="Project storage needs attention" message={s.persistenceError ?? "Restoring the project before opening its price books."} />}
+       {generalRuns.length && s.job.runs.some(run => !(run.specification.construction && run.specification.constructionEnabled !== false)) ? <IntegrityNotice title="Fence materials are paused"
+         message={`Fence materials, bay layout and recipe review are built only when every run is a fence run. ${generalRuns.map(run => run.label).join(", ")} ${generalRuns.length === 1 ? "is a" : "are"} general construction ${generalRuns.length === 1 ? "run" : "runs"}; change ${generalRuns.length === 1 ? "it" : "them"} to fencing or remove ${generalRuns.length === 1 ? "it" : "them"} in Takeoff to build fence materials.`} /> : null}
+diff --git a/src/studio/fencingStock.test.ts b/src/studio/fencingStock.test.ts
+new file mode 100644
+index 00000000..0797a537
+--- /dev/null
++++ b/src/studio/fencingStock.test.ts
+@@ -0,0 +1,72 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { bomBuildRequestSchema, computeBomInputDigest } from "./bomContract.ts";
++import { buildBom } from "./bomRules.ts";
++import { buildFencingStockPlan, fencingStockCsv } from "./fencingStock.ts";
++import { fencingStockRuleSchema, type FencingStockRule } from "./fencingStockContract.ts";
++import { emptyPriceBookLibrary, appendPriceBookRevision, pricedWorksheetTotals, type PriceImport } from "./pricing/priceBooks.ts";
++import { setBomMapping, syncBomPricedLines, materialPriceCoverage } from "./pricing/bomPricing.ts";
++
++async function fixture(length = 5000) {
++  const request = bomBuildRequestSchema.parse(JSON.parse(readFileSync(new URL("../../engine/fixtures/bom-contract/colorbond.request.json", import.meta.url), "utf8")));
++  request.recipeSet.recipes[0].bayLayout = "full-bays-terminal-cut";
++  request.gates = []; request.runs[0].segments[0].lengthMm = length;
++  request.runs[0].storedLengths = { grossMm: length, gateDeductionMm: 0, netMm: length };
++  request.inputDigest = await computeBomInputDigest(request);
++  const result = await buildBom(request); assert.ok(result.ok);
++  return { request, source: { commitRevision: length === 5000 ? 1 : 2, lines: result.bom.lines.map(l => ({ key: l.itemCode!, description: l.description, quantity: l.quantity.value, unit: l.quantity.unit })) } };
++}
++const rule: FencingStockRule = { recipeId: "recipe-colorbond-good-neighbour", recipeRevision: 3, componentId: "cb-rail-cut", profile: "QA rail profile", stockLengthsMm: [2400, 4800], kerfMm: 5,
++  reusableOffcutMm: 1200, railAdjustmentMm: 0, postLengthMm: null, reference: "Synthetic schedule, not supplier approval", reviewedBy: "QA estimator", reviewedAt: "2026-09-23T10:00:00.000Z" };
++const settings = (request: Awaited<ReturnType<typeof fixture>>["request"], changes: Partial<FencingStockRule> = {}) => ({ ...rule, recipeRevision: request.recipeSet.recipes[0].revision, ...changes });
++
++test("stock planning preserves actual full-bay rail cuts, posts, saw kerf and offcuts without combining profiles", async () => {
++  const { request, source } = await fixture();
++  const plan = buildFencingStockPlan(request, source, [settings(request), settings(request, { componentId: "cb-post-end", profile: "QA end post", postLengthMm: 2400 })]);
++  const rails = plan.groups[0], posts = plan.groups[1];
++  assert.deepEqual(rails.cuts.map(c => c.lengthM), [2.4, 2.4, 2.4, 2.4, .2, .2]);
++  assert.equal(rails.layout.totalStockSheets, 5); assert.equal(rails.layout.totalRequiredCutLengthM, 10);
++  assert.equal(rails.layout.totalKerfLossM, .01); assert.equal(rails.layout.totalReusableOffcutM, 1.99);
++  assert.equal(posts.cuts.length, 2); assert.equal(posts.layout.totalStockSheets, 2);
++  assert.ok(plan.lines.find(l => l.key === "CB-RAIL-LM")!.noRateReason);
++  for (const group of plan.groups) for (const sheet of group.layout.sheets)
++    assert.ok(Math.abs(sheet.usedLengthM + sheet.kerfLossM + sheet.offcutLengthM - sheet.stockLengthM) < .0001);
++  assert.match(fencingStockCsv(plan), /StockPiece/); assert.match(fencingStockCsv(plan), new RegExp(request.inputDigest));
++});
++
++test("reviewed cuts fail closed on changed recipes, missing post length, sloping schedules, overrides and overlength", async () => {
++  const { request, source } = await fixture();
++  const base = settings(request);
++  assert.throws(() => buildFencingStockPlan(request, source, [{ ...base, recipeRevision: base.recipeRevision + 1 }]), /review stock lengths/);
++  assert.throws(() => buildFencingStockPlan(request, source, [{ ...base, componentId: "cb-post-end" }]), /finished post length/);
++  assert.throws(() => buildFencingStockPlan(request, source, [{ ...base, stockLengthsMm: [2000] }]), /exceeds maximum/);
++  assert.throws(() => buildFencingStockPlan(request, source, [{ ...base, railAdjustmentMm: -201 }]), /greater than/);
++  assert.ok(!fencingStockRuleSchema.safeParse({ ...base, reference: "" }).success);
++  request.runs[0].specification.slope = "raked";
++  assert.throws(() => buildFencingStockPlan(request, source, [base]), /sloping runs/);
++  request.runs[0].specification.slope = "level";
++  request.runs[0].vertices[0].postOverride = { postSize: "Custom", lengthMm: 2700, embedmentMm: 800, notes: "Test" };
++  assert.throws(() => buildFencingStockPlan(request, source, [{ ...base, componentId: "cb-post-end", postLengthMm: 2400 }]), /post overrides/);
++});
++
++test("stock purchases update mapped quantities after rebuild and suppress the underlying rail charge", async () => {
++  const { request, source } = await fixture(), first = buildFencingStockPlan(request, source, [settings(request)]);
++  const id = "00000000-0000-4000-8000-000000000001", now = rule.reviewedAt;
++  const incoming: PriceImport = { metadata: { supplier: "QA", currency: "AUD", amountDecimals: 2, taxBasis: "inclusive", taxPercent: 10, effectiveDate: "2026-09-23", sourceReference: "Synthetic arithmetic fixture" },
++    source: { fileName: "stock.csv", sizeBytes: 100, sha256: "a".repeat(64), delimiter: ",", headers: ["Code", "Description", "Unit", "Rate"], mapping: { stockCode: 0, description: 1, unit: 2, rate: 3 } },
++    rows: [{ sourceLine: 2, stockCode: "QA-RAIL", description: "QA rail 2400", unit: "ea", rate: 10 }] };
++  let library = appendPriceBookRevision(emptyPriceBookLibrary("qa-stock"), incoming, "QA", null, () => id, now);
++  const mapping = { bookId: id, bookRevision: 1, sourceLine: 2, factor: "1", rounding: "exact" as const };
++  library = setBomMapping(library, { ...mapping, key: "CB-RAIL-LM" });
++  library = setBomMapping(library, { ...mapping, key: first.groups[0].purchases[0].key });
++  library = syncBomPricedLines(library, { ...source, lines: first.lines }).library;
++  assert.equal(library.worksheet.length, 1); assert.equal(library.worksheet[0].quantity, "5");
++  assert.equal(pricedWorksheetTotals(library)[0].amount, "50.00");
++  assert.equal(materialPriceCoverage(library, { ...source, lines: first.lines }).find(l => l.key === "CB-RAIL-LM")!.status, "no-rate");
++  const revised = await fixture(7400), second = buildFencingStockPlan(revised.request, revised.source, [settings(revised.request)]);
++  library = syncBomPricedLines(library, { ...revised.source, lines: second.lines }).library;
++  assert.equal(library.worksheet[0].quantity, "7"); assert.equal(pricedWorksheetTotals(library)[0].amount, "70.00");
++  const changedProfile = buildFencingStockPlan(request, source, [settings(request, { profile: "Different grade" })]);
++  assert.equal(syncBomPricedLines(library, { ...source, lines: changedProfile.lines }).library.worksheet.length, 0);
++});
+diff --git a/src/studio/fencingStock.ts b/src/studio/fencingStock.ts
+new file mode 100644
+index 00000000..5c3c38eb
+--- /dev/null
++++ b/src/studio/fencingStock.ts
+@@ -0,0 +1,87 @@
++import type { BomBuildRequest, BomRecipeSet } from "./bomContract.ts";
++import { deriveBomFacts } from "./bomRules.ts";
++import { calculateStockCutLayout, type RequiredCut } from "./industries/roofing/stockNesting.ts";
++import { fencingStockRulesSchema, type FencingStockRule } from "./fencingStockContract.ts";
++import type { BomPricingSource } from "./pricing/bomPricing.ts";
++
++type Recipe = BomRecipeSet["recipes"][number];
++type Component = Recipe["components"][number];
++export function stockComponentKind(component: Component): "rail" | "post" | null {
++  if (component.basis === "rail-cuts") return "rail";
++  return /^per-(ordinary|end|corner|junction|strainer|gate)-post$/.test(component.basis) ? "post" : null;
++}
++
++export function fencingStockCandidates(request: BomBuildRequest, source: BomPricingSource) {
++  return request.recipeSet.recipes.filter(recipe => request.runs.some(run => run.recipeId === recipe.id)).flatMap(recipe => recipe.components.flatMap(component => {
++    const kind = stockComponentKind(component);
++    return kind && source.lines.some(line => line.key === component.itemCode) ? [{ recipe, component, kind }] : [];
++  }));
++}
++
++/** Cuts are quantities from the current compiled source. Source matching is checked by the caller against the committed BOM digest. */
++export function buildFencingStockPlan(request: BomBuildRequest, source: BomPricingSource, settings: readonly FencingStockRule[]) {
++  const rules = fencingStockRulesSchema.parse(settings), facts = deriveBomFacts(request);
++  const groups = rules.flatMap(rule => {
++    const recipe = request.recipeSet.recipes.find(r => r.id === rule.recipeId), component = recipe?.components.find(c => c.id === rule.componentId);
++    if (!recipe || !component) throw Error("A stock rule refers to a missing recipe component. Review or remove it.");
++    if (recipe.revision !== rule.recipeRevision) throw Error(`${recipe.profile}: review stock lengths after the recipe change.`);
++    const line = source.lines.find(l => l.key === component.itemCode), kind = stockComponentKind(component), physical = facts.get(recipe.id);
++    if (!line || !physical) return []; // This component no longer occurs in the rebuilt job.
++    if (!kind || component.factor !== "1" || recipe.allowances.some(a => a.componentIds.includes(component.id)))
++      throw Error(`${component.itemCode}: stock cuts need an unscaled component without percentage allowances.`);
++    const runs = request.runs.filter(run => run.recipeId === recipe.id);
++    if (runs.some(run => run.specification.slope !== "level"))
++      throw Error(`${recipe.profile}: stock lengths for sloping runs need a reviewed per-bay cutting schedule.`);
++    if (kind === "post" && runs.some(run => run.vertices.some(vertex => vertex.postOverride)))
++      throw Error(`${component.itemCode}: individual post overrides need a separate cutting schedule.`);
++    let cuts: RequiredCut[];
++    if (kind === "rail") {
++      const model = recipe.materialModel;
++      if (!("railRows" in model)) throw Error("This rail model does not declare cuts per bay.");
++      if (Number(line.quantity) !== physical.bayLengthsMm.length * model.railRows) throw Error("Rail count differs from the committed materials.");
++      if (physical.bayLengthsMm.length * model.railRows > 20000) throw Error("Limit the cutting plan to 20,000 pieces per component.");
++      cuts = physical.bayLengthsMm.flatMap((bay, bayIndex) => Array.from({ length: model.railRows }, (_, row) => ({
++        id: `${component.id}:bay:${bayIndex + 1}:row:${row + 1}`, label: `${component.itemCode} bay ${bayIndex + 1}, rail ${row + 1}`,
++        lengthM: (bay + rule.railAdjustmentMm) / 1000,
++      })));
++    } else {
++      if (!rule.postLengthMm) throw Error(`${component.itemCode}: enter the finished post length including embedment and any top allowance.`);
++      const count = Number(line.quantity);
++      if (!Number.isSafeInteger(count) || count < 0 || count > 20000) throw Error("Post cuts require a whole count up to 20,000.");
++      const role = component.basis.slice(4, -5) as keyof typeof physical.postRoles;
++      if (count !== physical.postRoles[role]) throw Error("Post count differs from the committed materials.");
++      cuts = Array.from({ length: count }, (_, index) => ({ id: `${component.id}:${index + 1}`, label: `${component.itemCode} ${index + 1}`, lengthM: rule.postLengthMm! / 1000 }));
++    }
++    if (cuts.some(cut => cut.lengthM <= 0)) throw Error(`${component.itemCode}: each adjusted cut length must be greater than zero.`);
++    const layout = calculateStockCutLayout(cuts, { availableStockLengthsM: rule.stockLengthsMm.map(mm => mm / 1000), kerfMm: rule.kerfMm, reusableOffcutThresholdM: rule.reusableOffcutMm / 1000 });
++    const purchases = [...new Set(layout.sheets.map(sheet => sheet.stockLengthM))].sort((a, b) => a - b).map(length => ({
++      key: `STOCK:${component.itemCode}:${rule.profile}:${Math.round(length * 1000)}`,
++      description: `${rule.profile} · ${length.toFixed(3)} m stock for ${component.itemCode}`,
++      quantity: String(layout.sheets.filter(sheet => sheet.stockLengthM === length).length), unit: "ea",
++    }));
++    const replacedKeys = kind === "rail" ? recipe.components.filter(c => c.basis === "rail-cuts" || c.basis === "rail-lm").map(c => c.itemCode) : [component.itemCode];
++    if (kind === "rail" && recipe.allowances.some(a => a.componentIds.some(id => recipe.components.some(c => c.id === id && c.basis === "rail-lm"))))
++      throw Error("Rail allowances need a separate reviewed cut schedule before stock can replace them.");
++    return [{ rule, component, cuts, layout, purchases, replacedKeys }];
++  });
++  if (groups.reduce((sum, group) => sum + group.cuts.length, 0) > 20000) throw Error("Limit the complete cutting plan to 20,000 pieces.");
++  const replacements = new Map(groups.flatMap(group => group.replacedKeys.map(key => [key, group] as const)));
++  if (replacements.size !== groups.reduce((sum, group) => sum + group.replacedKeys.length, 0)) throw Error("Stock rules overlap the same material. Keep one rail rule per recipe.");
++  const lines: BomPricingSource["lines"] = [
++    ...source.lines.map(line => { const group = replacements.get(line.key); return group ? { ...line,
++      noRateReason: `Quantity detail; purchase stock instead: ${group.purchases.map(p => p.key).join(", ")}. Reviewed by ${group.rule.reviewedBy}; ${group.rule.reference}.` } : line; }),
++    ...groups.flatMap(group => group.purchases),
++  ];
++  if (new Set(lines.map(line => line.key)).size !== lines.length) throw Error("Stock purchase keys overlap; give distinct components distinct profiles.");
++  return { inputDigest: request.inputDigest, commitRevision: source.commitRevision, groups, lines };
++}
++export type FencingStockPlan = ReturnType<typeof buildFencingStockPlan>;
++
++export function fencingStockCsv(plan: FencingStockPlan): string {
++  const cell = (value: unknown) => { let text = String(value ?? ""); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  const rows: unknown[][] = [["Register", "InputDigest", "Component", "Profile", "StockPiece", "StockMm", "Cut", "LengthMm", "StartMm", "EndMm", "KerfEndMm", "OffcutMm", "OffcutClass", "ReviewedBy", "Reference"]];
++  for (const group of plan.groups) for (const sheet of group.layout.sheets) for (const cut of sheet.cuts)
++    rows.push([plan.commitRevision, plan.inputDigest, group.component.itemCode, group.rule.profile, sheet.sheetIndex + 1, sheet.stockLengthM * 1000, cut.label,
++      cut.lengthM * 1000, cut.startOffsetM * 1000, cut.endOffsetM * 1000, cut.kerfOffsetM * 1000, sheet.offcutLengthM * 1000, sheet.offcutClassification, group.rule.reviewedBy, group.rule.reference]);
++  return "\uFEFF" + rows.map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
+diff --git a/src/studio/fencingStockContract.ts b/src/studio/fencingStockContract.ts
+new file mode 100644
+index 00000000..d52a218d
+--- /dev/null
++++ b/src/studio/fencingStockContract.ts
+@@ -0,0 +1,15 @@
++import { z } from "zod";
++
++const length = z.number().int().positive().max(12000);
++export const fencingStockRuleSchema = z.object({
++  recipeId: z.string().min(1).max(240), recipeRevision: z.number().int().positive(), componentId: z.string().min(1).max(240),
++  profile: z.string().trim().min(1).max(120), stockLengthsMm: z.array(length).min(1).max(20),
++  kerfMm: z.number().finite().nonnegative().max(50), reusableOffcutMm: length,
++  // Rails use actual bay spacing plus this declared joint/post deduction. Posts use a declared finished length.
++  railAdjustmentMm: z.number().int().min(-1000).max(1000), postLengthMm: length.nullable(),
++  reference: z.string().trim().min(1).max(1000), reviewedBy: z.string().trim().min(1).max(120), reviewedAt: z.string().datetime(),
++}).strict().refine(rule => new Set(rule.stockLengthsMm).size === rule.stockLengthsMm.length, "List each stock length once.");
++export type FencingStockRule = z.infer<typeof fencingStockRuleSchema>;
++export const fencingStockRulesSchema = z.array(fencingStockRuleSchema).max(100).refine(
++  rules => new Set(rules.map(rule => `${rule.recipeId}:${rule.componentId}`)).size === rules.length, "Each component needs one stock rule.",
++);
+diff --git a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+index a6528321..dc06c636 100644
+--- a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
++++ b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+@@ -18,7 +18,7 @@ mkdirSync(resolve('node_modules/.cache'), { recursive: true });
+ const dir = mkdtempSync(resolve('node_modules/.cache/quantity-report-'));
+ // The worksheet panel imports the shared source-binding contract from the parent directory, so that
+ // module is transpiled too and its relative require is rewritten alongside the same-directory ones.
+-for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../pricing/quoteRecord.ts', '../../pricing/priceBooks.ts']) {
++for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../fencingStockContract.ts', '../../pricing/quoteRecord.ts', '../../pricing/priceBooks.ts']) {
+   const code = ts.transpileModule(readFileSync(join(here, name), 'utf8'), {
+     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
+   }).outputText
+diff --git a/src/studio/industries/roofing/stockNesting.test.ts b/src/studio/industries/roofing/stockNesting.test.ts
+index ac170a4b..97362836 100644
+--- a/src/studio/industries/roofing/stockNesting.test.ts
++++ b/src/studio/industries/roofing/stockNesting.test.ts
+@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
+ import assert from "node:assert/strict";
+ import {
+   calculateStockNesting,
++  calculateStockCutLayout,
+   generateCutsFromRoofTakeoff,
+   STANDARD_STOCK_LENGTHS,
+   UnfitCutError,
+@@ -10,6 +11,14 @@ import {
+ import { calculateRoofTakeoff, generateStandardHipRoof } from "./roofGeometry.ts";
+ 
+ describe("stockNesting — SC-06 Typesafe JEV Engine", () => {
++  it("uses exact shorter stock and stock ends after a cut without inventing prices", () => {
++    const exact = calculateStockCutLayout([{ id: "whole", label: "whole length", lengthM: 2.4 }], { availableStockLengthsM: [2.4, 4.8], kerfMm: 5, reusableOffcutThresholdM: 1.2 });
++    assert.equal(exact.sheets[0].stockLengthM, 2.4); assert.equal(exact.totalKerfLossM, 0);
++    assert.equal("totalStockCost" in exact, false); assert.equal("grossCost" in exact.sheets[0], false);
++    const pair = calculateStockCutLayout([{ id: "a", label: "first", lengthM: 2.4 }, { id: "b", label: "second", lengthM: 2.395 }], { availableStockLengthsM: [4.8], kerfMm: 5, reusableOffcutThresholdM: 1.2 });
++    assert.equal(pair.totalStockSheets, 1); assert.equal(pair.totalKerfLossM, .005); assert.equal(pair.totalScrapM, 0);
++    assert.deepEqual(pair.sheets[0].cuts.map(c => [c.startOffsetM, c.endOffsetM, c.kerfOffsetM]), [[0, 2.4, 2.405], [2.405, 4.8, 4.8]]);
++  });
+   it("strictly enforces 5mm kerf deduction and offcut conservation", () => {
+     // 6.0m stock sheet, two 2.50m cuts with 5mm kerf
+     const cuts: RequiredCut[] = [
+diff --git a/src/studio/industries/roofing/stockNesting.ts b/src/studio/industries/roofing/stockNesting.ts
+index 51821346..a697cdf7 100644
+--- a/src/studio/industries/roofing/stockNesting.ts
++++ b/src/studio/industries/roofing/stockNesting.ts
+@@ -3,10 +3,10 @@
+  * Typesafe JEV (Justified Executable Verification) Engine
+  *
+  * Mathematical Invariants:
+- * 1. For each stock sheet k: sum(cuts_i) + count(cuts) * kerf + offcut_k = stockLength_k (within 1e-6m).
++ * 1. For each stock: cuts + actual kerf loss + offcut = stock length (within display precision).
+  * 2. Offcut classification: offcut >= 1.20m => "reusable", offcut < 1.20m => "scrap".
+  * 3. Spatial non-overlap: start_i <= end_i <= kerf_i <= start_{i+1}.
+- * 4. Deterministic minimum-waste multi-stock 1D bin-packing (Best-Fit Decreasing).
++ * 4. Deterministic Best-Fit Decreasing heuristic; not a guarantee of globally minimum waste.
+  */
+ 
+ import { z } from "zod";
+@@ -32,7 +32,7 @@ export const NestingOptionsSchema = z.object({
+   kerfMm: z.number().nonnegative().default(5.0), // 5mm kerf allowance per cut
+   reusableOffcutThresholdM: z.number().positive().default(1.2), // >= 1.20m is reusable
+   salvageRatePerM: z.number().nonnegative().default(14.5), // $/m reusable credit
+-  stockCostPerM: z.number().positive().default(26.8), // $/m stock purchase cost
++  stockCostPerM: z.number().nonnegative().default(26.8), // $/m stock purchase cost
+ });
+ export type NestingOptions = z.infer<typeof NestingOptionsSchema>;
+ 
+@@ -78,6 +78,17 @@ export const NestingPlanSummarySchema = z.object({
+ });
+ export type NestingPlanSummary = z.infer<typeof NestingPlanSummarySchema>;
+ 
++/** Geometry-only reuse for trades whose supplier rates are mapped separately. No prices or salvage credits are inferred. */
++export function calculateStockCutLayout(cuts: RequiredCut[], options: Pick<NestingOptions, "availableStockLengthsM" | "kerfMm" | "reusableOffcutThresholdM">) {
++  const result = calculateStockNesting(cuts, { ...options, stockCostPerM: 0, salvageRatePerM: 0 });
++  return {
++    totalStockSheets: result.totalStockSheets, totalStockLengthM: result.totalStockLengthM, totalRequiredCutLengthM: result.totalRequiredCutLengthM,
++    totalKerfLossM: result.totalKerfLossM, totalReusableOffcutM: result.totalReusableOffcutM, totalScrapM: result.totalScrapM,
++    sheets: result.sheets.map(({ sheetIndex, stockLengthM, cuts, usedLengthM, kerfLossM, offcutLengthM, offcutClassification, utilizationPct }) =>
++      ({ sheetIndex, stockLengthM, cuts, usedLengthM, kerfLossM, offcutLengthM, offcutClassification, utilizationPct })),
++  };
++}
++
+ export class UnfitCutError extends Error {
+   readonly cut: RequiredCut;
+   readonly maxAvailableStockM: number;
+@@ -150,12 +161,10 @@ export function calculateStockNesting(
+     // Evaluate existing open sheets for Best Fit
+     for (let i = 0; i < activeSheets.length; i++) {
+       const sheet = activeSheets[i];
+-      // Additional cut requires cut.lengthM + kerfM
+-      const neededSpace = cut.lengthM + kerfM;
++      // A final cut may use the stock end; only material actually removed is kerf loss.
+       const remainingSpace = sheet.stockLengthM - sheet.currentCursorM;
+-
+-      if (remainingSpace >= neededSpace) {
+-        const remainingAfter = remainingSpace - neededSpace;
++      if (remainingSpace + 1e-9 >= cut.lengthM) {
++        const remainingAfter = Math.max(0, remainingSpace - cut.lengthM - kerfM);
+         if (remainingAfter < minRemainingSpace) {
+           minRemainingSpace = remainingAfter;
+           bestSheetIndex = i;
+@@ -168,7 +177,7 @@ export function calculateStockNesting(
+       const targetSheet = activeSheets[bestSheetIndex];
+       const startOffset = targetSheet.currentCursorM;
+       const endOffset = startOffset + cut.lengthM;
+-      const kerfOffset = endOffset + kerfM;
++      const kerfOffset = Math.min(targetSheet.stockLengthM, endOffset + kerfM);
+ 
+       targetSheet.cuts.push({
+         cutId: cut.id,
+@@ -182,15 +191,8 @@ export function calculateStockNesting(
+       targetSheet.currentCursorM = kerfOffset;
+     } else {
+       // Must open a new stock sheet.
+-      // Choose the smallest available stock length that can fit this cut + kerf.
+-      const neededSpace = cut.lengthM + kerfM;
+-      let chosenStock = sortedStockLengths.find((s) => s >= neededSpace);
+-
+-      // If cut is very close to exact stock length (e.g. 5.996m with 0.005m kerf = 6.001m > 6.0m),
+-      // check if cut itself fits stock without trailing kerf.
+-      if (!chosenStock && cut.lengthM <= maxStockLength) {
+-        chosenStock = maxStockLength;
+-      }
++      // Exact stock-end use needs no trailing saw cut, including shorter stock options.
++      const chosenStock = sortedStockLengths.find((s) => s + 1e-9 >= cut.lengthM);
+ 
+       if (!chosenStock) {
+         throw new UnfitCutError(cut, maxStockLength);
+@@ -232,7 +234,7 @@ export function calculateStockNesting(
+     const cutLengthSum = sheet.cuts.reduce((sum, c) => sum + c.lengthM, 0);
+     const kerfCount = sheet.cuts.length;
+     // Each cut consumes kerfM, up to remaining stock
+-    const kerfLoss = Math.min(stockLength - cutLengthSum, kerfCount * kerfM);
++    const kerfLoss = Math.max(0, Math.min(stockLength - cutLengthSum, kerfCount * kerfM));
+     const rawOffcut = Math.max(0, stockLength - cutLengthSum - kerfLoss);
+     const offcutLengthM = round4(rawOffcut);
+ 
+diff --git a/src/studio/pricing/PriceBookPanel.tsx b/src/studio/pricing/PriceBookPanel.tsx
+index f90ecde7..e588987b 100644
+--- a/src/studio/pricing/PriceBookPanel.tsx
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -8,11 +8,15 @@ import "./priceBooks.css";
+ import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
+ import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
+ import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
+-import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
++import { clearBomMapping, setBomMapping, setBomNoRate, materialPriceCoverage, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
+ import { priceBookLibrarySchema } from "./priceBooks.ts";
+-import { buildQuoteDraft, issueQuote, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
++import { buildQuoteDraft, issueQuote, quoteDraftPdf, type QuoteDraft, type QuoteRegister } from "./quotePdf.ts";
+ import { quoteRate } from "./quoteRecord.ts";
+ import { quoteEmailLink, quoteGmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
++import type { BomBuildRequest } from "../bomContract.ts";
++import { buildFencingStockPlan, type FencingStockPlan } from "../fencingStock.ts";
++import type { FencingStockRule } from "../fencingStockContract.ts";
++import { FencingStockPanel } from "../FencingStockPanel.tsx";
+ 
+ /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
+ export type PriceBookBomSource = BomPricingSource & { current: boolean };
+@@ -28,7 +32,7 @@ function download(text: string, name: string) {
+ const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
+ 
+ /** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
+-export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void; bom?: PriceBookBomSource | null }) {
++export function PriceBookPanel({ jobId, onSessionChange, bom: materialBom = null, stockRequest = null }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void; bom?: PriceBookBomSource | null; stockRequest?: BomBuildRequest | null }) {
+   const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
+   const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
+   const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
+@@ -57,6 +61,13 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId:
+     return () => window.removeEventListener("storage", changed);
+   }, [jobId]);
+   const value = session?.value.jobId === jobId ? session.value : null;
++  const stock = useMemo((): { plan: FencingStockPlan | null; error: string } => {
++    if (!value?.fencingStockRules?.length) return { plan: null, error: "" };
++    if (!materialBom?.current || !stockRequest) return { plan: null, error: "Rebuild or restore the source-matched register before using its stock purchase quantities." };
++    try { return { plan: buildFencingStockPlan(stockRequest, materialBom, value.fencingStockRules), error: "" }; }
++    catch (error) { return { plan: null, error: priceBookError(error) }; }
++  }, [materialBom, stockRequest, value?.fencingStockRules]);
++  const bom = useMemo(() => materialBom ? { ...materialBom, current: materialBom.current && !stock.error, lines: stock.plan?.lines ?? materialBom.lines } : null, [materialBom, stock]);
+   const selectedSheet = file?.kind === "xlsx" ? file.workbook.sheets.find(sheet => sheet.name === worksheet) : null;
+   const { table, parseError } = useMemo((): { table: CsvTable | null; parseError: string } => {
+     try { return { table: file?.kind === "csv" ? parsePriceCsv(file.text, delimiter, headerRow) : selectedSheet ? workbookPriceTable(selectedSheet, headerRow) : null, parseError: "" }; }
+@@ -83,6 +94,14 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId:
+     catch (error) { if (currentJob.current === savingJob) setNotice(priceBookError(error)); return false; }
+     finally { setBusy(false); }
+   }
++  async function saveStockRules(rules: FencingStockRule[]) {
++    if (!value || !materialBom) throw Error("Open a material register first.");
++    let next = priceBookLibrarySchema.parse({ ...value, fencingStockRules: rules, revision: value.revision + 1 });
++    if (rules.length && (!materialBom.current || !stockRequest)) throw Error("Rebuild and restore the source-matched material register before saving stock rules.");
++    const source = rules.length ? { ...materialBom, lines: buildFencingStockPlan(stockRequest!, materialBom, rules).lines } : materialBom;
++    if (source.current) next = syncBomPricedLines(next, source).library;
++    if (!(await save(priceBookLibrarySchema.parse({ ...next, revision: value.revision + 1 }), "Stock rules saved. Review the lengths to buy and map their supplier rates."))) throw Error("Stock rules were not saved; check the library notice.");
++  }
+   // Linked lines follow each new committed material register; a stale register never changes prices.
+   const bomSignature = bom?.current ? JSON.stringify([bom.commitRevision, bom.lines]) : null;
+   useEffect(() => {
+@@ -94,13 +113,14 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId:
+     } catch (error) { setNotice(priceBookError(error)); }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [bomSignature, value?.revision, busy]);
+-  function saveMapping(key: string, rate: string, factor: string, roundUp: boolean) {
++  function saveMapping(key: string, rate: string, factor: string, roundUp: boolean, reason: string) {
+     if (!value || !bom) return;
+     try {
+       const [bookId, revision, sourceLine] = rate.split("|");
+-      const mapped = rate ? setBomMapping(value, { key, bookId, bookRevision: Number(revision), sourceLine: Number(sourceLine), factor: factor.trim() || "1", rounding: roundUp ? "up" : "exact" }) : clearBomMapping(value, key);
++      const mapped = rate ? setBomMapping(value, { key, bookId, bookRevision: Number(revision), sourceLine: Number(sourceLine), factor: factor.trim() || "1", rounding: roundUp ? "up" : "exact" })
++        : reason.trim() ? setBomNoRate(value, bom, key, reason) : clearBomMapping(value, key);
+       const synced = bom.current ? syncBomPricedLines(mapped, bom).library : mapped;
+-      void save(priceBookLibrarySchema.parse({ ...synced, revision: value.revision + 1 }), rate ? `${key} priced from the material register.` : `${key} is no longer priced from the material register.`);
++      void save(priceBookLibrarySchema.parse({ ...synced, revision: value.revision + 1 }), rate ? `${key} priced from the material register.` : reason.trim() ? `${key}: no-rate reason saved for register ${bom.commitRevision}.` : `${key} is no longer priced from the material register.`);
+     } catch (error) { setNotice(priceBookError(error)); }
+   }
+   async function chooseFile(candidate: File | undefined) {
+@@ -190,9 +210,10 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId:
+       {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => chooseRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
+     </>}
+     {tab === "worksheet" && <>
++      {materialBom && value && <FencingStockPanel request={stockRequest} source={materialBom} rules={value.fencingStockRules ?? []} plan={stock.plan} error={stock.error} disabled={!!disabled} onSave={saveStockRules} />}
+       {bom && value && <BomPricingSection bom={bom} library={value} disabled={!!disabled} onSave={saveMapping} />}
+       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
+-      {value && <QuoteDraftForm key={jobId} library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} disabled={!!disabled} onSave={save} onNotice={setNotice} />}
++      {value && <QuoteDraftForm key={jobId} library={value} register={bom} disabled={!!disabled} onSave={save} onNotice={setNotice} />}
+       {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button>
+         <div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
+       {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{quoteRate(rate.rate)} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
+@@ -221,36 +242,41 @@ function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: Pric
+   </article>;
+ }
+ 
+-function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
++function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean, reason: string) => void }) {
+   const options = library.books.filter(book => !book.archived).flatMap(book => { const revision = book.revisions.at(-1)!;
+     return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${quoteRate(row.rate)} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
+   const mapped = library.bomMappings ?? [];
++  const coverage = materialPriceCoverage(library, bom);
+   return <div className="price-review" aria-label="Price from material register" data-bom-commit={bom.commitRevision} data-bom-current={bom.current}>
+     <h3>Price from material register</h3>
++    <p>{coverage.filter(l => l.status === "priced").length} priced · {coverage.filter(l => l.status === "no-rate").length} with a no-rate reason · {coverage.filter(l => l.status === "unreviewed").length} need review. No-rate materials are excluded from the total and listed in the quote.</p>
+     {bom.current ? <p className="price-help">Material register {bom.commitRevision} · {bom.lines.length} lines. Choose a rate for each material once; priced lines update whenever the materials are rebuilt. Factor converts the material unit to the rate unit (for example 1 ÷ 2.4 m lengths).</p>
+       : <p role="alert">The takeoff changed after material register {bom.commitRevision}. Priced lines still show that register; rebuild the materials to update them.</p>}
+     {!options.length && <p>Import a price book first to map materials to rates.</p>}
+     <div className="price-table-wrap"><table className="bom-pricing-table"><thead><tr><th>Material</th><th>Quantity</th><th>Rate</th><th>Factor</th><th><span className="sr-only">Action</span></th></tr></thead><tbody>
+-      {bom.lines.map(line => { const current = mapped.find(m => m.key === line.key);
+-        return <BomPricingRow key={`${line.key}-${current ? `${current.bookId}${current.bookRevision}${current.sourceLine}${current.factor}${current.rounding}` : "none"}`} line={line} options={options} disabled={disabled}
+-          initial={current ? { rate: `${current.bookId}|${current.bookRevision}|${current.sourceLine}`, factor: current.factor, roundUp: current.rounding === "up" } : null} onSave={onSave} />; })}
++      {bom.lines.map(line => { const current = mapped.find(m => m.key === line.key), noRate = library.bomNoRates?.find(n => n.key === line.key), status = coverage.find(l => l.key === line.key)!.status;
++        if (line.noRateReason) return <tr key={line.key} data-bom-key={line.key}><td><strong>{line.key}</strong><br />{line.description}</td><td>{line.quantity} {line.unit}</td><td colSpan={3}>No separate rate · {line.noRateReason}</td></tr>;
++        return <BomPricingRow key={`${line.key}-${bom.commitRevision}-${JSON.stringify([current, noRate])}`} line={line} options={options} disabled={disabled || !bom.current}
++          reason={noRate?.reason ?? ""} needsReview={status === "unreviewed"} initial={current ? { rate: `${current.bookId}|${current.bookRevision}|${current.sourceLine}`, factor: current.factor, roundUp: current.rounding === "up" } : null} onSave={onSave} />; })}
+     </tbody></table></div>
+   </div>;
+ }
+ 
+-function BomPricingRow({ line, options, disabled, initial, onSave }: { line: PriceBookBomSource["lines"][number]; options: { value: string; label: string }[]; disabled: boolean;
+-  initial: { rate: string; factor: string; roundUp: boolean } | null; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
++function BomPricingRow({ line, options, disabled, initial, reason: savedReason, needsReview, onSave }: { line: PriceBookBomSource["lines"][number]; options: { value: string; label: string }[]; disabled: boolean; reason: string; needsReview: boolean;
++  initial: { rate: string; factor: string; roundUp: boolean } | null; onSave: (key: string, rate: string, factor: string, roundUp: boolean, reason: string) => void }) {
+   const [rate, setRate] = useState(initial?.rate ?? ""), [factor, setFactor] = useState(initial?.factor ?? "1"), [roundUp, setRoundUp] = useState(initial?.roundUp ?? false);
+-  const changed = rate !== (initial?.rate ?? "") || factor !== (initial?.factor ?? "1") || roundUp !== (initial?.roundUp ?? false);
++  const [reason, setReason] = useState(savedReason);
++  const changed = rate !== (initial?.rate ?? "") || factor !== (initial?.factor ?? "1") || roundUp !== (initial?.roundUp ?? false) || (!rate && (reason !== savedReason || needsReview));
+   return <tr data-bom-key={line.key}><td><strong>{line.key}</strong><br />{line.description}</td><td className="price-scalar">{line.quantity} {line.unit}</td>
+-    <td><select aria-label={`Rate for ${line.key}`} value={rate} disabled={disabled} onChange={event => setRate(event.target.value)}><option value="">Not priced</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></td>
++    <td><select aria-label={`Rate for ${line.key}`} value={rate} disabled={disabled} onChange={event => setRate(event.target.value)}><option value="">Not priced</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
++      {!rate && <label>No-rate reason<input aria-label={`No-rate reason for ${line.key}`} maxLength={1000} value={reason} disabled={disabled} onChange={e => setReason(e.target.value)} placeholder="Why this material is excluded" />{needsReview && <small>Review required for this register.</small>}</label>}</td>
+     <td><input aria-label={`Factor for ${line.key}`} inputMode="decimal" value={factor} disabled={disabled || !rate} onChange={event => setFactor(event.target.value)} />
+       <label className="bom-round-up"><input aria-label={`Round up ${line.key}`} type="checkbox" checked={roundUp} disabled={disabled || !rate} onChange={event => setRoundUp(event.target.checked)} />Round up</label></td>
+-    <td><button className="pill" disabled={disabled || !changed || (!rate && !initial)} onClick={() => onSave(line.key, rate, factor, roundUp)}>{!rate && initial ? "Clear" : "Save"}</button></td></tr>;
++    <td><button className="pill" disabled={disabled || !changed || (!rate && !reason.trim() && !initial)} onClick={() => onSave(line.key, rate, factor, roundUp, reason)}>{!rate && !reason.trim() && initial ? "Clear" : "Save"}</button></td></tr>;
+ }
+ 
+ const QUOTE_FROM_KEY = "xray:quote-from:v1";
+-function QuoteDraftForm({ library, register, disabled, onSave, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; disabled: boolean;
++function QuoteDraftForm({ library, register, disabled, onSave, onNotice }: { library: PriceBookLibrary; register: QuoteRegister | null; disabled: boolean;
+   onSave: (value: PriceBookLibrary, message: string) => Promise<boolean>; onNotice: (message: string) => void }) {
+   const [from, setFrom] = useState(() => { try { return localStorage.getItem(QUOTE_FROM_KEY) ?? ""; } catch { return ""; } });
+   const [customer, setCustomer] = useState(""), [siteAddress, setSiteAddress] = useState(""), [validDays, setValidDays] = useState("30"), [notes, setNotes] = useState("");
+@@ -373,5 +399,8 @@ function QuoteSummary({ quote }: { quote: QuoteDraft }) {
+       {quote.lines.map((line, i) => <tr key={i}><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{line.rate}</td><td>{line.currency} {line.amount}</td></tr>)}
+     </tbody></table></div>
+     {quote.totals.map((total, i) => <p key={i}><strong>{total.currency} {total.totalWithTax ?? total.amount}</strong> · {total.totalWithTax !== null ? `including ${total.currency} ${total.taxAmount} tax (subtotal ${total.amount})` : total.taxLabel}</p>)}
++    {!!quote.materialCoverage?.lines.some(line => line.status !== "priced") && <details open><summary>Materials without a separate price</summary>
++      {quote.materialCoverage.lines.filter(line => line.status !== "priced").map(line => <p key={line.key}><strong>{line.key}</strong> · {line.quantity} {line.unit} · {line.status === "unreviewed" ? "Review required" : "No rate"}: {line.reason}</p>)}
++    </details>}
+   </div>;
+ }
+diff --git a/src/studio/pricing/bomPricing.test.ts b/src/studio/pricing/bomPricing.test.ts
+index 9cf7959b..a5e1b8ea 100644
+--- a/src/studio/pricing/bomPricing.test.ts
++++ b/src/studio/pricing/bomPricing.test.ts
+@@ -1,7 +1,7 @@
+ import test from "node:test";
+ import assert from "node:assert/strict";
+ import { addPricedLine, appendPriceBookRevision, emptyPriceBookLibrary, pricedWorksheetCsv, pricedWorksheetTotals, priceBookLibrarySchema, type PriceImport } from "./priceBooks.ts";
+-import { clearBomMapping, derivedQuantity, setBomMapping, syncBomPricedLines } from "./bomPricing.ts";
++import { clearBomMapping, derivedQuantity, setBomMapping, setBomNoRate, materialPriceCoverage, syncBomPricedLines } from "./bomPricing.ts";
+ 
+ const bookId = "00000000-0000-4000-8000-000000000001";
+ let next = 10;
+@@ -25,6 +25,25 @@ const bom = (commitRevision: number, palings: string, posts: string, railLm: str
+   { key: "TP-RAIL-LM", description: "Timber rail material", quantity: railLm, unit: "lm" },
+ ] });
+ 
++test("no-rate decisions are exclusive, bound to the material and require review after rebuild", () => {
++  const source = { ...bom(1, "10", "3", "5"), current: true };
++  let lib = syncBomPricedLines(map(library(), "TP-PALING", 4), source, makeId, now).library;
++  lib = setBomNoRate(lib, source, "TP-PALING", "Client supplying palings", now);
++  lib = syncBomPricedLines(lib, source, makeId, now).library;
++  assert.equal(lib.worksheet.length, 0);
++  assert.equal(lib.bomMappings!.length, 0);
++  assert.equal(materialPriceCoverage(lib, source)[0].status, "no-rate");
++  assert.equal(materialPriceCoverage(lib, { ...source, commitRevision: 2 })[0].status, "unreviewed");
++  assert.equal(materialPriceCoverage(lib, { ...source, lines: [{ ...source.lines[0], quantity: "11" }] })[0].status, "unreviewed");
++  assert.throws(() => setBomNoRate(lib, { ...source, current: false }, "TP-PALING", "Old"), /Rebuild/);
++  assert.throws(() => setBomNoRate(lib, source, "missing", "No product"), /no longer/);
++  assert.throws(() => setBomNoRate(lib, source, "TP-PALING", "  "));
++  const mapped = syncBomPricedLines(map(lib, "TP-PALING", 4), source, makeId, now).library;
++  assert.equal(mapped.bomNoRates!.length, 0);
++  assert.equal(materialPriceCoverage(mapped, source)[0].status, "priced");
++  assert.ok(!priceBookLibrarySchema.safeParse({ ...mapped, bomNoRates: lib.bomNoRates }).success);
++});
++
+ test("derived quantities use exact decimals and whole-unit rounding up", () => {
+   assert.equal(derivedQuantity("281", "1", "exact"), "281");
+   assert.equal(derivedQuantity("99.176", "0.416667", "exact"), "41.323366");
+diff --git a/src/studio/pricing/bomPricing.ts b/src/studio/pricing/bomPricing.ts
+index 5354b987..f66427b8 100644
+--- a/src/studio/pricing/bomPricing.ts
++++ b/src/studio/pricing/bomPricing.ts
+@@ -3,7 +3,7 @@ import { priceBookLibrarySchema, priceLineAmount, type BomMapping, type PriceBoo
+ /** The committed material-register lines the worksheet may price. Only a current (not invalidated) snapshot is passed. */
+ export type BomPricingSource = {
+   commitRevision: number;
+-  lines: ReadonlyArray<{ key: string; description: string; quantity: string; unit: string }>;
++  lines: ReadonlyArray<{ key: string; description: string; quantity: string; unit: string; noRateReason?: string }>;
+ };
+ export type BomPricingChange =
+   | { kind: "added"; key: string; quantity: string }
+@@ -44,7 +44,32 @@ export function setBomMapping(library: PriceBookLibrary, mapping: BomMapping): P
+   if (!book || book.archived || !book.revisions.find(r => r.revision === mapping.bookRevision)?.rows.some(r => r.sourceLine === mapping.sourceLine))
+     throw Error("Choose an active saved rate for this material.");
+   const mappings = [...(current.bomMappings ?? []).filter(m => m.key !== mapping.key), mapping];
+-  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, bomMappings: mappings });
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1, bomMappings: mappings,
++    ...(current.bomNoRates ? { bomNoRates: current.bomNoRates.filter(n => n.key !== mapping.key) } : {}) });
++}
++
++/** A no-rate decision belongs to the reviewed register and material, never silently to a later takeoff. */
++export function setBomNoRate(library: PriceBookLibrary, source: BomPricingSource & { current: boolean }, key: string, reason: string, now = new Date().toISOString()): PriceBookLibrary {
++  if (!source.current) throw Error("Rebuild the materials before reviewing no-rate reasons.");
++  const current = priceBookLibrarySchema.parse(library), line = source.lines.find(l => l.key === key);
++  if (!line) throw Error("That material is no longer in the current register.");
++  if (line.noRateReason) throw Error("This quantity is covered by its reviewed stock plan. Edit the stock rule instead.");
++  return priceBookLibrarySchema.parse({ ...current, revision: current.revision + 1,
++    bomMappings: (current.bomMappings ?? []).filter(m => m.key !== key),
++    bomNoRates: [...(current.bomNoRates ?? []).filter(n => n.key !== key), { ...line, commitRevision: source.commitRevision, reason, reviewedAt: now }] });
++}
++
++export function materialPriceCoverage(library: PriceBookLibrary, source: BomPricingSource) {
++  return source.lines.map(line => {
++    const { key, description, quantity, unit } = line, material = { key, description, quantity, unit };
++    if (line.noRateReason) return { ...material, status: "no-rate" as const, reason: line.noRateReason };
++    const priced = library.worksheet.find(p => p.bom?.key === line.key && p.bom.commitRevision === source.commitRevision && p.bom.bomQuantity === line.quantity && p.bom.unit === line.unit);
++    if (priced) return { ...material, status: "priced" as const, reason: "Included in the priced lines." };
++    const decision = library.bomNoRates?.find(n => n.key === line.key);
++    const current = decision && decision.commitRevision === source.commitRevision && decision.description === line.description && decision.quantity === line.quantity && decision.unit === line.unit;
++    return { ...material, status: current ? "no-rate" as const : "unreviewed" as const,
++      reason: current ? decision.reason : decision ? `Review again after the material change. Previous reason: ${decision.reason}` : "No rate or reason recorded." };
++  });
+ }
+ 
+ export function clearBomMapping(library: PriceBookLibrary, key: string): PriceBookLibrary {
+@@ -69,7 +94,7 @@ export function syncBomPricedLines(library: PriceBookLibrary, source: BomPricing
+   for (const line of current.worksheet) {
+     if (!line.bom) { worksheet.push(line); continue; }
+     const mapping = current.bomMappings?.find(m => m.key === line.bom!.key), material = byKey.get(line.bom.key);
+-    if (!mapping || !material) { changes.push({ kind: "removed", key: line.bom.key, quantity: line.quantity }); continue; }
++    if (!mapping || !material || material.noRateReason) { changes.push({ kind: "removed", key: line.bom.key, quantity: line.quantity }); continue; }
+     handled.add(mapping.key);
+     const quantity = derivedQuantity(material.quantity, mapping.factor, mapping.rounding);
+     const next = { ...line, bookId: mapping.bookId, bookRevision: mapping.bookRevision, sourceLine: mapping.sourceLine, quantity,
+@@ -81,7 +106,7 @@ export function syncBomPricedLines(library: PriceBookLibrary, source: BomPricing
+   }
+   for (const mapping of current.bomMappings ?? []) {
+     const material = byKey.get(mapping.key);
+-    if (handled.has(mapping.key) || !material) continue;
++    if (handled.has(mapping.key) || !material || material.noRateReason) continue;
+     const quantity = derivedQuantity(material.quantity, mapping.factor, mapping.rounding);
+     worksheet.push({ id: makeId(), bookId: mapping.bookId, bookRevision: mapping.bookRevision, sourceLine: mapping.sourceLine, quantity, addedAt: now,
+       bom: { key: mapping.key, commitRevision: source.commitRevision, bomQuantity: material.quantity, unit: material.unit, factor: mapping.factor, rounding: mapping.rounding } });
+diff --git a/src/studio/pricing/priceBooks.ts b/src/studio/pricing/priceBooks.ts
+index 928f6c6a..234d6ca3 100644
+--- a/src/studio/pricing/priceBooks.ts
++++ b/src/studio/pricing/priceBooks.ts
+@@ -1,5 +1,6 @@
+ import { z } from "zod";
+ import { issuedQuoteSchema, quoteRate } from "./quoteRecord.ts";
++import { fencingStockRulesSchema } from "../fencingStockContract.ts";
+ 
+ export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
+ export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
+@@ -61,6 +62,9 @@ const decimalFactor = z.string().regex(/^(?:0|[1-9]\d{0,9})(?:\.\d{1,6})?$/, "Us
+ export const bomMappingSchema = z.object({ key: bomKey, bookId: z.string().uuid(), bookRevision: z.number().int().positive(), sourceLine: z.number().int().positive(),
+   factor: decimalFactor, rounding: z.enum(["exact", "up"]) }).strict();
+ export type BomMapping = z.infer<typeof bomMappingSchema>;
++export const bomNoRateSchema = z.object({ key: bomKey, commitRevision: z.number().int().positive(),
++  description: z.string().min(1).max(500), quantity: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/), unit: z.string().min(1).max(20),
++  reason: z.string().trim().min(1).max(1000), reviewedAt: z.string().datetime() }).strict();
+ /** A worksheet line whose quantity is derived from a committed material-register line. */
+ const bomLinkSchema = z.object({ key: bomKey, commitRevision: z.number().int().positive(), bomQuantity: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/), unit: z.string().min(1).max(20),
+   factor: decimalFactor, rounding: z.enum(["exact", "up"]) }).strict();
+@@ -72,6 +76,8 @@ export const priceBookLibrarySchema = z.object({
+     sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
+     addedAt: z.string().datetime(), bom: bomLinkSchema.optional() }).strict()).max(5000),
+   bomMappings: z.array(bomMappingSchema).max(500).optional(),
++  bomNoRates: z.array(bomNoRateSchema).max(500).optional(),
++  fencingStockRules: fencingStockRulesSchema.optional(),
+   issuedQuotes: z.array(issuedQuoteSchema).max(100).optional(),
+ }).strict().superRefine((v, ctx) => {
+   if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
+@@ -86,6 +92,9 @@ export const priceBookLibrarySchema = z.object({
+   const mappings = v.bomMappings ?? [];
+   if (new Set(mappings.map(m => m.key)).size !== mappings.length) ctx.addIssue({ code: "custom", message: "Each material register item can be mapped to one rate." });
+   for (const m of mappings) if (!rateExists(m.bookId, m.bookRevision, m.sourceLine)) ctx.addIssue({ code: "custom", message: `Material mapping ${m.key} references a missing source rate.` });
++  const noRates = v.bomNoRates ?? [];
++  if (new Set(noRates.map(n => n.key)).size !== noRates.length || noRates.some(n => mappings.some(m => m.key === n.key)))
++    ctx.addIssue({ code: "custom", message: "A material needs either one rate mapping or one no-rate reason." });
+   const linked = v.worksheet.filter(line => line.bom).map(line => line.bom!.key);
+   if (new Set(linked).size !== linked.length) ctx.addIssue({ code: "custom", message: "A material register item can price only one worksheet line." });
+   const issues = v.issuedQuotes ?? [];
+diff --git a/src/studio/pricing/quoteHandover.ts b/src/studio/pricing/quoteHandover.ts
+index 7d6e7f6e..e0a15669 100644
+--- a/src/studio/pricing/quoteHandover.ts
++++ b/src/studio/pricing/quoteHandover.ts
+@@ -15,6 +15,7 @@ export function quoteHandoverJson(draft: QuoteDraft): string {
+     schema: QUOTE_HANDOVER_SCHEMA,
+     status: draft.issue ? "issued" : "draft-not-sent",
+     issue: draft.issue ?? null, pricingBasis: draft.pricingBasis,
++    materialCoverage: draft.materialCoverage ?? null,
+     reference: draft.reference, preparedAt: draft.preparedAt, validDays: draft.validDays,
+     from: draft.from, customer: draft.customer, siteAddress: draft.siteAddress, notes: draft.notes,
+     lines: draft.lines.map(line => ({ description: line.description, stockCode: line.stockCode || null, quantity: line.quantity, unit: line.unit,
+@@ -43,9 +44,17 @@ export function quoteHandoverFiles(draft: QuoteDraft, pdf: Uint8Array): Handover
+     { name: `${base}.pdf`, mime: "application/pdf", bytes: pdf },
+     { name: `${base}-lines.csv`, mime: "text/csv", bytes: strToU8(quoteLinesCsv(draft)) },
+     { name: `${base}.json`, mime: "application/json", bytes: strToU8(quoteHandoverJson(draft)) },
++    ...(draft.materialCoverage ? [{ name: `${base}-material-coverage.csv`, mime: "text/csv", bytes: strToU8(materialCoverageCsv(draft)) }] : []),
+   ];
+ }
+ 
++export function materialCoverageCsv(draft: QuoteDraft): string {
++  const cell = (value: unknown) => { let text = String(value ?? ""); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
++  return "\uFEFF" + [["Reference", "RegisterRevision", "Material", "Description", "Quantity", "Unit", "Status", "Reason"],
++    ...(draft.materialCoverage?.lines ?? []).map(line => [draft.reference, draft.materialCoverage!.commitRevision, line.key, line.description, line.quantity, line.unit, line.status, line.reason])]
++    .map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
++}
++
+ export function quoteHandoverZip(draft: QuoteDraft, files: HandoverFile[]): HandoverFile {
+   const entries = Object.fromEntries(files.map(file => [file.name, file.bytes]));
+   return { name: `${handoverBaseName(draft)}-handover.zip`, mime: "application/zip", bytes: zipSync(entries, { level: 6, mtime: new Date(draft.preparedAt) }) };
+diff --git a/src/studio/pricing/quotePdf.test.ts b/src/studio/pricing/quotePdf.test.ts
+index 9e65e306..dfa59965 100644
+--- a/src/studio/pricing/quotePdf.test.ts
++++ b/src/studio/pricing/quotePdf.test.ts
+@@ -1,7 +1,8 @@
+ import test from "node:test";
+ import assert from "node:assert/strict";
+ import { addPricedLine, appendPriceBookRevision, emptyPriceBookLibrary, parsePriceBookLibrary, persistPriceBooks, priceBookKey, readPriceBooks, type PriceImport } from "./priceBooks.ts";
+-import { setBomMapping, syncBomPricedLines } from "./bomPricing.ts";
++import { setBomMapping, setBomNoRate, syncBomPricedLines } from "./bomPricing.ts";
++import { quoteHandoverJson, materialCoverageCsv } from "./quoteHandover.ts";
+ import { buildQuoteDraft, issueQuote, quoteDraftPdf } from "./quotePdf.ts";
+ import { quoteRate } from "./quoteRecord.ts";
+ 
+@@ -18,6 +19,32 @@ const rates: PriceImport = {
+   ],
+ };
+ const details = { from: "Affordable Fencing Gold Coast", customer: "QA customer", siteAddress: "74-78 Annie Street, Auchenflower", reference: "Q-TEST-1", validDays: 30, notes: "Training fixture." };
++
++test("unpriced materials remain visible, block an unreviewed issue and freeze explicit exclusions in every handover", async () => {
++  const register = { commitRevision: 3, current: true, lines: [
++    { key: "TP-PALING", description: "Timber palings", quantity: "815", unit: "ea" },
++    { key: "TP-GATE-OPENING", description: "3m opening", quantity: "1", unit: "ea" },
++  ] };
++  let library = priced();
++  assert.equal(buildQuoteDraft(library, details, register).materialCoverage!.lines[1].status, "unreviewed");
++  assert.throws(() => issueQuote(library, details, register), /Review every material/);
++  library = setBomNoRate(library, register, "TP-GATE-OPENING", "Supplier gate quote required; 900mm leaves do not fit this opening.", now);
++  library = issueQuote(library, details, register, new Date(now), makeId);
++  const quote = library.issuedQuotes![0], frozen = JSON.stringify(quote);
++  assert.equal(quote.totals[0].totalWithTax, "2750.55");
++  assert.equal(quote.materialCoverage!.lines[1].status, "no-rate");
++  assert.match(quoteHandoverJson(quote), /Supplier gate quote required/);
++  assert.match(materialCoverageCsv(quote), /"TP-GATE-OPENING".*"no-rate"/);
++  library = setBomNoRate(library, register, "TP-GATE-OPENING", "Changed later", now);
++  assert.equal(JSON.stringify(library.issuedQuotes![0]), frozen);
++  assert.throws(() => issueQuote(library, { ...details, reference: "R2" }, { ...register, commitRevision: 4 }), /materials changed/);
++  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs"), task = getDocument({ data: await quoteDraftPdf(quote) }), doc = await task.promise;
++  try {
++    let text = "";
++    for (let n = 1; n <= doc.numPages; n++) text += (await (await doc.getPage(n)).getTextContent()).items.map(i => "str" in i ? i.str : "").join(" ");
++    assert.match(text, /Materials without a separate price/); assert.match(text, /Supplier gate quote required/);
++  } finally { await task.destroy(); }
++});
+ function priced() {
+   let lib = appendPriceBookRevision(emptyPriceBookLibrary("job-q"), rates, "AFGC", null, () => bookId, now);
+   lib = setBomMapping(lib, { key: "TP-PALING", bookId, bookRevision: 1, sourceLine: 4, factor: "1", rounding: "exact" });
+diff --git a/src/studio/pricing/quotePdf.ts b/src/studio/pricing/quotePdf.ts
+index 192262a1..ee04d8d0 100644
+--- a/src/studio/pricing/quotePdf.ts
++++ b/src/studio/pricing/quotePdf.ts
+@@ -1,6 +1,7 @@
+ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+ import { priceBookLibrarySchema, pricedWorksheetTotals, resolvePricedLine, type PriceBookLibrary } from "./priceBooks.ts";
+ import { quoteRecordSchema, quoteRate, quoteTaxLabel, type QuoteDraft } from "./quoteRecord.ts";
++import { materialPriceCoverage, type BomPricingSource } from "./bomPricing.ts";
+ export type { QuoteDraft } from "./quoteRecord.ts";
+ 
+ export type QuoteDraftDetails = {
+@@ -12,6 +13,7 @@ export type QuoteDraftDetails = {
+   notes: string;
+ };
+ export type QuoteDraftLine = QuoteDraft["lines"][number];
++export type QuoteRegister = { commitRevision: number; current: boolean; lines?: BomPricingSource["lines"] };
+ 
+ const decimalTimes = (amount: string, percent: number, decimals: number) => {
+   // amount has `decimals` places; percent up to 6 places. Half-up to `decimals`.
+@@ -31,10 +33,10 @@ const addDecimal = (a: string, b: string, decimals: number) => {
+  * Builds the reviewable draft from the saved worksheet only. Refuses while material-linked lines
+  * are stale, so a draft can never show prices from an out-of-date register as current.
+  */
+-export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDetails, register: { commitRevision: number; current: boolean } | null, now = new Date()): QuoteDraft {
++export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDetails, register: QuoteRegister | null, now = new Date()): QuoteDraft {
+   if (!library.worksheet.length) throw Error("Add priced lines before preparing a quote.");
+   const linked = library.worksheet.filter(line => line.bom);
+-  if (linked.length && (!register || !register.current || linked.some(line => line.bom!.commitRevision !== register.commitRevision)))
++  if ((register && !register.current) || (linked.length && (!register || linked.some(line => line.bom!.commitRevision !== register.commitRevision))))
+     throw Error("The materials changed after these prices. Rebuild the materials so the linked lines update, then prepare the quote.");
+   const trimmed = { ...details, from: details.from.trim(), customer: details.customer.trim(), siteAddress: details.siteAddress.trim(), reference: details.reference.trim(), notes: details.notes.trim() };
+   if (!trimmed.from || !trimmed.customer || !trimmed.reference) throw Error("Enter your business name, the customer and a quote reference.");
+@@ -57,13 +59,16 @@ export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDe
+       effectiveDate: revision.metadata.effectiveDate, sourceReference: revision.metadata.sourceReference, fileName: revision.source.fileName, sha256: revision.source.sha256 }] as const;
+   })).values()];
+   return quoteRecordSchema.parse({ ...trimmed, preparedAt: now.toISOString(), lines, totals, provenance,
++    ...(register?.lines ? { materialCoverage: { commitRevision: register.commitRevision, lines: materialPriceCoverage(library, { commitRevision: register.commitRevision, lines: register.lines }) } } : {}),
+     pricingBasis: { libraryRevision: library.revision, materialRegisterRevision: linked.length ? register!.commitRevision : null, books: basis } });
+ }
+ 
+ /** Snapshot the current worksheet; subsequent rate, quantity and detail changes affect new drafts only. */
+-export function issueQuote(library: PriceBookLibrary, details: QuoteDraftDetails, register: { commitRevision: number; current: boolean } | null,
++export function issueQuote(library: PriceBookLibrary, details: QuoteDraftDetails, register: QuoteRegister | null,
+   now = new Date(), makeId = () => crypto.randomUUID()): PriceBookLibrary {
+   const draft = buildQuoteDraft(library, details, register, now);
++  if (draft.materialCoverage?.lines.some(line => line.status === "unreviewed"))
++    throw Error("Review every material: choose a rate or record a current no-rate reason before issuing.");
+   if (library.issuedQuotes?.some(q => q.reference.toLowerCase() === draft.reference.toLowerCase()))
+     throw Error("That reference is already issued. Enter a new quote reference for a revision.");
+   return priceBookLibrarySchema.parse({ ...library, revision: library.revision + 1,
+@@ -122,6 +127,12 @@ export async function quoteDraftPdf(draft: QuoteDraft): Promise<Uint8Array> {
+     if (total.taxAmount && total.totalWithTax) { text("Tax", cols[3].x - 130, 10); text(`${total.currency} ${total.taxAmount}`, cols[4].x, 10); y -= 14; text("Total", cols[3].x - 130, 11, bold); text(`${total.currency} ${total.totalWithTax}`, cols[4].x, 11, bold); y -= 16; }
+   }
+   y -= 8;
++  const excluded = draft.materialCoverage?.lines.filter(line => line.status !== "priced") ?? [];
++  if (excluded.length) {
++    para("Materials without a separate price", 11, bold);
++    for (const line of excluded) para(`${line.key} - ${line.description}: ${line.quantity} ${line.unit}. ${line.status === "unreviewed" ? "UNREVIEWED: " : "No rate: "}${line.reason}`, 9);
++    y -= 6;
++  }
+   if (draft.notes) { para("Notes", 10, bold); para(draft.notes, 9); y -= 6; }
+   para(issued ? "Basis of this issued quote" : "Basis of this draft", 10, bold);
+   para(`Price library revision: ${draft.pricingBasis.libraryRevision}`, 8, regular, grey);
+diff --git a/src/studio/pricing/quoteRecord.ts b/src/studio/pricing/quoteRecord.ts
+index a2649e8b..04dc07a9 100644
+--- a/src/studio/pricing/quoteRecord.ts
++++ b/src/studio/pricing/quoteRecord.ts
+@@ -10,6 +10,8 @@ export const quoteRecordSchema = z.object({
+   totals: z.array(z.object({ currency: z.string(), taxLabel: z.string(), amount: decimal,
+     taxAmount: decimal.nullable(), totalWithTax: decimal.nullable() }).strict()).min(1),
+   provenance: z.array(z.string()),
++  materialCoverage: z.object({ commitRevision: z.number().int().positive(), lines: z.array(z.object({ key: z.string(), description: z.string(),
++    quantity: decimal, unit: z.string(), status: z.enum(["priced", "no-rate", "unreviewed"]), reason: z.string() }).strict()).max(5000) }).strict().optional(),
+   pricingBasis: z.object({ libraryRevision: z.number().int().nonnegative(), materialRegisterRevision: z.number().int().positive().nullable(),
+     books: z.array(z.object({ id: z.string().uuid(), name: z.string(), revision: z.number().int().positive(), supplier: z.string(),
+       effectiveDate: z.string(), sourceReference: z.string(), fileName: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1),

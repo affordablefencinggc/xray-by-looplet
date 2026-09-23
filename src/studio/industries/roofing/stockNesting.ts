@@ -3,10 +3,10 @@
  * Typesafe JEV (Justified Executable Verification) Engine
  *
  * Mathematical Invariants:
- * 1. For each stock sheet k: sum(cuts_i) + count(cuts) * kerf + offcut_k = stockLength_k (within 1e-6m).
+ * 1. For each stock: cuts + actual kerf loss + offcut = stock length (within display precision).
  * 2. Offcut classification: offcut >= 1.20m => "reusable", offcut < 1.20m => "scrap".
  * 3. Spatial non-overlap: start_i <= end_i <= kerf_i <= start_{i+1}.
- * 4. Deterministic minimum-waste multi-stock 1D bin-packing (Best-Fit Decreasing).
+ * 4. Deterministic Best-Fit Decreasing heuristic; not a guarantee of globally minimum waste.
  */
 
 import { z } from "zod";
@@ -32,7 +32,7 @@ export const NestingOptionsSchema = z.object({
   kerfMm: z.number().nonnegative().default(5.0), // 5mm kerf allowance per cut
   reusableOffcutThresholdM: z.number().positive().default(1.2), // >= 1.20m is reusable
   salvageRatePerM: z.number().nonnegative().default(14.5), // $/m reusable credit
-  stockCostPerM: z.number().positive().default(26.8), // $/m stock purchase cost
+  stockCostPerM: z.number().nonnegative().default(26.8), // $/m stock purchase cost
 });
 export type NestingOptions = z.infer<typeof NestingOptionsSchema>;
 
@@ -77,6 +77,17 @@ export const NestingPlanSummarySchema = z.object({
   sheets: z.array(NestedSheetSchema),
 });
 export type NestingPlanSummary = z.infer<typeof NestingPlanSummarySchema>;
+
+/** Geometry-only reuse for trades whose supplier rates are mapped separately. No prices or salvage credits are inferred. */
+export function calculateStockCutLayout(cuts: RequiredCut[], options: Pick<NestingOptions, "availableStockLengthsM" | "kerfMm" | "reusableOffcutThresholdM">) {
+  const result = calculateStockNesting(cuts, { ...options, stockCostPerM: 0, salvageRatePerM: 0 });
+  return {
+    totalStockSheets: result.totalStockSheets, totalStockLengthM: result.totalStockLengthM, totalRequiredCutLengthM: result.totalRequiredCutLengthM,
+    totalKerfLossM: result.totalKerfLossM, totalReusableOffcutM: result.totalReusableOffcutM, totalScrapM: result.totalScrapM,
+    sheets: result.sheets.map(({ sheetIndex, stockLengthM, cuts, usedLengthM, kerfLossM, offcutLengthM, offcutClassification, utilizationPct }) =>
+      ({ sheetIndex, stockLengthM, cuts, usedLengthM, kerfLossM, offcutLengthM, offcutClassification, utilizationPct })),
+  };
+}
 
 export class UnfitCutError extends Error {
   readonly cut: RequiredCut;
@@ -150,12 +161,10 @@ export function calculateStockNesting(
     // Evaluate existing open sheets for Best Fit
     for (let i = 0; i < activeSheets.length; i++) {
       const sheet = activeSheets[i];
-      // Additional cut requires cut.lengthM + kerfM
-      const neededSpace = cut.lengthM + kerfM;
+      // A final cut may use the stock end; only material actually removed is kerf loss.
       const remainingSpace = sheet.stockLengthM - sheet.currentCursorM;
-
-      if (remainingSpace >= neededSpace) {
-        const remainingAfter = remainingSpace - neededSpace;
+      if (remainingSpace + 1e-9 >= cut.lengthM) {
+        const remainingAfter = Math.max(0, remainingSpace - cut.lengthM - kerfM);
         if (remainingAfter < minRemainingSpace) {
           minRemainingSpace = remainingAfter;
           bestSheetIndex = i;
@@ -168,7 +177,7 @@ export function calculateStockNesting(
       const targetSheet = activeSheets[bestSheetIndex];
       const startOffset = targetSheet.currentCursorM;
       const endOffset = startOffset + cut.lengthM;
-      const kerfOffset = endOffset + kerfM;
+      const kerfOffset = Math.min(targetSheet.stockLengthM, endOffset + kerfM);
 
       targetSheet.cuts.push({
         cutId: cut.id,
@@ -182,15 +191,8 @@ export function calculateStockNesting(
       targetSheet.currentCursorM = kerfOffset;
     } else {
       // Must open a new stock sheet.
-      // Choose the smallest available stock length that can fit this cut + kerf.
-      const neededSpace = cut.lengthM + kerfM;
-      let chosenStock = sortedStockLengths.find((s) => s >= neededSpace);
-
-      // If cut is very close to exact stock length (e.g. 5.996m with 0.005m kerf = 6.001m > 6.0m),
-      // check if cut itself fits stock without trailing kerf.
-      if (!chosenStock && cut.lengthM <= maxStockLength) {
-        chosenStock = maxStockLength;
-      }
+      // Exact stock-end use needs no trailing saw cut, including shorter stock options.
+      const chosenStock = sortedStockLengths.find((s) => s + 1e-9 >= cut.lengthM);
 
       if (!chosenStock) {
         throw new UnfitCutError(cut, maxStockLength);
@@ -232,7 +234,7 @@ export function calculateStockNesting(
     const cutLengthSum = sheet.cuts.reduce((sum, c) => sum + c.lengthM, 0);
     const kerfCount = sheet.cuts.length;
     // Each cut consumes kerfM, up to remaining stock
-    const kerfLoss = Math.min(stockLength - cutLengthSum, kerfCount * kerfM);
+    const kerfLoss = Math.max(0, Math.min(stockLength - cutLengthSum, kerfCount * kerfM));
     const rawOffcut = Math.max(0, stockLength - cutLengthSum - kerfLoss);
     const offcutLengthM = round4(rawOffcut);
 

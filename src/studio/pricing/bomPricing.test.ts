@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { addPricedLine, appendPriceBookRevision, emptyPriceBookLibrary, pricedWorksheetCsv, pricedWorksheetTotals, priceBookLibrarySchema, type PriceImport } from "./priceBooks.ts";
-import { clearBomMapping, derivedQuantity, setBomMapping, syncBomPricedLines } from "./bomPricing.ts";
+import { clearBomMapping, derivedQuantity, setBomMapping, setBomNoRate, materialPriceCoverage, syncBomPricedLines } from "./bomPricing.ts";
 
 const bookId = "00000000-0000-4000-8000-000000000001";
 let next = 10;
@@ -24,6 +24,25 @@ const bom = (commitRevision: number, palings: string, posts: string, railLm: str
   { key: "TP-POST-ORD", description: "Timber line post", quantity: posts, unit: "ea" },
   { key: "TP-RAIL-LM", description: "Timber rail material", quantity: railLm, unit: "lm" },
 ] });
+
+test("no-rate decisions are exclusive, bound to the material and require review after rebuild", () => {
+  const source = { ...bom(1, "10", "3", "5"), current: true };
+  let lib = syncBomPricedLines(map(library(), "TP-PALING", 4), source, makeId, now).library;
+  lib = setBomNoRate(lib, source, "TP-PALING", "Client supplying palings", now);
+  lib = syncBomPricedLines(lib, source, makeId, now).library;
+  assert.equal(lib.worksheet.length, 0);
+  assert.equal(lib.bomMappings!.length, 0);
+  assert.equal(materialPriceCoverage(lib, source)[0].status, "no-rate");
+  assert.equal(materialPriceCoverage(lib, { ...source, commitRevision: 2 })[0].status, "unreviewed");
+  assert.equal(materialPriceCoverage(lib, { ...source, lines: [{ ...source.lines[0], quantity: "11" }] })[0].status, "unreviewed");
+  assert.throws(() => setBomNoRate(lib, { ...source, current: false }, "TP-PALING", "Old"), /Rebuild/);
+  assert.throws(() => setBomNoRate(lib, source, "missing", "No product"), /no longer/);
+  assert.throws(() => setBomNoRate(lib, source, "TP-PALING", "  "));
+  const mapped = syncBomPricedLines(map(lib, "TP-PALING", 4), source, makeId, now).library;
+  assert.equal(mapped.bomNoRates!.length, 0);
+  assert.equal(materialPriceCoverage(mapped, source)[0].status, "priced");
+  assert.ok(!priceBookLibrarySchema.safeParse({ ...mapped, bomNoRates: lib.bomNoRates }).success);
+});
 
 test("derived quantities use exact decimals and whole-unit rounding up", () => {
   assert.equal(derivedQuantity("281", "1", "exact"), "281");

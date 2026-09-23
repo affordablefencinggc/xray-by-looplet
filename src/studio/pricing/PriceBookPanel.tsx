@@ -8,11 +8,15 @@ import "./priceBooks.css";
 import { workbookPriceTable, type PriceWorkbook } from "./priceWorkbookTable.ts";
 import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
 import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
-import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
+import { clearBomMapping, setBomMapping, setBomNoRate, materialPriceCoverage, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
 import { priceBookLibrarySchema } from "./priceBooks.ts";
-import { buildQuoteDraft, issueQuote, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
+import { buildQuoteDraft, issueQuote, quoteDraftPdf, type QuoteDraft, type QuoteRegister } from "./quotePdf.ts";
 import { quoteRate } from "./quoteRecord.ts";
 import { quoteEmailLink, quoteGmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
+import type { BomBuildRequest } from "../bomContract.ts";
+import { buildFencingStockPlan, type FencingStockPlan } from "../fencingStock.ts";
+import type { FencingStockRule } from "../fencingStockContract.ts";
+import { FencingStockPanel } from "../FencingStockPanel.tsx";
 
 /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
 export type PriceBookBomSource = BomPricingSource & { current: boolean };
@@ -28,7 +32,7 @@ function download(text: string, name: string) {
 const taxLabel = (basis: string) => basis === "inclusive" ? "tax included" : basis === "exclusive" ? "tax excluded" : "tax unspecified";
 
 /** Project-local supplier imports and explicitly priced worksheet. Existing takeoff and quote rates are untouched. */
-export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void; bom?: PriceBookBomSource | null }) {
+export function PriceBookPanel({ jobId, onSessionChange, bom: materialBom = null, stockRequest = null }: { jobId: string; onSessionChange?: (session: PriceBookSession | null) => void; bom?: PriceBookBomSource | null; stockRequest?: BomBuildRequest | null }) {
   const [session, setSession] = useState<PriceBookSession | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
   const [tab, setTab] = useState<"library" | "import" | "worksheet">("library"), [archived, setArchived] = useState(false), [search, setSearch] = useState("");
   const [file, setFile] = useState<SourceFile | null>(null), [delimiter, setDelimiter] = useState<"," | ";" | "\t">(","), [mapping, setMapping] = useState<PriceMapping | null>(null);
@@ -57,6 +61,13 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
     return () => window.removeEventListener("storage", changed);
   }, [jobId]);
   const value = session?.value.jobId === jobId ? session.value : null;
+  const stock = useMemo((): { plan: FencingStockPlan | null; error: string } => {
+    if (!value?.fencingStockRules?.length) return { plan: null, error: "" };
+    if (!materialBom?.current || !stockRequest) return { plan: null, error: "Rebuild or restore the source-matched register before using its stock purchase quantities." };
+    try { return { plan: buildFencingStockPlan(stockRequest, materialBom, value.fencingStockRules), error: "" }; }
+    catch (error) { return { plan: null, error: priceBookError(error) }; }
+  }, [materialBom, stockRequest, value?.fencingStockRules]);
+  const bom = useMemo(() => materialBom ? { ...materialBom, current: materialBom.current && !stock.error, lines: stock.plan?.lines ?? materialBom.lines } : null, [materialBom, stock]);
   const selectedSheet = file?.kind === "xlsx" ? file.workbook.sheets.find(sheet => sheet.name === worksheet) : null;
   const { table, parseError } = useMemo((): { table: CsvTable | null; parseError: string } => {
     try { return { table: file?.kind === "csv" ? parsePriceCsv(file.text, delimiter, headerRow) : selectedSheet ? workbookPriceTable(selectedSheet, headerRow) : null, parseError: "" }; }
@@ -83,6 +94,14 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
     catch (error) { if (currentJob.current === savingJob) setNotice(priceBookError(error)); return false; }
     finally { setBusy(false); }
   }
+  async function saveStockRules(rules: FencingStockRule[]) {
+    if (!value || !materialBom) throw Error("Open a material register first.");
+    let next = priceBookLibrarySchema.parse({ ...value, fencingStockRules: rules, revision: value.revision + 1 });
+    if (rules.length && (!materialBom.current || !stockRequest)) throw Error("Rebuild and restore the source-matched material register before saving stock rules.");
+    const source = rules.length ? { ...materialBom, lines: buildFencingStockPlan(stockRequest!, materialBom, rules).lines } : materialBom;
+    if (source.current) next = syncBomPricedLines(next, source).library;
+    if (!(await save(priceBookLibrarySchema.parse({ ...next, revision: value.revision + 1 }), "Stock rules saved. Review the lengths to buy and map their supplier rates."))) throw Error("Stock rules were not saved; check the library notice.");
+  }
   // Linked lines follow each new committed material register; a stale register never changes prices.
   const bomSignature = bom?.current ? JSON.stringify([bom.commitRevision, bom.lines]) : null;
   useEffect(() => {
@@ -94,13 +113,14 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
     } catch (error) { setNotice(priceBookError(error)); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bomSignature, value?.revision, busy]);
-  function saveMapping(key: string, rate: string, factor: string, roundUp: boolean) {
+  function saveMapping(key: string, rate: string, factor: string, roundUp: boolean, reason: string) {
     if (!value || !bom) return;
     try {
       const [bookId, revision, sourceLine] = rate.split("|");
-      const mapped = rate ? setBomMapping(value, { key, bookId, bookRevision: Number(revision), sourceLine: Number(sourceLine), factor: factor.trim() || "1", rounding: roundUp ? "up" : "exact" }) : clearBomMapping(value, key);
+      const mapped = rate ? setBomMapping(value, { key, bookId, bookRevision: Number(revision), sourceLine: Number(sourceLine), factor: factor.trim() || "1", rounding: roundUp ? "up" : "exact" })
+        : reason.trim() ? setBomNoRate(value, bom, key, reason) : clearBomMapping(value, key);
       const synced = bom.current ? syncBomPricedLines(mapped, bom).library : mapped;
-      void save(priceBookLibrarySchema.parse({ ...synced, revision: value.revision + 1 }), rate ? `${key} priced from the material register.` : `${key} is no longer priced from the material register.`);
+      void save(priceBookLibrarySchema.parse({ ...synced, revision: value.revision + 1 }), rate ? `${key} priced from the material register.` : reason.trim() ? `${key}: no-rate reason saved for register ${bom.commitRevision}.` : `${key} is no longer priced from the material register.`);
     } catch (error) { setNotice(priceBookError(error)); }
   }
   async function chooseFile(candidate: File | undefined) {
@@ -190,9 +210,10 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
       {value?.books.filter(b => b.archived === archived && `${b.name} ${b.revisions.at(-1)?.metadata.supplier}`.toLowerCase().includes(search.toLowerCase())).map(b => <BookCard key={b.id} book={b} disabled={!!disabled} onUse={(rev, line) => chooseRate(b, rev, line)} onSaveName={nextName => { try { void save(editPriceBook(value, b.id, { name: nextName }), "Price book renamed."); } catch (error) { setNotice(priceBookError(error)); } }} onArchive={() => { try { void save(editPriceBook(value, b.id, { archived: !b.archived }), b.archived ? "Price book restored." : "Price book archived. Applied lines are preserved."); } catch (error) { setNotice(priceBookError(error)); } }} />)}
     </>}
     {tab === "worksheet" && <>
+      {materialBom && value && <FencingStockPanel request={stockRequest} source={materialBom} rules={value.fencingStockRules ?? []} plan={stock.plan} error={stock.error} disabled={!!disabled} onSave={saveStockRules} />}
       {bom && value && <BomPricingSection bom={bom} library={value} disabled={!!disabled} onSave={saveMapping} />}
       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
-      {value && <QuoteDraftForm key={jobId} library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} disabled={!!disabled} onSave={save} onNotice={setNotice} />}
+      {value && <QuoteDraftForm key={jobId} library={value} register={bom} disabled={!!disabled} onSave={save} onNotice={setNotice} />}
       {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button>
         <div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
       {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{quoteRate(rate.rate)} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
@@ -221,36 +242,41 @@ function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: Pric
   </article>;
 }
 
-function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
+function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean, reason: string) => void }) {
   const options = library.books.filter(book => !book.archived).flatMap(book => { const revision = book.revisions.at(-1)!;
     return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${quoteRate(row.rate)} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
   const mapped = library.bomMappings ?? [];
+  const coverage = materialPriceCoverage(library, bom);
   return <div className="price-review" aria-label="Price from material register" data-bom-commit={bom.commitRevision} data-bom-current={bom.current}>
     <h3>Price from material register</h3>
+    <p>{coverage.filter(l => l.status === "priced").length} priced · {coverage.filter(l => l.status === "no-rate").length} with a no-rate reason · {coverage.filter(l => l.status === "unreviewed").length} need review. No-rate materials are excluded from the total and listed in the quote.</p>
     {bom.current ? <p className="price-help">Material register {bom.commitRevision} · {bom.lines.length} lines. Choose a rate for each material once; priced lines update whenever the materials are rebuilt. Factor converts the material unit to the rate unit (for example 1 ÷ 2.4 m lengths).</p>
       : <p role="alert">The takeoff changed after material register {bom.commitRevision}. Priced lines still show that register; rebuild the materials to update them.</p>}
     {!options.length && <p>Import a price book first to map materials to rates.</p>}
     <div className="price-table-wrap"><table className="bom-pricing-table"><thead><tr><th>Material</th><th>Quantity</th><th>Rate</th><th>Factor</th><th><span className="sr-only">Action</span></th></tr></thead><tbody>
-      {bom.lines.map(line => { const current = mapped.find(m => m.key === line.key);
-        return <BomPricingRow key={`${line.key}-${current ? `${current.bookId}${current.bookRevision}${current.sourceLine}${current.factor}${current.rounding}` : "none"}`} line={line} options={options} disabled={disabled}
-          initial={current ? { rate: `${current.bookId}|${current.bookRevision}|${current.sourceLine}`, factor: current.factor, roundUp: current.rounding === "up" } : null} onSave={onSave} />; })}
+      {bom.lines.map(line => { const current = mapped.find(m => m.key === line.key), noRate = library.bomNoRates?.find(n => n.key === line.key), status = coverage.find(l => l.key === line.key)!.status;
+        if (line.noRateReason) return <tr key={line.key} data-bom-key={line.key}><td><strong>{line.key}</strong><br />{line.description}</td><td>{line.quantity} {line.unit}</td><td colSpan={3}>No separate rate · {line.noRateReason}</td></tr>;
+        return <BomPricingRow key={`${line.key}-${bom.commitRevision}-${JSON.stringify([current, noRate])}`} line={line} options={options} disabled={disabled || !bom.current}
+          reason={noRate?.reason ?? ""} needsReview={status === "unreviewed"} initial={current ? { rate: `${current.bookId}|${current.bookRevision}|${current.sourceLine}`, factor: current.factor, roundUp: current.rounding === "up" } : null} onSave={onSave} />; })}
     </tbody></table></div>
   </div>;
 }
 
-function BomPricingRow({ line, options, disabled, initial, onSave }: { line: PriceBookBomSource["lines"][number]; options: { value: string; label: string }[]; disabled: boolean;
-  initial: { rate: string; factor: string; roundUp: boolean } | null; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
+function BomPricingRow({ line, options, disabled, initial, reason: savedReason, needsReview, onSave }: { line: PriceBookBomSource["lines"][number]; options: { value: string; label: string }[]; disabled: boolean; reason: string; needsReview: boolean;
+  initial: { rate: string; factor: string; roundUp: boolean } | null; onSave: (key: string, rate: string, factor: string, roundUp: boolean, reason: string) => void }) {
   const [rate, setRate] = useState(initial?.rate ?? ""), [factor, setFactor] = useState(initial?.factor ?? "1"), [roundUp, setRoundUp] = useState(initial?.roundUp ?? false);
-  const changed = rate !== (initial?.rate ?? "") || factor !== (initial?.factor ?? "1") || roundUp !== (initial?.roundUp ?? false);
+  const [reason, setReason] = useState(savedReason);
+  const changed = rate !== (initial?.rate ?? "") || factor !== (initial?.factor ?? "1") || roundUp !== (initial?.roundUp ?? false) || (!rate && (reason !== savedReason || needsReview));
   return <tr data-bom-key={line.key}><td><strong>{line.key}</strong><br />{line.description}</td><td className="price-scalar">{line.quantity} {line.unit}</td>
-    <td><select aria-label={`Rate for ${line.key}`} value={rate} disabled={disabled} onChange={event => setRate(event.target.value)}><option value="">Not priced</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></td>
+    <td><select aria-label={`Rate for ${line.key}`} value={rate} disabled={disabled} onChange={event => setRate(event.target.value)}><option value="">Not priced</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+      {!rate && <label>No-rate reason<input aria-label={`No-rate reason for ${line.key}`} maxLength={1000} value={reason} disabled={disabled} onChange={e => setReason(e.target.value)} placeholder="Why this material is excluded" />{needsReview && <small>Review required for this register.</small>}</label>}</td>
     <td><input aria-label={`Factor for ${line.key}`} inputMode="decimal" value={factor} disabled={disabled || !rate} onChange={event => setFactor(event.target.value)} />
       <label className="bom-round-up"><input aria-label={`Round up ${line.key}`} type="checkbox" checked={roundUp} disabled={disabled || !rate} onChange={event => setRoundUp(event.target.checked)} />Round up</label></td>
-    <td><button className="pill" disabled={disabled || !changed || (!rate && !initial)} onClick={() => onSave(line.key, rate, factor, roundUp)}>{!rate && initial ? "Clear" : "Save"}</button></td></tr>;
+    <td><button className="pill" disabled={disabled || !changed || (!rate && !reason.trim() && !initial)} onClick={() => onSave(line.key, rate, factor, roundUp, reason)}>{!rate && !reason.trim() && initial ? "Clear" : "Save"}</button></td></tr>;
 }
 
 const QUOTE_FROM_KEY = "xray:quote-from:v1";
-function QuoteDraftForm({ library, register, disabled, onSave, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; disabled: boolean;
+function QuoteDraftForm({ library, register, disabled, onSave, onNotice }: { library: PriceBookLibrary; register: QuoteRegister | null; disabled: boolean;
   onSave: (value: PriceBookLibrary, message: string) => Promise<boolean>; onNotice: (message: string) => void }) {
   const [from, setFrom] = useState(() => { try { return localStorage.getItem(QUOTE_FROM_KEY) ?? ""; } catch { return ""; } });
   const [customer, setCustomer] = useState(""), [siteAddress, setSiteAddress] = useState(""), [validDays, setValidDays] = useState("30"), [notes, setNotes] = useState("");
@@ -373,5 +399,8 @@ function QuoteSummary({ quote }: { quote: QuoteDraft }) {
       {quote.lines.map((line, i) => <tr key={i}><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{line.rate}</td><td>{line.currency} {line.amount}</td></tr>)}
     </tbody></table></div>
     {quote.totals.map((total, i) => <p key={i}><strong>{total.currency} {total.totalWithTax ?? total.amount}</strong> · {total.totalWithTax !== null ? `including ${total.currency} ${total.taxAmount} tax (subtotal ${total.amount})` : total.taxLabel}</p>)}
+    {!!quote.materialCoverage?.lines.some(line => line.status !== "priced") && <details open><summary>Materials without a separate price</summary>
+      {quote.materialCoverage.lines.filter(line => line.status !== "priced").map(line => <p key={line.key}><strong>{line.key}</strong> · {line.quantity} {line.unit} · {line.status === "unreviewed" ? "Review required" : "No rate"}: {line.reason}</p>)}
+    </details>}
   </div>;
 }

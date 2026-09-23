@@ -10,6 +10,8 @@ export const quoteRecordSchema = z.object({
   totals: z.array(z.object({ currency: z.string(), taxLabel: z.string(), amount: decimal,
     taxAmount: decimal.nullable(), totalWithTax: decimal.nullable() }).strict()).min(1),
   provenance: z.array(z.string()),
+  materialCoverage: z.object({ commitRevision: z.number().int().positive(), lines: z.array(z.object({ key: z.string(), description: z.string(),
+    quantity: decimal, unit: z.string(), status: z.enum(["priced", "no-rate", "unreviewed"]), reason: z.string() }).strict()).max(5000) }).strict().optional(),
   pricingBasis: z.object({ libraryRevision: z.number().int().nonnegative(), materialRegisterRevision: z.number().int().positive().nullable(),
     books: z.array(z.object({ id: z.string().uuid(), name: z.string(), revision: z.number().int().positive(), supplier: z.string(),
       effectiveDate: z.string(), sourceReference: z.string(), fileName: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1),

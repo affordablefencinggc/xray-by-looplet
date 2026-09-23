@@ -1,0 +1,11 @@
+# SC-09 — current no-rate reasons and generic gate allowances
+
+Requirement: price each material or preserve an explicit reviewed no-rate reason. [Exact source/test diff](../source.diff), [source identities](../source-hashes-05.json). A reason binds to the current register revision and line contents. Repricing clears the reason; changed materials require review again. Issue refuses unreviewed lines. Frozen issues preserve the coverage, and PDF, JSON and coverage CSV carry the reasons.
+
+Daniel requested generic Bunnings prices. [Dated allowance CSV](../bunnings-gate-allowances-2026-09-23.csv) and [supplier links, tax basis and fit limits](../bunnings-price-basis.md): AUD 35.54 hinge set, 14.97 latch, 22.79 drop bolt, 216.00 for two nominal 900 mm Merbau leaves, GST included. The pair excludes hardware and is a budget allowance, not a fitted 2 m/3 m gate. No suitability is inferred for the saved job.
+
+Executed: [source regression 1,964/1,964](../fencing-checks-04/source-tests.log), [typecheck/lint](../fencing-checks-04/result.json), [browser 157/157](../v1-stock-dev05/browser-results.json). Source tests reject stale/unreviewed coverage and verify immutable issued records and PDF/CSV/JSON propagation. The browser imported the four actual allowance rates, then separately tested stock arithmetic at explicit QA rates. STOCK-Q1 has two priced purchases and five no-rate entries, total AUD 87.00. [Actual export verdict](../exports/export-verdict.json), [issued PDF](../exports/STOCK-Q1-issued-quote.pdf), [handover ZIP](../exports/STOCK-Q1-issued-quote-handover.zip).
+
+Inspected: [Bunnings import review](../v1-stock-dev05/captures/bunnings-import-review.png), [unreviewed materials before rejected issue](../v1-stock-dev05/captures/unreviewed-issue-blocked.png), [reviewed coverage](../v1-stock-dev05/captures/stock-quote-coverage-review.png), [issued tablet portrait](../v1-stock-dev05/captures/stock-issued-tablet-portrait.png), [rendered PDF](../exports/quote-page-1.png). The rejection receipt proves the issue block; its screenshot shows the unresolved rows, not the off-screen notice.
+
+Status: bounded source/development acceptance only. Full SC-09 remains open for the repair/installation journey, actual gate mapping/fit decisions and final built/native qualification. Nothing was sent to a customer or written to Boundaries v3.

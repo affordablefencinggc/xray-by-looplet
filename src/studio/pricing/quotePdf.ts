@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { priceBookLibrarySchema, pricedWorksheetTotals, resolvePricedLine, type PriceBookLibrary } from "./priceBooks.ts";
 import { quoteRecordSchema, quoteRate, quoteTaxLabel, type QuoteDraft } from "./quoteRecord.ts";
+import { materialPriceCoverage, type BomPricingSource } from "./bomPricing.ts";
 export type { QuoteDraft } from "./quoteRecord.ts";
 
 export type QuoteDraftDetails = {
@@ -12,6 +13,7 @@ export type QuoteDraftDetails = {
   notes: string;
 };
 export type QuoteDraftLine = QuoteDraft["lines"][number];
+export type QuoteRegister = { commitRevision: number; current: boolean; lines?: BomPricingSource["lines"] };
 
 const decimalTimes = (amount: string, percent: number, decimals: number) => {
   // amount has `decimals` places; percent up to 6 places. Half-up to `decimals`.
@@ -31,10 +33,10 @@ const addDecimal = (a: string, b: string, decimals: number) => {
  * Builds the reviewable draft from the saved worksheet only. Refuses while material-linked lines
  * are stale, so a draft can never show prices from an out-of-date register as current.
  */
-export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDetails, register: { commitRevision: number; current: boolean } | null, now = new Date()): QuoteDraft {
+export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDetails, register: QuoteRegister | null, now = new Date()): QuoteDraft {
   if (!library.worksheet.length) throw Error("Add priced lines before preparing a quote.");
   const linked = library.worksheet.filter(line => line.bom);
-  if (linked.length && (!register || !register.current || linked.some(line => line.bom!.commitRevision !== register.commitRevision)))
+  if ((register && !register.current) || (linked.length && (!register || linked.some(line => line.bom!.commitRevision !== register.commitRevision))))
     throw Error("The materials changed after these prices. Rebuild the materials so the linked lines update, then prepare the quote.");
   const trimmed = { ...details, from: details.from.trim(), customer: details.customer.trim(), siteAddress: details.siteAddress.trim(), reference: details.reference.trim(), notes: details.notes.trim() };
   if (!trimmed.from || !trimmed.customer || !trimmed.reference) throw Error("Enter your business name, the customer and a quote reference.");
@@ -57,13 +59,16 @@ export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDe
       effectiveDate: revision.metadata.effectiveDate, sourceReference: revision.metadata.sourceReference, fileName: revision.source.fileName, sha256: revision.source.sha256 }] as const;
   })).values()];
   return quoteRecordSchema.parse({ ...trimmed, preparedAt: now.toISOString(), lines, totals, provenance,
+    ...(register?.lines ? { materialCoverage: { commitRevision: register.commitRevision, lines: materialPriceCoverage(library, { commitRevision: register.commitRevision, lines: register.lines }) } } : {}),
     pricingBasis: { libraryRevision: library.revision, materialRegisterRevision: linked.length ? register!.commitRevision : null, books: basis } });
 }
 
 /** Snapshot the current worksheet; subsequent rate, quantity and detail changes affect new drafts only. */
-export function issueQuote(library: PriceBookLibrary, details: QuoteDraftDetails, register: { commitRevision: number; current: boolean } | null,
+export function issueQuote(library: PriceBookLibrary, details: QuoteDraftDetails, register: QuoteRegister | null,
   now = new Date(), makeId = () => crypto.randomUUID()): PriceBookLibrary {
   const draft = buildQuoteDraft(library, details, register, now);
+  if (draft.materialCoverage?.lines.some(line => line.status === "unreviewed"))
+    throw Error("Review every material: choose a rate or record a current no-rate reason before issuing.");
   if (library.issuedQuotes?.some(q => q.reference.toLowerCase() === draft.reference.toLowerCase()))
     throw Error("That reference is already issued. Enter a new quote reference for a revision.");
   return priceBookLibrarySchema.parse({ ...library, revision: library.revision + 1,
@@ -122,6 +127,12 @@ export async function quoteDraftPdf(draft: QuoteDraft): Promise<Uint8Array> {
     if (total.taxAmount && total.totalWithTax) { text("Tax", cols[3].x - 130, 10); text(`${total.currency} ${total.taxAmount}`, cols[4].x, 10); y -= 14; text("Total", cols[3].x - 130, 11, bold); text(`${total.currency} ${total.totalWithTax}`, cols[4].x, 11, bold); y -= 16; }
   }
   y -= 8;
+  const excluded = draft.materialCoverage?.lines.filter(line => line.status !== "priced") ?? [];
+  if (excluded.length) {
+    para("Materials without a separate price", 11, bold);
+    for (const line of excluded) para(`${line.key} - ${line.description}: ${line.quantity} ${line.unit}. ${line.status === "unreviewed" ? "UNREVIEWED: " : "No rate: "}${line.reason}`, 9);
+    y -= 6;
+  }
   if (draft.notes) { para("Notes", 10, bold); para(draft.notes, 9); y -= 6; }
   para(issued ? "Basis of this issued quote" : "Basis of this draft", 10, bold);
   para(`Price library revision: ${draft.pricingBasis.libraryRevision}`, 8, regular, grey);

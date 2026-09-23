@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   calculateStockNesting,
+  calculateStockCutLayout,
   generateCutsFromRoofTakeoff,
   STANDARD_STOCK_LENGTHS,
   UnfitCutError,
@@ -10,6 +11,14 @@ import {
 import { calculateRoofTakeoff, generateStandardHipRoof } from "./roofGeometry.ts";
 
 describe("stockNesting — SC-06 Typesafe JEV Engine", () => {
+  it("uses exact shorter stock and stock ends after a cut without inventing prices", () => {
+    const exact = calculateStockCutLayout([{ id: "whole", label: "whole length", lengthM: 2.4 }], { availableStockLengthsM: [2.4, 4.8], kerfMm: 5, reusableOffcutThresholdM: 1.2 });
+    assert.equal(exact.sheets[0].stockLengthM, 2.4); assert.equal(exact.totalKerfLossM, 0);
+    assert.equal("totalStockCost" in exact, false); assert.equal("grossCost" in exact.sheets[0], false);
+    const pair = calculateStockCutLayout([{ id: "a", label: "first", lengthM: 2.4 }, { id: "b", label: "second", lengthM: 2.395 }], { availableStockLengthsM: [4.8], kerfMm: 5, reusableOffcutThresholdM: 1.2 });
+    assert.equal(pair.totalStockSheets, 1); assert.equal(pair.totalKerfLossM, .005); assert.equal(pair.totalScrapM, 0);
+    assert.deepEqual(pair.sheets[0].cuts.map(c => [c.startOffsetM, c.endOffsetM, c.kerfOffsetM]), [[0, 2.4, 2.405], [2.405, 4.8, 4.8]]);
+  });
   it("strictly enforces 5mm kerf deduction and offcut conservation", () => {
     // 6.0m stock sheet, two 2.50m cuts with 5mm kerf
     const cuts: RequiredCut[] = [

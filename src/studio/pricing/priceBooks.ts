@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { issuedQuoteSchema, quoteRate } from "./quoteRecord.ts";
+import { fencingStockRulesSchema } from "../fencingStockContract.ts";
 
 export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
 export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
@@ -61,6 +62,9 @@ const decimalFactor = z.string().regex(/^(?:0|[1-9]\d{0,9})(?:\.\d{1,6})?$/, "Us
 export const bomMappingSchema = z.object({ key: bomKey, bookId: z.string().uuid(), bookRevision: z.number().int().positive(), sourceLine: z.number().int().positive(),
   factor: decimalFactor, rounding: z.enum(["exact", "up"]) }).strict();
 export type BomMapping = z.infer<typeof bomMappingSchema>;
+export const bomNoRateSchema = z.object({ key: bomKey, commitRevision: z.number().int().positive(),
+  description: z.string().min(1).max(500), quantity: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/), unit: z.string().min(1).max(20),
+  reason: z.string().trim().min(1).max(1000), reviewedAt: z.string().datetime() }).strict();
 /** A worksheet line whose quantity is derived from a committed material-register line. */
 const bomLinkSchema = z.object({ key: bomKey, commitRevision: z.number().int().positive(), bomQuantity: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/), unit: z.string().min(1).max(20),
   factor: decimalFactor, rounding: z.enum(["exact", "up"]) }).strict();
@@ -72,6 +76,8 @@ export const priceBookLibrarySchema = z.object({
     sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
     addedAt: z.string().datetime(), bom: bomLinkSchema.optional() }).strict()).max(5000),
   bomMappings: z.array(bomMappingSchema).max(500).optional(),
+  bomNoRates: z.array(bomNoRateSchema).max(500).optional(),
+  fencingStockRules: fencingStockRulesSchema.optional(),
   issuedQuotes: z.array(issuedQuoteSchema).max(100).optional(),
 }).strict().superRefine((v, ctx) => {
   if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
@@ -86,6 +92,9 @@ export const priceBookLibrarySchema = z.object({
   const mappings = v.bomMappings ?? [];
   if (new Set(mappings.map(m => m.key)).size !== mappings.length) ctx.addIssue({ code: "custom", message: "Each material register item can be mapped to one rate." });
   for (const m of mappings) if (!rateExists(m.bookId, m.bookRevision, m.sourceLine)) ctx.addIssue({ code: "custom", message: `Material mapping ${m.key} references a missing source rate.` });
+  const noRates = v.bomNoRates ?? [];
+  if (new Set(noRates.map(n => n.key)).size !== noRates.length || noRates.some(n => mappings.some(m => m.key === n.key)))
+    ctx.addIssue({ code: "custom", message: "A material needs either one rate mapping or one no-rate reason." });
   const linked = v.worksheet.filter(line => line.bom).map(line => line.bom!.key);
   if (new Set(linked).size !== linked.length) ctx.addIssue({ code: "custom", message: "A material register item can price only one worksheet line." });
   const issues = v.issuedQuotes ?? [];

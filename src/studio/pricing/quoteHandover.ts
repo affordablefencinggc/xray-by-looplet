@@ -15,6 +15,7 @@ export function quoteHandoverJson(draft: QuoteDraft): string {
     schema: QUOTE_HANDOVER_SCHEMA,
     status: draft.issue ? "issued" : "draft-not-sent",
     issue: draft.issue ?? null, pricingBasis: draft.pricingBasis,
+    materialCoverage: draft.materialCoverage ?? null,
     reference: draft.reference, preparedAt: draft.preparedAt, validDays: draft.validDays,
     from: draft.from, customer: draft.customer, siteAddress: draft.siteAddress, notes: draft.notes,
     lines: draft.lines.map(line => ({ description: line.description, stockCode: line.stockCode || null, quantity: line.quantity, unit: line.unit,
@@ -43,7 +44,15 @@ export function quoteHandoverFiles(draft: QuoteDraft, pdf: Uint8Array): Handover
     { name: `${base}.pdf`, mime: "application/pdf", bytes: pdf },
     { name: `${base}-lines.csv`, mime: "text/csv", bytes: strToU8(quoteLinesCsv(draft)) },
     { name: `${base}.json`, mime: "application/json", bytes: strToU8(quoteHandoverJson(draft)) },
+    ...(draft.materialCoverage ? [{ name: `${base}-material-coverage.csv`, mime: "text/csv", bytes: strToU8(materialCoverageCsv(draft)) }] : []),
   ];
+}
+
+export function materialCoverageCsv(draft: QuoteDraft): string {
+  const cell = (value: unknown) => { let text = String(value ?? ""); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+  return "\uFEFF" + [["Reference", "RegisterRevision", "Material", "Description", "Quantity", "Unit", "Status", "Reason"],
+    ...(draft.materialCoverage?.lines ?? []).map(line => [draft.reference, draft.materialCoverage!.commitRevision, line.key, line.description, line.quantity, line.unit, line.status, line.reason])]
+    .map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 
 export function quoteHandoverZip(draft: QuoteDraft, files: HandoverFile[]): HandoverFile {

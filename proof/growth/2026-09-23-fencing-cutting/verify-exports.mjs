@@ -1,0 +1,61 @@
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { unzipSync } from 'fflate';
+import { createCanvas, DOMMatrix, ImageData, Path2D } from '@napi-rs/canvas';
+
+if (process.env.COMPUTERNAME?.toLowerCase() !== 'dans1') throw Error('DANS1 only');
+Object.assign(globalThis, { DOMMatrix, ImageData, Path2D });
+const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+const base = resolve('proof/growth/2026-09-23-fencing-cutting');
+const results = JSON.parse(readFileSync(resolve(base, 'v1-stock-dev05/browser-results.json'), 'utf8'));
+const output = resolve(base, 'exports');
+mkdirSync(output, { recursive: true });
+assert.equal(results.verdict, 'PASS');
+const metadata = results.receipts.find(r => r.value?.exportMetadata).value.exportMetadata;
+const records = [];
+for (const entry of metadata) {
+  assert.match(entry.name, /^[A-Za-z0-9_.-]+$/);
+  const chunks = results.receipts.map(r => r.value?.exportChunk).filter(c => c?.name === entry.name).sort((a,b) => a.part-b.part);
+  chunks.forEach((chunk,index) => assert.equal(chunk.part,index));
+  const bytes = Buffer.from(chunks.map(c => c.base64).join(''), 'base64');
+  assert.equal(bytes.length,entry.bytes);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'),entry.sha256);
+  writeFileSync(resolve(output,entry.name),bytes);
+  records.push(entry);
+}
+const archive = unzipSync(readFileSync(resolve(output,'STOCK-Q1-issued-quote-handover.zip')));
+const archiveEntries = Object.keys(archive);
+const quoteEntry = archiveEntries.find(name => name.endsWith('.json'));
+const quote = JSON.parse(Buffer.from(archive[quoteEntry]).toString('utf8'));
+assert.equal(quote.status,'issued');
+assert.equal(quote.reference,'STOCK-Q1');
+assert.equal(quote.totals[0].subtotal,'87.00');
+assert.match(quote.totals[0].taxBasis,/incl/i);
+assert.equal(quote.lines.length,2);
+assert.equal(quote.materialCoverage.lines.filter(line=>line.status==='no-rate').length,5);
+assert.equal(quote.materialCoverage.lines.filter(line=>line.status==='unreviewed').length,0);
+writeFileSync(resolve(output,'handover-quote.json'),JSON.stringify(quote,null,2)+'\n');
+const coverageEntry = archiveEntries.find(name => name.endsWith('-material-coverage.csv'));
+assert.ok(coverageEntry,'material coverage CSV included');
+const coverageCsv = Buffer.from(archive[coverageEntry]).toString('utf8');
+writeFileSync(resolve(output,'material-coverage.csv'),coverageCsv);
+assert.match(coverageCsv,/Supplier specification and rate still required/);
+const pdf = await getDocument({data:new Uint8Array(readFileSync(resolve(output,'STOCK-Q1-issued-quote.pdf'))),standardFontDataUrl:resolve('node_modules/pdfjs-dist/standard_fonts')+'/'}).promise;
+const pages=[];
+for(let number=1;number<=pdf.numPages;number++) {
+  const page=await pdf.getPage(number), viewport=page.getViewport({scale:1.5});
+  const canvas=createCanvas(Math.ceil(viewport.width),Math.ceil(viewport.height));
+  await page.render({canvas,canvasContext:canvas.getContext('2d'),viewport}).promise;
+  const file=`quote-page-${number}.png`;
+  writeFileSync(resolve(output,file),canvas.toBuffer('image/png'));
+  const content=await page.getTextContent();
+  pages.push({number,file,text:content.items.map(item=>item.str).join(' ')});
+}
+const text=pages.map(page=>page.text).join('\n');
+assert.match(text,/87\.00/);
+assert.match(text,/Materials without a separate price/);
+assert.match(text,/Supplier specification and rate still required/);
+writeFileSync(resolve(output,'export-verdict.json'),JSON.stringify({host:process.env.COMPUTERNAME,capturedAt:results.completedAt,verifiedAt:new Date().toISOString(),verdict:'PASS',files:records,archiveEntries,quoteKeys:Object.keys(quote),pages,limits:'Actual exports from a synthetic development fixture; no supplier fit, real-job, built/native or customer-delivery acceptance.'},null,2)+'\n');
+console.log(JSON.stringify({verdict:'PASS',pages:pages.length,archiveEntries,quoteKeys:Object.keys(quote)}));
