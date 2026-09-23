@@ -920,3 +920,7 @@ Bounded local browser fixes: [AR-01 layout](proof/growth/2026-09-23-assistant-re
 ## V1 hygiene: 2026-09-24 handover
 
 Executed 2026-09-23 on DANS1: Windows test:src 1943/1943, original 208-suite list preserved; export counts match 375-row register; 944 existing open lines classified. Stale backup timing tick reconciled against historical proof; SC-07F/H remain open with candidate paths. [Per-step tests, inspected screenshots and exact diff](proof/growth/2026-09-24-v1-scope-freeze/README.md). Stability diagnostics continue separately; no installed or deployment claim.
+
+## 2026-09-23: bounded V1 stability qualification
+
+DANS1 SC-09 dev135/135, built138/138; startup probes138/138 and141/141; current HVAC fixture46/46 dev/built and fittings75/75; native full-workload close gate10/10, zero forced,52.7583-85.9238ms. [Per-step tests, inspected screenshots, source identities and diff](proof/growth/2026-09-24-stability/README.md). Historical causes not reproduced; no persistence/Rust fix, install or deployment claimed.

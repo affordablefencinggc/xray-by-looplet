@@ -574,3 +574,7 @@ Bounded local browser fixes: [AR-01 layout](proof/growth/2026-09-23-assistant-re
 ## V1 scope freeze hygiene (captured 2026-09-23 for 24 Sep handover)
 
 Branch recovery: feat/closeout-sc09-remainder. [Ledger/scope proof](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-01.md); [Windows source launcher: 1943/1943](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-02.md); [CSV 375 states](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-03.md); [14/20 dashboard](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-04.md). Each links its screenshot, executed results and diff. No stability/native/deployment completion is implied.
+
+## Bounded stability verification (not full 01-stability completion)
+
+[Native ten-close gate](proof/growth/2026-09-24-stability/steps/SC-02-native-close-gate.md) and [current HVAC fixture qualification](proof/growth/2026-09-24-stability/steps/SC-03-hvac-regression.md) pass on DANS1; each has execution receipts, separately named screenshots and exact harness/fixture diff. [Startup instrumentation](proof/growth/2026-09-24-stability/steps/SC-01-reload-measurement.md) also executed in dev and built output. Historical defect causes remain open. Branch: feat/closeout-sc09-remainder; based on fee8dbfd.

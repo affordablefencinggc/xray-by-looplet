@@ -1,0 +1,745 @@
+[
+  [
+    "wait",
+    "--fn",
+    "document.readyState==='complete'&&!!document.querySelector('button')",
+    "--timeout",
+    "60000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Project",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('select')].some(s=>s.offsetParent&&s.getAttribute('aria-label')==='Current plan')",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "select",
+    "select[aria-label='Current plan']",
+    "__SAMPLE_REDBURN__"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].filter(e=>e.offsetParent&&e.textContent.trim()==='Open');b[0].click();return b.length})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{try{return JSON.parse(localStorage.getItem('xray:fencing-job:v2')).documents.some(d=>d.pageCount===13)}catch{return false}})()",
+    "--timeout",
+    "90000"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('button')].some(e=>e.offsetParent&&/^12/.test(e.textContent.trim())&&e.textContent.includes('Survey 1'))",
+    "--timeout",
+    "30000"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].filter(e=>e.offsetParent&&/^12/.test(e.textContent.trim())&&e.textContent.includes('Survey 1'));b[0].click();return 'ok'})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Takeoff",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!document.body.innerText.includes('Preparing source page')&&[...document.querySelectorAll('button')].some(b=>b.offsetParent&&b.textContent.trim()==='Use drawing scale 1:250')",
+    "--timeout",
+    "60000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Use drawing scale 1:250",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2')).calibrations.find(c=>c.sheet===11).locked===true",
+    "--timeout",
+    "15000"
+  ],
+  [
+    "eval",
+    "JSON.stringify(document.querySelector('canvas[aria-label=\"Plan drawing canvas\"]').getBoundingClientRect())"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-23-quote-handover/shots/e1-scaled.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Run L",
+    "--exact"
+  ],
+  [
+    "mouse",
+    "move",
+    "480",
+    "600"
+  ],
+  [
+    "mouse",
+    "down"
+  ],
+  [
+    "mouse",
+    "up"
+  ],
+  [
+    "mouse",
+    "move",
+    "760",
+    "600"
+  ],
+  [
+    "mouse",
+    "down"
+  ],
+  [
+    "mouse",
+    "up"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Finish trace",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2')).runs.length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "window.__set=(label,value)=>{const els=[...document.querySelectorAll('select,input,textarea')].filter(s=>s.offsetParent);const el=els.find(s=>(s.getAttribute('aria-label')||(s.labels&&s.labels[0]&&s.labels[0].innerText.split(String.fromCharCode(10))[0])||'').trim()===label);if(!el)throw Error('no field '+label);const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));if(el.tagName!=='SELECT')el.dispatchEvent(new Event('change',{bubbles:true}));el.dispatchEvent(new Event('blur',{bubbles:true}));return label+'='+el.value};'ok'"
+  ],
+  [
+    "eval",
+    "__set(\"Takeoff type\",\"fencing\")"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2')).runs[0].specification.constructionEnabled===false",
+    "--timeout",
+    "8000"
+  ],
+  [
+    "eval",
+    "__set(\"Assembly / system\",\"timber-paling\")"
+  ],
+  [
+    "eval",
+    "__set(\"Profile / product\",\"Standard paling\")"
+  ],
+  [
+    "eval",
+    "__set(\"Height (m)\",\"1.8\")"
+  ],
+  [
+    "eval",
+    "__set(\"Bay width (m)\",\"2.4\")"
+  ],
+  [
+    "eval",
+    "__set(\"Ground\",\"soil\")"
+  ],
+  [
+    "eval",
+    "__set(\"Slope\",\"level\")"
+  ],
+  [
+    "eval",
+    "__set(\"Access\",\"clear\")"
+  ],
+  [
+    "eval",
+    "__set(\"Sleepers\",\"none\")"
+  ],
+  [
+    "eval",
+    "__set(\"Vertex 1 corner treatment\",\"end\")"
+  ],
+  [
+    "eval",
+    "__set(\"Vertex 2 corner treatment\",\"end\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Gate C",
+    "--exact"
+  ],
+  [
+    "mouse",
+    "move",
+    "620",
+    "600"
+  ],
+  [
+    "mouse",
+    "down"
+  ],
+  [
+    "mouse",
+    "up"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2')).gates.length===1",
+    "--timeout",
+    "8000"
+  ],
+  [
+    "eval",
+    "__set(\"Gate type\",\"double\")"
+  ],
+  [
+    "eval",
+    "__set(\"Clear width (m)\",\"2\")"
+  ],
+  [
+    "eval",
+    "__set(\"Gate height (m)\",\"1.8\")"
+  ],
+  [
+    "eval",
+    "__set(\"Ground clearance (m)\",\"0.05\")"
+  ],
+  [
+    "eval",
+    "__set(\"Opening direction\",\"inward\")"
+  ],
+  [
+    "eval",
+    "__set(\"Hinge side\",\"double\")"
+  ],
+  [
+    "eval",
+    "__set(\"Hardware\",\"Training hinge set\")"
+  ],
+  [
+    "eval",
+    "__set(\"Latch\",\"Training drop latch\")"
+  ],
+  [
+    "eval",
+    "__set(\"Gate post size\",\"125x125 training\")"
+  ],
+  [
+    "eval",
+    "__set(\"Finish\",\"Natural\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Takeoff",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "(()=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));const s=j.runs[0].specification,g=j.gates[0];return s.system==='timber-paling'&&s.sleepers==='none'&&s.corners.length===2&&g.type==='double'&&g.widthM===2&&g.finish==='Natural'})()",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const j=JSON.parse(localStorage.getItem('xray:fencing-job:v2'));const r=j.runs[0];return JSON.stringify({gross:r.grossLengthM,net:r.netLengthM,gate:j.gates[0].widthM})})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-23-quote-handover/shots/e2-fence-gate.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Estimate",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('Responsible estimator')",
+    "--timeout",
+    "20000"
+  ],
+  [
+    "eval",
+    "window.__set=(label,value)=>{const els=[...document.querySelectorAll('select,input,textarea')].filter(s=>s.offsetParent);const el=els.find(s=>(s.getAttribute('aria-label')||(s.labels&&s.labels[0]&&s.labels[0].innerText.split(String.fromCharCode(10))[0])||'').trim()===label);if(!el)throw Error('no field '+label);const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));if(el.tagName!=='SELECT')el.dispatchEvent(new Event('change',{bubbles:true}));el.dispatchEvent(new Event('blur',{bubbles:true}));return label+'='+el.value};'ok'"
+  ],
+  [
+    "eval",
+    "__set(\"Responsible estimator\",\"QA test estimator (Claude)\")"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.offsetParent&&b.textContent.trim()==='Accept assumption'&&!b.disabled);if(!b)throw Error('no accept');b.click();return 'accepted'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.offsetParent&&b.textContent.trim()==='Accept assumption'&&!b.disabled);if(!b)throw Error('no accept');b.click();return 'accepted'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.offsetParent&&b.textContent.trim()==='Accept assumption'&&!b.disabled);if(!b)throw Error('no accept');b.click();return 'accepted'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.offsetParent&&b.textContent.trim()==='Accept assumption'&&!b.disabled);if(!b)throw Error('no accept');b.click();return 'accepted'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "![...document.querySelectorAll('button')].some(b=>b.offsetParent&&b.textContent.trim()==='Accept assumption')",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Checks",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('button')].filter(b=>b.offsetParent&&b.textContent.trim()==='Approve').length===2",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "window.__set=(label,value)=>{const els=[...document.querySelectorAll('select,input,textarea')].filter(s=>s.offsetParent);const el=els.find(s=>(s.getAttribute('aria-label')||(s.labels&&s.labels[0]&&s.labels[0].innerText.split(String.fromCharCode(10))[0])||'').trim()===label);if(!el)throw Error('no field '+label);const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));if(el.tagName!=='SELECT')el.dispatchEvent(new Event('change',{bubbles:true}));el.dispatchEvent(new Event('blur',{bubbles:true}));return label+'='+el.value};'ok'"
+  ],
+  [
+    "eval",
+    "__set(\"Reviewer\",\"QA test estimator (Claude)\")"
+  ],
+  [
+    "eval",
+    "__set(\"Decision note\",\"Automated QA approval on an isolated test profile; training data only.\")"
+  ],
+  [
+    "eval",
+    "(()=>{[...document.querySelectorAll('button')].filter(b=>b.offsetParent&&b.textContent.trim()==='Approve')[0].click();return 1})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2')).runs[0].review.status==='approved'",
+    "--timeout",
+    "8000"
+  ],
+  [
+    "eval",
+    "(()=>{[...document.querySelectorAll('button')].filter(b=>b.offsetParent&&b.textContent.trim()==='Approve')[1].click();return 2})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:fencing-job:v2')).gates[0].review.status==='approved'",
+    "--timeout",
+    "8000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Estimate",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('button')].some(b=>b.offsetParent&&b.textContent.trim()==='Generate BOM'&&!b.disabled)",
+    "--timeout",
+    "15000"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Generate BOM",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!/Quantity state[^A-Za-z]*Not built/.test(document.body.innerText)||/INTERRUPTED|ISSUES FOUND/.test(document.body.innerText)",
+    "--timeout",
+    "120000"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.body.innerText;const i=t.indexOf('EVIDENCE-BOUND QUANTITY REGISTER');return t.slice(i,i+4500)})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-23-quote-handover/shots/e3-bom-generated.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Import price sheet",
+    "--exact"
+  ],
+  [
+    "upload",
+    "input[aria-label='Supplier price file']",
+    "C:/Users/danie/repo/xray-by-looplet/proof/growth/2026-09-23-quote-handover/AFGC-LOOPLET-CRM-RATES.csv"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('AFGC-LOOPLET-CRM-RATES.csv')",
+    "--timeout",
+    "15000"
+  ],
+  [
+    "eval",
+    "window.__set=(label,value)=>{const els=[...document.querySelectorAll('select,input,textarea')].filter(s=>s.offsetParent);const el=els.find(s=>(s.getAttribute('aria-label')||(s.labels&&s.labels[0]&&s.labels[0].innerText.split(String.fromCharCode(10))[0])||'').trim()===label);if(!el)throw Error('no field '+label);const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));if(el.tagName!=='SELECT')el.dispatchEvent(new Event('change',{bubbles:true}));el.dispatchEvent(new Event('blur',{bubbles:true}));return label+'='+el.value};'ok'"
+  ],
+  [
+    "eval",
+    "__set(\"Supplier\",\"Affordable Fencing Gold Coast (Looplet CRM price list db48b34c)\")"
+  ],
+  [
+    "eval",
+    "__set(\"Tax basis\",\"exclusive\")"
+  ],
+  [
+    "eval",
+    "__set(\"Effective date\",\"2026-09-23\")"
+  ],
+  [
+    "eval",
+    "__set(\"Source reference\",\"Looplet CRM list_price_items, confirmed sell prices, read 2026-09-23\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review import",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save reviewed price book",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.body.innerText.includes('Library (1)')",
+    "--timeout",
+    "15000"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.offsetParent&&/^Priced worksheet/.test(b.textContent.trim()));b.click();return b.textContent})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"Price from material register\"]')",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const s=document.querySelector('[aria-label=\"Price from material register\"]');return s.dataset.bomCommit+' current='+s.dataset.bomCurrent+' rows='+s.querySelectorAll('tr[data-bom-key]').length})()"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-23-quote-handover/shots/p1-register-unmapped.png"
+  ],
+  [
+    "eval",
+    "(()=>{const row=document.querySelector('tr[data-bom-key=\"TP-PALING\"]');const sel=row.querySelector('select');const opt=[...sel.options].find(o=>o.text.startsWith('FEN-M005 ·'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,opt.value);sel.dispatchEvent(new Event('change',{bubbles:true}));return 'TP-PALING -> '+opt.text})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelector('tr[data-bom-key=\"TP-PALING\"]').querySelectorAll('button')].find(b=>b.textContent==='Save');if(b.disabled)throw Error('save disabled');b.click();return 'saved'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('[data-bom-linked=\"TP-PALING\"]').length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const row=document.querySelector('tr[data-bom-key=\"TP-POST-ORD\"]');const sel=row.querySelector('select');const opt=[...sel.options].find(o=>o.text.startsWith('FEN-M002 ·'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,opt.value);sel.dispatchEvent(new Event('change',{bubbles:true}));return 'TP-POST-ORD -> '+opt.text})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelector('tr[data-bom-key=\"TP-POST-ORD\"]').querySelectorAll('button')].find(b=>b.textContent==='Save');if(b.disabled)throw Error('save disabled');b.click();return 'saved'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('[data-bom-linked=\"TP-POST-ORD\"]').length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const row=document.querySelector('tr[data-bom-key=\"TP-POST-END\"]');const sel=row.querySelector('select');const opt=[...sel.options].find(o=>o.text.startsWith('FEN-M002 ·'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,opt.value);sel.dispatchEvent(new Event('change',{bubbles:true}));return 'TP-POST-END -> '+opt.text})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelector('tr[data-bom-key=\"TP-POST-END\"]').querySelectorAll('button')].find(b=>b.textContent==='Save');if(b.disabled)throw Error('save disabled');b.click();return 'saved'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('[data-bom-linked=\"TP-POST-END\"]').length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const row=document.querySelector('tr[data-bom-key=\"TP-POST-GATE\"]');const sel=row.querySelector('select');const opt=[...sel.options].find(o=>o.text.startsWith('FEN-M003 ·'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,opt.value);sel.dispatchEvent(new Event('change',{bubbles:true}));return 'TP-POST-GATE -> '+opt.text})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelector('tr[data-bom-key=\"TP-POST-GATE\"]').querySelectorAll('button')].find(b=>b.textContent==='Save');if(b.disabled)throw Error('save disabled');b.click();return 'saved'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('[data-bom-linked=\"TP-POST-GATE\"]').length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const row=document.querySelector('tr[data-bom-key=\"TP-RAIL-CUT\"]');const sel=row.querySelector('select');const opt=[...sel.options].find(o=>o.text.startsWith('FEN-M007 ·'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,opt.value);sel.dispatchEvent(new Event('change',{bubbles:true}));return 'TP-RAIL-CUT -> '+opt.text})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelector('tr[data-bom-key=\"TP-RAIL-CUT\"]').querySelectorAll('button')].find(b=>b.textContent==='Save');if(b.disabled)throw Error('save disabled');b.click();return 'saved'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('[data-bom-linked=\"TP-RAIL-CUT\"]').length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const row=document.querySelector('tr[data-bom-key=\"TP-GATE-LEAF\"]');const sel=row.querySelector('select');const opt=[...sel.options].find(o=>o.text.startsWith('TG-1800-PED ·'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,opt.value);sel.dispatchEvent(new Event('change',{bubbles:true}));return 'TP-GATE-LEAF -> '+opt.text})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "(()=>{const b=[...document.querySelector('tr[data-bom-key=\"TP-GATE-LEAF\"]').querySelectorAll('button')].find(b=>b.textContent==='Save');if(b.disabled)throw Error('save disabled');b.click();return 'saved'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelectorAll('[data-bom-linked=\"TP-GATE-LEAF\"]').length===1",
+    "--timeout",
+    "10000"
+  ],
+  [
+    "eval",
+    "(()=>{const t=document.body.innerText;const i=t.indexOf('Worksheet subtotals');return t.slice(i,i+200)})()"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('[data-bom-linked]')].map(e=>e.closest('article').querySelector('h3').textContent+' | '+e.closest('article').querySelector('p').textContent)"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-23-quote-handover/shots/p2-mapped-priced.png"
+  ],
+  [
+    "eval",
+    "(()=>{const d=document.querySelector('details[aria-label=\"Draft quote\"]');d.open=true;d.scrollIntoView({block:'center'});return 'open'})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "true"
+  ],
+  [
+    "eval",
+    "window.__set=(label,value)=>{const els=[...document.querySelectorAll('select,input,textarea')].filter(s=>s.offsetParent);const el=els.find(s=>(s.getAttribute('aria-label')||(s.labels&&s.labels[0]&&s.labels[0].innerText.split(String.fromCharCode(10))[0])||'').trim()===label);if(!el)throw Error('no field '+label);const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));if(el.tagName!=='SELECT')el.dispatchEvent(new Event('change',{bubbles:true}));el.dispatchEvent(new Event('blur',{bubbles:true}));return label+'='+el.value};'ok'"
+  ],
+  [
+    "eval",
+    "__set(\"Quote from\",\"Affordable Fencing Gold Coast\")"
+  ],
+  [
+    "eval",
+    "__set(\"Quote customer\",\"QA test customer (training)\")"
+  ],
+  [
+    "eval",
+    "__set(\"Quote reference\",\"Q-QA-GMAIL-1\")"
+  ],
+  [
+    "eval",
+    "__set(\"Quote validity days\",\"30\")"
+  ],
+  [
+    "eval",
+    "__set(\"Quote site address\",\"74-78 Annie Street, Auchenflower QLD 4066 (Redburn sample survey)\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Download draft quote PDF",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('[role=status]')].some(e=>/Draft quote Q-QA-GMAIL-1 saved/.test(e.textContent))",
+    "--timeout",
+    "20000"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('[aria-label=\"Hand over the draft quote\"] button')].map(b=>b.textContent.trim()+(b.disabled?' (disabled)':''))"
+  ],
+  [
+    "screenshot",
+    "proof/growth/2026-09-23-quote-handover/shots/v1-gmail-button.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Email with Gmail",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "[...document.querySelectorAll('[role=status]')].some(e=>/Opened Gmail|could not/.test(e.textContent))",
+    "--timeout",
+    "15000"
+  ],
+  [
+    "eval",
+    "[...document.querySelectorAll('[role=status]')].map(e=>e.textContent).filter(t=>/Gmail|could not/.test(t))"
+  ]
+]

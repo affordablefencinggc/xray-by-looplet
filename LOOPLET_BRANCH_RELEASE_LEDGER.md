@@ -294,3 +294,7 @@ Recovery: feat/architect-cad-engine after be76fab, checkpoint titled "feat(archi
 ## Local verification checkpoint — 2026-09-21
 
 Existing branch `feat/closeout-sc09-remainder`, base `3f4df26c1721ffe1498b154349af78bfaa7fcab5`. Stage freeze triggered at 101 pending files; finish evidence within 150, explicitly stage and push. [Proof and limits](proof/growth/2026-09-21-local-verification/steps/LOCAL-DEV-01.md). Feature branch remains unmerged, archive acceptance WIP; continue automatically after push.
+
+## 2026-09-23: V1 hygiene and stability handovers
+
+Reused feat/closeout-sc09-remainder; no branch or worktree created. Hygiene checkpoint fee8dbfd pushed to origin under standing staged-checkpoint authorization. Stability evidence remains bounded: current regression and ten-close gates pass; historical causes unresolved. [Proof](proof/growth/2026-09-24-stability/README.md). No main merge or installer promotion.

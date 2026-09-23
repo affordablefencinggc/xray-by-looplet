@@ -328,13 +328,14 @@ graph TD
 * **Commit**: this commit; SC-08 fully closed with machine and visual proof.
 
 #### SC-09 — QS-03 Measured Item-Level Evidence Binding `[[partial]]`
+* **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
 * **Goal**: Bind individual classified items in the cost plan directly to immutable measured geometry entities (wall run, room area, roof plane) rather than just the general worksheet header.
 * **DONE (machine)**:
   - `QSItemBinding` schema records: `entityId`, `sourceHash`, `entityType`, `measuredQuantity`, `unit`, `calibrationId`.
   - If a bound entity's geometry is modified on the canvas, the QS item status flips to `"stale-measurement"` and withholds pricing until re-verified.
   - Tests verify entity-level binding invalidation and audit trail tracking.
 * **NOT DONE (human)**:
-  - Construction-run acceptance remains recorded below. Room-area and roof-plane development proof now passes on frozen `sc09rr-bf09e36e3100`: 135/135 operations, 16 inspected desktop/tablet captures, real edits of both families, selective stale withholding, explicit rebind and reload. Full provenance hashes are readable without hover. The stylesheet mismatch is now repaired and separately proven on fc02 (21/21 built-browser CSS checks). Current source 1388 now passes the full production journey (138/138), plus WebGL unavailability/retry/context restoration checks (61/61 development, 64/64 production). The earlier 39/138 failure remains historical. Remaining concrete blocker: the new-source development post-edit reload still fails at 118/135; production reload passes. No cause or universal graphics reliability is asserted. No installed/native or live-device acceptance is claimed.
+  - Construction-run acceptance remains recorded below. Room-area and roof-plane development proof now passes on frozen `sc09rr-bf09e36e3100`: 135/135 operations, 16 inspected desktop/tablet captures, real edits of both families, selective stale withholding, explicit rebind and reload. Full provenance hashes are readable without hover. The stylesheet mismatch is now repaired and separately proven on fc02 (21/21 built-browser CSS checks). Current source 1388 now passes the full production journey (138/138), plus WebGL unavailability/retry/context restoration checks (61/61 development, 64/64 production). The earlier 39/138 failure remains historical. Historical blocker: new-source development post-edit reload failed at 118/135; the current 2026-09-23 rerun above passes. Historical causation remains open; production reload passes. No cause or universal graphics reliability is asserted. No installed/native or live-device acceptance is claimed.
 * **Proof**:
   - [SC09RR-WEBGL-10: graphics recovery, 2,032-test gate, production journey, screenshots and exact diff](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-WEBGL-10.md). [SC09RR-PARENTAGE-09](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-PARENTAGE-09.md) records the cleanup ownership correction and original incident. SC-09 remains partial.
   - [SC09RR-CSS-06: stylesheet repair, exact diff, tests and inspected screenshots](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-CSS-06.md). Bounded CSS acceptance only; full journey failures preserved and SC-09 remains partial.
@@ -402,6 +403,7 @@ graph TD
 ### PORTION 4: Active Trade Engines — Stage 3: HVAC & Network Services (IND-30)
 
 #### SC-12 — HVAC-01/02 Straight-Duct & Insulation Wrap Built Qualification `[[partial]]`
+* **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
 * **Goal**: Qualify straight rectangular and round duct surface area and mass calculations, and insulation wrap geometry (accounting for double insulation thickness on outer girth).
 * **DONE (machine)**:
   - Outer insulation girth calculated accurately:
@@ -422,6 +424,7 @@ graph TD
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 #### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[partial]]`
+* **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
 * **Goal**: Coordinate multi-zone distribution networks: connect branches, transitions, elbows, tees, and verify spatial clearances against architectural ceiling plenum heights.
 * **DONE (machine)**:
   - Network graph model connects nodes (equipment, dampers, diffusers) with edge segments.
@@ -440,6 +443,7 @@ graph TD
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 #### SC-14 — HVAC-04/05/06 Airflow Sizing, Equipment & Commissioning Schedules `[[partial]]`
+* **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
 * **Goal**: Calculate airflow velocities ($v = Q / A$), pressure drop allowances, generate equipment schedules (FCUs, AHUs, dampers, grilles), and export sealed commissioning report.
 * **DONE (machine)**:
   - Velocity checks flag noisy airflows ($v > 6.0\text{ m/s}$ in residential, $> 8.0\text{ m/s}$ in commercial).

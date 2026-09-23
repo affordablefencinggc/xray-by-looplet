@@ -11,3 +11,5 @@ Branch: feat/closeout-sc09-remainder. Existing clean branch reused; no new branc
 Completion requires separately named step records, screenshots, executed checks and exact diffs. Source, development, production, native and installed claims stay separate.
 
 Hygiene completion evidence: [ledger/scope](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-01.md), [Windows tests](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-02.md), [export](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-03.md), [dashboard](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-04.md). Stability remains in progress.
+
+Current stability gate results: [SC-09 and startup](proof/growth/2026-09-24-stability/steps/SC-01-reload-measurement.md), [ten native closes](proof/growth/2026-09-24-stability/steps/SC-02-native-close-gate.md), [HVAC](proof/growth/2026-09-24-stability/steps/SC-03-hvac-regression.md). SC-03/04 remain open for historical causal diagnosis; current qualification passes without changing product code.

@@ -522,6 +522,10 @@ class FastCdpCampaign {
     const opcode = aliases[compatibilityOpcode] ?? compatibilityOpcode;
     if (opcode === "context") return this.createContext(args[0]);
     const context = this.context(args[0]);
+    if (opcode === "init-script") {
+      if (typeof args[1] !== "string" || !args[1].trim()) throw new InfrastructureFailure("init-script requires a nonempty source string");
+      return this.socket.call("Page.addScriptToEvaluateOnNewDocument", { source: args[1] }, context.sessionId);
+    }
     if (opcode === "navigate") {
       const url = String(args[1] ?? "");
       if (!/^https?:\/\/127\.0\.0\.1(?::\d+)?(?:\/|$)/.test(url) && !/^https?:\/\/localhost(?::\d+)?(?:\/|$)/.test(url)) {
