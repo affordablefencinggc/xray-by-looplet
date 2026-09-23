@@ -1,0 +1,405 @@
+[
+  [
+    "context",
+    "default"
+  ],
+  [
+    "init-script",
+    "default",
+    "(()=>{const blobs=new Map();window.__fileProof=[];const create=URL.createObjectURL.bind(URL);URL.createObjectURL=blob=>{const url=create(blob);blobs.set(url,blob);return url};const click=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(...args){const blob=blobs.get(this.href),name=this.download;if(blob&&name)void blob.arrayBuffer().then(async bytes=>{const arr=new Uint8Array(bytes),sha256=[...new Uint8Array(await crypto.subtle.digest('SHA-256',arr))].map(b=>b.toString(16).padStart(2,'0')).join('');let binary='';for(const b of arr)binary+=String.fromCharCode(b);window.__fileProof.push({name,mime:blob.type,bytes:arr.length,sha256,base64:btoa(binary)})});return click.apply(this,args)}})()"
+  ],
+  [
+    "expect-cancelled-fetch",
+    "{{ORIGIN}}/api/pricing-research",
+    10,
+    "Pane unmount aborts its provider-status fetch; no asset failures exempted."
+  ],
+  [
+    "set",
+    "viewport",
+    "1440",
+    "1000"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/industry-coverage/index.html"
+  ],
+  [
+    "wait",
+    "--fn",
+    "location.pathname.endsWith('/industry-coverage/index.html') && document.readyState==='complete'",
+    20000
+  ],
+  [
+    "eval",
+    "(async()=>{if(document.querySelector('script[type=\"module\"]')||localStorage.getItem('xray:fencing-job:v2'))throw Error('Fresh pre-mount fixture only');\n const source=\"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"900\\\" height=\\\"400\\\" viewBox=\\\"0 0 900 400\\\"><rect width=\\\"900\\\" height=\\\"400\\\" fill=\\\"white\\\"/><text x=\\\"80\\\" y=\\\"80\\\" font-size=\\\"20\\\">SYNTHETIC GATE HARDWARE CHECK - 5m RUN / 2m GATE</text><path d=\\\"M100 200H600\\\" stroke=\\\"black\\\" stroke-width=\\\"3\\\"/><text x=\\\"80\\\" y=\\\"330\\\" font-size=\\\"14\\\">Level timber, 2m double gate. Test geometry only; Bunnings hardware budget.</text></svg>\",bytes=new TextEncoder().encode(source);const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');if(hash!==\"10706afb57b234c5bfc5ba03bd22c324e9ff275b1de24002a94d276cf3285684\")throw Error('Source hash');\n const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('xray-plan-content-v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('documents',{keyPath:'documentId'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});\n await new Promise((resolve,reject)=>{const tx=db.transaction('documents','readwrite');tx.objectStore('documents').add({documentId:\"doc-stock-proof\",name:'Synthetic stock 5m.svg',kind:'svg',mimeType:'image/svg+xml',sizeBytes:bytes.length,sha256:hash,bytes:bytes.buffer});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();\n for(const [key,value]of [[\"xray:fencing-job:v2\",{\"schemaVersion\":2,\"id\":\"job-hardware-proof\",\"revision\":1,\"name\":\"Synthetic gate hardware allowance proof\",\"trade\":\"fencing\",\"status\":\"draft\",\"createdAt\":\"2026-09-23T10:00:00.000Z\",\"updatedAt\":\"2026-09-23T10:00:00.000Z\",\"site\":{\"address\":\"\",\"estimator\":\"\",\"inspectionDate\":\"\",\"notes\":\"\"},\"documents\":[{\"id\":\"doc-stock-proof\",\"name\":\"Synthetic stock 5m.svg\",\"kind\":\"svg\",\"importedAt\":\"2026-09-23T10:00:00.000Z\",\"pageCount\":1,\"sha256\":\"10706afb57b234c5bfc5ba03bd22c324e9ff275b1de24002a94d276cf3285684\",\"source\":\"web\"}],\"activeDocumentId\":\"doc-stock-proof\",\"calibrations\":[{\"sheet\":0,\"coordinateSpace\":\"source-page-v1\",\"metresPerUnit\":0.01,\"source\":\"manual\",\"confidence\":1,\"locked\":true,\"knownDistanceM\":5,\"points\":[{\"x\":100,\"y\":200},{\"x\":600,\"y\":200}],\"transform\":{\"a\":1,\"b\":0,\"c\":0,\"d\":1,\"e\":0,\"f\":0},\"inputDistance\":{\"value\":5,\"unit\":\"m\"},\"candidates\":[{\"id\":\"stock-cal\",\"source\":\"manual\",\"metresPerUnit\":0.01,\"confidence\":1,\"inputDistance\":{\"value\":5,\"unit\":\"m\"},\"knownDistanceM\":5,\"points\":[{\"x\":100,\"y\":200},{\"x\":600,\"y\":200}],\"provenance\":{\"method\":\"two-point\",\"evidence\":\"Synthetic 5.000m reference\",\"documentId\":\"doc-stock-proof\"}}],\"selectedCandidateId\":\"stock-cal\",\"conflict\":null}],\"runs\":[{\"id\":\"stock-run\",\"revision\":1,\"sheet\":0,\"label\":\"Synthetic 5m run\",\"points\":[{\"x\":100,\"y\":200},{\"x\":600,\"y\":200}],\"lengthM\":3,\"grossLengthM\":5,\"gateDeductionM\":2,\"netLengthM\":3,\"specification\":{\"system\":\"timber-paling\",\"customSystem\":\"\",\"profile\":\"Standard paling\",\"heightM\":1.8,\"bayWidthM\":2.4,\"ground\":\"soil\",\"slope\":\"level\",\"removalRequired\":false,\"removalMaterial\":\"\",\"removalLengthM\":null,\"disposalRequired\":false,\"access\":\"clear\",\"sleepers\":\"none\",\"retainingRequired\":false,\"retainingType\":\"none\",\"retainingHeightM\":null,\"retainingCondition\":\"\",\"corners\":[],\"postOverrides\":[],\"notes\":\"Synthetic geometry; no site or supplier approval.\"},\"photoIds\":[],\"review\":{\"status\":\"approved\",\"decidedBy\":\"QA fixture\",\"decidedAt\":\"2026-09-23T10:00:00.000Z\",\"note\":\"Synthetic test operands\"}}],\"gates\":[{\"widthM\":2,\"heightM\":1.8,\"type\":\"double\",\"customType\":\"\",\"openingDirection\":\"inward\",\"hingeSide\":\"double\",\"hardware\":\"Synthetic recipe counts only; generic Bunnings allowances are not suitability approval.\",\"latch\":\"Allowance only\",\"postSize\":\"QA 100mm\",\"finish\":\"QA\",\"clearanceM\":0.05,\"motorised\":false,\"notes\":\"\",\"id\":\"hardware-gate\",\"revision\":1,\"sheet\":0,\"label\":\"Synthetic 2m double gate\",\"point\":{\"x\":350,\"y\":200},\"runId\":\"stock-run\",\"segmentIndex\":0,\"segmentT\":0.5,\"photoIds\":[],\"review\":{\"status\":\"approved\",\"decidedBy\":\"QA fixture\",\"decidedAt\":\"2026-09-23T10:00:00.000Z\",\"note\":\"Synthetic gate test only\"}}],\"photos\":[],\"bom\":[],\"quoteDraft\":null,\"revisionHistory\":[],\"activeSheet\":0}],[\"xray:fencing-recipe-state:v1:job-hardware-proof\",{\"schema\":\"xray.fencing-recipe-state/v1\",\"jobId\":\"job-hardware-proof\",\"recipeSet\":{\"id\":\"xray-fencing-candidates-v1\",\"revision\":1,\"digest\":\"7470b29e35bf0329f4e4536c6e101819e1990115f5276b17767ea882cad77491\",\"recipes\":[{\"id\":\"recipe-colorbond-good-neighbour\",\"revision\":1,\"system\":\"colorbond\",\"profile\":\"Good Neighbour\",\"maxBayWidthMm\":2400,\"postSpacingMm\":2400,\"bayLayout\":\"full-bays-terminal-cut\",\"materialModel\":{\"kind\":\"colorbond\",\"effectiveSheetCoverMm\":762,\"railRows\":2,\"gateBoundaryPostRole\":\"gate\",\"assumptionIds\":[\"cb-material\"]},\"footings\":[{\"postRole\":\"ordinary\",\"diameterMm\":250,\"depthMm\":600,\"assumptionIds\":[\"cb-footing\"]},{\"postRole\":\"end\",\"diameterMm\":250,\"depthMm\":600,\"assumptionIds\":[\"cb-footing\"]},{\"postRole\":\"corner\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cb-footing\"]},{\"postRole\":\"junction\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cb-footing\"]},{\"postRole\":\"gate\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cb-footing\"]}],\"allowances\":[],\"gateHardwareModels\":[{\"id\":\"gate-model-double-2000\",\"gateType\":\"double\",\"widthMm\":2000,\"leafCount\":2,\"boundaryPostCount\":2,\"hingeSetCount\":2,\"latchCount\":1,\"dropBoltCount\":1,\"assumptionIds\":[\"cb-gate\"]}],\"supportedSlopes\":[\"level\"],\"supportedGround\":[\"soil\"],\"supportedGateTypes\":[\"double\"],\"supportedRetainingTypes\":[\"none\"],\"supportsSleepers\":false,\"assumptions\":[{\"id\":\"cb-spacing\",\"key\":\"post-spacing-mm\",\"label\":\"Needs human confirmation — maximum spacing and selected bay division\",\"value\":\"2400\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the project design and selected product engineering schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"cb-material\",\"key\":\"sheet-cover-and-rail-rows\",\"label\":\"Needs human confirmation — 762 mm effective sheet cover and two rail rows\",\"value\":\"762\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected manufacturer profile data sheet.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"cb-footing\",\"key\":\"role-footing-dimensions\",\"label\":\"Needs human confirmation — role-specific footing diameters and depths\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the site classification and engineer-approved footing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"cb-gate\",\"key\":\"double-gate-components\",\"label\":\"Needs human confirmation — 2,000 mm double-gate component schedule\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected gate supplier schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"}],\"components\":[{\"id\":\"cb-post-ordinary\",\"itemCode\":\"CB-POST-ORD\",\"description\":\"Ordinary Colorbond post\",\"unit\":\"ea\",\"basis\":\"per-ordinary-post\",\"factor\":\"1\",\"assumptionIds\":[\"cb-spacing\"]},{\"id\":\"cb-post-end\",\"itemCode\":\"CB-POST-END\",\"description\":\"End Colorbond post\",\"unit\":\"ea\",\"basis\":\"per-end-post\",\"factor\":\"1\",\"assumptionIds\":[\"cb-spacing\"]},{\"id\":\"cb-post-corner\",\"itemCode\":\"CB-POST-CORNER\",\"description\":\"Corner Colorbond post\",\"unit\":\"ea\",\"basis\":\"per-corner-post\",\"factor\":\"1\",\"assumptionIds\":[\"cb-spacing\"]},{\"id\":\"cb-post-junction\",\"itemCode\":\"CB-POST-JUNCTION\",\"description\":\"Junction Colorbond post\",\"unit\":\"ea\",\"basis\":\"per-junction-post\",\"factor\":\"1\",\"assumptionIds\":[\"cb-spacing\"]},{\"id\":\"cb-post-gate\",\"itemCode\":\"CB-POST-GATE\",\"description\":\"Colorbond gate boundary post\",\"unit\":\"ea\",\"basis\":\"per-gate-post\",\"factor\":\"1\",\"assumptionIds\":[\"cb-gate\"]},{\"id\":\"cb-sheet\",\"itemCode\":\"CB-SHEET\",\"description\":\"Colorbond infill sheet\",\"unit\":\"ea\",\"basis\":\"per-infill-sheet\",\"factor\":\"1\",\"assumptionIds\":[\"cb-material\"]},{\"id\":\"cb-rail-cut\",\"itemCode\":\"CB-RAIL-CUT\",\"description\":\"Colorbond rail cut\",\"unit\":\"ea\",\"basis\":\"rail-cuts\",\"factor\":\"1\",\"assumptionIds\":[\"cb-material\"]},{\"id\":\"cb-rail-lm\",\"itemCode\":\"CB-RAIL-LM\",\"description\":\"Colorbond rail material\",\"unit\":\"lm\",\"basis\":\"rail-lm\",\"factor\":\"1\",\"assumptionIds\":[\"cb-material\"]},{\"id\":\"cb-gate-opening\",\"itemCode\":\"CB-GATE-OPENING\",\"description\":\"Colorbond double gate opening\",\"unit\":\"ea\",\"basis\":\"per-gate-opening\",\"factor\":\"1\",\"assumptionIds\":[\"cb-gate\"]},{\"id\":\"cb-gate-leaf\",\"itemCode\":\"CB-GATE-LEAF\",\"description\":\"Colorbond gate leaf\",\"unit\":\"ea\",\"basis\":\"per-gate-leaf\",\"factor\":\"1\",\"assumptionIds\":[\"cb-gate\"]},{\"id\":\"cb-gate-hinge\",\"itemCode\":\"CB-GATE-HINGE-SET\",\"description\":\"Colorbond gate hinge set\",\"unit\":\"ea\",\"basis\":\"per-hinge-set\",\"factor\":\"1\",\"assumptionIds\":[\"cb-gate\"]},{\"id\":\"cb-gate-latch\",\"itemCode\":\"CB-GATE-LATCH\",\"description\":\"Colorbond gate latch\",\"unit\":\"ea\",\"basis\":\"per-latch\",\"factor\":\"1\",\"assumptionIds\":[\"cb-gate\"]},{\"id\":\"cb-gate-drop\",\"itemCode\":\"CB-GATE-DROP-BOLT\",\"description\":\"Colorbond gate drop bolt\",\"unit\":\"ea\",\"basis\":\"per-drop-bolt\",\"factor\":\"1\",\"assumptionIds\":[\"cb-gate\"]}]},{\"id\":\"recipe-timber-standard\",\"revision\":1,\"system\":\"timber-paling\",\"profile\":\"Standard paling\",\"maxBayWidthMm\":2400,\"postSpacingMm\":2400,\"materialModel\":{\"kind\":\"timber-paling\",\"palingCoverMm\":90,\"railRows\":2,\"gateBoundaryPostRole\":\"gate\",\"assumptionIds\":[\"tp-material\"]},\"footings\":[{\"postRole\":\"ordinary\",\"diameterMm\":250,\"depthMm\":600,\"assumptionIds\":[\"tp-footing\"]},{\"postRole\":\"end\",\"diameterMm\":250,\"depthMm\":600,\"assumptionIds\":[\"tp-footing\"]},{\"postRole\":\"corner\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"tp-footing\"]},{\"postRole\":\"junction\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"tp-footing\"]},{\"postRole\":\"gate\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"tp-footing\"]}],\"allowances\":[],\"gateHardwareModels\":[{\"id\":\"timber-double-2000\",\"gateType\":\"double\",\"widthMm\":2000,\"leafCount\":2,\"boundaryPostCount\":2,\"hingeSetCount\":2,\"latchCount\":1,\"dropBoltCount\":1,\"assumptionIds\":[\"tp-gate\"]}],\"supportedSlopes\":[\"level\"],\"supportedGround\":[\"soil\"],\"supportedGateTypes\":[\"double\"],\"supportedRetainingTypes\":[\"none\"],\"supportsSleepers\":false,\"assumptions\":[{\"id\":\"tp-spacing\",\"key\":\"post-spacing-mm\",\"label\":\"Needs human confirmation — maximum post and bay spacing\",\"value\":\"2400\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the project design and engineer-approved framing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"tp-material\",\"key\":\"paling-cover-and-rail-rows\",\"label\":\"Needs human confirmation — 90 mm paling cover and two rail rows\",\"value\":\"90\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected timber supplier and framing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"tp-footing\",\"key\":\"role-footing-dimensions\",\"label\":\"Needs human confirmation — role-specific footing diameters and depths\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the site classification and engineer-approved footing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"tp-gate\",\"key\":\"double-gate-components\",\"label\":\"Needs human confirmation — 2,000 mm timber double-gate component schedule\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected gate supplier schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"}],\"components\":[{\"id\":\"tp-post-ordinary\",\"itemCode\":\"TP-POST-ORD\",\"description\":\"Timber line post\",\"unit\":\"ea\",\"basis\":\"per-ordinary-post\",\"factor\":\"1\",\"assumptionIds\":[\"tp-spacing\"]},{\"id\":\"tp-post-end\",\"itemCode\":\"TP-POST-END\",\"description\":\"Timber end post\",\"unit\":\"ea\",\"basis\":\"per-end-post\",\"factor\":\"1\",\"assumptionIds\":[\"tp-spacing\"]},{\"id\":\"tp-post-corner\",\"itemCode\":\"TP-POST-CORNER\",\"description\":\"Timber corner post\",\"unit\":\"ea\",\"basis\":\"per-corner-post\",\"factor\":\"1\",\"assumptionIds\":[\"tp-spacing\"]},{\"id\":\"tp-post-junction\",\"itemCode\":\"TP-POST-JUNCTION\",\"description\":\"Timber junction post\",\"unit\":\"ea\",\"basis\":\"per-junction-post\",\"factor\":\"1\",\"assumptionIds\":[\"tp-spacing\"]},{\"id\":\"tp-post-gate\",\"itemCode\":\"TP-POST-GATE\",\"description\":\"Timber gate post\",\"unit\":\"ea\",\"basis\":\"per-gate-post\",\"factor\":\"1\",\"assumptionIds\":[\"tp-gate\"]},{\"id\":\"tp-paling\",\"itemCode\":\"TP-PALING\",\"description\":\"Timber paling\",\"unit\":\"ea\",\"basis\":\"per-paling\",\"factor\":\"1\",\"assumptionIds\":[\"tp-material\"]},{\"id\":\"tp-rail-cut\",\"itemCode\":\"TP-RAIL-CUT\",\"description\":\"Timber rail cut\",\"unit\":\"ea\",\"basis\":\"rail-cuts\",\"factor\":\"1\",\"assumptionIds\":[\"tp-material\"]},{\"id\":\"tp-rail-lm\",\"itemCode\":\"TP-RAIL-LM\",\"description\":\"Timber rail material\",\"unit\":\"lm\",\"basis\":\"rail-lm\",\"factor\":\"1\",\"assumptionIds\":[\"tp-material\"]},{\"id\":\"tp-gate-opening\",\"itemCode\":\"TP-GATE-OPENING\",\"description\":\"Timber double gate opening\",\"unit\":\"ea\",\"basis\":\"per-gate-opening\",\"factor\":\"1\",\"assumptionIds\":[\"tp-gate\"]},{\"id\":\"tp-gate-leaf\",\"itemCode\":\"TP-GATE-LEAF\",\"description\":\"Timber gate leaf\",\"unit\":\"ea\",\"basis\":\"per-gate-leaf\",\"factor\":\"1\",\"assumptionIds\":[\"tp-gate\"]},{\"id\":\"tp-gate-hinge\",\"itemCode\":\"TP-GATE-HINGE-SET\",\"description\":\"Timber gate hinge set\",\"unit\":\"ea\",\"basis\":\"per-hinge-set\",\"factor\":\"1\",\"assumptionIds\":[\"tp-gate\"]},{\"id\":\"tp-gate-latch\",\"itemCode\":\"TP-GATE-LATCH\",\"description\":\"Timber gate latch\",\"unit\":\"ea\",\"basis\":\"per-latch\",\"factor\":\"1\",\"assumptionIds\":[\"tp-gate\"]},{\"id\":\"tp-gate-drop\",\"itemCode\":\"TP-GATE-DROP-BOLT\",\"description\":\"Timber gate drop bolt\",\"unit\":\"ea\",\"basis\":\"per-drop-bolt\",\"factor\":\"1\",\"assumptionIds\":[\"tp-gate\"]}]},{\"id\":\"recipe-chain-standard\",\"revision\":1,\"system\":\"chain-wire\",\"profile\":\"50 mm galvanised\",\"maxBayWidthMm\":3000,\"postSpacingMm\":3000,\"materialModel\":{\"kind\":\"chain-wire\",\"meshHeightMm\":1800,\"meshRollLengthMm\":10000,\"meshRollReusePolicy\":\"reuse-across-spans\",\"topRailRows\":1,\"braceEveryIncidentStrainerEnd\":true,\"gateBoundaryPostRole\":\"strainer\",\"assumptionIds\":[\"cw-material\"]},\"footings\":[{\"postRole\":\"ordinary\",\"diameterMm\":250,\"depthMm\":600,\"assumptionIds\":[\"cw-footing\"]},{\"postRole\":\"end\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cw-footing\"]},{\"postRole\":\"corner\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cw-footing\"]},{\"postRole\":\"junction\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cw-footing\"]},{\"postRole\":\"strainer\",\"diameterMm\":300,\"depthMm\":800,\"assumptionIds\":[\"cw-footing\"]}],\"allowances\":[],\"gateHardwareModels\":[{\"id\":\"chain-double-2000\",\"gateType\":\"double\",\"widthMm\":2000,\"leafCount\":2,\"boundaryPostCount\":2,\"hingeSetCount\":2,\"latchCount\":1,\"dropBoltCount\":1,\"assumptionIds\":[\"cw-gate\"]}],\"supportedSlopes\":[\"level\"],\"supportedGround\":[\"soil\"],\"supportedGateTypes\":[\"double\"],\"supportedRetainingTypes\":[\"none\"],\"supportsSleepers\":false,\"assumptions\":[{\"id\":\"cw-spacing\",\"key\":\"post-spacing-mm\",\"label\":\"Needs human confirmation — maximum line-post and bay spacing\",\"value\":\"3000\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the project design and selected system engineering schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"cw-material\",\"key\":\"mesh-roll-and-bracing-policy\",\"label\":\"Needs human confirmation — 1,800 mm mesh, 10,000 mm roll, one top rail and incident-strainer bracing policy\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected manufacturer and installer system schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"cw-footing\",\"key\":\"role-footing-dimensions\",\"label\":\"Needs human confirmation — role-specific footing diameters and depths\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the site classification and engineer-approved footing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"cw-gate\",\"key\":\"double-gate-components\",\"label\":\"Needs human confirmation — 2,000 mm chain-wire double-gate component schedule\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected gate supplier schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"}],\"components\":[{\"id\":\"cw-post-line\",\"itemCode\":\"CW-POST-LINE\",\"description\":\"Chain-wire line post\",\"unit\":\"ea\",\"basis\":\"per-ordinary-post\",\"factor\":\"1\",\"assumptionIds\":[\"cw-spacing\"]},{\"id\":\"cw-post-strainer\",\"itemCode\":\"CW-POST-STRAINER\",\"description\":\"Chain-wire strainer post\",\"unit\":\"ea\",\"basis\":\"per-strainer-post\",\"factor\":\"1\",\"assumptionIds\":[\"cw-spacing\"]},{\"id\":\"cw-brace\",\"itemCode\":\"CW-BRACE\",\"description\":\"Chain-wire strainer brace assembly\",\"unit\":\"ea\",\"basis\":\"per-incident-strainer-end\",\"factor\":\"1\",\"assumptionIds\":[\"cw-material\"]},{\"id\":\"cw-mesh-lm\",\"itemCode\":\"CW-MESH-LM\",\"description\":\"Chain-wire mesh length\",\"unit\":\"lm\",\"basis\":\"mesh-lm\",\"factor\":\"1\",\"assumptionIds\":[\"cw-material\"]},{\"id\":\"cw-mesh-m2\",\"itemCode\":\"CW-MESH-M2\",\"description\":\"Chain-wire mesh area\",\"unit\":\"m2\",\"basis\":\"mesh-m2\",\"factor\":\"1\",\"assumptionIds\":[\"cw-material\"]},{\"id\":\"cw-top-rail\",\"itemCode\":\"CW-TOP-RAIL\",\"description\":\"Chain-wire top rail\",\"unit\":\"lm\",\"basis\":\"rail-lm\",\"factor\":\"1\",\"assumptionIds\":[\"cw-material\"]},{\"id\":\"cw-gate-opening\",\"itemCode\":\"CW-GATE-OPENING\",\"description\":\"Chain-wire double gate opening\",\"unit\":\"ea\",\"basis\":\"per-gate-opening\",\"factor\":\"1\",\"assumptionIds\":[\"cw-gate\"]},{\"id\":\"cw-gate-leaf\",\"itemCode\":\"CW-GATE-LEAF\",\"description\":\"Chain-wire gate leaf\",\"unit\":\"ea\",\"basis\":\"per-gate-leaf\",\"factor\":\"1\",\"assumptionIds\":[\"cw-gate\"]},{\"id\":\"cw-gate-hinge\",\"itemCode\":\"CW-GATE-HINGE-SET\",\"description\":\"Chain-wire gate hinge set\",\"unit\":\"ea\",\"basis\":\"per-hinge-set\",\"factor\":\"1\",\"assumptionIds\":[\"cw-gate\"]},{\"id\":\"cw-gate-latch\",\"itemCode\":\"CW-GATE-LATCH\",\"description\":\"Chain-wire gate latch\",\"unit\":\"ea\",\"basis\":\"per-latch\",\"factor\":\"1\",\"assumptionIds\":[\"cw-gate\"]},{\"id\":\"cw-gate-drop\",\"itemCode\":\"CW-GATE-DROP-BOLT\",\"description\":\"Chain-wire gate drop bolt\",\"unit\":\"ea\",\"basis\":\"per-drop-bolt\",\"factor\":\"1\",\"assumptionIds\":[\"cw-gate\"]}]}]}}],[\"xray:bom-state:v1:job-hardware-proof\",{\"schema\":\"xray.bom-state/v1\",\"stateRevision\":2,\"jobId\":\"job-hardware-proof\",\"pending\":null,\"snapshot\":{\"schema\":\"xray.bom-snapshot/v1\",\"commitRevision\":1,\"committedAt\":\"2026-09-23T10:00:00.000Z\",\"requestId\":\"stock-proof\",\"binding\":{\"jobId\":\"job-hardware-proof\",\"jobRevision\":1,\"documentSha256\":\"10706afb57b234c5bfc5ba03bd22c324e9ff275b1de24002a94d276cf3285684\",\"recipeSetId\":\"xray-fencing-candidates-v1\",\"recipeSetRevision\":1,\"recipeSetDigest\":\"7470b29e35bf0329f4e4536c6e101819e1990115f5276b17767ea882cad77491\",\"ruleset\":{\"id\":\"fencing-v1\",\"version\":1},\"inputDigest\":\"6a3027bb7156a850a5eccf4389fdf9b4f2717109ac48debcf937082b8aaa3921\"},\"response\":{\"schema\":\"xray.bom/v1\",\"ok\":true,\"requestId\":\"stock-proof\",\"bom\":{\"jobId\":\"job-hardware-proof\",\"jobRevision\":1,\"inputDigest\":\"6a3027bb7156a850a5eccf4389fdf9b4f2717109ac48debcf937082b8aaa3921\",\"documentSha256\":\"10706afb57b234c5bfc5ba03bd22c324e9ff275b1de24002a94d276cf3285684\",\"recipeSet\":{\"id\":\"xray-fencing-candidates-v1\",\"revision\":1,\"digest\":\"7470b29e35bf0329f4e4536c6e101819e1990115f5276b17767ea882cad77491\"},\"ruleset\":{\"id\":\"fencing-v1\",\"version\":1},\"status\":\"review-ready\",\"lines\":[{\"id\":\"bom-tp-gate-drop\",\"groupKey\":\"timber|TP-GATE-DROP-BOLT|ea\",\"category\":\"gate-hardware\",\"itemCode\":\"TP-GATE-DROP-BOLT\",\"description\":\"Timber gate drop bolt\",\"quantity\":{\"value\":\"1\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"typed-gate-hardware\",\"ruleVersion\":1,\"expression\":\"typed gate model = 1 drop bolt\",\"operands\":[],\"result\":{\"value\":\"1\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"gate\",\"id\":\"hardware-gate\",\"revision\":1}],\"assumptionRefs\":[\"tp-gate\"]},{\"id\":\"bom-tp-gate-hinge\",\"groupKey\":\"timber|TP-GATE-HINGE-SET|ea\",\"category\":\"gate-hardware\",\"itemCode\":\"TP-GATE-HINGE-SET\",\"description\":\"Timber gate hinge sets\",\"quantity\":{\"value\":\"2\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"typed-gate-hardware\",\"ruleVersion\":1,\"expression\":\"typed gate model = 2 hinge sets\",\"operands\":[],\"result\":{\"value\":\"2\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"gate\",\"id\":\"hardware-gate\",\"revision\":1}],\"assumptionRefs\":[\"tp-gate\"]},{\"id\":\"bom-tp-gate-latch\",\"groupKey\":\"timber|TP-GATE-LATCH|ea\",\"category\":\"gate-hardware\",\"itemCode\":\"TP-GATE-LATCH\",\"description\":\"Timber gate latch\",\"quantity\":{\"value\":\"1\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"typed-gate-hardware\",\"ruleVersion\":1,\"expression\":\"typed gate model = 1 latch\",\"operands\":[],\"result\":{\"value\":\"1\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"gate\",\"id\":\"hardware-gate\",\"revision\":1}],\"assumptionRefs\":[\"tp-gate\"]},{\"id\":\"bom-tp-gate-leaf\",\"groupKey\":\"timber|TP-GATE-LEAF|ea\",\"category\":\"gate\",\"itemCode\":\"TP-GATE-LEAF\",\"description\":\"Timber gate leaves\",\"quantity\":{\"value\":\"2\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"typed-gate-hardware\",\"ruleVersion\":1,\"expression\":\"typed double-gate model = 2 leaves\",\"operands\":[],\"result\":{\"value\":\"2\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"gate\",\"id\":\"hardware-gate\",\"revision\":1}],\"assumptionRefs\":[\"tp-gate\"]},{\"id\":\"bom-tp-gate-opening\",\"groupKey\":\"timber|TP-GATE-OPENING|ea\",\"category\":\"gate\",\"itemCode\":\"TP-GATE-OPENING\",\"description\":\"Timber double gate opening\",\"quantity\":{\"value\":\"1\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"gate-opening\",\"ruleVersion\":1,\"expression\":\"one approved gate opening = 1\",\"operands\":[],\"result\":{\"value\":\"1\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"gate\",\"id\":\"hardware-gate\",\"revision\":1}],\"assumptionRefs\":[\"tp-gate\"]},{\"id\":\"bom-tp-paling\",\"groupKey\":\"timber|TP-PALING|ea\",\"category\":\"infill\",\"itemCode\":\"TP-PALING\",\"description\":\"Timber palings\",\"quantity\":{\"value\":\"34\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"palings-per-distributed-bay\",\"ruleVersion\":1,\"expression\":\"sum ceil([1500,1500] / 90) = 34\",\"operands\":[],\"result\":{\"value\":\"34\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"run\",\"id\":\"stock-run\",\"revision\":1}],\"assumptionRefs\":[\"tp-material\"]},{\"id\":\"bom-tp-post-end\",\"groupKey\":\"timber|TP-POST-END|ea\",\"category\":\"post\",\"itemCode\":\"TP-POST-END\",\"description\":\"Timber end post\",\"quantity\":{\"value\":\"2\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"post-role-sites\",\"ruleVersion\":1,\"expression\":\"2 end posts\",\"operands\":[],\"result\":{\"value\":\"2\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"run\",\"id\":\"stock-run\",\"revision\":1}],\"assumptionRefs\":[\"tp-spacing\"]},{\"id\":\"bom-tp-post-gate\",\"groupKey\":\"timber|TP-POST-GATE|ea\",\"category\":\"post\",\"itemCode\":\"TP-POST-GATE\",\"description\":\"Timber gate post\",\"quantity\":{\"value\":\"2\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"post-role-sites\",\"ruleVersion\":1,\"expression\":\"2 gate posts\",\"operands\":[],\"result\":{\"value\":\"2\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"gate\",\"id\":\"hardware-gate\",\"revision\":1}],\"assumptionRefs\":[\"tp-gate\"]},{\"id\":\"bom-tp-rail-cut\",\"groupKey\":\"timber|TP-RAIL-CUT|ea\",\"category\":\"rail\",\"itemCode\":\"TP-RAIL-CUT\",\"description\":\"Timber rail cuts\",\"quantity\":{\"value\":\"4\",\"unit\":\"ea\"},\"calculation\":{\"ruleId\":\"rail-cuts\",\"ruleVersion\":1,\"expression\":\"2 bays × 2 rail rows = 4 cuts\",\"operands\":[],\"result\":{\"value\":\"4\",\"unit\":\"ea\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"run\",\"id\":\"stock-run\",\"revision\":1}],\"assumptionRefs\":[\"tp-material\"]},{\"id\":\"bom-tp-rail-lm\",\"groupKey\":\"timber|TP-RAIL-LM|lm\",\"category\":\"rail\",\"itemCode\":\"TP-RAIL-LM\",\"description\":\"Timber rail material\",\"quantity\":{\"value\":\"6\",\"unit\":\"lm\"},\"calculation\":{\"ruleId\":\"rail-length\",\"ruleVersion\":1,\"expression\":\"3 lm net fence × 2 rail rows = 6 lm\",\"operands\":[],\"result\":{\"value\":\"6\",\"unit\":\"lm\"}},\"confidenceTier\":\"single-source\",\"evidenceRefs\":[{\"kind\":\"run\",\"id\":\"stock-run\",\"revision\":1}],\"assumptionRefs\":[\"tp-material\"]}],\"assumptions\":[{\"id\":\"tp-spacing\",\"key\":\"post-spacing-mm\",\"label\":\"Needs human confirmation — maximum post and bay spacing\",\"value\":\"2400\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the project design and engineer-approved framing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"tp-material\",\"key\":\"paling-cover-and-rail-rows\",\"label\":\"Needs human confirmation — 90 mm paling cover and two rail rows\",\"value\":\"90\",\"unit\":\"mm\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected timber supplier and framing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"tp-footing\",\"key\":\"role-footing-dimensions\",\"label\":\"Needs human confirmation — role-specific footing diameters and depths\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the site classification and engineer-approved footing schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"},{\"id\":\"tp-gate\",\"key\":\"double-gate-components\",\"label\":\"Needs human confirmation — 2,000 mm timber double-gate component schedule\",\"value\":\"1\",\"unit\":\"ratio\",\"source\":\"Candidate preparation value only; not site, engineering, supplier, or manufacturer approval. Verify against the selected gate supplier schedule.\",\"effectiveAt\":\"2026-09-04T00:00:00.000Z\",\"status\":\"accepted\",\"acceptedBy\":\"QA fixture only\",\"acceptedAt\":\"2026-09-23T10:00:00.000Z\"}],\"blockers\":[],\"warnings\":[],\"summary\":{\"lineCount\":10,\"needsHumanCount\":0,\"blockerCount\":0}}}},\"invalidation\":null,\"lastFailure\":null}]])localStorage.setItem(key,JSON.stringify(value));return {sourceSha256:hash,synthetic:true};})()"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'",
+    20000
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Estimate",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"Project price books\"]')",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set=(label,value)=>{let el=document.querySelector('[aria-label=\"'+label+'\"]');if(!el)el=[...document.querySelectorAll('label')].find(l=>l.textContent.trim().startsWith(label))?.querySelector('input,select,textarea');if(!el)throw Error('Missing field '+label);for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));return true;}"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Import price sheet",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const dt=new DataTransfer();dt.items.add(new File([\"Code,Description,Unit,Rate\\n0131443,Zenith 347mm Matte Black Tee Gate Hinge 2 Pack - one hinge set,set,35.54\\n0131450,Zenith Matte Black D Pattern Gate Latch,ea,14.97\\n0131457,Zenith 355mm Matte Black Drop Bolt,ea,22.79\\n8500233-PAIR,Generic budget allowance - two SpecRite 1800x900 Merbau gate leaves (hardware extra; nominal 1800mm pair only),pair,216.00\\n\"],\"Bunnings generic gate allowances.csv\",{type:'text/csv'}));const e=document.querySelector('[aria-label=\"Project price books\"] input[type=file]');e.files=dt.files;e.dispatchEvent(new Event('change',{bubbles:true}));return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"Project price books\"]')?.dataset.priceImportState==='ready'",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"Price book name\",\"Bunnings generic gate allowances\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Supplier\",\"Bunnings Australia\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Tax basis\",\"inclusive\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Tax percent (optional)\",\"10\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Effective date\",\"2026-09-23\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Source reference\",\"Bunnings AU retail 2026-09-23. AUD incl GST 10%. Hardware allowance only; no load, fixing, finish or fit approval. 2 x 900mm gate pair does not fit this synthetic 2000mm opening.\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review import",
+    "--exact"
+  ],
+  [
+    "screenshot",
+    "captures/bunnings-import-review.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save reviewed price book",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof'))?.books.length===1",
+    20000
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Priced worksheet (0)",
+    "--exact"
+  ],
+  [
+    "eval",
+    "(()=>{const e=document.querySelector('[aria-label=\"Rate for '+\"TP-GATE-HINGE-SET\"+'\"]');const o=[...e.options].find(o=>o.text.includes(\"0131443\"));if(!o)throw Error('Missing Bunnings allowance');window.__set('Rate for '+\"TP-GATE-HINGE-SET\",o.value);return true})()"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[data-bom-key=\"'+\"TP-GATE-HINGE-SET\"+'\"]');r.querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).worksheet.some(l=>l.bom?.key===\"TP-GATE-HINGE-SET\")",
+    20000
+  ],
+  [
+    "eval",
+    "(()=>{const e=document.querySelector('[aria-label=\"Rate for '+\"TP-GATE-LATCH\"+'\"]');const o=[...e.options].find(o=>o.text.includes(\"0131450\"));if(!o)throw Error('Missing Bunnings allowance');window.__set('Rate for '+\"TP-GATE-LATCH\",o.value);return true})()"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[data-bom-key=\"'+\"TP-GATE-LATCH\"+'\"]');r.querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).worksheet.some(l=>l.bom?.key===\"TP-GATE-LATCH\")",
+    20000
+  ],
+  [
+    "eval",
+    "(()=>{const e=document.querySelector('[aria-label=\"Rate for '+\"TP-GATE-DROP-BOLT\"+'\"]');const o=[...e.options].find(o=>o.text.includes(\"0131457\"));if(!o)throw Error('Missing Bunnings allowance');window.__set('Rate for '+\"TP-GATE-DROP-BOLT\",o.value);return true})()"
+  ],
+  [
+    "eval",
+    "(()=>{const r=document.querySelector('[data-bom-key=\"'+\"TP-GATE-DROP-BOLT\"+'\"]');r.querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).worksheet.some(l=>l.bom?.key===\"TP-GATE-DROP-BOLT\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-GATE-LEAF\",\"Custom gate price unknown: two nominal 900mm Bunnings leaves do not fit this 2000mm test opening. Excluded; do not charge opening and leaves twice.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-GATE-LEAF\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-GATE-LEAF\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-GATE-OPENING\",\"Custom gate price unknown: two nominal 900mm Bunnings leaves do not fit this 2000mm test opening. Excluded; do not charge opening and leaves twice.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-GATE-OPENING\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-GATE-OPENING\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-PALING\",\"Excluded from this hardware-only allowance test; supplier material and installation quote required.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-PALING\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-PALING\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-POST-END\",\"Excluded from this hardware-only allowance test; supplier material and installation quote required.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-POST-END\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-POST-END\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-POST-GATE\",\"Excluded from this hardware-only allowance test; supplier material and installation quote required.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-POST-GATE\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-POST-GATE\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-RAIL-CUT\",\"Excluded from this hardware-only allowance test; supplier material and installation quote required.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-RAIL-CUT\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-RAIL-CUT\")",
+    20000
+  ],
+  [
+    "eval",
+    "window.__set(\"No-rate reason for TP-RAIL-LM\",\"Excluded from this hardware-only allowance test; supplier material and installation quote required.\")"
+  ],
+  [
+    "eval",
+    "(()=>{document.querySelector('[data-bom-key=\"'+\"TP-RAIL-LM\"+'\"]').querySelector('button').click();return true})()"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).bomNoRates?.some(n=>n.key===\"TP-RAIL-LM\")",
+    20000
+  ],
+  [
+    "eval",
+    "document.querySelector('details[aria-label=\"Draft quote\"]').open=true;true"
+  ],
+  [
+    "eval",
+    "window.__set(\"Quote from\",\"QA allowance proof\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Quote customer\",\"Synthetic geometry only\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Quote reference\",\"GATE-HARDWARE-QA\")"
+  ],
+  [
+    "eval",
+    "window.__set(\"Quote notes\",\"Hardware budget only. Bunnings prices inclusive of GST; fit and load suitability unreviewed. This is not a real job quote.\")"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Review quote for issue",
+    "--exact"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Quote issue review\"]').scrollIntoView();true"
+  ],
+  [
+    "screenshot",
+    "captures/gate-hardware-review.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Mark quote as issued",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).issuedQuotes?.length===1",
+    20000
+  ],
+  [
+    "eval",
+    "(()=>{const l=JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')),q=l.issuedQuotes[0];if(q.totals[0].amount!=='108.84'||q.lines.length!==3||q.materialCoverage.lines.some(x=>x.status==='unreviewed'))throw Error('Hardware totals/coverage');sessionStorage.setItem('hardware-issued',JSON.stringify(q));document.querySelector('[aria-label=\"Frozen issued quote\"]').scrollIntoView();return {quote:q}})()"
+  ],
+  [
+    "screenshot",
+    "captures/gate-hardware-issued-desktop.png"
+  ],
+  [
+    "set",
+    "viewport",
+    "768",
+    "1024"
+  ],
+  [
+    "eval",
+    "document.querySelector('[aria-label=\"Frozen issued quote\"]').scrollIntoView();true"
+  ],
+  [
+    "screenshot",
+    "captures/gate-hardware-issued-portrait.png"
+  ],
+  [
+    "open",
+    "{{ORIGIN}}/"
+  ],
+  [
+    "wait",
+    "--fn",
+    "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'",
+    20000
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Estimate",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Priced worksheet (3)",
+    "--exact"
+  ],
+  [
+    "wait",
+    "--fn",
+    "!!document.querySelector('[aria-label=\"Frozen issued quote\"]')",
+    20000
+  ],
+  [
+    "eval",
+    "(()=>{const q=JSON.parse(localStorage.getItem('xray:price-books:v1:job-hardware-proof')).issuedQuotes[0];if(JSON.stringify(q)!==sessionStorage.getItem('hardware-issued'))throw Error('Issue changed');document.querySelector('[aria-label=\"Frozen issued quote\"]').scrollIntoView();return {unchanged:true}})()"
+  ],
+  [
+    "screenshot",
+    "captures/gate-hardware-reloaded.png"
+  ],
+  [
+    "errors"
+  ]
+]

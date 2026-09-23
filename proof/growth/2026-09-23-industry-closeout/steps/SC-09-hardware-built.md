@@ -1,0 +1,11 @@
+# SC-09 — generic Bunnings hardware mapping
+
+Daniel authorised generic Bunnings prices. The dated [source basis and product links](../../2026-09-23-fencing-cutting/bunnings-price-basis.md) remain AUD including 10% GST, observed 23 September 2026; no purchase or supplier enquiry occurred.
+
+Actual built DANS1 UI `c56ad63e9ee7`: [79/79 operations](../closeout-gate-hardware-reviewed-c56ad63e9ee7/browser-results.json), [cleanup](../closeout-gate-hardware-reviewed-c56ad63e9ee7/launcher-results.json). A synthetic 5 m timber run with a 2 m double gate uses the actual compiler/kernel to prepare its isolated retained BOM. The browser imports the price sheet, maps three real component codes, records every other line's no-rate reason, issues a labelled hardware-only test quote and restores the unchanged snapshot after reload.
+
+Mapped TP-GATE-HINGE-SET to two $35.54 sets, TP-GATE-LATCH to one $14.97 latch and TP-GATE-DROP-BOLT to one $22.79 bolt: AUD 108.84 including GST. TP-GATE-OPENING and TP-GATE-LEAF have an explicit no-rate reason because the $216 pair consists of two nominal 900 mm leaves and does not fit a 2,000 mm opening. No fitted assembly price was invented and no opening/leaf duplicate charge occurred.
+
+Root inspected [import](../closeout-gate-hardware-reviewed-c56ad63e9ee7/captures/bunnings-import-review.png), [review](../closeout-gate-hardware-reviewed-c56ad63e9ee7/captures/gate-hardware-review.png), [issued desktop](../closeout-gate-hardware-reviewed-c56ad63e9ee7/captures/gate-hardware-issued-desktop.png), [portrait](../closeout-gate-hardware-reviewed-c56ad63e9ee7/captures/gate-hardware-issued-portrait.png) and [reload](../closeout-gate-hardware-reviewed-c56ad63e9ee7/captures/gate-hardware-reloaded.png). Initial [37/79 failure](../closeout-gate-hardware-c56ad63e9ee7/browser-results.json) dereferenced an optional no-rate array before save completed; the corrected predicate waits for that array. No product change was needed.
+
+[Exact fixture/tool diff](../fencing-proof.diff), [ledger diff](../fencing-ledger.diff), [audit](../fencing-audit.json). This qualifies mapping and arithmetic, not hardware strength, fixing/post compatibility, gate fit, installation or a real customer quote. Repair/installation evidence, correct real-job gate schedules and native acceptance remain open.
