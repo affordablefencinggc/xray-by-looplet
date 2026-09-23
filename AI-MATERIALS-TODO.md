@@ -7,7 +7,7 @@ Authorized: continue on with what's next; incorporate sascscsc.md as the archite
 - [x] SC-03 Drawing image preparation, AI review UI, evidence regions, material promotion/linking and backup persistence. Proof: `proof/audit/IW-AI-MATERIALS/completion.md`.
 - [x] SC-04 Accuracy benchmark against checked ground truth: detection precision/recall and quantity agreement; no invented live score. Proof: `proof/audit/IW-AI-MATERIALS/completion.md`.
 - [x] SC-05 Remove canned Copilot connection/results; regression and dev/built/native/installed proof, update app and close test services. Proof: `proof/audit/IW-AI-MATERIALS/completion.md`.
-- [ ] LIVE-01 Run an actual configured AI provider on the public drawings and record measured benchmark results. Gemini key now configured in ignored .env.local; gemini-3.8-flash model access verified with Google. Actual drawing interpretation and benchmark run remain pending. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] LIVE-01 Run an actual configured AI provider on the public drawings and record measured benchmark results. Gemini key now configured in ignored .env.local; gemini-3.8-flash model access verified with Google. Actual drawing interpretation and benchmark run remain pending. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
 
 The broader architectural roadmap is tracked in ARCHITECTURE-ROADMAP.md. No compliance or full-building completeness claim follows from AI output or software test success.
 

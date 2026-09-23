@@ -234,10 +234,10 @@ A new "Supplier product research" section at the end of the Cost pane's price bo
 
 ### Checklist
 
-- [ ] `P-01` — User-initiated Firecrawl search: explicit query returns bounded real source links or honest failure — honest-failure branch proven live (503 not-configured); real links only proven against a mocked provider (partial)
-- [ ] `P-02` — Supplier and regional filters: results show selected country, supplier and search timestamp — implemented; proven by unit tests and code, not a live result (partial)
-- [ ] `P-09` — Provider budgets and credentials: secrets remain server/native-only and requests respect limits — server-only key, caps and single-flight proven; no durable budget reservation (partial)
-- [ ] `P-10` — Search cancellation and retry: cancel stops application; rate limits retain existing data — abort → cancelled, 429 → rate-limited, storage equality proven on the failure path; explicit-click retry only (partial)
+- [ ] `P-01` — User-initiated Firecrawl search: explicit query returns bounded real source links or honest failure — honest-failure branch proven live (503 not-configured); real links only proven against a mocked provider (partial) [section 06]
+- [ ] `P-02` — Supplier and regional filters: results show selected country, supplier and search timestamp — implemented; proven by unit tests and code, not a live result (partial) [section 06]
+- [ ] `P-09` — Provider budgets and credentials: secrets remain server/native-only and requests respect limits — server-only key, caps and single-flight proven; no durable budget reservation (partial) [section 06]
+- [ ] `P-10` — Search cancellation and retry: cancel stops application; rate limits retain existing data — abort → cancelled, 429 → rate-limited, storage equality proven on the failure path; explicit-click retry only (partial) [section 06]
 - [x] Evidence / provenance impact reviewed — no source-plan evidence fields repurposed; no persistence added
 - [x] Desktop proof captured (1280×800)
 - [x] Tablet 1024×768 proof captured
@@ -685,8 +685,8 @@ M3 selected and status verified. Source/tool pixels now reach M3; 34 focused tes
 - [x] Actual MiniMax-M3 library search completed without project edits.
 - [x] One-row assistant controls and History handover; reload, draft, hide-during-response and original-history restoration verified.
 - [x] 57 focused tests and DANS1 web build/typecheck passed; compiled UI inspected and controls exercised.
-- [ ] Hosted/native authenticated standards access and OCR for 26 empty pages remain open.
-- [ ] Full Sheet 3 reconstruction remains unqualified; partial Python WIL drawing saved at revision 19 with assumptions.
+- [ ] Hosted/native authenticated standards access and OCR for 26 empty pages remain open. [section 06]
+- [ ] Full Sheet 3 reconstruction remains unqualified; partial Python WIL drawing saved at revision 19 with assumptions. [section 06]
 
 Recovery: proof/growth/2026-09-13-ncc-library/README.md and changes.patch; build 4449a46a6959. Branch feat/architect-cad-engine, uncommitted.
 
@@ -885,14 +885,14 @@ Brought [XRAY-PRODUCTION-CLOSEOUT-LEDGER.md](XRAY-PRODUCTION-CLOSEOUT-LEDGER.md)
 ## 2026-09-20 — SC-09 bounded stylesheet repair and dashboard update
 
 - [x] Production SSR stylesheet repair qualified on frozen fc02: [SC09RR-CSS-06 proof, tests, screenshots and exact diff](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-CSS-06.md). DANS1 21/21 focused built-browser operations; unchanged-source machine evidence 2032/2032 plus TypeScript. No deployment/native acceptance.
-- [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md).
+- [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md). [section 06]
 
 Recovery: branch `feat/closeout-sc09-remainder`, base `6477356`, uncommitted root import fix bound by the frozen source manifest. TypeSafe skill consulted; no live Jev call because no credential was available.
 ## 2026-09-20 — SC-09 graphics recovery and process ownership
 
 - [x] Measured preview survives unavailable WebGL and exposes Retry; real context loss/restoration preserves saved data. [SC09RR-WEBGL-10: exact diff, DANS1 2032-test gate, 61/61 dev and 64/64 built recovery checks, 138/138 built journey, inspected screenshots](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-WEBGL-10.md).
 - [x] Reject stale Windows parent PIDs in cleanup. [SC09RR-PARENTAGE-09: five tests, screenshot, diff, original incident and service-restoration receipt](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-PARENTAGE-09.md). Commit `cfe893c3`.
-- [ ] SC-09 remains partial: new-source development reload fails 118/135; production reload passes. No deployment/native acceptance or live Jev inference.
+- [ ] SC-09 remains partial: new-source development reload fails 118/135; production reload passes. No deployment/native acceptance or live Jev inference. [section 01]
 
 ## 2026-09-20 - HVAC Portion 4 bounded draft workflows
 
@@ -916,3 +916,7 @@ Declared elbows, tees and reducers now coordinate duct/pipe runs with trimmed po
 ## 2026-09-23 - assistant and calibration repair
 
 Bounded local browser fixes: [AR-01 layout](proof/growth/2026-09-23-assistant-repair/steps/AR-01.md), [AR-02 external MCP](proof/growth/2026-09-23-assistant-repair/steps/AR-02.md), [AR-03 divider](proof/growth/2026-09-23-assistant-repair/steps/AR-03.md), [AR-04 screen context](proof/growth/2026-09-23-assistant-repair/steps/AR-04.md), [AR-05 calibration clicks](proof/growth/2026-09-23-assistant-repair/steps/AR-05.md). Each links executed tests, screenshots, exact diff and limitations. 94 focused tests, TypeScript, production build, development 66/66 and actual screen request 17/17. No deployment/native acceptance; broader ledger remains open.
+
+## V1 hygiene: 2026-09-24 handover
+
+Executed 2026-09-23 on DANS1: Windows test:src 1943/1943, original 208-suite list preserved; export counts match 375-row register; 944 existing open lines classified. Stale backup timing tick reconciled against historical proof; SC-07F/H remain open with candidate paths. [Per-step tests, inspected screenshots and exact diff](proof/growth/2026-09-24-v1-scope-freeze/README.md). Stability diagnostics continue separately; no installed or deployment claim.

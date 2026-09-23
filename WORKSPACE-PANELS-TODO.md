@@ -19,7 +19,7 @@ Approved: user request for wider adjustable dark-edged menus, four location tile
 - [x] SC-11 Replace four-tile location grid with one square preview and right thumbnail strip; preserve enlarged details. Proof: `proof/audit/IW-WORKSPACE-PANELS/completion.md`.
 
 - [x] SC-12 Neutral lowered Measure toolbar; global Settings rail, themes/layout/measurement/reference price sheets and diagnostics. Proof: `proof/audit/IW-WORKSPACE-PANELS/completion.md`.
-- [ ] SC-13 Real account login/logout: service selection requested; desktop has no connected account server. Account shell must not show the dev fallback identity. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-13 Real account login/logout: service selection requested; desktop has no connected account server. Account shell must not show the dev fallback identity. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. — moved to POST-V1-BACKLOG (v1 scope freeze 2026-09-24).
 
 - [x] SC-14 Map-style camera arrival into the selected walking point, smooth position/rotation, Escape cancellation and reduced-motion support. Proof: `proof/audit/IW-WORKSPACE-PANELS/completion.md`.
 

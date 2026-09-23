@@ -81,7 +81,7 @@ Therefore:
 A row's format is strict, because tooling parses it:
 
 ```
-- [ ] **D-13 Batch printing and issue sets** — <acceptance>. State: partial (assessed 2026-09-12). <reasoning, evidence paths, and what remains>
+- [ ] **D-13 Batch printing and issue sets** — <acceptance>. State: partial (assessed 2026-09-12). <reasoning, evidence paths, and what remains> [section 06]
 ```
 
 `- [x]` is only allowed when the state is `verified`; `assessment.mjs` throws otherwise.

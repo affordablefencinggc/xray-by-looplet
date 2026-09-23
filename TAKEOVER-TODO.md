@@ -2,8 +2,8 @@
 
 Approved: user said "proceed", 2026-09-14. Baseline bcc5c3e on existing feat/architect-cad-engine; preserve all inherited edits. No new branch or merge.
 
-- [ ] SC-01 Roofing: receipt correction and tests pass; one MiniMax turn still fails lap/units prose. [Step proof](proof/growth/2026-09-14-continuation/steps/ROOF-01-SC-03.md). ROOF-01 stays open. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] SC-02 QS: one MiniMax turn failed explicit-null validation and then misstated unassigned-item inclusion. [Step proof](proof/growth/2026-09-14-continuation/steps/QS-01-SC-02.md). QS-01 stays open. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-01 Roofing: receipt correction and tests pass; one MiniMax turn still fails lap/units prose. [Step proof](proof/growth/2026-09-14-continuation/steps/ROOF-01-SC-03.md). ROOF-01 stays open. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] SC-02 QS: one MiniMax turn failed explicit-null validation and then misstated unassigned-item inclusion. [Step proof](proof/growth/2026-09-14-continuation/steps/QS-01-SC-02.md). QS-01 stays open. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
 - [x] SC-03 Residential supported editing slice: full infill and before-repair height UI/assistant paths, undo, clear, reload, stage volumes, web build and dev/production rendering verified. [RES-02-SC-01 proof](proof/growth/2026-09-14-continuation/steps/RES-02-SC-01.md).
 - [x] SC-04 Remaining RES-02 partial infill & replacement opening slice: partial infill remaining void UI/assistant operations, boundary validation, non-concurrent replacement openings, analytic stage volumes, drawings/IFC/scene representation, fast-CDP and production build verified. [RES-02-SC-02 proof](proof/growth/2026-09-14-continuation/steps/RES-02-SC-02.md). Broader RES-02 native qualification remains open.
 

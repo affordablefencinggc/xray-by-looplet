@@ -11,7 +11,7 @@ Root owns model schema, workspace integration, shared assistant/drawing/export a
 - [x] SC-01 Define explicit scope, compatibility and evidence boundaries above.
 - [x] SC-02 Implement validated lifecycle assignment and a readable schedule; preserve geometry and legacy records.
 - [x] SC-03 Verify selection/edit/clear, undo/redo, project/revision binding and save/reload for this classification slice. Full multi-project workflow acceptance remains in the industry checklist.
-- [ ] SC-04 Expose supported assistant operations and verify actual calls, final explanation and independent review.
+- [ ] SC-04 Expose supported assistant operations and verify actual calls, final explanation and independent review. [section 04]
 - [x] SC-05 Verify desktop/tablet classification UI, CSV contents and parametric DXF metadata roundtrip with draft/evidence labels. Phase-bearing drawing exports are outside this slice.
 - [x] SC-06 Run final regressions, web/native builds and production browser checks for this slice. Installer execution and native UI acceptance remain open.
 

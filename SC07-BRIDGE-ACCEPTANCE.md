@@ -129,12 +129,12 @@ The latest local convergence proof is `proof/SC-07/convergence.json`; it records
 
 ## Completion evidence checklist
 
-- [ ] Every BR-001…BR-035 row has a named passing test and captured output.
-- [ ] Shared canonical contract fixtures pass unchanged in TypeScript, Rust, and Python.
-- [ ] Limit values and boundary tests are recorded in the SC-07 proof output.
-- [ ] Process-tree death and scratch cleanup are directly asserted for timeout and cancellation.
-- [ ] No SC-07 test executed `engine/bin`, an installer, an unknown executable, or a production packaged sidecar.
-- [ ] Browser proof shows nonblocking execution, cancellation, typed failure, stale rejection, atomic commit, and reload.
-- [ ] Packaging/name-recursion work remains open under SC-11 until clean-machine packaged proof exists.
+- [ ] Every BR-001…BR-035 row has a named passing test and captured output. [section 03]
+- [ ] Shared canonical contract fixtures pass unchanged in TypeScript, Rust, and Python. [section 03]
+- [ ] Limit values and boundary tests are recorded in the SC-07 proof output. [section 03]
+- [ ] Process-tree death and scratch cleanup are directly asserted for timeout and cancellation. [section 03]
+- [ ] No SC-07 test executed `engine/bin`, an installer, an unknown executable, or a production packaged sidecar. [section 03]
+- [ ] Browser proof shows nonblocking execution, cancellation, typed failure, stale rejection, atomic commit, and reload. [section 03]
+- [ ] Packaging/name-recursion work remains open under SC-11 until clean-machine packaged proof exists. [section 03]
 
 Until every checked item has machine evidence, the Rust/Tauri/TypeScript transport remains **unproven** and SC-07 must not be marked complete.

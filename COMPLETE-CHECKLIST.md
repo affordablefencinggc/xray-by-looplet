@@ -132,7 +132,7 @@ Rebuilt/installed the current desktop package, preserved existing profile data, 
 
 - [x] SC-01?12 and SC-14?18: adjustable rails, compact drawer, themed Render/Settings, Fly/Walk arrival, 25% inspection camera shift, CRM-style evidence gallery, red isometric floor locator and compact silver model controls. Installed desktop updated; saved profile retained.
 - [x] Typecheck, 597 tests, web/NSIS builds; 14 dev + 14 built interaction checks, six photo checks each, 11 packaged + 11 installed checks; desktop/mobile visual proof.
-- [ ] SC-13 real accounts: awaiting account service/connection; no simulated login. App MCP transport not verified by these UI checks.
+- [ ] SC-13 real accounts: awaiting account service/connection; no simulated login. App MCP transport not verified by these UI checks. [section 06]
 - Proof and exact code diff: [proof/audit/IW-WORKSPACE-PANELS/completion.md](proof/audit/IW-WORKSPACE-PANELS/completion.md). Branch feat/model-wireframe-navigation; baseline 3a16e98d6b28cdcb391fc753fe849ddee2dd9ffe.
 
 ## 2026-09-06 ? Rail recovery and CRM-style model camera
@@ -407,8 +407,8 @@ M3 selected and status verified. Source/tool pixels now reach M3; 34 focused tes
 - [x] Actual MiniMax-M3 library search completed without project edits.
 - [x] One-row assistant controls and History handover; reload, draft, hide-during-response and original-history restoration verified.
 - [x] 57 focused tests and DANS1 web build/typecheck passed; compiled UI inspected and controls exercised.
-- [ ] Hosted/native authenticated standards access and OCR for 26 empty pages remain open.
-- [ ] Full Sheet 3 reconstruction remains unqualified; partial Python WIL drawing saved at revision 19 with assumptions.
+- [ ] Hosted/native authenticated standards access and OCR for 26 empty pages remain open. [section 06]
+- [ ] Full Sheet 3 reconstruction remains unqualified; partial Python WIL drawing saved at revision 19 with assumptions. [section 06]
 
 Recovery: proof/growth/2026-09-13-ncc-library/README.md and changes.patch; build 4449a46a6959. Branch feat/architect-cad-engine, uncommitted.
 
@@ -527,14 +527,14 @@ Latest executed regression on this branch: 1,508 TypeScript + 203 script tests, 
 ## 2026-09-20 — SC-09 bounded stylesheet repair and dashboard update
 
 - [x] Production SSR stylesheet repair qualified on frozen fc02: [SC09RR-CSS-06 proof, tests, screenshots and exact diff](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-CSS-06.md). DANS1 21/21 focused built-browser operations; unchanged-source machine evidence 2032/2032 plus TypeScript. No deployment/native acceptance.
-- [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md).
+- [ ] SC-09 remains partial: full development workflow reload fails 118/135 twice; full built workflow fails 39/138 at WebGL context creation. Dashboard records these current blockers; [dashboard evidence](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-DASHBOARD-07.md). [section 06]
 
 Recovery: branch `feat/closeout-sc09-remainder`, base `6477356`, uncommitted root import fix bound by the frozen source manifest. TypeSafe skill consulted; no live Jev call because no credential was available.
 ## 2026-09-20 — SC-09 graphics recovery and process ownership
 
 - [x] Measured preview survives unavailable WebGL and exposes Retry; real context loss/restoration preserves saved data. [SC09RR-WEBGL-10: exact diff, DANS1 2032-test gate, 61/61 dev and 64/64 built recovery checks, 138/138 built journey, inspected screenshots](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-WEBGL-10.md).
 - [x] Reject stale Windows parent PIDs in cleanup. [SC09RR-PARENTAGE-09: five tests, screenshot, diff, original incident and service-restoration receipt](proof/growth/2026-09-20-sc09-room-roof/steps/SC09RR-PARENTAGE-09.md). Commit `cfe893c3`.
-- [ ] SC-09 remains partial: new-source development reload fails 118/135; production reload passes. No deployment/native acceptance or live Jev inference.
+- [ ] SC-09 remains partial: new-source development reload fails 118/135; production reload passes. No deployment/native acceptance or live Jev inference. [section 01]
 
 ## 2026-09-20 - HVAC Portion 4 bounded draft workflows
 
@@ -570,3 +570,7 @@ Declared elbows, tees and reducers now coordinate duct/pipe runs with trimmed po
 ## 2026-09-23 - assistant and calibration repair
 
 Bounded local browser fixes: [AR-01 layout](proof/growth/2026-09-23-assistant-repair/steps/AR-01.md), [AR-02 external MCP](proof/growth/2026-09-23-assistant-repair/steps/AR-02.md), [AR-03 divider](proof/growth/2026-09-23-assistant-repair/steps/AR-03.md), [AR-04 screen context](proof/growth/2026-09-23-assistant-repair/steps/AR-04.md), [AR-05 calibration clicks](proof/growth/2026-09-23-assistant-repair/steps/AR-05.md). Each links executed tests, screenshots, exact diff and limitations. 94 focused tests, TypeScript, production build, development 66/66 and actual screen request 17/17. No deployment/native acceptance; broader ledger remains open.
+
+## V1 scope freeze hygiene (captured 2026-09-23 for 24 Sep handover)
+
+Branch recovery: feat/closeout-sc09-remainder. [Ledger/scope proof](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-01.md); [Windows source launcher: 1943/1943](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-02.md); [CSV 375 states](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-03.md); [14/20 dashboard](proof/growth/2026-09-24-v1-scope-freeze/steps/SC-04.md). Each links its screenshot, executed results and diff. No stability/native/deployment completion is implied.

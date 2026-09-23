@@ -13,7 +13,7 @@ Only three worker slots are available alongside the coordinator. Queued does not
 - [x] SC-02 Review HVAC helper and executed proof: 10 tests; straight duct area and optional explicit sheet mass, draft-only outputs.
 - [x] SC-03 Review quantity-surveying helper and executed proof: 11 tests; exact decimal classification, visible residue, no verification promotion.
 - [x] SC-04 Actual assistant execution, readable receipts, developer-review comparison and reload proof pass for all three synthetic calculators. Whole-industry readiness remains open. Proof: `proof/growth/2026-09-13-industry-agents/README.md`.
-- [ ] SC-05 Assign the next queued industry when a slot is available and its bounded scope is defined. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-05 Assign the next queued industry when a slot is available and its bounded scope is defined. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 02]
 - [x] SC-06 Shared single-request lock replaced with three-request bound;39 server tests/typecheck passed on DANS1. Three actual simultaneous replies completed with own project identity and unchanged state. Answer-quality failures remain separately open.
 - [x] SC-07 Misleading option pills fixed:16 tests on DANS1 plus visible removal of eight incorrect roofing pills. Worker ownership of richReply.ts and its test released after proof.
 - [x] SC-08 Current-turn named-tool checks, app-preflight origin, original-request preservation and withheld-candidate filtering tested; final live replies/reloads pass within documented guard limits. Proof: `proof/growth/2026-09-13-industry-agents/README.md`.
@@ -77,10 +77,10 @@ User confirmed roofing, HVAC and quantity surveying must be built concurrently, 
 ## Resumed verification checkpoint - 2026-09-14
 
 - [x] Verify current source on DANS1: all 848 staged source hashes match; 201 script tests and 1,225 TypeScript tests pass; full typecheck passes. Missing snapshot support documents/configs/fixture caused earlier setup failures, retained in logs; no product code changed in this continuation.
-- [ ] Review existing build 73fb96374c6e roofing desktop/tablet screenshots: result and draft exclusions readable. This is historical build evidence, not a fresh UI campaign. Gap: the screenshot path is not cited. Blocker: no on-disk screenshot path is on this line. Next: cite the inspected screenshot path before checking this box.
-- [ ] Rebuild and qualify the final discussion-only routing change: discussionOnly.ts and its test differ from build 73fb96374c6e. Do not call that package the final source. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] Fix and freshly verify roofing Developer review boundary arithmetic and QS explanation of CSV hierarchy/item-once aggregation. Prior incorrect replies remain failed evidence. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] Execute QS report tablet interaction and complete final integration acceptance before advancing the queue. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] Review existing build 73fb96374c6e roofing desktop/tablet screenshots: result and draft exclusions readable. This is historical build evidence, not a fresh UI campaign. Gap: the screenshot path is not cited. Blocker: no on-disk screenshot path is on this line. Next: cite the inspected screenshot path before checking this box. [section 02]
+- [ ] Rebuild and qualify the final discussion-only routing change: discussionOnly.ts and its test differ from build 73fb96374c6e. Do not call that package the final source. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 02]
+- [ ] Fix and freshly verify roofing Developer review boundary arithmetic and QS explanation of CSV hierarchy/item-once aggregation. Prior incorrect replies remain failed evidence. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 02]
+- [ ] Execute QS report tablet interaction and complete final integration acceptance before advancing the queue. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 02]
 
 Recovery: feat/architect-cad-engine; proof/growth/2026-09-13-industry-agents/resume-20260914/. Existing uncommitted industry changes preserved. No whole-industry readiness, quote eligibility or final release claim.
 

@@ -35,7 +35,7 @@ Files: both viewer components, scenario JSON files, explicit test registration.
 - [x] Freeze source identity, build web/native on Dans1, verify artifact hashes. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
 - [x] Test production/native journeys and retain failures alongside final passing runs. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
 - [x] Save an image-embedded HTML report and PNG; append exact tests/diff/status to PROGRESS.md. Proof: `proof/growth/2026-09-08-07-navigation-source/`.
-- [ ] Commit explicit verified paths and push the approved branch in stages. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] Commit explicit verified paths and push the approved branch in stages. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 04]
 
 Checklist mapping: R-02 (partial), R-01, U-02, U-05, U-06, U-09. Full R-02 remains open: wall collision is not implemented by this bounded repair. macOS/Linux native acceptance remains separately blocked by the current Windows-only CAD build.
 

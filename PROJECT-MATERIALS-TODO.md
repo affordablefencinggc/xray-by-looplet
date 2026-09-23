@@ -12,11 +12,11 @@ Completeness is an auditable coverage result, never inferred from a rendered mod
 
 ## Remaining whole-project work (not claimed complete)
 
-- [ ] Reconcile all 1,260 source pages against plans, details, schedules and specifications. Registering or scanning pages does not establish physical quantities. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] Decompose door hardware groups, service distribution, finishes, civil/landscape quantities and all other assemblies into their specified stock items. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] Obtain missing fire-protection and fabrication/shop information where the supplied documents defer it. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] Resolve material volume and supplier packaging/mass; retain unknown values until supported. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] Independently review each material and sheet before any whole-building completeness claim. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] Reconcile all 1,260 source pages against plans, details, schedules and specifications. Registering or scanning pages does not establish physical quantities. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. — moved to POST-V1-BACKLOG (v1 scope freeze 2026-09-24).
+- [ ] Decompose door hardware groups, service distribution, finishes, civil/landscape quantities and all other assemblies into their specified stock items. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 04]
+- [ ] Obtain missing fire-protection and fabrication/shop information where the supplied documents defer it. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 04]
+- [ ] Resolve material volume and supplier packaging/mass; retain unknown values until supported. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 04]
+- [ ] Independently review each material and sheet before any whole-building completeness claim. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 04]
 
 Current prepared inventory: 79 source-based lines, all pending review. Known specified weight is a partial 997.903214 kg; material and packaged volumes remain unknown. [Source audit](proof/audit/IW-PROJECT-MATERIALS/source-audit.md), [task-only diff](proof/audit/IW-PROJECT-MATERIALS/code.diff).
 Document status: open (5)

@@ -20,12 +20,12 @@ Approved: 2026-09-08, user requested real MCP drawing, professional tools, web s
 Baseline: feat/architect-cad-engine, 1f725b6619a3a12a5683c072c1018df26c8a655d; existing daily-recovery edits preserved.
 
 - [x] SC-01: Real in-process MCP client/server initialization, discovery and tool calls using the official SDK. Connection status follows executed handshake. Accepted with development SDK calls and production/native discovery in build 71f5b012342b. Proof: `proof/growth/2026-09-08-gemini-live/README.md`.
-- [ ] SC-02: Gemini conversational transport on web and Windows native, including function calls, image input/output, cancellation and grounded web search. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] SC-03: Real drawing tools: project/design context, workspace navigation, walls/openings/lines/rooms, undo, verified save and image capture. Existing data and revision checks preserved. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] SC-04: Live conversation UI with pinned composer, image attachments/results, source links, tool activity, stop/retry and per-project session history. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] SC-05: Protocol/provider failure tests and actual browser journeys, inspected desktop/tablet screenshots, source snapshots and HTML/PNG evidence. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] SC-06: Dans1 High/16 sequential web/native builds, tested production identity, native acceptance and staged publication. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] SC-07: Expand professional capability matrix across the existing A–Z requirements. No claim that these initial tools cover every architectural/engineering/computer task. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] SC-02: Gemini conversational transport on web and Windows native, including function calls, image input/output, cancellation and grounded web search. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] SC-03: Real drawing tools: project/design context, workspace navigation, walls/openings/lines/rooms, undo, verified save and image capture. Existing data and revision checks preserved. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] SC-04: Live conversation UI with pinned composer, image attachments/results, source links, tool activity, stop/retry and per-project session history. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] SC-05: Protocol/provider failure tests and actual browser journeys, inspected desktop/tablet screenshots, source snapshots and HTML/PNG evidence. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] SC-06: Dans1 High/16 sequential web/native builds, tested production identity, native acceptance and staged publication. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] SC-07: Expand professional capability matrix across the existing A–Z requirements. No claim that these initial tools cover every architectural/engineering/computer task. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
 
 The initial MCP server is hosted inside X-Ray and exposes the current app through real MCP messages. External-server connections and arbitrary computer control are separate unfinished capabilities. It does not configure or connect Looplet CRM. Test fixtures must be labelled; live provider calls must be distinguished from deterministic tests.
 
@@ -107,8 +107,8 @@ User (2026-09-09 01:2x): "the assistant should be able to do anything the user a
 
 
 ## Governed project memory redesign ? 2026-09-09
-- [ ] GP-01: Local packet/audit foundation executed; full task lifecycle, visual evidence rehydration, reconciliation and production proof remain open. See proof/growth/governed-memory-verification.md. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
-- [ ] GP-02..GP-06: Registry/authority, evidence graph, engineering workflows, rule engines and supervised issue integrations. See planning/assistant/GOVERNED-PROJECT-MEMORY.md. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box.
+- [ ] GP-01: Local packet/audit foundation executed; full task lifecycle, visual evidence rehydration, reconciliation and production proof remain open. See proof/growth/governed-memory-verification.md. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
+- [ ] GP-02..GP-06: Registry/authority, evidence graph, engineering workflows, rule engines and supervised issue integrations. See planning/assistant/GOVERNED-PROJECT-MEMORY.md. Blocker: still open. Next: complete the work named in this item and cite on-disk proof before checking this box. [section 05]
 
 - GP-01 follow-up (2026-09-09): blocker scope guidance corrected and deterministic gates checked (47 tests). Live-provider behavior remains unverified for this correction. See proof/growth/blocker-scope-verification.md.
 
