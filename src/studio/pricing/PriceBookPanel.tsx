@@ -10,6 +10,7 @@ import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
 import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
 import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
 import { priceBookLibrarySchema } from "./priceBooks.ts";
+import { buildQuoteDraft, quoteDraftPdf } from "./quotePdf.ts";
 
 /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
 export type PriceBookBomSource = BomPricingSource & { current: boolean };
@@ -189,7 +190,8 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
     {tab === "worksheet" && <>
       {bom && value && <BomPricingSection bom={bom} library={value} disabled={!!disabled} onSave={saveMapping} />}
       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
-      {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
+      {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button>
+        <QuoteDraftForm library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} onNotice={setNotice} /><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
       {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{rate.rate} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
         {book.revisions.length > revision.revision && <p>A newer revision exists. This line will use the older revision you selected.</p>}
         <label>Quantity ({rate.unit})<input inputMode="decimal" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>{quantityError && <p role="alert">{quantityError}</p>}
@@ -242,4 +244,35 @@ function BomPricingRow({ line, options, disabled, initial, onSave }: { line: Pri
     <td><input aria-label={`Factor for ${line.key}`} inputMode="decimal" value={factor} disabled={disabled || !rate} onChange={event => setFactor(event.target.value)} />
       <label className="bom-round-up"><input aria-label={`Round up ${line.key}`} type="checkbox" checked={roundUp} disabled={disabled || !rate} onChange={event => setRoundUp(event.target.checked)} />Round up</label></td>
     <td><button className="pill" disabled={disabled || !changed || (!rate && !initial)} onClick={() => onSave(line.key, rate, factor, roundUp)}>{!rate && initial ? "Clear" : "Save"}</button></td></tr>;
+}
+
+const QUOTE_FROM_KEY = "xray:quote-from:v1";
+function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; onNotice: (message: string) => void }) {
+  const [from, setFrom] = useState(() => { try { return localStorage.getItem(QUOTE_FROM_KEY) ?? ""; } catch { return ""; } });
+  const [customer, setCustomer] = useState(""), [siteAddress, setSiteAddress] = useState(""), [validDays, setValidDays] = useState("30"), [notes, setNotes] = useState("");
+  const [reference, setReference] = useState(() => `Q-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`), [working, setWorking] = useState(false);
+  async function prepare() {
+    setWorking(true);
+    try {
+      const draft = buildQuoteDraft(library, { from, customer, siteAddress, reference, validDays: Number(validDays), notes }, register);
+      try { localStorage.setItem(QUOTE_FROM_KEY, draft.from); } catch { /* per-device convenience only */ }
+      const bytes = await quoteDraftPdf(draft);
+      const url = URL.createObjectURL(new Blob([bytes.slice().buffer], { type: "application/pdf" }));
+      const link = document.createElement("a"); link.href = url; link.download = `${draft.reference.replace(/[^a-z0-9_-]/gi, "-")}-draft-quote.pdf`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      onNotice(`Draft quote ${draft.reference} saved as a PDF for your review. Nothing was sent to the customer.`);
+    } catch (error) { onNotice(priceBookError(error)); }
+    finally { setWorking(false); }
+  }
+  return <details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
+    <p className="price-help">Uses the priced lines and subtotals above. The PDF is marked as a draft for your review; it is not sent anywhere.</p>
+    <div className="price-fields">
+      <label>Your business<input aria-label="Quote from" maxLength={200} value={from} onChange={e => setFrom(e.target.value)} placeholder="Business name shown on the quote" /></label>
+      <label>Customer<input aria-label="Quote customer" maxLength={200} value={customer} onChange={e => setCustomer(e.target.value)} /></label>
+      <label>Quote reference<input aria-label="Quote reference" maxLength={60} value={reference} onChange={e => setReference(e.target.value)} /></label>
+      <label>Valid for (days)<input aria-label="Quote validity days" inputMode="numeric" value={validDays} onChange={e => setValidDays(e.target.value)} /></label>
+      <label className="price-wide">Site address<input aria-label="Quote site address" maxLength={300} value={siteAddress} onChange={e => setSiteAddress(e.target.value)} /></label>
+      <label className="price-wide">Notes for the customer<textarea aria-label="Quote notes" maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} /></label>
+    </div>
+    <button className="pill primary" disabled={working} onClick={() => void prepare()}><Download size={16} />Download draft quote PDF</button>
+  </details>;
 }
