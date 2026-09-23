@@ -51,6 +51,39 @@ pub fn xray_save_handover(dir: String, files: Vec<HandoverFileInput>) -> Result<
     save_handover(Path::new(&dir), &files).map(|paths| paths.into_iter().map(|p| p.display().to_string()).collect())
 }
 
+/// Opens a prepared `mailto:` link in the user's default mail app. Nothing else can be launched:
+/// the scheme is fixed, the length bounded and control characters, quotes and spaces refused.
+pub fn valid_mail_link(url: &str) -> bool {
+    url.starts_with("mailto:") && url.len() <= 8000 && !url.chars().any(|c| c.is_control() || c == '"' || c.is_whitespace())
+}
+
+#[tauri::command]
+pub fn xray_open_mail_draft(url: String) -> Result<(), String> {
+    if !valid_mail_link(&url) { return Err("Only a prepared email draft link can be opened.".into()); }
+    open_with_default_handler(&url).then_some(()).ok_or_else(|| "Your mail app could not be opened. Check that a default email app is set in Windows, or copy the quote details instead.".into())
+}
+
+/// Hands the link to the registered protocol handler (the default mail app) the same way a click on
+/// a mailto link in Windows does. explorer.exe is not used: it treats long links as paths.
+#[cfg(target_os = "windows")]
+fn open_with_default_handler(url: &str) -> bool {
+    use std::ffi::c_void;
+    #[link(name = "shell32")]
+    extern "system" {
+        fn ShellExecuteW(hwnd: *mut c_void, operation: *const u16, file: *const u16, parameters: *const u16, directory: *const u16, show: i32) -> isize;
+    }
+    let wide = |text: &str| text.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let (operation, file) = (wide("open"), wide(url));
+    // SAFETY: both strings are NUL-terminated UTF-16 buffers that outlive the synchronous call;
+    // null window, parameters and directory are permitted. Values above 32 mean success.
+    unsafe { ShellExecuteW(std::ptr::null_mut(), operation.as_ptr(), file.as_ptr(), std::ptr::null(), std::ptr::null(), 1) > 32 }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn open_with_default_handler(url: &str) -> bool {
+    std::process::Command::new(if cfg!(target_os = "macos") { "open" } else { "xdg-open" }).arg(url).spawn().is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,6 +103,13 @@ mod tests {
         assert!(again.unwrap_err().contains("already exists"));
         assert!(!dir.join("Q-1-new.csv").exists(), "no partial write when any name collides");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn only_prepared_mail_links_can_be_opened() {
+        assert!(valid_mail_link("mailto:?subject=Quote%20Q-1&body=Hi"));
+        for url in ["https://example.com", "file:///C:/x.exe", "mailto:?subject=a b", "mailto:\"&calc", "mailto:?x=\u{0}"] { assert!(!valid_mail_link(url), "{url}"); }
+        assert!(!valid_mail_link(&format!("mailto:?body={}", "a".repeat(8000))));
     }
 
     #[test]

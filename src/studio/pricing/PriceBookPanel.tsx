@@ -289,7 +289,19 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
     } catch (error) { onNotice(priceBookError(error)); }
     finally { setWorking(false); }
   }
-  const canShare = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
+  // The desktop web view reports file sharing but always fails it, so sharing is offered in browsers only.
+  const canShare = !desktop && typeof navigator !== "undefined" && typeof navigator.canShare === "function";
+  async function openEmail() {
+    if (!lastDraft) return;
+    const link = quoteEmailLink(lastDraft, savedTo);
+    try {
+      if (desktop) {
+        const { invoke } = await import("@tauri-apps/api/core");
+        await invoke("xray_open_mail_draft", { url: link }).catch((error: unknown) => { throw Error(typeof error === "string" ? error : "Your mail app could not be opened."); });
+      } else window.location.href = link;
+      onNotice(`Opened your mail app with quote ${lastDraft.reference}. Attach the PDF, check it and send it yourself; X-Ray sent nothing.`);
+    } catch (error) { onNotice(priceBookError(error)); }
+  }
   return <details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
     <p className="price-help">Uses the priced lines and subtotals above. Everything is marked as a draft for your review; X-Ray does not send anything. Hand it over whichever way suits you: the PDF, a spreadsheet file your quoting or accounting software can import, or a JSON file for other apps and automations.</p>
     <div className="price-fields">
@@ -305,7 +317,7 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
       <button className="pill" disabled={working} onClick={() => void run("package")}><Download size={16} />Download handover package (ZIP)</button>
       {desktop && <button className="pill" disabled={working} onClick={() => void run("folder")}>Save handover to a folder…</button>}
       {canShare && <button className="pill" disabled={working} onClick={() => void run("share")}>Share PDF…</button>}
-      <button className="pill" disabled={working || !lastDraft} onClick={() => { if (lastDraft) window.location.href = quoteEmailLink(lastDraft, savedTo); }}>Write email</button>
+      <button className="pill" disabled={working || !lastDraft} onClick={() => void openEmail()}>Write email</button>
     </div>
     <p className="price-help">Handover package: PDF, <code>-lines.csv</code> (one row per line: customer, reference, dates, item code, description, quantity, unit, rate, amount) and <code>.json</code> (schema xray.quote-handover/v1). Saving to a Dropbox, OneDrive or Google Drive folder lets that service sync the files. Write email opens your mail app with the quote summary; attach the PDF yourself.</p>
   </details>;

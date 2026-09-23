@@ -729,6 +729,7 @@ pub fn run() {
             minimax_ai::xray_minimax_turn,
             minimax_ai::xray_configure_minimax,
             handover::xray_save_handover,
+            handover::xray_open_mail_draft,
             xray_configure_material_ai,
             xray_interpret_material_ai,
             xray_propose_architect_ai,
