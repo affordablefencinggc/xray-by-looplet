@@ -6,9 +6,9 @@ Baseline: `f6987a1a`, branch `feat/closeout-sc09-remainder`. Reuse this branch a
 Completion requires an executed behaviour check, inspected screenshot, exact diff and a separate named step record. DANS1 development checks precede one final web/native build. Desktop and both tablet orientations are in scope. Business inputs remain explicit; fixture prices and geometry cannot become real-job proof.
 
 - [x] SC-01 [section 02] QS-03 dev 163/163, built 163/163, tablet readability 149/149. [Executed tests, screenshots, exact diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md). Historical reload causation remains unconfirmed.
-- [ ] SC-02 [section 02] Approved mass rule implemented and development-qualified: [source tests, UI evidence and exact diff](proof/growth/2026-09-23-fencing-v1/steps/SC-02-mass-rule.md). Final build qualification remains.
-- [ ] SC-03 [section 02] Qualify multi-zone coordination with explicit conservative round/fitting clearance labels.
-- [ ] SC-04 [section 02] Declared-input straight/fitting pressure estimates and durable reviewed/issued records pass development qualification: [proof](proof/growth/2026-09-23-fencing-v1/steps/SC-04-pressure-delivery.md). Final build qualification remains.
+- [x] SC-02 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md).
+- [x] SC-03 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md).
+- [x] SC-04 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md).
 - [ ] SC-05 [section 02] Cite roofing proof, qualify final discussion-only routing and roofing/QS explanation turns on the final build.
 - [ ] SC-06 [section 03] Reconcile fencing cleanup and full-bay/equal-bay native acceptance with exact historical proof.
 - [ ] SC-07 [section 03] Level rail/post stock nesting implemented and development-qualified: [cuts, kerf, offcuts, price mappings and exact diff](proof/growth/2026-09-23-fencing-cutting/steps/SC-07-stock-cutting.md). Final build/native qualification remains; slope cutting needs a reviewed per-bay schedule.

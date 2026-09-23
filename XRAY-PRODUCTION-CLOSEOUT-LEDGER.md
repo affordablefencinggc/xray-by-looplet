@@ -403,8 +403,9 @@ graph TD
 
 ### PORTION 4: Active Trade Engines — Stage 3: HVAC & Network Services (IND-30)
 
-#### SC-12 — HVAC-01/02 Straight-Duct & Insulation Wrap Built Qualification `[[partial]]`
+#### SC-12 — HVAC-01/02 Straight-Duct & Insulation Wrap Built Qualification `[[done]]`
 * **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
+* **Closeout (2026-09-23)**: [Current browser qualification](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md) on source 281f2479, web build c56ad63e9ee7. Historical evidence below keeps its original identity; native/deployment acceptance is separate.
 * **Goal**: Qualify straight rectangular and round duct surface area and mass calculations, and insulation wrap geometry (accounting for double insulation thickness on outer girth).
 * **DONE (machine)**:
   - Outer insulation girth calculated accurately:
@@ -421,11 +422,12 @@ graph TD
   - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: None
 * **Proof**: [SC12-MATERIAL-08](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md): reviewed material table, stale/removed-row withholding and persisted review verified; DANS1 2068/2068 tests, dev 87/87, built 102/102. [SC12-STRAIGHT-WRAP-04](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md) retains straight/wrap and round-section geometry qualification.
-* **Remaining**: Daniel approved independent material-mass and airflow unknowns on 2026-09-23. Visible policy and regression qualification are in progress in `V1-INDUSTRY-FENCING-TODO.md`. No normative gauge mapping is assumed. The historical development reload cause remains separately open.
+* **Limits**: Mass follows the approved independent-input rule. No normative gauge mapping or supplier certification is assumed. The historical reload cause remains separately unconfirmed.
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
-#### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[partial]]`
+#### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[done]]`
 * **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
+* **Closeout (2026-09-23)**: [Current browser qualification](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md) on source 281f2479, web build c56ad63e9ee7. Historical evidence below keeps its original identity; native/deployment acceptance is separate.
 * **Goal**: Coordinate multi-zone distribution networks: connect branches, transitions, elbows, tees, and verify spatial clearances against architectural ceiling plenum heights.
 * **DONE (machine)**:
   - Network graph model connects nodes (equipment, dampers, diffusers) with edge segments.
@@ -440,11 +442,12 @@ graph TD
   - `src/studio/industries/hvac/HVACNetworkViewer.tsx` (new)
 * **Depends on**: SC-12
 * **Proof**: [SC13-FITTINGS-16](proof/growth/2026-09-20-hvac-portion4/steps/SC13-FITTINGS-16.md): declared elbow/tee/reducer geometry, trimmed ports, fitting-only clashes, invalid/overlapping geometry withholding and saved exports qualified; DANS1 2097 tests, dev 65/65, built 375/375 operations, PDF 7/7. Earlier [SC13-PIPE-14](proof/growth/2026-09-20-hvac-portion4/steps/SC13-PIPE-14.md): separate pipe service/flow, pump connectivity, declared bore velocity, exports and readable tablet schedules qualified; DANS1 2083 tests, dev 47/47, built 147/147, PDF 7/7. Earlier [SC13-ORIENTED-10](proof/growth/2026-09-20-hvac-portion4/steps/SC13-ORIENTED-10.md): shared preview/clash orientation, finite end caps and insulated rectangular beam intersection qualified; DANS1 2075 tests, dev 41/41, built 41/41. Earlier [SC13-NETWORK-05](proof/growth/2026-09-20-hvac-portion4/steps/SC13-NETWORK-05.md). Multi-zone duct graph, reducers, connectivity, plenum and potential beam clashes, invalid-input rejection and WebGL recovery verified. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
-* **BLOCKED / Remaining**: Explicit coordination fitting geometry and pipe workflows are qualified. SC-12 dependency and shared development reload remain open; no formal full-slice completion is claimed. Rectangular run envelopes now use oriented solid intersection; round runs still use conservative enclosing boxes. Hydraulic solving is not proven. Full development reload also remains open.
+* **Limits**: Round runs and fittings use explicitly conservative bounds, accepted by the handover. Rectangular envelopes use oriented intersections. Fabrication, balanced hydraulic solving and site sign-off are not claimed.
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
-#### SC-14 — HVAC-04/05/06 Airflow Sizing, Equipment & Commissioning Schedules `[[partial]]`
+#### SC-14 — HVAC-04/05/06 Airflow Sizing, Equipment & Commissioning Schedules `[[done]]`
 * **Current stability check (2026-09-23)**: [V1 stability proof](proof/growth/2026-09-24-stability/README.md). DANS1 current SC-09 dev 135/135 and production 138/138; current HVAC fixture dev/built 46/46 and full fitting reload 75/75. Historical reload failures below are retained, not reproduced in these runs. Their cause remains unconfirmed; this does not complete the slice's other requirements or claim a persistence fix.
+* **Closeout (2026-09-23)**: [Current browser qualification](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md) on source 281f2479, web build c56ad63e9ee7. Historical evidence below keeps its original identity; native/deployment acceptance is separate.
 * **Goal**: Calculate airflow velocities ($v = Q / A$), pressure drop allowances, generate equipment schedules (FCUs, AHUs, dampers, grilles), and export sealed commissioning report.
 * **DONE (machine)**:
   - Velocity checks flag noisy airflows ($v > 6.0\text{ m/s}$ in residential, $> 8.0\text{ m/s}$ in commercial).
@@ -458,7 +461,7 @@ graph TD
   - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: SC-01, SC-13
 * **Proof**: [SC14-SCHEDULES-06](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md). Velocity thresholds, +/-10% design ranges, equipment schedule and SHA-256 draft PDF/CSV/JSON exports verified. PDF readback 7/7. DANS1 2058/2058 machine, 76/76 development, 99/99 final production.
-* **BLOCKED / Remaining**: 2026-09-23 `hvacSchedules.test.ts` records a declared measurement as within or outside the ±10% range, leaves an absent measurement `not-tested`, and advances draft to saved, reviewed, then issued without changing the content SHA-256. Solved pressure loss, exact round-duct clash, and the development reload remain open.
+* **Limits**: Declared-input Darcy/K estimates, measured commissioning comparison and immutable reviewed/issued history are qualified. Network balancing, inferred factors and engineering certification are not claimed.
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 ---
@@ -605,9 +608,9 @@ graph TD
 | **SC-09** | QS-03 Measured Item-Level Evidence Binding | Portion 3 | `[[done]]` | Current source 1964/1964, typecheck/lint exit 0 | Dev 163/163, built 163/163, tablet 149/149; edited room/roof, rebind, reload and CSV | [Closeout proof](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md) |
 | **SC-10** | QS-04/05 Rate Books, Normalization & Cost Deltas| Portion 3 | `[[done]]` | 270 QS + tsc 0 at 545d25f; broad gate 1951 on 9abf | **PASS 297/297**, 14 inspected desktop/tablet captures; exact copy, contrast, deltas and reload | implementation `378bcd9`; proof checkpoint pending |
 | **SC-11** | QS-06 End-to-End Auditable Cost Plan Deliverable| Portion 3 | `[[done]]` | 273 QS + tsc 0 + scoped lint 0 errors on c9b41fd82e89 | Mounted **379/379**; downloaded PDF **47/47**, 32 inspected desktop/tablet captures; SHA reopen/restore/tamper | this named SC-11 checkpoint; based on `6f82b93` |
-| **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[partial]]` | 2068 tests; built 102/102 | Required (3D Section Preview) | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md) |
-| **SC-13** | HVAC-03 Multi-Zone Network Coordination & Clash | Portion 4 | `[[partial]]` | 2097 tests; built 375/375 ops | Required (3D Clash Highlights)| [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC13-FITTINGS-16.md) |
-| **SC-14** | HVAC-04/05/06 Sizing & Commissioning Package | Portion 4 | `[[partial]]` | Measured ±10% result and review-then-issue seal pass; pressure solver still open | Commissioning schedule shows the recorded measurement and result | [Proof](proof/growth/2026-09-20-hvac-portion4/steps/SC14-SCHEDULES-06.md) |
+| **SC-12** | HVAC-01/02 Straight & Wrap Mass Qualification | Portion 4 | `[[done]]` | Current source 1964/1964, typecheck/lint exit 0 | Built 144/144 + material 102/102 | [Proof](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md) |
+| **SC-13** | HVAC-03 Multi-Zone Coordination | Portion 4 | `[[done]]` | Current source 1964/1964, typecheck/lint exit 0 | Built network 136/136, pipe 147/147, fittings 375/375 | [Proof](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md) |
+| **SC-14** | HVAC-04/05/06 Sizing & Commissioning | Portion 4 | `[[done]]` | Current source 1964/1964, typecheck/lint exit 0 | Built pressure/review/issue/export/reload 144/144 | [Proof](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md) |
 | **SC-15** | Portable Project Archive (.xray ZIP) & Manifest | Portion 5 | `[[done]]` | 25,609,785-byte PDF export 1203.89 ms and 1144.02 ms; restored SHA-256 `b81a314de4f98447c3c64e495b18a8eba5c0cc70c0291e3d15e77e58cdc97b8f`; native DWG round-trip 1 pass, 0 fail | Packaged archive verified at 7,049,347 bytes; `drawings/0.dwg` restored the original bytes | [sc15-under-two-seconds](proof/growth/2026-09-22-sc15-fast/machine/sc15-under-two-seconds.mjs) |
 | **SC-16** | Workspace Lock & Disaster Recovery Journal | Portion 5 | `[[done]]` | Interrupted save rolls back (1 pass, 0 fail, 10.7991 ms); production second tab is read-only | Second tab showed Read-Only Mode and Take Over Session; Studio did not mount | [SC16-LOCK-01](proof/growth/2026-09-22-sc16-lock/steps/SC16-LOCK-01.md) |
 | **SC-17** | Concurrency, Quota & Corrupt Record Isolation | Portion 5 | `[[done]]` | Quota above 80% evicts only transient cache; corrupt sibling quarantined; unmeasurable quota has no percentage | Packaged library showed the archive prompt and Clear render cache kept the project | `src/studio/persistence/storageQuotaManager.test.ts` |

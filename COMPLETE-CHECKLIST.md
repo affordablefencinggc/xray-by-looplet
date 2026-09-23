@@ -592,3 +592,7 @@ Baseline `9512f8b0`, same feature branch. DANS1 source 1,964/1,964, typecheck/ch
 ## 2026-09-23 ? QS worksheet web closeout
 
 [SC-01 / production SC-09](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md) passes development 163/163, current built output 163/163 and readable tablet 149/149 on DANS1. The named step links tests, inspected screenshots and exact diffs. Source 281f2479, build c56ad63e9ee7, same feature branch. Native retry remains blocked by full DANS1 storage; no native/deployment or complete-handover claim. Continue the shared-build HVAC, industry-agent and fencing work after the automatic checkpoint.
+
+## 2026-09-23 ? HVAC browser worksheet closeout
+
+DANS1 current web build c56ad63e9ee7, unchanged product source 281f2479. [SC-12 mass](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md), [SC-13 coordination](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md), [SC-14 pressure and delivery](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md) each link executed checks, inspected screenshots and exact diffs. Built material 102/102, network 136/136, pipe 147/147, fittings 375/375 and pressure/issue/reload 144/144. Earlier fixture failures preserved. Current source 1964/1964; no new native/deployment/engineering approval claimed. Same branch, after 6ee61381.
