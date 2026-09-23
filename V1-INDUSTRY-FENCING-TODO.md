@@ -9,8 +9,8 @@ Completion requires an executed behaviour check, inspected screenshot, exact dif
 - [x] SC-02 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md).
 - [x] SC-03 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md).
 - [x] SC-04 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md).
-- [ ] SC-05 [section 02] Cite roofing proof, qualify final discussion-only routing and roofing/QS explanation turns on the final build.
-- [ ] SC-06 [section 03] Reconcile fencing cleanup and full-bay/equal-bay native acceptance with exact historical proof.
+- [ ] SC-05 [section 02] Roofing citation is reconciled; actual discussion explanations pass development 35/35 with independent text review. [Proof and retained failed replies](proof/growth/2026-09-23-industry-closeout/steps/SC-05-explanations-dev.md). Final rebuilt-output qualification remains open.
+- [ ] SC-06 [section 03] [Full/equal native bay acceptance reconciled](proof/growth/2026-09-23-industry-closeout/steps/SC-06-bay-native-backfill.md). Historical 288-file cleanup retention claim still lacks evidence.
 - [ ] SC-07 [section 03] Level rail/post stock nesting implemented and development-qualified: [cuts, kerf, offcuts, price mappings and exact diff](proof/growth/2026-09-23-fencing-cutting/steps/SC-07-stock-cutting.md). Final build/native qualification remains; slope cutting needs a reviewed per-bay schedule.
 - [ ] SC-08 [section 03] Add reviewed stepped/raked recipe support with TypeScript/Python parity. Reviewed supplier schedule requested.
 - [ ] SC-09 [section 03] Current no-rate reasons and dated Bunnings allowance import pass development qualification: [proof and fit limits](proof/growth/2026-09-23-fencing-cutting/steps/SC-09-pricing-coverage.md). Repair/installation, actual gate mapping and final build/native qualification remain.

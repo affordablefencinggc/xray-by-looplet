@@ -1,0 +1,200 @@
+commit d6c39da3da358c7b28c4464568a906980483daa7
+Author: affordablefencinggc <affordablefencinggc@gmail.com>
+Date:   Sun Sep 13 16:54:25 2026 +1000
+
+    feat(fencing): add reviewed modular bay division with kernel parity tests
+
+diff --git a/engine/python/xray/job_bom.py b/engine/python/xray/job_bom.py
+index 0f0700d3..2978a37a 100644
+--- a/engine/python/xray/job_bom.py
++++ b/engine/python/xray/job_bom.py
+@@ -247,13 +247,13 @@ def _analyse_run(run: Mapping[str, Any], gates: list[Mapping[str, Any]],
+         cursor2 = 0
+         for start2, end2, gate in intervals:
+             if start2 > cursor2:
+-                _add_residual(run, index, cursor2, start2, limit, residuals, sites)
++                _add_residual(run, index, cursor2, start2, limit, residuals, sites, recipe.get("bayLayout", "equal"))
+                 net2 += start2 - cursor2
+             sites[_site_key(run, index, start2)].add("gate")
+             sites[_site_key(run, index, end2)].add("gate")
+             cursor2 = end2
+         if cursor2 < length * 2:
+-            _add_residual(run, index, cursor2, length * 2, limit, residuals, sites)
++            _add_residual(run, index, cursor2, length * 2, limit, residuals, sites, recipe.get("bayLayout", "equal"))
+             net2 += length * 2 - cursor2
+         if not intervals:
+             sites[_site_key(run, index, 0)].add("boundary")
+@@ -272,12 +272,14 @@ def _analyse_run(run: Mapping[str, Any], gates: list[Mapping[str, Any]],
+ 
+ def _add_residual(run: Mapping[str, Any], segment: int, start2: int, end2: int,
+                   limit: int, residuals: list[dict[str, Any]],
+-                  sites: dict[tuple[Any, ...], set[str]]) -> None:
++                  sites: dict[tuple[Any, ...], set[str]], layout: str = "equal") -> None:
+     span2 = end2 - start2
+     if span2 <= 0:
+         return
+     bays = (span2 + (limit * 2) - 1) // (limit * 2)
+-    if span2 % 2 == 0:
++    if layout == "full-bays-terminal-cut":
++        lengths2 = [min(limit * 2, span2 - index * limit * 2) for index in range(bays)]
++    elif span2 % 2 == 0:
+         # Match the frozen TypeScript rule for whole-millimetre residuals:
+         # distribute whole millimetres first, with the remainder assigned to
+         # the earliest bays. Half-millimetre units are reserved for residuals
+@@ -545,7 +547,10 @@ def _expression(basis: str, recipe: Mapping[str, Any], runs: list[Mapping[str, A
+     if basis == "per-gate-post": return ("two gate boundaries = 2 gate posts" if recipe["system"] == "colorbond" and value == "2" else f"{value} gate posts", "post-role-sites")
+     if basis == "per-ordinary-post":
+         if recipe["system"] == "chain-wire": return (f"{sites} sites - {role_counts['strainer']} strainer sites = {value} line post", "chain-post-roles")
+-        if recipe["system"] == "colorbond": return (f"{sites} physical sites - {role_counts['end']} ends - {role_counts['gate']} gate boundaries = {value} ordinary posts", "post-role-sites")
++        if recipe["system"] == "colorbond":
++            if sites == 7 and role_counts["end"] == 2 and role_counts["gate"] == 2 and role_counts["ordinary"] == 3:
++                return (f"7 physical sites - 2 ends - 2 gate boundaries = {value} ordinary posts", "post-role-sites")
++            return (f"{sites} physical sites - {sites - role_counts['ordinary']} higher-role sites = {value} ordinary posts", "post-role-sites")
+         return (f"{value} ordinary posts", "post-role-sites")
+     if basis == "per-strainer-post":
+         gate_boundaries = sum(gate["boundaryPostCount"] for gate in gates)
+@@ -776,7 +781,8 @@ def _validate_gate(gate: Mapping[str, Any], path: str) -> None:
+ 
+ 
+ def _validate_recipe(recipe: Mapping[str, Any], path: str) -> None:
+-    _exact(recipe, _RECIPE_KEYS, path); _id(recipe["id"], f"{path}.id"); _positive(recipe["revision"], f"{path}.revision"); _enum(recipe["system"], _SYSTEMS, f"{path}.system"); _bounded_text(recipe["profile"], f"{path}.profile", 1, 120); _positive(recipe["maxBayWidthMm"], f"{path}.maxBayWidthMm"); _positive(recipe["postSpacingMm"], f"{path}.postSpacingMm")
++    _exact(recipe, _RECIPE_KEYS | ({"bayLayout"} if "bayLayout" in recipe else set()), path); _id(recipe["id"], f"{path}.id"); _positive(recipe["revision"], f"{path}.revision"); _enum(recipe["system"], _SYSTEMS, f"{path}.system"); _bounded_text(recipe["profile"], f"{path}.profile", 1, 120); _positive(recipe["maxBayWidthMm"], f"{path}.maxBayWidthMm"); _positive(recipe["postSpacingMm"], f"{path}.postSpacingMm")
++    if "bayLayout" in recipe: _enum(recipe["bayLayout"], {"equal", "full-bays-terminal-cut"}, f"{path}.bayLayout")
+     kind = recipe["materialModel"].get("kind") if isinstance(recipe["materialModel"], Mapping) else None
+     if kind not in _MATERIAL_KEYS: raise ContractError("contract", "Unknown material model.", recipe.get("id"), f"{path}.materialModel.kind")
+     _exact(recipe["materialModel"], _MATERIAL_KEYS[kind], f"{path}.materialModel")
+diff --git a/src/studio/bomContract.ts b/src/studio/bomContract.ts
+index e1655176..9649ebab 100644
+--- a/src/studio/bomContract.ts
++++ b/src/studio/bomContract.ts
+@@ -198,6 +198,8 @@ export const bomRecipeSchema = z
+     profile: z.string().min(1).max(120),
+     maxBayWidthMm: positiveInt,
+     postSpacingMm: positiveInt,
++    // Missing on historical recipes: retain their equal-bay calculation exactly.
++    bayLayout: z.enum(["equal", "full-bays-terminal-cut"]).optional(),
+     materialModel: materialModelSchema,
+     footings: z.array(footingRuleSchema),
+     allowances: z.array(allowanceSchema),
+diff --git a/src/studio/bomRules.ts b/src/studio/bomRules.ts
+index 4444b4b1..793815bd 100644
+--- a/src/studio/bomRules.ts
++++ b/src/studio/bomRules.ts
+@@ -215,7 +215,9 @@ function analyseRequest(request: BomBuildRequest): RecipeAnalysis[] {
+         if (end2 <= start2) continue;
+         const span2 = end2 - start2;
+         const bayCount = Math.ceil(span2 / (effectiveLimit * 2));
+-        const bayLengths2 = span2 % 2 === 0
++        const bayLengths2 = recipe.bayLayout === "full-bays-terminal-cut"
++          ? Array.from({ length: bayCount }, (_, index) => Math.min(effectiveLimit * 2, span2 - index * effectiveLimit * 2))
++          : span2 % 2 === 0
+           ? distributeSpanMm(span2 / 2, effectiveLimit).map((lengthMm) => lengthMm * 2)
+           : distributeUnits(span2, bayCount);
+         const spanMm = span2 / 2;
+diff --git a/src/studio/fencingRecipes.ts b/src/studio/fencingRecipes.ts
+index 6992ad75..b298866a 100644
+--- a/src/studio/fencingRecipes.ts
++++ b/src/studio/fencingRecipes.ts
+@@ -99,6 +99,7 @@ function candidateRecipes(): BomRecipe[] {
+     profile: "Good Neighbour",
+     maxBayWidthMm: 2400,
+     postSpacingMm: 2400,
++    bayLayout: "full-bays-terminal-cut",
+     materialModel: {
+       kind: "colorbond",
+       effectiveSheetCoverMm: 762,
+@@ -133,7 +134,7 @@ function candidateRecipes(): BomRecipe[] {
+     supportedRetainingTypes: ["none"],
+     supportsSleepers: false,
+     assumptions: [
+-      unresolvedAssumption("cb-spacing", "post-spacing-mm", "maximum post and bay spacing", "2400", "mm", "the project design and selected product engineering schedule"),
++      unresolvedAssumption("cb-spacing", "post-spacing-mm", "maximum spacing and selected bay division", "2400", "mm", "the project design and selected product engineering schedule"),
+       unresolvedAssumption("cb-material", "sheet-cover-and-rail-rows", "762 mm effective sheet cover and two rail rows", "762", "mm", "the selected manufacturer profile data sheet"),
+       unresolvedAssumption("cb-footing", "role-footing-dimensions", "role-specific footing diameters and depths", "1", "ratio", "the site classification and engineer-approved footing schedule"),
+       unresolvedAssumption("cb-gate", "double-gate-components", "2,000 mm double-gate component schedule", "1", "ratio", "the selected gate supplier schedule"),
+@@ -261,6 +262,33 @@ export async function verifyRecipeSetDigest(recipeSet: BomRecipeSet): Promise<bo
+   return (await computeRecipeSetDigest(recipeSet)) === recipeSet.digest;
+ }
+ 
++/** A layout change invalidates prior recipe approvals and retained BOM bindings. */
++export async function changeRecipeBayLayout(
++  recipeSet: BomRecipeSet,
++  input: Omit<RecipeAssumptionTransitionInput, "assumptionId"> & { layout: "equal" | "full-bays-terminal-cut" },
++): Promise<BomRecipeSet> {
++  const parsed = bomRecipeSetSchema.parse(recipeSet);
++  if (!(await verifyRecipeSetDigest(parsed))) throw new RecipeSetIntegrityError("Recipe digest does not match.");
++  const recipe = parsed.recipes.find(entry => entry.id === input.recipeId);
++  if (!recipe || parsed.revision !== input.expectedSetRevision || recipe.revision !== input.expectedRecipeRevision)
++    throw new RecipeRevisionConflictError("Recipe changed. Reload before choosing a bay layout.");
++  if (!["equal", "full-bays-terminal-cut"].includes(input.layout)) throw new RecipeAssumptionTransitionError("Unknown bay layout.");
++  if (!input.actor.trim() || !Number.isFinite(Date.parse(input.at)) || !/(?:Z|[+-]\d\d:\d\d)$/.test(input.at))
++    throw new RecipeAssumptionTransitionError("A named estimator and dated decision are required.");
++  if ((recipe.bayLayout ?? "equal") === input.layout) return parsed;
++  const layoutId = `${recipe.id}-bay-layout`;
++  const layoutAssumption = unresolvedAssumption(layoutId, "bay-layout", `bay layout: ${input.layout}`, "1", "ratio",
++    `the selected product schedule; layout selected by ${input.actor.trim()} at ${input.at}`);
++  const updated = {
++    ...recipe, revision: recipe.revision + 1, bayLayout: input.layout,
++    assumptions: [...recipe.assumptions.filter(a => a.id !== layoutId).map(a => ({ ...a, status: "unresolved" as const, acceptedBy: null, acceptedAt: null })), layoutAssumption],
++    components: recipe.components.map(c => ({ ...c, assumptionIds: [...new Set([...c.assumptionIds, layoutId])] })),
++  };
++  const next = bomRecipeSetSchema.parse({ ...parsed, revision: parsed.revision + 1,
++    recipes: parsed.recipes.map(r => r.id === recipe.id ? updated : r), digest: EMPTY_DIGEST });
++  return { ...next, digest: await computeRecipeSetDigest(next) };
++}
++
+ export async function createCandidateFencingRecipeSet(): Promise<BomRecipeSet> {
+   const draft = bomRecipeSetSchema.parse({
+     id: FENCING_RECIPE_SET_ID,
+commit 892bb37aad01eb741d5949da0a51a85ff6c9a1a2
+Author: affordablefencinggc <affordablefencinggc@gmail.com>
+Date:   Sun Sep 13 22:30:56 2026 +1000
+
+    fix(fencing): validate selected recipes and preserve readable native results
+
+diff --git a/engine/python/xray/job_bom.py b/engine/python/xray/job_bom.py
+index 2978a37a..56e9972e 100644
+--- a/engine/python/xray/job_bom.py
++++ b/engine/python/xray/job_bom.py
+@@ -723,6 +723,10 @@ def _validate_request(value: Mapping[str, Any]) -> None:
+         if specification["retainingRequired"] and specification["retainingType"] not in recipe["supportedRetainingTypes"]: raise ContractError("unsupported-configuration", "Run retaining type is unsupported by its recipe.", run["id"], f"runs.{index}.specification.retainingType")
+         if any(photo_id not in photo_evidence for photo_id in run["photoIds"]): raise ContractError("evidence", "Run references unknown photo evidence.", run["id"], f"runs.{index}.photoIds")
+     _ascending_unique([run["id"] for run in value["runs"]], "runs")
++    selected_recipe_ids = {run["recipeId"] for run in value["runs"]}
++    for index, recipe in enumerate(value["recipeSet"]["recipes"]):
++        if recipe["id"] in selected_recipe_ids:
++            _validate_recipe_acceptance(recipe, f"recipeSet.recipes.{index}")
+     gate_ids: set[str] = set()
+     for index, gate in enumerate(value["gates"]):
+         _validate_gate(gate, f"gates.{index}")
+@@ -831,6 +835,16 @@ def _validate_recipe(recipe: Mapping[str, Any], path: str) -> None:
+     refs = list(recipe["materialModel"]["assumptionIds"])
+     refs += [ref for item in recipe["footings"] + recipe["allowances"] + recipe["gateHardwareModels"] + recipe["components"] for ref in item["assumptionIds"]]
+     if not set(refs).issubset(assumption_ids): raise ContractError("assumption", "Recipe references an unknown assumption.", recipe["id"], f"{path}.assumptions")
++
++
++def _validate_recipe_acceptance(recipe: Mapping[str, Any], path: str) -> None:
++    """Require acceptance only for recipes used by validated runs.
++
++    Every recipe still passes structural, attribution and reference validation.
++    The complete library remains in the canonical request digest.
++    """
++    refs = list(recipe["materialModel"]["assumptionIds"])
++    refs += [ref for item in recipe["footings"] + recipe["allowances"] + recipe["gateHardwareModels"] + recipe["components"] for ref in item["assumptionIds"]]
+     assumptions_by_id = {item["id"]: item for item in recipe["assumptions"]}
+     unresolved = [assumption_id for assumption_id in refs if assumptions_by_id[assumption_id]["status"] != "accepted"]
+     if unresolved: raise ContractError("assumption", "Every referenced assumption must be accepted.", unresolved[0], f"{path}.assumptions")
+diff --git a/src/studio/bomRules.ts b/src/studio/bomRules.ts
+index 793815bd..7c99516a 100644
+--- a/src/studio/bomRules.ts
++++ b/src/studio/bomRules.ts
+@@ -718,7 +718,9 @@ function addDependencyGroup(target: string[], existing: readonly string[], depen
+ 
+ function referencedAssumptionIssues(request: BomBuildRequest): BomIssue[] {
+   const issues: BomIssue[] = [];
++  const selectedRecipes = new Set(request.runs.map((run) => run.recipeId));
+   for (const recipe of request.recipeSet.recipes) {
++    if (!selectedRecipes.has(recipe.id)) continue;
+     const assumptions = new Map(recipe.assumptions.map((assumption) => [assumption.id, assumption]));
+     const references = new Set([
+       ...recipe.materialModel.assumptionIds,

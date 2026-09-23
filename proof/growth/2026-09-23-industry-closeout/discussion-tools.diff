@@ -1,0 +1,141 @@
+diff --git a/proof/growth/2026-09-23-industry-closeout/run-journey.mjs b/proof/growth/2026-09-23-industry-closeout/run-journey.mjs
+index cddbb9a5..6dad2e58 100644
+--- a/proof/growth/2026-09-23-industry-closeout/run-journey.mjs
++++ b/proof/growth/2026-09-23-industry-closeout/run-journey.mjs
+@@ -1,10 +1,13 @@
+ import fs from 'node:fs';
+ import {createHash} from 'node:crypto';
+ import {spawnSync} from 'node:child_process';
++import {parseEnv} from 'node:util';
+ const base='proof/growth/2026-09-23-industry-closeout';
+-const [name,input,build='c56ad63e9ee7']=process.argv.slice(2);
++const [name,input,build='c56ad63e9ee7',provider,mode='built']=process.argv.slice(2);
++if(provider&&provider!=='minimax')throw Error('Only explicit existing MiniMax configuration is supported');
++if(!['dev','built'].includes(mode))throw Error('Invalid preview mode');
+ if(!/^[a-z0-9-]+$/.test(name)||!/^[a-f0-9]{12}$/.test(build)||!input)throw Error('name input build required');
+-const id=`closeout-${name}-${build}`;
++const id=`closeout-${name}-${mode==='dev'?'dev-':''}${build}`;
+ const scenario=JSON.parse(fs.readFileSync(input,'utf8').replace(/^\uFEFF/,''));
+ const serialized=JSON.stringify(scenario,null,2).replaceAll('http://127.0.0.1:8080','http://127.0.0.1:8081')+'\n';
+ const local=`${base}/scenarios/${id}.json`;
+@@ -12,10 +15,14 @@ fs.writeFileSync(local,serialized,{flag:'wx'});
+ const sha=createHash('sha256').update(serialized).digest('hex');
+ const remote=`C:/Users/danie/XRayFastCdp/${id}.json`;
+ const output=`C:/Users/danie/XRayFastCdp/runs/${id}`;
+-const workspace=`C:/Users/danie/XRayBuilds/runs/${build}/source`;
+-function run(cmd,args){const r=spawnSync(cmd,args,{encoding:'utf8',windowsHide:true,maxBuffer:8e6});process.stdout.write(r.stdout??'');process.stderr.write(r.stderr??'');return r.status;}
++const workspace=mode==='dev'?'C:/Users/danie/XRayBuilds/v1-industry-fencing-20260923':`C:/Users/danie/XRayBuilds/runs/${build}/source`;
++function run(cmd,args,input){const r=spawnSync(cmd,args,{input,encoding:'utf8',windowsHide:true,maxBuffer:8e6});process.stdout.write(r.stdout??'');process.stderr.write(r.stderr??'');return r.status;}
+ if(run('scp',['-q',local,`tonys-test-pc:${remote}`])!==0)throw Error('scenario transfer failed');
+-const code=`$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';if($env:COMPUTERNAME -ne 'DANS1'){throw 'Wrong worker'};if((Get-FileHash -LiteralPath '${remote}').Hash.ToLowerInvariant() -ne '${sha}'){throw 'Scenario hash differs'};& '${workspace}/scripts/run-fast-cdp.ps1' -Scenario '${remote}' -Output '${output}' -Workspace '${workspace}' -RunId '${id}' -PreviewMode built -PreviewPort 8081 -CdpPort 9351 -Chrome 'C:/Program Files/Google/Chrome/Application/chrome.exe'`;
+-const status=run('ssh',['tonys-test-pc','powershell','-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',Buffer.from(code,'utf16le').toString('base64')]);
++let secretInput;
++if(provider){const env=parseEnv(fs.readFileSync('.env.local','utf8'));if(!env.MINIMAX_API_KEY)throw Error('Existing project MiniMax configuration is absent');secretInput=JSON.stringify({key:env.MINIMAX_API_KEY,model:env.MINIMAX_MODEL||'MiniMax-M3'})+'\n';}
++// Secrets travel only in SSH stdin and the temporary process environment, never argv, files or proof.
++const credentialSetup=provider?`$configuration=[Console]::In.ReadLine() | ConvertFrom-Json;$env:MINIMAX_API_KEY=$configuration.key;$env:MINIMAX_MODEL=$configuration.model;$env:XRAY_AI_WEB_ENABLED='true';$configuration=$null;`:'';
++const code=`$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';if($env:COMPUTERNAME -ne 'DANS1'){throw 'Wrong worker'};$env:PATH='C:/Users/danie/XRayBuilds/runs/8a6226fc93a6/runtime;'+$env:PATH;${credentialSetup}if((Get-FileHash -LiteralPath '${remote}').Hash.ToLowerInvariant() -ne '${sha}'){throw 'Scenario hash differs'};& '${workspace}/scripts/run-fast-cdp.ps1' -Scenario '${remote}' -Output '${output}' -Workspace '${workspace}' -RunId '${id}' -PreviewMode '${mode}' -PreviewPort 8081 -CdpPort 9351 -Chrome 'C:/Program Files/Google/Chrome/Application/chrome.exe'`;
++const status=run('ssh',['tonys-test-pc','powershell','-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',Buffer.from(code,'utf16le').toString('base64')],secretInput);
+ const copied=run('scp',['-q','-r',`tonys-test-pc:${output}`,`${base}/`]);
+ if(status||copied)throw Error(`journey=${status}, evidence-copy=${copied}; failures retained`);
+diff --git a/proof/growth/2026-09-23-industry-closeout/make-live-explanations.mjs b/proof/growth/2026-09-23-industry-closeout/make-live-explanations.mjs
+new file mode 100644
+index 00000000..e73817f3
+--- /dev/null
++++ b/proof/growth/2026-09-23-industry-closeout/make-live-explanations.mjs
+@@ -0,0 +1,28 @@
++import fs from 'node:fs';
++const base='proof/growth/2026-09-23-industry-closeout';
++const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
++const a=read(base+'/scenarios/qs-complete.json').slice(0,8);
++const ev=code=>a.push(['eval',code]),wait=code=>a.push(['wait','--fn',code,60000]);
++ev(`document.querySelector('.live-assistant-launcher').click();true`);
++wait(`!!document.querySelector('#live-assistant-prompt')&&!document.querySelector('#live-assistant-prompt').disabled`);
++ev(`(async()=>{const status=await fetch('/api/minimax-ai').then(r=>r.json());if(!status.available)throw Error('Existing MiniMax is unavailable: '+status.message);window.__sourceBefore=localStorage.getItem('xray:fencing-job:v2');window.__draftBefore=localStorage.getItem('xray.industry-drafts.v1:job-sc09-room-roof');window.__turnRequests=[];const original=fetch;window.fetch=async function(input,init){if(String(input).includes('/api/minimax-ai')&&init?.method==='POST'){const body=JSON.parse(init.body);const last=body.contents.filter(c=>c.role==='user').at(-1)?.parts.map(p=>p.text||'').join(' ')||'';window.__turnRequests.push({requestId:body.requestId,declarations:body.declarations.length,developerReminder:last.includes('[xray:developer-review]'),claimCorrection:last.startsWith('[xray:tool-claim-check]')})}return original.call(this,input,init)};return {provider:status.provider,model:status.model}})()`);
++const prompts=[
++ `No tools. Read-only discussion of these supplied synthetic roofing worksheet inputs: developed rectangle 8 m wide by 9.8 m run; effective cover 0.8 m; identical ordered sheet lengths 5 m; end lap 0.2 m. Explain the first-course-full rule, the columns/courses/sheets and ordered linear metres. Explain course-count boundaries at a run of 5 m, just above 5 m, 9.8 m and just above 9.8 m. Effective cover already includes side lap. Do not deduct it twice. Include a concise Developer review of your answer. Use at most 220 words. No project reads/changes or fresh execution claims; retain draft and quote-ineligible limits.`,
++ `No tools. Read-only discussion of supplied synthetic QS export evidence. Two unverified m2 items A=0.10 assigned to child Walls, B=0.20 unassigned; one sample lm item C=3 assigned to Walls; an inferred m2 item D=4 assigned directly to Building. Building is parent of Walls. Explain whole versus filtered totals, why inclusive parent and child totals must not be summed, and the difference between a flat item-only CSV and a hierarchical CSV labelled SUMMARY_NODE versus LEAF_ITEM. State what should be summed in each, keep units and evidence classes separate, and explain the apostrophe protecting a formula-like item name =1+1. Include concise Developer review. At most 220 words. These are supplied observations, not a fresh app inspection or export; source references are unavailable, draft classification and verifiedQuoteEligible=false.`
++];
++for(let i=0;i<prompts.length;i++){
++ ev(`(()=>{const s=document.querySelector('select[aria-label="Assistant permissions"]');const choice=[...s.options].find(o=>o.textContent.trim()==='Read only');if(!choice)throw Error('Read-only choice missing');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,choice.value);s.dispatchEvent(new Event('change',{bubbles:true}));const t=document.querySelector('#live-assistant-prompt');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,${JSON.stringify(prompts[i])});t.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);
++ ev(`window.__requestStart=window.__turnRequests.length;true`);
++ a.push(['find','role','button','click','--name','Send assistant message','--exact']);
++ wait(`!document.querySelector('.assistant-working')&&(document.querySelectorAll('.assistant-chat-entry.is-assistant').length>=${i+1}||!!document.querySelector('.assistant-chat-error'))`);
++ ev(`(()=>{const error=document.querySelector('.assistant-chat-error');if(error)throw Error(error.textContent);if(document.querySelectorAll('.assistant-chat-entry.is-tool').length)throw Error('Discussion used a tool');const rows=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')];const text=rows.at(-1).innerText;if(!/Developer review/i.test(text))throw Error('Developer review absent');if(localStorage.getItem('xray:fencing-job:v2')!==window.__sourceBefore||localStorage.getItem('xray.industry-drafts.v1:job-sc09-room-roof')!==window.__draftBefore)throw Error('Source data changed');const requests=window.__turnRequests.slice(window.__requestStart);if(requests.length<1||requests.length>3||requests.some(r=>r.declarations!==0)||requests.slice(1).some(r=>!r.developerReminder&&!r.claimCorrection)||requests.filter(r=>r.developerReminder).length>1||requests.filter(r=>r.claimCorrection).length>1)throw Error('Unexpected calls/declarations: '+JSON.stringify(requests));rows.at(-1).scrollIntoView({block:'start'});sessionStorage.setItem('explanation-replies',JSON.stringify(rows.map(r=>r.innerText)));return {reply:text,requests,sourceUnchanged:true}})()`);
++ a.push(['screenshot',`captures/${i?'qs':'roofing'}-explanation-desktop.png`]);
++ ev(`document.querySelectorAll('.assistant-chat-entry.is-assistant')[${i}].scrollIntoView({block:'end'});true`);
++ a.push(['screenshot',`captures/${i?'qs':'roofing'}-review-desktop.png`]);
++}
++a.push(['open','{{ORIGIN}}/']);wait(`document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus==='ready'`);
++ev(`(()=>{const b=document.querySelector('.live-assistant-launcher');if(b.getAttribute('aria-expanded')!=='true')b.click();return true})()`);
++wait(`document.querySelectorAll('.assistant-chat-entry.is-assistant').length===2&&!document.querySelector('.assistant-working')`);
++ev(`(()=>{const rows=[...document.querySelectorAll('.assistant-chat-entry.is-assistant')].map(r=>r.innerText);if(JSON.stringify(rows)!==sessionStorage.getItem('explanation-replies'))throw Error('Conversation changed on reload');return {repliesPreserved:rows.length,toolRows:document.querySelectorAll('.assistant-chat-entry.is-tool').length}})()`);
++a.push(['set','viewport','768','1024'],['screenshot','captures/explanations-reloaded-portrait.png'],['errors']);
++fs.writeFileSync(base+'/scenarios/live-explanations.json',JSON.stringify(a,null,2)+'\n');console.log(a.length);
+diff --git a/proof/growth/2026-09-23-industry-closeout/run-dashboard.ps1 b/proof/growth/2026-09-23-industry-closeout/run-dashboard.ps1
+new file mode 100644
+index 00000000..089398a8
+--- /dev/null
++++ b/proof/growth/2026-09-23-industry-closeout/run-dashboard.ps1
+@@ -0,0 +1,26 @@
++param([ValidatePattern('^[a-z0-9-]+$')][string]$RunId='closeout-dashboard-60454ec3-02')
++$ErrorActionPreference='Stop'
++$base='proof/growth/2026-09-23-industry-closeout'
++$dashboard='XRAY-STATUS-AND-PROOF-DASHBOARD.html'
++$hash=(Get-FileHash -LiteralPath $dashboard).Hash.ToLowerInvariant()
++$scenario=@'
++[["set","viewport","1600","1000"],["open","{{ORIGIN}}/v1-dashboard-60454ec3.html"],["wait","--fn","document.body?.textContent.includes('18 / 20 DONE')&&document.body?.textContent.includes('18 Done, 0 Partial, 0 Blocked, 2 Pending')",20000],["eval","(()=>{const values=[...document.querySelectorAll('.kpi-card')].map(e=>e.innerText);if(document.documentElement.scrollWidth>innerWidth+1)throw Error('Page overflow');return {kpis:values}})()"],["screenshot","captures/dashboard-18-of-20.png"],["errors"]]
++'@
++[IO.File]::WriteAllText((Join-Path $base 'scenarios/dashboard-current.json'),$scenario,[Text.UTF8Encoding]::new($false))
++$scenarioHash=(Get-FileHash -LiteralPath (Join-Path $base 'scenarios/dashboard-current.json')).Hash.ToLowerInvariant()
++scp -q $dashboard 'tonys-test-pc:C:/Users/danie/XRayBuilds/v1-industry-fencing-20260923/public/v1-dashboard-60454ec3.html'
++if($LASTEXITCODE -ne 0){throw 'Dashboard transfer failed'}
++scp -q (Join-Path $base 'scenarios/dashboard-current.json') 'tonys-test-pc:C:/Users/danie/XRayFastCdp/dashboard-current.json'
++if($LASTEXITCODE -ne 0){throw 'Scenario transfer failed'}
++$remote=@"
++`$ErrorActionPreference='Stop';`$ProgressPreference='SilentlyContinue';if(`$env:COMPUTERNAME -ne 'DANS1'){throw 'Wrong worker'};
++`$w='C:/Users/danie/XRayBuilds/v1-industry-fencing-20260923';
++if((Get-FileHash -LiteralPath (`$w+'/public/v1-dashboard-60454ec3.html')).Hash.ToLowerInvariant() -ne '$hash'){throw 'Dashboard hash mismatch'};
++if((Get-FileHash -LiteralPath 'C:/Users/danie/XRayFastCdp/dashboard-current.json').Hash.ToLowerInvariant() -ne '$scenarioHash'){throw 'Scenario hash mismatch'};
++`$env:PATH='C:/Users/danie/XRayBuilds/runs/8a6226fc93a6/runtime;'+`$env:PATH;
++& (`$w+'/scripts/run-fast-cdp.ps1') -Scenario 'C:/Users/danie/XRayFastCdp/dashboard-current.json' -Output 'C:/Users/danie/XRayFastCdp/runs/$RunId' -Workspace `$w -RunId '$RunId' -CdpPort 9352 -PreviewPort 8082 -PreviewMode dev
++"@
++ssh tonys-test-pc powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($remote)))
++$code=$LASTEXITCODE
++scp -q -r "tonys-test-pc:C:/Users/danie/XRayFastCdp/runs/$RunId" $base
++if($code -ne 0 -or $LASTEXITCODE -ne 0){throw 'Dashboard proof failed; evidence retained'}
+diff --git a/proof/growth/2026-09-23-industry-closeout/audit-discussion.mjs b/proof/growth/2026-09-23-industry-closeout/audit-discussion.mjs
+new file mode 100644
+index 00000000..0ec2acc6
+--- /dev/null
++++ b/proof/growth/2026-09-23-industry-closeout/audit-discussion.mjs
+@@ -0,0 +1,30 @@
++// Evidence integrity audit only; product execution occurred on DANS1.
++import fs from 'node:fs';
++import path from 'node:path';
++import {createHash} from 'node:crypto';
++const base='proof/growth/2026-09-23-industry-closeout';
++const read=p=>{const bytes=fs.readFileSync(p);return JSON.parse(bytes.toString(bytes[0]===255&&bytes[1]===254?'utf16le':'utf8').replace(/^\uFEFF/,''));};
++const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
++const descriptions=[
++ ['closeout-explanations-c56ad63e9ee7','FAIL: QS unassigned parent inclusion and mixed evidence subtotal'],
++ ['closeout-explanations-reviewed-dev-ac5b412f3d0a','FAIL: roofing deducts end lap from first course'],
++ ['closeout-explanations-formula-dev-8924a2a40537','FAIL: QS still displays a mixed evidence subtotal'],
++ ['closeout-explanations-subtotals-dev-f63b95e8b802','NOT ACCEPTED: stopped on one-POST harness assumption; request reasons not captured'],
++ ['closeout-explanations-corrections-dev-f63b95e8b802','PASS: root reviewed actual roofing/QS replies independently of model self-review'],
++ ['closeout-dashboard-60454ec3','FAIL: readiness predicate accessed body before it existed'],
++ ['closeout-dashboard-60454ec3-02','PASS: dashboard visible 18 of 20']
++];
++const campaigns=descriptions.map(([name,review])=>{
++ const r=read(`${base}/${name}/browser-results.json`),launcher=read(`${base}/${name}/launcher-results.json`);
++ if(r.host!=='dans1'||r.cleanup.errors.length||r.browserErrors.length)throw Error('Host/cleanup/browser errors: '+name);
++ const captures=r.screenshots.map(s=>{const actual=hash(`${base}/${name}/${s.file}`);if(actual!==s.sha256)throw Error('Screenshot hash: '+name+'/'+s.file);return {path:s.file,sha256:actual};});
++ return {name,host:r.host,operations:`${r.completedOperations}/${r.plannedOperations}`,runnerVerdict:r.verdict,review,launcherVerdict:launcher.verdict,captures};
++});
++const source=read(base+'/explanation-source03.json');for(const row of source)if(hash(row.path)!==row.sha256)throw Error('Source drift '+row.path);
++const remote=read(base+'/explanation-checks03/result.json');if(remote.sha256!==source.find(s=>s.path.endsWith('worksheetExplanationGuidance.ts')).sha256)throw Error('Remote source differs');
++const parity=read(base+'/bom-parity-current/convergence.json');if(!parity.ok||parity.fixtures.length!==4||parity.fixtures.some(f=>!f.typescriptMatchesExpected||!f.pythonMatchesExpected||!f.crossLanguageByteEquivalent))throw Error('Parity mismatch');
++for(const file of ['SC-05-explanations-dev.md','SC-05-roofing-citation.md','SC-06-bay-native-backfill.md','SC-06-parity-snapshot.md','SC-00-dashboard.md']){
++ const p=`${base}/steps/${file}`;for(const m of fs.readFileSync(p,'utf8').matchAll(/\]\(([^)]+)\)/g)){const target=path.resolve(path.dirname(p),m[1]);if(target!==path.resolve(base,'discussion-audit.json')&&!fs.existsSync(target))throw Error('Broken proof link '+file+': '+m[1]);}
++}
++const result={at:new Date().toISOString(),kind:'local evidence integrity audit; not a product test',ok:true,source,parityFixtures:4,campaigns};
++fs.writeFileSync(base+'/discussion-audit.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({ok:true,campaigns:campaigns.length,parityFixtures:4}));

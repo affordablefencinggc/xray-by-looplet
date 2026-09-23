@@ -596,3 +596,9 @@ Baseline `9512f8b0`, same feature branch. DANS1 source 1,964/1,964, typecheck/ch
 ## 2026-09-23 ? HVAC browser worksheet closeout
 
 DANS1 current web build c56ad63e9ee7, unchanged product source 281f2479. [SC-12 mass](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md), [SC-13 coordination](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md), [SC-14 pressure and delivery](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md) each link executed checks, inspected screenshots and exact diffs. Built material 102/102, network 136/136, pipe 147/147, fittings 375/375 and pressure/issue/reload 144/144. Earlier fixture failures preserved. Current source 1964/1964; no new native/deployment/engineering approval claimed. Same branch, after 6ee61381.
+
+### 2026-09-23 ? evidence reconciliation and discussion checkpoint
+
+Recovery branch `feat/closeout-sc09-remainder`, baseline `60454ec3`. Completed bounded units: [historical roofing citation](proof/growth/2026-09-23-industry-closeout/steps/SC-05-roofing-citation.md), [historical native bay acceptance citation](proof/growth/2026-09-23-industry-closeout/steps/SC-06-bay-native-backfill.md), [snapshot-safe parity command: four fixtures](proof/growth/2026-09-23-industry-closeout/steps/SC-06-parity-snapshot.md), [18/20 dashboard](proof/growth/2026-09-23-industry-closeout/steps/SC-00-dashboard.md). Each links executed checks, inspected screenshots and exact diff.
+
+[Live explanation guidance](proof/growth/2026-09-23-industry-closeout/steps/SC-05-explanations-dev.md) passes bounded development checks and reply review; final build acceptance remains WIP because DANS1 storage is insufficient. Failed model replies and the one-request harness failure remain visible. Automatically continue fencing work after this checkpoint.

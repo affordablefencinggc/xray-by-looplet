@@ -1,0 +1,82 @@
+diff --git a/src/studio/assistant/useAssistantChat.ts b/src/studio/assistant/useAssistantChat.ts
+index 1be2468b..a9931af0 100644
+--- a/src/studio/assistant/useAssistantChat.ts
++++ b/src/studio/assistant/useAssistantChat.ts
+@@ -26,6 +26,7 @@ import { captureTurn } from './contextCapture';
+ import { captureScreenContext } from './screenContext';
+ import { useDeveloperMode } from './developerPreferences';
+ import { developerReviewInstruction, hasDeveloperReview } from './developerMode';
++import { worksheetExplanationGuidance } from './worksheetExplanationGuidance';
+ import { archiveChat, chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
+ import { listWorkPackets, readWorkEvents, verifyWorkJournal } from './workPacketStore';
+ // [SC-22 capture] end
+@@ -160,7 +161,7 @@ export function useAssistantChat(jobId: string) {
+     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
+     const initial = useChats.getState().records[jobId] || empty();
+     const controller = new AbortController(); controllers.set(jobId, controller);
+-    const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}\n\n${developerMode ? developerReviewInstruction(reviewOnly) : 'Developer mode is OFF for this task. Do not append a Developer review section, regardless of earlier conversation settings.'}` }, ...images.map(image => ({ inlineData: image }))] };
++    const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}${worksheetExplanationGuidance(text)}\n\n${developerMode ? developerReviewInstruction(reviewOnly) : 'Developer mode is OFF for this task. Do not append a Developer review section, regardless of earlier conversation settings.'}` }, ...images.map(image => ({ inlineData: image }))] };
+     // [SC-22 context] begin
+     // Compact the stored transcript by entries, then carry the saved profile and project digest as
+     // one pinned pair at index 0. Both reads are fail-open (readCarriedContext settles rather than
+diff --git a/src/studio/assistant/worksheetExplanationGuidance.ts b/src/studio/assistant/worksheetExplanationGuidance.ts
+new file mode 100644
+index 00000000..b63054bc
+--- /dev/null
++++ b/src/studio/assistant/worksheetExplanationGuidance.ts
+@@ -0,0 +1,8 @@
++/** Worksheet semantics also accompany discussion turns, which have no tool declarations. */
++export function worksheetExplanationGuidance(objective: string): string {
++  const rules: string[] = [];
++  if (/\b(?:roof|roofing|courses?|end lap)\b/i.test(objective)) rules.push('Roofing worksheet explanation rules: For a rectangular developed plane with width W, run R, effective cover C, identical ordered sheet length L and end lap E (0 <= E < L), columns = ceil(W/C). The first course covers the full L; each further course adds L-E. Courses = 1 when 0 < R <= L, otherwise 1 + ceil((R-L)/(L-E)). Do not use ceil(R/(L-E)): it deducts a nonexistent lap from the first course. At an exact coverage boundary keep the lower course count; immediately above it another course is needed. Sheets = columns * courses; ordered linear metres = sheets * L. Effective cover already includes side lap. This arithmetic is a worksheet convention, not installation advice or product suitability approval. Apply the same arithmetic in Developer review.');
++  if (/\b(?:QS|quantity|hierarchy|hierarchical|SUMMARY_NODE|LEAF_ITEM|unassigned)\b/i.test(objective)) rules.push('QS worksheet explanation rules: Whole-draft totals include unassigned items; a classification subtree includes only items assigned directly to that node or its descendants. An unassigned item never enters a parent rollup. Keep each (unit, evidence class) subtotal separate; do not combine inferred and unverified quantities into a single purported evidence subtotal. Inclusive parent and child totals overlap. Flat item CSVs contain item rows only; hierarchical CSVs distinguish SUMMARY_NODE from LEAF_ITEM. Sum each leaf once within its unit and evidence class, never add summary rows. These rules also apply to every numerical example in Developer review. Review examples must not change the supplied assignments, units or evidence classes. A leading apostrophe neutralizes formula-like exported text; how it is displayed depends on the importing spreadsheet.');
++  if (rules.length) rules.push('All supplied worksheet examples remain draft and verifiedQuoteEligible=false. For QS, never display a combined amount across evidence classes, even as an intermediate parent total followed by a caveat. Express every whole or node rollup as separate labelled unit/evidence subtotals. The words "kept separate" do not make a combined amount valid.');
++  return rules.length ? '\n\n' + rules.join('\n\n') : '';
++}
+diff --git a/scripts/verify-bom-cross-language.mjs b/scripts/verify-bom-cross-language.mjs
+index 02cb62de..cb6141bc 100644
+--- a/scripts/verify-bom-cross-language.mjs
++++ b/scripts/verify-bom-cross-language.mjs
+@@ -9,7 +9,7 @@ import { buildBom } from "../src/studio/bomRules.ts";
+ 
+ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+ const fixtures = resolve(root, "engine/fixtures/bom-contract");
+-const output = resolve(root, "proof/SC-07/convergence.json");
++const output = resolve(root, process.env.XRAY_BOM_PARITY_OUTPUT || "proof/SC-07/convergence.json");
+ const python = process.env.XRAY_PYTHON || (process.platform === "win32" ? "python.exe" : "python3");
+ const stems = ["colorbond", "timber-paling", "chain-wire", "concrete-allowance"];
+ const pythonProgram = [
+@@ -66,15 +66,21 @@ for (const stem of stems) {
+ }
+ 
+ const pythonVersion = execFileSync(python, ["--version"], { encoding: "utf8" }).trim();
+-const gitHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+-const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: root, encoding: "utf8" }).trim().length > 0;
++// Build-worker snapshots have content manifests, but deliberately have no Git checkout.
++// Keep that absence explicit rather than inventing a commit or dropping kernel/fixture hashes.
++const hasGitCheckout = existsSync(resolve(root, '.git'));
++const sourceState = hasGitCheckout ? {
++  kind: 'git-checkout',
++  gitHead: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
++  dirty: execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: root, encoding: "utf8" }).trim().length > 0,
++} : { kind: 'source-snapshot', gitHead: null, dirty: null };
+ const pytestXml = resolve(root, "proof/SC-07/pytest-kernels.xml");
+ const ok = records.every((record) =>
+   record.typescriptMatchesExpected && record.pythonMatchesExpected && record.crossLanguageByteEquivalent);
+ const manifest = {
+   schema: "xray.proof.bom-convergence/v1",
+   ok,
+-  sourceState: { gitHead, dirty },
++  sourceState,
+   runtimes: { node: process.version, python: pythonVersion },
+   sourceSha256: {
+     packageLock: sourceHash("package-lock.json"),
+@@ -93,7 +99,7 @@ const manifest = {
+   fixtures: records,
+ };
+ 
+-mkdirSync(resolve(root, "proof/SC-07"), { recursive: true });
++mkdirSync(resolve(output, '..'), { recursive: true });
+ writeFileSync(output, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+ console.log(JSON.stringify(manifest, null, 2));
+ if (!ok) process.exitCode = 1;

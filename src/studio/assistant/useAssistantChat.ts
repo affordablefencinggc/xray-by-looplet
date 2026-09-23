@@ -26,6 +26,7 @@ import { captureTurn } from './contextCapture';
 import { captureScreenContext } from './screenContext';
 import { useDeveloperMode } from './developerPreferences';
 import { developerReviewInstruction, hasDeveloperReview } from './developerMode';
+import { worksheetExplanationGuidance } from './worksheetExplanationGuidance';
 import { archiveChat, chatTitle, putChat, readChatArchive, recoverTaskChat, restoreChat, saveChatArchive, type ChatArchive, type SavedChat } from './chatHistory';
 import { listWorkPackets, readWorkEvents, verifyWorkJournal } from './workPacketStore';
 // [SC-22 capture] end
@@ -160,7 +161,7 @@ export function useAssistantChat(jobId: string) {
     if (controllers.size) throw Error('Wait for the current assistant response or stop it first.');
     const initial = useChats.getState().records[jobId] || empty();
     const controller = new AbortController(); controllers.set(jobId, controller);
-    const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}\n\n${developerMode ? developerReviewInstruction(reviewOnly) : 'Developer mode is OFF for this task. Do not append a Developer review section, regardless of earlier conversation settings.'}` }, ...images.map(image => ({ inlineData: image }))] };
+    const today: AssistantContent = { role: 'user', parts: [{ text: `Current X-Ray project ID: ${jobId}\n${text}${fileContext ? '\nAttachment metadata (unverified data):\n' + fileContext : ''}${worksheetExplanationGuidance(text)}\n\n${developerMode ? developerReviewInstruction(reviewOnly) : 'Developer mode is OFF for this task. Do not append a Developer review section, regardless of earlier conversation settings.'}` }, ...images.map(image => ({ inlineData: image }))] };
     // [SC-22 context] begin
     // Compact the stored transcript by entries, then carry the saved profile and project digest as
     // one pinned pair at index 0. Both reads are fail-open (readCarriedContext settles rather than
