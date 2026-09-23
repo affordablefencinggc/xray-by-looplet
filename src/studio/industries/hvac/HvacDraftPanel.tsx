@@ -3,6 +3,7 @@ import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
 import { HvacCoordinationPanel } from "./HvacCoordinationPanel.tsx";
 import { DuctMaterialTable } from "./DuctMaterialTable.tsx";
 import { evaluateDuctMaterialRow } from "./ductMaterialTable.ts";
+import { HVAC_ESTIMATE_LABEL, HVAC_MASS_RULE } from "./hvacPolicy.ts";
 import type { IndustryDraftPanelProps } from "../draftPanel";
 import { describeIndustryBinding, evaluateIndustryBinding } from "../sourceBinding.ts";
 import { createDuctSourceBinding, createEmptyDuctSection, describeEvidenceClass, evaluateDuctFormBinding, EVIDENCE_CLASS_LABELS, type DuctBindingInputs, type DuctForm, type DuctSectionForm } from "./ductForm";
@@ -43,6 +44,7 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
     } catch (error) { setCalculation({ input: current, error: error instanceof Error ? error.message : "Check the section inputs." }); }
   }}>
     <p className="industry-note">Straight duct material draft. Enter dimensions in metres and a reference for each value. This does not select duct sizes or verify a takeoff.</p>
+    <p className="industry-note">{HVAC_ESTIMATE_LABEL}. {HVAC_MASS_RULE}</p>
     <fieldset disabled={disabled}>
       <legend>Straight sections</legend>
       {!value.sections.length && <p>Add a section to enter your measurements.</p>}
@@ -121,6 +123,7 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
           height: input.shape === "round" ? input.diameterM.value : input.heightM.value, round: input.shape === "round", insulation: wrap?.inputs.insulationThicknessM.value ?? 0, clash: false };
       })} />
       <p><strong>Draft · not eligible for a verified quote</strong></p>
+      <p>{HVAC_ESTIMATE_LABEL}. Airflow and velocity are not supplied by this material worksheet.</p>
       <p className="industry-note">{describeIndustryBinding(outcome.evaluation)}{binding && ` ${describeEvidenceClass(binding.evidenceClass)}.`}</p>
       <p>Developed area: <strong>{outcome.result.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })} m²</strong> · Sheet mass: <strong>{outcome.result.sheetMassKg === null ? "Not calculated — supply mass per area for every section" : `${outcome.result.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })} kg`}</strong></p>
       <div className="industry-table-wrap"><table><caption>Straight-section material quantities</caption><thead><tr><th scope="col">Section</th><th scope="col">Area (m²)</th><th scope="col">Mass (kg)</th></tr></thead><tbody>{outcome.result.sections.map(section => <tr key={section.id}><th scope="row">{section.id}</th><td>{section.developedAreaM2.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td><td>{section.sheetMassKg === null ? "Not supplied" : section.sheetMassKg.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>
@@ -132,6 +135,6 @@ export function HvacDraftPanel({ value, onChange, disabled, source }: IndustryDr
       </section>}
       <p className="industry-note">Sheet metal excludes: {outcome.result.exclusions.join(", ")}. Entered references are retained in your draft; they have not been verified.</p>
     </section>}
-    <HvacCoordinationPanel text={value.networkJson ?? ""} onChange={networkJson => change({ ...value, networkJson })} disabled={disabled} stale={evaluation.status === "stale"} projectId={source.projectId} binding={binding} />
+    <HvacCoordinationPanel text={value.networkJson ?? ""} onChange={networkJson => change({ ...value, networkJson })} disabled={disabled} stale={evaluation.status === "stale"} projectId={source.projectId} binding={binding} packagesJson={value.packagesJson} onPackagesChange={packagesJson => change({ ...value, packagesJson })} />
   </form>;
 }

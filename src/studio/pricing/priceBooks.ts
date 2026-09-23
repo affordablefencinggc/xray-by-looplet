@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { issuedQuoteSchema, quoteRate } from "./quoteRecord.ts";
 
 export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
 export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
@@ -71,6 +72,7 @@ export const priceBookLibrarySchema = z.object({
     sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
     addedAt: z.string().datetime(), bom: bomLinkSchema.optional() }).strict()).max(5000),
   bomMappings: z.array(bomMappingSchema).max(500).optional(),
+  issuedQuotes: z.array(issuedQuoteSchema).max(100).optional(),
 }).strict().superRefine((v, ctx) => {
   if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
   for (const book of v.books) if (book.revisions.some((r, i) => r.revision !== i + 1))
@@ -86,6 +88,9 @@ export const priceBookLibrarySchema = z.object({
   for (const m of mappings) if (!rateExists(m.bookId, m.bookRevision, m.sourceLine)) ctx.addIssue({ code: "custom", message: `Material mapping ${m.key} references a missing source rate.` });
   const linked = v.worksheet.filter(line => line.bom).map(line => line.bom!.key);
   if (new Set(linked).size !== linked.length) ctx.addIssue({ code: "custom", message: "A material register item can price only one worksheet line." });
+  const issues = v.issuedQuotes ?? [];
+  if (new Set(issues.map(q => q.issue.id)).size !== issues.length || new Set(issues.map(q => q.reference.toLowerCase())).size !== issues.length)
+    ctx.addIssue({ code: "custom", message: "Each issued quote needs its own identity and reference. Use a new reference for a revision." });
 });
 export type PriceBookLibrary = z.infer<typeof priceBookLibrarySchema>;
 export type PriceBook = PriceBookLibrary["books"][number];
@@ -133,6 +138,9 @@ export function persistPriceBooks(storage: StoragePort, session: PriceBookSessio
     if (!next || JSON.stringify(next.revisions.slice(0, original.revisions.length)) !== JSON.stringify(original.revisions))
       throw Error("Saved source revisions cannot be removed or overwritten. Add a new revision instead.");
   }
+  const originalQuotes = session.value.issuedQuotes ?? [];
+  if (JSON.stringify((parsed.issuedQuotes ?? []).slice(0, originalQuotes.length)) !== JSON.stringify(originalQuotes))
+    throw Error("Issued quotes cannot be removed or overwritten. Prepare a new quote reference for a revision.");
   if (storage.getItem(priceBookKey(parsed.jobId)) !== session.raw) throw Error("Price books changed in another window. Reload before saving; this import has not been applied.");
   storage.setItem(priceBookKey(parsed.jobId), raw);
   return { value: parsed, raw, blocked: false, error: null };
@@ -247,7 +255,7 @@ export function pricedWorksheetCsv(library: PriceBookLibrary) {
   const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
   return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at", "Source worksheet", "Header row", "Quantity source"],
     ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
-      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
+      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, quoteRate(r.row.rate), r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
         r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt, r.revision.source.worksheet ?? "", r.revision.source.headerRow ?? "",
         line.bom ? `material register ${line.bom.commitRevision}: ${line.bom.key} ${line.bom.bomQuantity} ${line.bom.unit} x ${line.bom.factor}${line.bom.rounding === "up" ? " rounded up" : ""}` : "entered"]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
@@ -256,6 +264,6 @@ export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
   if (!r) throw Error("Price book revision not found.");
   const cell = (v: unknown) => { let text = v === null ? "" : String(v); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
   return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at", "Source worksheet", "Header row"],
-    ...r.rows.map(row => [row.stockCode, row.description, row.unit, row.rate, r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
+    ...r.rows.map(row => [row.stockCode, row.description, row.unit, quoteRate(row.rate), r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
       r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt, r.source.worksheet ?? "", r.source.headerRow ?? ""])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { straightDuctScheduleSchema } from "./straightDuct.ts";
+import { HVAC_ESTIMATE_LABEL } from "./hvacPolicy.ts";
 const sourced = z.object({ value: z.number().finite().nonnegative().max(Number.MAX_SAFE_INTEGER), sourceReference: z.string().trim().min(1) }).strict();
 export const straightDuctWrapSchema = z.object({ duct: straightDuctScheduleSchema, wraps: z.array(z.object({
   sectionId: z.string().trim().min(1), insulationThicknessM: sourced.extend({ value: z.number().finite().positive().max(Number.MAX_SAFE_INTEGER) }), longitudinalOverlapM: sourced,
@@ -29,7 +30,7 @@ export function calculateStraightDuctWrapDraft(input: unknown) {
     ];
     return { id: section.id, calculationSteps, inputs: { section, ...wrap }, outerPerimeterM, outerAreaM2, overlapAreaM2, wrapAreaM2 };
   });
-  return { status: "draft-unverified" as const, verifiedQuoteEligible: false as const, ruleset: "hvac-straight-external-wrap-v1" as const, sections,
+  return { status: "draft-unverified" as const, estimateLabel: HVAC_ESTIMATE_LABEL, verifiedQuoteEligible: false as const, ruleset: "hvac-straight-external-wrap-v1" as const, sections,
     wrapAreaM2: bounded(sections.reduce((sum, section) => sum + section.wrapAreaM2, 0)),
     exclusions: ["fittings", "end faces", "transverse laps", "waste", "thermal performance", "fire performance", "compliance assessment"] };
 }

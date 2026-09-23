@@ -24,6 +24,7 @@ export const ductSectionFormSchema = z.object({
 export const ductFormSchema = z.object({
   sections: z.array(ductSectionFormSchema).max(100),
   networkJson: z.string().max(500000).optional(),
+  packagesJson: z.string().max(1000000).optional(),
   materialRows: ductMaterialTableSchema.optional(),
   binding: industrySourceBindingSchema.nullable().optional(),
 }).strict();

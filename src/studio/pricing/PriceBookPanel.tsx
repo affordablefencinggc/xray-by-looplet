@@ -10,7 +10,8 @@ import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
 import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
 import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
 import { priceBookLibrarySchema } from "./priceBooks.ts";
-import { buildQuoteDraft, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
+import { buildQuoteDraft, issueQuote, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
+import { quoteRate } from "./quoteRecord.ts";
 import { quoteEmailLink, quoteGmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
 
 /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
@@ -175,7 +176,7 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
         {parseError && <p role="alert">{parseError}</p>}
         {!review && table && mapping && <fieldset><legend>Match your columns</legend><div className="price-fields">{(["stockCode", "description", "unit", "rate"] as const).map(field => <label key={field}>{({ stockCode: "Stock code (optional)", description: "Description", unit: "Unit", rate: "Rate" })[field]}<select value={mapping[field] ?? -1} onChange={e => setMapping({ ...mapping, [field]: Number(e.target.value) < 0 ? null : Number(e.target.value) })}>{field === "stockCode" && <option value={-1}>No stock code</option>}{table.headers.map((header, i) => <option key={i} value={i}>{i + 1}: {header || "Unnamed column"}</option>)}</select></label>)}</div></fieldset>}
         {!!rows?.errors.length && <div className="price-notice" role="alert"><strong>Import blocked until these lines are corrected</strong><ul>{rows.errors.map((error, i) => <li key={i}>{error}</li>)}</ul><p>No rates have been saved.</p></div>}
-        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td className="price-scalar">{row.unit}</td><td className="price-scalar">{row.rate}</td></tr>)}</tbody></table></div></>}
+        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td className="price-scalar">{row.unit}</td><td className="price-scalar">{quoteRate(row.rate)}</td></tr>)}</tbody></table></div></>}
         {review ? <div className="price-review"><h3>Review before saving</h3><p>{targetId ? `Append revision to ${value?.books.find(b => b.id === targetId)?.name}` : `Create ${name}`} · {review.rows.length} rates</p>
           <p>{review.metadata.supplier} · {review.metadata.currency} · {taxLabel(review.metadata.taxBasis)}{review.metadata.taxPercent !== null ? ` (${review.metadata.taxPercent}%)` : ""} · effective {review.metadata.effectiveDate}</p>
           <p>{review.metadata.sourceReference}</p><p className="price-help">{review.source.kind === "xlsx" ? `Worksheet: ${review.source.worksheet} · ` : ""}Header row: {review.source.headerRow ?? 1}. Existing revisions and priced lines remain unchanged. Saving the book does not apply any rate.</p>
@@ -191,16 +192,17 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId: 
     {tab === "worksheet" && <>
       {bom && value && <BomPricingSection bom={bom} library={value} disabled={!!disabled} onSave={saveMapping} />}
       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
+      {value && <QuoteDraftForm key={jobId} library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} disabled={!!disabled} onSave={save} onNotice={setNotice} />}
       {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button>
-        <QuoteDraftForm library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} onNotice={setNotice} /><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
-      {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{rate.rate} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
+        <div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
+      {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{quoteRate(rate.rate)} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
         {book.revisions.length > revision.revision && <p>A newer revision exists. This line will use the older revision you selected.</p>}
         <label>Quantity ({rate.unit})<input inputMode="decimal" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>{quantityError && <p role="alert">{quantityError}</p>}
         {amount && <p className="price-amount">Line amount: {revision.metadata.currency} {amount} · {taxLabel(revision.metadata.taxBasis)}</p>}
         <div className="price-actions"><button className="pill primary" disabled={disabled || !amount} onClick={() => { if (value && selection) { try { void save(addPricedLine(value, selection.bookId, selection.revision, selection.sourceLine, quantity), "Reviewed rate applied to the priced worksheet.").then(ok => { if (ok) setSelection(null); }); } catch (error) { setNotice(priceBookError(error)); } } }}><Plus size={16} />Add reviewed priced line</button><button className="pill" onClick={() => setSelection(null)}>Cancel line</button></div>
       </div>}
       {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
-      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}{line.bom ? <p className="price-help" data-bom-linked={line.bom.key}>From material register {line.bom.commitRevision}: {line.bom.key} {line.bom.bomQuantity} {line.bom.unit} × {line.bom.factor}{line.bom.rounding === "up" ? ", rounded up" : ""}. Change or clear its mapping above to change this line.</p> : <details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details>}</article>; })}
+      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {quoteRate(resolved.row.rate)} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}{line.bom ? <p className="price-help" data-bom-linked={line.bom.key}>From material register {line.bom.commitRevision}: {line.bom.key} {line.bom.bomQuantity} {line.bom.unit} × {line.bom.factor}{line.bom.rounding === "up" ? ", rounded up" : ""}. Change or clear its mapping above to change this line.</p> : <details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details>}</article>; })}
     </>}
     <PricingResearchPanel projectId={jobId} />
   </section>;
@@ -214,14 +216,14 @@ function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: Pric
     <div className="price-actions"><label>Price book revision<select value={revision.revision} onChange={e => setRevisionNumber(Number(e.target.value))}>{[...book.revisions].reverse().map(r => <option key={r.revision} value={r.revision}>Revision {r.revision} · {r.metadata.effectiveDate}</option>)}</select></label><button className="pill" onClick={() => download(priceRevisionCsv(book, revision.revision), `${book.name.replace(/[^a-z0-9_-]/gi, "-")}-r${revision.revision}.csv`)}><Download size={16} />Export revision CSV</button><button className="pill" disabled={disabled} onClick={onArchive}>{book.archived ? "Restore price book" : "Archive price book"}</button></div>
     <details><summary>Rename price book</summary><div className="price-toolbar"><label>New price book name<input maxLength={120} value={draftName} onChange={e => setDraftName(e.target.value)} /></label><button className="pill" disabled={disabled || !draftName.trim()} onClick={() => onSaveName(draftName)}>Save name</button></div></details>
     <details><summary>Browse {revision.rows.length} rates and source details</summary><p className="price-help">{revision.source.fileName}{revision.source.kind === "xlsx" ? ` · worksheet ${revision.source.worksheet}` : ""} · header row {revision.source.headerRow ?? 1} · imported {new Date(revision.importedAt).toLocaleString()} · SHA-256 {revision.source.sha256}</p><label>Find a rate<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Description, stock code or unit" /></label>
-      <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{row.rate}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
+      <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{quoteRate(row.rate)}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
     </details>
   </article>;
 }
 
 function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
   const options = library.books.filter(book => !book.archived).flatMap(book => { const revision = book.revisions.at(-1)!;
-    return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${row.rate} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
+    return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${quoteRate(row.rate)} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
   const mapped = library.bomMappings ?? [];
   return <div className="price-review" aria-label="Price from material register" data-bom-commit={bom.commitRevision} data-bom-current={bom.current}>
     <h3>Price from material register</h3>
@@ -248,27 +250,36 @@ function BomPricingRow({ line, options, disabled, initial, onSave }: { line: Pri
 }
 
 const QUOTE_FROM_KEY = "xray:quote-from:v1";
-function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; onNotice: (message: string) => void }) {
+function QuoteDraftForm({ library, register, disabled, onSave, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; disabled: boolean;
+  onSave: (value: PriceBookLibrary, message: string) => Promise<boolean>; onNotice: (message: string) => void }) {
   const [from, setFrom] = useState(() => { try { return localStorage.getItem(QUOTE_FROM_KEY) ?? ""; } catch { return ""; } });
   const [customer, setCustomer] = useState(""), [siteAddress, setSiteAddress] = useState(""), [validDays, setValidDays] = useState("30"), [notes, setNotes] = useState("");
   const [reference, setReference] = useState(() => `Q-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`), [working, setWorking] = useState(false);
   const [savedTo, setSavedTo] = useState<string | null>(null), [lastDraft, setLastDraft] = useState<QuoteDraft | null>(null);
+  const [review, setReview] = useState<{ signature: string; quote: QuoteDraft } | null>(null), [selectedIssue, setSelectedIssue] = useState("");
+  const details = { from, customer, siteAddress, reference, validDays: Number(validDays), notes };
+  const signature = JSON.stringify([library, register, details]), currentSignature = useRef(signature); currentSignature.current = signature;
+  const currentReview = review?.signature === signature ? review.quote : null;
+  const issued = library.issuedQuotes ?? [], selected = issued.find(q => q.issue.id === selectedIssue) ?? issued.at(-1);
+  useEffect(() => { setLastDraft(null); setSavedTo(null); }, [signature]);
   const desktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
   const saveFile = (file: HandoverFile) => {
     const url = URL.createObjectURL(new Blob([file.bytes.slice().buffer], { type: file.mime }));
     const link = document.createElement("a"); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  async function prepareFiles() {
-    const draft = buildQuoteDraft(library, { from, customer, siteAddress, reference, validDays: Number(validDays), notes }, register);
+  async function prepareFiles(snapshot?: QuoteDraft) {
+    const draft = snapshot ?? buildQuoteDraft(library, details, register);
     try { localStorage.setItem(QUOTE_FROM_KEY, draft.from); } catch { /* per-device convenience only */ }
+    const files = quoteHandoverFiles(draft, await quoteDraftPdf(draft));
+    if (!snapshot && currentSignature.current !== signature) throw Error("The worksheet or quote details changed. Prepare the updated quote again.");
     setLastDraft(draft);
-    return { draft, files: quoteHandoverFiles(draft, await quoteDraftPdf(draft)) };
+    return { draft, files };
   }
-  async function run(action: "pdf" | "package" | "folder" | "share") {
+  async function run(action: "pdf" | "package" | "folder" | "share", snapshot?: QuoteDraft) {
     setWorking(true);
     try {
-      const { draft, files } = await prepareFiles();
-      if (action === "pdf") { saveFile(files[0]); setSavedTo(null); onNotice(`Draft quote ${draft.reference} saved as a PDF for your review. Nothing was sent to the customer.`); }
+      const { draft, files } = await prepareFiles(snapshot);
+      if (action === "pdf") { saveFile(files[0]); setSavedTo(null); onNotice(`${draft.issue ? "Issued" : "Draft"} quote ${draft.reference} saved as a PDF. Nothing was sent to the customer.`); }
       else if (action === "package") { saveFile(quoteHandoverZip(draft, files)); setSavedTo(null); onNotice(`Handover package for ${draft.reference} saved (PDF, spreadsheet lines and JSON in one ZIP). Nothing was sent.`); }
       else if (action === "folder") {
         const { open } = await import("@tauri-apps/plugin-dialog");
@@ -289,6 +300,21 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
     } catch (error) { onNotice(priceBookError(error)); }
     finally { setWorking(false); }
   }
+  function reviewForIssue() {
+    try { setReview({ signature, quote: buildQuoteDraft(library, details, register) }); }
+    catch (error) { onNotice(priceBookError(error)); }
+  }
+  async function markIssued() {
+    if (!currentReview || disabled || working) return;
+    setWorking(true);
+    try {
+      const next = issueQuote(library, details, register);
+      if (await onSave(next, `Quote ${reference.trim()} marked as issued. Its saved quantities, rates and details are frozen. Nothing was sent.`)) {
+        setSelectedIssue(next.issuedQuotes!.at(-1)!.issue.id); setReview(null);
+      }
+    } catch (error) { onNotice(priceBookError(error)); }
+    finally { setWorking(false); }
+  }
   // The desktop web view reports file sharing but always fails it, so sharing is offered in browsers only.
   const canShare = !desktop && typeof navigator !== "undefined" && typeof navigator.canShare === "function";
   async function openEmail(via: "gmail" | "app") {
@@ -304,8 +330,8 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
         : `Opened your mail app with quote ${lastDraft.reference}. Attach the PDF, check it and send it yourself; X-Ray sent nothing.`);
     } catch (error) { onNotice(priceBookError(error)); }
   }
-  return <details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
-    <p className="price-help">Uses the priced lines and subtotals above. Everything is marked as a draft for your review; X-Ray does not send anything. Hand it over whichever way suits you: the PDF, a spreadsheet file your quoting or accounting software can import, or a JSON file for other apps and automations.</p>
+  return <><details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
+    <p className="price-help">Uses the current priced worksheet. Review the quote before marking it as issued. An issued quote keeps a frozen copy of its quantities, rates and details; use a new reference for a revision.</p>
     <div className="price-fields">
       <label>Your business<input aria-label="Quote from" maxLength={200} value={from} onChange={e => setFrom(e.target.value)} placeholder="Business name shown on the quote" /></label>
       <label>Customer<input aria-label="Quote customer" maxLength={200} value={customer} onChange={e => setCustomer(e.target.value)} /></label>
@@ -314,6 +340,10 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
       <label className="price-wide">Site address<input aria-label="Quote site address" maxLength={300} value={siteAddress} onChange={e => setSiteAddress(e.target.value)} /></label>
       <label className="price-wide">Notes for the customer<textarea aria-label="Quote notes" maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} /></label>
     </div>
+    <div className="price-actions"><button className="pill" disabled={disabled || working || !library.worksheet.length} onClick={reviewForIssue}>Review quote for issue</button></div>
+    {currentReview && <div className="price-review" aria-label="Quote issue review"><QuoteSummary quote={currentReview} />
+      <p className="price-help">Marking as issued saves this quote in the project's issue history. It does not send the quote.</p>
+      <button className="pill primary" disabled={disabled || working} onClick={() => void markIssued()}>Mark quote as issued</button></div>}
     <div className="price-actions" role="group" aria-label="Hand over the draft quote">
       <button className="pill primary" disabled={working} onClick={() => void run("pdf")}><Download size={16} />Download draft quote PDF</button>
       <button className="pill" disabled={working} onClick={() => void run("package")}><Download size={16} />Download handover package (ZIP)</button>
@@ -323,5 +353,25 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
       <button className="pill" disabled={working || !lastDraft} onClick={() => void openEmail("app")}>Email with my mail app</button>
     </div>
     <p className="price-help">Handover package: PDF, <code>-lines.csv</code> (one row per line: customer, reference, dates, item code, description, quantity, unit, rate, amount) and <code>.json</code> (schema xray.quote-handover/v1). Saving to a Dropbox, OneDrive or Google Drive folder lets that service sync the files. Email with Gmail opens Gmail's compose page in your browser; Email with my mail app uses your computer's default email app. Both fill in the subject and message; attach the PDF yourself.</p>
-  </details>;
+  </details>
+  {!!issued.length && <details className="price-review" aria-label="Issued quotes" open><summary>Issued quotes ({issued.length})</summary>
+    <label>Saved issue<select aria-label="Saved quote issue" value={selected?.issue.id ?? ""} onChange={e => setSelectedIssue(e.target.value)}>
+      {[...issued].reverse().map(q => <option key={q.issue.id} value={q.issue.id}>{q.reference} · {new Date(q.issue.issuedAt).toLocaleString()}</option>)}</select></label>
+    {selected && <><QuoteSummary quote={selected} /><p className="price-help">Frozen on issue. Changes to the worksheet or supplier library apply to future quotes.</p>
+      <div className="price-actions"><button className="pill" disabled={working} onClick={() => void run("pdf", selected)}>Download issued quote PDF</button>
+        <button className="pill" disabled={working} onClick={() => void run("package", selected)}>Download issued handover (ZIP)</button>
+        {desktop && <button className="pill" disabled={working} onClick={() => void run("folder", selected)}>Save issued handover to a folder…</button>}</div></>}
+  </details>}</>;
+}
+
+function QuoteSummary({ quote }: { quote: QuoteDraft }) {
+  return <div aria-label={quote.issue ? "Frozen issued quote" : "Quote to issue"}>
+    <h3>{quote.issue ? "Issued" : "Review"} {quote.reference}</h3><p>{quote.customer} · {quote.siteAddress}</p>
+    {quote.issue && <p>Issued <time dateTime={quote.issue.issuedAt}>{quote.issue.issuedAt}</time></p>}
+    <p className="price-help">Price library revision {quote.pricingBasis.libraryRevision}. {quote.pricingBasis.books.map(b => `${b.name} revision ${b.revision}`).join("; ")}</p>
+    <div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Quantity</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
+      {quote.lines.map((line, i) => <tr key={i}><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{line.rate}</td><td>{line.currency} {line.amount}</td></tr>)}
+    </tbody></table></div>
+    {quote.totals.map((total, i) => <p key={i}><strong>{total.currency} {total.totalWithTax ?? total.amount}</strong> · {total.totalWithTax !== null ? `including ${total.currency} ${total.taxAmount} tax (subtotal ${total.amount})` : total.taxLabel}</p>)}
+  </div>;
 }

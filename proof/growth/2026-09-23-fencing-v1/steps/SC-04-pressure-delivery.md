@@ -1,0 +1,11 @@
+# SC-04 — pressure estimates and durable delivery records
+
+Exact changes: [HVAC diff](../hvac-source.diff), [source hashes](../source-hashes-03.json). Entered fluid density, Darcy friction factor and source produce per-run estimates using trimmed straight lengths. Fittings require a directed incoming/outgoing path, declared K and an explicit velocity-basis run. Unknown/invalid operands remain unknown. Branch losses are not incorrectly summed. Existing Pa/m allowances remain separate.
+
+Formula source: [DOE Fundamentals Handbook, Fluid Flow HT-03 pp32/34, equations 3-14 and 3-15](https://www.energy.gov/sites/default/files/2026-04/DOE-HDBK-1012-92_VOL3.pdf). These head-loss expressions are converted to pressure by multiplying by density × gravity. Rectangular hydraulic diameter is 4 × cross-sectional area / wetted perimeter. Factors and fluid properties are entered, not looked up or inferred.
+
+Executed: [source tests](../source-tests-03.log) 1,958/1,958, [typecheck](../checks-03.json) exit 0; PDF text extraction checks 17.640 Pa straight and 14.700 Pa fitting, formula labels, source references and seal. [144/144 browser operations](../v1-hvac-pressure-dev02/browser-results.json) enter the operands in the UI, compare measured flow, save/review/issue, export PDF/CSV/JSON, reload and compare the entire frozen record. Changes to a network create a separate history record; issued history cannot be downgraded or overwritten through the save helper.
+
+Inspected: [desktop pressure results](../v1-hvac-pressure-dev02/captures/industry-pressure-loss-desktop.png), [landscape](../v1-hvac-pressure-dev02/captures/industry-pressure-loss-tablet-landscape.png), [portrait keyboard-accessible table](../v1-hvac-pressure-dev02/captures/industry-pressure-loss-tablet-portrait.png), [issued record restored after reload](../v1-hvac-pressure-dev02/captures/industry-hvac-issued-reloaded.png).
+
+Status: source/development verified; final build and formal SC-14 remain open. This estimates specified steady incompressible cases; it does not size fans/pumps, solve balanced flow, infer K, assess pressure regain or certify commissioning. Round/fitting clearance remains explicitly conservative. Current JSON objects and visible/exported schedules retain “Estimate — not engineering sign-off.”

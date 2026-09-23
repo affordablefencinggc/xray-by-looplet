@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PDFDocument } from "pdf-lib";
-import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, issueHvacPackage, reviewHvacPackage, saveHvacDraft, verifyHvacPackage } from "./hvacSchedules.ts";
+import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, issueHvacPackage, readHvacHistory, recordHvacPackage, reviewHvacPackage, saveHvacDraft, verifyHvacPackage } from "./hvacSchedules.ts";
 const input = () => ({ reference: "M-102", evidence: "declared", occupancy: "residential", nodes: [
   { id: "AHU", zone: "West", kind: "equipment", x: 0, y: 3, z: 0, designAirflowLs: 100, equipmentTag: "=UNSAFE()" },
   { id: "D1", zone: "East", kind: "diffuser", x: 5, y: 3, z: 0, designAirflowLs: null, equipmentTag: "" }],
@@ -53,4 +53,18 @@ test("pipe CSV, sealed JSON and PDF retain service, both diameters and separate 
   const csv = await hvacPackageCsv(p); for (const text of ["Pipe run", "Outside diameter m", "Inside diameter m", "Pipe flow L/s", '"pipe"', "no-pipe-design-limit"]) assert.ok(csv.includes(text));
   assert.ok((await PDFDocument.load(await hvacPackagePdf(p))).getPageCount() > 0);
   const tampered = structuredClone(p); tampered.content.network.edges[0].pipeFlowLs = 9; await assert.rejects(verifyHvacPackage(tampered));
+});
+
+test("saved HVAC delivery history survives serialization and freezes issues across revised networks", async () => {
+  const draft = await createHvacPackage(input(), "history-project", null, "2026-09-23T00:00:00.000Z");
+  const saved = await saveHvacDraft(draft), reviewed = await reviewHvacPackage(saved, "2026-09-23T01:00:00.000Z"), issued = await issueHvacPackage(reviewed, "2026-09-23T02:00:00.000Z");
+  let raw = await recordHvacPackage(undefined, saved); raw = await recordHvacPackage(raw, reviewed); raw = await recordHvacPackage(raw, issued);
+  assert.deepEqual(await readHvacHistory(raw, "history-project"), [issued]);
+  await assert.rejects(recordHvacPackage(raw, reviewed), /frozen/);
+  await assert.rejects(readHvacHistory(raw, "another-project"), /foreign/);
+  const revised = await saveHvacDraft(await createHvacPackage({ ...input(), reference: "M-102 Rev B" }, "history-project", null));
+  const updated = await recordHvacPackage(raw, revised); const records = await readHvacHistory(updated, "history-project");
+  assert.equal(records.length, 2); assert.deepEqual(records[0], issued); assert.notEqual(records[1].delivery.contentSha256, issued.delivery.contentSha256);
+  const tampered = structuredClone(issued); tampered.delivery.id = "hvac-forged"; await assert.rejects(verifyHvacPackage(tampered), /identity/);
+  await assert.rejects(readHvacHistory(JSON.stringify([issued, issued]), "history-project"), /duplicate/);
 });

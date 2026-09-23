@@ -410,7 +410,7 @@ graph TD
     - Rectangular: $P_{\text{wrap}} = 2 \times ((W + 2t) + (H + 2t))$
     - Round: $P_{\text{wrap}} = \pi \times (D + 2t)$
   - Metal gauge mass table maps material (galvanized steel / aluminum / stainless) to thickness and density ($kg/m^2$).
-  - Missing duct gauge or velocity leaves incomplete mass explicitly marked as `"unknown"` (no guessing).
+  - Daniel's 2026-09-23 ruling ("Adopt the recommended mass rule"): calculate mass from reviewed geometry/gauge/thickness/density or supplied kg/m². Missing material operands keep mass unknown; missing airflow or velocity stays independently unknown and does not suppress mass. This supersedes the original missing-velocity mass gate; qualification is recorded separately.
   - Tests verify 18.5 $m^2$ reference fixture and outer insulation math.
 * **DONE (human)**:
   - HVAC Worksheet renders 3D section preview showing internal duct core and outer thermal barrier.
@@ -420,7 +420,7 @@ graph TD
   - `src/studio/industries/hvac/HvacDraftPanel.tsx`
 * **Depends on**: None
 * **Proof**: [SC12-MATERIAL-08](proof/growth/2026-09-20-hvac-portion4/steps/SC12-MATERIAL-08.md): reviewed material table, stale/removed-row withholding and persisted review verified; DANS1 2068/2068 tests, dev 87/87, built 102/102. [SC12-STRAIGHT-WRAP-04](proof/growth/2026-09-20-hvac-portion4/steps/SC12-STRAIGHT-WRAP-04.md) retains straight/wrap and round-section geometry qualification.
-* **BLOCKED / Remaining**: Original missing-velocity mass-display gate needs clarification; mass currently uses geometric/material operands while absent airflow stays independently unknown. No normative gauge mapping is assumed. The shared full development reload failure remains separately open.
+* **Remaining**: Daniel approved independent material-mass and airflow unknowns on 2026-09-23. Visible policy and regression qualification are in progress in `V1-INDUSTRY-FENCING-TODO.md`. No normative gauge mapping is assumed. The historical development reload cause remains separately open.
 * **Commit**: 7f043fe6 and 3b42c063; both pushed to origin/feat/closeout-sc09-remainder.
 
 #### SC-13 — HVAC-03 Multi-Zone Duct & Pipe Network Coordination `[[partial]]`

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HVAC_ESTIMATE_LABEL, HVAC_MASS_RULE } from "./hvacPolicy.ts";
 
 const operand = z.object({
   value: z.number().finite().positive().max(Number.MAX_SAFE_INTEGER),
@@ -61,6 +62,8 @@ export function calculateStraightDuctDraft(input: unknown) {
   });
   return {
     status: "draft-unverified" as const,
+    estimateLabel: HVAC_ESTIMATE_LABEL,
+    massRule: HVAC_MASS_RULE,
     verifiedQuoteEligible: false as const,
     ruleset: "hvac-straight-duct-area-v1" as const,
     sections,

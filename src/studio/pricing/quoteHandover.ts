@@ -1,5 +1,6 @@
 import { zipSync, strToU8 } from "fflate";
 import type { QuoteDraft } from "./quotePdf.ts";
+import { quoteRate } from "./quoteRecord.ts";
 
 /** Stable, documented shape for other apps and automations (import scripts, Zapier/Make, custom CRMs). */
 export const QUOTE_HANDOVER_SCHEMA = "xray.quote-handover/v1" as const;
@@ -7,16 +8,17 @@ export const QUOTE_HANDOVER_SCHEMA = "xray.quote-handover/v1" as const;
 export type HandoverFile = { name: string; mime: string; bytes: Uint8Array };
 
 const slug = (text: string) => text.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "quote";
-export const handoverBaseName = (draft: QuoteDraft) => `${slug(draft.reference)}-draft-quote`;
+export const handoverBaseName = (draft: QuoteDraft) => `${slug(draft.reference)}-${draft.issue ? "issued" : "draft"}-quote`;
 
 export function quoteHandoverJson(draft: QuoteDraft): string {
   return JSON.stringify({
     schema: QUOTE_HANDOVER_SCHEMA,
-    status: "draft-not-sent",
+    status: draft.issue ? "issued" : "draft-not-sent",
+    issue: draft.issue ?? null, pricingBasis: draft.pricingBasis,
     reference: draft.reference, preparedAt: draft.preparedAt, validDays: draft.validDays,
     from: draft.from, customer: draft.customer, siteAddress: draft.siteAddress, notes: draft.notes,
     lines: draft.lines.map(line => ({ description: line.description, stockCode: line.stockCode || null, quantity: line.quantity, unit: line.unit,
-      unitRate: line.rate, amount: line.amount, currency: line.currency, quantitySource: line.source })),
+      unitRate: line.rate, amount: line.amount, currency: line.currency, quantitySource: line.source, taxBasis: line.taxLabel ?? null })),
     totals: draft.totals.map(total => ({ currency: total.currency, subtotal: total.amount, taxBasis: total.taxLabel, tax: total.taxAmount, total: total.totalWithTax })),
     provenance: draft.provenance,
   }, null, 2) + "\n";
@@ -29,9 +31,9 @@ export function quoteHandoverJson(draft: QuoteDraft): string {
 export function quoteLinesCsv(draft: QuoteDraft): string {
   const cell = (value: unknown) => { let text = value === null || value === undefined ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
   const expiry = new Date(Date.parse(draft.preparedAt) + draft.validDays * 86_400_000).toISOString().slice(0, 10);
-  const rows = draft.lines.map(line => [draft.customer, draft.reference, draft.preparedAt.slice(0, 10), expiry, line.stockCode, line.description, line.quantity, line.unit, line.rate, line.amount, line.currency,
-    draft.totals.find(total => total.currency === line.currency)?.taxLabel ?? "", line.source, draft.siteAddress]);
-  return "﻿" + [["ContactName", "Reference", "Date", "ExpiryDate", "ItemCode", "Description", "Quantity", "Unit", "UnitAmount", "LineAmount", "Currency", "Tax", "QuantitySource", "SiteAddress"], ...rows]
+  const rows = draft.lines.map(line => [draft.customer, draft.reference, draft.preparedAt.slice(0, 10), expiry, line.stockCode, line.description, line.quantity, line.unit, quoteRate(line.rate), line.amount, line.currency,
+    line.taxLabel ?? (draft.totals.filter(total => total.currency === line.currency).length === 1 ? draft.totals.find(total => total.currency === line.currency)!.taxLabel : "Mixed tax basis; see quote totals"), line.source, draft.siteAddress, draft.issue ? "issued" : "draft-not-sent", draft.issue?.issuedAt ?? "", draft.pricingBasis.libraryRevision]);
+  return "\uFEFF" + [["ContactName", "Reference", "Date", "ExpiryDate", "ItemCode", "Description", "Quantity", "Unit", "UnitAmount", "LineAmount", "Currency", "Tax", "QuantitySource", "SiteAddress", "Status", "IssuedAt", "PriceLibraryRevision"], ...rows]
     .map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 

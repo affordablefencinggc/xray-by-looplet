@@ -3,12 +3,14 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import { advanceDelivery, deliveryRecordSchema, DELIVERY_RECORD_SCHEMA, type DeliveryRecord } from "../deliveryRecord.ts";
 import { evaluateHvacNetwork, hvacNetworkSchema, isPipeNode } from "./hvacNetwork.ts";
 import type { IndustrySourceBinding } from "../sourceBinding.ts";
+import { calculateHvacPressureLoss } from "./hvacPressureLoss.ts";
+import { HVAC_ESTIMATE_LABEL } from "./hvacPolicy.ts";
 
 export function calculateHvacSchedules(input: unknown) {
   const checked = evaluateHvacNetwork(input);
   const limitMs = checked.network.occupancy === "residential" ? 6 : 8;
   const allowance = (run: typeof checked.runs[number]) => run.lengthM === null || run.pressureAllowancePaPerM === null ? null : run.lengthM * run.pressureAllowancePaPerM;
-  return { ...checked, limitMs,
+  return { ...checked, limitMs, pressureLoss: calculateHvacPressureLoss(checked),
     airflow: checked.runs.filter(run => run.service !== "pipe").map(run => {
       const velocityMs = run.airflowLs === null || run.areaM2 === null ? null : run.airflowLs / 1000 / run.areaM2;
       return { id: run.id, velocityMs, velocityStatus: velocityMs === null ? "unknown" : velocityMs > limitMs ? "review-noise" : "within-project-threshold", pressureAllowancePa: allowance(run) };
@@ -50,6 +52,7 @@ export async function verifyHvacPackage(value: HvacPackage) {
   if (delivery.kind !== "hvac-commissioning" || value.content.format !== "xray.hvac-draft-package/v1" || delivery.projectId !== value.content.projectId || canonical(delivery.sourceBinding) !== canonical(value.content.sourceBinding)) throw Error("HVAC package delivery metadata does not match its content.");
   if (canonical(calculateHvacSchedules(value.content.network)) !== canonical(value.content.schedules)) throw Error("HVAC schedule no longer matches its inputs.");
   if (await digest(canonical(value.content)) !== delivery.contentSha256) throw Error("HVAC package SHA-256 mismatch.");
+  if (delivery.id !== `hvac-${delivery.contentSha256.slice(0, 16)}`) throw Error("HVAC record identity does not match its content seal.");
   return { ...value, delivery };
 }
 async function advanceHvacPackage(value: HvacPackage, nextState: DeliveryRecord["state"], options: { reviewedAt?: string; issuedAt?: string } = {}) {
@@ -65,16 +68,46 @@ export function reviewHvacPackage(value: HvacPackage, reviewedAt: string) {
 export function issueHvacPackage(value: HvacPackage, issuedAt: string) {
   return advanceHvacPackage(value, "issued-deliverable", { issuedAt });
 }
+
+/** Frozen records live in the project draft store; every restored record is reverified. */
+export async function readHvacHistory(raw: string | undefined, projectId: string): Promise<HvacPackage[]> {
+  if (!raw) return [];
+  if (raw.length > 1000000) throw Error("HVAC history exceeds the supported size.");
+  const records: unknown = JSON.parse(raw);
+  if (!Array.isArray(records) || records.length > 20) throw Error("HVAC history must contain at most 20 records.");
+  const seen = new Set<string>();
+  return Promise.all(records.map(async record => {
+    const checked = await verifyHvacPackage(record);
+    if (checked.delivery.projectId !== projectId || seen.has(checked.delivery.id)) throw Error("HVAC history has a duplicate or foreign project record.");
+    seen.add(checked.delivery.id); return checked;
+  }));
+}
+export async function recordHvacPackage(raw: string | undefined, value: HvacPackage): Promise<string> {
+  const checked = await verifyHvacPackage(value), records = await readHvacHistory(raw, checked.delivery.projectId);
+  const index = records.findIndex(record => record.delivery.id === checked.delivery.id), prior = records[index];
+  if (prior && prior.delivery.state === "issued-deliverable" && canonical(prior) !== canonical(checked)) throw Error("An issued HVAC record is frozen. Prepare a new revision from changed inputs.");
+  if (prior && checked.delivery.revision < prior.delivery.revision) throw Error("A saved HVAC record cannot move backwards.");
+  if (index < 0) records.push(checked); else records[index] = checked;
+  const next = JSON.stringify(records);
+  await readHvacHistory(next, checked.delivery.projectId);
+  return next;
+}
 const csvCell = (v: unknown) => { const s = v === null ? "unknown" : String(v); return `"${/^[\s]*[=+\-@]/.test(s) ? "'" : ""}${s.replaceAll('"', '""')}"`; };
 export async function hvacPackageCsv(value: HvacPackage) {
   await verifyHvacPackage(value);
   const { schedules: s } = value.content;
   const rows: unknown[][] = [[value.delivery.state === "issued-deliverable" ? "HVAC issue - frozen declared record; not an independent commissioning certificate" : value.delivery.state === "reviewed-estimate" ? "HVAC review - frozen declared record; not an independent commissioning certificate" : "HVAC draft - unverified; not a commissioning certificate", value.delivery.contentSha256], ["Reference", s.network.reference], ["Evidence", s.network.evidence],
+    [HVAC_ESTIMATE_LABEL],
     ["Node", "Zone", "Kind", "Equipment tag", "Service", "Design L/s", "Minimum L/s (-10%)", "Maximum L/s (+10%)", "Measured L/s", "Status"],
     ...s.commissioning.map(n => [n.id, n.zone, n.kind, n.tag, n.service, n.designLs, n.minimumLs, n.maximumLs, n.measuredLs, n.status]),
     [], ["Run", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.airflow.map(r => [r.id, r.velocityMs, r.velocityStatus, r.pressureAllowancePa]),
     [], ["Pipe run", "Outside diameter m", "Inside diameter m", "Pipe flow L/s", "Velocity m/s", "Check", "Entered pressure allowance Pa"], ...s.pipeFlow.map(r => [r.id, r.outsideDiameterM, r.insideDiameterM, r.flowLs, r.velocityMs, r.status, r.pressureAllowancePa]),
     [], ["Fitting node", "Type", "Service", "Source reference", "Ports", "Conservative clearance"], ...s.fittings.map(f => [f.id, f.kind, f.service, f.reference, f.ports.length, f.clash ? "review-potential-clash" : "no-bounded-clash"]),
+    [], ["Straight pressure loss estimate", "Service", "Trimmed length m", "Hydraulic diameter m", "Velocity m/s", "Fluid density kg/m3", "Darcy f", "Loss Pa", "Source", "Unknown reasons"],
+    ...s.pressureLoss.straight.map(r => [r.id, r.service, r.straightLengthM, r.hydraulicDiameterM, r.velocityMs, r.densityKgM3, r.darcyFrictionFactor, r.lossPa, r.reference, r.reasons.join("; ")]),
+    [], ["Fitting pressure loss estimate", "Incoming run", "Outgoing run", "Velocity basis run", "K", "Velocity m/s", "Fluid density kg/m3", "Loss Pa", "Source", "Unknown reasons"],
+    ...s.pressureLoss.fittings.map(r => [r.nodeId, r.inletEdgeId, r.outletEdgeId, r.velocityEdgeId, r.coefficientK, r.velocityMs, r.densityKgM3, r.lossPa, r.reference, r.reasons.join("; ")]),
+    [s.pressureLoss.limits],
     [], ["Network issue", "Target", "Message"], ...s.issues.map(i => [i.code, i.target, i.message]),
     [], ["Network inputs (metres; flow L/s)", canonical(s.network)], ["Delivery metadata", canonical(value.delivery)]];
   return rows.map(row => row.map(csvCell).join(",")).join("\r\n");
@@ -93,6 +126,7 @@ export async function hvacPackagePdf(value: HvacPackage) {
   const reviewed = value.delivery.state === "reviewed-estimate";
   const measured = s.commissioning.some(row => row.measuredLs !== null);
   line(issued ? "HVAC equipment and commissioning issue" : reviewed ? "HVAC equipment and commissioning review" : "HVAC equipment and commissioning draft");
+  line(HVAC_ESTIMATE_LABEL.replace("—", "-"));
   line(measured ? "Declared measurements are compared with the +/-10% design range. This record does not certify independent commissioning." : "UNVERIFIED - no measured results, certification or verified quote eligibility.");
   line(`Project: ${value.content.projectId} | Source: ${s.network.reference} | ${s.network.evidence}`);
   line(`SHA-256: ${value.delivery.contentSha256}`); line("Integrity seal identifies content, not engineering approval."); line("");
@@ -102,7 +136,11 @@ export async function hvacPackagePdf(value: HvacPackage) {
   for (const r of s.airflow) line(`${r.id} | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | ${r.velocityStatus} | Pressure allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`);
   if (s.pipeFlow.length) { line(""); line("Pipe flow - inside diameter used for velocity; no design limit assessed"); for (const r of s.pipeFlow) line(`${r.id} | OD ${r.outsideDiameterM} m | ID ${r.insideDiameterM ?? "unknown"} m | ${r.flowLs ?? "unknown"} L/s | ${r.velocityMs?.toFixed(3) ?? "unknown"} m/s | Allowance ${r.pressureAllowancePa?.toFixed(2) ?? "unknown"} Pa`); }
   if (s.fittings.length) { line(""); line("Declared coordination fittings - conservative clearance; no fabrication quantities"); for (const f of s.fittings) line(`${f.id} | ${f.kind} | ${f.service} | ${f.reference} | ${f.ports.length} ports | ${f.clash ? "REVIEW POTENTIAL CLASH" : "no bounded clash"}`); }
-  line("Pressure allowance uses the entered Pa/m only; no friction or fitting solver."); line(""); line("Network review");
+  line(""); line("Straight pressure loss estimates - declared Darcy friction factor");
+  for (const r of s.pressureLoss.straight) { line(`${r.id} | L ${r.straightLengthM ?? "unknown"} m | Dh ${r.hydraulicDiameterM ?? "unknown"} m | v ${r.velocityMs ?? "unknown"} m/s | density ${r.densityKgM3 ?? "unknown"} kg/m3 | Darcy f ${r.darcyFrictionFactor ?? "unknown"} | loss ${r.lossPa?.toFixed(3) ?? "unknown"} Pa`); line(`Source: ${r.reference || "unknown"}${r.reasons.length ? ` | ${r.reasons.join("; ")}` : ""}`); }
+  line(""); line("Fitting pressure loss estimates - declared K and velocity basis");
+  for (const r of s.pressureLoss.fittings) { line(`${r.nodeId} | ${r.inletEdgeId || "?"} -> ${r.outletEdgeId || "?"} | velocity basis ${r.velocityEdgeId || "?"} | K ${r.coefficientK ?? "unknown"} | loss ${r.lossPa?.toFixed(3) ?? "unknown"} Pa`); line(`Source: ${r.reference || "unknown"}${r.reasons.length ? ` | ${r.reasons.join("; ")}` : ""}`); }
+  line(s.pressureLoss.limits); line(""); line("Network review");
   if (!s.issues.length) line("No issues detected by these bounded checks. Professional review still required.");
   for (const i of s.issues) line(`${i.target}: ${i.code} - ${i.message}`);
   line("Beam checks use conservative envelopes. Full source schedule is attached as JSON.");

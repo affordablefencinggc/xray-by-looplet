@@ -1,0 +1,577 @@
+diff --git a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+index 969ab9ea..a6528321 100644
+--- a/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
++++ b/src/studio/industries/quantity-surveying/QuantityReportView.test.ts
+@@ -18,7 +18,7 @@ mkdirSync(resolve('node_modules/.cache'), { recursive: true });
+ const dir = mkdtempSync(resolve('node_modules/.cache/quantity-report-'));
+ // The worksheet panel imports the shared source-binding contract from the parent directory, so that
+ // module is transpiled too and its relative require is rewritten alongside the same-directory ones.
+-for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../pricing/priceBooks.ts']) {
++for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../pricing/quoteRecord.ts', '../../pricing/priceBooks.ts']) {
+   const code = ts.transpileModule(readFileSync(join(here, name), 'utf8'), {
+     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
+   }).outputText
+diff --git a/src/studio/pricing/PriceBookPanel.tsx b/src/studio/pricing/PriceBookPanel.tsx
+index 2ac25f65..f90ecde7 100644
+--- a/src/studio/pricing/PriceBookPanel.tsx
++++ b/src/studio/pricing/PriceBookPanel.tsx
+@@ -10,7 +10,8 @@ import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
+ import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
+ import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
+ import { priceBookLibrarySchema } from "./priceBooks.ts";
+-import { buildQuoteDraft, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
++import { buildQuoteDraft, issueQuote, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
++import { quoteRate } from "./quoteRecord.ts";
+ import { quoteEmailLink, quoteGmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
+ 
+ /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
+@@ -175,7 +176,7 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId:
+         {parseError && <p role="alert">{parseError}</p>}
+         {!review && table && mapping && <fieldset><legend>Match your columns</legend><div className="price-fields">{(["stockCode", "description", "unit", "rate"] as const).map(field => <label key={field}>{({ stockCode: "Stock code (optional)", description: "Description", unit: "Unit", rate: "Rate" })[field]}<select value={mapping[field] ?? -1} onChange={e => setMapping({ ...mapping, [field]: Number(e.target.value) < 0 ? null : Number(e.target.value) })}>{field === "stockCode" && <option value={-1}>No stock code</option>}{table.headers.map((header, i) => <option key={i} value={i}>{i + 1}: {header || "Unnamed column"}</option>)}</select></label>)}</div></fieldset>}
+         {!!rows?.errors.length && <div className="price-notice" role="alert"><strong>Import blocked until these lines are corrected</strong><ul>{rows.errors.map((error, i) => <li key={i}>{error}</li>)}</ul><p>No rates have been saved.</p></div>}
+-        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td className="price-scalar">{row.unit}</td><td className="price-scalar">{row.rate}</td></tr>)}</tbody></table></div></>}
++        {rows && !rows.errors.length && <><p>{rows.rows.length} valid rates · previewing the first {Math.min(20, rows.rows.length)}</p><div className="price-table-wrap"><table><thead><tr><th>Source line</th><th>Stock code</th><th>Description</th><th>Unit</th><th>Rate</th></tr></thead><tbody>{rows.rows.slice(0, 20).map(row => <tr key={row.sourceLine}><td>{row.sourceLine}</td><td>{row.stockCode || "—"}</td><td>{row.description}</td><td className="price-scalar">{row.unit}</td><td className="price-scalar">{quoteRate(row.rate)}</td></tr>)}</tbody></table></div></>}
+         {review ? <div className="price-review"><h3>Review before saving</h3><p>{targetId ? `Append revision to ${value?.books.find(b => b.id === targetId)?.name}` : `Create ${name}`} · {review.rows.length} rates</p>
+           <p>{review.metadata.supplier} · {review.metadata.currency} · {taxLabel(review.metadata.taxBasis)}{review.metadata.taxPercent !== null ? ` (${review.metadata.taxPercent}%)` : ""} · effective {review.metadata.effectiveDate}</p>
+           <p>{review.metadata.sourceReference}</p><p className="price-help">{review.source.kind === "xlsx" ? `Worksheet: ${review.source.worksheet} · ` : ""}Header row: {review.source.headerRow ?? 1}. Existing revisions and priced lines remain unchanged. Saving the book does not apply any rate.</p>
+@@ -191,16 +192,17 @@ export function PriceBookPanel({ jobId, onSessionChange, bom = null }: { jobId:
+     {tab === "worksheet" && <>
+       {bom && value && <BomPricingSection bom={bom} library={value} disabled={!!disabled} onSave={saveMapping} />}
+       <p className="price-help">Apply a saved rate by entering its quantity in the stated unit. Amounts use your selected decimal precision and half-up rounding. No tax, freight, waste, markup or currency conversion is added.</p>
++      {value && <QuoteDraftForm key={jobId} library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} disabled={!!disabled} onSave={save} onNotice={setNotice} />}
+       {!!value?.worksheet.length && <><button className="pill" onClick={() => download(pricedWorksheetCsv(value), "project-priced-worksheet.csv")}><Download size={16} />Export priced worksheet CSV</button>
+-        <QuoteDraftForm library={value} register={bom ? { commitRevision: bom.commitRevision, current: bom.current } : null} onNotice={setNotice} /><div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
+-      {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{rate.rate} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
++        <div className="price-review"><h3>Worksheet subtotals</h3>{pricedWorksheetTotals(value).map((total, i) => <p key={i}><strong>{total.currency} {total.amount}</strong> · {taxLabel(total.taxBasis)}{total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""} · {total.count} lines</p>)}<p className="price-help">Subtotals sum rounded line amounts. Different currencies, tax bases and amount precisions stay separate.</p></div></>}
++      {rate && revision && book && <div className="price-review"><h3>Review priced line</h3><p><strong>{rate.description}</strong> · {rate.stockCode || "No stock code"}</p><p>{quoteRate(rate.rate)} {revision.metadata.currency} / {rate.unit} · {taxLabel(revision.metadata.taxBasis)} · {book.name} revision {revision.revision}</p>
+         {book.revisions.length > revision.revision && <p>A newer revision exists. This line will use the older revision you selected.</p>}
+         <label>Quantity ({rate.unit})<input inputMode="decimal" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>{quantityError && <p role="alert">{quantityError}</p>}
+         {amount && <p className="price-amount">Line amount: {revision.metadata.currency} {amount} · {taxLabel(revision.metadata.taxBasis)}</p>}
+         <div className="price-actions"><button className="pill primary" disabled={disabled || !amount} onClick={() => { if (value && selection) { try { void save(addPricedLine(value, selection.bookId, selection.revision, selection.sourceLine, quantity), "Reviewed rate applied to the priced worksheet.").then(ok => { if (ok) setSelection(null); }); } catch (error) { setNotice(priceBookError(error)); } } }}><Plus size={16} />Add reviewed priced line</button><button className="pill" onClick={() => setSelection(null)}>Cancel line</button></div>
+       </div>}
+       {!value?.worksheet.length && <div className="price-empty"><h3>No priced lines yet</h3><p>Open a price book in the library and choose Use rate. You will review the quantity and amount before adding it.</p><button className="pill" onClick={() => setTab("library")}>Browse price books</button></div>}
+-      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {resolved.row.rate} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}{line.bom ? <p className="price-help" data-bom-linked={line.bom.key}>From material register {line.bom.commitRevision}: {line.bom.key} {line.bom.bomQuantity} {line.bom.unit} × {line.bom.factor}{line.bom.rounding === "up" ? ", rounded up" : ""}. Change or clear its mapping above to change this line.</p> : <details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details>}</article>; })}
++      {value?.worksheet.map(line => { const resolved = resolvePricedLine(value, line); return <article className="price-book-card" key={line.id}><h3>{resolved.row.description}</h3><p>{line.quantity} {resolved.row.unit} × {quoteRate(resolved.row.rate)} = <strong>{resolved.revision.metadata.currency} {resolved.amount}</strong> · {taxLabel(resolved.revision.metadata.taxBasis)}</p><p className="price-help">{resolved.book.name} · revision {line.bookRevision} · source line {line.sourceLine} · {resolved.revision.metadata.supplier} · effective {resolved.revision.metadata.effectiveDate}</p><p className="price-help">{resolved.revision.metadata.sourceReference}</p>{resolved.outdated && <p>Newer pricing is available. This applied line retains its original rate.</p>}{line.bom ? <p className="price-help" data-bom-linked={line.bom.key}>From material register {line.bom.commitRevision}: {line.bom.key} {line.bom.bomQuantity} {line.bom.unit} × {line.bom.factor}{line.bom.rounding === "up" ? ", rounded up" : ""}. Change or clear its mapping above to change this line.</p> : <details><summary>Remove this priced line</summary><p>This removes the worksheet line. The source price book remains.</p><button className="pill" disabled={disabled} onClick={() => { try { void save(removePricedLine(value, line.id), "Priced line removed; source rates preserved."); } catch (error) { setNotice(priceBookError(error)); } }}>Confirm remove priced line</button></details>}</article>; })}
+     </>}
+     <PricingResearchPanel projectId={jobId} />
+   </section>;
+@@ -214,14 +216,14 @@ function BookCard({ book, disabled, onUse, onSaveName, onArchive }: { book: Pric
+     <div className="price-actions"><label>Price book revision<select value={revision.revision} onChange={e => setRevisionNumber(Number(e.target.value))}>{[...book.revisions].reverse().map(r => <option key={r.revision} value={r.revision}>Revision {r.revision} · {r.metadata.effectiveDate}</option>)}</select></label><button className="pill" onClick={() => download(priceRevisionCsv(book, revision.revision), `${book.name.replace(/[^a-z0-9_-]/gi, "-")}-r${revision.revision}.csv`)}><Download size={16} />Export revision CSV</button><button className="pill" disabled={disabled} onClick={onArchive}>{book.archived ? "Restore price book" : "Archive price book"}</button></div>
+     <details><summary>Rename price book</summary><div className="price-toolbar"><label>New price book name<input maxLength={120} value={draftName} onChange={e => setDraftName(e.target.value)} /></label><button className="pill" disabled={disabled || !draftName.trim()} onClick={() => onSaveName(draftName)}>Save name</button></div></details>
+     <details><summary>Browse {revision.rows.length} rates and source details</summary><p className="price-help">{revision.source.fileName}{revision.source.kind === "xlsx" ? ` · worksheet ${revision.source.worksheet}` : ""} · header row {revision.source.headerRow ?? 1} · imported {new Date(revision.importedAt).toLocaleString()} · SHA-256 {revision.source.sha256}</p><label>Find a rate<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Description, stock code or unit" /></label>
+-      <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{row.rate}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
++      <p className="price-help">{matches.length} matches · showing up to 50</p><div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Code</th><th>Unit</th><th>Rate</th><th>Action</th></tr></thead><tbody>{matches.slice(0, 50).map(row => <tr key={row.sourceLine}><td>{row.description}</td><td>{row.stockCode || "—"}</td><td>{row.unit}</td><td>{quoteRate(row.rate)}</td><td><button className="pill" disabled={disabled || book.archived} onClick={() => onUse(revision.revision, row.sourceLine)}>Use rate</button></td></tr>)}</tbody></table></div>
+     </details>
+   </article>;
+ }
+ 
+ function BomPricingSection({ bom, library, disabled, onSave }: { bom: PriceBookBomSource; library: PriceBookLibrary; disabled: boolean; onSave: (key: string, rate: string, factor: string, roundUp: boolean) => void }) {
+   const options = library.books.filter(book => !book.archived).flatMap(book => { const revision = book.revisions.at(-1)!;
+-    return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${row.rate} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
++    return revision.rows.map(row => ({ value: `${book.id}|${revision.revision}|${row.sourceLine}`, label: `${row.stockCode ? `${row.stockCode} · ` : ""}${row.description} · ${quoteRate(row.rate)} ${revision.metadata.currency}/${row.unit} (${book.name})` })); });
+   const mapped = library.bomMappings ?? [];
+   return <div className="price-review" aria-label="Price from material register" data-bom-commit={bom.commitRevision} data-bom-current={bom.current}>
+     <h3>Price from material register</h3>
+@@ -248,27 +250,36 @@ function BomPricingRow({ line, options, disabled, initial, onSave }: { line: Pri
+ }
+ 
+ const QUOTE_FROM_KEY = "xray:quote-from:v1";
+-function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; onNotice: (message: string) => void }) {
++function QuoteDraftForm({ library, register, disabled, onSave, onNotice }: { library: PriceBookLibrary; register: { commitRevision: number; current: boolean } | null; disabled: boolean;
++  onSave: (value: PriceBookLibrary, message: string) => Promise<boolean>; onNotice: (message: string) => void }) {
+   const [from, setFrom] = useState(() => { try { return localStorage.getItem(QUOTE_FROM_KEY) ?? ""; } catch { return ""; } });
+   const [customer, setCustomer] = useState(""), [siteAddress, setSiteAddress] = useState(""), [validDays, setValidDays] = useState("30"), [notes, setNotes] = useState("");
+   const [reference, setReference] = useState(() => `Q-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`), [working, setWorking] = useState(false);
+   const [savedTo, setSavedTo] = useState<string | null>(null), [lastDraft, setLastDraft] = useState<QuoteDraft | null>(null);
++  const [review, setReview] = useState<{ signature: string; quote: QuoteDraft } | null>(null), [selectedIssue, setSelectedIssue] = useState("");
++  const details = { from, customer, siteAddress, reference, validDays: Number(validDays), notes };
++  const signature = JSON.stringify([library, register, details]), currentSignature = useRef(signature); currentSignature.current = signature;
++  const currentReview = review?.signature === signature ? review.quote : null;
++  const issued = library.issuedQuotes ?? [], selected = issued.find(q => q.issue.id === selectedIssue) ?? issued.at(-1);
++  useEffect(() => { setLastDraft(null); setSavedTo(null); }, [signature]);
+   const desktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+   const saveFile = (file: HandoverFile) => {
+     const url = URL.createObjectURL(new Blob([file.bytes.slice().buffer], { type: file.mime }));
+     const link = document.createElement("a"); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+   };
+-  async function prepareFiles() {
+-    const draft = buildQuoteDraft(library, { from, customer, siteAddress, reference, validDays: Number(validDays), notes }, register);
++  async function prepareFiles(snapshot?: QuoteDraft) {
++    const draft = snapshot ?? buildQuoteDraft(library, details, register);
+     try { localStorage.setItem(QUOTE_FROM_KEY, draft.from); } catch { /* per-device convenience only */ }
++    const files = quoteHandoverFiles(draft, await quoteDraftPdf(draft));
++    if (!snapshot && currentSignature.current !== signature) throw Error("The worksheet or quote details changed. Prepare the updated quote again.");
+     setLastDraft(draft);
+-    return { draft, files: quoteHandoverFiles(draft, await quoteDraftPdf(draft)) };
++    return { draft, files };
+   }
+-  async function run(action: "pdf" | "package" | "folder" | "share") {
++  async function run(action: "pdf" | "package" | "folder" | "share", snapshot?: QuoteDraft) {
+     setWorking(true);
+     try {
+-      const { draft, files } = await prepareFiles();
+-      if (action === "pdf") { saveFile(files[0]); setSavedTo(null); onNotice(`Draft quote ${draft.reference} saved as a PDF for your review. Nothing was sent to the customer.`); }
++      const { draft, files } = await prepareFiles(snapshot);
++      if (action === "pdf") { saveFile(files[0]); setSavedTo(null); onNotice(`${draft.issue ? "Issued" : "Draft"} quote ${draft.reference} saved as a PDF. Nothing was sent to the customer.`); }
+       else if (action === "package") { saveFile(quoteHandoverZip(draft, files)); setSavedTo(null); onNotice(`Handover package for ${draft.reference} saved (PDF, spreadsheet lines and JSON in one ZIP). Nothing was sent.`); }
+       else if (action === "folder") {
+         const { open } = await import("@tauri-apps/plugin-dialog");
+@@ -289,6 +300,21 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
+     } catch (error) { onNotice(priceBookError(error)); }
+     finally { setWorking(false); }
+   }
++  function reviewForIssue() {
++    try { setReview({ signature, quote: buildQuoteDraft(library, details, register) }); }
++    catch (error) { onNotice(priceBookError(error)); }
++  }
++  async function markIssued() {
++    if (!currentReview || disabled || working) return;
++    setWorking(true);
++    try {
++      const next = issueQuote(library, details, register);
++      if (await onSave(next, `Quote ${reference.trim()} marked as issued. Its saved quantities, rates and details are frozen. Nothing was sent.`)) {
++        setSelectedIssue(next.issuedQuotes!.at(-1)!.issue.id); setReview(null);
++      }
++    } catch (error) { onNotice(priceBookError(error)); }
++    finally { setWorking(false); }
++  }
+   // The desktop web view reports file sharing but always fails it, so sharing is offered in browsers only.
+   const canShare = !desktop && typeof navigator !== "undefined" && typeof navigator.canShare === "function";
+   async function openEmail(via: "gmail" | "app") {
+@@ -304,8 +330,8 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
+         : `Opened your mail app with quote ${lastDraft.reference}. Attach the PDF, check it and send it yourself; X-Ray sent nothing.`);
+     } catch (error) { onNotice(priceBookError(error)); }
+   }
+-  return <details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
+-    <p className="price-help">Uses the priced lines and subtotals above. Everything is marked as a draft for your review; X-Ray does not send anything. Hand it over whichever way suits you: the PDF, a spreadsheet file your quoting or accounting software can import, or a JSON file for other apps and automations.</p>
++  return <><details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
++    <p className="price-help">Uses the current priced worksheet. Review the quote before marking it as issued. An issued quote keeps a frozen copy of its quantities, rates and details; use a new reference for a revision.</p>
+     <div className="price-fields">
+       <label>Your business<input aria-label="Quote from" maxLength={200} value={from} onChange={e => setFrom(e.target.value)} placeholder="Business name shown on the quote" /></label>
+       <label>Customer<input aria-label="Quote customer" maxLength={200} value={customer} onChange={e => setCustomer(e.target.value)} /></label>
+@@ -314,6 +340,10 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
+       <label className="price-wide">Site address<input aria-label="Quote site address" maxLength={300} value={siteAddress} onChange={e => setSiteAddress(e.target.value)} /></label>
+       <label className="price-wide">Notes for the customer<textarea aria-label="Quote notes" maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} /></label>
+     </div>
++    <div className="price-actions"><button className="pill" disabled={disabled || working || !library.worksheet.length} onClick={reviewForIssue}>Review quote for issue</button></div>
++    {currentReview && <div className="price-review" aria-label="Quote issue review"><QuoteSummary quote={currentReview} />
++      <p className="price-help">Marking as issued saves this quote in the project's issue history. It does not send the quote.</p>
++      <button className="pill primary" disabled={disabled || working} onClick={() => void markIssued()}>Mark quote as issued</button></div>}
+     <div className="price-actions" role="group" aria-label="Hand over the draft quote">
+       <button className="pill primary" disabled={working} onClick={() => void run("pdf")}><Download size={16} />Download draft quote PDF</button>
+       <button className="pill" disabled={working} onClick={() => void run("package")}><Download size={16} />Download handover package (ZIP)</button>
+@@ -323,5 +353,25 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
+       <button className="pill" disabled={working || !lastDraft} onClick={() => void openEmail("app")}>Email with my mail app</button>
+     </div>
+     <p className="price-help">Handover package: PDF, <code>-lines.csv</code> (one row per line: customer, reference, dates, item code, description, quantity, unit, rate, amount) and <code>.json</code> (schema xray.quote-handover/v1). Saving to a Dropbox, OneDrive or Google Drive folder lets that service sync the files. Email with Gmail opens Gmail's compose page in your browser; Email with my mail app uses your computer's default email app. Both fill in the subject and message; attach the PDF yourself.</p>
+-  </details>;
++  </details>
++  {!!issued.length && <details className="price-review" aria-label="Issued quotes" open><summary>Issued quotes ({issued.length})</summary>
++    <label>Saved issue<select aria-label="Saved quote issue" value={selected?.issue.id ?? ""} onChange={e => setSelectedIssue(e.target.value)}>
++      {[...issued].reverse().map(q => <option key={q.issue.id} value={q.issue.id}>{q.reference} · {new Date(q.issue.issuedAt).toLocaleString()}</option>)}</select></label>
++    {selected && <><QuoteSummary quote={selected} /><p className="price-help">Frozen on issue. Changes to the worksheet or supplier library apply to future quotes.</p>
++      <div className="price-actions"><button className="pill" disabled={working} onClick={() => void run("pdf", selected)}>Download issued quote PDF</button>
++        <button className="pill" disabled={working} onClick={() => void run("package", selected)}>Download issued handover (ZIP)</button>
++        {desktop && <button className="pill" disabled={working} onClick={() => void run("folder", selected)}>Save issued handover to a folder…</button>}</div></>}
++  </details>}</>;
++}
++
++function QuoteSummary({ quote }: { quote: QuoteDraft }) {
++  return <div aria-label={quote.issue ? "Frozen issued quote" : "Quote to issue"}>
++    <h3>{quote.issue ? "Issued" : "Review"} {quote.reference}</h3><p>{quote.customer} · {quote.siteAddress}</p>
++    {quote.issue && <p>Issued <time dateTime={quote.issue.issuedAt}>{quote.issue.issuedAt}</time></p>}
++    <p className="price-help">Price library revision {quote.pricingBasis.libraryRevision}. {quote.pricingBasis.books.map(b => `${b.name} revision ${b.revision}`).join("; ")}</p>
++    <div className="price-table-wrap"><table><thead><tr><th>Description</th><th>Quantity</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
++      {quote.lines.map((line, i) => <tr key={i}><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{line.rate}</td><td>{line.currency} {line.amount}</td></tr>)}
++    </tbody></table></div>
++    {quote.totals.map((total, i) => <p key={i}><strong>{total.currency} {total.totalWithTax ?? total.amount}</strong> · {total.totalWithTax !== null ? `including ${total.currency} ${total.taxAmount} tax (subtotal ${total.amount})` : total.taxLabel}</p>)}
++  </div>;
+ }
+diff --git a/src/studio/pricing/priceBooks.ts b/src/studio/pricing/priceBooks.ts
+index a45747cc..928f6c6a 100644
+--- a/src/studio/pricing/priceBooks.ts
++++ b/src/studio/pricing/priceBooks.ts
+@@ -1,4 +1,5 @@
+ import { z } from "zod";
++import { issuedQuoteSchema, quoteRate } from "./quoteRecord.ts";
+ 
+ export const PRICE_CSV_LIMIT = 2 * 1024 * 1024;
+ export const PRICE_LIBRARY_LIMIT = 4 * 1024 * 1024;
+@@ -71,6 +72,7 @@ export const priceBookLibrarySchema = z.object({
+     sourceLine: z.number().int().positive(), quantity: z.string().regex(/^\d{1,10}(?:\.\d{1,6})?$/).refine(v => Number(v) <= 1e9),
+     addedAt: z.string().datetime(), bom: bomLinkSchema.optional() }).strict()).max(5000),
+   bomMappings: z.array(bomMappingSchema).max(500).optional(),
++  issuedQuotes: z.array(issuedQuoteSchema).max(100).optional(),
+ }).strict().superRefine((v, ctx) => {
+   if (new Set(v.books.map(b => b.id)).size !== v.books.length) ctx.addIssue({ code: "custom", message: "Duplicate price book identity." });
+   for (const book of v.books) if (book.revisions.some((r, i) => r.revision !== i + 1))
+@@ -86,6 +88,9 @@ export const priceBookLibrarySchema = z.object({
+   for (const m of mappings) if (!rateExists(m.bookId, m.bookRevision, m.sourceLine)) ctx.addIssue({ code: "custom", message: `Material mapping ${m.key} references a missing source rate.` });
+   const linked = v.worksheet.filter(line => line.bom).map(line => line.bom!.key);
+   if (new Set(linked).size !== linked.length) ctx.addIssue({ code: "custom", message: "A material register item can price only one worksheet line." });
++  const issues = v.issuedQuotes ?? [];
++  if (new Set(issues.map(q => q.issue.id)).size !== issues.length || new Set(issues.map(q => q.reference.toLowerCase())).size !== issues.length)
++    ctx.addIssue({ code: "custom", message: "Each issued quote needs its own identity and reference. Use a new reference for a revision." });
+ });
+ export type PriceBookLibrary = z.infer<typeof priceBookLibrarySchema>;
+ export type PriceBook = PriceBookLibrary["books"][number];
+@@ -133,6 +138,9 @@ export function persistPriceBooks(storage: StoragePort, session: PriceBookSessio
+     if (!next || JSON.stringify(next.revisions.slice(0, original.revisions.length)) !== JSON.stringify(original.revisions))
+       throw Error("Saved source revisions cannot be removed or overwritten. Add a new revision instead.");
+   }
++  const originalQuotes = session.value.issuedQuotes ?? [];
++  if (JSON.stringify((parsed.issuedQuotes ?? []).slice(0, originalQuotes.length)) !== JSON.stringify(originalQuotes))
++    throw Error("Issued quotes cannot be removed or overwritten. Prepare a new quote reference for a revision.");
+   if (storage.getItem(priceBookKey(parsed.jobId)) !== session.raw) throw Error("Price books changed in another window. Reload before saving; this import has not been applied.");
+   storage.setItem(priceBookKey(parsed.jobId), raw);
+   return { value: parsed, raw, blocked: false, error: null };
+@@ -247,7 +255,7 @@ export function pricedWorksheetCsv(library: PriceBookLibrary) {
+   const cell = (value: unknown) => { let text = value === null ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+   return "\uFEFF" + [["Description", "Stock code", "Quantity", "Unit", "Unit rate", "Line amount", "Currency", "Tax basis", "Tax percent", "Amount decimals", "Supplier", "Effective date", "Book", "Revision", "Newer revision available", "Source reference", "Source file", "Source SHA-256", "Source line", "Project", "Added at", "Source worksheet", "Header row", "Quantity source"],
+     ...library.worksheet.map(line => { const r = resolvePricedLine(library, line), m = r.revision.metadata;
+-      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, r.row.rate, r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
++      return [r.row.description, r.row.stockCode, line.quantity, r.row.unit, quoteRate(r.row.rate), r.amount, m.currency, m.taxBasis, m.taxPercent, m.amountDecimals, m.supplier, m.effectiveDate,
+         r.book.name, line.bookRevision, r.outdated ? "yes" : "no", m.sourceReference, r.revision.source.fileName, r.revision.source.sha256, line.sourceLine, library.jobId, line.addedAt, r.revision.source.worksheet ?? "", r.revision.source.headerRow ?? "",
+         line.bom ? `material register ${line.bom.commitRevision}: ${line.bom.key} ${line.bom.bomQuantity} ${line.bom.unit} x ${line.bom.factor}${line.bom.rounding === "up" ? " rounded up" : ""}` : "entered"]; })].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+ }
+@@ -256,6 +264,6 @@ export function priceRevisionCsv(book: PriceBook, revisionNumber: number) {
+   if (!r) throw Error("Price book revision not found.");
+   const cell = (v: unknown) => { let text = v === null ? "" : String(v); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+   return "\uFEFF" + [["Stock code", "Description", "Unit", "Rate", "Currency", "Tax basis", "Tax percent", "Supplier", "Effective date", "Source reference", "Source file", "Source SHA-256", "Source line", "Book", "Revision", "Imported at", "Source worksheet", "Header row"],
+-    ...r.rows.map(row => [row.stockCode, row.description, row.unit, row.rate, r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
++    ...r.rows.map(row => [row.stockCode, row.description, row.unit, quoteRate(row.rate), r.metadata.currency, r.metadata.taxBasis, r.metadata.taxPercent, r.metadata.supplier,
+       r.metadata.effectiveDate, r.metadata.sourceReference, r.source.fileName, r.source.sha256, row.sourceLine, book.name, r.revision, r.importedAt, r.source.worksheet ?? "", r.source.headerRow ?? ""])].map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+ }
+diff --git a/src/studio/pricing/quoteHandover.test.ts b/src/studio/pricing/quoteHandover.test.ts
+index 9188f7ec..ca60f8fb 100644
+--- a/src/studio/pricing/quoteHandover.test.ts
++++ b/src/studio/pricing/quoteHandover.test.ts
+@@ -10,19 +10,39 @@ const draft: QuoteDraft = {
+   lines: [{ description: "Paling 150x12x1800mm", stockCode: "FEN-M005", quantity: "815", unit: "ea", rate: "3", amount: "2445.00", currency: "AUD", source: "material register 3 (TP-PALING)" }],
+   totals: [{ currency: "AUD", amount: "2445.00", taxLabel: "tax not included", taxAmount: null, totalWithTax: null }],
+   provenance: ["AFGC revision 1"],
++  pricingBasis: { libraryRevision: 4, materialRegisterRevision: 3, books: [{ id: "00000000-0000-4000-8000-000000000001", name: "AFGC", revision: 1,
++    supplier: "QA supplier", effectiveDate: "2026-09-23", sourceReference: "Fixture", fileName: "rates.csv", sha256: "c".repeat(64) }] },
+ };
+ 
+ test("JSON handover carries the documented schema, lines and draft status", () => {
+   const value = JSON.parse(quoteHandoverJson(draft));
+   assert.equal(value.schema, QUOTE_HANDOVER_SCHEMA); assert.equal(value.status, "draft-not-sent");
+-  assert.deepEqual(value.lines[0], { description: "Paling 150x12x1800mm", stockCode: "FEN-M005", quantity: "815", unit: "ea", unitRate: "3", amount: "2445.00", currency: "AUD", quantitySource: "material register 3 (TP-PALING)" });
++  assert.deepEqual(value.lines[0], { description: "Paling 150x12x1800mm", stockCode: "FEN-M005", quantity: "815", unit: "ea", unitRate: "3", amount: "2445.00", currency: "AUD", quantitySource: "material register 3 (TP-PALING)", taxBasis: null });
+   assert.deepEqual(value.totals, [{ currency: "AUD", subtotal: "2445.00", taxBasis: "tax not included", tax: null, total: null }]);
+ });
+ 
+ test("line CSV has import-friendly columns, expiry date and a spreadsheet-formula guard", () => {
+   const csv = quoteLinesCsv(draft);
+   assert.ok(csv.startsWith('\uFEFF"ContactName","Reference","Date","ExpiryDate","ItemCode"'));
+-  assert.ok(csv.includes(`"'=QA customer","Q 7/1","2026-09-23","2026-10-23","FEN-M005","Paling 150x12x1800mm","815","ea","3","2445.00","AUD"`));
++  assert.ok(csv.includes(`"'=QA customer","Q 7/1","2026-09-23","2026-10-23","FEN-M005","Paling 150x12x1800mm","815","ea","3.00","2445.00","AUD"`));
++});
++
++test("mixed tax bases in one currency retain the per-line tax declaration", () => {
++  const mixed = { ...draft, lines: [{ ...draft.lines[0], taxLabel: "tax included (10%)" }, { ...draft.lines[0], taxLabel: "plus tax 10%" }],
++    totals: [draft.totals[0], { ...draft.totals[0], taxLabel: "tax included (10%)" }] };
++  const rows = quoteLinesCsv(mixed).split("\r\n"); assert.ok(rows[1].includes('"tax included (10%)"')); assert.ok(rows[2].includes('"plus tax 10%"'));
++  const legacy = { ...mixed, lines: draft.lines }; assert.match(quoteLinesCsv(legacy), /Mixed tax basis/);
++});
++
++test("issued exports identify the issue and frozen price revisions while preserving supplier precision", () => {
++  const issued = { ...draft, issue: { id: "00000000-0000-4000-8000-000000000009", issuedAt: "2026-09-23T11:00:00.000Z" },
++    lines: [{ ...draft.lines[0], rate: "3.123456" }] };
++  const value = JSON.parse(quoteHandoverJson(issued));
++  assert.equal(value.status, "issued"); assert.deepEqual(value.issue, issued.issue);
++  assert.deepEqual(value.pricingBasis, draft.pricingBasis);
++  assert.ok(quoteLinesCsv(issued).includes('"3.123456"'));
++  assert.ok(quoteLinesCsv(issued).includes('"issued","2026-09-23T11:00:00.000Z","4"'));
++  assert.equal(quoteHandoverFiles(issued, new Uint8Array())[0].name, "Q-7-1-issued-quote.pdf");
+ });
+ 
+ test("handover files use safe names and the ZIP holds all three", () => {
+diff --git a/src/studio/pricing/quoteHandover.ts b/src/studio/pricing/quoteHandover.ts
+index cdc3f3b7..7d6e7f6e 100644
+--- a/src/studio/pricing/quoteHandover.ts
++++ b/src/studio/pricing/quoteHandover.ts
+@@ -1,5 +1,6 @@
+ import { zipSync, strToU8 } from "fflate";
+ import type { QuoteDraft } from "./quotePdf.ts";
++import { quoteRate } from "./quoteRecord.ts";
+ 
+ /** Stable, documented shape for other apps and automations (import scripts, Zapier/Make, custom CRMs). */
+ export const QUOTE_HANDOVER_SCHEMA = "xray.quote-handover/v1" as const;
+@@ -7,16 +8,17 @@ export const QUOTE_HANDOVER_SCHEMA = "xray.quote-handover/v1" as const;
+ export type HandoverFile = { name: string; mime: string; bytes: Uint8Array };
+ 
+ const slug = (text: string) => text.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "quote";
+-export const handoverBaseName = (draft: QuoteDraft) => `${slug(draft.reference)}-draft-quote`;
++export const handoverBaseName = (draft: QuoteDraft) => `${slug(draft.reference)}-${draft.issue ? "issued" : "draft"}-quote`;
+ 
+ export function quoteHandoverJson(draft: QuoteDraft): string {
+   return JSON.stringify({
+     schema: QUOTE_HANDOVER_SCHEMA,
+-    status: "draft-not-sent",
++    status: draft.issue ? "issued" : "draft-not-sent",
++    issue: draft.issue ?? null, pricingBasis: draft.pricingBasis,
+     reference: draft.reference, preparedAt: draft.preparedAt, validDays: draft.validDays,
+     from: draft.from, customer: draft.customer, siteAddress: draft.siteAddress, notes: draft.notes,
+     lines: draft.lines.map(line => ({ description: line.description, stockCode: line.stockCode || null, quantity: line.quantity, unit: line.unit,
+-      unitRate: line.rate, amount: line.amount, currency: line.currency, quantitySource: line.source })),
++      unitRate: line.rate, amount: line.amount, currency: line.currency, quantitySource: line.source, taxBasis: line.taxLabel ?? null })),
+     totals: draft.totals.map(total => ({ currency: total.currency, subtotal: total.amount, taxBasis: total.taxLabel, tax: total.taxAmount, total: total.totalWithTax })),
+     provenance: draft.provenance,
+   }, null, 2) + "\n";
+@@ -29,9 +31,9 @@ export function quoteHandoverJson(draft: QuoteDraft): string {
+ export function quoteLinesCsv(draft: QuoteDraft): string {
+   const cell = (value: unknown) => { let text = value === null || value === undefined ? "" : String(value); if (/^[\s]*[=+@'-]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+   const expiry = new Date(Date.parse(draft.preparedAt) + draft.validDays * 86_400_000).toISOString().slice(0, 10);
+-  const rows = draft.lines.map(line => [draft.customer, draft.reference, draft.preparedAt.slice(0, 10), expiry, line.stockCode, line.description, line.quantity, line.unit, line.rate, line.amount, line.currency,
+-    draft.totals.find(total => total.currency === line.currency)?.taxLabel ?? "", line.source, draft.siteAddress]);
+-  return "﻿" + [["ContactName", "Reference", "Date", "ExpiryDate", "ItemCode", "Description", "Quantity", "Unit", "UnitAmount", "LineAmount", "Currency", "Tax", "QuantitySource", "SiteAddress"], ...rows]
++  const rows = draft.lines.map(line => [draft.customer, draft.reference, draft.preparedAt.slice(0, 10), expiry, line.stockCode, line.description, line.quantity, line.unit, quoteRate(line.rate), line.amount, line.currency,
++    line.taxLabel ?? (draft.totals.filter(total => total.currency === line.currency).length === 1 ? draft.totals.find(total => total.currency === line.currency)!.taxLabel : "Mixed tax basis; see quote totals"), line.source, draft.siteAddress, draft.issue ? "issued" : "draft-not-sent", draft.issue?.issuedAt ?? "", draft.pricingBasis.libraryRevision]);
++  return "\uFEFF" + [["ContactName", "Reference", "Date", "ExpiryDate", "ItemCode", "Description", "Quantity", "Unit", "UnitAmount", "LineAmount", "Currency", "Tax", "QuantitySource", "SiteAddress", "Status", "IssuedAt", "PriceLibraryRevision"], ...rows]
+     .map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+ }
+ 
+diff --git a/src/studio/pricing/quotePdf.test.ts b/src/studio/pricing/quotePdf.test.ts
+index 65f98a47..9e65e306 100644
+--- a/src/studio/pricing/quotePdf.test.ts
++++ b/src/studio/pricing/quotePdf.test.ts
+@@ -1,12 +1,13 @@
+ import test from "node:test";
+ import assert from "node:assert/strict";
+-import { addPricedLine, appendPriceBookRevision, emptyPriceBookLibrary, type PriceImport } from "./priceBooks.ts";
++import { addPricedLine, appendPriceBookRevision, emptyPriceBookLibrary, parsePriceBookLibrary, persistPriceBooks, priceBookKey, readPriceBooks, type PriceImport } from "./priceBooks.ts";
+ import { setBomMapping, syncBomPricedLines } from "./bomPricing.ts";
+-import { buildQuoteDraft, quoteDraftPdf } from "./quotePdf.ts";
++import { buildQuoteDraft, issueQuote, quoteDraftPdf } from "./quotePdf.ts";
++import { quoteRate } from "./quoteRecord.ts";
+ 
+ const bookId = "00000000-0000-4000-8000-000000000001";
+ let next = 50;
+-const makeId = () => `00000000-0000-4000-8000-0000000000${next++}` as `${string}-${string}-${string}-${string}-${string}`;
++const makeId = () => `00000000-0000-4000-8000-${String(next++).padStart(12, "0")}` as `${string}-${string}-${string}-${string}-${string}`;
+ const now = "2026-09-23T10:00:00.000Z";
+ const rates: PriceImport = {
+   metadata: { supplier: "AFGC training", currency: "AUD", amountDecimals: 2, taxBasis: "exclusive", taxPercent: 10, effectiveDate: "2026-09-23", sourceReference: "Fixture" },
+@@ -32,6 +33,41 @@ test("draft totals add tax only when the price book states an exclusive percenta
+   ]);
+   assert.deepEqual(draft.totals, [{ currency: "AUD", amount: "2500.50", taxAmount: "250.05", totalWithTax: "2750.55", taxLabel: "plus tax 10%" }]);
+   assert.match(draft.provenance.join("\n"), /material register 3/);
++  assert.deepEqual(draft.lines.map(l => l.rate), ["3.00", "18.50"]);
++  assert.equal(draft.pricingBasis.books[0].sha256, rates.source.sha256);
++});
++
++test("rate display pads cents without rounding away supplier precision", () => {
++  assert.deepEqual([0, 3, 18.5, 1.005, 0.000001, 1000000000].map(quoteRate), ["0.00", "3.00", "18.50", "1.005", "0.000001", "1000000000.00"]);
++});
++
++test("an issued snapshot survives new rates, changed quantities and save/reload with its original cents and source", () => {
++  const original = priced(), register = { commitRevision: 3, current: true };
++  let library = issueQuote(original, details, register, new Date(now), makeId);
++  const snapshot = structuredClone(library.issuedQuotes![0]);
++  assert.equal(snapshot.issue.issuedAt, now); assert.equal(snapshot.pricingBasis.libraryRevision, original.revision);
++  assert.throws(() => issueQuote(library, { ...details, reference: "q-test-1" }, register), /already issued/);
++  assert.throws(() => issueQuote(library, { ...details, reference: "Q-2" }, { ...register, current: false }), /materials changed/);
++  library = appendPriceBookRevision(library, { ...rates, rows: rates.rows.map(r => ({ ...r, rate: r.rate * 2 })) }, "AFGC", bookId, makeId, now);
++  library = syncBomPricedLines(library, { commitRevision: 4, lines: [{ key: "TP-PALING", description: "Timber palings", quantity: "1000", unit: "ea" }] }, makeId, now).library;
++  library = issueQuote(library, { ...details, reference: "Q-TEST-1-R2" }, { commitRevision: 4, current: true }, new Date(now), makeId);
++  const restored = parsePriceBookLibrary(JSON.stringify(library), library.jobId);
++  assert.deepEqual(restored.issuedQuotes![0], snapshot);
++  assert.equal(restored.issuedQuotes![0].totals[0].totalWithTax, "2750.55");
++  assert.equal(restored.issuedQuotes![1].totals[0].totalWithTax, "3361.05");
++  assert.equal(original.issuedQuotes, undefined);
++});
++
++test("storage refuses issue mutation/removal and concurrent updates without replacing saved data", () => {
++  const initial = priced(), data = new Map([[priceBookKey(initial.jobId), JSON.stringify(initial)]]);
++  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, raw: string) => { data.set(key, raw); } };
++  const before = readPriceBooks(storage, initial.jobId), nextLibrary = issueQuote(initial, details, { commitRevision: 3, current: true }, new Date(now), makeId);
++  const saved = persistPriceBooks(storage, before, nextLibrary), savedRaw = saved.raw;
++  const changed = structuredClone(saved.value); changed.revision++; changed.issuedQuotes![0].lines[0].amount = "0.00";
++  assert.throws(() => persistPriceBooks(storage, saved, changed), /cannot be removed or overwritten/);
++  assert.throws(() => persistPriceBooks(storage, saved, { ...saved.value, revision: saved.value.revision + 1, issuedQuotes: [] }), /cannot be removed or overwritten/);
++  assert.throws(() => persistPriceBooks(storage, before, nextLibrary), /another window/);
++  assert.equal(data.get(priceBookKey(initial.jobId)), savedRaw);
+ });
+ 
+ test("a stale or missing material register and missing details refuse the draft", () => {
+@@ -42,6 +78,20 @@ test("a stale or missing material register and missing details refuse the draft"
+   assert.throws(() => buildQuoteDraft(emptyPriceBookLibrary("job-q"), details, null), /Add priced lines/);
+ });
+ 
++test("issued PDF carries the issue time, rate precision and pinned price library revision", async () => {
++  const original = priced(), quote = issueQuote(original, details, { commitRevision: 3, current: true }, new Date(now), makeId).issuedQuotes![0];
++  const bytes = await quoteDraftPdf(quote), { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
++  const task = getDocument({ data: bytes }), doc = await task.promise;
++  try {
++    const parts: string[] = [];
++    for (let n = 1; n <= doc.numPages; n++) parts.push((await (await doc.getPage(n)).getTextContent()).items.map(i => "str" in i ? i.str : "").join(" "));
++    const text = parts.join(" ");
++    for (const expected of ["ISSUED QUOTE", now, `Price library revision: ${original.revision}`, "revision 1", "3.00", "18.50", "AUD 2750.55"])
++      assert.ok(text.includes(expected), `missing ${expected}`);
++    assert.ok(!text.includes("DRAFT QUOTE"));
++  } finally { await task.destroy(); }
++});
++
+ test("the PDF is a readable draft carrying the lines, totals and not-sent marking", async () => {
+   const bytes = await quoteDraftPdf(buildQuoteDraft(priced(), details, { commitRevision: 3, current: true }, new Date(now)));
+   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+diff --git a/src/studio/pricing/quotePdf.ts b/src/studio/pricing/quotePdf.ts
+index 60e1e482..192262a1 100644
+--- a/src/studio/pricing/quotePdf.ts
++++ b/src/studio/pricing/quotePdf.ts
+@@ -1,5 +1,7 @@
+ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+-import { pricedWorksheetTotals, resolvePricedLine, type PriceBookLibrary } from "./priceBooks.ts";
++import { priceBookLibrarySchema, pricedWorksheetTotals, resolvePricedLine, type PriceBookLibrary } from "./priceBooks.ts";
++import { quoteRecordSchema, quoteRate, quoteTaxLabel, type QuoteDraft } from "./quoteRecord.ts";
++export type { QuoteDraft } from "./quoteRecord.ts";
+ 
+ export type QuoteDraftDetails = {
+   from: string;
+@@ -9,13 +11,7 @@ export type QuoteDraftDetails = {
+   validDays: number;
+   notes: string;
+ };
+-export type QuoteDraftLine = { description: string; stockCode: string; quantity: string; unit: string; rate: string; amount: string; currency: string; source: string };
+-export type QuoteDraft = QuoteDraftDetails & {
+-  preparedAt: string;
+-  lines: QuoteDraftLine[];
+-  totals: { currency: string; taxLabel: string; amount: string; taxAmount: string | null; totalWithTax: string | null }[];
+-  provenance: string[];
+-};
++export type QuoteDraftLine = QuoteDraft["lines"][number];
+ 
+ const decimalTimes = (amount: string, percent: number, decimals: number) => {
+   // amount has `decimals` places; percent up to 6 places. Half-up to `decimals`.
+@@ -45,18 +41,33 @@ export function buildQuoteDraft(library: PriceBookLibrary, details: QuoteDraftDe
+   if (!Number.isInteger(trimmed.validDays) || trimmed.validDays < 1 || trimmed.validDays > 365) throw Error("Validity must be 1 to 365 days.");
+   const lines = library.worksheet.map(line => {
+     const r = resolvePricedLine(library, line);
+-    return { description: r.row.description, stockCode: r.row.stockCode, quantity: line.quantity, unit: r.row.unit, rate: String(r.row.rate), amount: r.amount, currency: r.revision.metadata.currency,
+-      source: line.bom ? `material register ${line.bom.commitRevision} (${line.bom.key})` : "entered" };
++    return { description: r.row.description, stockCode: r.row.stockCode, quantity: line.quantity, unit: r.row.unit, rate: quoteRate(r.row.rate), amount: r.amount, currency: r.revision.metadata.currency,
++      source: line.bom ? `material register ${line.bom.commitRevision} (${line.bom.key})` : "entered", taxLabel: quoteTaxLabel(r.revision.metadata.taxBasis, r.revision.metadata.taxPercent) };
+   });
+   const totals = pricedWorksheetTotals(library).map(total => {
+     const taxAmount = total.taxBasis === "exclusive" && total.taxPercent !== null ? decimalTimes(total.amount, total.taxPercent, total.decimals) : null;
+     return { currency: total.currency, amount: total.amount, taxAmount, totalWithTax: taxAmount ? addDecimal(total.amount, taxAmount, total.decimals) : null,
+-      taxLabel: total.taxBasis === "inclusive" ? `tax included${total.taxPercent !== null ? ` (${total.taxPercent}%)` : ""}`
+-        : total.taxBasis === "exclusive" ? (total.taxPercent !== null ? `plus tax ${total.taxPercent}%` : "tax not included") : "tax basis not stated" };
++      taxLabel: quoteTaxLabel(total.taxBasis, total.taxPercent) };
+   });
+   const books = [...new Set(library.worksheet.map(line => { const r = resolvePricedLine(library, line); return `${r.book.name} revision ${line.bookRevision} · ${r.revision.metadata.supplier} · effective ${r.revision.metadata.effectiveDate} · ${r.revision.source.fileName} SHA-256 ${r.revision.source.sha256.slice(0, 16)}…`; }))];
+   const provenance = [...books, ...(linked.length ? [`Quantities for ${linked.length} line(s) from material register ${register!.commitRevision}; other quantities entered by the estimator.`] : ["All quantities entered by the estimator."])];
+-  return { ...trimmed, preparedAt: now.toISOString(), lines, totals, provenance };
++  const basis = [...new Map(library.worksheet.map(line => {
++    const { book, revision } = resolvePricedLine(library, line);
++    return [`${book.id}:${revision.revision}`, { id: book.id, name: book.name, revision: revision.revision, supplier: revision.metadata.supplier,
++      effectiveDate: revision.metadata.effectiveDate, sourceReference: revision.metadata.sourceReference, fileName: revision.source.fileName, sha256: revision.source.sha256 }] as const;
++  })).values()];
++  return quoteRecordSchema.parse({ ...trimmed, preparedAt: now.toISOString(), lines, totals, provenance,
++    pricingBasis: { libraryRevision: library.revision, materialRegisterRevision: linked.length ? register!.commitRevision : null, books: basis } });
++}
++
++/** Snapshot the current worksheet; subsequent rate, quantity and detail changes affect new drafts only. */
++export function issueQuote(library: PriceBookLibrary, details: QuoteDraftDetails, register: { commitRevision: number; current: boolean } | null,
++  now = new Date(), makeId = () => crypto.randomUUID()): PriceBookLibrary {
++  const draft = buildQuoteDraft(library, details, register, now);
++  if (library.issuedQuotes?.some(q => q.reference.toLowerCase() === draft.reference.toLowerCase()))
++    throw Error("That reference is already issued. Enter a new quote reference for a revision.");
++  return priceBookLibrarySchema.parse({ ...library, revision: library.revision + 1,
++    issuedQuotes: [...(library.issuedQuotes ?? []), { ...draft, issue: { id: makeId(), issuedAt: now.toISOString() } }] });
+ }
+ 
+ const PAGE = { width: 595.28, height: 841.89, margin: 48 };
+@@ -74,8 +85,10 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
+ const safe = (text: string) => text.replace(/[‐-―]/g, "-").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/×/g, "x").replace(/…/g, "...").replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+ 
+ export async function quoteDraftPdf(draft: QuoteDraft): Promise<Uint8Array> {
++  draft = quoteRecordSchema.parse(draft);
++  const issued = !!draft.issue, title = issued ? "Issued quote" : "Draft quote";
+   const pdf = await PDFDocument.create();
+-  pdf.setTitle(`Draft quote ${draft.reference}`); pdf.setAuthor(draft.from); pdf.setSubject("Draft quote for review - not sent"); pdf.setCreator("X-Ray by Looplet");
++  pdf.setTitle(`${title} ${draft.reference}`); pdf.setAuthor(draft.from); pdf.setSubject(issued ? "Issued quote - frozen estimator record" : "Draft quote for review - not sent"); pdf.setCreator("X-Ray by Looplet");
+   const regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+   let page: PDFPage = pdf.addPage([PAGE.width, PAGE.height]), y = PAGE.height - PAGE.margin;
+   const width = PAGE.width - PAGE.margin * 2, grey = rgb(0.35, 0.35, 0.35);
+@@ -84,12 +97,13 @@ export async function quoteDraftPdf(draft: QuoteDraft): Promise<Uint8Array> {
+   const text = (value: string, x: number, size = 10, font = regular, color = rgb(0, 0, 0)) => page.drawText(safe(value), { x, y, size, font, color });
+   const para = (value: string, size = 10, font = regular, color = rgb(0, 0, 0)) => { for (const line of wrap(safe(value), font, size, width)) { ensure(size + 4); text(line, PAGE.margin, size, font, color); y -= size + 4; } };
+ 
+-  text("DRAFT QUOTE", PAGE.margin, 20, bold); text("For review - not sent to the customer", PAGE.margin + 175, 10, regular, rgb(0.7, 0.1, 0.1)); y -= 28;
++  text(issued ? "ISSUED QUOTE" : "DRAFT QUOTE", PAGE.margin, 20, bold); text(issued ? "Frozen issue record" : "For review - not sent to the customer", PAGE.margin + 175, 10, regular, rgb(0.7, 0.1, 0.1)); y -= 28;
+   para(draft.from, 12, bold); y -= 6;
+   for (const [label, value] of [["Customer", draft.customer], ["Site", draft.siteAddress || "Not recorded"], ["Reference", draft.reference],
+     ["Prepared", draft.preparedAt.slice(0, 10)], ["Valid for", `${draft.validDays} days from the prepared date`]] as const) {
+     ensure(14); text(`${label}:`, PAGE.margin, 10, bold); for (const [i, line] of wrap(safe(value), regular, 10, width - 80).entries()) { if (i) { y -= 14; ensure(14); } text(line, PAGE.margin + 80, 10); } y -= 14;
+   }
++  if (draft.issue) { para(`Issued: ${draft.issue.issuedAt}`); para(`Issue ID: ${draft.issue.id}`, 8); }
+   y -= 10;
+   const cols = [{ x: PAGE.margin, w: 250, label: "Description" }, { x: PAGE.margin + 255, w: 50, label: "Qty" }, { x: PAGE.margin + 310, w: 35, label: "Unit" },
+     { x: PAGE.margin + 350, w: 65, label: "Rate" }, { x: PAGE.margin + 420, w: 79, label: "Amount" }];
+@@ -98,7 +112,7 @@ export async function quoteDraftPdf(draft: QuoteDraft): Promise<Uint8Array> {
+   for (const line of draft.lines) {
+     const desc = wrap(safe(line.stockCode ? `${line.description} (${line.stockCode})` : line.description), regular, 9, cols[0].w);
+     if (y - desc.length * 12 < PAGE.margin + 30) { newPage(); header(); }
+-    text(desc[0], cols[0].x, 9); text(line.quantity, cols[1].x, 9); text(line.unit, cols[2].x, 9); text(line.rate, cols[3].x, 9); text(`${line.currency} ${line.amount}`, cols[4].x, 9);
++    text(desc[0], cols[0].x, 9); text(line.quantity, cols[1].x, 9); text(line.unit, cols[2].x, 9); text(quoteRate(line.rate), cols[3].x, 9); text(`${line.currency} ${line.amount}`, cols[4].x, 9);
+     for (const extra of desc.slice(1)) { y -= 12; text(extra, cols[0].x, 9); }
+     y -= 12; text(line.source, cols[0].x, 7, regular, grey); y -= 13;
+   }
+@@ -109,10 +123,11 @@ export async function quoteDraftPdf(draft: QuoteDraft): Promise<Uint8Array> {
+   }
+   y -= 8;
+   if (draft.notes) { para("Notes", 10, bold); para(draft.notes, 9); y -= 6; }
+-  para("Basis of this draft", 10, bold);
++  para(issued ? "Basis of this issued quote" : "Basis of this draft", 10, bold);
++  para(`Price library revision: ${draft.pricingBasis.libraryRevision}`, 8, regular, grey);
+   for (const line of draft.provenance) para(`- ${line}`, 8, regular, grey);
+-  para("- No waste, delivery, labour, margin or site conditions are added unless listed above. Quantities come from drawing takeoff and require site verification. This draft is not an engineering or compliance approval.", 8, regular, grey);
++  para("- No waste, delivery, labour, margin or site conditions are added unless listed above. Quantities come from drawing takeoff and require site verification. This quote is not an engineering or compliance approval.", 8, regular, grey);
+   const pages = pdf.getPages();
+-  pages.forEach((p, i) => p.drawText(safe(`Draft quote ${draft.reference} - page ${i + 1} of ${pages.length}`), { x: PAGE.margin, y: 24, size: 8, font: regular, color: grey }));
++  pages.forEach((p, i) => p.drawText(safe(`${title} ${draft.reference} - page ${i + 1} of ${pages.length}`), { x: PAGE.margin, y: 24, size: 8, font: regular, color: grey }));
+   return pdf.save();
+ }
+diff --git a/src/studio/pricing/quoteRecord.ts b/src/studio/pricing/quoteRecord.ts
+new file mode 100644
+index 00000000..a2649e8b
+--- /dev/null
++++ b/src/studio/pricing/quoteRecord.ts
+@@ -0,0 +1,34 @@
++import { z } from "zod";
++
++const decimal = z.string().regex(/^\d+(?:\.\d+)?$/);
++export const quoteRecordSchema = z.object({
++  from: z.string().trim().min(1).max(200), customer: z.string().trim().min(1).max(200),
++  siteAddress: z.string().max(300), reference: z.string().trim().min(1).max(60),
++  validDays: z.number().int().min(1).max(365), notes: z.string().max(2000), preparedAt: z.string().datetime(),
++  lines: z.array(z.object({ description: z.string(), stockCode: z.string(), quantity: decimal, unit: z.string(),
++    rate: decimal, amount: decimal, currency: z.string(), source: z.string(), taxLabel: z.string().optional() }).strict()).min(1).max(5000),
++  totals: z.array(z.object({ currency: z.string(), taxLabel: z.string(), amount: decimal,
++    taxAmount: decimal.nullable(), totalWithTax: decimal.nullable() }).strict()).min(1),
++  provenance: z.array(z.string()),
++  pricingBasis: z.object({ libraryRevision: z.number().int().nonnegative(), materialRegisterRevision: z.number().int().positive().nullable(),
++    books: z.array(z.object({ id: z.string().uuid(), name: z.string(), revision: z.number().int().positive(), supplier: z.string(),
++      effectiveDate: z.string(), sourceReference: z.string(), fileName: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1),
++  }).strict(),
++  issue: z.object({ id: z.string().uuid(), issuedAt: z.string().datetime() }).strict().optional(),
++}).strict();
++export type QuoteDraft = z.infer<typeof quoteRecordSchema>;
++export const issuedQuoteSchema = quoteRecordSchema.required({ issue: true }).refine(
++  quote => Date.parse(quote.issue.issuedAt) >= Date.parse(quote.preparedAt), "An issue cannot predate its quote.",
++);
++export type IssuedQuote = z.infer<typeof issuedQuoteSchema>;
++
++/** Pad, never round, a supplier rate. Rates may carry up to six decimal places. */
++export function quoteRate(value: string | number): string {
++  const [whole, fraction = ""] = String(value).split(".");
++  return `${whole}.${fraction.padEnd(2, "0")}`;
++}
++
++export function quoteTaxLabel(basis: "inclusive" | "exclusive" | "unspecified", percent: number | null): string {
++  return basis === "inclusive" ? `tax included${percent !== null ? ` (${percent}%)` : ""}`
++    : basis === "exclusive" ? (percent !== null ? `plus tax ${percent}%` : "tax not included") : "tax basis not stated";
++}

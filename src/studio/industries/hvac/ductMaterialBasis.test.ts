@@ -3,6 +3,7 @@ import test from "node:test";
 import { ductMaterialBasisSchema, ductMaterialValuesSchema, evaluateDuctMaterialBasis, recordDuctMaterialReview, type DuctMaterialBasis, type DuctMaterialValues } from "./ductMaterialBasis.ts";
 import { calculateStraightDuctDraft } from "./straightDuct.ts";
 import { calculateStraightDuctWrapDraft } from "./straightDuctWrap.ts";
+import { calculateHvacSchedules } from "./hvacSchedules.ts";
 
 // Arithmetic-only synthetic fixture; these numbers are not a normative gauge table.
 const values = (): DuctMaterialValues => ({ material: "galvanized-steel", gaugeLabel: "Synthetic G-01 (not a standard)",
@@ -157,4 +158,19 @@ test("SC12-M14 review metadata and exact source operands roundtrip without dropp
   const row = reviewed(), parsed = ductMaterialBasisSchema.parse(JSON.parse(JSON.stringify(row)));
   assert.deepEqual(parsed, row); assert.deepEqual(parsed.review!.values, ductMaterialValuesSchema.parse(values()));
   assert.equal(evaluateDuctMaterialBasis(parsed).status, "declared");
+});
+
+test("SC12-M15 approved mass rule keeps material mass independent of unknown airflow and velocity", () => {
+  const basis = evaluateDuctMaterialBasis(reviewed()); assert.equal(basis.status, "declared");
+  if (basis.status !== "declared") throw Error("Expected reviewed basis");
+  const duct = { sections: [{ id: "D1", shape: "rectangular", lengthM: operand(10), widthM: operand(.5), heightM: operand(.3), sheetMassKgPerM2: basis.sheetMassKgPerM2 }] };
+  const network = { reference: "Synthetic mass independence", evidence: "sample", occupancy: "residential", beams: [], nodes: [
+    { id: "A", kind: "equipment", zone: "A", x: 0, y: 0, z: 0, designAirflowLs: null, equipmentTag: "" },
+    { id: "B", kind: "diffuser", zone: "B", x: 10, y: 0, z: 0, designAirflowLs: null, equipmentTag: "" }],
+    edges: [{ id: "D1", from: "A", to: "B", shape: "rectangular", widthM: .5, heightM: .3, insulationM: 0, availablePlenumM: null, airflowLs: null, pressureAllowancePaPerM: null }] };
+  assert.equal(calculateHvacSchedules(network).airflow[0].velocityMs, null);
+  const mass = calculateStraightDuctDraft(duct); assert.equal(mass.sheetMassKg, 64); assert.match(mass.massRule, /independently/);
+  assert.equal(calculateHvacSchedules({ ...network, edges: [{ ...network.edges[0], airflowLs: 150 }] }).airflow[0].velocityMs, 1);
+  assert.equal(calculateStraightDuctDraft(duct).sheetMassKg, 64);
+  assert.equal(calculateStraightDuctDraft({ sections: [{ ...duct.sections[0], sheetMassKgPerM2: undefined }] }).sheetMassKg, null);
 });

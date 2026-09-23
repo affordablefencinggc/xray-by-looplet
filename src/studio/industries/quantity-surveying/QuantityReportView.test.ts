@@ -18,7 +18,7 @@ mkdirSync(resolve('node_modules/.cache'), { recursive: true });
 const dir = mkdtempSync(resolve('node_modules/.cache/quantity-report-'));
 // The worksheet panel imports the shared source-binding contract from the parent directory, so that
 // module is transpiled too and its relative require is rewritten alongside the same-directory ones.
-for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../pricing/priceBooks.ts']) {
+for (const name of ['classification.ts', 'quantityForm.ts', 'report.ts', 'qsReportFormatter.ts', 'qsItemBinding.ts', 'qsEntityHighlight.ts', 'qsMeasuredGeometryContext.ts', 'qsPricingContext.ts', 'qsWorksheetState.ts', 'qsRateBook.ts', 'qsDeltaComparison.ts', 'qsPackageExport.ts', 'QSCostPlanPackagePanel.tsx', 'QSWorksheet.tsx', 'QSItemBindingLedger.tsx', 'QSReportPanel.tsx', 'QuantityReportView.tsx', 'QuantityDraftPanel.tsx', '../sourceBinding.ts', '../draftStorage.ts', '../deliveryRecord.ts', '../../pricing/quoteRecord.ts', '../../pricing/priceBooks.ts']) {
   const code = ts.transpileModule(readFileSync(join(here, name), 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: name,
   }).outputText

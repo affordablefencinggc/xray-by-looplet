@@ -1,10 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hvacNetworkSchema, isPipeNode, type HvacNetwork } from "./hvacNetwork.ts";
 import { isFittingKind } from "./hvacFittings.ts";
 import { HVACNetworkViewer } from "./HVACNetworkViewer.tsx";
-import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, issueHvacPackage, reviewHvacPackage, saveHvacDraft, type HvacPackage } from "./hvacSchedules.ts";
+import { calculateHvacSchedules, createHvacPackage, hvacPackageCsv, hvacPackagePdf, issueHvacPackage, readHvacHistory, recordHvacPackage, reviewHvacPackage, saveHvacDraft, type HvacPackage } from "./hvacSchedules.ts";
 import { describeDeliveryState } from "../deliveryRecord.ts";
 import type { IndustrySourceBinding } from "../sourceBinding.ts";
+import { HvacPressureInputs, HvacPressureResults } from "./HvacPressureLossPanel.tsx";
+import { HVAC_ESTIMATE_LABEL } from "./hvacPolicy.ts";
 
 const example: HvacNetwork = { reference: "SAMPLE - replace with your drawing reference", evidence: "sample", occupancy: "residential", nodes: [
   { id: "AHU-1", zone: "Plant", kind: "equipment", equipmentTag: "AHU-1", x: 0, y: 2.8, z: 0, designAirflowLs: 900 },
@@ -14,11 +16,17 @@ const example: HvacNetwork = { reference: "SAMPLE - replace with your drawing re
     { id: "S-2", from: "J-1", to: "GR-1", shape: "rectangular", widthM: .2, heightM: .2, insulationM: .025, availablePlenumM: .4, airflowLs: 450, pressureAllowancePaPerM: 1.2 }],
   beams: [{ id: "B-1", min: [1.5, 2.65, -.5], max: [2, 3.1, .5] }] };
 
-export function HvacCoordinationPanel({ text, onChange, disabled, stale, projectId, binding }: { text: string; onChange: (text: string) => void; disabled: boolean; stale: boolean; projectId: string; binding: IndustrySourceBinding | null }) {
+export function HvacCoordinationPanel({ text, onChange, disabled, stale, projectId, binding, packagesJson, onPackagesChange }: { text: string; onChange: (text: string) => void; disabled: boolean; stale: boolean; projectId: string; binding: IndustrySourceBinding | null; packagesJson?: string; onPackagesChange: (text: string) => void }) {
   const [error, setError] = useState("");
   const [review, setReview] = useState<{ key: string; result: ReturnType<typeof calculateHvacSchedules> } | null>(null);
   const [pack, setPack] = useState<{ key: string; value: HvacPackage; csv: string; pdf: Uint8Array } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState<HvacPackage[]>([]);
+  useEffect(() => {
+    let active = true; setHistory([]);
+    void readHvacHistory(packagesJson, projectId).then(records => { if (active) setHistory(records); }, e => { if (active) setError(e instanceof Error ? e.message : "Saved HVAC history could not be verified."); });
+    return () => { active = false; };
+  }, [packagesJson, projectId]);
   const key = JSON.stringify([text, binding, stale, projectId]); const current = useRef(key); current.current = key;
   let network: HvacNetwork | null = null;
   try { const parsed = hvacNetworkSchema.safeParse(JSON.parse(text)); if (parsed.success) network = parsed.data; } catch { /* incomplete saved draft */ }
@@ -28,7 +36,7 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
   const edit = (collection: "nodes" | "edges", index: number, field: string, value: unknown) => {
     if (!network) return false;
     const next = structuredClone(network); Object.assign(next[collection][index], { [field]: value });
-    if (collection === "edges" && field === "service") { const edge = next.edges[index]; edge.airflowLs = null; edge.pipeFlowLs = null; edge.innerDiameterM = null; if (value === "pipe") edge.shape = "round"; }
+    if (collection === "edges" && field === "service") { const edge = next.edges[index]; edge.airflowLs = null; edge.pipeFlowLs = null; edge.innerDiameterM = null; edge.fluidDensityKgM3 = null; edge.darcyFrictionFactor = null; edge.pressureSourceReference = ""; if (value === "pipe") edge.shape = "round"; }
     const checked = hvacNetworkSchema.safeParse(next);
     if (!checked.success) { setError(`${field}: ${checked.error.issues[0].message}`); return false; }
     update(checked.data); return true;
@@ -48,12 +56,14 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
       const value = await step(available.value);
       if (value.delivery.contentSha256 !== seal) throw Error("The content seal changed while the record was advanced.");
       const [csv, pdf] = await Promise.all([hvacPackageCsv(value), hvacPackagePdf(value)]);
-      if (current.current === key) setPack({ key, value, csv, pdf });
+      const saved = await recordHvacPackage(packagesJson, value);
+      if (current.current === key) { onPackagesChange(saved); setPack({ key, value, csv, pdf }); }
     } catch (e) { setError(e instanceof Error ? e.message : "The HVAC record could not be advanced."); }
     finally { setBusy(false); }
   };
   return <section className="hvac-coordination" aria-label="HVAC network coordination">
     <h3>Network and commissioning</h3>
+    <p className="industry-note">{HVAC_ESTIMATE_LABEL}. Round runs and fittings use conservative clearance envelopes; potential clashes require review.</p>
     <p className="industry-note">Connect equipment and terminals across zones. Coordinates and sizes use metres; separate air and pipe flows use L/s. Pipe outside diameter controls clearance; inside diameter controls velocity. Checks remain a draft for professional review.</p>
     <fieldset disabled={disabled || busy}>
       <legend>Network schedule</legend>
@@ -84,6 +94,7 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
         </div><button type="button" disabled={network.edges.length <= 1} onClick={() => update({ ...network!, edges: network!.edges.filter((_, j) => i !== j) })}>Remove run {edge.id}</button></fieldset>)}
           <button type="button" disabled={network.edges.length >= 200 || network.nodes.length < 2} onClick={() => update({ ...network!, evidence: "sample", edges: [...network!.edges, { ...example.edges[0], id: `run-${crypto.randomUUID().slice(0, 8)}`, from: network!.nodes[0].id, to: network!.nodes[1].id, airflowLs: null, availablePlenumM: null }] })}>Add sample run</button>
         </details>
+        <HvacPressureInputs network={network} edit={edit} />
       </>}
       <div className="industry-actions"><button type="button" disabled={!text || stale} onClick={() => { try { setReview({ key, result: calculateHvacSchedules(JSON.parse(text)) }); setError(""); } catch (e) { setReview(null); setError(e instanceof Error ? e.message : "Invalid network schedule"); } }}>Review network and schedules</button>
         <button type="button" disabled={!result} onClick={async () => { setBusy(true); setError(""); try { const value = await createHvacPackage(JSON.parse(text), projectId, binding); const [csv, pdf] = await Promise.all([hvacPackageCsv(value), hvacPackagePdf(value)]); if (current.current === key) setPack({ key, value, csv, pdf }); } catch (e) { setError(e instanceof Error ? e.message : "Package generation failed"); } finally { setBusy(false); } }}>Prepare sealed draft package</button></div>
@@ -91,16 +102,23 @@ export function HvacCoordinationPanel({ text, onChange, disabled, stale, project
     {stale && <p role="alert">Network results withheld: the worksheet source binding is stale. Rebind or clear the binding before reviewing again.</p>}
     {error && <p role="alert" className="industry-error">{error}</p>}
     {result && <section aria-label="HVAC coordination result" className="industry-result">
+      <p>{HVAC_ESTIMATE_LABEL}</p>
       <p><strong>{result.network.evidence === "sample" ? "Sample network" : "Declared network"} · unverified · not eligible for a verified quote</strong></p>
       <HVACNetworkViewer fittings={result.fittings} beams={result.network.beams} runs={result.runs.flatMap(run => run.start && run.end ? [{ id: run.id, a: run.start, b: run.end, width: run.widthM, height: run.shape === "round" ? run.widthM : run.heightM, round: run.shape === "round", service: run.service, insulation: run.insulationM, clash: result.issues.some(i => i.target === run.id && (i.code === "beam" || i.code === "plenum")) }] : [])} />
-      {result.fittings.length > 0 && <div className="industry-table-wrap" role="region" tabIndex={0} aria-label="Fitting schedule, scroll horizontally"><table><caption>Declared coordination fittings</caption><thead><tr><th>Node</th><th>Type</th><th>Service</th><th>Source</th><th>Ports</th><th>Clearance</th></tr></thead><tbody>{result.fittings.map((f, i) => <tr key={i}><th>{f.id}</th><td>{f.kind}</td><td>{f.service}</td><td>{f.reference}</td><td>{f.ports.length}</td><td>{f.clash ? "Review potential clash" : "No bounded clash detected"}</td></tr>)}</tbody></table><p className="industry-note">Fitting preview uses declared dimensions and conservative clearance bounds. No fabrication, fitting mass or pressure-loss allowance is derived. Straight lengths stop at fitting ports.</p></div>}
+      {result.fittings.length > 0 && <div className="industry-table-wrap" role="region" tabIndex={0} aria-label="Fitting schedule, scroll horizontally"><table><caption>Declared coordination fittings</caption><thead><tr><th>Node</th><th>Type</th><th>Service</th><th>Source</th><th>Ports</th><th>Clearance</th></tr></thead><tbody>{result.fittings.map((f, i) => <tr key={i}><th>{f.id}</th><td>{f.kind}</td><td>{f.service}</td><td>{f.reference}</td><td>{f.ports.length}</td><td>{f.clash ? "Review potential clash" : "No bounded clash detected"}</td></tr>)}</tbody></table><p className="industry-note">Fitting preview uses declared dimensions and conservative clearance bounds. Fabrication and fitting mass are excluded. Pressure loss requires the separate declared coefficients below. Straight lengths stop at fitting ports.</p></div>}
       <h4>Network review · {result.issues.length} issues</h4><ul className="hvac-issues">{result.issues.map((issue, i) => <li key={i}><strong>{issue.target}: {issue.code}</strong> — {issue.message}</li>)}</ul>
       {!result.issues.length && <p>No issues detected by the bounded network checks.</p>}
       <div className="industry-table-wrap" role="region" tabIndex={0} aria-label="Airflow schedule, scroll horizontally"><table><caption>Airflow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Velocity (m/s)</th><th>Review</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.airflow.map((row, i) => <tr key={i}><th>{row.id}</th><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.velocityStatus}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table></div>
-      {result.pipeFlow.length > 0 && <div className="industry-table-wrap" role="region" tabIndex={0} aria-label="Pipe flow schedule, scroll horizontally"><table><caption>Pipe flow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Outside / inside diameter (m)</th><th>Pipe flow (L/s)</th><th>Velocity (m/s)</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.pipeFlow.map((row, i) => <tr key={i}><th>{row.id}</th><td>{row.outsideDiameterM} / {row.insideDiameterM ?? "unknown"}</td><td>{row.flowLs ?? "unknown"}</td><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table><p className="industry-note">Pipe velocity uses declared inside diameter. No pipe design limit, friction or fitting loss is assessed. Air-duct noise thresholds do not apply.</p></div>}
+      {result.pipeFlow.length > 0 && <div className="industry-table-wrap" role="region" tabIndex={0} aria-label="Pipe flow schedule, scroll horizontally"><table><caption>Pipe flow and entered pressure allowances</caption><thead><tr><th>Run</th><th>Outside / inside diameter (m)</th><th>Pipe flow (L/s)</th><th>Velocity (m/s)</th><th>Allowance (Pa)</th></tr></thead><tbody>{result.pipeFlow.map((row, i) => <tr key={i}><th>{row.id}</th><td>{row.outsideDiameterM} / {row.insideDiameterM ?? "unknown"}</td><td>{row.flowLs ?? "unknown"}</td><td>{row.velocityMs?.toFixed(3) ?? "unknown"}</td><td>{row.pressureAllowancePa?.toFixed(2) ?? "unknown"}</td></tr>)}</tbody></table><p className="industry-note">Pipe velocity uses declared inside diameter. No pipe design limit is assessed. Pressure losses below need separately supplied fluid and friction inputs. Air-duct noise thresholds do not apply.</p></div>}
       <div className="industry-table-wrap" role="region" tabIndex={0} aria-label="Equipment commissioning schedule, scroll horizontally"><table><caption>Equipment and commissioning · ±10% design range</caption><thead><tr><th>Equipment / terminal</th><th>Zone</th><th>Service</th><th>Design (L/s)</th><th>Test range (L/s)</th><th>Measured</th><th>Result</th></tr></thead><tbody>{result.commissioning.map((row, i) => <tr key={i}><th>{row.id} {row.tag}</th><td>{row.zone}</td><td>{row.service}</td><td>{row.designLs ?? "unknown"}</td><td>{row.minimumLs === null ? "unknown" : `${row.minimumLs.toFixed(2)} – ${row.maximumLs!.toFixed(2)}`}</td><td>{row.measuredLs ?? "Not tested"}</td><td>{row.status}</td></tr>)}</tbody></table></div>
     </section>}
-    {available && <section aria-label="Sealed HVAC draft package" className="industry-result"><p>{describeDeliveryState(available.value.delivery.state)}. The seal identifies this content; it does not certify the design or independent commissioning.</p><p className="hvac-seal">SHA-256: {available.value.delivery.contentSha256}</p><div className="industry-actions">
+    {result && <HvacPressureResults result={result.pressureLoss} />}
+    {!!history.length && <details aria-label="Saved HVAC records"><summary>Saved HVAC records ({history.length})</summary>
+      <p className="industry-note">Frozen records retain their original network and source. They do not update with the current worksheet. {HVAC_ESTIMATE_LABEL}.</p>
+      {history.map(record => <div className="industry-result" key={record.delivery.id}><p>{record.content.network.reference} · {describeDeliveryState(record.delivery.state)}</p><p className="hvac-seal">{record.delivery.contentSha256}</p><p>Reviewed: {record.delivery.reviewedAt ?? "not reviewed"} · Issued: {record.delivery.issuedAt ?? "not issued"}</p>
+        <button type="button" disabled={disabled || busy} onClick={async () => { setBusy(true); try { const [csv, pdf] = await Promise.all([hvacPackageCsv(record), hvacPackagePdf(record)]); if (current.current === key) setPack({ key, value: record, csv, pdf }); } catch (e) { setError(e instanceof Error ? e.message : "Saved record could not be opened."); } finally { setBusy(false); } }}>Open saved {record.delivery.id}</button></div>)}
+    </details>}
+    {available && <section aria-label="Sealed HVAC draft package" className="industry-result"><p>{HVAC_ESTIMATE_LABEL}. {describeDeliveryState(available.value.delivery.state)}. The seal identifies this content; it does not certify the design or independent commissioning.</p><p className="hvac-seal">SHA-256: {available.value.delivery.contentSha256}</p><div className="industry-actions">
       {available.value.delivery.state === "draft-export" && <button type="button" disabled={busy} onClick={() => void advance(saveHvacDraft)}>Save draft record</button>}
       {available.value.delivery.state === "saved-draft" && <button type="button" disabled={busy} onClick={() => void advance(value => reviewHvacPackage(value, new Date().toISOString()))}>Mark reviewed</button>}
       {available.value.delivery.state === "reviewed-estimate" && <button type="button" disabled={busy} onClick={() => void advance(value => issueHvacPackage(value, new Date().toISOString()))}>Issue deliverable</button>}
