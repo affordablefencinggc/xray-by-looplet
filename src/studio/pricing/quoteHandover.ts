@@ -49,10 +49,22 @@ export function quoteHandoverZip(draft: QuoteDraft, files: HandoverFile[]): Hand
   return { name: `${handoverBaseName(draft)}-handover.zip`, mime: "application/zip", bytes: zipSync(entries, { level: 6, mtime: new Date(draft.preparedAt) }) };
 }
 
-/** Opens the user's mail app with the quote summary; the PDF is attached by the user from where it was saved. */
-export function quoteEmailLink(draft: QuoteDraft, savedLocation: string | null): string {
+function quoteEmailParts(draft: QuoteDraft, savedLocation: string | null) {
   const total = draft.totals.map(t => `${t.currency} ${t.totalWithTax ?? t.amount}${t.totalWithTax ? "" : ` (${t.taxLabel})`}`).join(", ");
   const body = [`Hi ${draft.customer},`, "", `Please find attached our quote ${draft.reference} for ${draft.siteAddress || "the site"}.`, `Total: ${total}. Valid for ${draft.validDays} days.`, "",
     savedLocation ? `(Attach: ${savedLocation})` : `(Attach the PDF ${handoverBaseName(draft)}.pdf before sending.)`, "", draft.from].join("\n");
-  return `mailto:?subject=${encodeURIComponent(`Quote ${draft.reference} - ${draft.from}`)}&body=${encodeURIComponent(body)}`;
+  return { subject: `Quote ${draft.reference} - ${draft.from}`, body };
+}
+
+/** Opens the user's mail app with the quote summary; the PDF is attached by the user from where it was saved. */
+export function quoteEmailLink(draft: QuoteDraft, savedLocation: string | null): string {
+  const { subject, body } = quoteEmailParts(draft, savedLocation);
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+export const GMAIL_COMPOSE_PREFIX = "https://mail.google.com/mail/?view=cm&fs=1";
+/** Gmail's own compose page in the browser, prefilled. Works without a Windows default mail app. */
+export function quoteGmailLink(draft: QuoteDraft, savedLocation: string | null): string {
+  const { subject, body } = quoteEmailParts(draft, savedLocation);
+  return `${GMAIL_COMPOSE_PREFIX}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

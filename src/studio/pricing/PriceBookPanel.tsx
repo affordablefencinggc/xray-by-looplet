@@ -11,7 +11,7 @@ import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
 import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
 import { priceBookLibrarySchema } from "./priceBooks.ts";
 import { buildQuoteDraft, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
-import { quoteEmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
+import { quoteEmailLink, quoteGmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
 
 /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
 export type PriceBookBomSource = BomPricingSource & { current: boolean };
@@ -291,15 +291,17 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
   }
   // The desktop web view reports file sharing but always fails it, so sharing is offered in browsers only.
   const canShare = !desktop && typeof navigator !== "undefined" && typeof navigator.canShare === "function";
-  async function openEmail() {
+  async function openEmail(via: "gmail" | "app") {
     if (!lastDraft) return;
-    const link = quoteEmailLink(lastDraft, savedTo);
+    const link = via === "gmail" ? quoteGmailLink(lastDraft, savedTo) : quoteEmailLink(lastDraft, savedTo);
     try {
       if (desktop) {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("xray_open_mail_draft", { url: link }).catch((error: unknown) => { throw Error(typeof error === "string" ? error : "Your mail app could not be opened."); });
-      } else window.location.href = link;
-      onNotice(`Opened your mail app with quote ${lastDraft.reference}. Attach the PDF, check it and send it yourself; X-Ray sent nothing.`);
+      } else if (via === "gmail") window.open(link, "_blank", "noopener");
+      else window.location.href = link;
+      onNotice(via === "gmail" ? `Opened Gmail in your browser with quote ${lastDraft.reference}. Attach the PDF, check it and send it yourself; X-Ray sent nothing.`
+        : `Opened your mail app with quote ${lastDraft.reference}. Attach the PDF, check it and send it yourself; X-Ray sent nothing.`);
     } catch (error) { onNotice(priceBookError(error)); }
   }
   return <details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
@@ -317,8 +319,9 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
       <button className="pill" disabled={working} onClick={() => void run("package")}><Download size={16} />Download handover package (ZIP)</button>
       {desktop && <button className="pill" disabled={working} onClick={() => void run("folder")}>Save handover to a folder…</button>}
       {canShare && <button className="pill" disabled={working} onClick={() => void run("share")}>Share PDF…</button>}
-      <button className="pill" disabled={working || !lastDraft} onClick={() => void openEmail()}>Write email</button>
+      <button className="pill" disabled={working || !lastDraft} onClick={() => void openEmail("gmail")}>Email with Gmail</button>
+      <button className="pill" disabled={working || !lastDraft} onClick={() => void openEmail("app")}>Email with my mail app</button>
     </div>
-    <p className="price-help">Handover package: PDF, <code>-lines.csv</code> (one row per line: customer, reference, dates, item code, description, quantity, unit, rate, amount) and <code>.json</code> (schema xray.quote-handover/v1). Saving to a Dropbox, OneDrive or Google Drive folder lets that service sync the files. Write email opens your mail app with the quote summary; attach the PDF yourself.</p>
+    <p className="price-help">Handover package: PDF, <code>-lines.csv</code> (one row per line: customer, reference, dates, item code, description, quantity, unit, rate, amount) and <code>.json</code> (schema xray.quote-handover/v1). Saving to a Dropbox, OneDrive or Google Drive folder lets that service sync the files. Email with Gmail opens Gmail's compose page in your browser; Email with my mail app uses your computer's default email app. Both fill in the subject and message; attach the PDF yourself.</p>
   </details>;
 }

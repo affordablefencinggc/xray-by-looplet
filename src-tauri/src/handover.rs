@@ -51,10 +51,12 @@ pub fn xray_save_handover(dir: String, files: Vec<HandoverFileInput>) -> Result<
     save_handover(Path::new(&dir), &files).map(|paths| paths.into_iter().map(|p| p.display().to_string()).collect())
 }
 
-/// Opens a prepared `mailto:` link in the user's default mail app. Nothing else can be launched:
-/// the scheme is fixed, the length bounded and control characters, quotes and spaces refused.
+/// Opens a prepared email draft: a `mailto:` link in the default mail app, or Gmail's compose page in
+/// the default browser. Nothing else can be launched: the prefixes are fixed, the length bounded and
+/// control characters, quotes and spaces refused.
 pub fn valid_mail_link(url: &str) -> bool {
-    url.starts_with("mailto:") && url.len() <= 8000 && !url.chars().any(|c| c.is_control() || c == '"' || c.is_whitespace())
+    (url.starts_with("mailto:") || url.starts_with("https://mail.google.com/mail/?view=cm&fs=1&"))
+        && url.len() <= 8000 && !url.chars().any(|c| c.is_control() || c == '"' || c.is_whitespace())
 }
 
 #[tauri::command]
@@ -108,6 +110,9 @@ mod tests {
     #[test]
     fn only_prepared_mail_links_can_be_opened() {
         assert!(valid_mail_link("mailto:?subject=Quote%20Q-1&body=Hi"));
+        assert!(valid_mail_link("https://mail.google.com/mail/?view=cm&fs=1&su=Quote%20Q-1&body=Hi"));
+        assert!(!valid_mail_link("https://mail.google.com.evil.example/mail/?view=cm&fs=1&su=x"));
+        assert!(!valid_mail_link("https://example.com/?view=cm&fs=1&"));
         for url in ["https://example.com", "file:///C:/x.exe", "mailto:?subject=a b", "mailto:\"&calc", "mailto:?x=\u{0}"] { assert!(!valid_mail_link(url), "{url}"); }
         assert!(!valid_mail_link(&format!("mailto:?body={}", "a".repeat(8000))));
     }

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { unzipSync, strFromU8 } from "fflate";
 import type { QuoteDraft } from "./quotePdf.ts";
-import { QUOTE_HANDOVER_SCHEMA, quoteEmailLink, quoteHandoverFiles, quoteHandoverJson, quoteHandoverZip, quoteLinesCsv } from "./quoteHandover.ts";
+import { GMAIL_COMPOSE_PREFIX, QUOTE_HANDOVER_SCHEMA, quoteEmailLink, quoteGmailLink, quoteHandoverFiles, quoteHandoverJson, quoteHandoverZip, quoteLinesCsv } from "./quoteHandover.ts";
 
 const draft: QuoteDraft = {
   from: "Affordable Fencing Gold Coast", customer: "=QA customer", siteAddress: "74 Annie Street", reference: "Q 7/1", validDays: 30, notes: "",
@@ -40,4 +40,14 @@ test("email link fills subject and body but attaches nothing itself", () => {
   assert.ok(link.startsWith("mailto:?subject=Quote Q 7/1 - Affordable Fencing Gold Coast"));
   assert.match(link, /Total: AUD 2445.00 \(tax not included\)/);
   assert.match(link, /\(Attach: C:\/Dropbox\/Q-7-1-draft-quote.pdf\)/);
+});
+
+test("Gmail link opens Gmail's compose page with the same subject and body", () => {
+  const link = quoteGmailLink(draft, null);
+  assert.ok(link.startsWith(`${GMAIL_COMPOSE_PREFIX}&su=`));
+  const params = new URL(link).searchParams;
+  assert.equal(params.get("su"), "Quote Q 7/1 - Affordable Fencing Gold Coast");
+  assert.match(params.get("body")!, /Total: AUD 2445.00 \(tax not included\)/);
+  assert.match(params.get("body")!, /Attach the PDF Q-7-1-draft-quote.pdf/);
+  assert.ok(!/\s/.test(link), "no raw whitespace in the link");
 });
