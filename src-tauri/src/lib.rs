@@ -5,6 +5,7 @@ mod bundled_engine;
 mod material_ai;
 mod assistant_ai;
 mod minimax_ai;
+mod handover;
 mod voice;
 mod cad;
 #[cfg(target_os = "windows")]
@@ -727,6 +728,7 @@ pub fn run() {
             minimax_ai::xray_minimax_status,
             minimax_ai::xray_minimax_turn,
             minimax_ai::xray_configure_minimax,
+            handover::xray_save_handover,
             xray_configure_material_ai,
             xray_interpret_material_ai,
             xray_propose_architect_ai,

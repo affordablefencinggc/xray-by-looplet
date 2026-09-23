@@ -10,7 +10,8 @@ import { readPriceWorkbookInWorker } from "./priceWorkbookClient.ts";
 import { PricingResearchPanel } from "./PricingResearchPanel.tsx";
 import { clearBomMapping, setBomMapping, syncBomPricedLines, type BomPricingChange, type BomPricingSource } from "./bomPricing.ts";
 import { priceBookLibrarySchema } from "./priceBooks.ts";
-import { buildQuoteDraft, quoteDraftPdf } from "./quotePdf.ts";
+import { buildQuoteDraft, quoteDraftPdf, type QuoteDraft } from "./quotePdf.ts";
+import { quoteEmailLink, quoteHandoverFiles, quoteHandoverZip, type HandoverFile } from "./quoteHandover.ts";
 
 /** Committed material-register lines offered to the worksheet; `current` is false once the takeoff changed after the build. */
 export type PriceBookBomSource = BomPricingSource & { current: boolean };
@@ -251,20 +252,46 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
   const [from, setFrom] = useState(() => { try { return localStorage.getItem(QUOTE_FROM_KEY) ?? ""; } catch { return ""; } });
   const [customer, setCustomer] = useState(""), [siteAddress, setSiteAddress] = useState(""), [validDays, setValidDays] = useState("30"), [notes, setNotes] = useState("");
   const [reference, setReference] = useState(() => `Q-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`), [working, setWorking] = useState(false);
-  async function prepare() {
+  const [savedTo, setSavedTo] = useState<string | null>(null), [lastDraft, setLastDraft] = useState<QuoteDraft | null>(null);
+  const desktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  const saveFile = (file: HandoverFile) => {
+    const url = URL.createObjectURL(new Blob([file.bytes.slice().buffer], { type: file.mime }));
+    const link = document.createElement("a"); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  async function prepareFiles() {
+    const draft = buildQuoteDraft(library, { from, customer, siteAddress, reference, validDays: Number(validDays), notes }, register);
+    try { localStorage.setItem(QUOTE_FROM_KEY, draft.from); } catch { /* per-device convenience only */ }
+    setLastDraft(draft);
+    return { draft, files: quoteHandoverFiles(draft, await quoteDraftPdf(draft)) };
+  }
+  async function run(action: "pdf" | "package" | "folder" | "share") {
     setWorking(true);
     try {
-      const draft = buildQuoteDraft(library, { from, customer, siteAddress, reference, validDays: Number(validDays), notes }, register);
-      try { localStorage.setItem(QUOTE_FROM_KEY, draft.from); } catch { /* per-device convenience only */ }
-      const bytes = await quoteDraftPdf(draft);
-      const url = URL.createObjectURL(new Blob([bytes.slice().buffer], { type: "application/pdf" }));
-      const link = document.createElement("a"); link.href = url; link.download = `${draft.reference.replace(/[^a-z0-9_-]/gi, "-")}-draft-quote.pdf`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-      onNotice(`Draft quote ${draft.reference} saved as a PDF for your review. Nothing was sent to the customer.`);
+      const { draft, files } = await prepareFiles();
+      if (action === "pdf") { saveFile(files[0]); setSavedTo(null); onNotice(`Draft quote ${draft.reference} saved as a PDF for your review. Nothing was sent to the customer.`); }
+      else if (action === "package") { saveFile(quoteHandoverZip(draft, files)); setSavedTo(null); onNotice(`Handover package for ${draft.reference} saved (PDF, spreadsheet lines and JSON in one ZIP). Nothing was sent.`); }
+      else if (action === "folder") {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const dir = await open({ directory: true, multiple: false, title: "Choose a folder for the quote handover (for example Dropbox, OneDrive or Google Drive)" });
+        if (typeof dir !== "string") { onNotice("No folder chosen; nothing was saved."); return; }
+        const { invoke } = await import("@tauri-apps/api/core");
+        const toBase64 = (bytes: Uint8Array) => { let text = ""; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(text); };
+        const written = await invoke<string[]>("xray_save_handover", { dir, files: files.map(file => ({ name: file.name, base64: toBase64(file.bytes) })) })
+          .catch((error: unknown) => { throw Error(typeof error === "string" ? error : "The handover files could not be saved."); });
+        setSavedTo(written[0] ?? dir);
+        onNotice(`Saved ${written.length} handover files for ${draft.reference} to ${dir}. A synced folder uploads them itself. Nothing was sent to the customer.`);
+      } else {
+        const shareFiles = [new File([files[0].bytes.slice().buffer], files[0].name, { type: files[0].mime })];
+        if (!navigator.canShare?.({ files: shareFiles })) throw Error("Sharing files is not available here. Save the PDF or the handover package instead.");
+        await navigator.share({ files: shareFiles, title: `Quote ${draft.reference}`, text: `Draft quote ${draft.reference} from ${draft.from}` });
+        onNotice(`Draft quote ${draft.reference} handed to the share sheet. X-Ray sent nothing itself.`);
+      }
     } catch (error) { onNotice(priceBookError(error)); }
     finally { setWorking(false); }
   }
+  const canShare = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
   return <details className="price-review" aria-label="Draft quote"><summary>Prepare a draft quote PDF</summary>
-    <p className="price-help">Uses the priced lines and subtotals above. The PDF is marked as a draft for your review; it is not sent anywhere.</p>
+    <p className="price-help">Uses the priced lines and subtotals above. Everything is marked as a draft for your review; X-Ray does not send anything. Hand it over whichever way suits you: the PDF, a spreadsheet file your quoting or accounting software can import, or a JSON file for other apps and automations.</p>
     <div className="price-fields">
       <label>Your business<input aria-label="Quote from" maxLength={200} value={from} onChange={e => setFrom(e.target.value)} placeholder="Business name shown on the quote" /></label>
       <label>Customer<input aria-label="Quote customer" maxLength={200} value={customer} onChange={e => setCustomer(e.target.value)} /></label>
@@ -273,6 +300,13 @@ function QuoteDraftForm({ library, register, onNotice }: { library: PriceBookLib
       <label className="price-wide">Site address<input aria-label="Quote site address" maxLength={300} value={siteAddress} onChange={e => setSiteAddress(e.target.value)} /></label>
       <label className="price-wide">Notes for the customer<textarea aria-label="Quote notes" maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} /></label>
     </div>
-    <button className="pill primary" disabled={working} onClick={() => void prepare()}><Download size={16} />Download draft quote PDF</button>
+    <div className="price-actions" role="group" aria-label="Hand over the draft quote">
+      <button className="pill primary" disabled={working} onClick={() => void run("pdf")}><Download size={16} />Download draft quote PDF</button>
+      <button className="pill" disabled={working} onClick={() => void run("package")}><Download size={16} />Download handover package (ZIP)</button>
+      {desktop && <button className="pill" disabled={working} onClick={() => void run("folder")}>Save handover to a folder…</button>}
+      {canShare && <button className="pill" disabled={working} onClick={() => void run("share")}>Share PDF…</button>}
+      <button className="pill" disabled={working || !lastDraft} onClick={() => { if (lastDraft) window.location.href = quoteEmailLink(lastDraft, savedTo); }}>Write email</button>
+    </div>
+    <p className="price-help">Handover package: PDF, <code>-lines.csv</code> (one row per line: customer, reference, dates, item code, description, quantity, unit, rate, amount) and <code>.json</code> (schema xray.quote-handover/v1). Saving to a Dropbox, OneDrive or Google Drive folder lets that service sync the files. Write email opens your mail app with the quote summary; attach the PDF yourself.</p>
   </details>;
 }
