@@ -1,0 +1,7 @@
+# SC-04 / production SC-14 - final-build pressure and issued history
+
+DANIEL common web build `local-e74e67d4-20260924`, source `e74e67d4`: [144/144 browser operations](../hvac-pressure01/browser-results.json), no captured browser errors and successful launcher cleanup. Declared density/friction/source inputs produce 17.640 Pa per 4 m straight run; the directed fitting path with supplied K produces 14.700 Pa. Missing inputs remain unknown. Review, issue, PDF/CSV/JSON download checks, reload and exact frozen-record comparison pass.
+
+Root inspected [desktop estimates](../hvac-pressure01/captures/industry-pressure-loss-desktop.png), [landscape table](../hvac-pressure01/captures/industry-pressure-loss-tablet-landscape.png), [portrait table](../hvac-pressure01/captures/industry-pressure-loss-tablet-portrait.png), and [reloaded issued history](../hvac-pressure01/captures/industry-hvac-issued-reloaded.png). The estimate/not-engineering-sign-off label remains visible. Issued seal: `091561daf06c0a53dec78a84cd48f0a992ebf76668961f41dd1d35deb9711ae1`.
+
+[Common-build audit](../stage3-audit.json), [exact current ledger/proof diff](../stage3-changes.diff), [original product diff and numerical/export checks](../../2026-09-23-fencing-v1/steps/SC-04-pressure-delivery.md). No product changes in this stage. These are per-run/per-path estimates; no inferred coefficients, summation across branches, balancing, fan/pump selection, pressure regain, engineering approval or native worksheet acceptance is claimed.

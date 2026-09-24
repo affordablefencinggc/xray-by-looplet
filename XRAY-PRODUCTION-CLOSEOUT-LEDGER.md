@@ -617,3 +617,7 @@ graph TD
 | **SC-18** | Native Tauri Windows Desktop Packaging (`.exe`) | Portion 6 | `[[pending]]` | exe sha256 `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607`; NSIS `7af57f7926878c891584220e56234d06bec63c37afac5c80a88d7b01b0cdf5cf`; MSI `c64d466e8e21dd81c35fd30539650fca4996fd6177ad08190fbfb35812dd46d6` | Offline sample save on that executable; desktop import recorded "Parsed 431 drawing entities."; Authenticode NotSigned; signing credentials missing | `src-tauri/target/release/xray-by-looplet.exe` |
 | **SC-19** | Responsive Tablet (1024/768) & TopRow Ergonomics| Portion 6 | `[[done]]` | Four viewports overflow 0 and smallCount 0 on exe `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607` | DAY-01 through DAY-08 passed on that same executable | — |
 | **SC-20** | Working-Day Stress (DAY-01..08) & Master Release | Portion 6 | `[[pending]]` | DAY-01 through DAY-08 passed on exe `e81e6ac19df0d09e252067003765affddc5ab9aa27e8ae93030826aa9ba7f607` | No master release sign-off while SC-18 stays pending | — |
+
+### Common-build refresh - 24 September 2026
+
+Daniel requested execution on this PC. SC-09, SC-12, SC-13 and SC-14 remain done within their bounded browser contracts, now checked on local-e74e67d4-20260924 with all in-scope worksheet journeys and discussion explanations. [Individual tests, inspected screenshots, exact diffs and platform limits](proof/growth/2026-09-24-local-closeout/steps/SC-13-common-build.md). Source/build hashes remain unchanged; no installation or historical reload-cause fix is claimed.

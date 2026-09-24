@@ -616,3 +616,7 @@ Branch `feat/closeout-sc09-remainder`, baseline `e74e67d4`. Daniel requested loc
 ### 2026-09-24 — current local QS and native close gate
 
 After pushed checkpoint `78a75531`, same branch and unchanged application inputs. [QS final-build acceptance](proof/growth/2026-09-24-local-closeout/steps/SC-01-qs-final-build.md): 163/163 full operations and 150/150 corrected tablet-readiness operations; first 134/149 harness failure retained. [Native graceful-close gate](proof/growth/2026-09-24-local-closeout/steps/SC-02-native-close.md): ten fresh profiles, 1,373 UI operations, 10/10 clean exits in 70.9546–113.4788 ms, zero forced and no captured browser errors. Both named steps link executed results, inspected screenshots and exact diffs. No installation, historical-cause diagnosis or real-job issue is implied. Continue common-build HVAC qualification after this checkpoint.
+
+### 2026-09-24 - common local worksheet build accepted
+
+After pushed 74aea9c1, branch feat/closeout-sc09-remainder. [Common-build acceptance](proof/growth/2026-09-24-local-closeout/steps/SC-13-common-build.md) closes the named industry-agent leftovers: QS 163/163 plus tablet 150/150, actual explanations 35/35, HVAC 904/904. Separate steps link executed results, inspected screenshots and exact diffs. Audit rechecks all 1,153 product inputs and built artifact hashes. Native worksheet/device/installation, historical bug causes and the incomplete real-job chain remain separate; fencing qualification continues after this checkpoint.
