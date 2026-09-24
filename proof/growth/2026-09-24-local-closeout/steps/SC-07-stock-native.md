@@ -1,0 +1,9 @@
+# SC-07 / fencing SC-02 - native level stock nesting
+
+The actual Windows app on DANIEL, executable SHA-256 `660e1bfa77d02b0eece9ee47c07286104e2265127ca2583443b95ae00f01fe71`, passes [137 setup/engine operations](../native-features01/workload-1.json) followed by [133 stock/pricing/issue/reload operations](../native-features01/features.json). The default qualified bundled engine generates the current material register from the Redburn training trace. No engine override or pre-seeded BOM is used. Stock inputs/rates are explicitly synthetic, entered through actual controls.
+
+[Independent audit](../stage4-native-audit.json) verifies 44 rail cuts: 99.176 m cut length + 0.220 m kerf + 6.204 m scrap = 105.600 m purchased (44 x 2.4 m). Two finished 2.4 m end posts use two pieces without trailing kerf. The actual [46-cut CSV](../native-features01/fencing-cuts-register-1.csv) balances every stock piece. Purchase mapping suppresses the underlying rail cut/linear-metre and end-post charges. Saved rules and both issues survive app reload and a second process launch.
+
+Root inspected [desktop cuts](../native-features01/native-stock-cuts-desktop.png), [readable landscape rail/post summary](../native-readback01/native-stock-readable-landscape.png), and [issued quote PDF page one](../native-features01/first-quote-page-1.png) / [page two](../native-features01/first-quote-page-2.png). Source/build identities remain unchanged. [Exact current harness/ledger diff](../stage4-changes.diff); [original stock product implementation, tests and diff](../../2026-09-23-fencing-cutting/steps/SC-07-stock-cutting.md).
+
+Level stock scope is complete. Sloped cutting belongs to fencing SC-03 and remains open; no actual supplier fit, site acceptance, optimal-packing guarantee or Boundaries job completion is implied. The app was executed from build output, not installed. [Owned-process cleanup](../stage4-cleanup.json).
