@@ -7,7 +7,7 @@ Completion requires an executed behaviour check, inspected screenshot, exact dif
 
 24 September update: Daniel explicitly requested execution on this PC and staged pushes. [Local campaign](proof/growth/2026-09-24-local-closeout/README.md) records DANIEL evidence separately, with a 20% aggregate CPU cap before builds. Daniel confirmed "Keep missing measurements unknown" for the saved plan: missing Colorbond heights and falls remain unknown and the real quote stays withheld. Two named old DANS1 dependency caches may now be removed; that remote action has not occurred while SSH is unavailable.
 
-- [x] SC-01 [section 02] QS-03 dev 163/163, built 163/163, tablet readability 149/149. [Executed tests, screenshots, exact diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-01-qs-web.md). Historical reload causation remains unconfirmed.
+- [x] SC-01 [section 02] QS-03 dev and DANS1 built evidence retained; fresh common local build passes 163/163 and corrected responsive-readiness journey 150/150. [Executed tests, inspected screenshots, exact diff and limits](proof/growth/2026-09-24-local-closeout/steps/SC-01-qs-final-build.md). Historical reload causation remains unconfirmed.
 - [x] SC-02 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-02-hvac-mass-web.md).
 - [x] SC-03 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-03-hvac-network-web.md).
 - [x] SC-04 [section 02] Current built worksheet qualification complete: [tests, screenshots, diff and limits](proof/growth/2026-09-23-industry-closeout/steps/SC-04-hvac-delivery-web.md).

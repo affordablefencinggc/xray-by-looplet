@@ -1,0 +1,11 @@
+# SC-01 — QS on the common local build
+
+Source `e74e67d4`, web build `local-e74e67d4-20260924`, host DANIEL. [Full journey 163/163](../qs-built01/browser-results.json) and [tablet readability 150/150](../qs-readable02/browser-results.json) pass with no browser errors and completed launcher cleanup. The same built assets used for the final discussion qualification are checked again in the [stage audit](../stage2-audit.json).
+
+The actual controls classify room/roof geometry, bind both quantities, edit each outline, withhold only the stale item, explicitly rebind it and restore the current values after reload. Filtering does not change whole-draft totals. Both item-only and hierarchy CSV contents are asserted. Tablet controls are exercised at 768×1024 and 1024×768; the assistant rail is collapsed using its actual control for landscape report reading.
+
+Root inspected [current bindings](../qs-built01/captures/dev-two-current-area-bindings-desktop-1600x1000.png), [stale room](../qs-built01/captures/dev-selective-room-stale-desktop-1600x1000.png), [room rebind](../qs-built01/captures/dev-explicit-room-rebind-tablet-1024x768.png), [stale roof](../qs-built01/captures/dev-selective-roof-stale-desktop-1600x1000.png), [roof rebind](../qs-built01/captures/dev-explicit-roof-rebind-tablet-1024x768.png), [reloaded highlighted roof](../qs-built01/captures/dev-reloaded-roof-highlight-desktop-1600x1000.png), [portrait report](../qs-readable02/captures/qs-report-portrait.png) and [landscape report](../qs-readable02/captures/qs-report-landscape.png), plus both filter captures.
+
+The retained [first readability failure](../qs-readable01/browser-results.json) stopped at 134/149: the harness looked for the responsive collapse button immediately after resizing and silently skipped its click when the button had not rendered. The corrected scenario waits for that exact control, requires its click, and retains the original width and overflow assertions. Product code is unchanged. [Exact scenario/harness and ledger diff](../stage2-changes.diff); [original application proof/diff](../../2026-09-23-industry-closeout/steps/SC-01-qs-web.md).
+
+This is browser viewport acceptance, not a physical tablet or native macOS/Linux test. Historical reload causation remains unconfirmed.
