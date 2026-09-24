@@ -624,3 +624,7 @@ After pushed 74aea9c1, branch feat/closeout-sc09-remainder. [Common-build accept
 ### 2026-09-24 - native level cutting and issued quote qualification
 
 After pushed 2200c9a7, branch feat/closeout-sc09-remainder. Current Windows app on DANIEL passes 137 actual setup/engine operations plus 133 stock/hardware/issue operations and saved-profile relaunch. [Level cuts](proof/growth/2026-09-24-local-closeout/steps/SC-07-stock-native.md), [Bunnings hardware allowances](proof/growth/2026-09-24-local-closeout/steps/SC-09-hardware-native.md), and [frozen quote issue/revision](proof/growth/2026-09-24-local-closeout/steps/SC-10-issue-native.md) each link executed checks, inspected screenshots and exact diffs. Independent actual CSV/PDF/JSON audit verifies stock conservation and rates to the cent. All owned processes close cleanly. Slopes, repair/site/gate fit, real-job issue, historical cleanup retention and the master review/proof contract remain open; no customer communication, installation or deployment occurred.
+
+### 2026-09-24 - local proof-link follow-up
+
+After native checkpoint 14c3e9e4, [SC-15 evidence-link correction](proof/growth/2026-09-24-local-closeout/steps/SC-15-evidence-links.md) records the retained validation failure, corrected URLs, executed link/open-tag/diff checks, exact diff and correctly labelled accompanying screenshots. Product and captured test artifacts are unchanged. Recovery remains feat/closeout-sc09-remainder.
