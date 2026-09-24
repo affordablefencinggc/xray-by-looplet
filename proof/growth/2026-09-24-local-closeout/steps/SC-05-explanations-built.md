@@ -1,0 +1,9 @@
+# SC-05 — final built discussion explanations
+
+Final source `e74e67d4`, fresh local web build `local-e74e67d4-20260924`. DANIEL [35/35 actual browser operations](../explanations-built01/browser-results.json), no browser errors, successful [owned-process cleanup](../explanations-built01/launcher-results.json). Existing MiniMax service made one actual request per turn, with no tool declarations/calls and no corrective retry. Project and worksheet storage remained byte-identical; both answers survived portrait reload. No provider credentials are stored in proof.
+
+Root independently reviewed the full recorded replies (receipts 15 and 23). Roofing uses the full first course and 1/2/2/3 course boundaries, effective cover once, 10 columns and the correct sheet/linear-metre figures. QS correctly explains whole versus assigned subtree membership, parent/child overlap, leaf-only summation, separate unit/evidence classes and spreadsheet apostrophe protection. Both remain supplied synthetic draft discussions with no fresh inspection claim. This is a bounded two-turn acceptance, not a general answer-quality guarantee.
+
+Inspected [roofing explanation](../explanations-built01/captures/roofing-explanation-desktop.png), [roofing review](../explanations-built01/captures/roofing-review-desktop.png), [QS explanation](../explanations-built01/captures/qs-explanation-desktop.png), [QS review](../explanations-built01/captures/qs-review-desktop.png), and [portrait reload](../explanations-built01/captures/explanations-reloaded-portrait.png). [Current source/build audit](../stage1-audit.json). Application change remains the [exact earlier guidance diff](../../2026-09-23-industry-closeout/discussion-source.diff), rebuilt without further edits; [exact local campaign diff](../stage1-changes.diff).
+
+Native runtime and the remaining common-build worksheet campaigns are separate requirements.
