@@ -13,7 +13,12 @@ const CAPTION_INK: u32 = 0x003A3028; // #28303a
 
 #[link(name = "dwmapi")]
 extern "system" {
-    fn DwmSetWindowAttribute(hwnd: *mut c_void, attribute: u32, value: *const c_void, size: u32) -> i32;
+    fn DwmSetWindowAttribute(
+        hwnd: *mut c_void,
+        attribute: u32,
+        value: *const c_void,
+        size: u32,
+    ) -> i32;
 }
 
 pub fn apply(window: &tauri::Window) {

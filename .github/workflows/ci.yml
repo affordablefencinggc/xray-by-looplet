@@ -172,6 +172,8 @@ jobs:
           python -m pip install -r engine/python/requirements.txt -r engine/server/requirements.txt pytest
 
       - name: Run engine & MCP server tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/engine/python
         run: python -m pytest engine/python/xray engine/server -q
 
       - name: Install Playwright Chromium

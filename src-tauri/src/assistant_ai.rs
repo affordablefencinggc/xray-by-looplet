@@ -294,10 +294,27 @@ pub(crate) fn check_request(raw: &str) -> Result<Value, String> {
         return Err("Invalid assistant request identity or scope.".into());
     }
     if let Some(execution) = request.get("execution") {
-        fields(execution, &["maxRounds", "maxToolCalls", "maxOutputTokens", "timeoutMs", "contextTokens"])?;
-        for (key, min, max) in [("maxRounds", 1, 512), ("maxToolCalls", 1, 4096), ("maxOutputTokens", 1024, 65536), ("timeoutMs", 10000, 600000), ("contextTokens", 16000, 900000)] {
+        fields(
+            execution,
+            &[
+                "maxRounds",
+                "maxToolCalls",
+                "maxOutputTokens",
+                "timeoutMs",
+                "contextTokens",
+            ],
+        )?;
+        for (key, min, max) in [
+            ("maxRounds", 1, 512),
+            ("maxToolCalls", 1, 4096),
+            ("maxOutputTokens", 1024, 65536),
+            ("timeoutMs", 10000, 600000),
+            ("contextTokens", 16000, 900000),
+        ] {
             let value = execution[key].as_u64().ok_or("Invalid execution budget.")?;
-            if value < min || value > max { return Err("Execution budget outside supported range.".into()); }
+            if value < min || value > max {
+                return Err("Execution budget outside supported range.".into());
+            }
         }
     }
     let contents = request["contents"]
@@ -354,9 +371,16 @@ pub(crate) fn declared_tools_only(content: &Value, request: &Value) -> Result<()
         .iter()
         .filter_map(|tool| tool["name"].as_str())
         .collect();
-    for part in content["parts"].as_array().ok_or("Assistant content requires parts.")? {
+    for part in content["parts"]
+        .as_array()
+        .ok_or("Assistant content requires parts.")?
+    {
         if let Some(call) = part.get("functionCall") {
-            if request["webSearch"] == true || !call["name"].as_str().is_some_and(|name| declared.contains(name)) {
+            if request["webSearch"] == true
+                || !call["name"]
+                    .as_str()
+                    .is_some_and(|name| declared.contains(name))
+            {
                 return Err("Assistant returned a tool not declared for this turn. This response was not executed; previously completed actions remain.".into());
             }
         }
@@ -396,15 +420,21 @@ fn response_envelope(body: &Value, request: &Value, model: &str) -> Result<Value
             }
         }
     }
-    let mut result = json!({"requestId":request["requestId"],"content":content,"sources":sources,"model":model});
-    if let Some(tokens) = body["usageMetadata"]["totalTokenCount"].as_u64().filter(|n| *n <= 9_007_199_254_740_991) {
+    let mut result =
+        json!({"requestId":request["requestId"],"content":content,"sources":sources,"model":model});
+    if let Some(tokens) = body["usageMetadata"]["totalTokenCount"]
+        .as_u64()
+        .filter(|n| *n <= 9_007_199_254_740_991)
+    {
         result["totalTokens"] = json!(tokens);
     }
     Ok(result)
 }
 async fn request_gemini(request: &Value, key: &str, model: &str) -> Result<Value, String> {
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_millis(request["execution"]["timeoutMs"].as_u64().unwrap_or(300000)))
+        .timeout(Duration::from_millis(
+            request["execution"]["timeoutMs"].as_u64().unwrap_or(300000),
+        ))
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|_| "Assistant HTTPS client unavailable.")?;

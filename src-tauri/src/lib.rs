@@ -1,13 +1,13 @@
 //! Looplet Tauri shell for X-Ray.
 //! Command contract from `xray-by-looplet/desktop/README.md` "Embedding in Looplet".
 
-mod bundled_engine;
-mod material_ai;
 mod assistant_ai;
-mod minimax_ai;
-mod handover;
-mod voice;
+mod bundled_engine;
 mod cad;
+mod handover;
+mod material_ai;
+mod minimax_ai;
+mod voice;
 #[cfg(target_os = "windows")]
 mod window_chrome;
 use material_ai::*;
@@ -26,7 +26,8 @@ use std::sync::{
 use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 use xray_engine_host::{
-    engine_status_with, run_bom_with, verify_source_sha256, CancellationToken, TransportError, DEFAULT_LIMITS,
+    engine_status_with, run_bom_with, verify_source_sha256, CancellationToken, TransportError,
+    DEFAULT_LIMITS,
 };
 
 const MAX_PLAN_BYTES: u64 = 100 * 1024 * 1024;
@@ -120,7 +121,13 @@ impl BomRunner for ProductionBomRunner {
         request: &[u8],
         cancellation: InvocationCancellation,
     ) -> Result<Value, TransportError> {
-        run_bom_with(self.0.as_ref(), request, cancellation.engine, DEFAULT_LIMITS, &std::env::temp_dir())
+        run_bom_with(
+            self.0.as_ref(),
+            request,
+            cancellation.engine,
+            DEFAULT_LIMITS,
+            &std::env::temp_dir(),
+        )
     }
 }
 
@@ -683,7 +690,6 @@ fn xray_import_plan(app: AppHandle) -> Result<Option<DesktopPlanPayload>, String
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-
         .manage(MaterialAiState::default())
         .manage(assistant_ai::AssistantAiState::default())
         .manage(minimax_ai::MinimaxState::default())
@@ -697,7 +703,8 @@ pub fn run() {
             ));
             app.manage(BomInvocationState::production(Arc::clone(&engine)));
             app.manage(engine);
-            app.state::<minimax_ai::MinimaxState>().load_saved(app.path().app_config_dir().ok());
+            app.state::<minimax_ai::MinimaxState>()
+                .load_saved(app.path().app_config_dir().ok());
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
                 window_chrome::apply(&window.as_ref().window());
@@ -706,13 +713,18 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             #[cfg(target_os = "windows")]
-            if matches!(event, WindowEvent::ThemeChanged(_) | WindowEvent::Focused(_)) {
+            if matches!(
+                event,
+                WindowEvent::ThemeChanged(_) | WindowEvent::Focused(_)
+            ) {
                 window_chrome::apply(window);
             }
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 window.state::<BomInvocationState>().cancel_all();
                 window.state::<cad::CadState>().cancel_all();
-                window.state::<assistant_ai::AssistantAiState>().cancel_all();
+                window
+                    .state::<assistant_ai::AssistantAiState>()
+                    .cancel_all();
             }
         })
         .invoke_handler(tauri::generate_handler![
