@@ -67,3 +67,25 @@ test("Rust cache maps both independent Cargo manifests rather than the nonexiste
     assert.match(block, /src-tauri -> target/);
   }
 });
+
+test("Linux RPM overlay uses declared Zstd compression without removing package targets or resources", async () => {
+  const config = await readJson("src-tauri/tauri.linux.conf.json");
+  const schema = await readJson("node_modules/@tauri-apps/cli/config.schema.json");
+  assert.deepEqual(config.bundle.linux.rpm.compression, { type: "zstd", level: 3 });
+  assert.ok(schema.definitions.RpmCompression.oneOf.some((variant) => variant.properties?.type?.enum?.includes("zstd")));
+  assert.equal(config.bundle.targets, undefined);
+  assert.equal(config.bundle.resources, undefined);
+});
+
+test("Linux bundling has a hard deadline and heartbeat diagnostics rather than indefinite silent work", async () => {
+  const workflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
+  const block = stepBlock(workflow, "Build Linux desktop bundles with bounded progress diagnostics");
+  assert.ok(block);
+  assert.match(block, /timeout-minutes: 25/);
+  assert.match(block, /bash scripts\/ci-run-bounded\.sh 20m npm run tauri:build -- --verbose/);
+  const script = await readFile(new URL("scripts/ci-run-bounded.sh", root), "utf8");
+  assert.match(script, /timeout --kill-after=30s/);
+  assert.match(script, /NATIVE_BUILD_HEARTBEAT/);
+  assert.match(script, /exit "\$result"/);
+  assert.match(script, /trap cleanup EXIT/);
+});

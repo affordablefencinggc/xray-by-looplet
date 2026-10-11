@@ -11,6 +11,13 @@ Earlier status paragraphs below are historical campaign snapshots. `main` was su
 - [x] AI review of selected saved desktop/tablet screenshots: [separate step proof](steps/saved-screenshot-review.md). Human signoff remains distinct; compact controls and a partly obstructed portrait bottom row remain open.
 - [x] Verify CI web/transport artifact digest and content: [separate step proof](steps/ci-artifact-integrity.md); native artifact verification and final matrix conclusion pending.
 - [x] Restore shell-free raw status acceptance tests: [separate step proof](steps/hermetic-raw-status-proof.md); local host 37 tests plus 4 raw status checks and strict clippy passed, new remote execution pending.
+- [x] Diagnose long silent Linux packaging and add bounded RPM configuration: [separate step proof](steps/linux-rpm-bounded-packaging.md); configuration/runner tests pass, remote packaging acceptance pending.
+
+### Remote checkpoint after `857d7f3d`
+
+Run `38148677824` independently passed web audit and Linux SC-07 proof including all four raw-status tests (host 36 + 4, Unix descendant proof 1, Tauri 52). Downloaded web artifact `11705551264` SHA-256 `75a101d18cb52ffbc944e540b387d24222fa8cb7f59119d55d962c0a5478fb2a` retains both required Vercel metadata files; proof artifact `11705875983` SHA-256 `1489a1fcc069ae15ee8350ea446aed84027464063dde527f217fe858911d01db` reports 33 verified/2 partial, `completionClaim: false`. Windows build/upload succeeded; Ubuntu remained at packaging, so no full green run was claimed. That source's Windows artifact is `11706652706`, SHA-256 `9d2ff38b677bd303970af2829be8893016104d99ec8c05249344b8773ec7b948` (download audit in progress).
+
+Superseded run `38146549601` was explicitly canceled, not failed or accepted, to end duplicate work and retrieve its log. It proved Linux compilation/DEB progress but stalled silently at RPM for approximately 39 minutes. The next scoped checkpoint selects supported RPM Zstd level 3, preserves all targets and adds a 20-minute child deadline with 30-second progress diagnostics; it requires fresh remote acceptance. Latest local targeted regression suite: 14 passed.
 
 ### Acceptance caveats found during independent continuation review
 

@@ -251,7 +251,14 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
 
       - name: Build Tauri Desktop Application
+        if: matrix.platform == 'windows-latest'
+        timeout-minutes: 25
         run: npm run tauri:build
+
+      - name: Build Linux desktop bundles with bounded progress diagnostics
+        if: matrix.platform == 'ubuntu-latest'
+        timeout-minutes: 25
+        run: bash scripts/ci-run-bounded.sh 20m npm run tauri:build -- --verbose
 
       - name: Archive Linux desktop bundles preserving executable permissions
         if: matrix.platform == 'ubuntu-latest'
