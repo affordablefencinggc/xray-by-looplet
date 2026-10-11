@@ -58,7 +58,7 @@ Merge resolved and committed on `recovery/full-studio-20261011`; not pushed, not
 
 ### Limitations
 
-- Early Caroline-based mismatch runs (`full9`–`full12`, `built-cdp2`) ended `FAIL` solely from the runner's expected-cancellation accounting: Caroline's wireframe SVGs load as image-type, which the reviewed exact GET-Fetch cancellation gate does not recognize, so the abort was booked as a browser error before the safeguard op ran. The final Crown Wharf-based scenario removes that noise and PASSes 83/83 on dev and built output. Zero console/HTTP/product errors were observed in any run.
+- Early Caroline-based mismatch runs (`full9`–`full12`, `built-cdp2`) ended `FAIL` solely from the runner's expected-cancellation accounting: Caroline's wireframe SVGs load as image-type, which the reviewed exact GET-Fetch cancellation gate does not recognize, so the abort was booked as a browser error before the safeguard op ran. The final Crown Wharf-based scenario removes that noise and PASSes 83/83 on dev and built output. Zero console/HTTP/product errors were observed in any run. **Resolved in the follow-up wave below**: the runner now recognizes the HEAD availability probes behind those aborts, and the Caroline mismatch is restored as the canonical test (PASS on dev and built).
 - Tablet/mobile viewports and touch interactions were not driven this wave (device scope: tablet/laptop/desktop).
 - Native/desktop (Tauri) acceptance and the `py`-host engine contract were not re-run on the recovery branch this wave; `db:migrate` was not executed (no credentials).
 - The `tests01` failure and the runner quoting bugs (`C:\Program Files` paths in unquoted `ArgumentList`; scenario-file UTF-8 BOM from a PowerShell write) are recorded in `xray-recovery-evidence` logs; all were fixed within the campaign.
@@ -75,3 +75,41 @@ Run `dev-cdp-tablet1` (`scenario-tablet.json`, 32 ops, capped dev server on 127.
   - 3D model screen (Redburn sample loaded): 1180×820, 820×1180, 1280×800 — clean.
 - **Touch-target audit (44px recommendation):** on the sheets screens only 0–1 minor offenders ("Collapse assistant" collapsed toggle). On the model screen at 1180/1280 the left-nav model pills (Redburn BR250157, Crown Wharf A4 tower, Caroline, Ruffles sample) measure **32px**, with 32–33 buttons total below 44px; at 820 portrait only 3 minor offenders (the rail collapses). Tablets render and remain usable (no clipping, no overflow), but the 32px model pills are honest touch-target debt on the model pane — recorded, not hidden.
 - Viewport screenshots: `tablet-sheets-1180x820.png`, `tablet-sheets-820x1180.png`, `laptop-sheets-1280x800.png`, `tablet-model-1180x820.png`, `tablet-model-820x1180.png`, `laptop-model-1280x800.png`. This campaign's model cannot view images, so PNGs were not visually inspected; receipt numbers and the `errors`-opcode zero are the rendered-state evidence.
+
+## Follow-up wave: 44px touch targets + runner cancellation accounting (2026-10-11)
+
+Both debts recorded above were fixed on `recovery/full-studio-20261011` (branch base `dd1bf565`; `main` untouched at `be29918a`).
+
+### 1. Model left-nav pills now meet the 44px touch-target recommendation
+
+- Root cause: `.building-left-nav button` (`src/studio/sourceBuilding.css`) carried `min-height: 32px` at base widths — the 44px override existed only inside the narrow-viewport media query, so tablet/laptop widths got the small pills.
+- Fix: base `min-height: 44px` for `.building-left-nav button`. The narrow-viewport override remains (it also covers the part-picker/evidence selects there). No other selector changed.
+- `scenario-tablet.json` now *asserts* it (33 ops): a new op fails the run if any `.building-left-nav` button's min dimension is below 44px, reporting the offending pills.
+- Runs (20%-capped stages, campaign-owned Chrome):
+  - `dev-cdp-tablet2` (dev 8180, hot-reloaded CSS): **PASS 33/33, errors 0**.
+  - `built-cdp-tablet1` (rebuilt output — `built-web02` build, `built-preview02` preview on 8181): **PASS 33/33, errors 0**.
+- Remaining honest debt (unchanged this wave): the compact toolbar/view-mode buttons on the model pane still measure below 44px — mouse-first controls; enlarging them is a design decision that needs its own pass, not a silent change.
+
+### 2. Runner now accounts for HEAD availability-probe cancellations (Caroline mismatch restored)
+
+- Reproduction (`dev-cdp-caroline1`, FAIL 19/22): the new `diagnostic` payload on runner browser-error records showed the unbooked abort was `{type: "Fetch", errorText: "net::ERR_ABORTED", canceled: true, requestMethod: "HEAD", requestUrl: "http://127.0.0.1:8180/models/caroline/wireframe-axonometric.svg", initiator: "script"}`. The app's `svgAvailable` probe is `fetch(svgUrl, { method: "HEAD" })` (`SourceBuildingViewer.tsx`), and `matchesExpectedCancellation` recognized only GET.
+- Fix (`scripts/fast-cdp.mjs`): the gate recognizes idempotent read cancellations only — **GET and HEAD**; cancelled POST/PUT/DELETE always remain browser errors (fail-closed contract preserved: exact URL match, reviewed reason, bounded count, type Fetch, `net::ERR_ABORTED`, `canceled`). Unit coverage extended in `scripts/fast-cdp.test.mjs` (HEAD positive; POST/PUT/DELETE negative): 6/6 pass.
+- `resource-load-failed` browser-error records now carry a `diagnostic` object (type, errorText, canceled, requestId, requestMethod, requestUrl, initiator) so future mismatches are self-explaining instead of requiring re-reproduction.
+- The richer Caroline-based mismatch (HEAD SVG probes + manifest + safeguard + canvas-unmount check) is restored as the canonical mismatch test in `scenario-dev-full.json` / `scenario-built-full.json` and now PASSes everywhere:
+  - `dev-cdp-caroline2` (dev 8180): **PASS 22/22, errors 0**.
+  - `built-cdp-caroline1` (built 8181): **PASS 22/22, errors 0**.
+  - `built-cdp-full-recovered1` (83-op full, built 8181): **PASS 83/83, errors 0**.
+  - `dev-cdp-full-recovered1` (83-op full, dev 8180): all 83 ops completed with zero browser errors, verdict `INFRA_FAILURE` only from the runner's trailing double-rAF settle on the long-lived minimized campaign Chrome (same runner-side artifact as `dev-cdp-tablet1`); `dev-cdp-full-recovered2` on a fresh Chrome profile: **PASS 83/83, errors 0**.
+
+### Gates re-run after both fixes
+
+- `node --test scripts/fast-cdp.test.mjs`: 6/6 pass.
+- Full source suite (`tests03`, 20% CPU-capped, secret-stripped env): 95/95 pass, exit code 0.
+- Production rebuild (`built-web02`, `vite build` + nitro prerender): succeeded; only the known non-fatal chunk-size/dynamic-import warnings. No credentials, no `db:migrate`.
+- Not re-run this wave (unchanged surfaces): pytest engine suite (212 passed / 1 skipped previously — only CSS/runner/scenario files changed), `tsc --noEmit` (no TS source touched), native/Tauri acceptance, Vercel deployment.
+
+### CI status (checked 2026-10-11 via the GitHub REST API, `affordablefencinggc/xray-by-looplet`)
+
+- The repository has one active workflow ("CI & Distribution Matrix") but it was **never triggered by this campaign's pushes**: zero workflow runs on `recovery/full-studio-20261011` (including head `dd1bf565`), and no runs on `main` after `be29918a` was pushed. The only recorded `main` runs are five failures dated 2026-09-03 on pre-campaign shas (`ee4372e4`, `1934dbcc`, `ceaa6f38`, `69a8932a`, `33a43d37`) — CI has never passed in its recorded history here.
+
+- Consequence: no remote-CI acceptance can be claimed for this or prior waves; the local cap-verified gates recorded above (typecheck, pytest, source suite, dev+built scenario runs) remain the acceptance evidence. Why pushes do not trigger the workflow (branch/path filters or required runners) is an open follow-up.

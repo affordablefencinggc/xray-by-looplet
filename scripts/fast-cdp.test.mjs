@@ -28,12 +28,17 @@ test("readiness rejects product failures and bounds repeated navigation loss", a
 const request = { url: "http://127.0.0.1:8080/api/pricing-research", method: "GET" };
 const event = { canceled: true, errorText: "net::ERR_ABORTED", type: "Fetch" };
 const expectation = { url: request.url, observed: 0, maximum: 2 };
-test("only the reviewed exact GET fetch cancellation is recognized", () => {
+test("only the reviewed exact GET/HEAD fetch cancellation is recognized", () => {
   assert.equal(matchesExpectedCancellation(event, request, expectation), true);
   for (const altered of [{ canceled: false }, { errorText: "net::ERR_FAILED" }, { type: "Script" }, { type: "Stylesheet" }, { type: "Document" }]) {
     assert.equal(matchesExpectedCancellation({ ...event, ...altered }, request, expectation), false);
   }
+  // HEAD availability probes (wireframe-SVG checks) are idempotent reads and
+  // are expectable; side-effectful verbs never are.
+  assert.equal(matchesExpectedCancellation(event, { ...request, method: "HEAD" }, expectation), true);
   assert.equal(matchesExpectedCancellation(event, { ...request, method: "POST" }, expectation), false);
+  assert.equal(matchesExpectedCancellation(event, { ...request, method: "PUT" }, expectation), false);
+  assert.equal(matchesExpectedCancellation(event, { ...request, method: "DELETE" }, expectation), false);
   assert.equal(matchesExpectedCancellation(event, { ...request, url: request.url + "?search=1" }, expectation), false);
   assert.equal(matchesExpectedCancellation(event, undefined, expectation), false);
   assert.equal(matchesExpectedCancellation(event, request, { ...expectation, observed: 2 }), false);

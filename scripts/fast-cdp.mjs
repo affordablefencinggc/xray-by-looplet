@@ -51,8 +51,12 @@ function sha256(bytes) {
 }
 
 export function matchesExpectedCancellation(event, request, expectation) {
+  // Only idempotent read cancellations may be pre-declared: GET fetches and
+  // HEAD availability probes (e.g. the wireframe-SVG check). A cancelled
+  // POST/PUT/DELETE is never bookable here — it stays a browser error.
+  const method = request?.method ?? null;
   return event.canceled === true && event.errorText === "net::ERR_ABORTED"
-    && event.type === "Fetch" && request?.method === "GET"
+    && event.type === "Fetch" && (method === "GET" || method === "HEAD")
     && request.url === expectation.url && expectation.observed < expectation.maximum;
 }
 
@@ -264,6 +268,7 @@ class FastCdpCampaign {
       message: String(error.message ?? "Unknown browser error"),
       url: error.url ?? null,
       timestamp: new Date().toISOString(),
+      ...(error.diagnostic ? { diagnostic: error.diagnostic } : {}),
     };
     const key = `${normalized.context}|${normalized.kind}|${normalized.message}|${normalized.url}`;
     if (this.browserErrorKeys.has(key)) return;
@@ -312,6 +317,15 @@ class FastCdpCampaign {
         kind: "resource-load-failed",
         message: `${params.type ?? "Resource"}: ${params.errorText ?? "load failed"}${params.canceled ? " (cancelled)" : ""}`,
         url: this.requests.get(requestKey)?.url ?? params.requestId,
+        diagnostic: {
+          type: params.type ?? null,
+          errorText: params.errorText ?? null,
+          canceled: params.canceled === true,
+          requestId: params.requestId ?? null,
+          requestMethod: request?.method ?? null,
+          requestUrl: request?.url ?? null,
+          initiator: request?.initiator ?? null,
+        },
       });
     } else if (message.method === "Network.responseReceived" && Number(params.response?.status) >= 400) {
       this.addBrowserError({
