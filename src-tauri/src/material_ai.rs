@@ -109,13 +109,11 @@ fn check_request(raw: &str) -> Result<Value, String> {
     {
         return Err("Invalid AI source binding.".into());
     }
-    for field in ["sourceSha256"] {
-        if v[field]
-            .as_str()
-            .is_none_or(|s| s.len() != 64 || !s.bytes().all(|c| c.is_ascii_hexdigit()))
-        {
-            return Err("Invalid source identity.".into());
-        }
+    if v["sourceSha256"]
+        .as_str()
+        .is_none_or(|s| s.len() != 64 || !s.bytes().all(|c| c.is_ascii_hexdigit()))
+    {
+        return Err("Invalid source identity.".into());
     }
     if v["focus"].as_str().is_none_or(|s| s.len() > 6000)
         || v["sourceName"].as_str().is_none_or(|s| s.len() > 12000)

@@ -55,6 +55,10 @@ jobs:
           rustfmt --version
           cargo clippy --version
 
+      - name: Prepare empty engine bundle directories
+        shell: bash
+        run: mkdir -p engine/bin engine/cad/bin
+
       - name: Check Rust formatting
         run: |
           cargo fmt --manifest-path engine/host/Cargo.toml -- --check
@@ -217,6 +221,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Prepare empty engine bundle directories
+        shell: bash
+        run: mkdir -p engine/bin engine/cad/bin
 
       - name: Execute SC-07 transport tests on ${{ matrix.platform }}
         env:
