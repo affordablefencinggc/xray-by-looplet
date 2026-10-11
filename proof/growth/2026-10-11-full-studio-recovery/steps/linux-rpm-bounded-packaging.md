@@ -27,7 +27,8 @@ The primary upstream Tauri tracker issue `tauri-apps/tauri#15698` reports a simi
 - Node configuration/proof-parser regressions: 14 passed, 0 failed.
 - Shell syntax: Git Bash `bash -n` exit 0.
 - Live shell-runner checks: child success propagated 0; deliberate child failure propagated 7; one-second deadline terminated five-second child and propagated 124. No full local native rebuild; these checks are lightweight.
-- Syntax/JSON/whitespace checks passed. Remote packaging acceptance pending; no package target was dropped to manufacture a green matrix.
+- Syntax/JSON/whitespace checks passed. No package target was dropped to manufacture a green matrix.
+- **Remote acceptance passed:** run `38150581911`, tested `c93ae1e7`, Ubuntu job `114503720609` completed successfully at `2026-10-11T15:38:33Z`. Actual DEB/RPM/AppImage build finished at `15:37:04Z`, `NATIVE_BUILD_EXIT=0`, 14m31s after the bounded step started. Tar/upload succeeded; [full package identity and remaining limits](ci-matrix-final.md).
 
 ## Visual evidence and limits
 

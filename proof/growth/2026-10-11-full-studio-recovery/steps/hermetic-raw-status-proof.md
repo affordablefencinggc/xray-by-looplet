@@ -20,6 +20,7 @@ Restore actual `engine_status_with` acceptance coverage after removing OS-shell 
 - Capped local `cargo clippy --manifest-path engine/host/Cargo.toml --all-targets -- -D warnings`: exit 0.
 - Source/spawn audit: exit 0, no source problems, includes the new current-executable target. Source-only requirements remain 35 partial, not executed acceptance.
 - Verifier syntax and diff-whitespace checks: exit 0.
+- Remote run `38150581911`, `c93ae1e7`: all 4 raw-status tests passed on Linux and Windows; exact passing markers required by the proof parser. Linux host total 36+4; Windows 37+4. Strict host/Tauri clippy and formatting also passed. [Final separate matrix proof](ci-matrix-final.md).
 
 ## Proven properties
 
@@ -30,4 +31,4 @@ Restore actual `engine_status_with` acceptance coverage after removing OS-shell 
 
 ## Visual evidence and limits
 
-Nonvisual step; no screenshot taken or altered. The compiled child is a harmless test fixture, not the real frozen calculation engine. Remote Linux/Windows execution still requires a new CI result for the changed commit. Existing private-short-deadline and descendant termination tests remain separate coverage; no timing guarantee for every machine is asserted.
+Nonvisual step; no screenshot taken or altered. The compiled child is a harmless test fixture, not the real frozen calculation engine. Remote Linux/Windows execution is proven by the final run, not by historical logs. Existing private-short-deadline and descendant termination tests remain separate coverage; no timing guarantee for every machine is asserted.
