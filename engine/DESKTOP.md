@@ -7,10 +7,10 @@ webview. Rust owns the file picker and spawns the takeoff engine.
 studio (this repo, port 8080)
         │  invoke xray_pick_plan / xray_run_takeoff
         ▼
-src-tauri  →  engine/host  →  frozen xray-engine  OR  python3 -m xray run
+src-tauri  →  engine/host  →  frozen xray-engine  OR  python -m xray run
                                       │
                                       ▼
-                               takeoff.json  (quantities; never an LLM)
+                               result.json  (quantities; never an LLM)
 ```
 
 Commands (`src-tauri/src/lib.rs`):
@@ -21,7 +21,9 @@ Commands (`src-tauri/src/lib.rs`):
 | `xray_run_takeoff` | spawn engine, return parsed JSON |
 | `xray_engine_status` | sidecar path / python src present |
 
-Engine resolution (`engine/host`): `XRAY_ENGINE_PATH` → `engine/bin/xray-engine` → `python3 -m xray`.
+Engine resolution (`engine/host`): `XRAY_ENGINE_PATH` → `engine/bin/xray-engine` → first of `python` / `python3` / `py -3` (each probed with `--version`, Python 3 only).
+
+Result contract (`engine/host/src/lib.rs` ⇄ `engine/python/xray/cli.py`): the host passes `--result-name result.json` and reads exactly `<out>/result.json`; any other files in the scratch dir are ignored.
 
 ## MCP (agent surface)
 
