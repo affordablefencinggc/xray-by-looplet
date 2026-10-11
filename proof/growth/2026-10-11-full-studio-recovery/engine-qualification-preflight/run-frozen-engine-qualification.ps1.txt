@@ -1,0 +1,59 @@
+param(
+  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{12}$')][string]$RunId,
+  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$TransferSha256
+)
+$ErrorActionPreference='Stop'
+$ProgressPreference='SilentlyContinue'
+if($env:COMPUTERNAME -cne 'DANS1'){throw 'Wrong host'}
+$root=Join-Path 'C:\Users\danie\XRayBuilds\engine-qualification' $RunId
+$python='C:\Users\danie\XRayBuilds\industry-visible-20260913\native-engine-20260913-1037\venv\Scripts\python.exe'
+function Assert-Plain([string]$Path) {
+  $cursor=[IO.Path]::GetFullPath($Path)
+  while($cursor){
+    if(Test-Path -LiteralPath $cursor){if(((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'Reparse path rejected'}}
+    $parent=Split-Path $cursor -Parent;if($parent -eq $cursor){break};$cursor=$parent
+  }
+}
+Assert-Plain $root
+Assert-Plain $python
+$transfer=Join-Path $root 'transfer.json'
+Assert-Plain $transfer
+if((Get-FileHash -LiteralPath $transfer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $TransferSha256){throw 'Transfer manifest identity mismatch'}
+$manifest=Get-Content -LiteralPath $transfer -Raw -Encoding UTF8|ConvertFrom-Json
+$required=@('source.zip','snapshot.json','cases.json','qualify_frozen_engine.py','test_qualify_frozen_engine.py','run-frozen-engine-qualification.ps1')
+if(@($manifest.entries).Count -ne $required.Count){throw 'Wrong transfer entry count'}
+foreach($name in $required){
+  $entry=@($manifest.entries|Where-Object {$_.name -ceq $name})
+  if($entry.Count -ne 1 -or $entry[0].sha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'Missing/duplicate transfer entry'}
+  $path=Join-Path $root $name;Assert-Plain $path
+  if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry[0].sha256){throw "Transfer changed: $name"}
+}
+if(Test-Path -LiteralPath (Join-Path $root 'owner.json')){throw 'Immutable run already started'}
+Get-ChildItem Env:|Where-Object {$_.Name -match 'SECRET|TOKEN|PASSWORD|API_KEY|DATABASE_URL|PGPASSWORD|NODE_OPTIONS|^PYTHON|^PYINSTALLER'}|ForEach-Object {Remove-Item ('Env:'+$_.Name)}
+$env:PYTHONDONTWRITEBYTECODE='1'
+$self=Get-CimInstance Win32_Process -Filter "ProcessId=$PID"
+$owner=[ordered]@{host=$env:COMPUTERNAME;ownerPid=$PID;creationTime=$self.CreationDate.ToUniversalTime().ToString('o');executable=$self.ExecutablePath;command=$self.CommandLine;purpose='Fresh engine-only qualification; no app build/install';lastTaskActivity=[DateTime]::UtcNow.ToString('o');transferSha256=$TransferSha256;deadlineSeconds=1500}
+$owner|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $root 'owner.json') -Encoding UTF8
+$p=$null;$code=1
+try {
+  $p=Start-Process -FilePath $python -ArgumentList @('-B','-I',(Join-Path $root 'qualify_frozen_engine.py'),'qualify',$root) -WorkingDirectory $root -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $root 'worker.stdout.log') -RedirectStandardError (Join-Path $root 'worker.stderr.log')
+  $handle=$p.Handle
+  [ordered]@{pid=$p.Id;creationTime=$p.StartTime.ToUniversalTime().ToString('o');executable=$python;purpose=$owner.purpose}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $root 'worker-owner.json') -Encoding UTF8
+  $timer=[Diagnostics.Stopwatch]::StartNew()
+  while(-not $p.WaitForExit(15000)){
+    [ordered]@{pid=$p.Id;elapsedSeconds=$timer.Elapsed.TotalSeconds;lastTaskActivity=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $root 'heartbeat.json') -Encoding UTF8
+    if($timer.Elapsed.TotalSeconds -ge 1500){throw 'Whole qualification deadline exceeded'}
+  }
+  $code=$p.ExitCode
+  if($code -ne 0){throw "Engine qualification failed: $code"}
+  foreach($entry in $manifest.entries){if((Get-FileHash -LiteralPath (Join-Path $root $entry.name) -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry.sha256){throw 'Transferred inputs changed during run'}}
+} catch {
+  $code=1
+  $_.Exception.Message|Set-Content -LiteralPath (Join-Path $root 'worker-error.txt') -Encoding UTF8
+} finally {
+  # The Process instance/handle identifies our child, not an unrelated reused PID.
+  if($p -and -not $p.HasExited){$p.Kill();if(-not $p.WaitForExit(10000)){throw 'Owned runner did not stop'}}
+  [ordered]@{exitCode=$code;endedAt=[DateTime]::UtcNow.ToString('o');workerExited=if($p){$p.HasExited}else{$null};appInstalled=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $root 'exit.json') -Encoding UTF8
+  if($p){$p.Dispose()}
+}
+exit $code

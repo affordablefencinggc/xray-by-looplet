@@ -1,0 +1,111 @@
+import copy
+import importlib.util
+import json
+from pathlib import Path
+import stat
+import sys
+import tempfile
+import unittest
+import zipfile
+
+spec = importlib.util.spec_from_file_location("qualification", Path(__file__).with_name("qualify_frozen_engine.py"))
+q = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(q)
+
+
+class SnapshotTests(unittest.TestCase):
+    def test_child_exit_timeout_and_log_limit(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            import os
+            q.run_step(root, "ok", [sys.executable, "-c", "print('ok')"], root, os.environ.copy(), 3)
+            with self.assertRaises(RuntimeError):
+                q.run_step(root, "fail", [sys.executable, "-c", "raise SystemExit(7)"], root, os.environ.copy(), 3)
+            with self.assertRaises(TimeoutError):
+                q.run_step(root, "timeout", [sys.executable, "-c", "import time; time.sleep(20)"], root, os.environ.copy(), 0.2)
+            with self.assertRaises(ValueError):
+                q.run_step(root, "oversized-log", [sys.executable, "-c", "print('x'*10000)"], root, os.environ.copy(), 3, log_limit=100)
+
+    def test_unsafe_names(self):
+        for name in ("../x", "/x", "C:/x", "x\\y", "x//y", "./x", "x/..", "a:N", "NUL.txt", "dir/COM1", "x.", "x ", "x?", 'x"', "x\x00"):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                q.safe_name(name)
+        self.assertEqual(str(q.safe_name("engine/python/xray/__main__.py")), "engine/python/xray/__main__.py")
+
+    def test_duplicate_casefold_and_hash(self):
+        for entries in ([], [{"path": "x", "sha256": "bad"}], [{"path": x, "sha256": "a" * 64} for x in ("a", "A")]):
+            with self.subTest(entries=entries), self.assertRaises(ValueError):
+                q.entries_checked(entries)
+
+    def test_strict_json(self):
+        for value in ('{"a":1,"a":2}', '{"x":NaN}', '{}{}', 'noise {}'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                q.strict_json(value)
+
+    def archive(self, base, members):
+        path = base / "source.zip"
+        with zipfile.ZipFile(path, "w") as z:
+            for name, data, mode in members:
+                item = zipfile.ZipInfo(name)
+                item.external_attr = mode << 16
+                z.writestr(item, data)
+        return path
+
+    def test_roundtrip_and_no_overwrite(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            archive = self.archive(root, [("engine/file.py", b"ok", stat.S_IFREG | 0o644)])
+            record = {"archiveSha256": q.digest(archive), "entries": [{"path": "engine/file.py", "sha256": q.sha(b"ok")}]}
+            q.unpack(archive, record, root / "source")
+            q.verify_source(root / "source", record["entries"])
+            with self.assertRaises(ValueError):
+                q.unpack(archive, record, root / "source")
+            (root / "source/engine/file.py").write_bytes(b"changed")
+            with self.assertRaises(ValueError):
+                q.verify_source(root / "source", record["entries"])
+
+    def test_archive_rejects_links_extras_wrong_identity(self):
+        variants = [[("file", b"ok", stat.S_IFLNK | 0o777)], [("file", b"ok", stat.S_IFREG), ("extra", b"x", stat.S_IFREG)]]
+        for members in variants:
+            with self.subTest(members=members), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                archive = self.archive(root, members)
+                record = {"archiveSha256": q.digest(archive), "entries": [{"path": "file", "sha256": q.sha(b"ok")}]}
+                with self.assertRaises(ValueError):
+                    q.unpack(archive, record, root / "source")
+                self.assertFalse((root / "source").exists())
+                record["archiveSha256"] = "0" * 64
+                with self.assertRaises(ValueError):
+                    q.unpack(archive, record, root / "source")
+
+    def test_member_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            archive = self.archive(root, [("file", b"wrong", stat.S_IFREG)])
+            with self.assertRaises(ValueError):
+                q.unpack(archive, {"archiveSha256": q.digest(archive), "entries": [{"path": "file", "sha256": q.sha(b"ok")}]}, root / "source")
+
+    def test_engine_snapshot_scope(self):
+        for name in (q.SCHEMA, "engine/python/xray/cli.py", "engine/fixtures/bom-contract/colorbond.request.json"):
+            self.assertTrue(q.selected(name))
+        for name in (".env", "engine/python/xray/__pycache__/a.pyc", "src-tauri/target/file", "node_modules/zod/index.js"):
+            self.assertFalse(q.selected(name))
+
+    def test_case_source_binding(self):
+        required = ["src/studio/bomRules.ts", "src/studio/bomContract.ts", "package.json", "package-lock.json", q.SCHEMA]
+        required += [f"engine/fixtures/bom-contract/{n}.{kind}.json" for n in q.STEMS for kind in ("request", "response")]
+        entries = [{"path": n, "sha256": "a" * 64} for n in required]
+        record = {"sourceCommit": "b" * 40, "entries": entries}
+        cases = {"schema": "xray.frozen-engine-cases/v1", "sourceCommit": record["sourceCommit"], "sources": copy.deepcopy(entries),
+                 "cases": [{"name": n} for n in (*q.STEMS, "equal", "full-bays-terminal-cut")]}
+        q.verify_cases(cases, record)
+        for mutate in (lambda x: x.update(sourceCommit="wrong"), lambda x: x["sources"].pop(),
+                       lambda x: x["sources"][0].update(sha256="f" * 64), lambda x: x["cases"].reverse()):
+            changed = copy.deepcopy(cases)
+            mutate(changed)
+            with self.assertRaises(ValueError):
+                q.verify_cases(changed, record)
+
+
+if __name__ == "__main__":
+    unittest.main()
