@@ -6,12 +6,20 @@
 
 ## 1. Product definition
 
-**X-Ray by Looplet** — a high-performance architectural construction-plan takeoff
-studio. "PDF in, scale, mark, evidence, BOM — quantities never invented."
-Fencing/construction company tool (affordablefencinggc): load a construction plan
-(PDF/DXF/IFC/SVG), set scale, mark up quantities (length/area/count/sketch),
-generate bills of materials, and push quotes into **Looplet CRM**. Ships as web
-app (Vercel) and desktop app (Tauri).
+**X-Ray by Looplet** — a multi-discipline construction-plan takeoff studio for
+**engineers, architects, civil & structural engineers, draftsmen and builders**.
+"PDF/DXF/IFC in, scale, mark, evidence, BOM — quantities never invented."
+Load a construction plan, set scale, mark up quantities (length/area/count/sketch),
+generate discipline-aware bills of materials, and push quotes into **Looplet
+CRM**. Ships as web app (Vercel) and desktop app (Tauri).
+
+**Disciplines** (engine pack ⇄ web catalog, auto-detect by default):
+`architecture` (Architects & building designers) · `structural` (Structural
+engineers) · `civil` (Civil engineers & surveyors) · `electrical` (Electrical
+engineers & contractors) · `building` (Builders & contractors) · `fencing`
+(Fencing & external works). Surfaced in the Studio selector, the CRM quote
+payload, and the engine MCP `list_disciplines` tool (see
+`engine/python/xray/disciplines.py` and `src/lib/disciplines.ts`).
 
 ## 2. Stack
 
