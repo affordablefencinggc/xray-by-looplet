@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { checkedOutputPath, checkedUrl } from "./browser-guard.mjs";
 import { computeBrandWarnings } from "./brand-check.mjs";
+
+// Output may land under the Linux sandbox workspace root or this repo (the
+// orchestrator and CI both write into the repo's own gitignored screenshots/).
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const OUTPUT_ALLOWED_DIRS = ["/workspace", REPO_ROOT];
 import {
   authInvariantWarnings,
   buildAuthEnabled,
@@ -27,10 +33,10 @@ if (args.error) {
 }
 
 const url = checkedUrl(args.url);
-const outPng = checkedOutputPath(args.outPng, ["/workspace"]);
+const outPng = checkedOutputPath(args.outPng, OUTPUT_ALLOWED_DIRS);
 const derived = derivedPaths(outPng);
-const mobilePng = checkedOutputPath(derived.mobilePng, ["/workspace"]);
-const outJson = checkedOutputPath(derived.verdictJson, ["/workspace"], "verdict JSON");
+const mobilePng = checkedOutputPath(derived.mobilePng, OUTPUT_ALLOWED_DIRS);
+const outJson = checkedOutputPath(derived.verdictJson, OUTPUT_ALLOWED_DIRS, "verdict JSON");
 
 const MAX_BASELINE_BYTES = 1024 * 1024;
 const baselineRequested = Boolean(args.baseline);

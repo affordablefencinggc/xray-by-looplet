@@ -17,7 +17,8 @@
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "tests": "npm test",
     "audit": "npm audit --audit-level=high",
-    "build": "npm run build"
+    "build": "npm run build",
+    "smoke": "node scripts/finish-line-smoke.mjs"
   },
   "sections": [
     {
@@ -184,6 +185,51 @@
       "gates": ["typecheck", "tests"],
       "push": true,
       "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-17",
+      "title": "Dev bind: VITE_DEV_HOST override (loopback-capable)",
+      "kind": "feature",
+      "files": ["vite.config.ts"],
+      "commit": "feat(dev): VITE_DEV_HOST override for the dev-server bind; 0.0.0.0 default preserved for the live-preview contract",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-18",
+      "title": "Cross-platform built-output browser smoke",
+      "kind": "feature",
+      "files": ["scripts/finish-line-smoke.mjs", "scripts/finish-line-smoke.test.mjs", "scripts/browser-smoke.mjs", "scripts/browser-smoke-verdict.test.mjs", "finish-line/LEDGER.json"],
+      "commit": "feat(smoke): cross-platform smoke orchestrator (spawn preview, poll, browser-smoke, teardown) + repo-root output guard; smoke gate in the belt",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-19",
+      "title": "CI: engine pytest + built-output smoke",
+      "kind": "ci",
+      "files": [".github/workflows/ci.yml"],
+      "commit": "ci(engine): python engine+MCP pytest and Playwright built-output smoke on every push/PR",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-20",
+      "title": "Production release gate (hardening wave)",
+      "kind": "release",
+      "files": [],
+      "commit": null,
+      "gates": ["typecheck", "tests", "audit", "build", "smoke"],
+      "push": false,
+      "production": true,
+      "deployCommand": "npm run build",
       "status": "pending"
     },
     {
