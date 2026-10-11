@@ -62,3 +62,16 @@ Merge resolved and committed on `recovery/full-studio-20261011`; not pushed, not
 - Tablet/mobile viewports and touch interactions were not driven this wave (device scope: tablet/laptop/desktop).
 - Native/desktop (Tauri) acceptance and the `py`-host engine contract were not re-run on the recovery branch this wave; `db:migrate` was not executed (no credentials).
 - The `tests01` failure and the runner quoting bugs (`C:\Program Files` paths in unquoted `ArgumentList`; scenario-file UTF-8 BOM from a PowerShell write) are recorded in `xray-recovery-evidence` logs; all were fixed within the campaign.
+
+## Tablet/laptop viewport verification (post-promotion branch work, 2026-10-11)
+
+Main was fast-forwarded from `75bd12b5` to `be29918a` (the recovery head) and pushed; development continues on `recovery/full-studio-20261011`, which now diverges from main. Phone viewports stay out of scope (AGENTS.project.md device scope); tablets, laptops and desktops are in scope.
+
+Run `dev-cdp-tablet1` (`scenario-tablet.json`, 32 ops, capped dev server on 127.0.0.1:8180, campaign-owned Chrome, 2026-10-11T09:45Z):
+
+- **All 32 ops completed; `errors` opcode count 0 — zero browser errors.** Verdict `INFRA_FAILURE` came only from the runner's trailing settle (`Runtime.evaluate deadline`): the minimized campaign Chrome throttles `requestAnimationFrame`, so the final double-rAF wait stalls. No product op failed; all 6 planned screenshots were captured with sha256 receipts (`dev-cdp-tablet1/browser-results.json`).
+- **No horizontal overflow at any tested viewport** — `scrollWidth == viewport width` on every check:
+  - Sheets & files screen: 1180×820, 820×1180, 1280×800 — clean.
+  - 3D model screen (Redburn sample loaded): 1180×820, 820×1180, 1280×800 — clean.
+- **Touch-target audit (44px recommendation):** on the sheets screens only 0–1 minor offenders ("Collapse assistant" collapsed toggle). On the model screen at 1180/1280 the left-nav model pills (Redburn BR250157, Crown Wharf A4 tower, Caroline, Ruffles sample) measure **32px**, with 32–33 buttons total below 44px; at 820 portrait only 3 minor offenders (the rail collapses). Tablets render and remain usable (no clipping, no overflow), but the 32px model pills are honest touch-target debt on the model pane — recorded, not hidden.
+- Viewport screenshots: `tablet-sheets-1180x820.png`, `tablet-sheets-820x1180.png`, `laptop-sheets-1280x800.png`, `tablet-model-1180x820.png`, `tablet-model-820x1180.png`, `laptop-model-1280x800.png`. This campaign's model cannot view images, so PNGs were not visually inspected; receipt numbers and the `errors`-opcode zero are the rendered-state evidence.
