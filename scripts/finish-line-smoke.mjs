@@ -7,9 +7,12 @@
  * sandbox; this orchestrator does the same job portably:
  *
  *   1. Probe the preview URL — reuse a server that is already up.
- *   2. Otherwise spawn `npm run preview` (vite preview → 127.0.0.1:8081,
- *      strictPort, serving the built output) detached, logging under
- *      screenshots/ (gitignored).
+ *   2. Otherwise spawn `npm run preview` (the recovered SSR preview
+ *      `scripts/preview-built.mjs`, serving the built Vercel output; binds
+ *      PREVIEW_HOST/PREVIEW_PORT, defaulting to 127.0.0.1:8081) detached,
+ *      logging under screenshots/ (gitignored). The preview is not a Vite
+ *      CLI: host/port are env-only, so the orchestrator derives them from
+ *      the polled URL rather than passing CLI flags.
  *   3. Poll until the server answers, then run scripts/browser-smoke.mjs
  *      against it (loopback-guarded, Playwright Chromium).
  *   4. Always tear the spawned server down (taskkill tree on Windows,
@@ -28,7 +31,9 @@ import { fileURLToPath } from "node:url";
 
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SMOKE_SCRIPT = join(REPO_ROOT, "scripts", "browser-smoke.mjs");
-const DEFAULT_URL = "http://127.0.0.1:8081/";
+const DEFAULT_PREVIEW_HOST = "127.0.0.1";
+const DEFAULT_PREVIEW_PORT = 8081;
+const DEFAULT_URL = `http://${DEFAULT_PREVIEW_HOST}:${DEFAULT_PREVIEW_PORT}/`;
 const DEFAULT_PNG = join(REPO_ROOT, "screenshots", "finish-line-smoke.png");
 const PREVIEW_LOG = join(REPO_ROOT, "screenshots", "finish-line-preview.log");
 
@@ -52,6 +57,22 @@ export function parseSmokeConfig(argv = [], env = {}) {
   return config;
 }
 
+/**
+ * PREVIEW_HOST/PREVIEW_PORT for the recovered SSR preview, derived from the
+ * URL this run polls so a non-default `--url` still reaches the server it
+ * spawned. `scripts/preview-built.mjs` reads only these env vars (no CLI
+ * flags), and they must survive `npm run preview` → with-app-env → the
+ * preview child, so they are passed through the spawn environment.
+ */
+export function previewEnvFromUrl(url, env = {}) {
+  const parsed = new URL(url);
+  return {
+    ...env,
+    PREVIEW_HOST: parsed.hostname || DEFAULT_PREVIEW_HOST,
+    PREVIEW_PORT: parsed.port || String(DEFAULT_PREVIEW_PORT),
+  };
+}
+
 /** Poll `url` until it answers. Any HTTP response means the server is up. */
 export async function pollReady(url, timeoutMs, fetchImpl, sleepMs = 250) {
   const fetchFn = fetchImpl || globalThis.fetch;
@@ -67,19 +88,22 @@ export async function pollReady(url, timeoutMs, fetchImpl, sleepMs = 250) {
     await new Promise((r) => setTimeout(r, sleepMs));
   }
 }
-function startPreview() {
+function startPreview(config) {
   mkdirSync(dirname(PREVIEW_LOG), { recursive: true });
   const logFd = openSync(PREVIEW_LOG, "a");
+  const env = previewEnvFromUrl(config.url, process.env);
   const child =
     process.platform === "win32"
       ? spawn("cmd.exe", ["/d", "/s", "/c", "npm run preview"], {
           cwd: REPO_ROOT,
           detached: true,
+          env,
           stdio: ["ignore", logFd, logFd],
         })
       : spawn("npm", ["run", "preview"], {
           cwd: REPO_ROOT,
           detached: true,
+          env,
           stdio: ["ignore", logFd, logFd],
         });
   return child;
@@ -112,7 +136,7 @@ export async function runSmoke(config) {
     console.error(`[smoke] no server at ${config.url} and --no-server set — aborting`);
     return 1;
   } else {
-    child = startPreview();
+    child = startPreview(config);
     owned = true;
     console.log(`[smoke] spawned npm run preview (pid ${child.pid}); waiting for ${config.url}`);
     const ready = await pollReady(config.url, config.timeoutMs);

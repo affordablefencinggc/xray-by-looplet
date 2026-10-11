@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseSmokeConfig, pollReady } from "./finish-line-smoke.mjs";
+import { parseSmokeConfig, pollReady, previewEnvFromUrl } from "./finish-line-smoke.mjs";
 
 test("parseSmokeConfig: defaults", () => {
   const config = parseSmokeConfig([], {});
@@ -52,4 +52,18 @@ test("pollReady: times out when nothing answers", async () => {
   };
   const result = await pollReady("http://127.0.0.1:8081/", 5, fakeFetch, 1);
   assert.deepEqual(result, { ok: false });
+});
+
+test("previewEnvFromUrl: derives PREVIEW_HOST/PREVIEW_PORT for the SSR preview", () => {
+  // The recovered preview (scripts/preview-built.mjs) reads env only — no CLI
+  // flags — so a non-default --url must become the bind address it polls.
+  assert.deepEqual(previewEnvFromUrl("http://127.0.0.1:9090/"), {
+    PREVIEW_HOST: "127.0.0.1",
+    PREVIEW_PORT: "9090",
+  });
+  assert.equal(previewEnvFromUrl("http://localhost:8081/", { CI: "1" }).CI, "1");
+  assert.equal(previewEnvFromUrl("http://localhost:8081/").PREVIEW_HOST, "localhost");
+  // No port in the URL falls back to the recovered preview's own default.
+  assert.equal(previewEnvFromUrl("http://127.0.0.1/").PREVIEW_PORT, "8081");
+  assert.equal(previewEnvFromUrl("http://127.0.0.1/").PREVIEW_HOST, "127.0.0.1");
 });
