@@ -44,7 +44,20 @@ const STATUS_ONLY = has('--status');
 const log = (...m) => console.log(...m);
 const hr = () => log('─'.repeat(78));
 
+const CMD_SHIMS = new Set(['npm', 'npx', 'pnpm', 'yarn']);
+
 function run(cmd, cmdArgs, opts = {}) {
+  if (process.platform === 'win32' && CMD_SHIMS.has(cmd)) {
+    // .cmd shims (npm.cmd etc.) cannot be spawned directly on modern Node
+    // (CVE-2024-27980) — route through cmd.exe. Gate args for these are simple
+    // (no embedded spaces), so plain joining is safe.
+    return execFileSync('cmd.exe', ['/d', '/s', '/c', [cmd, ...cmdArgs].join(' ')], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: opts.pipe ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+    });
+  }
+  // Real executables (git, node, …) spawn directly — Node quotes argv properly.
   return execFileSync(cmd, cmdArgs, {
     cwd: REPO_ROOT,
     encoding: 'utf8',
