@@ -344,6 +344,7 @@ impl Drop for ProcessTree {
     }
 }
 
+#[cfg(windows)]
 fn process_tree_error() -> TransportError {
     error(
         TransportCode::SpawnFailed,
