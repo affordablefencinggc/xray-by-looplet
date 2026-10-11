@@ -29,6 +29,7 @@ The primary upstream Tauri tracker issue `tauri-apps/tauri#15698` reports a simi
 - Live shell-runner checks: child success propagated 0; deliberate child failure propagated 7; one-second deadline terminated five-second child and propagated 124. No full local native rebuild; these checks are lightweight.
 - Syntax/JSON/whitespace checks passed. No package target was dropped to manufacture a green matrix.
 - **Remote acceptance passed:** run `38150581911`, tested `c93ae1e7`, Ubuntu job `114503720609` completed successfully at `2026-10-11T15:38:33Z`. Actual DEB/RPM/AppImage build finished at `15:37:04Z`, `NATIVE_BUILD_EXIT=0`, 14m31s after the bounded step started. Tar/upload succeeded; [full package identity and remaining limits](ci-matrix-final.md).
+- **Independent artifact follow-up passed:** downloaded Linux ZIP digest matches the exact run artifact, all three package member hashes/magic checked, and tar headers retain executable modes. [Separate Linux integrity proof](linux-artifact-integrity.md); package internals/installed launch are not implied.
 
 ## Visual evidence and limits
 

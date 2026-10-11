@@ -40,3 +40,7 @@ The initial web audit helper completed download/hash verification but failed on 
 ## Visual evidence and limits
 
 Nonvisual step; no new screenshot. Separate saved-screenshot review identifies inspected visible states. No installer was installed or executed, no serverless function was deployed, no qualified frozen runtime was manufactured or staged, and no signing/macOS acceptance is asserted.
+
+## Final Linux archive follow-up
+
+The later accepted source `c93ae1e7354e7d295196ab5db0d363ed9e1a34eb`, run `38150581911`, now has independent Linux ZIP/tar/member verification as well: [separate integrity proof](linux-artifact-integrity.md). Artifact `11705864872` matches its remote ZIP digest; DEB/RPM/AppImage member hashes are recorded, and tar headers retain `0755` for the AppImage and staged launcher/application binaries. This does not change the canceled status of the first checkpoint above or establish installed native runtime acceptance.

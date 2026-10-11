@@ -6,13 +6,13 @@ Earlier status paragraphs below are historical campaign snapshots. `main` remain
 
 - [x] Repair/preflight the native CI build path: [separate step proof](steps/ci-native-build-preflight.md); subsequent remote acceptance is in the final proof.
 - [x] Obtain a green CI run for the exact tested branch commit: run `38150581911`, `c93ae1e7`, all four jobs successful.
-- [x] Verify produced Windows/Linux package identities through CI logs and artifact metadata; independently download/hash/content-check Windows installers, web output and SC-07 proof. No qualified frozen runtime is staged in this CI path. [Exact verification levels](steps/ci-matrix-final.md).
-- [ ] Independently download/hash/check the large Linux archive and perform installed launch/runtime acceptance.
+- [x] Verify produced Windows/Linux package identities through CI logs and artifact metadata; independently download/hash/content-check Windows installers, web output and SC-07 proof. Linux ZIP/tar/member verification is now separately complete. No qualified frozen runtime is staged in this CI path. [Exact verification levels](steps/ci-matrix-final.md).
+- [x] Independently download/hash/check the Linux archive: [separate step proof](steps/linux-artifact-integrity.md). All three package hashes recorded; AppImage and staged application/launcher modes are `0755`. No package installation or execution.
 - [ ] Native launch/runtime acceptance, macOS package evidence and actual deployment acceptance.
 - [x] AI review of selected saved desktop/tablet screenshots: [separate step proof](steps/saved-screenshot-review.md). Human signoff remains distinct; compact controls and a partly obstructed portrait bottom row remain open.
 - [x] Verify CI web/transport artifact digest and content: [separate step proof](steps/ci-artifact-integrity.md), finalized for `c93ae1e7` in the matrix proof.
 - [x] Restore shell-free raw status acceptance tests: [separate step proof](steps/hermetic-raw-status-proof.md); local tests/strict clippy and remote Linux/Windows execution passed.
-- [x] Diagnose long silent Linux packaging and add bounded RPM configuration: [separate step proof](steps/linux-rpm-bounded-packaging.md); configuration/runner tests and actual DEB/RPM/AppImage packaging passed without dropping targets.
+- [x] Characterize the long silent Linux packaging stall and add bounded RPM configuration: [separate step proof](steps/linux-rpm-bounded-packaging.md); configuration/runner tests and actual DEB/RPM/AppImage packaging passed without dropping targets. Root cause is not proven.
 
 ### Remote checkpoint after `857d7f3d`
 
@@ -26,7 +26,7 @@ Superseded runs `38146549601` and `38148677824` were explicitly canceled, not fa
 - CI's Linux SC-07 proof cannot establish the Windows-only security requirements by itself; matrix test results must be inspected separately. A green proof job is not universal platform acceptance.
 - The current CI prepares empty engine directories and runs only the legacy sidecar dry-run. It does not stage the qualified frozen engine or supply `XRAY_BUNDLED_ENGINE_SHA256`. Windows selection therefore stays unavailable without an explicit trusted override; bundled Linux selection is not implemented. Desktop package success must be labeled shell/package evidence, not full native BOM acceptance.
 - The earlier Windows matrix placed two cargo commands in one PowerShell step; final-command exit propagation could mask a first-command failure. The final workflow uses independently failing steps, both remotely successful; older executed summaries were also individually inspected.
-- Linux upload now wraps the bundles in a mode-preserving tarball and passed remotely. The final 1.76GB ZIP's remote digest is recorded, but it has not been independently downloaded or unpacked in this campaign. Upload alone is not installed-launch proof.
+- Linux upload wraps the bundles in a mode-preserving tarball. Independent download verified the final ZIP digest; two local inspectors agreed on 588 tar entries, and the AppImage plus staged binaries/launcher retain `0755`. Only the inert tar container was unpacked from the ZIP; package bytes were streamed for hashes, never installed or executed. This closes archive identity/mode verification, not installed-launch or native BOM acceptance.
 - Reusing the historical native-transfer generator omits the new `tauri.windows.conf.json`. Do not edit historical evidence; future DANS1 transfer must explicitly include all platform overlays in its source manifest. DANS1 is reachable, but no new qualified build was launched in this preflight.
 - No Vercel CLI login/token or project linkage was found locally; DANS1 also has no Vercel token/login. No credentials were read or printed, and no deployment was attempted.
 
