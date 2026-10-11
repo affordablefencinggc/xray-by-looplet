@@ -44,6 +44,10 @@ def _count_checks(spec, entities):
 class ShedPack(Pack):
     name = "shed"
     trade = "structural steel"
+    discipline = "building"
+    audience = "Builders & contractors"
+    detect_summary = ("a shed spec token set (SPEC entity) in the drawing text — "
+                      "portal-frame sheds and garages")
 
     def detect(self, ctx):
         return _find_spec(ctx.entities) is not None
