@@ -5,6 +5,7 @@ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
 import { pickAndRunTakeoff } from "./engine";
 import { useStudio, type Pane } from "./store";
 import { buildLoopletQuoteLines, pushToLoopletCrm } from "./crmBridge";
+import { getDiscipline, listDisciplines } from "../lib/disciplines";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 
 const PANES: { id: Pane; label: string }[] = [
@@ -22,6 +23,7 @@ const PANES: { id: Pane; label: string }[] = [
 export function Studio() {
   const s = useStudio();
   const sheet = SHEETS[s.sheet];
+  const discipline = getDiscipline(s.discipline);
 
   // Global keyboard shortcuts for tool switching and navigation
   useEffect(() => {
@@ -112,6 +114,25 @@ export function Studio() {
         </div>
       </header>
 
+      <div
+        className="flex flex-wrap items-center gap-1 border-b border-line bg-header px-3 py-1.5"
+        title={`${discipline.audience} — ${discipline.blurb}`}
+        aria-label="Discipline"
+      >
+        {listDisciplines().map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className="pill"
+            aria-pressed={s.discipline === d.id}
+            onClick={() => s.setDiscipline(d.id)}
+            title={`${d.audience} — ${d.blurb}`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-muted">
         {s.pane === "model" && (
           <>
@@ -197,6 +218,7 @@ export function Studio() {
         </span>
         <span>Markups {s.markups.length}</span>
         <span>Evidence-first — quantities never re-derived here</span>
+        <span>Discipline {discipline.label}</span>
         <span>{s.planName ?? "no plan"}</span>
         <a className="ml-auto inline-flex items-center gap-1 text-ink underline" href="/xray-model-pipeline.html" download="xray-by-looplet.html">
           <Download className="size-3" />
@@ -743,7 +765,10 @@ function CostPane() {
   const counts = s.markups.filter((m) => m.kind === "count");
   const sum = (arr: typeof s.markups) => arr.reduce((a, m) => a + m.value, 0);
 
-  const staged = buildLoopletQuoteLines(s.markups, s.trades, s.planName, s.sheet);
+  const staged = buildLoopletQuoteLines(s.markups, s.trades, s.planName, s.sheet, {
+    id: s.discipline,
+    label: getDiscipline(s.discipline).label,
+  });
 
   function handlePushToCrm() {
     const res = pushToLoopletCrm(staged);

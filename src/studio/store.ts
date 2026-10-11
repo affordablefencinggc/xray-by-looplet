@@ -27,6 +27,7 @@ export type Markup = {
 export type Trade = { id: string; name: string; note: string };
 
 type StudioState = {
+  discipline: string;
   pane: Pane;
   sheet: number;
   skin: "navy" | "paper";
@@ -60,6 +61,7 @@ type StudioState = {
   activeFloor: number | null;
   showSurfaces: boolean;
   setPane: (pane: Pane) => void;
+  setDiscipline: (id: string) => void;
   setSheet: (sheet: number) => void;
   toggle: (k: "showSrc" | "showBld" | "showRoof" | "showMan" | "rightCollapsed" | "capsOpen" | "snappingEnabled" | "showSurfaces") => void;
   toggleSnapping: () => void;
@@ -109,6 +111,7 @@ function polyArea(pts: { x: number; y: number }[]) {
 }
 
 export const useStudio = create<StudioState>((set, get) => ({
+  discipline: "auto",
   pane: "model",
   sheet: 16,
   skin: "navy",
@@ -147,6 +150,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   setExplodeFloors: (val) => set({ explodeFloors: Math.max(0, Math.min(3, val)) }),
   setActiveFloor: (floor) => set({ activeFloor: floor }),
   setPane: (pane) => set({ pane, lifted: pane === "model" ? get().lifted : false, chromeHidden: false }),
+  setDiscipline: (id) => set({ discipline: id }),
   setSheet: (sheet) => {
     const kind: SheetKind = SHEETS[sheet]?.kind ?? "plan";
     if (kind === "elev") {

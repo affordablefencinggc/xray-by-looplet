@@ -28,13 +28,17 @@ export interface StagedQuote {
   subtotal: number;
   tax: number;
   total: number;
+  /** Optional discipline context — included in the quote payload when the studio passes it. */
+  disciplineId?: string | null;
+  disciplineLabel?: string | null;
 }
 
 export function buildLoopletQuoteLines(
   markups: Markup[],
   trades: Trade[],
   planName: string | null,
-  sheet: number
+  sheet: number,
+  discipline?: { id: string; label: string }
 ): StagedQuote {
   const lines: LoopletQuoteLine[] = [];
 
@@ -106,6 +110,8 @@ export function buildLoopletQuoteLines(
     subtotal,
     tax,
     total,
+    disciplineId: discipline?.id ?? null,
+    disciplineLabel: discipline?.label ?? null,
   };
 }
 

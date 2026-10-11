@@ -14,7 +14,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Architectural construction-plan takeoff studio. PDF in, scale, mark, evidence, BOM — quantities never invented.",
+          "Multi-discipline construction-plan takeoff studio for engineers, architects, civil & structural engineers, draftsmen and builders. PDF/DXF/IFC in — scale, mark, evidence, BOM. Quantities never invented.",
       },
       { name: "theme-color", content: "#050b14" },
     ],
