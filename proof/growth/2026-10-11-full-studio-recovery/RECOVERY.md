@@ -1,5 +1,14 @@
 # Full studio recovery — integration in progress
 
+## Current continuation — October 12, 2026
+
+Earlier status paragraphs below are historical campaign snapshots. `main` was subsequently promoted to `be29918a`; current work is authorized on `recovery/full-studio-20261011` only, with ordinary branch commits and pushes. The newest independently checked CI run is `38145192679` (October 11): web audit passed, SC-07 failed formatting, native matrix skipped. No complete remote CI/native acceptance is asserted yet.
+
+- [x] Repair/preflight the native CI build path: [separate step proof](steps/ci-native-build-preflight.md) (formatting, capped host tests/clippy and platform-hook regression coverage; remote acceptance pending).
+- [ ] Obtain a green CI run for the exact tested branch commit.
+- [ ] Verify Windows/Linux desktop artifacts and record whether a qualified runtime is actually bundled.
+- [ ] Native launch/runtime acceptance, macOS package evidence and actual deployment acceptance.
+
 ## Scope and identities
 
 User authorized proceeding with recovery into a separate worktree. Current main is preserved; no push or deployment is authorized by this campaign.

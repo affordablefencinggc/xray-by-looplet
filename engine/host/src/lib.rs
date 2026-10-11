@@ -2768,7 +2768,8 @@ mod tests {
         fn command(&self, _: &Invocation) -> Result<Command, TransportError> {
             self.status_command()
         }
-        fn status_command(&self) -> Result<Command, TransportError> {            // Hermetic: the delayed status handshake is exercised by
+        fn status_command(&self) -> Result<Command, TransportError> {
+            // Hermetic: the delayed status handshake is exercised by
             // re-executing this test binary as the `status-handshake` fixture
             // (env-driven delay + payload + exit), never an OS shell; the
             // spawn audit allows only the current compiled test executable.
@@ -2788,7 +2789,8 @@ mod tests {
                 .env("XRAY_TEST_STATUS_DELAY_MS", self.delay_ms.to_string())
                 .env("XRAY_TEST_STATUS_FAIL", if self.fail { "1" } else { "0" })
                 .stdin(Stdio::null());
-            Ok(command)        }
+            Ok(command)
+        }
     }
 
     #[test]
