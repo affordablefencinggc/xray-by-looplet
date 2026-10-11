@@ -1,0 +1,92 @@
+{
+  "$schema": "finish-line-ledger-v1",
+  "project": "xray-by-looplet",
+  "repo": "https://github.com/affordablefencinggc/xray-by-looplet",
+  "branch": "main",
+  "createdAt": "2026-10-11",
+  "conveyor": {
+    "runner": "scripts/finish-line.mjs",
+    "defaultMode": "dry-run",
+    "liveModeFlag": "--live",
+    "productionFlag": "--deploy",
+    "haltOnFailure": true,
+    "stateFile": "finish-line/state.json",
+    "logFile": "finish-line/ACTIONS.csv"
+  },
+  "gates": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "tests": "npm test",
+    "audit": "npm audit --audit-level=high",
+    "build": "npm run build"
+  },
+  "sections": [
+    {
+      "id": "FL-01",
+      "title": "Lockfile regeneration + typecheck fixes",
+      "kind": "fix",
+      "files": ["package-lock.json", "tsconfig.json", "src/lib/error-component.tsx"],
+      "commit": "chore(release): regenerate lockfile, exclude src/vendor from typecheck, strict-mode error guard",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-02",
+      "title": "Local CAD takeoff scripts",
+      "kind": "feature",
+      "files": ["cad/cad.html", "cad/takeoff-fence-bom.js", "cad/takeoff-geom.js", "cad/takeoff-measure.js", "cad/takeoff-recipe.js", "cad/takeoff-snap.js"],
+      "commit": "feat(cad): standalone takeoff geometry, measure, snap, recipe and fence-BOM scripts",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-03",
+      "title": "Vendor pdf.js bundles",
+      "kind": "feature",
+      "files": ["src/vendor/pdf.min.mjs", "src/vendor/pdf.worker.min.mjs"],
+      "commit": "feat(vendor): vendored pdf.js runtime + worker for local plan parsing",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-04",
+      "title": "Finish-line audit + ledger docs",
+      "kind": "docs",
+      "files": ["finish-line/AUDIT.md", "finish-line/LEDGER.md", "finish-line/LEDGER.json", "finish-line/ACTIONS.csv", "finish-line/RUNBOOK.md"],
+      "commit": "docs(finish-line): full application audit and controlled conveyor ledger",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-05",
+      "title": "Conveyor-belt pipeline runner",
+      "kind": "feature",
+      "files": ["scripts/finish-line.mjs"],
+      "commit": "feat(pipeline): finish-line conveyor runner with gated commit/push/production stages",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-06",
+      "title": "Production release gate",
+      "kind": "release",
+      "files": [],
+      "commit": null,
+      "gates": ["typecheck", "tests", "audit", "build"],
+      "push": false,
+      "production": true,
+      "deployCommand": "npm run build",
+      "note": "Build must pass; actual Vercel deploy is triggered by the platform (see .grok/references/deploy-target.md). --deploy runs the full gate chain and emits the release artifact.",
+      "status": "pending"
+    }
+  ]
+}
