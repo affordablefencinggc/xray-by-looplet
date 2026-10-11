@@ -76,6 +76,14 @@ def build_sidecar(dry_run=False):
 
     if output_path.exists():
         print(f"[+] Successfully generated frozen sidecar: {output_path}")
+        # Mirror scripts/build-sidecar.mjs: also place the binary at
+        # engine/bin/xray-engine[.exe] where engine/host's
+        # resolve_engine_path() looks for it.
+        engine_bin_dir = ROOT / "engine" / "bin"
+        engine_bin_dir.mkdir(parents=True, exist_ok=True)
+        engine_bin_path = engine_bin_dir / f"xray-engine{ext}"
+        shutil.copy2(output_path, engine_bin_path)
+        print(f"[+] Copied frozen binary to: {engine_bin_path}")
     else:
         print(f"[!] Warning: Expected output not found at {output_path}")
 

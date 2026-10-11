@@ -1,0 +1,249 @@
+{
+  "$schema": "finish-line-ledger-v1",
+  "project": "xray-by-looplet",
+  "repo": "https://github.com/affordablefencinggc/xray-by-looplet",
+  "branch": "main",
+  "createdAt": "2026-10-11",
+  "conveyor": {
+    "runner": "scripts/finish-line.mjs",
+    "defaultMode": "dry-run",
+    "liveModeFlag": "--live",
+    "productionFlag": "--deploy",
+    "haltOnFailure": true,
+    "stateFile": "finish-line/state.json",
+    "logFile": "finish-line/ACTIONS.csv"
+  },
+  "gates": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "tests": "npm test",
+    "audit": "npm audit --audit-level=high",
+    "build": "npm run build",
+    "smoke": "node scripts/finish-line-smoke.mjs"
+  },
+  "sections": [
+    {
+      "id": "FL-01",
+      "title": "Lockfile regeneration + typecheck fixes",
+      "kind": "fix",
+      "files": ["package-lock.json", "tsconfig.json", "src/lib/error-component.tsx"],
+      "commit": "chore(release): regenerate lockfile, exclude src/vendor from typecheck, strict-mode error guard",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-02",
+      "title": "Local CAD takeoff scripts",
+      "kind": "feature",
+      "files": ["cad/cad.html", "cad/takeoff-fence-bom.js", "cad/takeoff-geom.js", "cad/takeoff-measure.js", "cad/takeoff-recipe.js", "cad/takeoff-snap.js"],
+      "commit": "feat(cad): standalone takeoff geometry, measure, snap, recipe and fence-BOM scripts",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-03",
+      "title": "Vendor pdf.js bundles",
+      "kind": "feature",
+      "files": ["src/vendor/pdf.min.mjs", "src/vendor/pdf.worker.min.mjs"],
+      "commit": "feat(vendor): vendored pdf.js runtime + worker for local plan parsing",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-04",
+      "title": "Finish-line audit + ledger docs",
+      "kind": "docs",
+      "files": ["finish-line/AUDIT.md", "finish-line/LEDGER.md", "finish-line/LEDGER.json", "finish-line/ACTIONS.csv", "finish-line/RUNBOOK.md"],
+      "commit": "docs(finish-line): full application audit and controlled conveyor ledger",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-05",
+      "title": "Conveyor-belt pipeline runner",
+      "kind": "feature",
+      "files": ["scripts/finish-line.mjs"],
+      "commit": "feat(pipeline): finish-line conveyor runner with gated commit/push/production stages",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-08",
+      "title": "Belt hardening: win32 spawn routing + regenerated artifacts",
+      "kind": "fix",
+      "files": ["scripts/finish-line.mjs", "src/routeTree.gen.ts", "finish-line/ACTIONS.csv", "finish-line/state.json"],
+      "commit": "fix(pipeline): route .cmd shims through cmd.exe on win32, regenerate routeTree from production build, record belt run log",
+      "gates": ["typecheck"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-09",
+      "title": "Engine core unit-test coverage pack",
+      "kind": "test",
+      "files": ["engine/python/xray/conftest.py", "engine/python/xray/test_scale.py", "engine/python/xray/test_grammar.py", "engine/python/xray/test_orders.py", "engine/python/xray/test_wireframe.py", "engine/python/xray/test_rollup.py", "engine/python/xray/test_quantify.py"],
+      "commit": "test(engine): unit coverage for scale voting, grammar classification, orders packing, wireframe, rollup and quantify (86 tests)",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-10",
+      "title": "MCP result cache + parse diagnostics",
+      "kind": "feature",
+      "files": ["engine/server/mcp_server.py", "engine/python/xray/sources/base.py", "engine/python/xray/sources/dxf.py", "engine/python/xray/sources/pdf.py", "engine/python/xray/engine.py"],
+      "commit": "feat(engine): bounded LRU takeoff cache for MCP tools; surfaced skipped-entity diagnostics in dxf/pdf sources",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-11",
+      "title": "Host result-file contract + python fallback",
+      "kind": "fix",
+      "files": ["engine/host/src/lib.rs", "engine/python/xray/cli.py", "engine/DESKTOP.md", "scripts/build-sidecar.py"],
+      "commit": "fix(host): explicit result.json contract across host/engine/sidecar; windows-safe python resolution (python/py -3/python3)",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-12",
+      "title": "recharts v3 dependency refresh",
+      "kind": "chore",
+      "files": ["package.json", "package-lock.json"],
+      "commit": "chore(deps): recharts ^2.13 -> ^3.10 (deprecated v2 branch, no in-repo consumers)",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-13",
+      "title": "Multi-discipline Studio (engineers/architects/civil/builders)",
+      "kind": "feature",
+      "files": ["src/lib/disciplines.ts", "src/lib/disciplines.test.ts", "src/studio/store.ts", "src/studio/Studio.tsx", "src/studio/crmBridge.ts", "src/routes/__root.tsx"],
+      "commit": "feat(studio): discipline selector and catalog for engineers, architects, civil, draftsmen and builders; discipline in CRM quote payload; refreshed app meta copy",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-14",
+      "title": "Engine discipline metadata + list_disciplines MCP tool",
+      "kind": "feature",
+      "files": ["engine/python/xray/packs.py", "engine/python/xray/packs_fencing.py", "engine/python/xray/packs_electrical.py", "engine/python/xray/packs_structural.py", "engine/python/xray/packs_survey.py", "engine/python/xray/packs_residential.py", "engine/python/xray/packs_shed.py", "engine/python/xray/disciplines.py", "engine/python/xray/test_disciplines.py", "engine/server/test_mcp.py"],
+      "commit": "feat(engine): discipline metadata on trade packs + list_disciplines MCP tool (architecture/structural/civil/electrical/building/fencing)",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-15",
+      "title": "Audit doc: multi-discipline product definition",
+      "kind": "docs",
+      "files": ["finish-line/AUDIT.md", "finish-line/LEDGER.json"],
+      "commit": "docs(audit): broaden product definition to multi-discipline takeoff (engineers/architects/civil/draftsmen/builders) and record build-out ledger",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-16",
+      "title": "Production release gate (build-out wave)",
+      "kind": "release",
+      "files": [],
+      "commit": null,
+      "gates": ["typecheck", "tests", "audit", "build"],
+      "push": false,
+      "production": true,
+      "deployCommand": "npm run build",
+      "status": "pending"
+    },
+    {
+      "id": "FL-07",
+      "title": "Test suite: Windows glob + PWA injector + env fixes",
+      "kind": "fix",
+      "files": ["package.json", "scripts/grok-pwa-shared.mjs", "scripts/with-app-env.mjs", "scripts/with-app-env.test.mjs", "scripts/check-auth-invariant.test.mjs", "finish-line/LEDGER.json"],
+      "commit": "fix(test): windows-safe test glob, honor per-app PWA head overrides, shell-free spawn for spaced paths",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-17",
+      "title": "Dev bind: VITE_DEV_HOST override (loopback-capable)",
+      "kind": "feature",
+      "files": ["vite.config.ts"],
+      "commit": "feat(dev): VITE_DEV_HOST override for the dev-server bind; 0.0.0.0 default preserved for the live-preview contract",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-18",
+      "title": "Cross-platform built-output browser smoke",
+      "kind": "feature",
+      "files": ["scripts/finish-line-smoke.mjs", "scripts/finish-line-smoke.test.mjs", "scripts/browser-smoke.mjs", "scripts/browser-smoke-verdict.test.mjs", "finish-line/LEDGER.json"],
+      "commit": "feat(smoke): cross-platform smoke orchestrator (spawn preview, poll, browser-smoke, teardown) + repo-root output guard; smoke gate in the belt",
+      "gates": ["typecheck", "tests"],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-19",
+      "title": "CI: engine pytest + built-output smoke",
+      "kind": "ci",
+      "files": [".github/workflows/ci.yml"],
+      "commit": "ci(engine): python engine+MCP pytest and Playwright built-output smoke on every push/PR",
+      "gates": [],
+      "push": true,
+      "production": false,
+      "status": "pending"
+    },
+    {
+      "id": "FL-20",
+      "title": "Production release gate (hardening wave)",
+      "kind": "release",
+      "files": [],
+      "commit": null,
+      "gates": ["typecheck", "tests", "audit", "build", "smoke"],
+      "push": false,
+      "production": true,
+      "deployCommand": "npm run build",
+      "status": "pending"
+    },
+    {
+      "id": "FL-06",
+      "title": "Production release gate",
+      "kind": "release",
+      "files": [],
+      "commit": null,
+      "gates": ["typecheck", "tests", "audit", "build"],
+      "push": false,
+      "production": true,
+      "deployCommand": "npm run build",
+      "note": "Build must pass; actual Vercel deploy is triggered by the platform (see .grok/references/deploy-target.md). --deploy runs the full gate chain and emits the release artifact.",
+      "status": "pending"
+    }
+  ]
+}

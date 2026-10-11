@@ -183,6 +183,12 @@ class ReadResult:
     # emit confident nonsense. Empty for adapters that don't assess it.
     provenance: dict = field(default_factory=dict)
 
+    # Parse diagnostics. A per-entity fallback exists so one malformed entity
+    # never fails the whole read — but the skip itself must not vanish: the
+    # adapter records WHAT was skipped and WHY here, so a low count can be
+    # explained rather than discovered downstream. Empty on a clean read.
+    diagnostics: dict = field(default_factory=dict)
+
 
 class SourceAdapter:
     """One input format. Stateless; `read` must not leak an open document."""

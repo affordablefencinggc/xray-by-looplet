@@ -1,0 +1,66 @@
+[
+  [
+    "context",
+    "fresh"
+  ],
+  [
+    "navigate",
+    "fresh",
+    "http://127.0.0.1:8180/"
+  ],
+  [
+    "wait",
+    "fresh",
+    "document.querySelector('[data-hydration-status=ready]')!==null",
+    120000
+  ],
+  [
+    "wait",
+    "fresh",
+    "(async()=>{await new Promise(r=>setTimeout(r,8000));return true})()",
+    20000
+  ],
+  [
+    "eval",
+    "fresh",
+    "(()=>{const canvases=[...document.querySelectorAll('canvas')].map(c=>({cls:String(c.className),attrs:Object.keys(c.dataset),w:c.width,h:c.height}));const btns=[...document.querySelectorAll('button')].map(b=>b.textContent.trim()).filter(Boolean).slice(0,40);const dialog=document.querySelector('[role=dialog]');const dlg=dialog?dialog.textContent.trim().slice(0,200):null;const heads=[...document.querySelectorAll('h1,h2')].map(x=>x.textContent.trim()).filter(Boolean).slice(0,10);const rows=[...document.querySelectorAll('.adjustable-top-row')].map(r=>r.dataset.topRow+(r.dataset.collapsed==='true'?'(collapsed)':''));const bodyText=document.body.textContent.trim().slice(0,400);return {canvases,btns,dlg,heads,rows,bodyText}})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Visualise",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "3D viewer",
+    "--exact"
+  ],
+  [
+    "wait",
+    "fresh",
+    "(async()=>{await new Promise(r=>setTimeout(r,15000));return true})()",
+    25000
+  ],
+  [
+    "eval",
+    "fresh",
+    "(()=>{const canvases=[...document.querySelectorAll('canvas')].map(c=>({cls:String(c.className),cut:c.dataset.cutaway||null,scope:!!c.closest('.model-scope')}));const heads=[...document.querySelectorAll('.building-heading *')].map(x=>x.textContent.trim()).filter(Boolean).slice(0,8);const main=document.querySelector('.studio-main');return {canvases,heads,mainText:(main?main.textContent:'').slice(0,500)}})()"
+  ],
+  [
+    "screenshot",
+    "fresh",
+    "fresh-model-state.png"
+  ],
+  [
+    "errors",
+    "fresh"
+  ]
+]

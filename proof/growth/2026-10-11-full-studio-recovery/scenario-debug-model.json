@@ -1,0 +1,11 @@
+[
+  ["context", "debug"],
+  ["navigate", "debug", "http://127.0.0.1:8180/"],
+  ["wait", "debug", "document.querySelector('[data-hydration-status=ready]')!==null", 120000],
+  ["find", "role", "button", "click", "--name", "Visualise", "--exact"],
+  ["find", "role", "button", "click", "--name", "3D viewer", "--exact"],
+  ["wait", "debug", "(async()=>{await new Promise(r=>setTimeout(r,20000));return true})()", 30000],
+  ["eval", "debug", "(()=>{const canvases=[...document.querySelectorAll('canvas')].map(c=>({cls:String(c.className),cut:c.dataset.cutaway||null,w:c.width,h:c.height,style:(c.getAttribute('style')||'').slice(0,80)}));const heads=[...document.querySelectorAll('.building-heading *, h1, h2')].map(x=>x.textContent.trim()).filter(Boolean).slice(0,12);const cur=[...document.querySelectorAll('button[aria-current]')].map(x=>x.textContent.trim());const alerts=[...document.querySelectorAll('[role=alert]')].map(x=>x.textContent.trim()).filter(Boolean).slice(0,5);const stage=document.querySelector('.building-stage, .building-comparison, .building-view, .source-building-viewer');const main=document.querySelector('.studio-main');return {canvases,heads,cur,alerts,stageClass:stage?stage.className:null,mainText:(main?main.textContent:'').slice(0,400)}})()"],
+  ["screenshot", "debug", "debug-model-state.png"],
+  ["errors", "debug"]
+]

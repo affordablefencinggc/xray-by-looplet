@@ -59,6 +59,10 @@ def _elevated_polys(geometry):
 class SurveyPack(Pack):
     name = "survey"
     trade = "survey"
+    discipline = "civil"
+    audience = "Civil engineers & surveyors"
+    detect_summary = ("survey POINT entities (spot levels) or terrain-mesh "
+                      "vertices / contour and breakline polylines")
 
     def detect(self, ctx) -> bool:
         pts = getattr(ctx, "points", [])

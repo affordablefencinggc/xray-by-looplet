@@ -1,0 +1,2804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X-Ray — takeoff</title>
+<!--
+  X-Ray takeoff viewer (PDX CAD edition). Served by Looplet at /xray-app/cad/cad.html.
+  Pure geometry in takeoff-geom.js (unit-tested). Engine optional at :8001.
+-->
+<style>
+  :root{
+    --bg:#1a1a1a; --bg2:#202020; --card:#262626; --line:#3a3a3a;
+    --text:#e8e8e8; --dim:#a3a3a3; --dim2:#7a7a7a; --accent:#2d6cdf;
+    --green:#0a7d33; --amber:#b5820a; --red:#c0392b; --hl:#ffcf33;
+    --pkg:#12233d; --pkg-line:#2d6cdf;
+    font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);overflow:hidden}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--text);padding:7px 12px;border-radius:9px;transition:border-color .12s,background .12s,opacity .12s}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:transparent}
+
+  /* ---- header ---- */
+  header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2);flex:0 0 auto;flex-wrap:wrap;z-index:40}
+  header .logo{font-weight:700;letter-spacing:-.3px;font-size:14px}
+  header .logo em{font-style:normal;color:var(--accent)}
+  header .tag{font-size:10.5px;color:var(--dim2);border:1px solid var(--line);border-radius:100px;padding:2px 8px}
+  header .plan-chip{font-size:11.5px;color:var(--dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 9px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:none}
+  header .plan-chip.on{display:inline-block}
+  header .spacer{flex:1;min-width:8px}
+  header .tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .zoom{display:flex;gap:3px;align-items:center}
+  .zoom button{padding:5px 9px}
+  .zoom .pct{font-size:11px;color:var(--dim2);min-width:36px;text-align:center;font-variant-numeric:tabular-nums}
+
+  #main{flex:1;display:flex;min-height:0;position:relative}
+
+  /* ---- viewer ---- */
+  #viewer{flex:1;overflow:auto;padding:20px;background:#141414;position:relative}
+  #viewer.dragover{outline:2px dashed var(--accent);outline-offset:-8px;background:#182033}
+  #pages{display:flex;flex-direction:column;align-items:center;gap:18px}
+  .pageWrap{position:relative;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.5);border-radius:2px}
+  .pageWrap canvas{display:block;border-radius:2px}
+  .overlay{position:absolute;inset:0;pointer-events:none}
+  .hl{position:absolute;border:2px solid var(--hl);background:rgba(255,207,51,.22);border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.25);transition:background .2s}
+  .hl.flash{animation:flash .9s ease-out}
+  @keyframes flash{0%{background:rgba(255,207,51,.65)}100%{background:rgba(255,207,51,.22)}}
+  #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--dim);text-align:center;padding:40px;pointer-events:none}
+  #empty h2{margin:0;font-size:17px;color:var(--text)}
+  #empty p{margin:0;font-size:13px;max-width:360px;line-height:1.45}
+  #empty .hint-keys{font-size:11.5px;color:var(--dim2);margin-top:6px}
+  #empty kbd{font:11px ui-monospace,monospace;border:1px solid var(--line);border-radius:4px;padding:1px 5px;background:var(--card);color:var(--dim)}
+
+  /* ---- loading ---- */
+  #loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:35;flex-direction:column;gap:10px}
+  #loading.on{display:flex}
+  #loading .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  #loading span{font-size:13px;color:var(--text)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---- rail ---- */
+  #rail{flex:0 0 min(380px,38vw);border-left:1px solid var(--line);background:var(--bg2);display:flex;flex-direction:column;min-width:280px;max-width:440px}
+  #rail .head{padding:12px 14px 10px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  #rail h3{margin:0;font-size:14px;display:flex;align-items:center;gap:8px}
+  #rail h3 .count{font-size:11px;font-weight:600;color:var(--dim2);background:var(--card);border:1px solid var(--line);border-radius:100px;padding:1px 8px}
+  #rail .sub{font-size:11.5px;color:var(--dim2);margin-top:3px;line-height:1.35}
+  #stats{display:none;gap:5px;flex-wrap:wrap;padding:8px 14px 0;flex:0 0 auto}
+  #stats.on{display:flex}
+  .stat{font-size:10.5px;padding:3px 8px;border-radius:100px;border:1px solid var(--line);color:var(--dim);background:var(--card);cursor:pointer;user-select:none}
+  .stat:hover,.stat.on{border-color:var(--accent);color:var(--text)}
+  .stat.t-rec{border-color:color-mix(in srgb,var(--green) 50%,var(--line))}
+  .stat.t-ss{border-color:color-mix(in srgb,var(--amber) 50%,var(--line))}
+  .stat.t-nh{border-color:color-mix(in srgb,var(--red) 50%,var(--line))}
+  #cov{font-size:11.5px;color:var(--dim);background:#1f1f1f;border-left:3px solid var(--accent);padding:6px 10px;margin:8px 14px 0;border-radius:0 6px 6px 0;display:none}
+  #searchWrap{padding:8px 14px 0;flex:0 0 auto;display:none}
+  #searchWrap.on{display:block}
+  #search{width:100%;font:inherit;font-size:12.5px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+  #search:focus{outline:none;border-color:var(--accent)}
+  #search::placeholder{color:var(--dim2)}
+  #railScroll{flex:1;overflow:auto;padding:6px 14px 12px;min-height:0}
+  .empty{color:var(--dim2);font-size:13px;line-height:1.5;padding-top:10px}
+
+  .tradeGrp{margin-top:12px}
+  .tradeGrp.hidden{display:none}
+  .tradeGrp .th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim2);margin:0 0 6px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:7px;border:1px solid transparent}
+  .tradeGrp .th:hover{color:var(--text);border-color:var(--line);background:var(--card)}
+  .tradeGrp .th .open-mod{margin-left:auto;font-size:10px;color:var(--dim2);text-transform:none;letter-spacing:0;font-weight:500}
+  .tradeGrp .th input{accent-color:var(--accent);margin:0}
+
+  .line{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 11px;margin-bottom:7px;cursor:pointer;position:relative;transition:border-color .12s,box-shadow .12s}
+  .line.hidden{display:none}
+  .line:hover{border-color:var(--accent)}
+  .line:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .line.sel{border-color:var(--hl);box-shadow:0 0 0 1px var(--hl) inset}
+  .line.picked{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .line.sel.picked{box-shadow:0 0 0 1px var(--hl) inset, 0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+  .line .pick{position:absolute;left:8px;top:11px;width:14px;height:14px;margin:0;cursor:pointer;accent-color:var(--accent)}
+  .line.has-pick{padding-left:28px}
+  .line .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .line .item{font-size:13px;font-weight:550}
+  .line .qty{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .line .basis{font-size:11px;color:var(--dim2);margin-top:3px;font-family:ui-monospace,monospace;word-break:break-word}
+  .line .meta{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+  .line .more{font-size:11px;color:var(--dim2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin-left:6px}
+  .line .more:hover{border-color:var(--accent);color:var(--text)}
+  .tier{font-size:10px;color:#fff;padding:2px 7px;border-radius:100px;white-space:nowrap}
+  .tier-reconciled{background:var(--green)}
+  .tier-single-source{background:var(--amber)}
+  .tier-needs-human{background:var(--red)}
+  .tier-x{background:#555}
+  .ev{font-size:10.5px;color:var(--dim2)}
+  .ev.has{color:var(--dim)}
+
+  /* ---- measure tools (Bluebeam-style) ---- */
+  .mtool.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .overlay.measure{pointer-events:auto;cursor:crosshair}
+  .mu-path{fill:none;stroke-width:2;vector-effect:non-scaling-stroke}
+  .mu-area{stroke-width:1.5}
+  .mu-pt{stroke:#fff;stroke-width:1}
+  .mu-count{stroke:#fff;stroke-width:1}
+  .mu-swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(0,0,0,.25)}
+  .mu-legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .mu-leg{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 7px;border-radius:100px;border:1px solid var(--line);background:var(--card);color:var(--dim)}
+  .mu-leg b{color:var(--text);font-weight:600}
+  .mu-readout{font:600 12px/1.2 system-ui,Segoe UI,sans-serif;fill:#fff;paint-order:stroke;stroke:#0b1220;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
+  .mu-readout.dim{fill:#c9d1d9;font-weight:500}
+  .mu-snap{fill:none;stroke:#f0b429;stroke-width:1.5;pointer-events:none}
+  .mu-snap-pt{fill:#f0b429;stroke:#fff;stroke-width:1;pointer-events:none}
+  #muList{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  #muList h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim2)}
+  .mu-row{font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:5px;background:var(--card);display:flex;gap:6px;align-items:center;cursor:pointer;transition:border-color .12s,background .12s}
+  .mu-row:hover{border-color:var(--accent)}
+  .mu-row.sel{border-color:var(--accent);background:rgba(45,108,223,.14);box-shadow:0 0 0 1px rgba(45,108,223,.35)}
+  .mu-row b{flex:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mu-row .q{font-variant-numeric:tabular-nums;font-weight:700;flex:0 0 auto}
+  .mu-row .mu-meta{font-size:10px;color:var(--dim2);flex:0 0 auto}
+  .mu-row button{padding:2px 7px;font-size:11px;flex:0 0 auto}
+  .mu-path.sel,.mu-area.sel{stroke:#f0b429;stroke-width:2.5}
+  .mu-area.sel{fill:rgba(240,180,41,.22)}
+  .mu-count.sel{fill:#f0b429;stroke:#fff}
+  #scaleChip{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:100px;padding:2px 8px;display:inline-block;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #scaleChip.on{color:var(--text);border-color:var(--accent);background:rgba(45,108,223,.12)}
+  #scaleChip:not(.on){border-style:dashed}
+
+  /* ---- in-CAD measure prompt (replaces window.prompt) ---- */
+  #muDialog{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+  #muDialog.show{display:flex}
+  #muDialogCard{width:min(360px,100%);background:var(--bg2);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:14px 16px 12px}
+  #muDialogTitle{margin:0;font-size:14px;font-weight:650;line-height:1.3}
+  #muDialogHint{margin:4px 0 0;font-size:11.5px;color:var(--dim2);line-height:1.4}
+  #muDialogLabel{display:block;margin:12px 0 5px;font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.06em}
+  #muDialogInput{width:100%;font:inherit;font-size:14px;font-weight:600;padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+  #muDialogInput:focus{outline:none;border-color:var(--accent)}
+  #muDialogErr{margin:6px 0 0;font-size:11.5px;color:var(--red);min-height:1.2em}
+  #muDialogActions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+  #muDialogActions button{min-width:88px;padding:7px 14px}
+
+  #review{margin-top:14px}
+  #review h4{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin:0 0 6px}
+  #review li{font-size:11.5px;color:var(--dim);margin:4px 0;line-height:1.4;cursor:pointer;border-radius:6px;padding:4px 6px;list-style:none}
+  #review ul{margin:0;padding:0}
+  #review li:hover{background:#2a2020;color:var(--text)}
+  #review li.sel{background:#332222;outline:1px solid var(--red)}
+  #review code{color:var(--dim2)}
+  #review .review-actions{display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap}
+  #review .review-actions button{padding:3px 8px;font-size:10.5px}
+  #review .review-actions .accept{border-color:#2f855a;color:#8fd19e}
+  #review .review-actions .reject{border-color:#c0392b;color:#ffb4a8}
+  #review .review-decision{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  #review .review-discrepancies{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  #review .review-discrepancies h5{margin:0 0 5px;font-size:10.5px;color:var(--yellow);text-transform:uppercase;letter-spacing:.06em}
+  #review .review-discrepancies button{width:100%;margin-top:5px;font-size:10.5px}
+  #runBtn{width:100%;margin-top:8px}
+
+  /* package bar — outside scroll so always visible */
+  #pkgBar{display:none;background:var(--pkg);border-top:1px solid var(--pkg-line);padding:9px 12px;gap:6px;align-items:center;flex-wrap:wrap;flex:0 0 auto;font-size:12px;z-index:6}
+  #pkgBar.show{display:flex}
+  #pkgBar b{color:#fff}
+  #pkgBar button{padding:5px 10px;font-size:12px}
+  #pkgBar .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  #pkgBar .pkg-hint{width:100%;font-size:10.5px;color:#9fb3d1;margin:0}
+  #industry{display:none;margin:10px 0;border:1px solid #2d6cdf;border-radius:12px;background:linear-gradient(165deg,#12233d 0%,#1a1a24 100%);overflow:hidden}
+  #industry.show{display:block}
+  #industry .ind-head{padding:10px 12px;font-size:12px;font-weight:700;color:#fff;border-bottom:1px solid #2d6cdf55}
+  #industry .ind-head span{display:block;font-size:10.5px;font-weight:500;color:#9fb3d1;margin-top:3px;line-height:1.35}
+  #industry .ind-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  #industry label{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em}
+  #industry .row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+  #industry .field{flex:1;min-width:72px}
+  #industry input{width:100%;font:inherit;font-size:14px;font-weight:600;padding:8px 10px;border-radius:8px;border:1px solid #2d6cdf66;background:#0d1520;color:#fff}
+  #industry input:focus{outline:none;border-color:#2d6cdf}
+  #industry .ind-preview{font-size:11.5px;color:#c8e6c9;background:#0d1f14;border:1px solid #1b5e20;border-radius:8px;padding:8px 10px;line-height:1.45;display:none}
+  #industry .ind-preview.show{display:block}
+  #industry .ind-actions{display:flex;flex-direction:column;gap:6px}
+  #industry .ind-actions button{width:100%;padding:9px 12px;font-weight:600;font-size:12.5px}
+  #industry .ind-actions .primary{background:#2d6cdf;border-color:#2d6cdf;color:#fff}
+  #industry .ind-actions .ghost{background:transparent;color:#9fb3d1}
+  #industry .ind-step{font-size:10px;color:#6b8ab8;text-transform:uppercase;letter-spacing:.08em}
+  #bomList{display:none;margin:8px 0}
+  #bomList.show{display:block}
+  #bomList h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#2d6cdf;margin:0 0 6px}
+  #bomList .bom-line{border:1px solid #2d6cdf44;background:#151a22;border-radius:8px;padding:7px 9px;margin-bottom:5px;font-size:12px}
+  #bomList .bom-line .top{display:flex;justify-content:space-between;gap:6px;font-weight:600;color:var(--text)}
+  #bomList .bom-line .sub{font-size:10.5px;color:var(--dim2);margin-top:2px;font-family:ui-monospace,monospace}
+
+  /* ---- export popover ---- */
+  #expPop{position:absolute;top:46px;right:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;z-index:50;display:none;min-width:250px;max-height:min(70vh,480px);overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+  #expPop.show{display:block}
+  #expPop label{display:flex;gap:7px;align-items:center;font-size:12.5px;margin:5px 0;cursor:pointer}
+  #expPop .btns{display:flex;gap:7px;margin-top:10px}
+  #expPop .btns button{flex:1;padding:6px 8px;font-size:12px}
+  #expPop .ttl{font-size:11px;color:var(--dim2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+
+  /* ---- centre inspector (plan still peeks around edges) ---- */
+  #inspector{position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(8,8,8,.5);backdrop-filter:blur(3px);display:none;z-index:28;align-items:stretch;justify-content:center;padding:18px 18px 18px;animation:insIn .15s ease-out}
+  #inspector.show{display:flex}
+  @keyframes insIn{from{opacity:0}to{opacity:1}}
+  #insCard{background:var(--bg2);border:1px solid var(--line);border-radius:14px;width:min(780px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 22px 70px rgba(0,0,0,.65);animation:cardIn .18s ease-out}
+  @keyframes cardIn{from{transform:translateY(10px);opacity:.85}to{transform:none;opacity:1}}
+  #insHead{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  #insHead h2{margin:0;font-size:16px;line-height:1.25;word-break:break-word}
+  #insHead .sub{font-size:12px;color:var(--dim2);margin-top:3px}
+  #insHead .tier{margin-top:6px;display:inline-block}
+  #insBody{overflow:auto;padding:4px 16px 16px;flex:1;min-height:0}
+  .sec{border:1px solid var(--line);border-radius:10px;margin-top:11px;background:var(--card);overflow:hidden}
+  .sec > header{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--line);background:transparent;cursor:default}
+  .sec > header h3{margin:0;font-size:12.5px;flex:1}
+  .sec > header .n{font-size:11px;color:var(--dim2)}
+  .sec > header input{accent-color:var(--accent)}
+  .sec .body{padding:9px 12px}
+  .sec table{width:100%;border-collapse:collapse}
+  .sec td,.sec th{padding:4px 7px;border-bottom:1px solid var(--line);font-size:11.5px;text-align:left;vertical-align:top}
+  .sec th{color:var(--dim2);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+  .sec tr[data-r]:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .sec .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sec .hint{color:var(--dim2);font-size:11.5px;line-height:1.4}
+  .sec .note{color:var(--amber);font-size:11px;margin-bottom:6px;line-height:1.4}
+  #insFoot{display:flex;gap:7px;align-items:center;padding:11px 16px;border-top:1px solid var(--line);flex-wrap:wrap;flex:0 0 auto;background:var(--bg2)}
+  #insFoot .grow{flex:1}
+  #insFoot .hint{font-size:11px;color:var(--dim2)}
+  #insPeek{/* floating after minimize */}
+  #peekBar{display:none;position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:29;background:var(--bg2);border:1px solid var(--hl);border-radius:12px;padding:8px 12px;gap:10px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.5);max-width:min(560px,92%);font-size:12.5px}
+  #peekBar.show{display:flex}
+  #peekBar b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  footer{padding:6px 14px;border-top:1px solid var(--line);color:var(--dim2);font-size:11px;background:var(--bg2);flex:0 0 auto;display:flex;gap:12px;align-items:center}
+  footer .live{margin-left:auto;display:flex;gap:8px;align-items:center}
+  footer .dot{width:7px;height:7px;border-radius:50%;background:#555}
+  footer .dot.ok{background:var(--green)}
+  footer .dot.warn{background:var(--amber)}
+  footer .dot.err{background:var(--red)}
+  code{font-family:ui-monospace,SFMono-Regular,monospace}
+  #toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;opacity:0;transition:opacity .18s,transform .18s;pointer-events:none;z-index:60;max-width:min(70vw,480px);text-align:center;border:1px solid #333;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+  #toast.show{opacity:.96;transform:translateX(-50%) translateY(-4px)}
+
+  body.light{
+    --bg:#f7f3ea; --bg2:#efe9dc; --card:#ffffff; --line:#9aa0a6;
+    --text:#1f2937; --dim:#4b5563; --dim2:#6b7280; --accent:#2563eb;
+    --pkg:#dbe7fb; --pkg-line:#2563eb;
+  }
+  body.light #viewer{background:#f2ede1}
+  body.light .pageWrap{box-shadow:0 2px 14px rgba(0,0,0,.18)}
+  body.light #cov{background:#ffffff}
+  body.light #toast{background:#1f2937;border-color:#111}
+  body.light .line.sel{border-color:#b58900;box-shadow:0 0 0 1px #b58900 inset}
+  .narrowLabel{display:none}
+  body.light #review li:hover{background:#fde8e8}
+  body.light #review li.sel{background:#fcd4d4}
+  body.light #loading{background:rgba(247,243,234,.7)}
+
+  @media (max-width:820px){
+    body{height:100dvh;overflow:hidden}
+    header{flex-wrap:wrap;gap:6px;padding:7px 8px}
+    header .tag{display:none}
+    header .logo{font-size:14px}
+    header .spacer{min-width:8px}
+    header .tools{width:100%;gap:5px}
+    header button{padding:6px 9px;font-size:12px}
+    header .zoom button{padding:5px 9px}
+    header .zoom{flex:0 0 auto}
+    #takeoffBtn,#runBtnTop,#sendBtn,#exportBtn,#openBtn{flex:1 1 0;white-space:nowrap}
+    .wideLabel{display:none}
+    .narrowLabel{display:inline}
+    #main{flex-direction:column}
+    #viewer{flex:0 0 38%;min-height:220px;padding:10px}
+    #rail{flex:1 1 auto;min-height:0;width:100%;max-width:none;min-width:0;border-left:0;border-top:1px solid var(--line)}
+    #rail .head{padding:9px 11px}
+    #cov{margin:7px 11px 0}
+    #railScroll{padding:4px 11px 12px}
+    .tradeGrp{margin-top:10px}
+    footer{display:none}
+    #toast{bottom:14px;max-width:88vw}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <span class="logo">X-Ray <em>by Looplet</em></span>
+    <span class="tag">takeoff · evidence · export</span>
+    <span id="planChip" class="plan-chip" title="Open plan"></span>
+    <span class="spacer"></span>
+    <div class="tools">
+      <button id="themeBtn" class="ghost" title="Toggle light / dark (T)">Light</button>
+      <div class="zoom">
+        <button id="zOut" title="Zoom out">–</button>
+        <span class="pct" id="zoomPct">100%</span>
+        <button id="zIn" title="Zoom in">+</button>
+        <button id="zFit" title="Fit width" class="ghost">Fit</button>
+      </div>
+      <button id="takeoffBtn" title="Load a takeoff.json without the engine"><span class="wideLabel">Load takeoff</span><span class="narrowLabel">JSON</span></button>
+      <button id="runBtnTop" title="POST plan to X-Ray worker on :8001"><span class="wideLabel">Run takeoff</span><span class="narrowLabel">Run</span></button>
+      <span id="scaleChip" title="Plan scale per page (px per metre)">scale ?</span>
+      <button type="button" id="mScale" class="mtool ghost" title="Calibrate scale (S): two clicks + enter real length (m)">Scale</button>
+      <button type="button" id="mLen" class="mtool ghost" title="Measure length (L): click path, double-click to finish">Length</button>
+      <button type="button" id="mArea" class="mtool ghost" title="Measure area (A): click polygon, double-click to close">Area</button>
+      <button type="button" id="mCount" class="mtool ghost" title="Count items (C): click each instance">Count</button>
+      <button type="button" id="mUndo" class="ghost" title="Undo last measure (Ctrl+Z)">Undo</button>
+      <button type="button" id="mClear" class="ghost" title="Clear all measures">Clear</button>
+      <button id="sendBtn" disabled title="Send full takeoff to Looplet as draft quote"><span class="wideLabel">Send to Looplet</span><span class="narrowLabel">Send</span></button>
+      <button id="exportBtn" disabled title="Export by trade module"><span class="wideLabel">Export ▾</span><span class="narrowLabel">Export</span></button>
+      <button id="openBtn" class="primary" title="Open plan PDF (or drop onto the viewer)"><span class="wideLabel">Open plan</span><span class="narrowLabel">Open</span></button>
+    </div>
+    <div id="expPop" role="dialog" aria-label="Export modules"></div>
+    <input id="file" type="file" accept="application/pdf,.pdf" hidden>
+    <input id="jsonFile" type="file" accept="application/json,.json" hidden>
+  </header>
+
+  <div id="main">
+    <div id="viewer" tabindex="-1">
+      <div id="pages"></div>
+      <div id="inspector" role="dialog" aria-modal="true" aria-labelledby="insTitle">
+        <div id="insCard">
+          <div id="insHead"></div>
+          <div id="insBody"></div>
+          <div id="insFoot"></div>
+        </div>
+      </div>
+      <div id="peekBar">
+        <b id="peekTitle">—</b>
+        <span style="flex:1"></span>
+        <button id="peekReopen" class="primary">Breakdown</button>
+        <button id="peekClear" class="ghost">Clear</button>
+      </div>
+      <div id="loading"><div class="spin"></div><span id="loadMsg">Working…</span></div>
+      <div id="empty">
+        <h2>Open a plan PDF</h2>
+        <p>Drop a plan or <b>Open plan</b>. Then <b>Scale</b> → <b>Length / Area / Count</b> (works offline), or Load takeoff JSON, or Run engine when online. Send to Looplet prices from your book.</p>
+        <div class="hint-keys" id="hintKeys" title="Measure shortcuts — / always focuses line filter when the rail search is open">
+          <kbd>O</kbd> open ·
+          <kbd>S</kbd> scale ·
+          <kbd>L</kbd> length ·
+          <kbd>A</kbd> area ·
+          <kbd>C</kbd> count ·
+          <kbd>Esc</kbd> cancel ·
+          <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo ·
+          <kbd>Del</kbd> undo last ·
+          <kbd>/</kbd> search
+        </div>
+      </div>
+    </div>
+
+    <aside id="rail" aria-label="Takeoff quantities">
+      <div class="head">
+        <h3>Takeoff <span class="count" id="qtyCount" style="display:none">0</span></h3>
+        <div class="sub">Click a line for components · tick to package · trade headers open the full module</div>
+      </div>
+      <div id="stats"></div>
+      <div id="cov"></div>
+      <div id="searchWrap"><input id="search" type="search" placeholder="Filter lines…  (/)" autocomplete="off" spellcheck="false"></div>
+      <div id="railScroll">
+        <div id="railEmpty" class="empty">
+          No takeoff yet. Numbers here are copied straight from the engine — nothing invented in this rail.
+        </div>
+        <div id="lines"></div>
+        <div id="industry" aria-label="Fence order list builder">
+          <div class="ind-head">
+            Build the order list (fence)
+            <span>1) Measure Length on plan (auto-fills lm) or type metres · 2) Build posts/rails/mesh · 3) Send to Looplet quote. Scroll up if you only see Inspect/CSV — this blue panel sits above the review list.</span>
+          </div>
+          <div class="ind-body">
+            <div class="ind-step">1 · Spec from plan</div>
+            <div id="indSpec" style="font-size:12.5px;color:#e8eaed;line-height:1.4"></div>
+            <div class="ind-step">2 · Your measured run (lm)</div>
+            <div class="row">
+              <div class="field" style="flex:1.4">
+                <label for="indLen">Fence length (lm)</label>
+                <input id="indLen" type="number" min="0.1" step="0.1" placeholder="e.g. 68.4" inputmode="decimal">
+              </div>
+              <div class="field">
+                <label for="indH">Height m</label>
+                <input id="indH" type="number" min="0.3" step="0.1" value="1.2">
+              </div>
+              <div class="field">
+                <label for="indSp">Post spacing</label>
+                <input id="indSp" type="number" min="1" step="0.1" value="2.4">
+              </div>
+            </div>
+            <div id="indPreview" class="ind-preview"></div>
+            <div class="ind-step">3 · Build &amp; send</div>
+            <div class="ind-actions">
+              <button type="button" id="indBuild" class="primary">Build order list</button>
+              <button type="button" id="indSend" class="primary">Send order list → Looplet quote</button>
+              <button type="button" id="indExport" class="ghost">Export BOM CSV</button>
+            </div>
+          </div>
+        </div>
+        <div id="bomList"></div>
+        <div id="review"></div>
+        <button id="runBtn" class="primary" disabled>Open a plan to begin</button>
+      </div>
+      <div id="pkgBar" role="region" aria-label="Selected package">
+        <b id="pkgCount">0</b> selected
+        <span style="flex:1"></span>
+        <button id="pkgInspect" title="Open package breakdown">Inspect</button>
+        <button id="pkgCsv" title="Download selected as CSV">CSV</button>
+        <button id="pkgJson" title="Download selected as JSON">JSON</button>
+        <button id="pkgSend" class="primary" title="Send selected lines into Looplet as a draft quote">Send → Looplet quote</button>
+        <button id="pkgClear" class="ghost">Clear</button>
+        <p class="pkg-hint" id="pkgHint">Next: Send → Looplet quote, then Create draft quote under the viewer</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <span>Evidence-first · quantities never re-derived here</span>
+    <div class="live">
+      <span id="engineLabel" style="font-size:11px">engine idle</span>
+      <span class="dot" id="engineDot" title="X-Ray engine"></span>
+    </div>
+  </footer>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="muDialog" role="dialog" aria-modal="true" aria-labelledby="muDialogTitle" hidden>
+    <div id="muDialogCard">
+      <h2 id="muDialogTitle">Enter value</h2>
+      <p id="muDialogHint"></p>
+      <label id="muDialogLabel" for="muDialogInput">Value</label>
+      <input id="muDialogInput" type="text" autocomplete="off" spellcheck="false">
+      <div id="muDialogErr" role="alert"></div>
+      <div id="muDialogActions">
+        <button type="button" id="muDialogCancel" class="ghost">Cancel</button>
+        <button type="button" id="muDialogOk" class="primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import {
+    detectPageOffset,
+    indexTakeoff as geomIndexTakeoff,
+    resolveEvidence as geomResolveEvidence,
+    bboxToCss, cssScaleFor,
+  } from './takeoff-geom.js';
+  import { recipeForQuantity } from './takeoff-recipe.js';
+  import {
+    explodeFenceBom,
+    mergeTakeoffWithBom,
+    parseHeightM,
+    parseGateCount,
+    DEFAULT_HEIGHT_M,
+    DEFAULT_POST_SPACING_M,
+    coerceFenceBomLengthLm,
+    isFenceLikeLabel,
+    shouldSeedFenceBomFromLength,
+    fenceBomLengthFromMarkups,
+  } from './takeoff-fence-bom.js';
+  import {
+    distPx,
+    polylineLengthPx,
+    polygonAreaPx2,
+    scaleFromCalibration,
+    pxToMetres,
+    px2ToMetres2,
+    markupsToQuantities,
+    mergeQuantities,
+    newMarkupId,
+    removeLastMarkup,
+    removeMarkupById,
+    clearMarkups,
+    findMarkupById,
+    renameMarkupById,
+    markupAnchorPoint,
+    colorForMarkup,
+    hexWithAlpha,
+    groupMarkupsByLabel,
+    getPageScale,
+    setPageScale,
+    requirePageScale,
+    formatScaleChip,
+    migrateLegacyScale,
+    appendDraftCursor,
+    formatDraftReadout,
+  } from './takeoff-measure.js';
+  import {
+    DEFAULT_SNAP_RADIUS_PX,
+    applySnap,
+    collectMarkupSnapPoints,
+    extractSnapTargetsFromOperatorList,
+    mapSnapTargetsToCss,
+  } from './takeoff-snap.js';
+
+  const VENDOR = '../src/vendor';
+  // Point the X-Ray FastAPI worker here (start it in the xray repo). Optional —
+  // "Load takeoff (.json)" works with zero server.
+  //   uvicorn server.app:app --port 8001     (8000 is often already taken)
+  // NOTE the /raw route: /v1/takeoff returns the quote-draft envelope, which
+  // drops entities[] — without those bboxes there is nothing to highlight.
+  // Looplet's CSP permits the loopback worker via 127.0.0.1. Keep this origin
+  // aligned with index.html so packaged and browser builds do not block takeoffs.
+  const ENGINE_ORIGIN = 'http://127.0.0.1:8001';
+  const ENGINE_URL = `${ENGINE_ORIGIN}/v1/takeoff/raw`;
+  const ENGINE_HEALTH = `${ENGINE_ORIGIN}/health`;
+
+  // Packaged Looplet keeps the worker bearer in Electron main. This same-origin
+  // iframe may call only the two narrow preload methods; it never sees the key.
+  function electronXrayBridge(){
+    try {
+      const api = window.parent && window.parent !== window
+        ? window.parent.electronAPI
+        : window.electronAPI;
+      return api?.ensureXrayEngine && api?.runXrayTakeoff ? api : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const pagesEl = $('pages'), emptyEl = $('empty');
+  let pdfjs = null;
+  const S = {
+    doc:null, pages:[], zoom:1, fitW:1000, takeoff:null,
+    entIndex:new Map(), chkIndex:new Map(), selLine:null, planBytes:null,
+    picked:new Set(), byTrade:{}, lineEls:[], filterTier:null, filterText:'',
+    insSections:null, insCtx:null, peek:null, planName:null, pageOffset:0,
+    // Bluebeam-style measure — scale is per PDF page (1-based)
+    scaleByPage: {},
+    activePage: null, // last page focused for measure / scale chip
+    markups: [],
+    selectedMarkupId: null, // rail list selection + plan highlight
+    measureMode: null, // 'scale' | 'length' | 'area' | 'count' | null
+    draftPts: [],
+    draftPage: null,
+    draftCursor: null, // live pointer for dimension rubber-band
+    snapRadiusPx: DEFAULT_SNAP_RADIUS_PX,
+    snapHintShown: false, // one-shot toast when vector snaps load
+    pendingFenceLm: null, // last measured length for fence BOM seed
+    lastCountSubject: 'Item',
+    lastLengthSubject: 'Measured run',
+    lastAreaSubject: 'Measured area',
+    muPromptOpen: false,
+    reviewDecisions: new Map(),
+    renderGeneration: 0,
+  };
+  const embedded = (() => { try { return window.parent && window.parent !== window; } catch { return false; } })();
+
+  /* ================= MEASURE (scale / length / area / count) ================= */
+  /** In-CAD text/number entry — never use window.prompt/confirm on measure paths. */
+  let _muPromptResolver = null;
+  let _muDialogCleanup = null;
+  function closeMuPrompt(value){
+    const dlg = $('muDialog');
+    if (dlg) {
+      dlg.classList.remove('show');
+      dlg.hidden = true;
+    }
+    S.muPromptOpen = false;
+    const cleanup = _muDialogCleanup;
+    _muDialogCleanup = null;
+    if (cleanup) try { cleanup(); } catch { /* ignore */ }
+    const resolve = _muPromptResolver;
+    _muPromptResolver = null;
+    if (resolve) resolve(value);
+  }
+  /**
+   * @param {{ title:string, hint?:string, label?:string, defaultValue?:string, inputType?:string, placeholder?:string, validate?:(v:string)=>string|null }} opts
+   * @returns {Promise<string|null>} null if cancelled
+   */
+  function openMuPrompt(opts){
+    if (S.muPromptOpen) closeMuPrompt(null);
+    return new Promise((resolve) => {
+      _muPromptResolver = resolve;
+      S.muPromptOpen = true;
+      const dlg = $('muDialog');
+      const input = $('muDialogInput');
+      const err = $('muDialogErr');
+      if (!dlg || !input) {
+        resolve(null);
+        S.muPromptOpen = false;
+        _muPromptResolver = null;
+        return;
+      }
+      $('muDialogTitle').textContent = opts.title || 'Enter value';
+      const hint = $('muDialogHint');
+      if (hint) {
+        hint.textContent = opts.hint || '';
+        hint.style.display = opts.hint ? '' : 'none';
+      }
+      $('muDialogLabel').textContent = opts.label || 'Value';
+      input.type = opts.inputType || 'text';
+      input.placeholder = opts.placeholder || '';
+      input.value = opts.defaultValue != null ? String(opts.defaultValue) : '';
+      if (err) err.textContent = '';
+      dlg.hidden = false;
+      dlg.classList.add('show');
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
+
+      const onOk = () => {
+        const raw = input.value;
+        if (typeof opts.validate === 'function') {
+          const msg = opts.validate(raw);
+          if (msg) {
+            if (err) err.textContent = msg;
+            input.focus();
+            return;
+          }
+        }
+        closeMuPrompt(raw);
+      };
+      const onCancel = () => {
+        closeMuPrompt(null);
+      };
+      const onKey = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          onOk();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel();
+        }
+      };
+      const onBackdrop = (e) => {
+        if (e.target === dlg) onCancel();
+      };
+      function detach(){
+        $('muDialogOk')?.removeEventListener('click', onOk);
+        $('muDialogCancel')?.removeEventListener('click', onCancel);
+        input.removeEventListener('keydown', onKey);
+        dlg.removeEventListener('mousedown', onBackdrop);
+      }
+      _muDialogCleanup = detach;
+      $('muDialogOk')?.addEventListener('click', onOk);
+      $('muDialogCancel')?.addEventListener('click', onCancel);
+      input.addEventListener('keydown', onKey);
+      dlg.addEventListener('mousedown', onBackdrop);
+    });
+  }
+
+  function setMeasureMode(mode){
+    if (S.muPromptOpen) closeMuPrompt(null);
+    S.measureMode = mode;
+    S.draftPts = [];
+    S.draftPage = null;
+    S.draftCursor = null;
+    if ($('mScale')) $('mScale').classList.toggle('on', mode==='scale');
+    if ($('mLen')) $('mLen').classList.toggle('on', mode==='length');
+    if ($('mArea')) $('mArea').classList.toggle('on', mode==='area');
+    if ($('mCount')) $('mCount').classList.toggle('on', mode==='count');
+    document.querySelectorAll('.overlay').forEach(o => {
+      o.classList.toggle('measure', !!mode);
+    });
+    if (mode) toast(mode==='scale'
+      ? 'Scale: click two points on a known length on this sheet, then enter metres (per page)'
+      : mode==='length'
+        ? 'Length: click along the run, double-click to finish · live lm while drafting · Esc cancels'
+        : mode==='area'
+          ? 'Area: click corners, double-click to close · live m² while drafting · Esc cancels'
+          : 'Count: click each item once · Ctrl+Z undoes last click');
+    updateScaleChip();
+  }
+
+  /** Esc: drop in-progress draft points; second Esc (or no draft) exits measure mode. */
+  function cancelMeasureDraft(opts){
+    const hadDraft = S.draftPts.length > 0;
+    const hadMode = !!S.measureMode;
+    if (hadDraft) {
+      S.draftPts = [];
+      S.draftPage = null;
+      S.draftCursor = null;
+      redrawMeasureOverlays();
+      toast('Draft cancelled');
+      return true;
+    }
+    if (hadMode && opts?.exitMode !== false) {
+      setMeasureMode(null);
+      redrawMeasureOverlays();
+      toast('Measure tool off');
+      return true;
+    }
+    return false;
+  }
+
+  function undoLastMarkup(){
+    if (S.muPromptOpen) return false;
+    // Prefer peeling draft points while measuring (mis-click recovery)
+    if (S.measureMode && S.draftPts.length) {
+      S.draftPts.pop();
+      if (!S.draftPts.length) {
+        S.draftPage = null;
+        S.draftCursor = null;
+      }
+      redrawMeasureOverlays();
+      toast(S.draftPts.length ? `Draft: ${S.draftPts.length} point(s)` : 'Draft cleared');
+      return true;
+    }
+    if (!S.markups.length) {
+      toast('Nothing to undo');
+      return false;
+    }
+    S.markups = removeLastMarkup(S.markups);
+    if (S.selectedMarkupId && !findMarkupById(S.markups, S.selectedMarkupId)) {
+      S.selectedMarkupId = null;
+    }
+    syncMarkupsToTakeoff();
+    redrawMeasureOverlays();
+    toast(S.markups.length ? 'Undid last measure' : 'All measures undone');
+    return true;
+  }
+
+  /**
+   * Clear all markups — in-CAD confirm (never window.confirm).
+   * @returns {Promise<boolean>}
+   */
+  async function clearAllMarkups(){
+    if (S.muPromptOpen) return false;
+    if (!S.markups.length) {
+      cancelMeasureDraft({ exitMode: false });
+      toast('No measures to clear');
+      return false;
+    }
+    const n = S.markups.length;
+    const ok = await openMuConfirm({
+      title: 'Clear all measures?',
+      hint: `Remove ${n} markup(s) from this plan. You can re-measure after — this cannot be undone with Ctrl+Z after confirm.`,
+      confirmLabel: 'Clear all',
+      cancelLabel: 'Keep',
+    });
+    if (!ok) return false;
+    S.markups = clearMarkups();
+    S.selectedMarkupId = null;
+    S.draftPts = [];
+    S.draftPage = null;
+    S.draftCursor = null;
+    syncMarkupsToTakeoff();
+    redrawMeasureOverlays();
+    toast('All measures cleared');
+    return true;
+  }
+
+  /**
+   * Yes/no dialog reusing #muDialog (no text field). Never window.confirm.
+   * @param {{ title:string, hint?:string, confirmLabel?:string, cancelLabel?:string }} opts
+   * @returns {Promise<boolean>}
+   */
+  function openMuConfirm(opts){
+    if (S.muPromptOpen) closeMuPrompt(null);
+    return new Promise((resolve) => {
+      const dlg = $('muDialog');
+      const input = $('muDialogInput');
+      const label = $('muDialogLabel');
+      const err = $('muDialogErr');
+      const okBtn = $('muDialogOk');
+      const cancelBtn = $('muDialogCancel');
+      if (!dlg || !okBtn) {
+        resolve(false);
+        return;
+      }
+      _muPromptResolver = (v) => resolve(v === true);
+      S.muPromptOpen = true;
+      const restoreChrome = () => {
+        if (label) label.style.display = '';
+        if (input) input.style.display = '';
+        okBtn.textContent = 'OK';
+        if (cancelBtn) cancelBtn.textContent = 'Cancel';
+      };
+      $('muDialogTitle').textContent = opts.title || 'Confirm';
+      const hint = $('muDialogHint');
+      if (hint) {
+        hint.textContent = opts.hint || '';
+        hint.style.display = opts.hint ? '' : 'none';
+      }
+      if (label) label.style.display = 'none';
+      if (input) {
+        input.style.display = 'none';
+        input.value = '';
+      }
+      if (err) err.textContent = '';
+      okBtn.textContent = opts.confirmLabel || 'Confirm';
+      if (cancelBtn) cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+      dlg.hidden = false;
+      dlg.classList.add('show');
+      requestAnimationFrame(() => okBtn.focus());
+
+      const onOk = () => closeMuPrompt(true);
+      const onCancel = () => closeMuPrompt(null);
+      const onKey = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onOk(); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); }
+      };
+      const onBackdrop = (e) => { if (e.target === dlg) onCancel(); };
+      function detach(){
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn?.removeEventListener('click', onCancel);
+        dlg.removeEventListener('keydown', onKey);
+        dlg.removeEventListener('mousedown', onBackdrop);
+      }
+      _muDialogCleanup = () => {
+        detach();
+        restoreChrome();
+      };
+      okBtn.addEventListener('click', onOk);
+      cancelBtn?.addEventListener('click', onCancel);
+      dlg.addEventListener('keydown', onKey);
+      dlg.addEventListener('mousedown', onBackdrop);
+    });
+  }
+  function chipPage(){
+    if (S.draftPage != null) return S.draftPage;
+    if (S.activePage != null) return S.activePage;
+    if (S.pages && S.pages.length > 1) return 1;
+    return null;
+  }
+  function updateScaleChip(){
+    const c = $('scaleChip');
+    if (!c) return;
+    const page = chipPage();
+    const { text, calibrated, title } = formatScaleChip(S.scaleByPage, page);
+    c.textContent = text;
+    c.title = title;
+    c.classList.toggle('on', calibrated);
+  }
+  function pageLocalPoint(e, wrap){
+    const r = wrap.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  /**
+   * Snap measure cursor to vector corners/lines (PDF path) + existing markup ends.
+   * Raster / empty paths: returns raw point (no crash).
+   */
+  function measurePoint(e, pageIndex, wrap){
+    const raw = pageLocalPoint(e, wrap);
+    const P = S.pages[pageIndex];
+    const vector = P?.snapCss || { points: [], segments: [] };
+    const markupPts = collectMarkupSnapPoints(S.markups, pageIndex);
+    const points = (vector.points || []).concat(markupPts);
+    const hit = applySnap(raw, {
+      points,
+      segments: vector.segments || [],
+      radiusPx: S.snapRadiusPx > 0 ? S.snapRadiusPx : DEFAULT_SNAP_RADIUS_PX,
+    });
+    if (!hit) return { ...raw, snapped: false };
+    return hit;
+  }
+
+  /** Best-effort pdf.js path extraction → CSS snap targets. Never blocks measure. */
+  async function ensurePageSnapTargets(pageIndex){
+    const P = S.pages[pageIndex];
+    if (!P?.page || P.snapLoading) return;
+    if (P.snapRaw && P.snapCss) return;
+    P.snapLoading = true;
+    try {
+      let raw = { points: [], segments: [], source: 'empty' };
+      try {
+        const opList = await P.page.getOperatorList();
+        const ops = (typeof pdfjs !== 'undefined' && pdfjs?.OPS) ? pdfjs.OPS : undefined;
+        raw = extractSnapTargetsFromOperatorList(opList, {
+          maxPoints: 2500,
+          maxOps: 80000,
+          ops: ops || undefined,
+        });
+      } catch {
+        raw = { points: [], segments: [], source: 'error' };
+      }
+      P.snapRaw = raw;
+      P.snapCss = mapSnapTargetsToCss(raw, P.hPt, P.cssScale || 1);
+      if (raw.source === 'vector' && !S.snapHintShown && (raw.points?.length || raw.segments?.length)) {
+        S.snapHintShown = true;
+        toast(`Snap on · magnet ${S.snapRadiusPx || DEFAULT_SNAP_RADIUS_PX}px to plan corners/lines`);
+      }
+    } finally {
+      P.snapLoading = false;
+    }
+  }
+
+  function refreshPageSnapCss(pageIndex){
+    const P = S.pages[pageIndex];
+    if (!P?.snapRaw) return;
+    P.snapCss = mapSnapTargetsToCss(P.snapRaw, P.hPt, P.cssScale || 1);
+  }
+  async function finishScale(){
+    if (S.draftPts.length < 2) return;
+    const pts = S.draftPts.slice();
+    const page = S.draftPage;
+    if (!(page >= 1)) {
+      toast('Pick a page first');
+      S.draftPts = [];
+      redrawMeasureOverlays();
+      return;
+    }
+    const px = distPx(pts[0], pts[1]);
+    const raw = await openMuPrompt({
+      title: `Set scale — page ${page}`,
+      hint: `Enter the real-world length of the segment you just marked on page ${page} (metres). Each sheet has its own scale.`,
+      label: 'Real length (metres)',
+      defaultValue: '10',
+      inputType: 'number',
+      placeholder: 'e.g. 10',
+      validate: (v) => {
+        const m = parseFloat(v);
+        if (!(m > 0)) return 'Enter a positive number of metres';
+        return null;
+      },
+    });
+    if (raw == null) {
+      S.draftPts = [];
+      redrawMeasureOverlays();
+      return;
+    }
+    const m = parseFloat(raw);
+    try {
+      const pxPerM = scaleFromCalibration(px, m);
+      S.scaleByPage = setPageScale(S.scaleByPage, page, pxPerM);
+      S.activePage = page;
+      updateScaleChip();
+      persistMarkups();
+      toast(`Page ${page} scale locked: ${Math.round(pxPerM)} px per metre`);
+    } catch (err) {
+      toast(err.message || 'Bad scale');
+    }
+    S.draftPts = [];
+    setMeasureMode(null);
+    redrawMeasureOverlays();
+  }
+  async function finishLength(){
+    if (S.draftPts.length < 2) { toast('Need at least 2 points'); return; }
+    const page = S.draftPage;
+    const blocked = requirePageScale(S.scaleByPage, page);
+    if (blocked) { toast(blocked); return; }
+    const pxPerM = getPageScale(S.scaleByPage, page);
+    const pts = S.draftPts.slice();
+    const px = polylineLengthPx(pts);
+    const lm = pxToMetres(px, pxPerM);
+    if (lm == null || !(lm > 0)) return;
+    const raw = await openMuPrompt({
+      title: 'Label this length',
+      hint: `${lm.toFixed(2)} lm measured — name it for the takeoff list.`,
+      label: 'Label',
+      defaultValue: S.lastLengthSubject || 'Measured run',
+      placeholder: 'Measured run',
+    });
+    if (raw == null) {
+      S.draftPts = [];
+      redrawMeasureOverlays();
+      return;
+    }
+    const subject = (raw.trim() || S.lastLengthSubject || 'Measured run');
+    S.lastLengthSubject = subject;
+    const markup = {
+      id: newMarkupId('length'),
+      kind: 'length',
+      page,
+      points: pts,
+      qty: lm,
+      unit: 'lm',
+      subject,
+      trade: isFenceLikeLabel(subject) ? 'fencing' : 'measured',
+      tier: 'single-source',
+    };
+    S.markups.push(markup);
+    S.draftPts = [];
+    syncMarkupsToTakeoff();
+    redrawMeasureOverlays();
+    // SC-09: prefill fence BOM linear metres (recipe/tier math unchanged)
+    if (shouldSeedFenceBomFromLength(markup)) {
+      seedFenceBomFromMeasuredLength(lm, subject);
+    } else {
+      toast(`Length ${lm.toFixed(2)} lm · ${subject}`);
+    }
+  }
+
+  /**
+   * Prefill industry panel fence length from a measured run.
+   * Does not auto-build BOM (estimator still confirms spacing/height).
+   */
+  function seedFenceBomFromMeasuredLength(lm, subject){
+    const seed = coerceFenceBomLengthLm(lm);
+    if (seed == null) {
+      toast(`Length ${Number(lm).toFixed(2)} lm · ${subject || 'Measured run'}`);
+      return false;
+    }
+    S.pendingFenceLm = seed;
+    const input = $('indLen');
+    if (input) {
+      input.value = String(seed);
+      try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch { /* ignore */ }
+    }
+    const panel = $('industry');
+    if (panel?.classList.contains('show')) {
+      try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch { /* ignore */ }
+      // Nudge preview after programmatic value set
+      try { input?.dispatchEvent(new Event('input', { bubbles: true })); } catch { /* ignore */ }
+    }
+    const fenceish = isFenceLikeLabel(subject);
+    toast(
+      fenceish
+        ? `Fence BOM prefilled · ${seed} lm — Build order list in the rail`
+        : `Measured ${seed} lm → fence length field · Build order list when fencing takeoff is ready`,
+    );
+    return true;
+  }
+  async function finishArea(){
+    if (S.draftPts.length < 3) { toast('Need at least 3 corners'); return; }
+    const page = S.draftPage;
+    const blocked = requirePageScale(S.scaleByPage, page);
+    if (blocked) { toast(blocked); return; }
+    const pxPerM = getPageScale(S.scaleByPage, page);
+    const pts = S.draftPts.slice();
+    const px2 = polygonAreaPx2(pts);
+    const m2 = px2ToMetres2(px2, pxPerM);
+    if (m2 == null || !(m2 > 0)) return;
+    const raw = await openMuPrompt({
+      title: 'Label this area',
+      hint: `${m2.toFixed(2)} m² measured — name it for the takeoff list.`,
+      label: 'Label',
+      defaultValue: S.lastAreaSubject || 'Measured area',
+      placeholder: 'Measured area',
+    });
+    if (raw == null) {
+      S.draftPts = [];
+      redrawMeasureOverlays();
+      return;
+    }
+    const subject = (raw.trim() || S.lastAreaSubject || 'Measured area');
+    S.lastAreaSubject = subject;
+    S.markups.push({
+      id: newMarkupId('area'),
+      kind: 'area',
+      page,
+      points: pts,
+      qty: m2,
+      unit: 'm²',
+      subject,
+      trade: 'measured',
+      tier: 'single-source',
+    });
+    S.draftPts = [];
+    syncMarkupsToTakeoff();
+    redrawMeasureOverlays();
+    toast(`Area ${m2.toFixed(2)} m² · ${subject}`);
+  }
+  async function addCount(pt, page){
+    const raw = await openMuPrompt({
+      title: 'Count item label',
+      hint: 'Same label groups clicks into one count on this page. Enter to reuse the last label.',
+      label: 'Label',
+      defaultValue: S.lastCountSubject || 'Item',
+      placeholder: 'Item',
+    });
+    if (raw == null) return;
+    const subject = (raw.trim() || S.lastCountSubject || 'Item');
+    S.lastCountSubject = subject;
+    // group counts with same subject on same page
+    let existing = S.markups.find(m => m.kind==='count' && m.subject===subject && m.page===page);
+    if (existing) {
+      existing.points.push(pt);
+      existing.qty = existing.points.length;
+    } else {
+      S.markups.push({
+        id: newMarkupId('count'),
+        kind: 'count',
+        page,
+        points: [pt],
+        qty: 1,
+        unit: 'ea',
+        subject,
+        trade: 'measured',
+        tier: 'single-source',
+      });
+    }
+    syncMarkupsToTakeoff();
+    redrawMeasureOverlays();
+    toast(`Count ${subject}: ${S.markups.find(m=>m.subject===subject&&m.kind==='count'&&m.page===page)?.qty}`);
+  }
+  const MU_STORE = 'looplet.xray.cad.markups.v1';
+  function persistMarkups(){
+    try {
+      // Keep legacy pxPerM as first calibrated page for older readers.
+      const first = getPageScale(S.scaleByPage, chipPage())
+        || getPageScale(S.scaleByPage, 1)
+        || Object.values(S.scaleByPage || {}).find((v) => Number(v) > 0)
+        || null;
+      sessionStorage.setItem(MU_STORE, JSON.stringify({
+        planName: S.planName || null,
+        scaleByPage: S.scaleByPage || {},
+        pxPerM: first,
+        markups: S.markups,
+        ts: Date.now(),
+      }));
+    } catch { /* quota */ }
+  }
+  function applyStoredScales(data){
+    S.scaleByPage = migrateLegacyScale(
+      data?.pxPerM,
+      data?.markups,
+      data?.scaleByPage,
+    );
+  }
+  function restoreMarkupsIfSamePlan(){
+    try {
+      const raw = sessionStorage.getItem(MU_STORE);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.markups) || !data.markups.length) return;
+      // Restore only when plan name matches (or we have no name yet)
+      if (S.planName && data.planName && data.planName !== S.planName) return;
+      S.markups = data.markups;
+      applyStoredScales(data);
+      if (S.markups[0]?.page >= 1) S.activePage = Number(S.markups[0].page);
+      updateScaleChip();
+      syncMarkupsToTakeoff({ skipPersist: true });
+      redrawMeasureOverlays();
+      toast(`Restored ${S.markups.length} markup(s) from this session`);
+    } catch { /* ignore */ }
+  }
+  function syncMarkupsToTakeoff(opts){
+    const mqs = markupsToQuantities(S.markups);
+    const engineQs = S.takeoff?.quantities?.filter(q => !String(q.id||'').startsWith('mu-')) || [];
+    const quantities = mergeQuantities(engineQs, mqs);
+    S.takeoff = {
+      ...(S.takeoff || {}),
+      engine: S.takeoff?.engine || { name: 'xray-manual', version: 'measure-1' },
+      quantities,
+    };
+    try { renderRail(S.takeoff); } catch { /* rail may not be ready */ }
+    renderMuList();
+    if ($('sendBtn')) $('sendBtn').disabled = !(quantities.length > 0);
+    // Package send always visible when not embedded — still enable header send in embed
+    if (quantities.length && $('sendBtn') && embedded) $('sendBtn').disabled = false;
+    if (!opts?.skipPersist) { persistMarkups(); queueHostSync(); }
+  }
+
+  /* ---- Durable host session bridge --------------------------------------
+   * The iframe owns live measurement state. Looplet owns authentication and
+   * durable storage. Push bounded snapshots after edits and accept at most one
+   * restore per iframe load so a late database response cannot erase new work.
+   */
+  const HOST_SYNC_MS = 1200;
+  let hostSyncTimer = null;
+  let hostRestoreApplied = false;
+
+  function currentSessionState(){
+    const first = getPageScale(S.scaleByPage, chipPage())
+      || getPageScale(S.scaleByPage, 1)
+      || Object.values(S.scaleByPage || {}).find((v) => Number(v) > 0)
+      || null;
+    return {
+      planName: S.planName || null,
+      scaleByPage: S.scaleByPage || {},
+      pxPerM: first,
+      markups: S.markups,
+      quantities: markupsToQuantities(S.markups),
+      pageCount: S.doc?.numPages || null,
+      activePage: chipPage() || S.activePage || null,
+    };
+  }
+
+  function postSessionToHost(){
+    if (!embedded) return;
+    try {
+      window.parent.postMessage(
+        { type:'xray:session', state: currentSessionState() },
+        window.location.origin,
+      );
+    } catch { /* parent gone */ }
+  }
+
+  function queueHostSync(){
+    if (!embedded) return;
+    if (hostSyncTimer) clearTimeout(hostSyncTimer);
+    hostSyncTimer = setTimeout(() => {
+      hostSyncTimer = null;
+      postSessionToHost();
+    }, HOST_SYNC_MS);
+  }
+
+  function applyHostSession(state){
+    if (hostRestoreApplied) return;
+    hostRestoreApplied = true;
+    if (!state || !Array.isArray(state.markups)) return;
+    if (S.markups.length) return;
+    S.markups = state.markups;
+    applyStoredScales(state);
+    if (!S.planName && state.planName) {
+      S.planName = String(state.planName).slice(0, 255);
+      setPlanChip(S.planName);
+    }
+    const page = Number(state.activePage);
+    if (page >= 1) S.activePage = page;
+    updateScaleChip();
+    syncMarkupsToTakeoff({ skipPersist: true });
+    persistMarkups();
+    redrawMeasureOverlays();
+    toast(
+      `Restored ${S.markups.length} markup(s) from this quote's saved takeoff`
+      + (state.planName ? ` — open ${S.planName} to see them on the plan` : ''),
+      5000,
+    );
+  }
+
+  function announceReady(){
+    if (!embedded) return;
+    try {
+      window.parent.postMessage({ type:'xray:ready' }, window.location.origin);
+    } catch { /* parent gone */ }
+  }
+
+  if (embedded) {
+    window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== window.parent) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'xray:session:restore') {
+        const plan = data.plan;
+        const bytes = plan?.bytes instanceof Uint8Array
+          ? plan.bytes
+          : plan?.bytes instanceof ArrayBuffer
+            ? new Uint8Array(plan.bytes)
+            : null;
+        if (bytes && bytes.byteLength > 0 && bytes.byteLength <= 50 * 1024 * 1024) {
+          void openPdf(bytes, String(plan.name || data.state?.planName || 'plan.pdf').slice(0, 255))
+            .then(() => applyHostSession(data.state));
+        } else {
+          applyHostSession(data.state);
+        }
+        return;
+      }
+      if (data.type === 'xray:session:none') {
+        hostRestoreApplied = true;
+        return;
+      }
+      if (data.type === 'xray:host:hello') announceReady();
+    });
+  }
+  function renderMuList(){
+    let box = $('muList');
+    if (!box) {
+      const scroll = $('railScroll');
+      if (!scroll) return;
+      box = document.createElement('div');
+      box.id = 'muList';
+      scroll.appendChild(box);
+    }
+    if (!S.markups.length) {
+      S.selectedMarkupId = null;
+      box.innerHTML = '<h4>Markups list</h4><div class="empty" style="padding-top:0">No measures yet. Use Scale → Length / Area / Count. Click a row to jump · Edit renames without re-measure. Same labels share a colour.</div>';
+      return;
+    }
+    // Drop selection if markup was removed
+    if (S.selectedMarkupId && !findMarkupById(S.markups, S.selectedMarkupId)) {
+      S.selectedMarkupId = null;
+    }
+    const legend = groupMarkupsByLabel(S.markups);
+    const legendHtml = legend.length
+      ? `<div class="mu-legend" aria-label="Subject colour legend">${legend.map(g =>
+          `<span class="mu-leg" title="${esc(g.label)} · ${g.markupCount} markup(s)">`+
+          `<span class="mu-swatch" style="background:${esc(g.color)}"></span>`+
+          `<b>${esc(g.label)}</b>`+
+          `<span>${fmtQty(g.totalQty)}${g.unit ? ' '+esc(g.unit) : ''}</span>`+
+          `</span>`
+        ).join('')}</div>`
+      : '';
+    box.innerHTML = '<h4>Markups list</h4>'+legendHtml+
+      '<div class="empty" style="padding:0 0 6px;font-size:11px">Same label = same colour · Click = jump · Edit = rename · ✕ = delete</div>' +
+      S.markups.map(m => {
+      const sel = m.id === S.selectedMarkupId ? ' sel' : '';
+      const page = m.page != null ? `p${m.page}` : '';
+      const col = colorForMarkup(m);
+      return `<div class="mu-row${sel}" data-id="${esc(m.id)}" role="button" tabindex="0" title="Jump to markup on plan">
+        <span class="mu-swatch" style="background:${esc(col)}" title="Group colour"></span>
+        <b>${esc(m.subject||m.kind)}</b>
+        ${page ? `<span class="mu-meta">${esc(page)}</span>` : ''}
+        <span class="q">${fmtQty(m.qty)} ${esc(m.unit||'')}</span>
+        <button type="button" data-edit="${esc(m.id)}" title="Rename label (no re-measure)">Edit</button>
+        <button type="button" data-del="${esc(m.id)}" title="Remove">✕</button>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('.mu-row').forEach(row => {
+      const id = row.getAttribute('data-id');
+      row.onclick = (e) => {
+        if (e.target?.closest?.('button')) return;
+        selectMarkup(id, { jump: true });
+      };
+      row.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectMarkup(id, { jump: true });
+        }
+      };
+    });
+    box.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        renameMarkupLabel(btn.getAttribute('data-edit'));
+      };
+    });
+    box.querySelectorAll('[data-del]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-del');
+        S.markups = removeMarkupById(S.markups, id);
+        if (S.selectedMarkupId === id) S.selectedMarkupId = null;
+        syncMarkupsToTakeoff();
+        redrawMeasureOverlays();
+        toast('Markup removed');
+      };
+    });
+  }
+
+  /** Select markup in list + optional jump-to on plan. */
+  function selectMarkup(id, opts){
+    const m = findMarkupById(S.markups, id);
+    if (!m) {
+      S.selectedMarkupId = null;
+      renderMuList();
+      redrawMeasureOverlays();
+      return false;
+    }
+    S.selectedMarkupId = m.id;
+    renderMuList();
+    redrawMeasureOverlays();
+    if (opts?.jump !== false) jumpToMarkup(m);
+    return true;
+  }
+
+  /** Scroll plan to markup page/anchor without re-measure. */
+  function jumpToMarkup(m){
+    if (!m) return;
+    const page = Number(m.page);
+    const P = page >= 1 ? S.pages[page] : null;
+    if (P?.wrap) {
+      try {
+        P.wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch { /* ignore */ }
+      S.activePage = page;
+      updateScaleChip();
+    }
+    const anchor = markupAnchorPoint(m);
+    if (anchor && P?.wrap) {
+      // Keep selection highlight; toast confirms jump
+      toast(`${m.subject || m.kind} · page ${page || '?'}`);
+    } else if (P) {
+      toast(`Page ${page}`);
+    }
+  }
+
+  /** Rename subject via in-CAD dialog — keeps points/qty. */
+  async function renameMarkupLabel(id){
+    if (S.muPromptOpen) return;
+    const m = findMarkupById(S.markups, id);
+    if (!m) return;
+    const raw = await openMuPrompt({
+      title: 'Rename markup',
+      hint: 'Label only — quantity and geometry stay the same (no re-measure).',
+      label: 'Label',
+      defaultValue: m.subject || m.kind || 'Markup',
+      placeholder: m.subject || 'Label',
+    });
+    if (raw == null) return;
+    const next = renameMarkupById(S.markups, id, raw);
+    const updated = findMarkupById(next, id);
+    if (!updated || updated.subject === m.subject) {
+      if (String(raw).trim() === '') toast('Label cannot be empty');
+      return;
+    }
+    S.markups = next;
+    S.selectedMarkupId = id;
+    // Fence-like rename keeps trade tag useful for BOM/seed
+    try {
+      const row = findMarkupById(S.markups, id);
+      if (row && row.kind === 'length' && typeof isFenceLikeLabel === 'function') {
+        row.trade = isFenceLikeLabel(row.subject) ? 'fencing' : (row.trade || 'measured');
+      }
+    } catch { /* optional */ }
+    syncMarkupsToTakeoff();
+    redrawMeasureOverlays();
+    toast(`Renamed · ${updated.subject}`);
+  }
+  function redrawMeasureOverlays(opts){
+    const onlyPage = Number(opts?.page);
+    const markupsByPage = new Map();
+    for (const markup of S.markups) {
+      const page = Number(markup?.page);
+      if (!(page >= 1)) continue;
+      const rows = markupsByPage.get(page);
+      if (rows) rows.push(markup);
+      else markupsByPage.set(page, [markup]);
+    }
+    for (let i = 1; i < S.pages.length; i++) {
+      if (onlyPage >= 1 && i !== onlyPage) continue;
+      const P = S.pages[i];
+      if (!P?.overlay) continue;
+      // keep highlight children; replace measure svg
+      let svg = P.overlay.querySelector('svg.mu-svg');
+      if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('mu-svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.style.position = 'absolute';
+        svg.style.inset = '0';
+        svg.style.pointerEvents = 'none';
+        P.overlay.appendChild(svg);
+      }
+      const w = P.wrap.clientWidth || 1;
+      const h = P.wrap.clientHeight || 1;
+      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      let html = '';
+      const pageMarkups = markupsByPage.get(i) || [];
+      for (const m of pageMarkups) {
+        const sel = m.id === S.selectedMarkupId ? ' sel' : '';
+        const col = colorForMarkup(m);
+        // Selection uses gold stroke; otherwise subject-group colour
+        const stroke = sel ? '#f0b429' : col;
+        if (m.kind === 'length' && m.points?.length) {
+          const d = m.points.map((p,idx)=>`${idx?'L':'M'}${p.x},${p.y}`).join(' ');
+          html += `<path class="mu-path${sel}" style="stroke:${stroke}" d="${d}"/>`;
+        } else if (m.kind === 'area' && m.points?.length) {
+          const d = m.points.map((p,idx)=>`${idx?'L':'M'}${p.x},${p.y}`).join(' ')+' Z';
+          const fill = sel ? 'rgba(240,180,41,.22)' : hexWithAlpha(col, 0.2);
+          html += `<path class="mu-area${sel}" style="stroke:${stroke};fill:${fill}" d="${d}"/>`;
+        } else if (m.kind === 'count' && m.points?.length) {
+          const fill = sel ? '#f0b429' : col;
+          for (const p of m.points) {
+            html += `<circle class="mu-pt mu-count${sel}" style="fill:${fill}" cx="${p.x}" cy="${p.y}" r="5"/>`;
+          }
+        }
+      }
+      // draft + live rubber-band to cursor
+      if (S.draftPage === i && S.draftPts.length) {
+        const draftPtsLive = (S.measureMode === 'length' || S.measureMode === 'area' || S.measureMode === 'scale')
+          ? appendDraftCursor(S.draftPts, S.draftCursor)
+          : S.draftPts.slice();
+        if (S.measureMode === 'area' || S.measureMode === 'length' || S.measureMode === 'scale') {
+          const d = draftPtsLive.map((p,idx)=>`${idx?'L':'M'}${p.x},${p.y}`).join(' ');
+          html += `<path class="mu-path" d="${d}" stroke-dasharray="4 3"/>`;
+          if (S.measureMode === 'area' && draftPtsLive.length >= 3) {
+            const dClose = draftPtsLive.map((p,idx)=>`${idx?'L':'M'}${p.x},${p.y}`).join(' ')+' Z';
+            html += `<path class="mu-area" d="${dClose}" opacity="0.85"/>`;
+          }
+        }
+        for (const p of S.draftPts) {
+          html += `<circle class="mu-pt" cx="${p.x}" cy="${p.y}" r="4"/>`;
+        }
+        // Live dimension readout near cursor (or last draft point)
+        const anchor = S.draftCursor || S.draftPts[S.draftPts.length - 1];
+        if (anchor && (S.measureMode === 'length' || S.measureMode === 'area' || S.measureMode === 'scale')) {
+          if (S.draftCursor?.snapped) {
+            html += `<circle class="mu-snap" cx="${anchor.x}" cy="${anchor.y}" r="8"/>`;
+            html += `<circle class="mu-snap-pt" cx="${anchor.x}" cy="${anchor.y}" r="3"/>`;
+          }
+          const pxPerM = getPageScale(S.scaleByPage, S.draftPage);
+          const readout = formatDraftReadout(S.measureMode, draftPtsLive, pxPerM);
+          if (readout && readout.text && !/NaN/i.test(readout.text)) {
+            const lx = Math.min(w - 8, Math.max(8, anchor.x + 10));
+            const ly = Math.min(h - 8, Math.max(14, anchor.y - 10));
+            const cls = readout.scaled ? 'mu-readout' : 'mu-readout dim';
+            // escape via replace — esc() is defined later in this script
+            const safe = String(readout.text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            html += `<text class="${cls}" x="${lx}" y="${ly}">${safe}</text>`;
+          }
+        }
+      }
+      svg.innerHTML = html;
+    }
+  }
+  let measureRedrawFrame = 0;
+  let measureRedrawPage = null;
+  function scheduleMeasureRedraw(page){
+    measureRedrawPage = Number(page) >= 1 ? Number(page) : measureRedrawPage;
+    if (measureRedrawFrame) return;
+    measureRedrawFrame = requestAnimationFrame(() => {
+      measureRedrawFrame = 0;
+      const pageIndex = measureRedrawPage;
+      measureRedrawPage = null;
+      redrawMeasureOverlays(pageIndex ? { page: pageIndex } : undefined);
+    });
+  }
+  function onMeasureClick(e, pageIndex, wrap){
+    if (!S.measureMode || S.muPromptOpen) return;
+    e.preventDefault();
+    e.stopPropagation();
+    S.activePage = pageIndex;
+    // Length/Area blocked on uncalibrated sheets (Count + Scale always allowed)
+    if (S.measureMode === 'length' || S.measureMode === 'area') {
+      const blocked = requirePageScale(S.scaleByPage, pageIndex);
+      if (blocked) {
+        updateScaleChip();
+        toast(blocked);
+        return;
+      }
+    }
+    void ensurePageSnapTargets(pageIndex);
+    const pt = measurePoint(e, pageIndex, wrap);
+    if (S.draftPage != null && S.draftPage !== pageIndex) {
+      S.draftPts = [];
+      S.draftCursor = null;
+    }
+    S.draftPage = pageIndex;
+    S.draftCursor = null;
+    updateScaleChip();
+    if (S.measureMode === 'count') {
+      addCount({ x: pt.x, y: pt.y }, pageIndex);
+      return;
+    }
+    S.draftPts.push({ x: pt.x, y: pt.y });
+    if (S.measureMode === 'scale' && S.draftPts.length >= 2) {
+      finishScale();
+      return;
+    }
+    redrawMeasureOverlays();
+  }
+  function onMeasureDblClick(e, pageIndex){
+    if (!S.measureMode || S.muPromptOpen) return;
+    e.preventDefault();
+    S.draftCursor = null;
+    if (S.measureMode === 'length') finishLength();
+    else if (S.measureMode === 'area') finishArea();
+  }
+  function onMeasurePointerMove(e, pageIndex, wrap){
+    if (!S.measureMode || S.muPromptOpen) return;
+    if (S.measureMode === 'count') return;
+    if (!S.draftPts.length || S.draftPage !== pageIndex) return;
+    void ensurePageSnapTargets(pageIndex);
+    const pt = measurePoint(e, pageIndex, wrap);
+    S.draftCursor = { x: pt.x, y: pt.y, snapped: !!pt.snapped };
+    scheduleMeasureRedraw(pageIndex);
+  }
+  function onMeasurePointerLeave(pageIndex){
+    if (S.draftPage !== pageIndex) return;
+    if (!S.draftCursor) return;
+    S.draftCursor = null;
+    scheduleMeasureRedraw(pageIndex);
+  }
+  function bindMeasureToPage(pageIndex, wrap, overlay){
+    overlay.classList.toggle('measure', !!S.measureMode);
+    overlay.onclick = (e) => onMeasureClick(e, pageIndex, wrap);
+    overlay.ondblclick = (e) => onMeasureDblClick(e, pageIndex);
+    overlay.onpointermove = (e) => onMeasurePointerMove(e, pageIndex, wrap);
+    overlay.onpointerleave = () => onMeasurePointerLeave(pageIndex);
+    // Keep scale chip in sync with the sheet the pointer is on
+    wrap.addEventListener('pointerenter', () => {
+      if (S.draftPage != null) return;
+      S.activePage = pageIndex;
+      updateScaleChip();
+    });
+  }
+  if ($('mScale')) $('mScale').onclick = () => setMeasureMode(S.measureMode==='scale'?null:'scale');
+  if ($('mLen')) $('mLen').onclick = () => setMeasureMode(S.measureMode==='length'?null:'length');
+  if ($('mArea')) $('mArea').onclick = () => setMeasureMode(S.measureMode==='area'?null:'area');
+  if ($('mCount')) $('mCount').onclick = () => setMeasureMode(S.measureMode==='count'?null:'count');
+  if ($('mUndo')) $('mUndo').onclick = () => undoLastMarkup();
+  if ($('mClear')) $('mClear').onclick = () => { clearAllMarkups(); };
+
+  const TIER = { 'reconciled':'tier-reconciled','single-source':'tier-single-source','needs-human':'tier-needs-human' };
+  const TIER_WHY = {
+    'reconciled':'two or more independent sources on the drawing agree — safe to price',
+    'single-source':'the drawing states this once; no independent cross-check — sanity-check before pricing',
+    'needs-human':'rests on an assumption the machine refuses to make alone — confirm before pricing',
+  };
+  const fmtQty = (v) => (typeof v==='number' ? (Math.round(v*100)/100).toString() : String(v ?? ''));
+  const esc = (s) => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const slug = (s) => String(s||'export').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
+  const qKey = (q) => q.id || `${q.trade||''}:${q.item||''}:${q.qty}`;
+
+  function toast(msg, ms=3200){
+    const t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), ms);
+  }
+  function setLoading(on, msg){
+    $('loading').classList.toggle('on', !!on);
+    if (msg) $('loadMsg').textContent = msg;
+  }
+  function setEngine(state, label){
+    const d=$('engineDot'); d.className='dot'+(state==='ok'?' ok':state==='err'?' err':state==='warn'?' warn':'');
+    $('engineLabel').textContent = label || (state==='ok'?'engine online':state==='err'?'engine offline':'engine idle');
+  }
+  function updateZoomPct(){ $('zoomPct').textContent = Math.round(S.zoom*100)+'%'; }
+  function setPlanChip(name){
+    const c=$('planChip');
+    if (!name){ c.classList.remove('on'); c.textContent=''; return; }
+    c.textContent = name; c.classList.add('on'); c.title = name;
+  }
+
+  async function ensurePdfjs(){
+    if (pdfjs) return pdfjs;
+    pdfjs = await import(`${VENDOR}/pdf.min.mjs`);
+    pdfjs.GlobalWorkerOptions.workerSrc = `${VENDOR}/pdf.worker.min.mjs`;
+    return pdfjs;
+  }
+
+  /* ================= PDF ================= */
+  async function openPdf(bytes, name){
+    setLoading(true, 'Opening first page…');
+    try {
+      await ensurePdfjs();
+      const generation = ++S.renderGeneration;
+      S.planBytes = bytes;
+      if (name) { S.planName = name; setPlanChip(name); }
+      S.doc = await pdfjs.getDocument({ data: bytes.slice(0) }).promise;
+      if (embedded && bytes.byteLength > 0 && bytes.byteLength <= 50 * 1024 * 1024) {
+        try {
+          window.parent.postMessage({
+            type: 'xray:plan',
+            plan: {
+              name: String(name || 'plan.pdf').slice(0, 255),
+              mimeType: 'application/pdf',
+              bytes: bytes.slice(0),
+            },
+          }, window.location.origin);
+        } catch { /* quote can still receive quantities without an attachment */ }
+      }
+      emptyEl.style.display = 'none';
+      pagesEl.innerHTML = '';
+      pagesEl.dataset.renderState = 'rendering';
+      pagesEl.dataset.renderedPages = '0';
+      S.pages = [];
+      S.fitW = Math.min(($('viewer').clientWidth - 60), 1100);
+      await createPageSurface(1, generation);
+      await renderPage(1);
+      markPageRendered(1);
+      void ensurePageSnapTargets(1);
+      // Page one is usable while later sheets decode progressively.
+      setLoading(false);
+      $('runBtn').disabled = false; $('runBtn').textContent = 'Run X-Ray takeoff';
+      // Prefer session restore when same plan name; else clear
+      const hadName = S.planName;
+      try {
+        const raw = sessionStorage.getItem(MU_STORE);
+        const data = raw ? JSON.parse(raw) : null;
+        if (data?.planName && hadName && data.planName === hadName && data.markups?.length) {
+          S.markups = data.markups;
+          applyStoredScales(data);
+        } else {
+          S.markups = [];
+          S.scaleByPage = {};
+        }
+      } catch {
+        S.markups = [];
+        S.scaleByPage = {};
+      }
+      S.activePage = 1;
+      updateScaleChip();
+      if (S.markups.length) {
+        syncMarkupsToTakeoff({ skipPersist: true });
+        redrawMeasureOverlays();
+      } else {
+        renderMuList();
+      }
+      toast(`Loaded ${S.doc.numPages} page${S.doc.numPages===1?'':'s'}${name?` · ${name}`:''}. Calibrate Scale per sheet, then Length/Area/Count — or Run/JSON.`);
+      if (window.location.protocol !== 'https:') pingEngine();
+      if (S.doc.numPages > 1) {
+        void renderRemainingPages(2, generation);
+      } else {
+        pagesEl.dataset.renderState = 'complete';
+      }
+    } catch (err) {
+      toast('Could not open PDF: '+(err.message||err));
+    } finally {
+      setLoading(false);
+    }
+  }
+  function safeEngineMessage(reason){
+    const fallback = ' Manual measure and Load takeoff JSON still work.';
+    if (reason === 'not-installed') return 'The private X-Ray engine is not installed.' + fallback;
+    if (reason === 'start-failed') return 'The private X-Ray engine could not start.' + fallback;
+    if (reason === 'timeout') return 'The private X-Ray engine took too long to respond.' + fallback;
+    if (reason === 'invalid-response') return 'The service on the X-Ray port is not the private X-Ray engine.' + fallback;
+    return 'The private X-Ray engine is offline.' + fallback;
+  }
+
+  function nextRenderFrame(){
+    return new Promise(resolve => requestAnimationFrame(() => resolve()));
+  }
+
+  async function createPageSurface(i, generation){
+    if (generation !== S.renderGeneration || !S.doc) return false;
+    const page = await S.doc.getPage(i);
+    if (generation !== S.renderGeneration) return false;
+    const v1 = page.getViewport({ scale: 1 });
+    const wrap = document.createElement('div');
+    wrap.className='pageWrap'; wrap.dataset.page = i; wrap.dataset.renderState = 'pending';
+    const canvas = document.createElement('canvas');
+    const overlay = document.createElement('div'); overlay.className = 'overlay';
+    wrap.appendChild(canvas); wrap.appendChild(overlay);
+    pagesEl.appendChild(wrap);
+    S.pages[i] = { page, wrap, canvas, overlay, wPt:v1.width, hPt:v1.height, cssScale:1, snapRaw:null, snapCss:null };
+    bindMeasureToPage(i, wrap, overlay);
+    return true;
+  }
+
+  function markPageRendered(i){
+    const P = S.pages[i];
+    if (P?.wrap) P.wrap.dataset.renderState = 'complete';
+    pagesEl.dataset.renderedPages = String(
+      S.pages.reduce((count, row) => count + (row?.wrap?.dataset.renderState === 'complete' ? 1 : 0), 0),
+    );
+  }
+
+  async function renderRemainingPages(start, generation){
+    const total = S.doc?.numPages || 0;
+    for (let i = start; i <= total; i++) {
+      if (generation !== S.renderGeneration) return;
+      await nextRenderFrame();
+      if (!await createPageSurface(i, generation)) return;
+      await renderPage(i);
+      markPageRendered(i);
+      // Vector snap extraction stays below visible page rendering priority.
+      void ensurePageSnapTargets(i);
+    }
+    if (generation !== S.renderGeneration) return;
+    pagesEl.dataset.renderState = 'complete';
+    toast(`All ${total} plan pages ready`);
+  }
+
+  async function renderPage(i){
+    const P = S.pages[i]; if (!P) return;
+    const cssScale = cssScaleFor(S.fitW, S.zoom, P.wPt);
+    P.cssScale = cssScale;
+    const dpr = Math.max(window.devicePixelRatio || 1, 2);
+    const vp = P.page.getViewport({ scale: cssScale * dpr });
+    P.canvas.width = vp.width; P.canvas.height = vp.height;
+    P.canvas.style.width = (P.wPt * cssScale) + 'px';
+    P.canvas.style.height = (P.hPt * cssScale) + 'px';
+    P.wrap.style.width = (P.wPt * cssScale) + 'px';
+    P.wrap.style.height = (P.hPt * cssScale) + 'px';
+    try { await P.page.render({ canvasContext: P.canvas.getContext('2d'), viewport: vp }).promise; } catch {}
+    // Snap targets live in PDF space — remap to current CSS scale after zoom
+    try { refreshPageSnapCss(i); } catch { /* snap optional */ }
+    if (S.selLine) drawHighlightsFor(S.selLine, false);
+    // Measure overlays must repaint after every zoom/resize or they sit on old coords.
+    try { redrawMeasureOverlays({ page: i }); } catch { /* measure not ready */ }
+  }
+  function rerenderAll(){ updateZoomPct(); for (let i=1;i<S.pages.length;i++) renderPage(i); }
+  function fitWidth(){
+    S.fitW = Math.min(($('viewer').clientWidth - 60), 1100);
+    S.zoom = 1; rerenderAll();
+  }
+  $('zIn').onclick  = () => { S.zoom = Math.min(4, S.zoom*1.2); rerenderAll(); };
+  $('zOut').onclick = () => { S.zoom = Math.max(.3, S.zoom/1.2); rerenderAll(); };
+  $('zFit').onclick = fitWidth;
+  window.addEventListener('resize', () => { if (S.doc) { S.fitW = Math.min(($('viewer').clientWidth - 60), 1100); rerenderAll(); } });
+
+  /* drag-drop PDF */
+  const viewer = $('viewer');
+  ;['dragenter','dragover'].forEach(ev => viewer.addEventListener(ev, (e) => {
+    e.preventDefault(); viewer.classList.add('dragover');
+  }));
+  ;['dragleave','drop'].forEach(ev => viewer.addEventListener(ev, (e) => {
+    e.preventDefault(); if (ev==='dragleave' && e.target!==viewer) return;
+    viewer.classList.remove('dragover');
+  }));
+  viewer.addEventListener('drop', async (e) => {
+    const f = [...(e.dataTransfer?.files||[])].find(x => /pdf/i.test(x.type) || /\.pdf$/i.test(x.name));
+    if (!f){ toast('Drop a PDF plan'); return; }
+    openPdf(new Uint8Array(await f.arrayBuffer()), f.name);
+  });
+
+  /* ================= takeoff rail ================= */
+  function indexTakeoff(t){
+    const ix = geomIndexTakeoff(t);
+    S.entIndex = ix.entIndex; S.chkIndex = ix.chkIndex;
+  }
+  const resolveEvidence = (q) => geomResolveEvidence(q, S.entIndex, S.chkIndex, S.pageOffset || 0);
+  /* recipeForQuantity imported from takeoff-recipe.js (unit-tested). */
+
+  function applyFilter(){
+    const text = (S.filterText||'').trim().toLowerCase();
+    const tier = S.filterTier;
+    let shown = 0;
+    for (const {el, q} of S.lineEls){
+      const hay = `${q.item||''} ${q.trade||''} ${q.formula||''} ${q.notes||''} ${q.tier||''}`.toLowerCase();
+      const okText = !text || hay.includes(text);
+      const okTier = !tier || (q.tier||'') === tier;
+      const on = okText && okTier;
+      el.classList.toggle('hidden', !on);
+      if (on) shown++;
+    }
+    document.querySelectorAll('.tradeGrp').forEach(g => {
+      const any = [...g.querySelectorAll('.line')].some(l => !l.classList.contains('hidden'));
+      g.classList.toggle('hidden', !any);
+    });
+    const n = (S.takeoff?.quantities||[]).length;
+    $('qtyCount').textContent = text||tier ? `${shown}/${n}` : String(n);
+  }
+
+  function renderStats(t){
+    const qs = t.quantities || [];
+    const tiers = { reconciled:0, 'single-source':0, 'needs-human':0 };
+    for (const q of qs) if (tiers[q.tier]!=null) tiers[q.tier]++; else tiers[q.tier]= (tiers[q.tier]||0)+1;
+    const trades = new Set(qs.map(q => q.trade||'other')).size;
+    const el = $('stats');
+    el.classList.add('on');
+    el.innerHTML =
+      `<span class="stat ${S.filterTier===null?'on':''}" data-tier="">all ${qs.length}</span>`+
+      `<span class="stat t-rec ${S.filterTier==='reconciled'?'on':''}" data-tier="reconciled">${tiers.reconciled||0} reconciled</span>`+
+      `<span class="stat t-ss ${S.filterTier==='single-source'?'on':''}" data-tier="single-source">${tiers['single-source']||0} single-source</span>`+
+      `<span class="stat t-nh ${S.filterTier==='needs-human'?'on':''}" data-tier="needs-human">${tiers['needs-human']||0} needs-human</span>`+
+      `<span class="stat" title="Trade modules">${trades} trades</span>`;
+    el.querySelectorAll('.stat[data-tier]').forEach(s => s.onclick = () => {
+      const v = s.dataset.tier;
+      S.filterTier = v === '' ? null : (S.filterTier === v ? null : v);
+      renderStats(t);
+      applyFilter();
+    });
+  }
+
+  const REVIEW_METRICS_KEY = 'looplet.xray.review.metrics.v1';
+  function proposedReview(r, t){
+    const nested = r?.proposal && typeof r.proposal === 'object' ? r.proposal : {};
+    const quantityId = String(r?.quantityId || r?.quantity_id || r?.ref || '');
+    const raw = r?.proposedQty ?? r?.proposed_qty ?? nested.qty ?? nested.quantity;
+    const proposedQty = typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : null;
+    if (!quantityId || proposedQty == null) return null;
+    const quantity = (t.quantities||[]).find(q => String(q.id||'') === quantityId);
+    return {
+      id:String(r?.id || `proposal-${quantityId}`), quantityId, proposedQty,
+      currentQty:typeof quantity?.qty === 'number' ? quantity.qty : null,
+      unit:String(r?.unit || quantity?.unit || ''),
+    };
+  }
+  function reviewDiscrepancies(t){
+    return (t.checks||[]).filter(c => {
+      const kind = String(c?.kind||'');
+      return /discrep|schedule|drawing/i.test(kind)
+        || Number.isFinite(c?.drawingQty) || Number.isFinite(c?.drawing_qty)
+        || Number.isFinite(c?.scheduleQty) || Number.isFinite(c?.schedule_qty)
+        || Number.isFinite(c?.delta);
+    });
+  }
+  function countReviewDecision(decision){
+    try {
+      const prior = JSON.parse(localStorage.getItem(REVIEW_METRICS_KEY) || '{}');
+      const next = {
+        version:1,
+        accepted:Math.max(0, Number(prior.accepted)||0) + (decision==='accepted'?1:0),
+        rejected:Math.max(0, Number(prior.rejected)||0) + (decision==='rejected'?1:0),
+      };
+      localStorage.setItem(REVIEW_METRICS_KEY, JSON.stringify(next));
+    } catch { /* optional local aggregate only */ }
+  }
+  function decideProposal(proposal, decision){
+    if (!proposal || S.reviewDecisions.has(proposal.id)) return;
+    if (decision === 'accepted') {
+      const quantity = (S.takeoff?.quantities||[]).find(q => String(q.id||'') === proposal.quantityId);
+      if (!quantity) { toast('Source quantity no longer exists'); return; }
+      quantity.qty = proposal.proposedQty;
+      quantity.tier = 'single-source';
+    }
+    S.reviewDecisions.set(proposal.id, decision);
+    countReviewDecision(decision);
+    renderRail(S.takeoff);
+    queueHostSync();
+    toast(decision === 'accepted' ? 'Proposal accepted and quantity updated' : 'Proposal rejected; quantity unchanged');
+  }
+  function exportReviewDiscrepancies(t){
+    const findings = reviewDiscrepancies(t);
+    if (!findings.length) { toast('No discrepancies to export'); return; }
+    const rows = [['id','kind','status','detail','drawing_qty','schedule_qty','delta']];
+    findings.forEach((c,i) => rows.push([
+      c.id||`finding-${i+1}`, c.kind||'schedule-drawing-discrepancy', c.status||'flag', c.detail||'',
+      c.drawingQty??c.drawing_qty??'', c.scheduleQty??c.schedule_qty??'', c.delta??'',
+    ]));
+    download(`${slug(S.planName||'plan')}-review-findings.csv`, rows.map(r=>r.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+    toast(`Exported ${findings.length} review finding(s)`);
+  }
+
+  function renderRail(t){
+    indexTakeoff(t); S.takeoff = t; S.picked = new Set(); S.lineEls = [];
+    S.pageOffset = detectPageOffset(t.entities);
+    $('railEmpty').style.display = 'none';
+    $('searchWrap').classList.add('on');
+    const n = (t.quantities||[]).length;
+    $('qtyCount').style.display = ''; $('qtyCount').textContent = String(n);
+
+    const cov = (t.document && t.document.coverage) || null;
+    if (cov){
+      const low = (cov.lowPages||[]);
+      $('cov').style.display='block';
+      $('cov').innerHTML = `Coverage <b>${Math.round((cov.overallRatio||0)*100)}%</b> structured` + (low.length?` · low pages: ${esc(low.join(', '))}`:` · no low pages`);
+    } else $('cov').style.display='none';
+
+    renderStats(t);
+
+    const byTrade = {};
+    for (const q of t.quantities || []) (byTrade[q.trade || 'other'] ||= []).push(q);
+    S.byTrade = byTrade;
+    const linesEl = $('lines'); linesEl.innerHTML = '';
+
+    // stable trade order
+    const trades = Object.keys(byTrade).sort((a,b)=>a.localeCompare(b));
+    for (const trade of trades){
+      const grp = document.createElement('div'); grp.className='tradeGrp';
+      const th = document.createElement('p'); th.className='th';
+      th.innerHTML = `<input type="checkbox" class="trade-pick" title="Select all in module" aria-label="Select all ${esc(trade)}">`+
+        `${esc(trade)} <span class="open-mod">${byTrade[trade].length} · open →</span>`;
+      th.querySelector('.trade-pick').onclick = (e2) => {
+        e2.stopPropagation();
+        const on = e2.target.checked;
+        for (const q of byTrade[trade]){
+          const id = qKey(q);
+          if (on) S.picked.add(id); else S.picked.delete(id);
+        }
+        grp.querySelectorAll('.line').forEach(line => {
+          const cb = line.querySelector('.pick');
+          if (cb) cb.checked = on;
+          line.classList.toggle('picked', on);
+        });
+        updatePkgBar();
+      };
+      th.onclick = (e) => {
+        if (e.target.closest('.trade-pick')) return;
+        const allEv = byTrade[trade].flatMap(q => resolveEvidence(q));
+        if (allEv.length){ drawHighlightsFor(allEv, true); const P=S.pages[allEv[0].page]; if(P) P.wrap.scrollIntoView({behavior:'smooth',block:'center'}); }
+        openInspector(trade, `${byTrade[trade].length} quantities · click a line for components`, sectionsForTrade(trade, byTrade[trade]), {
+          title:trade, trade, quants:byTrade[trade],
+        });
+      };
+      th.onkeydown = (e) => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); th.click(); } };
+      th.tabIndex = 0;
+      grp.appendChild(th);
+
+      for (const q of byTrade[trade]){
+        const ev = resolveEvidence(q);
+        const el = document.createElement('div');
+        el.className='line has-pick';
+        el.dataset.qid = qKey(q);
+        el.tabIndex = 0;
+        el.setAttribute('role','button');
+        el.setAttribute('aria-label', `${q.item||'item'} ${fmtQty(q.qty)} ${q.unit||''}`);
+
+        let comp = '';
+        if ((q.allowances||[]).length)
+          comp += `<div class="row" style="margin:4px 0"><span style="color:var(--dim2);font-size:10px;text-transform:uppercase;margin-right:6px">allowances</span>${q.allowances.map(a=>esc(`${a.name||''} ×${a.factor??''}`)).join(' · ')}</div>`;
+        if ((q.purchase||[]).length){
+          comp += `<div style="margin:4px 0;font-size:10px;color:var(--dim2);text-transform:uppercase">order as</div><table style="width:100%;border-collapse:collapse;font-size:11px">`+
+            q.purchase.map(p=>`<tr>${Object.entries(p).map(([k,v])=>`<td style="padding:2px 4px;border-bottom:1px solid var(--line)">${esc(k)}: ${esc(String(v))}</td>`).join('')}</tr>`).join('')+`</table>`;
+        }
+
+        el.innerHTML =
+          `<input type="checkbox" class="pick" title="Add to package" aria-label="Select for package">`+
+          `<div class="top"><span class="item">${esc(q.item||'')}</span><span class="qty">${esc(fmtQty(q.qty))} ${esc(q.unit||'')}<span class="more" title="Open breakdown">▸</span></span></div>`+
+          `<div class="basis">${esc(q.formula||'')}</div>`+
+          `<div class="meta"><span class="tier ${TIER[q.tier]||'tier-x'}">${esc(q.tier||'—')}</span>`+
+          `<span class="ev ${ev.length?'has':''}">${ev.length?ev.length+' evidence':'no located evidence'}</span></div>`+
+          (comp?`<div class="inline-comp" style="display:none">${comp}</div>`:'');
+
+        el.onclick = () => selectLine(el, ev, q);
+        el.onkeydown = (e) => {
+          if (e.key==='Enter' || e.key===' ') { e.preventDefault(); selectLine(el, ev, q); }
+        };
+        el.querySelector('.more').onclick = (e2) => { e2.stopPropagation(); selectLine(el, ev, q); };
+        el.querySelector('.pick').onclick = (e2) => {
+          e2.stopPropagation();
+          const id = qKey(q);
+          if (e2.target.checked) S.picked.add(id); else S.picked.delete(id);
+          el.classList.toggle('picked', e2.target.checked);
+          updatePkgBar();
+        };
+        S.lineEls.push({ el, q, ev, trade });
+        grp.appendChild(el);
+      }
+      linesEl.appendChild(grp);
+    }
+
+    const rv = t.review || [];
+    const discrepancies = reviewDiscrepancies(t);
+    const checksById = Object.fromEntries((t.checks||[]).map(c => [c.id, c]));
+    $('review').innerHTML = rv.length || discrepancies.length
+      ? (rv.length ? `<h4>Flagged for review (${rv.length})</h4><ul>`+
+        rv.map((r,i)=>{
+          const proposal = proposedReview(r,t);
+          const proposalId = proposal?.id || '';
+          const decision = proposalId ? S.reviewDecisions.get(proposalId) : null;
+          const qtyText = proposal
+            ? `<span style="display:block;margin-top:3px;color:var(--text)">${proposal.currentQty??'—'} → <b>${proposal.proposedQty}</b> ${esc(proposal.unit)}</span>`
+            : '';
+          const actions = proposal
+            ? decision
+              ? `<div class="review-actions"><span class="review-decision">${esc(decision)}</span></div>`
+              : `<div class="review-actions"><button type="button" class="accept" data-review-action="accepted" data-proposal="${esc(proposalId)}">Accept</button><button type="button" class="reject" data-review-action="rejected" data-proposal="${esc(proposalId)}">Reject</button></div>`
+            : '';
+          return `<li data-index="${i}" data-ref="${esc(r.ref||'')}" tabindex="0"><code>${esc(r.ref||'')}</code> — ${esc(r.reason||'')}${qtyText}${actions}</li>`;
+        }).join('')+`</ul>` : '')+
+        (discrepancies.length
+          ? `<div class="review-discrepancies"><h5>Schedule vs drawing (${discrepancies.length})</h5>`+
+            discrepancies.map(c=>`<div style="font-size:10.5px;color:var(--dim);margin:4px 0">${esc(c.detail||c.kind||'Discrepancy')}</div>`).join('')+
+            `<button type="button" data-export-discrepancies>Export review findings CSV</button></div>`
+          : '')
+      : '';
+    $('review').querySelectorAll('li').forEach(li => {
+      const open = () => {
+        document.querySelectorAll('#review li.sel').forEach(x=>x.classList.remove('sel'));
+        li.classList.add('sel');
+        const ref = li.dataset.ref;
+        const chk = checksById[ref] || { id:ref, kind:'review', status:'flag', detail: li.textContent };
+        const ev = resolveEvidence({ evidence: ref ? [ref] : [] });
+        if (ev.length){ drawHighlightsFor(ev, true); const P=S.pages[ev[0].page]; if(P) P.wrap.scrollIntoView({behavior:'smooth',block:'center'}); }
+        else {
+          const m = /-p(\d+)/.exec(ref||'');
+          const pg = m ? Number(m[1]) + (S.pageOffset||0) : null;
+          const P = pg!=null ? S.pages[pg] : null;
+          if (P) P.wrap.scrollIntoView({behavior:'smooth',block:'center'});
+        }
+        openInspector(ref || 'Review flag', chk.detail || 'Flagged for human review', sectionsForCheck(chk), { title:ref, check:chk });
+      };
+      li.onclick = open;
+      li.onkeydown = (e) => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); open(); } };
+    });
+    $('review').querySelectorAll('[data-review-action]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const r = rv[Number(btn.closest('li')?.dataset.index)];
+        decideProposal(proposedReview(r,t), btn.dataset.reviewAction);
+      };
+    });
+    $('review').querySelector('[data-export-discrepancies]')?.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation(); exportReviewDiscrepancies(t);
+    });
+
+    buildExportPopover(byTrade, t);
+    updateIndustryPanel(t);
+    updatePkgBar();
+    applyFilter();
+    $('runBtn').textContent = `${n} quantities loaded`; $('runBtn').disabled = true;
+    $('sendBtn').disabled = n === 0;
+    const hasFence = (t.quantities||[]).some(q => q.trade === 'fencing' || /^q-fence/i.test(q.id||''));
+    toast(hasFence
+      ? `${n} quantities — scroll the RIGHT rail to blue “Build the order list”`
+      : `${n} quantities — tick lines, then Send → Looplet quote at the bottom`);
+  }
+
+  function selectLine(el, ev, q){
+    document.querySelectorAll('.line.sel').forEach(x=>x.classList.remove('sel'));
+    el.classList.add('sel');
+    S.selLine = ev;
+    S.peek = { el, ev, q };
+    hidePeek();
+    if (ev && ev.length){
+      drawHighlightsFor(ev, true);
+      const P = S.pages[ev[0].page];
+      if (P) P.wrap.scrollIntoView({ behavior:'smooth', block:'center' });
+    } else {
+      clearHighlights();
+    }
+    el.scrollIntoView({ block:'nearest', behavior:'smooth' });
+    openInspector(
+      q.item || 'Quantity',
+      `${q.trade || 'trade'} · ${fmtQty(q.qty)} ${q.unit || ''} · ${q.tier || '—'}`,
+      sectionsForQuantity(q, ev || []),
+      { quantity: q, title: q.item, evidence: ev || [], tier: q.tier },
+    );
+  }
+
+  function navLine(dir){
+    const visible = S.lineEls.filter(({el}) => !el.classList.contains('hidden') && !el.closest('.tradeGrp')?.classList.contains('hidden'));
+    if (!visible.length) return;
+    const cur = visible.findIndex(({el}) => el.classList.contains('sel'));
+    let next = cur < 0 ? 0 : cur + dir;
+    if (next < 0) next = visible.length - 1;
+    if (next >= visible.length) next = 0;
+    const { el, ev, q } = visible[next];
+    selectLine(el, ev, q);
+  }
+
+  function pickedQuantities(){
+    return (S.takeoff?.quantities || []).filter(q => S.picked.has(qKey(q)));
+  }
+  function updatePkgBar(){
+    const n = S.picked.size;
+    $('pkgBar').classList.toggle('show', n > 0);
+    $('pkgCount').textContent = String(n);
+    const send = $('pkgSend');
+    // Always show Send — was hidden when not embedded, which confused everyone
+    if (send) {
+      send.style.display = '';
+      send.textContent = embedded
+        ? 'Send → Looplet quote'
+        : 'Send → Looplet quote';
+    }
+    const hint = $('pkgHint');
+    if (hint) {
+      hint.textContent = embedded
+        ? 'Next: click Send → Looplet quote, then Create draft quote under this viewer'
+        : 'Open Looplet at /xray (not standalone cad.html) so Send can create a quote — or use CSV now';
+    }
+  }
+
+  function exportPackage(kind){
+    const quants = pickedQuantities();
+    if (!quants.length){ toast('Tick lines in the rail to build a package'); return; }
+    const base = `${slug(S.planName||'plan')}-package-${quants.length}`;
+    if (kind === 'json'){
+      download(`${base}.json`, JSON.stringify({
+        source:'xray-by-looplet', plan:S.planName||null, engine:S.takeoff?.engine||null,
+        packageSize:quants.length, quantities:quants,
+      }, null, 2), 'application/json');
+      toast(`Package JSON — ${quants.length} lines`);
+      return;
+    }
+    const secs = [{ key:'package', title:`Selected package (${quants.length})`, table:{
+      head:['trade','item','qty','unit','tier','formula'],
+      rows:quants.map(q=>[q.trade||'',q.item||'',fmtQty(q.qty),q.unit||'',q.tier||'',q.formula||'']),
+    }}];
+    for (const q of quants){
+      if ((q.purchase||[]).length){
+        const keys = [...new Set(q.purchase.flatMap(p=>Object.keys(p)))];
+        secs.push({ key:`buy-${qKey(q)}`, title:`Order — ${q.item}`, table:{
+          head:keys, rows:q.purchase.map(p=>keys.map(k=>String(p[k]??''))) }});
+      } else {
+        const rec = recipeForQuantity(q);
+        if (rec) secs.push({ ...rec, key:`rec-${qKey(q)}`, title:`Recipe — ${q.item}` });
+      }
+    }
+    download(`${base}.csv`, sectionsToCsv(secs), 'text/csv;charset=utf-8');
+    toast(`Package CSV — ${quants.length} lines + components`);
+  }
+
+  function inspectPackage(){
+    const quants = pickedQuantities();
+    if (!quants.length){ toast('Tick lines first'); return; }
+    const byTrade = {};
+    for (const q of quants) (byTrade[q.trade||'other'] ||= []).push(q);
+    const secs = [{ key:'package', title:`Selected package (${quants.length} lines)`, table:{
+      head:['trade','item','qty','unit','tier'],
+      rows:quants.map(q=>[q.trade||'',q.item||'',fmtQty(q.qty),q.unit||'',q.tier||'']),
+    }}];
+    for (const [trade, list] of Object.entries(byTrade)){
+      secs.push(...sectionsForTrade(trade, list).map(s => ({...s, key:`${trade}-${s.key}`, title:`${trade} · ${s.title}`})));
+    }
+    openInspector(`Package (${quants.length})`, 'Tick sections below to export only what you need', secs, {
+      title:`package-${quants.length}`, quants, package:true,
+    });
+  }
+
+  function postTakeoff(planName, quantities){
+    window.parent.postMessage({
+      type:'xray:takeoff',
+      planName,
+      takeoff:{ ...S.takeoff, quantities },
+    }, window.location.origin);
+  }
+
+  $('pkgInspect').onclick = inspectPackage;
+  $('pkgCsv').onclick = () => exportPackage('csv');
+  $('pkgJson').onclick = () => exportPackage('json');
+  $('pkgClear').onclick = () => {
+    S.picked = new Set();
+    document.querySelectorAll('.line .pick, .trade-pick').forEach(c => { c.checked = false; });
+    document.querySelectorAll('.line.picked').forEach(el => el.classList.remove('picked'));
+    updatePkgBar();
+  };
+  $('pkgSend').onclick = () => {
+    const quants = pickedQuantities();
+    if (!quants.length){ toast('Tick lines first'); return; }
+    if (!embedded) {
+      toast('Open http://localhost:5173/xray inside Looplet — Send only works there. Or use CSV export.');
+      return;
+    }
+    postTakeoff((S.planName||'plan.pdf')+` — package (${quants.length})`, quants);
+    toast(`Sent ${quants.length} lines — look UNDER this viewer for Create draft quote`);
+  };
+
+  /* ---- Industry fence BOM panel (blue, above review) ---- */
+  function updateIndustryPanel(t){
+    const panel = $('industry');
+    if (!panel) return;
+    const qs = t?.quantities || [];
+    const fenceQs = qs.filter(q => q.trade === 'fencing' || /^q-fence/i.test(q.id||''));
+    if (!fenceQs.length){
+      panel.classList.remove('show');
+      S.bom = null;
+      renderBomList(null);
+      return;
+    }
+    panel.classList.add('show');
+    const sys = qs.find(q => q.id === 'q-fence-system') || fenceQs[0];
+    const h = parseHeightM(sys) || DEFAULT_HEIGHT_M;
+    const gates = parseGateCount(qs);
+    if ($('indH')) $('indH').value = String(h);
+    if ($('indSp')) $('indSp').value = String(DEFAULT_POST_SPACING_M);
+    // Apply measured seed (from Scale→Length) or last length markup
+    const seeded =
+      coerceFenceBomLengthLm(S.pendingFenceLm) ||
+      fenceBomLengthFromMarkups(S.markups, 'latest');
+    if (seeded != null && $('indLen')) {
+      const cur = Number($('indLen').value);
+      if (!Number.isFinite(cur) || cur <= 0) {
+        $('indLen').value = String(seeded);
+        S.pendingFenceLm = seeded;
+      }
+    }
+    if ($('indSpec')) {
+      const seedHint = seeded != null
+        ? `<span style="color:#7dcea0">Measured run ${seeded} lm ready — confirm then Build</span>`
+        : `<span style="color:#ffcf33">Measure a Length on the plan (or type lm) — then Build</span>`;
+      $('indSpec').innerHTML =
+        `<b>${esc(sys.item || 'Fence')}</b><br>`+
+        `<span style="color:#9fb3d1">Height ${h} m · Gates ${gates} · Spacing ${DEFAULT_POST_SPACING_M} m default</span><br>`+
+        seedHint;
+    }
+    const preview = () => {
+      const L = Number($('indLen')?.value);
+      const el = $('indPreview');
+      if (!el) return;
+      if (!Number.isFinite(L) || L <= 0){ el.classList.remove('show'); return; }
+      try {
+        const bom = explodeFenceBom({
+          lengthLm: L,
+          heightM: Number($('indH').value) || h,
+          spacingM: Number($('indSp').value) || DEFAULT_POST_SPACING_M,
+          gateCount: gates,
+          system: 'post-and-rail',
+        });
+        el.classList.add('show');
+        el.innerHTML =
+          `<b>Preview</b> ${bom.lengthLm} lm → <b>${bom.summary.posts}</b> posts · `+
+          `<b>${bom.summary.railsLm}</b> lm rails · <b>${bom.summary.meshM2}</b> m² mesh`+
+          (bom.summary.gates ? ` · <b>${bom.summary.gates}</b> gates` : '');
+      } catch { el.classList.remove('show'); }
+    };
+    if ($('indLen')) $('indLen').oninput = preview;
+    if ($('indH')) $('indH').oninput = preview;
+    if ($('indSp')) $('indSp').oninput = preview;
+    preview();
+  }
+
+  function renderBomList(bom){
+    const box = $('bomList');
+    if (!box) return;
+    if (!bom?.lines?.length){
+      box.classList.remove('show');
+      box.innerHTML = '';
+      return;
+    }
+    box.classList.add('show');
+    box.innerHTML =
+      `<h4>Order list — ${bom.lines.length} lines (scroll up from Inspect bar)</h4>`+
+      bom.lines.map(l =>
+        `<div class="bom-line"><div class="top"><span>${esc(l.item)}</span>`+
+        `<span>${fmtQty(l.qty)} ${esc(l.unit)}</span></div>`+
+        `<div class="sub">${esc(l.formula||'')}</div></div>`
+      ).join('');
+  }
+
+  if ($('indBuild')) $('indBuild').onclick = () => {
+    if (!S.takeoff){ toast('Load a takeoff first'); return; }
+    const L = Number($('indLen').value);
+    try {
+      const bom = explodeFenceBom({
+        lengthLm: L,
+        heightM: Number($('indH').value) || DEFAULT_HEIGHT_M,
+        spacingM: Number($('indSp').value) || DEFAULT_POST_SPACING_M,
+        gateCount: parseGateCount(S.takeoff.quantities || []),
+        system: 'post-and-rail',
+      });
+      S.bom = bom;
+      renderBomList(bom);
+      toast(`Order list: ${bom.summary.posts} posts, ${bom.summary.meshM2} m² mesh — then Send order list`);
+      $('bomList')?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    } catch (err) {
+      toast(err.message || String(err));
+    }
+  };
+
+  if ($('indExport')) $('indExport').onclick = () => {
+    if (!S.bom?.lines?.length){ toast('Build the order list first (blue panel above)'); return; }
+    const secs = [{ key:'bom', title:`Fence BOM ${S.bom.lengthLm} lm`, table:{
+      head:['item','qty','unit','formula','notes'],
+      rows:S.bom.lines.map(l=>[l.item, fmtQty(l.qty), l.unit, l.formula||'', l.notes||'']),
+    }}];
+    download(`${slug(S.planName||'plan')}-fence-bom.csv`, sectionsToCsv(secs), 'text/csv;charset=utf-8');
+    toast('BOM CSV downloaded');
+  };
+
+  if ($('indSend')) $('indSend').onclick = () => {
+    if (!S.bom?.lines?.length){ toast('Build the order list first — type lm then Build'); return; }
+    if (!embedded){
+      toast('Open Looplet at /xray (CRM X-Ray tab), not bare cad.html — then Send works');
+      return;
+    }
+    const merged = mergeTakeoffWithBom(S.takeoff, S.bom.lines);
+    postTakeoff((S.planName||'plan.pdf')+` — fence BOM ${S.bom.lengthLm} lm`, merged.quantities);
+    toast(`Order list sent — look UNDER the viewer for Create draft quote`);
+  };
+
+  function clearHighlights(){ for (let i=1;i<S.pages.length;i++) if (S.pages[i]) S.pages[i].overlay.innerHTML=''; }
+  function drawHighlightsFor(ev, flash){
+    clearHighlights(); if (!ev) return;
+    S.selLine = ev;
+    for (const e of ev){
+      const P = S.pages[e.page]; if (!P || !e.bbox) continue;
+      const box = bboxToCss(e.bbox, P.cssScale);
+      const d = document.createElement('div');
+      d.className = 'hl' + (flash?' flash':'');
+      d.style.left=box.left+'px'; d.style.top=box.top+'px';
+      d.style.width=box.width+'px'; d.style.height=box.height+'px';
+      if (e.text) d.title = e.text;
+      P.overlay.appendChild(d);
+    }
+  }
+
+  /* ================= inspector ================= */
+  const insEl = () => $('inspector');
+  function closeInspector(){ insEl().classList.remove('show'); S.insSections=null; }
+  function hidePeek(){ $('peekBar').classList.remove('show'); }
+  function showPeek(){
+    if (!S.peek) return;
+    $('peekTitle').textContent = S.peek.q?.item || 'Selection';
+    $('peekBar').classList.add('show');
+  }
+  insEl().onclick = (e) => { if (e.target === insEl()) { closeInspector(); showPeek(); } };
+  $('peekReopen').onclick = () => {
+    if (!S.peek) return;
+    selectLine(S.peek.el, S.peek.ev, S.peek.q);
+  };
+  $('peekClear').onclick = () => {
+    hidePeek(); S.peek=null; S.selLine=null; clearHighlights();
+    document.querySelectorAll('.line.sel').forEach(x=>x.classList.remove('sel'));
+  };
+
+  function sectionsForQuantity(q, ev){
+    const secs = [];
+    secs.push({ key:'summary', title:'Quantity', rows:[
+      ['item', q.item||''], ['quantity', `${fmtQty(q.qty)} ${q.unit||''}`],
+      ['trade', q.trade||''], ['tier', `${q.tier||'—'} — ${TIER_WHY[q.tier]||''}`],
+      ...(q.id?[['id', q.id]]:[]),
+    ]});
+    secs.push({ key:'basis', title:'How it was derived', rows:[
+      ['formula', q.formula||'—'], ...(q.notes?[['note', q.notes]]:[]),
+    ]});
+    if ((q.allowances||[]).length) secs.push({ key:'allowances', title:'Allowances', table:{
+      head:['allowance','factor','source'],
+      rows:q.allowances.map(a=>[a.name??'', String(a.factor??''), a.source??'']) }});
+    if ((q.purchase||[]).length){
+      const keys = [...new Set(q.purchase.flatMap(p=>Object.keys(p)))];
+      secs.push({ key:'purchase', title:'Order breakdown', table:{
+        head:keys, rows:q.purchase.map(p=>keys.map(k=>String(p[k]??''))) }});
+    } else {
+      const rec = recipeForQuantity(q);
+      if (rec) secs.push(rec);
+    }
+    if (q.order_qty != null && q.order_qty !== q.qty)
+      secs.push({ key:'order', title:'Order quantity', rows:[
+        ['measured', `${fmtQty(q.qty)} ${q.unit||''}`],
+        ['order as', `${fmtQty(q.order_qty)} ${q.unit||''}`, 'after allowances'] ]});
+    secs.push({ key:'evidence', title:'Evidence on the plan', table:{
+      head:['#','page','location','entity','text'],
+      rows:(ev||[]).map((e,i)=>[String(i+1), `p${e.page}`,
+        e.bbox?`${Math.round(e.bbox[0])}, ${Math.round(e.bbox[1])}`:'—', e.id||'', e.text||''])},
+      empty:'No located evidence — common for single-source labels and needs-human assumptions. The quantity is still real; use formula + tier above.',
+      onRowClick:(i)=>{ const one=(ev||[])[i]; if(!one) return;
+        // peek plan with highlight without losing context entirely
+        minimizeToPeek();
+        drawHighlightsFor([one],true);
+        const P=S.pages[one.page]; if(P) P.wrap.scrollIntoView({behavior:'smooth',block:'center'}); } });
+    const evIds = new Set((q.evidence)||[]);
+    const rel = (S.takeoff?.checks||[]).filter(c => (c.evidence||[]).some(x=>evIds.has(x)));
+    if (rel.length) secs.push({ key:'checks', title:'Checks touching this line', table:{
+      head:['status','check','detail'], rows:rel.map(c=>[c.status||'',c.id||'',c.detail||'']) }});
+    return secs;
+  }
+
+  function sectionsForTrade(trade, quants){
+    const secs = [{ key:'lines', title:`${trade} — all lines`, table:{
+      head:['item','qty','unit','tier','formula'],
+      rows:quants.map(q=>[q.item||'', fmtQty(q.qty), q.unit||'', q.tier||'', q.formula||'']),
+    },
+      onRowClick:(i)=>{
+        const q = quants[i]; if (!q) return;
+        const ev = resolveEvidence(q);
+        const found = S.lineEls.find(x => qKey(x.q) === qKey(q));
+        if (found) selectLine(found.el, ev, q);
+        else openInspector(q.item||'Quantity', `${trade} · ${fmtQty(q.qty)} ${q.unit||''}`, sectionsForQuantity(q, ev), { quantity:q, title:q.item });
+      } }];
+    const byTier = {};
+    for (const q of quants) (byTier[q.tier||'—'] ||= []).push(q);
+    secs.push({ key:'tiers', title:'Trust breakdown', table:{ head:['tier','lines','meaning'],
+      rows:Object.entries(byTier).map(([t,l])=>[t,String(l.length),TIER_WHY[t]||'']) }});
+    const units = {};
+    for (const q of quants) units[q.unit||'?'] = (units[q.unit||'?']||0) + (Number(q.qty)||0);
+    secs.push({ key:'totals', title:'Totals by unit', table:{ head:['unit','total'],
+      rows:Object.entries(units).map(([u,v])=>[u, fmtQty(v)]) }});
+    for (const q of quants){
+      if ((q.purchase||[]).length){
+        const keys = [...new Set(q.purchase.flatMap(p=>Object.keys(p)))];
+        secs.push({ key:`buy-${qKey(q)}`, title:`Order · ${q.item}`, table:{
+          head:keys, rows:q.purchase.map(p=>keys.map(k=>String(p[k]??''))) }});
+      } else {
+        const rec = recipeForQuantity(q);
+        if (rec) secs.push({ ...rec, key:`rec-${qKey(q)}`, title:`Components · ${q.item}` });
+      }
+    }
+    return secs;
+  }
+
+  function sectionsForCheck(chk){
+    const ev = resolveEvidence({ evidence:[chk.id] });
+    return [
+      { key:'check', title:'Check', rows:[
+        ['id',chk.id||''],['kind',chk.kind||''],['status',chk.status||''],
+        ...(chk.delta!=null?[['delta',String(chk.delta)]]:[]) ]},
+      { key:'detail', title:'What disagrees', rows:[['detail',chk.detail||'']] },
+      { key:'evidence', title:'Tokens on the plan', table:{ head:['#','page','location','entity','text'],
+          rows:ev.map((e,i)=>[String(i+1),`p${e.page}`,e.bbox?`${Math.round(e.bbox[0])}, ${Math.round(e.bbox[1])}`:'—',e.id||'',e.text||''])},
+        empty:'No located tokens for this check.',
+        onRowClick:(i)=>{ const one=ev[i]; if(!one) return; minimizeToPeek(); drawHighlightsFor([one],true);
+          const P=S.pages[one.page]; if(P) P.wrap.scrollIntoView({behavior:'smooth',block:'center'}); } },
+    ];
+  }
+
+  function minimizeToPeek(){
+    closeInspector();
+    showPeek();
+  }
+
+  function openInspector(title, subtitle, sections, ctx){
+    S.insSections = sections; S.insCtx = ctx || {};
+    hidePeek();
+    const tier = ctx?.tier || ctx?.quantity?.tier;
+    $('insHead').innerHTML =
+      `<div style="flex:1;min-width:0">`+
+        `<h2 id="insTitle">${esc(title)}</h2>`+
+        `<div class="sub">${esc(subtitle||'')}</div>`+
+        (tier?`<span class="tier ${TIER[tier]||'tier-x'}">${esc(tier)}</span>`:'')+
+      `</div>`+
+      `<button id="insPeekBtn" class="ghost" title="Close panel, keep highlights on plan">Show on plan</button>`+
+      `<button id="insClose" aria-label="Close">Close</button>`;
+    $('insClose').onclick = () => { closeInspector(); showPeek(); };
+    $('insPeekBtn').onclick = minimizeToPeek;
+
+    const body = $('insBody'); body.innerHTML = '';
+    sections.forEach((s, si) => {
+      const sec = document.createElement('div'); sec.className='sec';
+      const count = s.table ? s.table.rows.length : (s.rows||[]).length;
+      sec.innerHTML = `<header><input type="checkbox" data-sec="${si}" checked aria-label="Include ${esc(s.title)} in export">`+
+        `<h3>${esc(s.title)}</h3><span class="n">${count} ${s.table?'row(s)':'field(s)'}</span></header><div class="body"></div>`;
+      const b = sec.querySelector('.body');
+      if (s.note) b.innerHTML += `<div class="note">${esc(s.note)}</div>`;
+      if (s.table){
+        if (!s.table.rows.length) b.innerHTML += `<div class="hint">${esc(s.empty||'nothing here')}</div>`;
+        else {
+          b.innerHTML += `<table><thead><tr>${s.table.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`+
+            s.table.rows.map((r,ri)=>`<tr data-r="${ri}" ${s.onRowClick?'style="cursor:pointer"':''}>${r.map((c,ci)=>`<td class="${ci&&c!==''&&!isNaN(Number(c))?'num':''}">${esc(c)}</td>`).join('')}</tr>`).join('')+`</tbody></table>`;
+          if (s.onRowClick) b.querySelectorAll('tr[data-r]').forEach(tr => tr.onclick = () => s.onRowClick(Number(tr.dataset.r)));
+        }
+      } else {
+        b.innerHTML += `<table><tbody>${(s.rows||[]).map(r=>`<tr><th style="width:120px">${esc(r[0])}</th><td>${esc(r[1])}${r[2]?` <span style="color:var(--dim2)">(${esc(r[2])})</span>`:''}</td></tr>`).join('')}</tbody></table>`;
+      }
+      body.appendChild(sec);
+    });
+
+    const canSendLine = !!(ctx?.quantity && embedded);
+    const canSendTrade = !!(ctx?.quants?.length && embedded && !ctx?.quantity && !ctx?.package);
+    const canSendPkg = !!(ctx?.package && ctx?.quants?.length && embedded);
+    $('insFoot').innerHTML =
+      `<span class="hint">Tick sections · Esc closes · J/K next line</span><span class="grow"></span>`+
+      `<button id="insCsv">CSV</button><button id="insJson">JSON</button>`+
+      `<button id="insCopy" class="ghost">Copy</button>`+
+      (canSendLine ? `<button id="insSend" class="primary">Send line</button>` : '')+
+      (canSendTrade ? `<button id="insSendTrade" class="primary">Send module</button>` : '')+
+      (canSendPkg ? `<button id="insSendPkg" class="primary">Send package</button>` : '');
+    $('insCsv').onclick  = () => exportSections('csv');
+    $('insJson').onclick = () => exportSections('json');
+    $('insCopy').onclick = () => exportSections('clipboard');
+    if ($('insSend')) $('insSend').onclick = () => {
+      postTakeoff((S.planName||'plan.pdf')+` — ${ctx.quantity.item}`, [ctx.quantity]);
+      toast('Line sent to Looplet — bar below');
+    };
+    if ($('insSendTrade')) $('insSendTrade').onclick = () => {
+      postTakeoff((S.planName||'plan.pdf')+` — ${ctx.trade||ctx.title||'module'}`, ctx.quants);
+      toast(`Module (${ctx.quants.length} lines) sent to Looplet`);
+    };
+    if ($('insSendPkg')) $('insSendPkg').onclick = () => {
+      postTakeoff((S.planName||'plan.pdf')+` — package (${ctx.quants.length})`, ctx.quants);
+      toast(`Package of ${ctx.quants.length} lines sent to Looplet`);
+    };
+    insEl().classList.add('show');
+    // focus close for keyboard users without stealing every time they type
+    requestAnimationFrame(() => $('insClose')?.focus({ preventScroll:true }));
+  }
+
+  function pickedSections(){
+    const picks = [...$('insBody').querySelectorAll('input[data-sec]')].filter(c=>c.checked).map(c=>Number(c.dataset.sec));
+    return (S.insSections||[]).filter((_,i)=>picks.includes(i));
+  }
+  function sectionsToCsv(secs){
+    const out = [];
+    for (const s of secs){
+      out.push(`# ${s.title}`);
+      if (s.table){ out.push(s.table.head.map(csvCell).join(','));
+        for (const r of s.table.rows) out.push(r.map(csvCell).join(','));
+      } else for (const r of (s.rows||[])) out.push([r[0], r[1]].map(csvCell).join(','));
+      out.push('');
+    }
+    return out.join('\r\n');
+  }
+  const csvCell = (v) => { const s=String(v??''); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+  function sectionsToJson(secs){
+    const o = {};
+    for (const s of secs) o[s.key] = s.table
+      ? s.table.rows.map(r => Object.fromEntries(s.table.head.map((h,i)=>[h, r[i]])))
+      : Object.fromEntries((s.rows||[]).map(r=>[r[0], r[1]]));
+    return JSON.stringify({ source:'xray-by-looplet', plan:S.planName||null,
+      engine:S.takeoff?.engine||null, subject:S.insCtx?.title||null, sections:o }, null, 2);
+  }
+  function download(name, text, mime){
+    const a=document.createElement('a'); const url=URL.createObjectURL(new Blob([text],{type:mime}));
+    a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }
+  function exportSections(kind){
+    const secs = pickedSections();
+    if (!secs.length){ toast('Tick at least one section'); return; }
+    const base = `${slug(S.planName||'plan')}-${slug(S.insCtx?.title||'takeoff')}`;
+    if (kind==='csv')  { download(`${base}.csv`,  sectionsToCsv(secs),  'text/csv;charset=utf-8'); toast(`Exported ${secs.length} section(s) as CSV`); }
+    if (kind==='json') { download(`${base}.json`, sectionsToJson(secs), 'application/json'); toast(`Exported ${secs.length} section(s) as JSON`); }
+    if (kind==='clipboard'){ navigator.clipboard.writeText(sectionsToCsv(secs))
+      .then(()=>toast('Copied — paste into a sheet')).catch(()=>toast('Clipboard blocked; use CSV')); }
+  }
+
+  function buildExportPopover(byTrade, t){
+    const pop = $('expPop');
+    const trades = Object.keys(byTrade).sort((a,b)=>a.localeCompare(b));
+    pop.innerHTML = `<div class="ttl">Export modules</div>`+
+      trades.map(tr=>`<label><input type="checkbox" data-trade="${esc(tr)}" checked> ${esc(tr)} <span style="color:var(--dim2)">(${byTrade[tr].length})</span></label>`).join('')+
+      `<label style="border-top:1px solid var(--line);margin-top:7px;padding-top:7px"><input type="checkbox" data-extra="checks"> checks &amp; review</label>`+
+      `<label><input type="checkbox" data-extra="evidence"> evidence locations</label>`+
+      `<div class="btns"><button data-x="csv">CSV</button><button data-x="json">JSON</button><button data-x="all">Full</button></div>`;
+    pop.querySelectorAll('button[data-x]').forEach(b => b.onclick = () => {
+      const picks = [...pop.querySelectorAll('input[data-trade]')].filter(c=>c.checked).map(c=>c.dataset.trade);
+      const withChecks = pop.querySelector('input[data-extra="checks"]').checked;
+      const withEv = pop.querySelector('input[data-extra="evidence"]').checked;
+      const kind = b.dataset.x;
+      if (!picks.length && kind!=='all'){ toast('Pick at least one module'); return; }
+      const quants = (t.quantities||[]).filter(q=>picks.includes(q.trade||'other'));
+      const base = `${slug(S.planName||'plan')}-takeoff`;
+      if (kind==='all'){ download(`${base}-full.json`, JSON.stringify(t,null,2), 'application/json'); toast('Full takeoff exported'); pop.classList.remove('show'); return; }
+      if (kind==='json'){
+        const payload = { source:'xray-by-looplet', plan:S.planName||null, engine:t.engine||null,
+          modules:picks, quantities:quants.map(q=>({...q, ...(withEv?{evidenceLocations:resolveEvidence(q)}:{})})),
+          ...(withChecks?{checks:t.checks||[], review:t.review||[]}:{}) };
+        download(`${base}.json`, JSON.stringify(payload,null,2), 'application/json');
+      } else {
+        const secs = [{ key:'quantities', title:`Quantities (${picks.join(', ')})`, table:{
+          head:['trade','item','qty','unit','tier','formula','notes'],
+          rows:quants.map(q=>[q.trade||'',q.item||'',fmtQty(q.qty),q.unit||'',q.tier||'',q.formula||'',q.notes||'']) }}];
+        if (withEv) secs.push({ key:'evidence', title:'Evidence locations', table:{ head:['item','page','x','y','entity','text'],
+          rows:quants.flatMap(q=>resolveEvidence(q).map(e=>[q.item||'',`p${e.page}`,
+            e.bbox?String(Math.round(e.bbox[0])):'',e.bbox?String(Math.round(e.bbox[1])):'',e.id||'',e.text||''])) }});
+        if (withChecks){
+          secs.push({ key:'checks', title:'Checks', table:{ head:['status','id','kind','detail','delta'],
+            rows:(t.checks||[]).map(c=>[c.status||'',c.id||'',c.kind||'',c.detail||'',c.delta!=null?String(c.delta):'']) }});
+          secs.push({ key:'review', title:'Flagged for review', table:{ head:['ref','reason'],
+            rows:(t.review||[]).map(r=>[r.ref||'',r.reason||'']) }});
+        }
+        download(`${base}.csv`, sectionsToCsv(secs), 'text/csv;charset=utf-8');
+      }
+      toast(`Exported ${picks.length} module(s)`); pop.classList.remove('show');
+    });
+    $('exportBtn').disabled = false;
+  }
+  $('exportBtn').onclick = (e) => { e.stopPropagation(); $('expPop').classList.toggle('show'); };
+  document.addEventListener('click', (e) => {
+    if (!$('expPop').contains(e.target) && e.target!==$('exportBtn')) $('expPop').classList.remove('show');
+  });
+
+  /* ================= inputs + bridge ================= */
+  // Header "Send to Looplet" only when embedded; package bar Send always visible
+  if (!embedded) { $('sendBtn').style.display = 'none'; }
+
+  $('openBtn').onclick = () => $('file').click();
+  $('file').onchange = async (e) => {
+    const f=e.target.files[0]; if(!f) return;
+    openPdf(new Uint8Array(await f.arrayBuffer()), f.name);
+    e.target.value = '';
+  };
+  $('sendBtn').onclick = () => {
+    syncMarkupsToTakeoff();
+    if (!S.takeoff?.quantities?.length) {
+      toast('Measure on plan, load takeoff JSON, or run the engine first');
+      return;
+    }
+    postTakeoff(S.planName || 'plan.pdf', S.takeoff.quantities || []);
+    toast('Takeoff sent to Looplet — check the bar below');
+  };
+  $('takeoffBtn').onclick = () => $('jsonFile').click();
+  $('jsonFile').onchange = async (e) => {
+    const f=e.target.files[0]; if(!f) return;
+    try {
+      setLoading(true, 'Loading takeoff…');
+      renderRail(JSON.parse(await f.text()));
+    } catch(err){ toast('Not a valid takeoff.json: '+err.message); }
+    finally { setLoading(false); e.target.value=''; }
+  };
+
+  async function runEngine(){
+    if (!S.planBytes){ toast('Open a plan PDF first'); return; }
+    setLoading(true, 'Connecting to local X-Ray engine…');
+    setEngine('warn', 'engine starting');
+    toast('Starting the private X-Ray engine…');
+    try {
+      const bridge = electronXrayBridge();
+      let data;
+      if (bridge) {
+        const health = await bridge.ensureXrayEngine();
+        if (!health?.ok) {
+          const unavailable = new Error('X-Ray worker unavailable');
+          unavailable.reason = health?.reason || 'unavailable';
+          throw unavailable;
+        }
+        toast('Sending plan to the X-Ray engine…');
+        data = await bridge.runXrayTakeoff({
+          name: S.planName || 'plan.pdf',
+          bytes: S.planBytes,
+        });
+      } else {
+        // Browser-only development requires the worker's explicit
+        // XRAY_ALLOW_INSECURE_LOCAL=1 opt-in. Packaged Looplet never uses this.
+        const healthRes = await fetch(ENGINE_HEALTH);
+        if (!healthRes.ok) throw new Error(`health check HTTP ${healthRes.status}`);
+        const health = await healthRes.json();
+        if (health.engine !== 'xray-by-looplet'){
+          throw new Error('port 8001 is not the X-Ray worker');
+        }
+        toast('Sending plan to the X-Ray engine…');
+        const fd = new FormData();
+        fd.append('file', new Blob([S.planBytes], {type:'application/pdf'}), S.planName || 'plan.pdf');
+        const res = await fetch(ENGINE_URL, { method:'POST', body:fd });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        data = await res.json();
+      }
+      setEngine('ok', 'engine online');
+      $('runBtnTop').querySelector('.wideLabel').textContent = 'Run takeoff';
+      $('runBtnTop').querySelector('.narrowLabel').textContent = 'Run';
+      $('runBtn').textContent = 'Run takeoff';
+      renderRail(data);
+    } catch(err){
+      setEngine('err', 'engine offline');
+      $('runBtnTop').querySelector('.wideLabel').textContent = 'Retry engine';
+      $('runBtnTop').querySelector('.narrowLabel').textContent = 'Retry';
+      $('runBtn').textContent = 'Retry engine';
+      toast(safeEngineMessage(err?.reason || (/abort|timeout/i.test(err?.message || '') ? 'timeout' : 'unavailable')), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }
+  $('runBtnTop').onclick = runEngine;
+  $('runBtn').onclick = runEngine;
+
+  async function pingEngine(){
+    try {
+      const bridge = electronXrayBridge();
+      if (bridge) {
+        const health = await bridge.ensureXrayEngine();
+        setEngine(health?.ok ? 'ok' : 'err', health?.ok ? 'engine online' : 'engine offline');
+        return;
+      }
+      const res = await fetch(ENGINE_HEALTH, { signal: AbortSignal.timeout(1200) });
+      if (res.ok) setEngine('ok', 'engine online');
+      else setEngine('warn', 'engine ?');
+    } catch {
+      setEngine('err', 'engine offline');
+    }
+  }
+  // Secure production pages should not probe loopback before a user asks to
+  // run a takeoff. Safari blocks HTTPS-to-HTTP loopback as mixed content and
+  // an eager poll would create recurring console errors. The Run action still
+  // performs the identity-checked health request before uploading a plan.
+  if (window.location.protocol !== 'https:') {
+    pingEngine();
+    setInterval(pingEngine, 30000);
+  }
+
+  /* search */
+  $('search').oninput = (e) => { S.filterText = e.target.value; applyFilter(); };
+
+  /* theme */
+  const themeBtn = $('themeBtn');
+  function applyTheme(mode){
+    document.body.classList.toggle('light', mode === 'light');
+    themeBtn.textContent = mode === 'light' ? 'Dark' : 'Light';
+    try { localStorage.setItem('pdx-cad-theme', mode); } catch {}
+  }
+  themeBtn.onclick = () => applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+  try { applyTheme(localStorage.getItem('pdx-cad-theme') || 'dark'); } catch { applyTheme('dark'); }
+
+  /**
+   * Measure tool shortcuts (SC-06).
+   * S/L/A/C toggle tools; Esc cancels draft/tool; Ctrl/Cmd+Z and Del undo;
+   * `/` stays rail search only — never a measure key.
+   */
+  function toggleMeasureTool(mode){
+    if (S.muPromptOpen) return;
+    setMeasureMode(S.measureMode === mode ? null : mode);
+  }
+
+  /* keyboard */
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable;
+    if (e.key === 'Escape') {
+      if (S.muPromptOpen) {
+        e.preventDefault();
+        closeMuPrompt(null);
+        return;
+      }
+      if ($('expPop').classList.contains('show')) { $('expPop').classList.remove('show'); return; }
+      if (insEl().classList.contains('show')) { closeInspector(); showPeek(); return; }
+      if ($('peekBar').classList.contains('show')) { $('peekClear').click(); return; }
+      // In-progress measure draft or active tool — cancel without page reload
+      if (S.measureMode || S.draftPts.length) {
+        e.preventDefault();
+        cancelMeasureDraft();
+        return;
+      }
+      if (typing && e.target.id === 'search') { e.target.blur(); S.filterText=''; e.target.value=''; applyFilter(); }
+      return;
+    }
+    // Never steal keys while typing (search / dialogs / fence lm fields)
+    if (typing) return;
+    const k = e.key.toLowerCase();
+    const mod = e.ctrlKey || e.metaKey;
+
+    // Undo last measure / draft point (Ctrl+Z / Cmd+Z) — never browser history when we own markups
+    if (k === 'z' && mod && !e.shiftKey) {
+      e.preventDefault();
+      undoLastMarkup();
+      return;
+    }
+    // Del — same recovery as undo (draft point, then last markup)
+    if (e.key === 'Delete' || e.key === 'Del') {
+      e.preventDefault();
+      undoLastMarkup();
+      return;
+    }
+
+    // Measure tools: plain letters only (no Ctrl/Alt/Meta) so / search and Ctrl+S send stay free
+    if (!mod && !e.altKey) {
+      if (k === 's') {
+        e.preventDefault();
+        toggleMeasureTool('scale');
+        return;
+      }
+      if (k === 'l') {
+        e.preventDefault();
+        toggleMeasureTool('length');
+        return;
+      }
+      if (k === 'a') {
+        e.preventDefault();
+        toggleMeasureTool('area');
+        return;
+      }
+      if (k === 'c') {
+        e.preventDefault();
+        toggleMeasureTool('count');
+        return;
+      }
+    }
+
+    if (k === 'o' && !mod) { e.preventDefault(); $('openBtn').click(); }
+    else if (k === 'r' && !mod) { e.preventDefault(); runEngine(); }
+    else if (k === 't' && !mod) { e.preventDefault(); themeBtn.click(); }
+    // `/` and Ctrl/Cmd+F → rail filter only (must not map to a measure tool)
+    else if (k === '/' || (k === 'f' && mod)) {
+      e.preventDefault();
+      if ($('searchWrap').classList.contains('on')) { $('search').focus(); $('search').select(); }
+    }
+    else if (k === 'j' || e.key === 'ArrowDown') { e.preventDefault(); navLine(1); }
+    else if (k === 'k' || e.key === 'ArrowUp') { e.preventDefault(); navLine(-1); }
+    else if (k === 'e' && S.takeoff && !mod) { e.preventDefault(); $('exportBtn').click(); }
+    else if ((k === '=' || k === '+') && !mod) { e.preventDefault(); $('zIn').click(); }
+    else if (k === '-' && !mod) { e.preventDefault(); $('zOut').click(); }
+    else if (k === '0' && !mod) { e.preventDefault(); fitWidth(); }
+    else if (k === 's' && mod && embedded && S.takeoff) {
+      // Ctrl/Cmd+S still sends when embedded; plain S is Scale above
+      e.preventDefault(); $('sendBtn').click();
+    }
+  });
+
+  updateZoomPct();
+  announceReady();
+</script>
+</body>
+</html>

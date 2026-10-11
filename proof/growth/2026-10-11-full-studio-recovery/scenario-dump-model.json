@@ -1,0 +1,11 @@
+[
+  ["context", "d"],
+  ["expect-cancelled-fetch", "http://127.0.0.1:8180/models/redburn/source-building.json", 5, "StrictMode remounts and pane switches abort the in-flight scene fetch; no partial scene is rendered"],
+  ["expect-cancelled-fetch", "http://127.0.0.1:8180/models/redburn/source.pdf", 5, "StrictMode remounts and pane switches abort the in-flight source fetch; no partial source is used"],
+  ["navigate", "d", "http://127.0.0.1:8180/"],
+  ["wait", "d", "document.querySelector('[data-hydration-status=ready]')!==null", 120000],
+  ["eval", "d", "(()=>{const b=[...document.querySelectorAll('nav button')].find(x=>x.textContent.trim()==='Visualise');if(!b)throw Error('Visualise missing');b.click();return true})()"],
+  ["eval", "d", "(()=>{const b=[...document.querySelectorAll('nav button')].find(x=>x.textContent.trim()==='3D viewer');if(!b)throw Error('3D viewer missing');b.click();return true})()"],
+  ["wait", "d", "(async()=>{await new Promise(r=>setTimeout(r,20000));return true})()", 30000],
+  ["eval", "d", "(()=>{const c=[...document.querySelectorAll('canvas')].map(x=>({cls:String(x.className),cut:x.dataset.cutaway||null}));const heads=[...document.querySelectorAll('.building-heading *')].map(x=>x.textContent.trim()).filter(Boolean).slice(0,10);const main=document.querySelector('.studio-main');const sv=[...document.querySelectorAll('.studio-main [class*=building]')].map(x=>String(x.className)).slice(0,14);const t=(main?main.textContent:'').trim().slice(0,600);throw Error('DUMP::'+JSON.stringify({c,heads,sv,t}))})()"]
+]

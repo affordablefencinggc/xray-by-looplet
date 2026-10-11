@@ -111,8 +111,23 @@ function main(argv) {
     console.error("usage: node scripts/with-app-env.mjs <command> [args…]");
     process.exit(2);
   }
+  // Local interactive Windows builds (vite build through this wrapper) run at
+  // below-normal priority with bounded Rayon workers; see build-resources.mjs.
   const env = prepareLocalBuild(command, args, mergeAppEnv(readAppEnv(projectRoot()), process.env));
-  const child = spawn(command, args, { stdio: "inherit", env, shell: process.platform === "win32" });
+  // On Windows, `shell: true` routes through `cmd /d /s /c`, which joins
+  // `command` and `args` with spaces verbatim — no quoting — so a command
+  // whose path contains spaces (`C:\Program Files\nodejs\node.exe`) can never
+  // run. The shell is only needed to resolve a bare name (`vite`, whose npm
+  // shim is a .cmd file CreateProcess refuses to exec directly) or an explicit
+  // .cmd/.bat path. Anything else reached through a path is a real executable
+  // and spawns directly, where Node quotes the Windows command line itself.
+  const needsShell =
+    process.platform === "win32" &&
+    (!/[\\/]/.test(command) || /\.(cmd|bat)$/i.test(command));
+  // Even on the shell path, a spaced command must be quoted: cmd re-parses the
+  // joined line, and an unquoted path with spaces would split at the space.
+  const shellCommand = needsShell && /\s/.test(command) ? `"${command}"` : command;
+  const child = spawn(shellCommand, args, { stdio: "inherit", env, shell: needsShell });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));

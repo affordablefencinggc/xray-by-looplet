@@ -93,6 +93,10 @@ def _parse_pass_chains(checks):
 class ResidentialPack(Pack):
     name = "residential"
     trade = "residential"
+    discipline = "architecture"
+    audience = "Architects & building designers"
+    detect_summary = ("room/area labels and pass-dimension chains on a "
+                      "residential floor plan")
 
     def detect(self, ctx: PackContext) -> bool:
         if _has_shed_spec(ctx.entities):        # shed pack owns spec-token sets

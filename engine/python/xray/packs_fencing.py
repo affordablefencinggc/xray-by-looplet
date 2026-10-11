@@ -86,6 +86,10 @@ def _posts_for_run(length_m: float, spacing_m: float) -> int:
 class FencingPack(Pack):
     name = "fencing"
     trade = "fencing"
+    discipline = "fencing"
+    audience = "Fencing & external-works contractors"
+    detect_summary = ("fence runs, posts and gates drawn as CAD polylines or "
+                      "block/symbol references")
 
     def detect(self, ctx) -> bool:
         if any(_is_fence_run(g) for g in getattr(ctx, "geometry", []) or []):

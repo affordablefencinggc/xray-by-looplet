@@ -58,6 +58,10 @@ def _humanise(layer: str) -> str:
 class StructuralCountPack(Pack):
     name = "structural-count"
     trade = "structural steel"
+    discipline = "structural"
+    audience = "Structural engineers"
+    detect_summary = ("column polylines or labelled area polygons on "
+                      "structural layers")
 
     def detect(self, ctx) -> bool:
         geo = getattr(ctx, "geometry", [])

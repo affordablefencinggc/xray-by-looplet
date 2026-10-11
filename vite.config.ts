@@ -142,12 +142,15 @@ function authPopupPlugin(): Plugin {
   };
 }
 
-// `0.0.0.0:8080` is the live-preview contract — don't change host/port.
+// `0.0.0.0:8080` is the live-preview contract — don't change the port. The
+// host may be overridden on developer machines (e.g. `VITE_DEV_HOST=127.0.0.1`
+// to keep the dev server off the LAN); the all-interfaces default is what the
+// sandbox preview proxy auto-discovers.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
   server: {
-    host: "0.0.0.0",
+    host: process.env.VITE_DEV_HOST ?? "0.0.0.0",
     port: 8080,
     strictPort: true,
     watch: {

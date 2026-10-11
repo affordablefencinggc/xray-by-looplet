@@ -171,6 +171,8 @@ export type LegacyPhotoMetadataInput = Pick<
 export type HydrationStatus = "idle" | "loading" | "ready" | "error";
 
 type StudioState = {
+  discipline: string;
+  setDiscipline: (id: string) => void;
   job: FencingJob;
   bomState: BomStateEnvelope;
   bomPersistenceError: string | null;
@@ -808,6 +810,8 @@ let hydrationFlight: Promise<void> | null = null;
 let documentSelectionVersion = 0;
 
 const studioInstance = browserSingleton('xray.studio.store.v1', () => create<StudioState>((set, get) => ({
+  discipline: "auto",
+  setDiscipline: (id) => set({ discipline: id }),
   job: initialJob,
   bomState: createBomState(initialJob.id),
   bomPersistenceError: null,

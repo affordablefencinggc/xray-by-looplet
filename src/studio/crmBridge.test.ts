@@ -33,6 +33,20 @@ test("quantity draft contains observations but no invented rates or totals", () 
   assert.equal("total" in draft, false);
 });
 
+test("discipline metadata survives without inventing pricing or enabling handoff", () => {
+  const draft = buildLoopletQuoteLines(markups, trades, "warehouse.pdf", 0, {
+    id: "structural", label: "Structural",
+  });
+  assert.equal(draft.disciplineId, "structural");
+  assert.equal(draft.disciplineLabel, "Structural");
+  assert.equal(draft.pricingStatus, "unavailable");
+  assert.equal("total" in draft, false);
+  assert.equal(pushToLoopletCrm(draft).success, false);
+  const withoutContext = buildLoopletQuoteLines([], [], null, 0);
+  assert.equal(withoutContext.disciplineId, null);
+  assert.equal(withoutContext.disciplineLabel, null);
+});
+
 test("external handoff always fails closed and does not write browser state", () => {
   const draft = buildLoopletQuoteLines(markups, trades, "warehouse.pdf", 0);
   const writes: string[] = [];

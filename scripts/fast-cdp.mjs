@@ -711,7 +711,7 @@ async function main() {
   const options = parseArguments(process.argv.slice(2));
   const executionHost = hostname().trim().split(".")[0].toLowerCase();
   const expectedHost = options["execution-host"] ?? "dans1";
-  if (!["dans1", "daniel"].includes(expectedHost) || executionHost !== expectedHost) {
+  if (!["dans1", "daniel", "daniels"].includes(expectedHost) || executionHost !== expectedHost) {
     throw new InfrastructureFailure(`Raw-CDP execution expected ${expectedHost}; observed ${executionHost}`);
   }
   const output = resolve(options.output);

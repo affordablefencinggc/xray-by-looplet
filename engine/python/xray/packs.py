@@ -43,6 +43,16 @@ class PackContext:
 class Pack:
     name = "base"
     trade = "base"
+    # Discipline metadata — which built-environment discipline this pack serves.
+    # Surfaced to clients (xray.disciplines.list_disciplines, MCP
+    # list_disciplines) so the app can present trade packs as first-class
+    # disciplines to engineers, architects, draftsmen and builders. `discipline`
+    # is the stable discipline id, `audience` names who the pack is for, and
+    # `detect_summary` says in one line what drawing evidence triggers the pack.
+    # A pack that leaves `discipline` None is not surfaced as a discipline.
+    discipline: str | None = None
+    audience: str = ""
+    detect_summary: str = ""
 
     def detect(self, ctx: "PackContext") -> bool:
         raise NotImplementedError

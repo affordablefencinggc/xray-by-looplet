@@ -377,11 +377,18 @@ test("browser-smoke wires the guard and verdict helpers", () => {
   assert.match(src, /from "\.\/browser-smoke-verdict\.mjs"/);
   assert.match(src, /const args = parseSmokeArgs\(process\.argv\.slice\(2\), process\.env\)/);
   assert.match(src, /const url = checkedUrl\(args\.url\)/);
+  // Output guard is the union of both sides: the repo root (orchestrator/CI
+  // write into gitignored screenshots/), the Linux sandbox /workspace, and
+  // this run's own screenshots dir (Windows may launch from any cwd).
+  assert.match(src, /const REPO_ROOT = join\(dirname\(fileURLToPath\(import\.meta\.url\)\), "\.\."\)/);
   assert.match(src, /const screenshotRoot = process\.platform === "win32"/);
-  assert.match(src, /const outPng = checkedOutputPath\(args\.outPng, \[screenshotRoot\]\)/);
-  assert.match(src, /const mobilePng = checkedOutputPath\(derived\.mobilePng, \[screenshotRoot\]\)/);
-  assert.match(src, /const outJson = checkedOutputPath\(derived\.verdictJson, \[screenshotRoot\]/);
-  assert.match(src, /checkedOutputPath\(realpathSync\(args\.baseline\), \[screenshotRoot\]/);
+  assert.match(src, /const OUTPUT_ALLOWED_DIRS = \["\/workspace", REPO_ROOT, screenshotRoot\]/);
+  assert.match(src, /const outPng = checkedOutputPath\(args\.outPng, OUTPUT_ALLOWED_DIRS\)/);
+  assert.match(src, /const mobilePng = checkedOutputPath\(derived\.mobilePng, OUTPUT_ALLOWED_DIRS\)/);
+  assert.match(src, /const outJson = checkedOutputPath\(derived\.verdictJson, OUTPUT_ALLOWED_DIRS, "verdict JSON"\)/);
+  assert.match(src, /checkedOutputPath\(realpathSync\(args\.baseline\), OUTPUT_ALLOWED_DIRS/);
+  // Windows Playwright launches through the installed Edge channel.
+  assert.match(src, /channel: "msedge"/);
   assert.match(src, /baselinePath === outJson/);
   assert.match(src, /normalizedBodyTextHash\(/);
   assert.match(src, /bodyTextPrefix\(/);

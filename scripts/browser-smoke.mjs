@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { checkedOutputPath, checkedUrl } from "./browser-guard.mjs";
 import { computeBrandWarnings } from "./brand-check.mjs";
+
+// Output may land under the Linux sandbox workspace root or this repo (the
+// orchestrator and CI both write into the repo's own gitignored screenshots/).
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// A Windows run can launch from any cwd and agents pass ./screenshots-relative
+// outputs, so this run's own screenshots dir stays allowed alongside the repo;
+// elsewhere that dir lives under the Linux sandbox /workspace anyway.
+const screenshotRoot = process.platform === "win32" ? resolve(process.cwd(), "screenshots") : "/workspace/screenshots";
+const OUTPUT_ALLOWED_DIRS = ["/workspace", REPO_ROOT, screenshotRoot];
 import {
   authInvariantWarnings,
   buildAuthEnabled,
@@ -27,11 +37,10 @@ if (args.error) {
 }
 
 const url = checkedUrl(args.url);
-const screenshotRoot = process.platform === "win32" ? resolve(process.cwd(), "screenshots") : "/workspace/screenshots";
-const outPng = checkedOutputPath(args.outPng, [screenshotRoot]);
+const outPng = checkedOutputPath(args.outPng, OUTPUT_ALLOWED_DIRS);
 const derived = derivedPaths(outPng);
-const mobilePng = checkedOutputPath(derived.mobilePng, [screenshotRoot]);
-const outJson = checkedOutputPath(derived.verdictJson, [screenshotRoot], "verdict JSON");
+const mobilePng = checkedOutputPath(derived.mobilePng, OUTPUT_ALLOWED_DIRS);
+const outJson = checkedOutputPath(derived.verdictJson, OUTPUT_ALLOWED_DIRS, "verdict JSON");
 
 const MAX_BASELINE_BYTES = 1024 * 1024;
 const baselineRequested = Boolean(args.baseline);
@@ -39,7 +48,7 @@ let baselinePath = null;
 let baselineResolveError = null;
 if (baselineRequested) {
   try {
-    baselinePath = checkedOutputPath(realpathSync(args.baseline), [screenshotRoot], "baseline");
+    baselinePath = checkedOutputPath(realpathSync(args.baseline), OUTPUT_ALLOWED_DIRS, "baseline");
   } catch (err) {
     baselineResolveError = err?.code ?? "unresolvable path";
   }

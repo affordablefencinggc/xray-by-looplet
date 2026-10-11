@@ -298,6 +298,12 @@ def run(pdf_path: str, calibrations: dict | None = None, ocr=None) -> dict:
     if read.units:
         result["document"]["units"] = dict(read.units)
 
+    # Parse diagnostics, present ONLY when the adapter actually skipped
+    # something — a clean read adds no key, so output stays byte-identical.
+    diag = getattr(read, "diagnostics", None) or {}
+    if diag:
+        result["diagnostics"] = diag
+
     # json round-trip: tuples -> lists, exotic scalars -> json types, so the
     # dict is exactly what a takeoff.json consumer (or jsonschema) would see
     return json.loads(json.dumps(result, default=str))

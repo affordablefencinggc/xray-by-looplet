@@ -67,6 +67,10 @@ def _is_board_summary(headers):
 class ElectricalPack(Pack):
     name = "electrical"
     trade = "electrical"
+    discipline = "electrical"
+    audience = "Electrical engineers & contractors"
+    detect_summary = ("a schedule-of-loads table: circuits with connected/demand "
+                      "loads plus breaker or cable-size columns")
 
     def detect(self, ctx):
         return any(_is_schedule(t.headers) for t in (ctx.tables or []))

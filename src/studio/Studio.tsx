@@ -18,6 +18,7 @@ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
 import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
 import { inspectPlanBytes } from "./documents";
 import { useStudio, type Pane } from "./store";
+import { getDiscipline, listDisciplines } from "../lib/disciplines";
 import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
 import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
 import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
@@ -89,6 +90,7 @@ export function Studio() {
 
 function StudioContent() {
   const s = useStudio();
+  const discipline = getDiscipline(s.discipline);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
@@ -249,6 +251,16 @@ function StudioContent() {
           <div className="flex gap-2"><button type="button" className="pill" disabled={creatingProject} onClick={() => setNewProjectOpen(false)}>Keep current project</button><button type="button" className="pill" disabled={creatingProject || s.persistenceRecoveryBlocked} onClick={() => void startNewProject()}>{creatingProject ? "Saving current project…" : "Save and start new project"}</button></div>
         </div>
       </WorkspaceDialog>}
+      <AdjustableTopRow id="discipline" label="Discipline" minHeight={44} compact>
+        <div className="flex flex-wrap items-center gap-1 border-b border-line bg-header px-3 py-1.5"
+          role="group" aria-label="Discipline" title={`${discipline.audience} — ${discipline.blurb}`}>
+          {listDisciplines().map((item) => (
+            <button key={item.id} type="button" className="pill" style={{ minHeight: 44 }}
+              aria-pressed={s.discipline === item.id} onClick={() => s.setDiscipline(item.id)}
+              title={`${item.audience} — ${item.blurb}`}>{item.label}</button>
+          ))}
+        </div>
+      </AdjustableTopRow>
       <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
         {!s.lifted && s.pane !== "model" && s.pane !== "render" && (s.pane !== "sheets" || !!activeDocument) && (

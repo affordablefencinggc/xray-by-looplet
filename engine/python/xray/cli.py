@@ -1,7 +1,12 @@
-"""cli.py — python -m xray run <plan.pdf> [--out DIR]
+"""cli.py — python -m xray run <plan.pdf> [--out DIR] [--result-name NAME]
 
-Writes <plan>.xray.json + <plan>.marked.pdf (default: alongside the input)
+Writes the takeoff JSON + <plan>.marked.pdf (default: alongside the input)
 and prints a one-screen summary. Exit code 0 on success.
+
+Result-file contract: the takeoff JSON is named `<pdf stem>.xray.json` by
+default, but hosts (engine/host Rust crate, frozen xray-engine sidecar)
+pass `--result-name result.json` so the result lands on a fixed filename
+the host reads directly. Any other files in --out are host-irrelevant.
 """
 from __future__ import annotations
 
@@ -20,6 +25,9 @@ class _SafeArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         # Argument values can contain private paths or request fragments.
         self.exit(2, "error: Invalid command or arguments.\n")
+
+#: Fixed result filename hosts use (engine/host/src/lib.rs RESULT_FILE_NAME).
+HOST_RESULT_NAME = "result.json"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -42,6 +50,11 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("pdf", help="path to the plan PDF")
     run_p.add_argument("--out", default=None, metavar="DIR",
                        help="output directory (default: next to the PDF)")
+    run_p.add_argument("--result-name", default=None, metavar="NAME",
+                       help="filename for the takeoff JSON inside --out "
+                            "(default: <pdf stem>.xray.json; programmatic "
+                            "hosts pass '%s' for a fixed contract)"
+                            % HOST_RESULT_NAME)
     run_p.add_argument("--report", action="store_true",
                        help="also write a deterministic HTML quote (no LLM)")
     run_p.add_argument("--ocr", action="store_true",
@@ -118,7 +131,8 @@ def main(argv=None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
-    json_path = out_dir / f"{pdf.stem}.xray.json"
+    result_name = args.result_name or f"{pdf.stem}.xray.json"
+    json_path = out_dir / result_name
     json_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
     # The marked-up copy overlays evidence boxes on the ORIGINAL PDF pages, so it

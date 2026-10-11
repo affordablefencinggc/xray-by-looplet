@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -25,6 +25,32 @@ function makeWorkspace(appEnvJson) {
   }
   return root;
 }
+
+/**
+ * Whether this OS identity lets an unprivileged process create symlinks.
+ * Windows without Developer Mode denies `symlinkSync` with EPERM; the symlink
+ * test is about `process.argv[1]` being realpathname-compared, not about
+ * symlink privileges, so probe once in a temp dir and let callers skip
+ * cleanly when the OS refuses rather than failing the suite.
+ */
+let symlinksPermitted;
+function canCreateSymlinks() {
+  if (symlinksPermitted === undefined) {
+    const dir = mkdtempSync(join(tmpdir(), "app-env-link-probe-"));
+    try {
+      symlinkSync(dir, join(dir, "probe"), "dir");
+      symlinksPermitted = true;
+    } catch {
+      symlinksPermitted = false;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  return symlinksPermitted;
+}
+
+const SYMLINK_SKIP_REASON =
+  "this OS denies symlink creation to unprivileged processes (EPERM)";
 
 test("keeps VITE_-prefixed string entries", () => {
   assert.deepEqual(parseAppEnv('{"VITE_AUTH_ENABLED":"false"}'), {
@@ -113,7 +139,9 @@ test("a signal-killed command is never reported as success", async () => {
   );
 });
 
-test("the CLI still runs when invoked through a symlinked path", async () => {
+test("the CLI still runs when invoked through a symlinked path", {
+  skip: canCreateSymlinks() ? false : SYMLINK_SKIP_REASON,
+}, async () => {
   // node realpaths import.meta.url but not process.argv[1], so a raw comparison
   // turns the wrapper into a no-op that exits 0 without starting anything.
   const link = join(mkdtempSync(join(tmpdir(), "app-env-link-")), "scripts");

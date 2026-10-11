@@ -25,6 +25,9 @@ export interface UnpricedQuoteDraft {
   lines: UnpricedQuantityLine[];
   pricingStatus: "unavailable";
   handoffStatus: "unavailable";
+  /** Context only; this does not make an unpriced draft ready for external handoff. */
+  disciplineId?: string | null;
+  disciplineLabel?: string | null;
 }
 
 export interface HandoffBlocked {
@@ -41,6 +44,7 @@ export function buildLoopletQuoteLines(
   trades: Trade[],
   planName: string | null,
   sheet: number,
+  discipline?: { id: string; label: string },
 ): UnpricedQuoteDraft {
   const groups: Array<{
     id: string;
@@ -78,6 +82,8 @@ export function buildLoopletQuoteLines(
     lines,
     pricingStatus: "unavailable",
     handoffStatus: "unavailable",
+    disciplineId: discipline?.id ?? null,
+    disciplineLabel: discipline?.label ?? null,
   };
 }
 

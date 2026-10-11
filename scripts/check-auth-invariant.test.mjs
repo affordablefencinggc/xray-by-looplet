@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtempSync, symlinkSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -13,6 +13,32 @@ import {
   probeDevAuthEnabled,
 } from "./check-auth-invariant.mjs";
 import { projectRoot } from "./with-app-env.mjs";
+
+/**
+ * Whether this OS identity lets an unprivileged process create symlinks.
+ * Windows without Developer Mode denies `symlinkSync` with EPERM; the symlink
+ * test is about `process.argv[1]` being realpathname-compared, not about
+ * symlink privileges, so probe once in a temp dir and let callers skip
+ * cleanly when the OS refuses rather than failing the suite.
+ */
+let symlinksPermitted;
+function canCreateSymlinks() {
+  if (symlinksPermitted === undefined) {
+    const dir = mkdtempSync(join(tmpdir(), "auth-invariant-link-probe-"));
+    try {
+      symlinkSync(dir, join(dir, "probe"), "dir");
+      symlinksPermitted = true;
+    } catch {
+      symlinksPermitted = false;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  return symlinksPermitted;
+}
+
+const SYMLINK_SKIP_REASON =
+  "this OS denies symlink creation to unprivileged processes (EPERM)";
 
 /**
  * The JSON body `/__app-env` would serve. Do not start a real Vite server —
@@ -95,7 +121,9 @@ test("the build side resolves the template's shipped app-env", () => {
   assert.equal(buildAuthEnabled(projectRoot(), { VITE_AUTH_ENABLED: "true" }), true);
 });
 
-test("the CLI reports rather than silently passing when run via a symlink", async () => {
+test("the CLI reports rather than silently passing when run via a symlink", {
+  skip: canCreateSymlinks() ? false : SYMLINK_SKIP_REASON,
+}, async () => {
   // A check whose exit code is the whole signal must never no-op to 0 because
   // process.argv[1] came in through a symlinked path.
   const link = join(mkdtempSync(join(tmpdir(), "auth-invariant-link-")), "scripts");

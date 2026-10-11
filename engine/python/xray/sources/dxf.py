@@ -18,13 +18,48 @@ conflict is reported as a mismatch instead of being propagated.
 """
 from __future__ import annotations
 
+import logging
 import math
 import re
+import threading
 from pathlib import Path
 
 from xray.sources.base import (
     Measure, PageRead, ReadResult, SourceAdapter, Symbol, SurveyPoint, register,
 )
+
+# --- skipped-entity diagnostics ---------------------------------------------
+# The per-entity `except Exception` handlers below exist so one malformed
+# entity never fails the whole read. Until now the skip itself vanished: a
+# count came out low and nothing said why. Every skip now goes through
+# _record_skip, which (1) bumps a thread-safe module-level counter, (2) logs a
+# warning naming the reason, and (3) when the caller passes a per-read list,
+# collects the reason so it travels on ReadResult.diagnostics.
+_DIAG_LOGGER = logging.getLogger("xray.sources.dxf")
+_DIAG_LOCK = threading.Lock()
+_SKIPPED_ENTITIES: dict[str, int] = {}   # reason -> cumulative count
+
+
+def _record_skip(reason: str, detail: str,
+                 per_read: list | None = None) -> None:
+    """Record a silently-skipped entity instead of dropping the fact.
+
+    The per-item detail goes to DEBUG (a malformed run can skip many entities
+    and per-item WARNINGs would spam the log); the read() caller emits ONE
+    summary WARNING per read, and the reasons travel on
+    ReadResult.diagnostics.
+    """
+    with _DIAG_LOCK:
+        _SKIPPED_ENTITIES[reason] = _SKIPPED_ENTITIES.get(reason, 0) + 1
+    if per_read is not None:
+        per_read.append({"reason": reason, "detail": detail})
+    _DIAG_LOGGER.debug("skipped entity [%s]: %s", reason, detail)
+
+
+def skipped_entity_counts() -> dict[str, int]:
+    """Cumulative skipped-entity counts for this process, by reason."""
+    with _DIAG_LOCK:
+        return dict(_SKIPPED_ENTITIES)
 
 # $INSUNITS enumeration (ISO/AutoCAD); only the values a plan realistically uses.
 INSUNITS = {
@@ -172,7 +207,8 @@ def _bbox_width(block, insert) -> float:
                 xs += [e.dxf.center.x - e.dxf.radius, e.dxf.center.x + e.dxf.radius]
             elif t == "ARC":
                 xs += [e.dxf.center.x - e.dxf.radius, e.dxf.center.x + e.dxf.radius]
-        except Exception:
+        except Exception as exc:
+            _record_skip(f"bbox-geometry:{t}", f"{type(exc).__name__}: {exc}")
             continue
     return (max(xs) - min(xs)) if xs else 0.0
 
@@ -265,6 +301,7 @@ class DxfAdapter(SourceAdapter):
         geometry: list[Measure] = []
         points: list[SurveyPoint] = []   # survey spot levels + terrain-mesh verts
         words = []          # DXF TEXT/MTEXT flow into the existing text pipeline
+        skipped: list[dict] = []         # per-read skipped-entity diagnostics
 
         # every placement at every depth — see expand_inserts
         symbols.extend(expand_inserts(msp, all_blocks))
@@ -349,12 +386,26 @@ class DxfAdapter(SourceAdapter):
                     loc = e.dxf.location
                     points.append(SurveyPoint(x=float(loc[0]), y=float(loc[1]),
                         z=float(loc[2]), layer=layer, id=mid, kind="survey"))
-            except Exception:
-                continue   # one malformed entity never fails the whole read
+            except Exception as exc:
+                # one malformed entity never fails the whole read — but the
+                # skip is counted, logged, and reported, never silent
+                _record_skip(f"entity:{t}",
+                             f"{mid}: {type(exc).__name__}: {exc}", skipped)
+                continue
 
         units = resolve_units(doc, symbols, blocks)
         for g in geometry:
             g.unit = units["resolved"]
+
+        diagnostics: dict = {}
+        if skipped:
+            diagnostics["skipped_entities"] = skipped
+            diagnostics["skipped_entity_count"] = len(skipped)
+            _DIAG_LOGGER.warning(
+                "%s: %d entity(ies) skipped during parse (%s) — see "
+                "ReadResult.diagnostics for per-entity details",
+                p.name, len(skipped),
+                ", ".join(sorted({s["reason"] for s in skipped})))
 
         ext_min = doc.header.get("$EXTMIN", (0, 0, 0))
         ext_max = doc.header.get("$EXTMAX", (0, 0, 0))
@@ -408,7 +459,8 @@ class DxfAdapter(SourceAdapter):
         return ReadResult(pages=pages,
                           producer="ezdxf",
                           symbols=symbols, geometry=geometry, points=points,
-                          units=units, provenance=provenance)
+                          units=units, provenance=provenance,
+                          diagnostics=diagnostics)
 
 
 def block_counts(symbols) -> dict:

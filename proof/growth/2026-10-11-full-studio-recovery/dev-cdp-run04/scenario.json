@@ -1,0 +1,178 @@
+[
+  [
+    "context",
+    "default"
+  ],
+  [
+    "navigate",
+    "default",
+    "http://127.0.0.1:8180/"
+  ],
+  [
+    "wait",
+    "default",
+    "document.querySelector('[data-hydration-status=ready]')!==null",
+    90000
+  ],
+  [
+    "screenshot",
+    "default",
+    "dev-01-hydrated.png"
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const rows=[...document.querySelectorAll('.adjustable-top-row')].map(r=>r.dataset.topRow);const disc=document.querySelectorAll('[data-top-row=discipline] button').length;if(!disc)throw Error('discipline row missing: '+JSON.stringify(rows));return {rows,disc}})()"
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const b=[...document.querySelectorAll('[data-top-row=discipline] button')].find(x=>x.textContent.trim()==='Structural');if(!b)throw Error('Structural missing');b.click();return {clicked:'Structural'}})()"
+  ],
+  [
+    "wait",
+    "default",
+    "(()=>{const pressed=[...document.querySelectorAll('[data-top-row=discipline] button')].filter(x=>x.getAttribute('aria-pressed')==='true').map(x=>x.textContent.trim());return pressed.length===1&&pressed[0]==='Structural'})()",
+    15000
+  ],
+  [
+    "screenshot",
+    "default",
+    "dev-02-discipline.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Visualise",
+    "--exact"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "3D viewer",
+    "--exact"
+  ],
+  [
+    "wait",
+    "default",
+    "document.querySelector('canvas[data-cutaway]')!==null",
+    90000
+  ],
+  [
+    "screenshot",
+    "default",
+    "dev-03-model.png"
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const h=document.querySelector('.building-heading h1');const ev=document.querySelector('.building-inspector');const pk=document.querySelector('select.building-part-picker');const sc=document.querySelector('[data-model-scope]');const scene=document.querySelector('select.building-scene-picker');const selects=[...document.querySelectorAll('select')].map(s=>({label:s.getAttribute('aria-label'),cls:String(s.className),options:[...s.options].slice(0,8).map(o=>o.textContent.trim())}));return {h1:h&&h.textContent.trim(),evidence:!!ev,partOptions:pk?pk.options.length:null,scope:!!sc,scenePicker:!!scene,selects}})()"
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const navs=[...document.querySelectorAll('nav')].map(n=>n.getAttribute('aria-label'));const tabs=[...document.querySelectorAll('[role=tab]')].map(t=>t.id||t.textContent.trim());return {navs,tabs}})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Renders",
+    "--exact"
+  ],
+  [
+    "wait",
+    "default",
+    "document.querySelectorAll('canvas').length>0",
+    60000
+  ],
+  [
+    "screenshot",
+    "default",
+    "dev-04-render.png"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "3D viewer",
+    "--exact"
+  ],
+  [
+    "wait",
+    "default",
+    "document.querySelector('canvas[data-cutaway]')!==null",
+    90000
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const b=document.querySelector('button.project-menu-trigger');if(!b)throw Error('project trigger missing');b.click();return {opened:true}})()"
+  ],
+  [
+    "wait",
+    "default",
+    "document.querySelector('.workspace-plan-switcher select')!==null",
+    30000
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const s=document.querySelector('.workspace-plan-switcher select');if(!s)throw Error('plan select missing');const values=[...s.options].map(o=>o.value);if(values.indexOf('__SAMPLE_REDBURN__')<0)throw Error('sample option missing: '+values.join('|'));const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;setter.call(s,'__SAMPLE_REDBURN__');s.dispatchEvent(new Event('change',{bubbles:true}));return {selected:true}})()"
+  ],
+  [
+    "wait",
+    "default",
+    "(()=>{const s=document.querySelector('.workspace-plan-switcher select');if(!s)return false;return s.value!=='__SAMPLE_REDBURN__'})()",
+    90000
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const err=document.querySelector('.workspace-plan-switch-error');if(err)throw Error('sample load error: '+err.textContent);return {sampleLoaded:true}})()"
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const d=document.querySelector('[role=dialog]');if(!d)return {dialog:false};const btns=[...d.querySelectorAll('button')];const c=btns.find(b=>((b.getAttribute('aria-label')||'').toLowerCase().indexOf('close')>=0)||((b.getAttribute('title')||'').toLowerCase().indexOf('close')>=0)||['×','x','X'].indexOf((b.textContent||'').trim())>=0);if(!c)throw Error('close button not found: '+btns.map(b=>b.textContent).join('|'));c.click();return {closed:true}})()"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "3D viewer",
+    "--exact"
+  ],
+  [
+    "wait",
+    "default",
+    "document.querySelector('canvas[data-cutaway]')!==null",
+    90000
+  ],
+  [
+    "eval",
+    "default",
+    "(()=>{const h=document.querySelector('.building-heading h1');const eb=document.querySelector('.building-heading .building-eyebrow');const h2s=[...document.querySelectorAll('h2')].map(x=>x.textContent.trim());const scene=document.querySelector('select.building-scene-picker');return {h1:h&&h.textContent.trim(),eyebrow:eb&&eb.textContent.trim(),sceneOptions:scene?[...scene.options].map(o=>o.textContent.trim()):null,h2s}})()"
+  ],
+  [
+    "screenshot",
+    "default",
+    "dev-05-sample-model.png"
+  ],
+  [
+    "errors",
+    "default"
+  ]
+]
