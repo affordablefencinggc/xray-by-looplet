@@ -36,6 +36,10 @@ jobs:
 
       - name: Cache Cargo dependencies
         uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            engine/host -> target
+            src-tauri -> target
 
       - name: Install Tauri Linux build dependencies
         run: |
@@ -44,6 +48,9 @@ jobs:
 
       - name: Install Node dependencies
         run: npm ci
+
+      - name: Test executed Cargo proof parsing
+        run: node --test scripts/sc07-cargo-result.test.mjs
 
       - name: Install pinned Python engine dependencies
         run: python -m pip install -r engine/python/requirements.txt
@@ -213,6 +220,10 @@ jobs:
 
       - name: Cache Cargo dependencies
         uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            engine/host -> target
+            src-tauri -> target
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -227,23 +238,31 @@ jobs:
         shell: bash
         run: mkdir -p engine/bin engine/cad/bin
 
-      - name: Execute SC-07 transport tests on ${{ matrix.platform }}
+      - name: Execute Rust host transport tests on ${{ matrix.platform }}
         env:
           CARGO_TERM_COLOR: never
           NO_COLOR: 1
-        run: |
-          cargo test --manifest-path engine/host/Cargo.toml transport -- --nocapture
-          cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
+        run: cargo test --manifest-path engine/host/Cargo.toml transport -- --nocapture
+
+      - name: Execute Tauri transport tests on ${{ matrix.platform }}
+        env:
+          CARGO_TERM_COLOR: never
+          NO_COLOR: 1
+        run: cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
 
       - name: Build Tauri Desktop Application
         run: npm run tauri:build
+
+      - name: Archive Linux desktop bundles preserving executable permissions
+        if: matrix.platform == 'ubuntu-latest'
+        run: tar -czf xray-desktop-linux.tar.gz -C src-tauri/target/release bundle
 
       - name: Upload Desktop Artifacts (Linux)
         if: matrix.platform == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: xray-desktop-linux
-          path: src-tauri/target/release/bundle/
+          path: xray-desktop-linux.tar.gz
           if-no-files-found: error
 
       - name: Upload Desktop Artifacts (Windows)

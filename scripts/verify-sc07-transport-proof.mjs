@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseCargoProof } from "./sc07-cargo-result.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceOnly = process.argv.includes("--source-only");
@@ -23,6 +24,7 @@ const sources = {
   browserResponseFixture: "engine/fixtures/bom-contract/colorbond.response.json",
   pythonBoundary: "engine/python/xray/test_job_bom_contract_boundary.py",
   rustHost: "engine/host/src/lib.rs",
+  rustHostStatus: "engine/host/tests/status_handshake.rs",
   rustHostWindowsSecurity: "engine/host/src/windows_security_tests.rs",
   rustTauri: "src-tauri/src/lib.rs",
 };
@@ -55,6 +57,7 @@ const expectedSourceMarkers = {
     "transport_br_018_windows_scratch_has_current_owner_and_private_protected_dacl",
     "GetNamedSecurityInfoW",
   ],
+  rustHostStatus: ["transport_status_raw_delayed_handshake_reports_available", "transport_status_raw_nonzero_valid_json_reports_unavailable", "--status-fixture"],
   rustTauri: ["bom_ipc_cancellation_is_keyed", "bom_ipc_rehashes_source_bytes", "transport_br_023_import_then_changed_file", "transport_br_024_import_and_bom_are_separate_commands"],
 };
 
@@ -83,7 +86,12 @@ const results = sourceOnly
   ? Object.fromEntries(Object.entries(resultFiles).map(([key, path]) => [key, { status: "not-run", path }]))
   : {
       typescript: await parseNodeResult(resultFiles.typescript),
-      rustHost: await parseCargoResult(resultFiles.rustHost),
+      rustHost: await parseCargoResult(resultFiles.rustHost, [
+        "transport_status_raw_delayed_handshake_reports_available",
+        "transport_status_raw_nonzero_valid_json_reports_unavailable",
+        "transport_status_raw_rejects_each_missing_wrong_or_mistyped_contract_field",
+        "transport_status_raw_rejects_noise_truncation_and_overflow",
+      ]),
       rustHostWindowsSecurity: process.platform === "win32"
         ? await parseCargoResult(resultFiles.rustHostWindowsSecurity)
         : { status: "not-applicable", path: resultFiles.rustHostWindowsSecurity, reason: "Direct DACL and junction proof executes only on Windows." },
@@ -161,7 +169,7 @@ console.log(JSON.stringify({ output: relative(root, outputPath), ok: manifest.ok
 if (!manifest.ok) process.exitCode = 1;
 
 function auditTestSpawnTargets(allSources) {
-  const hostTests = `${testModule(allSources.rustHost, sources.rustHost)}\n${allSources.rustHostWindowsSecurity}`;
+  const hostTests = `${testModule(allSources.rustHost, sources.rustHost)}\n${allSources.rustHostWindowsSecurity}\n${allSources.rustHostStatus}`;
   const tauriTests = testModule(allSources.rustTauri, sources.rustTauri);
   const tsTests = Object.entries(allSources)
     .filter(([key]) => key.startsWith("typescript"))
@@ -223,7 +231,14 @@ function buildTestInventory(allSources) {
   }));
   return {
     typescript,
-    rustHost: rustTestsFromSource("rustHost", testModule(allSources.rustHost, sources.rustHost)),
+    rustHost: [
+      ...rustTestsFromSource("rustHost", testModule(allSources.rustHost, sources.rustHost)),
+      ...[...allSources.rustHostStatus.matchAll(/fn\s+(transport_status_raw_[A-Za-z0-9_]+)\(/gu)].map((match) => ({
+        file: sources.rustHostStatus,
+        name: match[1],
+        brIds: ["BR-021"],
+      })),
+    ],
     rustHostWindowsSecurity: rustTestsFromSource("rustHostWindowsSecurity", allSources.rustHostWindowsSecurity),
     rustTauri: rustTestsFromSource("rustTauri", testModule(allSources.rustTauri, sources.rustTauri)),
     python,
@@ -246,15 +261,9 @@ async function parseNodeResult(path) {
   return { status: "passed", path, sha256: sha256(rawText), tests, passed: pass, failed: fail };
 }
 
-async function parseCargoResult(path) {
+async function parseCargoResult(path, requiredTests = []) {
   const text = await requiredResult(path);
-  const matches = [...text.matchAll(/test result: (ok|FAILED)\.\s+(\d+) passed;\s+(\d+) failed;\s+(\d+) ignored/gu)];
-  if (matches.length === 0 || matches.some((match) => match[1] !== "ok" || Number(match[3]) !== 0)) {
-    throw new Error(`${path} is not a passing Cargo test result.`);
-  }
-  const executed = matches.reduce((sum, match) => sum + Number(match[2]), 0);
-  if (executed < 1) throw new Error(`${path} did not execute any tests.`);
-  return { status: "passed", path, sha256: sha256(text), resultGroups: matches.length, executed, failed: 0 };
+  return { status: "passed", path, sha256: sha256(text), ...parseCargoProof(text, path, requiredTests) };
 }
 
 async function parseUnixProcessTreeResult(path) {

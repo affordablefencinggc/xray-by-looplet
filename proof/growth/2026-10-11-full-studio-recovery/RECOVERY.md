@@ -8,6 +8,19 @@ Earlier status paragraphs below are historical campaign snapshots. `main` was su
 - [ ] Obtain a green CI run for the exact tested branch commit.
 - [ ] Verify Windows/Linux desktop artifacts and record whether a qualified runtime is actually bundled.
 - [ ] Native launch/runtime acceptance, macOS package evidence and actual deployment acceptance.
+- [x] AI review of selected saved desktop/tablet screenshots: [separate step proof](steps/saved-screenshot-review.md). Human signoff remains distinct; compact controls and a partly obstructed portrait bottom row remain open.
+- [x] Verify CI web/transport artifact digest and content: [separate step proof](steps/ci-artifact-integrity.md); native artifact verification and final matrix conclusion pending.
+- [x] Restore shell-free raw status acceptance tests: [separate step proof](steps/hermetic-raw-status-proof.md); local host 37 tests plus 4 raw status checks and strict clippy passed, new remote execution pending.
+
+### Acceptance caveats found during independent continuation review
+
+- Review found that the hermetic libtest fixture's wrapped stdout left delayed-success coverage at the bounded-read/substr level and could mask the nonzero-exit boundary. The follow-up `harness = false` compiled-self integration target now proves raw `engine_status_with` success after 2200 ms, compatible-JSON/nonzero-exit rejection, each invalid contract field and malformed/noisy/oversized stdout. Local tests passed; new remote execution pending. Production parser and fail-closed transport are unchanged.
+- CI's Linux SC-07 proof cannot establish the Windows-only security requirements by itself; matrix test results must be inspected separately. A green proof job is not universal platform acceptance.
+- The current CI prepares empty engine directories and runs only the legacy sidecar dry-run. It does not stage the qualified frozen engine or supply `XRAY_BUNDLED_ENGINE_SHA256`. Windows selection therefore stays unavailable without an explicit trusted override; bundled Linux selection is not implemented. Desktop package success must be labeled shell/package evidence, not full native BOM acceptance.
+- The earlier Windows matrix placed two cargo commands in one PowerShell step; final-command exit propagation can mask a first-command failure. Scoped workflow follow-up splits them into independently failing steps; both old executed summaries still need inspection.
+- Uploaded Linux files lose executable mode in the ZIP transport. Scoped workflow follow-up tars the bundles before upload; its own remote acceptance is required. Upload alone is not installed-launch proof.
+- Reusing the historical native-transfer generator omits the new `tauri.windows.conf.json`. Do not edit historical evidence; future DANS1 transfer must explicitly include all platform overlays in its source manifest. DANS1 is reachable, but no new qualified build was launched in this preflight.
+- No Vercel CLI login/token or project linkage was found locally; DANS1 also has no Vercel token/login. No credentials were read or printed, and no deployment was attempted.
 
 ## Scope and identities
 

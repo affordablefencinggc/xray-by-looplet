@@ -2798,8 +2798,8 @@ mod tests {
         // The delayed handshake is asserted at the bounded-read level: the
         // self-executed fixture's stdout is wrapped by the libtest harness
         // ("running 1 test" / progress dot / summary), so a pure-JSON
-        // end-to-end `available: true` cannot be produced hermetically. The
-        // nonzero/short-deadline paths below still cover the full envelope.
+        // raw end-to-end `available: true` is covered separately by the
+        // harness-free compiled-self integration fixture in tests/status_handshake.rs.
         let started = Instant::now();
         let factory = JsonStatusFactory {
             delay_ms: 2200,
