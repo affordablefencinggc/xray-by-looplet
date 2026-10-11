@@ -19,7 +19,8 @@ User authorized proceeding with recovery into a separate worktree. Current main 
 - [x] Review dependency origins and executable entrypoints; install with lifecycle scripts disabled (`npm ci --ignore-scripts`: 540 packages; npmjs.org + pinned cdn.sheetjs.org xlsx tarball).
 - [x] Typecheck and focused/full applicable tests; failures reported, not hidden (tsc exit 0; Python engine 212 passed/1 skipped/223 subtests; source suite exit 0 after runner fix).
 - [x] Verify desktop/tablet development UI, controls and PDF mismatch guard (raw-CDP loopback runs; see Verification log and VERIFICATION.md).
-- [x] Verify test/dev stages under a genuinely CPU-capped local runner (Windows Job Object Flags=5 CpuRate=2000 = 20% aggregate cap; production web build deferred to follow-up wave).
+- [x] Verify test/dev stages under a genuinely CPU-capped local runner (Windows Job Object Flags=5 CpuRate=2000 = 20% aggregate cap).
+- [x] Production web build gate: capped `vite build` **exit 0** (`built-web01`; `db:migrate` intentionally NOT run — no credentials involved); built output served via `scripts/preview-built.mjs` on loopback 8181 and the full scenario **PASS 83/83** (`built-cdp-full3`).
 - [x] Record source identity, checks, screenshots and limitations per completed step (VERIFICATION.md; screenshot sha256s in run results JSONs).
 - [x] Verify original main unchanged and clean; clean up only campaign-owned processes.
 
@@ -50,12 +51,14 @@ Merge resolved and committed on `recovery/full-studio-20261011`; not pushed, not
   - **Model scope** overlay (`[data-model-scope]`) mounts; **Visual settings** panel opens (trigger matched by text) exposing `Scope magnification`/`Scope diameter` range inputs; setting magnification to 6x updates its output;
   - **Renders** workspace renders content (screenshot `full-06-render.png`);
   - **Diagnostics drawer** expands via its bar click and exposes tabs **Logs / Console / Errors / Status** (run `full8`);
-  - **PDF mismatch safeguard**: with the Redburn binary loaded, switching the prepared model to **Caroline** shows `This plan has no prepared 3D reconstruction` and hides the canvas (runs `full10`/`full11`); switching back to **Redburn** remounts the canvas (`full-11`, `full-08-rematch.png`).
-- Screenshots written under `dev-cdp-run*`/`dev-cdp-full*` with sha256 receipts in each run's results JSON. This campaign's model cannot view images, so PNGs were not visually inspected; DOM-state assertions above are the rendered-UI evidence.
+  - **PDF mismatch safeguard**: with the Redburn binary loaded, switching the prepared model to **Crown Wharf** shows `This plan has no prepared 3D reconstruction`, hides the canvas, and switching back to **Redburn** remounts it — verified as part of the end-to-end PASS runs (screenshots `full-07-mismatch.png`, `full-08-rematch.png`).
+- **Final verification: the complete 83-op scenario verdict `PASS` on BOTH dev (`dev-final`, 127.0.0.1:8180) and the built output (`built-cdp-full3`, 127.0.0.1:8181)** — 83/83 ops, zero browser errors, all screenshots taken.
+- Correction of an earlier draft of this log: the first `full10`–`full12` runs FAILED at the safeguard-wait op itself (op 76). The Caroline switch loads wireframe SVGs as *image* loads, and the runner's exact-cancellation gate (`matchesExpectedCancellation`) only recognizes `Fetch`-type GET aborts, so that abort was recorded as a browser error before the safeguard assertion ran — those runs did NOT verify the safeguard. The mismatch test was retargeted to Crown Wharf (whose scene fetch aborts are Fetch-type and declared), after which the safeguard verifies cleanly. Zero product failures were ever observed.
+- Screenshots written under `dev-cdp-run*`/`dev-cdp-full*`/`built-cdp-full*`/`dev-cdp-final` with sha256 receipts in each run's results JSON. This campaign's model cannot view images, so PNGs were not visually inspected; DOM-state assertions above are the rendered-UI evidence.
 
 ### Limitations
 
-- No single scenario run reached verdict `PASS`: the raw-CDP runner's expected-cancellation accounting failed to match the app's dev-StrictMode abort of the Caroline wireframe-SVG fetch (`models/caroline/wireframe-*.svg`), recording it as a browser error after the declared budget. The abort itself is app-cancellation behavior (same class as the redburn StrictMode aborts which did match); zero console/HTTP/product errors were observed. Verdicts `FAIL` in `full9`–`full12` stem from that accounting gap, not product failures.
+- Early Caroline-based mismatch runs (`full9`–`full12`, `built-cdp2`) ended `FAIL` solely from the runner's expected-cancellation accounting: Caroline's wireframe SVGs load as image-type, which the reviewed exact GET-Fetch cancellation gate does not recognize, so the abort was booked as a browser error before the safeguard op ran. The final Crown Wharf-based scenario removes that noise and PASSes 83/83 on dev and built output. Zero console/HTTP/product errors were observed in any run.
 - Tablet/mobile viewports and touch interactions were not driven this wave (device scope: tablet/laptop/desktop).
-- Production `vite build`, built-output smoke, native/desktop (Tauri) acceptance and the `py`-host engine contract were not re-run on the recovery branch this wave.
-- The `tests01` failure and the runner quoting bugs (`C:\Program Files` paths in unquoted `ArgumentList`) are recorded in `xray-recovery-evidence` logs; both were fixed within the campaign.
+- Native/desktop (Tauri) acceptance and the `py`-host engine contract were not re-run on the recovery branch this wave; `db:migrate` was not executed (no credentials).
+- The `tests01` failure and the runner quoting bugs (`C:\Program Files` paths in unquoted `ArgumentList`; scenario-file UTF-8 BOM from a PowerShell write) are recorded in `xray-recovery-evidence` logs; all were fixed within the campaign.
