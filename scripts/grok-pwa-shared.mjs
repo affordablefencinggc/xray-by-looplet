@@ -254,6 +254,10 @@ export function readOgSite(cwd = process.cwd()) {
 
 /** Public path of an on-disk share card, or "" if neither file exists. */
 export function ogCardPublicPath(cwd = process.cwd()) {
+  // Empty cwd = "no workspace opt-in" (see normalizeHeadContext): never resolve
+  // relative paths against process.cwd(), which would leak a template's baked
+  // public/og.jpg into per-app injection.
+  if (!cwd) return "";
   if (existsSync(join(cwd, "public/og.jpg"))) return "/og.jpg";
   if (existsSync(join(cwd, "public/og.png"))) return "/og.png";
   return "";
@@ -401,15 +405,24 @@ function insertBeforeHeadClose(html, snippet) {
 }
 
 export function normalizeHeadContext(ctx = {}) {
+  // Only consult the workspace when the caller opted in with an explicit cwd
+  // (Vite plugin / preview wrapper). Without it — e.g. a caller passing only
+  // per-app overrides, or tests — the baked defaults of whatever directory the
+  // process happens to run from must not override site/appName/host/document
+  // titles, and public/og.jpg from that directory must not become the card.
+  const hasWorkspace = ctx.cwd !== undefined && ctx.cwd !== "";
   const cwd = ctx.cwd ?? process.cwd();
   // Middleware passes a baked `site`. Still consult the workspace so a
   // public/og.jpg generated after that snapshot (or missed by a wrong cwd)
   // wins over the og.grok.me placeholder. Vercel has no public/ to read, so
   // a correct bake is unchanged.
-  const site = applyCustomCardFromFs(
-    ctx.site !== undefined ? ctx.site : snapshotOgIdentity(cwd).site,
-    cwd,
-  );
+  const site = ctx.site !== undefined
+    ? hasWorkspace
+      ? applyCustomCardFromFs(ctx.site, cwd)
+      : ctx.site
+    : hasWorkspace
+      ? snapshotOgIdentity(cwd).site
+      : {};
   const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, ctx.host ?? "");
   return {
     appName,
@@ -417,7 +430,7 @@ export function normalizeHeadContext(ctx = {}) {
     creator: ctx.creator ?? readXCreator(),
     creatorId: ctx.creatorId ?? readXCreatorId(),
     host: ctx.host ?? "",
-    cwd,
+    cwd: hasWorkspace ? cwd : "",
     site,
   };
 }
