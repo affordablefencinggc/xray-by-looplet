@@ -38,7 +38,7 @@ same code the curated models use) and skips a view that has no parts. Exposed as
 
 ## The artifact
 
-`proof/growth/2026-10-13-plan-trace/artifacts/wardoo-wireframe/`
+`proof/growth/2026-10-13-plan-trace/steps/wardoo-wireframe/`
 
 | File | Bytes | Parts | Segments |
 | --- | --- | --- | --- |
@@ -46,6 +46,11 @@ same code the curated models use) and skips a view that has no parts. Exposed as
 | `wireframe-ground.svg` | 39,303 | 42 | 168 |
 | `wireframe-manifest.json` | 880 | — | — |
 | `wardoo-sheet6.scene.json` | 39,008 | — | — |
+
+Committed under `steps/`, not `artifacts/`, because `.gitignore` line 573 deliberately
+ignores `/proof/growth/**/artifacts/` - generated artifacts are not tracked by this
+repository's convention. It is also deliberately **not** under `public/models/`, which is
+the app's model catalogue.
 
 Manifest, verbatim:
 

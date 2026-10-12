@@ -59,7 +59,9 @@ the projection and per-part provenance are the same code the curated models use,
 skips a view that has no parts. Exposed as `--wireframe DIR`.
 
 Artifact committed at
-`proof/growth/2026-10-13-plan-trace/artifacts/wardoo-wireframe/`:
+`proof/growth/2026-10-13-plan-trace/steps/wardoo-wireframe/` (under `steps/`, not
+`artifacts/`, because `.gitignore` line 573 deliberately ignores
+`/proof/growth/**/artifacts/`):
 `wireframe-axonometric.svg` (51,817 bytes, 42 parts, 504 segments),
 `wireframe-ground.svg` (39,303 bytes, 42 parts, 168 segments),
 `wireframe-manifest.json`, and the source scene. Manifest pins source SHA-256
