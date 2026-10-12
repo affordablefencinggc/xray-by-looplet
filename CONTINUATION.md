@@ -17,11 +17,29 @@ continue working through the app please".
   A live/unexpired other owner means defer, not start another editor. Expiry alone
   does not authorize interrupting a live worker. Release only your own marker.
 
-This is permission to continue unblocked local engineering, **not** permission to
-bypass the DANS1 execution restriction, install, sign, promote an engine, deploy,
-push, merge to main or change normal user data/profiles. Stop before installation.
-No policy override or remote retry has been authorized. Preserve historical
-attempt `1a9f4e6c8202`, original helpers and phase-1 acceptance/receipt bytes.
+### Superseding DANS1 approval — October 12, 2026
+
+User: **"im approving all dans1 works. !!"**
+
+This subsequent, host-specific approval supersedes the earlier missing DANS1
+execution-method authorization, including the schedule prompt's baseline warning.
+Proceed with recovery-related DANS1 checks, fresh engine qualification, sequential
+builds and isolated pre-install QA, subject to their unchanged evidence gates.
+If required, use a process-only `powershell.exe -NoProfile -NonInteractive
+-ExecutionPolicy Bypass -File` invocation of the independently hash-verified
+recovery worker. Check policy scopes first; do not modify persistent policy or
+evade MachinePolicy/UserPolicy. Record exact invocation, identities and cleanup.
+
+This does **not** establish engine/app acceptance, authorize installation, signing,
+production credentials/deployment, dependency upgrades, normal-profile/data writes,
+unreviewed engine promotion, push or merge. **Stop before installation.** Preserve
+historical attempt `1a9f4e6c8202`, original helpers and phase-1 receipt bytes.
+Approval and fresh preflight observations are recorded separately in
+`DANS1-AUTHORIZATION.md`; do not rewrite the old blocked-attempt proof.
+Fresh probes confirmed DANS1 access and process-only Bypass; a subsequent default
+session remained Restricted, and the probe launchers exited. No qualification
+worker was launched. Authorization is no longer the gate-2 blocker; the next
+technical action below is unchanged. Evidence ID: `3730110660a2`.
 
 ## Current slice — WIP: terminal-record prerequisite
 

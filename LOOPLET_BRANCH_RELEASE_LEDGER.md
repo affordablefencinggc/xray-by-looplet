@@ -1,5 +1,16 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — subsequent DANS1 host-work approval
+
+Existing branch reused from `31740433`; no new worktree. User explicitly approved
+all DANS1 work in the recovery scope. Recorded exact approval, process-only policy
+method, successful bounded host/policy probes and cleanup in
+`DANS1-AUTHORIZATION.md` and the separate `dans1-execution-authorization.md` step.
+Updated handoff/roadmap so the scheduled continuation does not ask again for that
+permission. No schedule modification, qualification launch, helper/product/pin
+changes, persistent policy change, push, merge or installation. All unfinished
+technical/evidence gates remain open; old blocked-attempt proof is unchanged.
+
 ## October 12, 2026 — ten-minute recovery continuation
 
 Existing `recovery/full-studio-20261011` reused from `e91f9bc5`; no new worktree.

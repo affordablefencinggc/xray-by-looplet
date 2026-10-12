@@ -1,5 +1,19 @@
 # Verified Completion Checklist
 
+## October 12, 2026 — DANS1 authorization recorded; policy probes only
+
+- Subsequent user approval: "im approving all dans1 works. !!". Supersedes the
+  earlier missing DANS1 permission, not the technical acceptance requirements.
+- Baseline `31740433`, branch `recovery/full-studio-20261011`; documentation-only
+  authorization/handoff changes. Separate step proof:
+  `proof/growth/2026-10-11-full-studio-recovery/steps/dans1-execution-authorization.md`.
+- Executed three bounded SSH probes: default Restricted/all scopes Undefined;
+  approved process-only Bypass; fresh default session still Restricted. All exits
+  zero; local SSH launchers exited/absent and prior remote probe PIDs absent.
+- No engine worker/build/qualification executed. Final 25-test proof and complete
+  engine/app acceptance remain open. Phase-1 receipts and historical records are
+  unchanged. No persistent policy change, push, merge or installation.
+
 ## October 12, 2026 — recovery phase-1 provenance/local tooling only
 
 - Code/document commit: `0946285b08713fb155d6ae08b8d60c3ba1d2f8b3` on
