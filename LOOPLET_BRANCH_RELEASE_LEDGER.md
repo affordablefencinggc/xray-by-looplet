@@ -1,5 +1,16 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — ten-minute recovery continuation
+
+Existing `recovery/full-studio-20261011` reused from `e91f9bc5`; no new worktree.
+User requested continued app work and a ten-minute loop. Enabled schedule
+`sched_e1b36f37-c625-458b-a343-80197418a5f7`; current handoff in `CONTINUATION.md`.
+Additive terminal-record validator/tests and separate capped wrapper are **WIP**,
+not engine acceptance. Earlier 22-test development revision passed; final 25-test
+revision awaits clean committed proof after an unchanged preflight deadline failure.
+Preserve all failed evidence. No historical helper/product/transport/pin changes,
+remote retry, policy override, push, merge, installation or release.
+
 ## October 12, 2026 — recovery finish-ledger continuation
 
 Existing branch `recovery/full-studio-20261011` reused at

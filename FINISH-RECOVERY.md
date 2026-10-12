@@ -88,6 +88,10 @@ persistent policy change is assumed. Record the exact approval and method.
 
 Depends on gate 2. Before execution, create a terminal-evidence validator and
 rejection tests, including `qualification.json` without a successful owner exit.
+The October 12 recurring continuation is implementing an additive **terminal-record
+prerequisite only**, tracked in `CONTINUATION.md`. It is not the complete validator
+and cannot close this gate: the legacy owner exit lacks attempt/owner/hash binding,
+and full artifact/log/toolchain/fixture validation and trusted collection remain open.
 Then create a new 12-hex-ID snapshot/cases/transfer set at the actual source commit;
 validate and independently rehash transferred inputs and the owner script.
 
