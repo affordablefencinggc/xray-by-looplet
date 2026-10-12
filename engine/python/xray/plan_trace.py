@@ -474,20 +474,26 @@ def open_wall_bands(page, mm_per_pt):
     runs = [_normalised_run(*run)
             for run in open_runs(page, collinear_pt=COLLINEAR_TOL_MM / mm_per_pt)]
     viable = [run for run in runs if (run[3] - run[2]) * mm_per_pt >= MIN_WALL_LENGTH_MM]
-    stats = {'runs': len(runs), 'viableRuns': len(viable), 'paired': 0, 'noOverlap': 0}
+    stats = {'runs': len(runs), 'viableRuns': len(viable), 'paired': 0, 'faces': 0}
     bands = []
-    used = set()
-    for axis in ('h', 'v'):
-        group = sorted(((index, run) for index, run in enumerate(viable)
-                        if run[0] == axis), key=lambda item: (item[1][1], item[1][2]))
-        for index, run in group:
-            if index in used:
-                continue
-            best = None
-            for other_index, other in group:
-                if other_index == index or other_index in used:
+    used_face = set()
+    used_partner = set()
+    # Longest stroke first, so a wall's outer face claims its own facing pieces
+    # before a shorter stroke can claim them as part of something else.
+    for index in sorted(range(len(viable)), key=lambda i: -(viable[i][3] - viable[i][2])):
+        if index in used_face or index in used_partner:
+            continue
+        run = viable[index]
+        for side in (-1, 1):
+            candidates = []
+            for other_index, other in enumerate(viable):
+                if other_index == index or other_index in used_partner \
+                        or other_index in used_face or other[0] != run[0]:
                     continue
-                gap_mm = abs(other[1] - run[1]) * mm_per_pt
+                delta = other[1] - run[1]
+                if delta == 0 or (delta > 0) != (side > 0):
+                    continue
+                gap_mm = abs(delta) * mm_per_pt
                 if gap_mm < WALL_MIN_MM or gap_mm > WALL_MAX_MM:
                     continue
                 low, high = max(run[2], other[2]), min(run[3], other[3])
@@ -495,26 +501,32 @@ def open_wall_bands(page, mm_per_pt):
                 shorter_mm = min(run[3] - run[2], other[3] - other[2]) * mm_per_pt
                 if overlap_mm < MIN_WALL_LENGTH_MM or overlap_mm < shorter_mm * PAIR_OVERLAP_RATIO:
                     continue
-                if best is None or overlap_mm > best[0]:
-                    best = (overlap_mm, other_index, other, low, high, gap_mm)
-            if best is None:
-                stats['noOverlap'] += 1
+                candidates.append((overlap_mm, other_index, other, low, high, gap_mm))
+            # One face can be met by several pieces, but never by two pieces that
+            # cover the same stretch of it - that would count one wall twice.
+            candidates.sort(key=lambda item: -item[0])
+            accepted = []
+            for candidate in candidates:
+                if any(not (candidate[4] <= taken[3] or candidate[3] >= taken[4])
+                       for taken in accepted):
+                    continue
+                accepted.append(candidate)
+            if not accepted:
                 continue
-            overlap_mm, other_index, other, low, high, gap_mm = best
-            used.add(index)
-            used.add(other_index)
-            perp = (run[1] + other[1]) / 2.0
-            half = gap_mm / mm_per_pt / 2.0
-            if axis == 'h':
-                rect = (low, perp - half, high, perp + half)
-            else:
-                rect = (perp - half, low, perp + half, high)
-            bands.append({'axis': axis, 'perp': perp, 'a': low, 'b': high,
-                          'thicknessMm': gap_mm, 'lengthMm': overlap_mm,
-                          'rect': rect, 'paired': True})
-            stats['paired'] += 1
-            if len(bands) > MAX_WALLS:
-                raise PlanTraceError('Wall band limit exceeded.')
+            used_face.add(index)
+            stats['faces'] += 1
+            for overlap_mm, other_index, other, low, high, gap_mm in accepted:
+                used_partner.add(other_index)
+                perp = (run[1] + other[1]) / 2.0
+                half = gap_mm / mm_per_pt / 2.0
+                rect = ((low, perp - half, high, perp + half) if run[0] == 'h'
+                        else (perp - half, low, perp + half, high))
+                bands.append({'axis': run[0], 'perp': perp, 'a': low, 'b': high,
+                              'thicknessMm': gap_mm, 'lengthMm': overlap_mm,
+                              'rect': rect, 'paired': True})
+                stats['paired'] += 1
+                if len(bands) > MAX_WALLS:
+                    raise PlanTraceError('Wall band limit exceeded.')
     return bands, stats
 
 

@@ -41,6 +41,41 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 4 — one face against many facing pieces
+
+Owner `cline-plan-tracer-2-20261013`, baseline `34aa9b42`. Slice 3 capped the longest
+wall at 3.78 m even though 7.79 m runs exist inside a 13.1 m wide region, because each
+stroke could take exactly one partner. `open_wall_bands` now processes strokes longest
+first, lets a face accept several partners independently per side, forbids two accepted
+partners on one side from covering the same stretch, and forbids a stroke consumed as a
+partner from later becoming a face. That last rule was caught by
+`test_a_stroke_is_never_used_as_both_sides_of_two_walls` during the slice.
+
+Tests **42 passed / 14 subtests**. Regression **197 passed, 1 skipped**, 223 subtests,
+25.29 s — now past the 30-second foreground limit, so it runs through
+`plan-trace-20261013-fb27c4e1a0d9\regression.ps1` as a tracked detached process with a
+600 s deadline and its own stdout/stderr/exit record.
+
+Wardoo sheet 6 across the slices — total recovered wall 47.7 → 52.6 → **64.1 m**;
+longest wall 2.45 → 3.78 → **7.61 m**; runs 45 → 41 → **40** (25 h / 15 v); thickness
+**70.0/220.0/386.0 mm**; openings 1. Scene `sceneSha256 206a885f…21e1e`.
+
+Why this is progress rather than a bigger number: 7.61 m matches the longest run that
+actually exists in the region, so the artificial ceiling is gone; 64.1 m over a
+13.1 × 7.8 m footprint is perimeter (≈41.8 m) plus ≈22 m internal, a credible dwelling
+shape; and a 220 mm median thickness is textbook brick veneer, an independent sanity
+check on the calibration's order of magnitude.
+
+Still not trustworthy: the 1:100 calibration remains `verified: false`, so only relative
+geometry is sound; **openings fell to 1** because longer walls now absorb the gaps and
+opening detection under-reports; hatch is excluded by length threshold rather than
+identified; curves and diagonals are skipped; and **no quantities are produced**. Proof:
+`proof/growth/2026-10-13-plan-trace/steps/plan-tracer-face-against-pieces.md`.
+
+Next: measure gaps along each wall run after pairing rather than only between separate
+bands, then reconcile the external perimeter against the ≈41.8 m the region implies.
+
+
 ## 2026-10-13 additive slice 3 — run re-join and best-overlap pairing
 
 Owner `cline-plan-tracer-2-20261013`, baseline `e68b9e96`. Slice 2 still had a
