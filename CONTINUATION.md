@@ -67,6 +67,15 @@ acceptance is inferred. Next implementation contract and source-test/skip findin
 `QUALIFICATION-COLLECTION-PLAN.md` (design only, not executed). Trusted collection
 and source/test/warning review remain engineering work, not a DANS1 permission issue.
 
+Next additive slice: `scripts/verify_qualification_coverage.py`, its tests and
+`scripts/run-coverage-evidence-check.ps1` compare externally pinned declared
+inventory with exact JUnit identities, require every in-scope snapshot test module
+represented and zero skips/errors/failures. They do **not** authenticate inventory,
+map pytest rootdir, prove all functions/parameters collected, or replace artifact
+validation. Static review `run_00041` approved this narrow scope. Development
+`b0bd64d1f8f7` passed 21 preflight + 19 coverage tests with queried 20% cap and
+zero exits; clean worker and independent coverage proof are next.
+
 ## Previous slice — terminal-record prerequisite
 
 Additive files, leaving the phase-1 runner and qualification producers unchanged:

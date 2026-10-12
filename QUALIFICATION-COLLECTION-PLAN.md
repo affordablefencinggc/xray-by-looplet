@@ -24,6 +24,14 @@ read from the same submitted bundle. Root phase 1 is still only provenance/tooli
    and exit status. Pin mapper code for pytest JUnit `(classname, name)` identities.
    Compare with independently reviewed source/parameter inventory before approving
    its digest; never derive expectations from the later execution JUnit.
+   **Observe and pin pytest root/config discovery; do not equate cwd with rootdir.**
+   Version 9.1.1's no-config fallback intersects invocation directory and argument
+   ancestor, but ancestor configuration/setup files can change that result. Inspect
+   both preparation and producer ancestor contexts, preserve exact nodeids, and
+   bind observed relative root/config/effective settings. Do not add `--rootdir`
+   or `-c` to the preserved producer to disguise a mismatch. The version-tagged
+   primary source reviewed was `pytest-dev/pytest` tag `9.1.1`,
+   `src/_pytest/config/findpaths.py` and `src/_pytest/junitxml.py`.
 2. **Coverage validator and rejection tests.** Require exact identity multiset,
    no duplicate/missing/extra cases, zero collection errors/skips/deselections,
    actual zero failures/errors. Default `allowedSkips: []`, `maxSkipped: 0`.
