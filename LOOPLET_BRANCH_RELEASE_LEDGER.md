@@ -1,5 +1,14 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — terminal executed proof and additive artifact checks
+
+Existing recovery branch reused at clean `280c61a0`; separate worker and verifier
+terminal-prerequisite runs succeeded without source edits. Exact scope/evidence in
+`proof/growth/2026-10-11-full-studio-recovery/steps/terminal-prerequisite-executed.md`.
+Added five offline artifact validator/test/runner files; development test proof is
+not engine acceptance. Preserve historical helpers/pin/phase-1 receipts and failed
+attempts. No push, merge, promotion, installation or DANS1 qualification launch.
+
 ## October 12, 2026 — subsequent DANS1 host-work approval
 
 Existing branch reused from `31740433`; no new worktree. User explicitly approved

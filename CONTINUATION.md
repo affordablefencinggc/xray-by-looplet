@@ -41,7 +41,27 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
-## Current slice — WIP: terminal-record prerequisite
+## Current slice — artifact consistency and trusted collection
+
+Superseding update, October 12: clean worker `b212a4926b37` and independently
+executed verifier `3b9ba15119a4` both passed unchanged source `280c61a0`:
+21 preflight tests, 109 preserved sources / four helpers, 25 terminal-record tests,
+queried 20% aggregate CPU cap, successful terminal/cleanup/source checks.
+Separate proof: `proof/growth/2026-10-11-full-studio-recovery/steps/terminal-prerequisite-executed.md`.
+The historical timeout cause is unknown, not reproduced, not claimed fixed.
+
+New additive artifact consistency implementation is under development:
+`scripts/qualification_structure.py`, `scripts/verify_qualification_artifacts.py`,
+their two test modules and `scripts/run-artifact-evidence-check.ps1`. It checks
+ZIP/extracted source, build artifacts, executable bytes, toolchain metadata,
+JUnit, all 18 child steps, six fixtures and eight negatives. It explicitly keeps
+execution authentication, full evidence, engine and app acceptance false.
+Development run `efa977a3e23f` passed 21+25+22+23 tests with two platform-dependent
+structure-test skips; no acceptance from that dirty run. Those skips are being
+replaced with executable Windows coverage before clean proof. Trusted collection
+and source/test/warning review remain engineering work, not a DANS1 permission issue.
+
+## Previous slice — terminal-record prerequisite
 
 Additive files, leaving the phase-1 runner and qualification producers unchanged:
 
@@ -105,15 +125,15 @@ Each test run uses `terminal-records-<id>` plus tracked
 
 ## Next action
 
-Investigate the existing preflight timeouts before another blind full retry. Compare
-retained failed logs and host/process observations without killing unrelated work;
-do not weaken deadlines or test assertions. Final code is committed, but the 25-test
-revision still needs a clean successful capped run and independent executed review.
-Use a new immutable local run ID with the following entrypoint; monitor the tracked
-launcher asynchronously because foreground shell commands time out after 30 seconds:
+Complete additive artifact validator review and clean capped worker/independent
+execution, then implement trusted separately pinned execution/collection around the
+unchanged legacy producers. Full source/test inventory and warning/skip review are
+not established by a self-consistent bundle. Do not weaken deadlines or assertions.
+Use a new immutable local run ID with the following entrypoint; monitor a tracked
+bounded supervisor asynchronously because foreground commands time out after 30 seconds:
 
 ```powershell
-powershell.exe -NoProfile -File C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-terminal-evidence-check.ps1 -RunId <new-12-hex-id> -Actor <worker-name>
+powershell.exe -NoProfile -File C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-artifact-evidence-check.ps1 -RunId <new-12-hex-id> -Actor <worker-name>
 ```
 
 The new prerequisite is not yet registered as a verified machine-ledger item. Do not

@@ -96,10 +96,14 @@ Preserve the historical Restricted observation and blocked attempt unchanged.
 
 Depends on gate 2. Before execution, create a terminal-evidence validator and
 rejection tests, including `qualification.json` without a successful owner exit.
-The October 12 recurring continuation is implementing an additive **terminal-record
-prerequisite only**, tracked in `CONTINUATION.md`. It is not the complete validator
+The October 12 terminal prerequisite has separate clean executed worker and verifier
+proof at `280c61a0`: 21 preflight tests, 109 source checks, 25 terminal tests, 20%
+queried cap and cleanup. See the separate `terminal-prerequisite-executed.md` step
+and `CONTINUATION.md`. It is not the complete validator
 and cannot close this gate: the legacy owner exit lacks attempt/owner/hash binding,
 and full artifact/log/toolchain/fixture validation and trusted collection remain open.
+Additive artifact consistency validation is now being implemented and tested;
+even a structurally consistent bundle is not authenticated execution or acceptance.
 Then create a new 12-hex-ID snapshot/cases/transfer set at the actual source commit;
 validate and independently rehash transferred inputs and the owner script.
 
