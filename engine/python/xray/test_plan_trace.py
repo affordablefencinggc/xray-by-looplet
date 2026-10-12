@@ -273,7 +273,7 @@ class OpenWallPairTests(unittest.TestCase):
         return page_with([[['M', x0, y0], ['L', x1, y1]] for x0, y0, x1, y1 in runs])
 
     def test_two_parallel_runs_become_one_measured_band(self):
-        bands, stats = open_wall_bands(
+        bands, gaps, stats = open_wall_bands(
             self.run_page([(100, 200, 1100, 200), (100, 300, 1100, 300)]), 1.0)
         self.assertEqual(len(bands), 1)
         self.assertEqual(stats['paired'], 1)
@@ -290,14 +290,14 @@ class OpenWallPairTests(unittest.TestCase):
         self.assertEqual(open_wall_bands(too_far, 1.0)[0], [])
 
     def test_a_stroke_is_never_used_as_both_sides_of_two_walls(self):
-        bands, stats = open_wall_bands(
+        bands, _, stats = open_wall_bands(
             self.run_page([(100, 200, 1100, 200), (100, 300, 1100, 300),
                            (100, 400, 1100, 400)]), 1.0)
         self.assertEqual(len(bands), 1)
         self.assertEqual(stats['paired'], 1)
 
     def test_barely_overlapping_runs_are_not_a_wall(self):
-        bands, _ = open_wall_bands(
+        bands, _, _ = open_wall_bands(
             self.run_page([(100, 200, 2000, 200), (1900, 300, 2100, 300)]), 1.0)
         self.assertEqual(bands, [])
 
@@ -305,17 +305,29 @@ class OpenWallPairTests(unittest.TestCase):
         # A at y=200 (x 100..1100); C at y=260 is closer but overlaps A by only
         # 500 mm; B at y=300 overlaps A over its full 1000 mm and is the real
         # facing line, so the measured thickness must be 100 mm.
-        bands, _ = open_wall_bands(
+        bands, _, _ = open_wall_bands(
             self.run_page([(100, 200, 1100, 200),
                            (600, 260, 1600, 260),
                            (100, 300, 1100, 300)]), 1.0)
         self.assertIn(100.0, [round(b['thicknessMm'], 3) for b in bands])
 
     def test_a_stroke_shorter_than_the_minimum_is_never_paired(self):
-        bands, stats = open_wall_bands(
+        bands, _, stats = open_wall_bands(
             self.run_page([(100, 200, 1100, 200), (100, 300, 300, 300)]), 1.0)
         self.assertEqual(bands, [])
         self.assertEqual(stats['viableRuns'], 1)
+
+    def test_gap_between_pieces_facing_one_wall_is_reported_as_an_opening(self):
+        # One 2500 mm face at y=200, met by two 500 mm pieces at y=300 with a
+        # 1000 mm gap between them: one wall in two runs, one opening.
+        bands, gaps, _ = open_wall_bands(
+            self.run_page([(100, 200, 2600, 200),
+                           (100, 300, 600, 300),
+                           (1600, 300, 2100, 300)]), 1.0)
+        self.assertEqual(len(bands), 2)
+        self.assertEqual(len(gaps), 1)
+        self.assertAlmostEqual(gaps[0]['widthMm'], 1000.0)
+        self.assertEqual(gaps[0]['axis'], 'h')
 
     def test_unusable_calibration_is_rejected(self):
         with self.assertRaisesRegex(PlanTraceError, 'calibration'):

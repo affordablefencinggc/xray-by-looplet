@@ -476,6 +476,7 @@ def open_wall_bands(page, mm_per_pt):
     viable = [run for run in runs if (run[3] - run[2]) * mm_per_pt >= MIN_WALL_LENGTH_MM]
     stats = {'runs': len(runs), 'viableRuns': len(viable), 'paired': 0, 'faces': 0}
     bands = []
+    gaps = []
     used_face = set()
     used_partner = set()
     # Longest stroke first, so a wall's outer face claims its own facing pieces
@@ -513,6 +514,20 @@ def open_wall_bands(page, mm_per_pt):
                 accepted.append(candidate)
             if not accepted:
                 continue
+            # A gap between two pieces meeting the SAME face is an opening in that
+            # wall. Measuring it here, along the face, is what keeps openings
+            # detectable now that a wall run can span several pieces.
+            by_position = sorted(accepted, key=lambda item: item[3])
+            for previous, following in zip(by_position, by_position[1:]):
+                width_mm = (following[3] - previous[4]) * mm_per_pt
+                if not OPENING_MIN_MM <= width_mm <= OPENING_MAX_MM:
+                    continue
+                mean_gap = (previous[5] + following[5]) / 2.0
+                gaps.append({'axis': run[0],
+                             'perp': run[1] + side * (mean_gap / mm_per_pt) / 2.0,
+                             'a': previous[4], 'b': following[3],
+                             'thicknessMm': max(previous[5], following[5]),
+                             'widthMm': width_mm})
             used_face.add(index)
             stats['faces'] += 1
             for overlap_mm, other_index, other, low, high, gap_mm in accepted:
@@ -527,7 +542,7 @@ def open_wall_bands(page, mm_per_pt):
                 stats['paired'] += 1
                 if len(bands) > MAX_WALLS:
                     raise PlanTraceError('Wall band limit exceeded.')
-    return bands, stats
+    return bands, gaps, stats
 
 
 def drop_regular_arrays(bands, mm_per_pt, min_members=4, max_spacing_mm=450.0,
@@ -568,6 +583,27 @@ def drop_regular_arrays(bands, mm_per_pt, min_members=4, max_spacing_mm=450.0,
             keep.append(group[index])
             index += 1
     return keep, {'dropped': dropped}
+
+
+def merge_gaps(groups, mm_per_pt):
+    """Union of opening candidates, dropping ones that overlap a wider report.
+
+    The same opening can be found twice - once between two merged bands and once
+    along the wall face that produced them - so overlapping candidates on the same
+    line are reduced to the single widest report rather than counted twice.
+    """
+    candidates = sorted((gap for group in groups for gap in group),
+                        key=lambda gap: -gap['widthMm'])
+    tolerance = COLLINEAR_TOL_MM / mm_per_pt
+    kept = []
+    for gap in candidates:
+        if any(gap['axis'] == other['axis']
+               and abs(gap['perp'] - other['perp']) <= tolerance
+               and not (gap['b'] <= other['a'] or gap['a'] >= other['b'])
+               for other in kept):
+            continue
+        kept.append(gap)
+    return kept
 
 
 MATERIALS = {
@@ -631,13 +667,15 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
         raise PlanTraceError('Page has no usable extent.')
 
     raw, stats = wall_bands(page, mm_per_pt)
-    paired, pair_stats = open_wall_bands(page, mm_per_pt)
+    paired, face_gaps, pair_stats = open_wall_bands(page, mm_per_pt)
     region = plan_region(page)
     inside = [band for band in raw + paired
               if within_region(region, band['axis'], band['perp'], band['a'], band['b'])]
     outside = len(raw) + len(paired) - len(inside)
     bands, array_stats = drop_regular_arrays(merge_bands(inside, mm_per_pt), mm_per_pt)
-    gaps = traced_openings(bands, mm_per_pt)
+    kept_gaps = [gap for gap in face_gaps
+                 if within_region(region, gap['axis'], gap['perp'], gap['a'], gap['b'])]
+    gaps = merge_gaps([traced_openings(bands, mm_per_pt), kept_gaps], mm_per_pt)
 
     stats = dict(stats)
     stats.update({'closedBands': len(raw), 'openWallBands': len(paired),

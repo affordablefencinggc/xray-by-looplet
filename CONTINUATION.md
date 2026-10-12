@@ -41,6 +41,36 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 5 — openings measured along a wall face
+
+Owner `cline-plan-tracer-2-20261013`, baseline `b026d5ac`. Slice 4's multi-piece
+pairing broke the length ceiling but dropped openings 3 → 1, because a wall run that
+spans several pieces also spans the gaps between them. `open_wall_bands` now also
+returns **face gaps** — gaps between two pieces meeting the same face, measured along
+the wall rather than between separate bands — and `merge_gaps` unions the band-based
+and face-based candidates, keeping the widest report so nothing is counted twice.
+The function now returns `(bands, gaps, stats)`.
+
+Tests **43 passed / 14 subtests**; regression **197 passed, 1 skipped**, 223 subtests,
+54.69 s. Scene `sceneSha256 206a885f…21e1e`, exit 0.
+
+**This did not fix the openings count, and the proof says so.** Wardoo sheet 6 yields
+`face gaps 1`, and that single gap coincides with the one the band-based detector
+already found, so `merge_gaps` deduplicated it and the written scene is byte-identical
+to slice 4. Openings remain **1** for a dwelling that plainly has many doors and
+windows; slice 4's regression is not fixed. Mechanisms caught inside the slice: a
+`*groups, mm_per_pt` signature that made a positional call pass `mm_per_pt` as a group,
+and the diagnostic script's two-value unpack. Both corrected.
+
+Still not trustworthy: openings under-reported (top open defect); the 1:100
+calibration remains `verified: false`; hatch excluded by length threshold; curves and
+diagonals skipped; 232 bands outside the detected region; and **no quantities**.
+Proof: `proof/growth/2026-10-13-plan-trace/steps/plan-tracer-openings-along-face.md`.
+
+Next: stop adding heuristics and actually *look* at how this sheet draws a door and a
+window — render the region and inspect the strokes around a known opening first.
+
+
 ## 2026-10-13 additive slice 4 — one face against many facing pieces
 
 Owner `cline-plan-tracer-2-20261013`, baseline `34aa9b42`. Slice 3 capped the longest
