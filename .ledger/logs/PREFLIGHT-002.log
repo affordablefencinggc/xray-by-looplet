@@ -1,0 +1,62 @@
+$ powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight
+Local checks: gate=preflight aggregateCpuCapPercent=20 flags=5 rate=2000 ownerPid=34948
+Temporary test data: C:\Users\danie\AppData\Local\Temp\xray-ledger-9e3024ea14d04e338bc1a0b86e2100ad (never remote engine acceptance)
+CHECK evidence-tests exit=1
+test_actual_preserved_records (test_verify_recovery_preflight.PreflightEvidenceTests.test_actual_preserved_records) ... ERROR
+test_blocked_attempt_cannot_contain_build (test_verify_recovery_preflight.PreflightEvidenceTests.test_blocked_attempt_cannot_contain_build) ... ok
+test_bom_and_duplicate_json_handling (test_verify_recovery_preflight.PreflightEvidenceTests.test_bom_and_duplicate_json_handling) ... ok
+test_duplicated_remote_entry_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_duplicated_remote_entry_rejected) ... ok
+test_false_remote_match_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_false_remote_match_rejected) ... ok
+test_git_lf_is_equivalent_but_raw_pin_stays_exact (test_verify_recovery_preflight.PreflightEvidenceTests.test_git_lf_is_equivalent_but_raw_pin_stays_exact) ... ERROR
+test_missing_failure_log_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_missing_failure_log_rejected) ... ok
+test_preflight_cannot_be_promoted_to_execution (test_verify_recovery_preflight.PreflightEvidenceTests.test_preflight_cannot_be_promoted_to_execution) ... ok
+test_remote_execution_claim_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_remote_execution_claim_rejected) ... ok
+test_restriction_and_error_required (test_verify_recovery_preflight.PreflightEvidenceTests.test_restriction_and_error_required) ... ok
+test_source_edit_is_not_line_ending_normalization (test_verify_recovery_preflight.PreflightEvidenceTests.test_source_edit_is_not_line_ending_normalization) ... ok
+test_task_cleanup_cannot_be_assumed (test_verify_recovery_preflight.PreflightEvidenceTests.test_task_cleanup_cannot_be_assumed) ... ok
+test_transfer_pin_cannot_be_rewritten (test_verify_recovery_preflight.PreflightEvidenceTests.test_transfer_pin_cannot_be_rewritten) ... ok
+
+======================================================================
+ERROR: test_actual_preserved_records (test_verify_recovery_preflight.PreflightEvidenceTests.test_actual_preserved_records)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\test_verify_recovery_preflight.py", line 25, in test_actual_preserved_records
+    self.assertEqual(len(self.check()["entries"]), 109)
+                         ^^^^^^^^^^^^
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\test_verify_recovery_preflight.py", line 17, in check
+    return v.check_records(self.data.__getitem__, self.helpers.__getitem__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\verify_recovery_preflight.py", line 92, in check_records
+    require("PSSecurityException" in error and "UnauthorizedAccess" in error, "Missing policy failure")
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\verify_recovery_preflight.py", line 24, in require
+    raise ValueError(message)
+ValueError: Missing policy failure
+
+======================================================================
+ERROR: test_git_lf_is_equivalent_but_raw_pin_stays_exact (test_verify_recovery_preflight.PreflightEvidenceTests.test_git_lf_is_equivalent_but_raw_pin_stays_exact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\test_verify_recovery_preflight.py", line 29, in test_git_lf_is_equivalent_but_raw_pin_stays_exact
+    self.check()
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\test_verify_recovery_preflight.py", line 17, in check
+    return v.check_records(self.data.__getitem__, self.helpers.__getitem__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\verify_recovery_preflight.py", line 92, in check_records
+    require("PSSecurityException" in error and "UnauthorizedAccess" in error, "Missing policy failure")
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\verify_recovery_preflight.py", line 24, in require
+    raise ValueError(message)
+ValueError: Missing policy failure
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.095s
+
+FAILED (errors=2)
+Local temporary test directory removed; synchronous owned check processes exited.
+Check failed: evidence-tests
+At C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-recovery-ledger-check.p
+s1:59 char:27
++     if($p.ExitCode -ne 0){throw "Check failed: $Name"}
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Check failed: evidence-tests:String) [], RuntimeException
+    + FullyQualifiedErrorId : Check failed: evidence-tests
+ 

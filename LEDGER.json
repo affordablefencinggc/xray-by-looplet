@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "goal": "X-Ray recovery finish plan - phase 1: independently verified preserved preflight and local tooling; NOT frozen engine, native app, installation or product completion",
+  "created_at": "2026-10-12T03:51:05.633Z",
+  "items": [
+    {
+      "id": "PREFLIGHT",
+      "title": "Verify preserved engine inputs and blocked-attempt evidence without conflating CRLF and LF",
+      "area": "general",
+      "priority": 10,
+      "status": "in_progress",
+      "accept": [
+        "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight"
+      ],
+      "paths": [
+        "scripts/verify_recovery_preflight.py",
+        "scripts/test_verify_recovery_preflight.py",
+        "scripts/run-recovery-ledger-check.ps1",
+        "scripts/qualify_frozen_engine.py",
+        "scripts/test_qualify_frozen_engine.py",
+        "scripts/frozen-engine-cases.mjs",
+        "scripts/run-frozen-engine-qualification.ps1",
+        "proof/growth/2026-10-11-full-studio-recovery/engine-qualification-preflight",
+        "engine/python",
+        "engine/fixtures",
+        "contracts",
+        "src/studio/bomRules.ts",
+        "src/studio/bomContract.ts",
+        "public/models/caroline",
+        "package.json",
+        "package-lock.json"
+      ],
+      "runs": [
+        {
+          "n": 1,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight",
+          "exit": 4294770688,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [],
+          "at": "2026-10-12T03:51:06.209Z",
+          "ms": 85,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/PREFLIGHT-001.log",
+          "log_sha256": "b49212ed1b2d04d3ce5babd28f7857425954f8ce30b6e05f2824147dc7d58baf"
+        },
+        {
+          "n": 2,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight",
+          "exit": 1,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [
+            "scripts/run-recovery-ledger-check.ps1",
+            "scripts/test_verify_recovery_preflight.py",
+            "scripts/verify_recovery_preflight.py"
+          ],
+          "at": "2026-10-12T03:54:00.618Z",
+          "ms": 753,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/PREFLIGHT-002.log",
+          "log_sha256": "f4f49bbe848ce2fa761526738117bc5bf16020b2689ca2c15b3e17486cb601b8"
+        },
+        {
+          "n": 3,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight",
+          "exit": 0,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [
+            "scripts/run-recovery-ledger-check.ps1",
+            "scripts/test_verify_recovery_preflight.py",
+            "scripts/verify_recovery_preflight.py"
+          ],
+          "at": "2026-10-12T03:58:35.332Z",
+          "ms": 22538,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/PREFLIGHT-003.log",
+          "log_sha256": "daf30904953ee0b4540bf2127e4928b296077cc0f19e5fd52bdaacafb989ce7e"
+        }
+      ],
+      "notes": [
+        {
+          "at": "2026-10-12T03:51:05.871Z",
+          "by": "cline-recovery-worker",
+          "text": "User requested create a finish ledger using the finshline skill and continue please with finishing the app. Only phase-1 provenance/local tooling can advance now. No DANS1 policy change/bypass, new remote execution, engine promotion, native build, installation or main merge is authorized by this note. Skill files loaded locally because tool registry lacks finish-line-ledger."
+        }
+      ],
+      "history": [
+        {
+          "at": "2026-10-12T03:51:05.757Z",
+          "event": "added",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T03:51:05.948Z",
+          "event": "start",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T03:51:06.210Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": false,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T03:54:00.619Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": false,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T03:58:35.333Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        }
+      ]
+    },
+    {
+      "id": "SHIP",
+      "title": "Phase-1 only: complete local provenance and qualification-helper regression checks; NOT app shipment",
+      "area": "general",
+      "priority": 90,
+      "status": "open",
+      "accept": [
+        "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all"
+      ],
+      "paths": [
+        "scripts/verify_recovery_preflight.py",
+        "scripts/test_verify_recovery_preflight.py",
+        "scripts/run-recovery-ledger-check.ps1",
+        "scripts/qualify_frozen_engine.py",
+        "scripts/test_qualify_frozen_engine.py",
+        "scripts/frozen-engine-cases.mjs",
+        "scripts/run-frozen-engine-qualification.ps1",
+        "proof/growth/2026-10-11-full-studio-recovery/engine-qualification-preflight",
+        "engine/python",
+        "engine/fixtures",
+        "contracts",
+        "src/studio/bomRules.ts",
+        "src/studio/bomContract.ts",
+        "public/models/caroline",
+        "package.json",
+        "package-lock.json"
+      ],
+      "runs": [
+        {
+          "n": 1,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all",
+          "exit": 0,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [
+            "scripts/run-recovery-ledger-check.ps1",
+            "scripts/test_verify_recovery_preflight.py",
+            "scripts/verify_recovery_preflight.py"
+          ],
+          "at": "2026-10-12T04:00:58.374Z",
+          "ms": 21821,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/SHIP-001.log",
+          "log_sha256": "9cd8e07f37727b89c7346fdd126902db4e1a09f707e9e01a52a9954ec4251e2a"
+        },
+        {
+          "n": 2,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all",
+          "exit": 0,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [
+            "scripts/run-recovery-ledger-check.ps1",
+            "scripts/test_verify_recovery_preflight.py",
+            "scripts/verify_recovery_preflight.py"
+          ],
+          "at": "2026-10-12T04:03:34.986Z",
+          "ms": 34927,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/SHIP-002.log",
+          "log_sha256": "ea46c363e7fd284224cc36123d7a5e380771fe0d0baa9ecfe2b72e95d76d6c6a"
+        },
+        {
+          "n": 3,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all",
+          "exit": 1,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [
+            "scripts/run-recovery-ledger-check.ps1",
+            "scripts/test_verify_recovery_preflight.py",
+            "scripts/verify_recovery_preflight.py"
+          ],
+          "at": "2026-10-12T04:06:27.997Z",
+          "ms": 21739,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/SHIP-003.log",
+          "log_sha256": "87a6437271e5b535009fb5207a8d1f26802fbaaaf5af59f5ba10c0b7cb3262e5"
+        },
+        {
+          "n": 4,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all",
+          "exit": 0,
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "dirty": [
+            "scripts/run-recovery-ledger-check.ps1",
+            "scripts/test_verify_recovery_preflight.py",
+            "scripts/verify_recovery_preflight.py"
+          ],
+          "at": "2026-10-12T04:08:08.738Z",
+          "ms": 47139,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/SHIP-004.log",
+          "log_sha256": "2f9ce8655cab09e01d7d6724492d3f7d99b5e6f94ec7691ee11b5b2f3d76b7d4"
+        }
+      ],
+      "notes": [
+        {
+          "at": "2026-10-12T03:58:35.579Z",
+          "by": "cline-recovery-worker",
+          "text": "Depends on PREFLIGHT. Entire declared PHASE-1 test suite only. All app-level finish gates and authorization boundaries remain open in FINISH-RECOVERY.md. A phase-1 FINISHED result never approves fresh Windows engine, native app, UI, installation, release or deployment."
+        },
+        {
+          "at": "2026-10-12T03:59:25.210Z",
+          "by": "cline-recovery-worker",
+          "text": "First combined development run was interrupted by the tool 30-second boundary; no SHIP receipt was produced and no pass is claimed. Follow-up local Win32 process inspection found no check/ledger children. Temporary xray-ledger-49ffbf2ff51d45bf8bf11d0fb8a059c5 evidence is retained; future run uses a tracked local launcher and bounded checks."
+        },
+        {
+          "at": "2026-10-12T04:06:06.004Z",
+          "by": "cline-recovery-worker",
+          "text": "CONTAINMENT regression is additionally required and watched in its own item; Gate all now executes it as part of phase suite. Failure-path diagnostic temp folders are retained, not immutable acceptance evidence. No whole-product acceptance claim."
+        }
+      ],
+      "history": [
+        {
+          "at": "2026-10-12T03:58:35.473Z",
+          "event": "added",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:00:58.377Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:03:34.989Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:06:27.999Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": false,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:08:08.743Z",
+          "event": "run",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        }
+      ]
+    },
+    {
+      "id": "CONTAINMENT",
+      "title": "Actual Windows local test-owner pipe deadline and descendant cleanup",
+      "area": "general",
+      "priority": 20,
+      "status": "open",
+      "accept": [
+        "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate containment"
+      ],
+      "paths": [
+        "scripts/run-recovery-ledger-check.ps1",
+        "scripts/test_recovery_ledger_containment.py"
+      ],
+      "runs": [],
+      "notes": [],
+      "history": [
+        {
+          "at": "2026-10-12T04:06:05.875Z",
+          "event": "added",
+          "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+          "actor": "cline-recovery-worker"
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-10-12T04:08:08.776Z"
+}

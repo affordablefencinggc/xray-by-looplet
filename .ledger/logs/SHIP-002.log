@@ -1,0 +1,71 @@
+$ powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all
+Local checks: gate=all aggregateCpuCapPercent=20 flags=5 rate=2000 killOnClose=True ownerPid=51172
+Temporary test data: C:\Users\danie\AppData\Local\Temp\xray-ledger-c3565666c4334ecb920f200c3725e6e0 (never remote engine acceptance)
+CHECK evidence-tests exit=0
+test_actual_preserved_records (test_verify_recovery_preflight.PreflightEvidenceTests.test_actual_preserved_records) ... ok
+test_blocked_attempt_cannot_contain_build (test_verify_recovery_preflight.PreflightEvidenceTests.test_blocked_attempt_cannot_contain_build) ... ok
+test_bom_and_duplicate_json_handling (test_verify_recovery_preflight.PreflightEvidenceTests.test_bom_and_duplicate_json_handling) ... ok
+test_duplicated_remote_entry_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_duplicated_remote_entry_rejected) ... ok
+test_false_remote_match_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_false_remote_match_rejected) ... ok
+test_git_lf_is_equivalent_but_raw_pin_stays_exact (test_verify_recovery_preflight.PreflightEvidenceTests.test_git_lf_is_equivalent_but_raw_pin_stays_exact) ... ok
+test_missing_failure_log_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_missing_failure_log_rejected) ... ok
+test_preflight_cannot_be_promoted_to_execution (test_verify_recovery_preflight.PreflightEvidenceTests.test_preflight_cannot_be_promoted_to_execution) ... ok
+test_remote_execution_claim_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_remote_execution_claim_rejected) ... ok
+test_restriction_and_error_required (test_verify_recovery_preflight.PreflightEvidenceTests.test_restriction_and_error_required) ... ok
+test_source_edit_is_not_line_ending_normalization (test_verify_recovery_preflight.PreflightEvidenceTests.test_source_edit_is_not_line_ending_normalization) ... ok
+test_task_cleanup_cannot_be_assumed (test_verify_recovery_preflight.PreflightEvidenceTests.test_task_cleanup_cannot_be_assumed) ... ok
+test_transfer_pin_cannot_be_rewritten (test_verify_recovery_preflight.PreflightEvidenceTests.test_transfer_pin_cannot_be_rewritten) ... ok
+test_committed_addition_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_addition_rejected) ... ok
+test_committed_changed_source_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_changed_source_rejected) ... ok
+test_committed_deletion_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_deletion_rejected) ... ok
+test_committed_evidence_tamper_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_evidence_tamper_rejected) ... ok
+test_dirty_source_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_dirty_source_rejected) ... ok
+test_git_link_mode_rejected_even_with_regular_checkout (test_verify_recovery_preflight.RepositoryEvidenceTests.test_git_link_mode_rejected_even_with_regular_checkout) ... ok
+test_real_git_sources_and_raw_checkpoint (test_verify_recovery_preflight.RepositoryEvidenceTests.test_real_git_sources_and_raw_checkpoint) ... ok
+test_untracked_source_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_untracked_source_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 6.687s
+
+OK
+CHECK preserved-evidence exit=0
+{
+  "scope": "Preserved blocked-attempt provenance only",
+  "attempt": "1a9f4e6c8202",
+  "historicalSourceCommit": "5a6378320ce16b9ad801db094aea31d216e52a42",
+  "checkpoint": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+  "sourceFiles": 109,
+  "rawHelpers": 4,
+  "freshEngineQualified": false,
+  "remoteStateRechecked": false,
+  "sourceArchiveRehashed": false,
+  "appAccepted": false,
+  "limit": "ZIP/executable stay external; remote and cleanup observations are historical, not live checks."
+}
+CHECK helper-tests exit=0
+test_archive_rejects_links_extras_wrong_identity (test_qualify_frozen_engine.SnapshotTests.test_archive_rejects_links_extras_wrong_identity) ... ok
+test_case_source_binding (test_qualify_frozen_engine.SnapshotTests.test_case_source_binding) ... ok
+test_child_exit_timeout_and_log_limit (test_qualify_frozen_engine.SnapshotTests.test_child_exit_timeout_and_log_limit) ... ok
+test_duplicate_casefold_and_hash (test_qualify_frozen_engine.SnapshotTests.test_duplicate_casefold_and_hash) ... ok
+test_engine_snapshot_scope (test_qualify_frozen_engine.SnapshotTests.test_engine_snapshot_scope) ... ok
+test_member_hash_mismatch (test_qualify_frozen_engine.SnapshotTests.test_member_hash_mismatch) ... ok
+test_roundtrip_and_no_overwrite (test_qualify_frozen_engine.SnapshotTests.test_roundtrip_and_no_overwrite) ... ok
+test_strict_json (test_qualify_frozen_engine.SnapshotTests.test_strict_json) ... ok
+test_unsafe_names (test_qualify_frozen_engine.SnapshotTests.test_unsafe_names) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.417s
+
+OK
+CHECK node-syntax exit=0
+PowerShell syntax PASS: run-frozen-engine-qualification.ps1
+PowerShell syntax PASS: run-recovery-ledger-check.ps1
+CHECK new-snapshot exit=0
+{"sourceCommit": "cbd1d45ef184f04d2a8a3869af50a387783e0f63", "files": 109, "bytes": 25068071}
+CHECK six-reference-cases exit=0
+{"output":"C:\\Users\\danie\\AppData\\Local\\Temp\\xray-ledger-c3565666c4334ecb920f200c3725e6e0\\snapshot\\cases.json","cases":6,"sourceFiles":842,"sha256":"82f8c3f3da7140fac6636943bd42024640a0fa36ea20383594cfe4771c6d6a61"}
+CHECK reference-binding exit=0
+Current HEAD reference/snapshot binding PASS; no frozen engine executed
+LOCAL TOOLING CHECKS PASS; frozen-engine/native/install gates remain unaccepted.
+Job accounting: activeProcesses=1 (this owner only); no task descendants remain.
+Local temporary test directory removed after child-job accounting.

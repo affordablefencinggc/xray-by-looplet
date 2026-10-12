@@ -1,5 +1,15 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — recovery finish-ledger continuation
+
+Existing branch `recovery/full-studio-20261011` reused at
+`cbd1d45ef184f04d2a8a3869af50a387783e0f63`; no new branch/worktree.
+Scope: root phase-1 finish ledger, retained-preflight verifier, bounded local
+regression/containment checks, and app-level roadmap `FINISH-RECOVERY.md`.
+Status and exact executed receipts: root `LEDGER.md` / `.ledger/logs/`.
+No merge/push, policy change, DANS1 retry, engine pin update, product edit or
+installation. Main remains `be29918ad5aa466ec0f67a0d5742af23634483a9`.
+
 | Date | Branch | Baseline | Purpose | Disposition |
 |---|---|---|---|---|
 | 2026-09-04 | `feat/v1-production-ready` | `c3ac22cd059d522a44156b6372b1219b0d023dca` | Truth reset, focused fencing UI, then ordered product completion | Active; no merge or release requested |

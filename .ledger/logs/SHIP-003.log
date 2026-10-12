@@ -1,0 +1,80 @@
+$ powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all
+Local checks: gate=all aggregateCpuCapPercent=20 flags=5 rate=2000 killOnClose=True ownerPid=73132
+Temporary test data: C:\Users\danie\AppData\Local\Temp\xray-ledger-33e08a2dd2434fb1b62ec77b41bd09bd (never remote engine acceptance)
+CHECK evidence-tests exit=0
+test_actual_preserved_records (test_verify_recovery_preflight.PreflightEvidenceTests.test_actual_preserved_records) ... ok
+test_blocked_attempt_cannot_contain_build (test_verify_recovery_preflight.PreflightEvidenceTests.test_blocked_attempt_cannot_contain_build) ... ok
+test_bom_and_duplicate_json_handling (test_verify_recovery_preflight.PreflightEvidenceTests.test_bom_and_duplicate_json_handling) ... ok
+test_duplicated_remote_entry_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_duplicated_remote_entry_rejected) ... ok
+test_false_remote_match_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_false_remote_match_rejected) ... ok
+test_git_lf_is_equivalent_but_raw_pin_stays_exact (test_verify_recovery_preflight.PreflightEvidenceTests.test_git_lf_is_equivalent_but_raw_pin_stays_exact) ... ok
+test_missing_failure_log_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_missing_failure_log_rejected) ... ok
+test_preflight_cannot_be_promoted_to_execution (test_verify_recovery_preflight.PreflightEvidenceTests.test_preflight_cannot_be_promoted_to_execution) ... ok
+test_remote_execution_claim_rejected (test_verify_recovery_preflight.PreflightEvidenceTests.test_remote_execution_claim_rejected) ... ok
+test_restriction_and_error_required (test_verify_recovery_preflight.PreflightEvidenceTests.test_restriction_and_error_required) ... ok
+test_source_edit_is_not_line_ending_normalization (test_verify_recovery_preflight.PreflightEvidenceTests.test_source_edit_is_not_line_ending_normalization) ... ok
+test_task_cleanup_cannot_be_assumed (test_verify_recovery_preflight.PreflightEvidenceTests.test_task_cleanup_cannot_be_assumed) ... ok
+test_transfer_pin_cannot_be_rewritten (test_verify_recovery_preflight.PreflightEvidenceTests.test_transfer_pin_cannot_be_rewritten) ... ok
+test_committed_addition_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_addition_rejected) ... ok
+test_committed_changed_source_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_changed_source_rejected) ... ok
+test_committed_deletion_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_deletion_rejected) ... ok
+test_committed_evidence_tamper_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_committed_evidence_tamper_rejected) ... ok
+test_dirty_source_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_dirty_source_rejected) ... ok
+test_git_link_mode_rejected_even_with_regular_checkout (test_verify_recovery_preflight.RepositoryEvidenceTests.test_git_link_mode_rejected_even_with_regular_checkout) ... ok
+test_real_git_sources_and_raw_checkpoint (test_verify_recovery_preflight.RepositoryEvidenceTests.test_real_git_sources_and_raw_checkpoint) ... ok
+test_untracked_source_rejected (test_verify_recovery_preflight.RepositoryEvidenceTests.test_untracked_source_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 5.397s
+
+OK
+CHECK preserved-evidence exit=0
+{
+  "scope": "Preserved blocked-attempt provenance only",
+  "attempt": "1a9f4e6c8202",
+  "historicalSourceCommit": "5a6378320ce16b9ad801db094aea31d216e52a42",
+  "checkpoint": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
+  "sourceFiles": 109,
+  "rawHelpers": 4,
+  "freshEngineQualified": false,
+  "remoteStateRechecked": false,
+  "sourceArchiveRehashed": false,
+  "appAccepted": false,
+  "limit": "ZIP/executable stay external; remote and cleanup observations are historical, not live checks."
+}
+CHECK runner-containment-test exit=1
+test_exited_child_pipe_holder_is_bounded_and_killed (__main__.ContainmentTests.test_exited_child_pipe_holder_is_bounded_and_killed) ... FAIL
+
+======================================================================
+FAIL: test_exited_child_pipe_holder_is_bounded_and_killed (__main__.ContainmentTests.test_exited_child_pipe_holder_is_bounded_and_killed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\test_recovery_ledger_containment.py", line 68, in test_exited_child_pipe_holder_is_bounded_and_killed
+    self.assertTrue("Redirected output drain deadline exceeded" in output or "Owned descendants remain" in output,
+AssertionError: False is not true : Fixture failed for the wrong reason:
+Local checks: gate=containment-fixture aggregateCpuCapPercent=20 flags=5 rate=2000 killOnClose=True ownerPid=83156
+Temporary test data: C:\Users\danie\AppData\Local\Temp\xray-ledger-b87e471daf4249a382cd7f002031e4df (never remote engine acceptance)
+CHECK pipe-descendant-fixture exit=0
+FAIL: retained diagnostic directory C:\Users\danie\AppData\Local\Temp\xray-ledger-b87e471daf4249a382cd7f002031e4df; job terminates with owner exit
+C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-recovery-ledger-check.ps1 
+: Exception calling "ReadAllText" with "1" argument(s): "The process cannot access the file 
+'C:\Users\danie\AppData\Local\Temp\xray-ledger-b87e471daf4249a382cd7f002031e4df\pipe-descendant-fixture.stdout.log' 
+because it is being used by another process."
+    + CategoryInfo          : NotSpecified: (:) [run-recovery-ledger-check.ps1], MethodInvocationException
+    + FullyQualifiedErrorId : IOException,run-recovery-ledger-check.ps1
+ 
+
+
+----------------------------------------------------------------------
+Ran 1 test in 1.126s
+
+FAILED (failures=1)
+FAIL: retained diagnostic directory C:\Users\danie\AppData\Local\Temp\xray-ledger-33e08a2dd2434fb1b62ec77b41bd09bd; job terminates with owner exit
+Check failed: runner-containment-test
+At C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-recovery-ledger-check.p
+s1:96 char:27
++     if($p.ExitCode -ne 0){throw "Check failed: $Name"}
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Check failed: runner-containment-test:String) [], RuntimeException
+    + FullyQualifiedErrorId : Check failed: runner-containment-test
+ 

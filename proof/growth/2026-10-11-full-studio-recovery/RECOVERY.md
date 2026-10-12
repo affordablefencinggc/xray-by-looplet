@@ -2,6 +2,11 @@
 
 ## Current continuation — October 12, 2026
 
+App finish gates are consolidated in the root `FINISH-RECOVERY.md`. The new root
+`LEDGER.md` tracks only mechanically verified phase-1 provenance/local tooling;
+its completion is not engine, native-app or installation acceptance. The old
+`finish-line/` conveyor remains historical and must not be used to push `main`.
+
 Earlier status paragraphs below are historical campaign snapshots. `main` remains at `be29918a`; continuation work is on `recovery/full-studio-20261011` only. **The complete CI/distribution matrix is green** for exact tested code `c93ae1e7354e7d295196ab5db0d363ed9e1a34eb`, run `38150581911`, completed `2026-10-11T15:38:33Z` (October 12 local continuation date). Web, SC-07, Windows and Ubuntu jobs all succeeded. This closes CI/package-build acceptance only; installed launch, qualified native runtime, macOS and deployment remain unaccepted. [Final separate step proof](steps/ci-matrix-final.md).
 
 - [x] Repair/preflight the native CI build path: [separate step proof](steps/ci-native-build-preflight.md); subsequent remote acceptance is in the final proof.
