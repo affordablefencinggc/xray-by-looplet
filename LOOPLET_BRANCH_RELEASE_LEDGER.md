@@ -1,5 +1,13 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — declared coverage clean worker and independent proof
+
+Code `0c94244c` on existing recovery branch: clean worker `cda4407665ca` and
+independent `175274719595`, 40 tests each, zero skips, queried 20% cap, source
+hashes/exits/cleanup checked. Separate declared-coverage proof records exact
+limits; authenticated inventory/collector/engine/app acceptance remains open.
+No old code/pin/phase-1 receipts changed; no push, merge or installation.
+
 ## October 12, 2026 — clean artifact worker and independent proof
 
 Code checkpoint `9cc49c9c` on the existing recovery branch has clean worker

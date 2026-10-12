@@ -1,9 +1,16 @@
 # Next qualification gate: trusted preparation and collection
 
-October 12, 2026. **Reviewed design, NOT implemented or executed.** This file
+October 12, 2026. **Trusted observer/collector design, NOT implemented or executed.** This file
 preserves concrete findings from independent design reviews `run_00033`,
 `run_00037`, `run_00038`. DANS1 operation is authorized; no permission re-request
 is needed. Stop before installation. Keep legacy producers/pin/receipts unchanged.
+
+The separate declared-coverage consistency gate now has worker and independent
+executed proof at `0c94244c` (19 coverage regressions plus 21 preflight). This checks
+declared identities only, not trusted collection or full function/parameter coverage.
+Its exact narrow `xray.collected-tests/v1` schema must be wrapped/versioned by a
+future richer observer envelope, not silently extended. See the separate
+`declared-coverage-executed.md` step. Steps 1 and 3 below remain unimplemented.
 
 ## Why the offline gate is insufficient
 

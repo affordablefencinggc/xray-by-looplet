@@ -72,9 +72,14 @@ Next additive slice: `scripts/verify_qualification_coverage.py`, its tests and
 inventory with exact JUnit identities, require every in-scope snapshot test module
 represented and zero skips/errors/failures. They do **not** authenticate inventory,
 map pytest rootdir, prove all functions/parameters collected, or replace artifact
-validation. Static review `run_00041` approved this narrow scope. Development
-`b0bd64d1f8f7` passed 21 preflight + 19 coverage tests with queried 20% cap and
-zero exits; clean worker and independent coverage proof are next.
+validation. Static review `run_00041` approved this narrow scope. Clean worker
+`cda4407665ca` and independent `175274719595` passed 21 preflight + 19 coverage
+tests at `0c94244c`, zero skips, queried 20% cap, unchanged nine hashes, zero exits
+and owned cleanup. Separate proof:
+`proof/growth/2026-10-11-full-studio-recovery/steps/declared-coverage-executed.md`.
+Development `b0bd64d1f8f7` is retained separately. The independent short run had no
+live external transient-process snapshot; retained handles, self-CIM, exit and job
+accounting are documented without overstating observation coverage.
 
 ## Previous slice — terminal-record prerequisite
 
@@ -140,11 +145,12 @@ Each test run uses `terminal-records-<id>` plus tracked
 
 ## Next action
 
-Implement trusted source-bound test preparation/coverage and separately pinned
+Implement trusted source-bound test preparation/observer and separately pinned
 execution/collection around the unchanged legacy producers, using the concrete
-contract in `QUALIFICATION-COLLECTION-PLAN.md`. The additive artifact validator
-already has clean worker and independent proof. Full source/test inventory and warning/skip review are
-not established by a self-consistent bundle. Do not weaken deadlines or assertions.
+contract in `QUALIFICATION-COLLECTION-PLAN.md`. The additive artifact and
+declared-coverage validators already have clean worker and independent proof.
+Full source/test inventory and warning/skip review are not established by a
+self-consistent bundle. Do not weaken deadlines or assertions.
 Use a new immutable local run ID with the following entrypoint; monitor a tracked
 bounded supervisor asynchronously because foreground commands time out after 30 seconds:
 
@@ -152,9 +158,9 @@ bounded supervisor asynchronously because foreground commands time out after 30 
 powershell.exe -NoProfile -File C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-artifact-evidence-check.ps1 -RunId <new-12-hex-id> -Actor <worker-name>
 ```
 
-The new prerequisite is not yet registered as a verified machine-ledger item. Do not
+The new gates are not registered as verified root machine-ledger items. Do not
 change the scope/acceptance of completed phase 1 to pretend it covers this work.
-Do not call gate 3 or the app complete. Continue full terminal binding/artifact
-validation after proving the prerequisite, or
+Do not call gate 3 or the app complete. Continue trusted terminal binding/collection
+and source/test preparation, or
 independently reproducible tablet/desktop UI work with fresh capped browser proof.
 Follow `FINISH-RECOVERY.md` for remaining gates and `LEDGER.md` for phase 1 only.

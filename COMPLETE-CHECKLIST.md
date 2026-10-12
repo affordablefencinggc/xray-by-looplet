@@ -1,5 +1,14 @@
 # Verified Completion Checklist
 
+## October 12, 2026 — declared-coverage tooling independently executed
+
+- Clean `0c94244c`: worker `cda4407665ca`, verifier `175274719595`, 21 preflight
+  + 19 coverage tests each, zero skips, 109 sources/four helpers, queried 20% cap,
+  nine hashes unchanged, zero exits and owned cleanup.
+- Separate proof: `proof/growth/2026-10-11-full-studio-recovery/steps/declared-coverage-executed.md`.
+- Declared JUnit/inventory consistency only; no authenticated complete test
+  inventory or engine/app acceptance. Trusted observer/collector remains open.
+
 ## October 12, 2026 — artifact-consistency tooling independently executed
 
 - Clean `9cc49c9c`: worker `949c60f956ac`, independent `a98a9486919b`; 95 tests
