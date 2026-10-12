@@ -41,6 +41,46 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice — automatic plan linework tracer (first milestone)
+
+Owner `cline-plan-tracer-20261013`. Baseline HEAD
+`2b41314d068610e4e8a170dc2dfc3dd84ef7ff39`. Reply to the user's question about the
+four existing 3D models: they are hand-authored, per-project and hash-locked
+(Ruffles 74 traced / 198 inferred of 272, Caroline 146 traced + 21 dimensioned of
+1180, Redburn **0 of 198** traced, Crown Wharf **0 of 2180** traced), and each
+declares itself *not automated PDF-to-BIM* and produces no quantities. The missing
+capability is the general tracer, which this slice begins.
+
+Added, purely additive (`engine.run`, `source_wireframe.py`, `source_building.py`,
+the packs, `job_bom.py` and phase-1 receipts are untouched):
+
+- `engine/python/xray/plan_trace.py` — closed axis-aligned quadrilateral wall bands
+  with measured thickness, collinear merging, traced gaps, `xray.source-building/v1`
+  emission, `validate_trace_scene`, CLI.
+- `engine/python/xray/test_plan_trace.py` — 26 tests + 14 subtests, including a real
+  pikepdf end-to-end run.
+
+Executed: **26 passed / 14 subtests** for the new module, and **197 passed, 1 skipped**
+(pre-existing skip, 223 subtests) for the rest of `engine/python/xray`, so no
+regression. CI already runs `python -m pytest engine/python/xray engine/server -q`,
+so no manifest change is needed.
+
+Real Wardoo sheet 6: exit 0, `sceneSha256 fa5e0d0a…1d32`, 73 wall runs / 2 openings /
+75 objects, measured thickness 78.5–337.3 mm (median 277.8). **The result is not yet
+trustworthy**: 66 horizontal against 7 vertical bands, spread across the whole sheet,
+means non-wall closed rectangles (title-block cells, hatching, treads) are still
+being captured, open double-line walls are not recovered, and the 1:100 calibration
+remains `verified: false`. This is a presentation geometry pipeline milestone, not a
+takeoff and not a building reconstruction. Proof:
+`proof/growth/2026-10-13-plan-trace/steps/plan-tracer-milestone.md`; raw evidence,
+logs and the written scene in
+`xray-recovery-evidence\plan-trace-20261013-fb27c4e1a0d9\`.
+
+Next required step: plan-region isolation (reject title block and off-plan geometry),
+then recovery of open double-line walls, then re-check the horizontal/vertical
+balance against sheet 6 before anything feeds the residential pack.
+
+
 ## 2026-10-13 continuation slice — registered targeted regression on the dirty tree
 
 Owner `cline-continuation-20261013`; exclusive lock at
