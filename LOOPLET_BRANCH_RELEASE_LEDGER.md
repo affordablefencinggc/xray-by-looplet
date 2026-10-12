@@ -1,5 +1,14 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — clean artifact worker and independent proof
+
+Code checkpoint `9cc49c9c` on the existing recovery branch has clean worker
+`949c60f956ac` and independent verifier `a98a9486919b`: 95 tests each, zero skips,
+20% queried cap, source/exit/cleanup checks. Separate artifact-consistency step
+and reviewed next collection/preparation plan added. All engine/app acceptance
+flags remain false. No producer/helper/pin/phase-1 receipt changes, push, merge,
+engine qualification launch or installation.
+
 ## October 12, 2026 — terminal executed proof and additive artifact checks
 
 Existing recovery branch reused at clean `280c61a0`; separate worker and verifier

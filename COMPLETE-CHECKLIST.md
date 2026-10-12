@@ -1,5 +1,15 @@
 # Verified Completion Checklist
 
+## October 12, 2026 — artifact-consistency tooling independently executed
+
+- Clean `9cc49c9c`: worker `949c60f956ac`, independent `a98a9486919b`; 95 tests
+  each, zero skips, 109 preserved sources/four helpers, actual Windows junction
+  rejection, queried 20% CPU cap, unchanged 11 hashes, zero exits and owned cleanup.
+- Separate proof: `proof/growth/2026-10-11-full-studio-recovery/steps/artifact-consistency-executed.md`.
+- This is synthetic structural tooling, NOT fresh engine or app acceptance.
+  Trusted preparation/collection remains engineering work; concrete unexecuted
+  design: `QUALIFICATION-COLLECTION-PLAN.md`. Historical phase-1 receipts unchanged.
+
 ## October 12, 2026 — terminal prerequisite independently executed
 
 - Unchanged clean `280c61a0`: worker `b212a4926b37`, independent verifier

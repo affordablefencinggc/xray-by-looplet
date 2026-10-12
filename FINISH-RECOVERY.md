@@ -102,8 +102,12 @@ queried cap and cleanup. See the separate `terminal-prerequisite-executed.md` st
 and `CONTINUATION.md`. It is not the complete validator
 and cannot close this gate: the legacy owner exit lacks attempt/owner/hash binding,
 and full artifact/log/toolchain/fixture validation and trusted collection remain open.
-Additive artifact consistency validation is now being implemented and tested;
-even a structurally consistent bundle is not authenticated execution or acceptance.
+Additive artifact consistency validation has clean worker and independent proof at
+`9cc49c9c`: 95 tests, zero skips, queried 20% cap and cleanup; separate
+`artifact-consistency-executed.md` step. Even a structurally consistent bundle is
+not authenticated execution or acceptance. Implement the reviewed but unexecuted
+`QUALIFICATION-COLLECTION-PLAN.md` next; source/test coverage and warning review
+remain required. No fresh DANS1 engine qualification has been launched.
 Then create a new 12-hex-ID snapshot/cases/transfer set at the actual source commit;
 validate and independently rehash transferred inputs and the owner script.
 
