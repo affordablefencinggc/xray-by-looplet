@@ -1,0 +1,27 @@
+$ powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate containment
+Local checks: gate=containment aggregateCpuCapPercent=20 flags=5 rate=2000 killOnClose=True ownerPid=77800
+Temporary test data: C:\Users\danie\AppData\Local\Temp\xray-ledger-eca1d86d918f4d1984bd8aa557099aa3 (never remote engine acceptance)
+CHECK runner-containment-test exit=0
+Local checks: gate=containment-fixture aggregateCpuCapPercent=20 flags=5 rate=2000 killOnClose=True ownerPid=8704
+Temporary test data: C:\Users\danie\AppData\Local\Temp\xray-ledger-11f6818ae68748fb894b55259fe087e9 (never remote engine acceptance)
+FAIL: retained diagnostic directory C:\Users\danie\AppData\Local\Temp\xray-ledger-11f6818ae68748fb894b55259fe087e9; job terminates with owner exit
+
+Owned descendants remain; containing job will terminate on owner exit
+At C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-recovery-ledger-check.p
+s1:96 char:40
++ ... ve() -ne 1){throw 'Owned descendants remain; containing job will term ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Owned descendan...e on owner exit:String) [], RuntimeException
+    + FullyQualifiedErrorId : Owned descendants remain; containing job will terminate on owner exit
+ 
+
+Actual Windows containment: exited child + live pipe-holder -> bounded owner failure; retained descendant handle signaled.
+test_exited_child_pipe_holder_is_bounded_and_killed (__main__.ContainmentTests.test_exited_child_pipe_holder_is_bounded_and_killed) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 11.241s
+
+OK
+LOCAL TOOLING CHECKS PASS; frozen-engine/native/install gates remain unaccepted.
+Job accounting: activeProcesses=1 (this owner only); no task descendants remain.
+Local temporary test directory removed after child-job accounting.

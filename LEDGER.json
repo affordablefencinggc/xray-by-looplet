@@ -8,7 +8,7 @@
       "title": "Verify preserved engine inputs and blocked-attempt evidence without conflating CRLF and LF",
       "area": "general",
       "priority": 10,
-      "status": "in_progress",
+      "status": "verified",
       "accept": [
         "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight"
       ],
@@ -77,6 +77,32 @@
           "actor": "cline-recovery-worker",
           "log": ".ledger/logs/PREFLIGHT-003.log",
           "log_sha256": "daf30904953ee0b4540bf2127e4928b296077cc0f19e5fd52bdaacafb989ce7e"
+        },
+        {
+          "n": 4,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight",
+          "exit": 0,
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "dirty": [],
+          "at": "2026-10-12T04:10:00.762Z",
+          "ms": 34176,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/PREFLIGHT-004.log",
+          "log_sha256": "7cb1d5a8e9da0834be3c33d718af5b15ca7d99b71fad118890a919515a8aeb53"
+        },
+        {
+          "n": 5,
+          "role": "verifier",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate preflight",
+          "exit": 0,
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "dirty": [],
+          "at": "2026-10-12T04:13:46.692Z",
+          "ms": 32137,
+          "actor": "finish-ledger-review",
+          "log": ".ledger/logs/PREFLIGHT-005.log",
+          "log_sha256": "bad020779e5b9b869962379d73ea3b4f47fb8ab79b6515568e8a7004e9b32a76"
         }
       ],
       "notes": [
@@ -122,15 +148,59 @@
           "actor": "cline-recovery-worker",
           "ok": true,
           "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:09:26.401Z",
+          "event": "start",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:10:00.766Z",
+          "event": "run",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:10:00.951Z",
+          "event": "done",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:13:46.766Z",
+          "event": "verified",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "finish-ledger-review",
+          "by": "finish-ledger-review"
         }
-      ]
+      ],
+      "done": {
+        "at": "2026-10-12T04:10:00.919Z",
+        "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+        "by": "cline-recovery-worker",
+        "runs": [
+          4
+        ]
+      },
+      "verified": {
+        "at": "2026-10-12T04:13:46.729Z",
+        "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+        "by": "finish-ledger-review",
+        "note": "Adversarially reviewed immutable checkpoint and HEAD raw-byte anchors, CRLF-only helper equivalence, exact transfer pin, actual preserved policy log, selected-source modes/hashes/inventory and real-Git tamper regressions. Claims exclude fresh engine, external archive hashing and live remote cleanup.",
+        "runs": [
+          5
+        ]
+      }
     },
     {
       "id": "SHIP",
       "title": "Phase-1 only: complete local provenance and qualification-helper regression checks; NOT app shipment",
       "area": "general",
       "priority": 90,
-      "status": "open",
+      "status": "verified",
       "accept": [
         "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all"
       ],
@@ -220,6 +290,32 @@
           "actor": "cline-recovery-worker",
           "log": ".ledger/logs/SHIP-004.log",
           "log_sha256": "2f9ce8655cab09e01d7d6724492d3f7d99b5e6f94ec7691ee11b5b2f3d76b7d4"
+        },
+        {
+          "n": 5,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all",
+          "exit": 0,
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "dirty": [],
+          "at": "2026-10-12T04:10:54.118Z",
+          "ms": 40364,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/SHIP-005.log",
+          "log_sha256": "a9de514f2d2824925bb79b7ac85236a15a1017a2c6e005e0d674c5f4e9762bc3"
+        },
+        {
+          "n": 6,
+          "role": "verifier",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate all",
+          "exit": 0,
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "dirty": [],
+          "at": "2026-10-12T04:14:40.439Z",
+          "ms": 39516,
+          "actor": "finish-ledger-review",
+          "log": ".ledger/logs/SHIP-006.log",
+          "log_sha256": "98231a946d31e13b71f98b4b5c38e643dfb1f0f18d7ec511f1ab12640fc951b2"
         }
       ],
       "notes": [
@@ -237,6 +333,11 @@
           "at": "2026-10-12T04:06:06.004Z",
           "by": "cline-recovery-worker",
           "text": "CONTAINMENT regression is additionally required and watched in its own item; Gate all now executes it as part of phase suite. Failure-path diagnostic temp folders are retained, not immutable acceptance evidence. No whole-product acceptance claim."
+        },
+        {
+          "at": "2026-10-12T04:16:46.661Z",
+          "by": "cline-recovery-worker",
+          "text": "Independent verification run_00020 completed at0946285b, actor finish-ledger-review, phase1 only. External tracked verifier owner PID82580/creation2026-10-12T04:13:13.7704010Z exited0 with no matching task processes; tracking at C:\\Users\\danie\\Documents\\Codex\\2026-10-03\\qu\\work\\az-web-bundle-r2\\xray-recovery-evidence\\finish-verifier-f2ff59092258. CLI SHA256 dc7a7b7c7a5fa2e82ed5c15d7e839c748d4185ba41f6516f4d6d70caf4f2ed2e; repairs.mjs 1f37bd91e8e169d82e078f8f2f36f145ccdabf85beeb6495f53ddacce10cec32. App gates remain open in FINISH-RECOVERY.md."
         }
       ],
       "history": [
@@ -277,15 +378,59 @@
           "actor": "cline-recovery-worker",
           "ok": true,
           "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:10:13.553Z",
+          "event": "start",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:10:54.123Z",
+          "event": "run",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:10:54.320Z",
+          "event": "done",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:14:40.512Z",
+          "event": "verified",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "finish-ledger-review",
+          "by": "finish-ledger-review"
         }
-      ]
+      ],
+      "done": {
+        "at": "2026-10-12T04:10:54.289Z",
+        "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+        "by": "cline-recovery-worker",
+        "runs": [
+          5
+        ]
+      },
+      "verified": {
+        "at": "2026-10-12T04:14:40.476Z",
+        "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+        "by": "finish-ledger-review",
+        "note": "Reviewed complete bounded phase-1 suite composition including independent containment item, current snapshot/reference binding and helper tests. Rejects conflating local TypeScript/source provenance with frozen execution. FINISH-RECOVERY preserves staging/native/UI/full-product/signing/install/human gates; this is not application shipment.",
+        "runs": [
+          6
+        ]
+      }
     },
     {
       "id": "CONTAINMENT",
       "title": "Actual Windows local test-owner pipe deadline and descendant cleanup",
       "area": "general",
       "priority": 20,
-      "status": "open",
+      "status": "verified",
       "accept": [
         "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate containment"
       ],
@@ -293,7 +438,34 @@
         "scripts/run-recovery-ledger-check.ps1",
         "scripts/test_recovery_ledger_containment.py"
       ],
-      "runs": [],
+      "runs": [
+        {
+          "n": 1,
+          "role": "worker",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate containment",
+          "exit": 0,
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "dirty": [],
+          "at": "2026-10-12T04:10:13.243Z",
+          "ms": 11949,
+          "actor": "cline-recovery-worker",
+          "log": ".ledger/logs/CONTAINMENT-001.log",
+          "log_sha256": "19b30b3d43631d10b96e9974a8a125a7d8b6212eed421af540fb1a60b1d208ed"
+        },
+        {
+          "n": 2,
+          "role": "verifier",
+          "cmd": "powershell.exe -NoProfile -File scripts/run-recovery-ledger-check.ps1 -Gate containment",
+          "exit": 0,
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "dirty": [],
+          "at": "2026-10-12T04:14:00.179Z",
+          "ms": 12876,
+          "actor": "finish-ledger-review",
+          "log": ".ledger/logs/CONTAINMENT-002.log",
+          "log_sha256": "405bef47c9101f472a2d3b16abea13e23c57d36673aaee019eba8b3a45cb2db7"
+        }
+      ],
       "notes": [],
       "history": [
         {
@@ -301,9 +473,53 @@
           "event": "added",
           "head": "cbd1d45ef184f04d2a8a3869af50a387783e0f63",
           "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:10:01.089Z",
+          "event": "start",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:10:13.247Z",
+          "event": "run",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker",
+          "ok": true,
+          "role": "worker"
+        },
+        {
+          "at": "2026-10-12T04:10:13.430Z",
+          "event": "done",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "cline-recovery-worker"
+        },
+        {
+          "at": "2026-10-12T04:14:00.267Z",
+          "event": "verified",
+          "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+          "actor": "finish-ledger-review",
+          "by": "finish-ledger-review"
         }
-      ]
+      ],
+      "done": {
+        "at": "2026-10-12T04:10:13.402Z",
+        "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+        "by": "cline-recovery-worker",
+        "runs": [
+          1
+        ]
+      },
+      "verified": {
+        "at": "2026-10-12T04:14:00.223Z",
+        "head": "0946285b08713fb155d6ae08b8d60c3ba1d2f8b3",
+        "by": "finish-ledger-review",
+        "note": "Reviewed queried 20 percent inherited CPU job, noninheritable kill-on-close handle, bounded output and descendant drain before log reads, actual pipe-holding 180-second descendant, retained process-handle identity/termination assertions, strict intended failure reason, fallback cleanup and diagnostic retention; not hostile-code or engine isolation certification.",
+        "runs": [
+          2
+        ]
+      }
     }
   ],
-  "updated_at": "2026-10-12T04:08:08.776Z"
+  "updated_at": "2026-10-12T04:16:46.661Z"
 }

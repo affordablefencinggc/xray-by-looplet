@@ -1,5 +1,27 @@
 # Verified Completion Checklist
 
+## October 12, 2026 — recovery phase-1 provenance/local tooling only
+
+- Code/document commit: `0946285b08713fb155d6ae08b8d60c3ba1d2f8b3` on
+  `recovery/full-studio-20261011`; root app roadmap `FINISH-RECOVERY.md`, actual
+  local finish-line skill ledger, preserved-preflight verifier, capped runner and tests.
+- Executed clean worker proof followed by independent `finish-ledger-review`
+  reruns: `PREFLIGHT`, `CONTAINMENT`, `SHIP` all verified in root `LEDGER.md`.
+  Exact independent receipts: `.ledger/logs/PREFLIGHT-005.log`,
+  `.ledger/logs/CONTAINMENT-002.log`, `.ledger/logs/SHIP-006.log`.
+- 21 evidence/real-Git regressions, one actual Windows pipe-holder/descendant
+  cleanup regression, nine helper tests, six newly generated TypeScript reference
+  cases and current snapshot bindings; Node/PowerShell syntax checks.
+  Queried aggregate CPU cap 20%, inherited child membership, kill-on-close and
+  owner-only final job accounting. Raw receipt hashes checked; failure/development
+  receipts preserved rather than edited or discarded.
+- `ledger check` reports three verified items and exit zero **for phase 1 only**.
+  This does not qualify a frozen engine, native app, full product regression,
+  installed launch or release. DANS1 execution method still needs explicit
+  authorization; preserved attempt `1a9f4e6c8202` remains blocked and unchanged.
+- No product/transport/historical engine pin changes, remote retry, policy change,
+  push, merge or installation. Main remains `be29918a`. Stop before installation.
+
 ## 2026-09-04 — SC-00 Feature truth reset
 
 - Code/document diff: `XRAY-MASTER-LEDGER.md`, `XRAY-TOPDOWN-MINDMAP-TODO.md`.
