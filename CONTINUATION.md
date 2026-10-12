@@ -50,18 +50,23 @@ had been measured through them.
 
 1. **Calibration.** The tracer ran at 1:100 (the engine's paper-size prior,
    `scale.py::vote_scale`, weight 0.5, `verified:false`) on a sheet whose title block
-   says `SCALE: 1:50 @ A3`. The drawing settles it: the gaps between collinear wall
-   bands on the bottom wall measure 48.2 pt and on the top wall 85.6 pt, which is
-   **850.0 mm and 1510.0 mm at 1:50 (17.6389 mm/pt)** and 1700/3020 mm at 1:100 — and
-   850 and 1510 are exactly what the sheet annotates there (`1800H-850W ASW` twice,
-   `1200H-1510W ASW`, `1800H-1510W ASW`). Every length and thickness in the artifact was
-   therefore twice its real value, including the "median 220 mm wall" that had been read
-   as confirmation of brick veneer; 90 mm is a brick leaf.
-2. **Walls were read by shape.** Page 6 has 260 filled paths: 50 black (3493.5 pt of
-   width — the wall poche), 193 white (6271.6 pt — the background panel behind every
-   text label and title-block cell) and 17 cyan (9.3 pt — the pan inside each window
+   says `SCALE: 1 : 50 @ A3`. The title block text and the six exact opening matches below
+   both confirm 1:50; the original argument also measured gaps between collinear wall bands
+   on the bottom wall at 48.2 pt and the top wall at 85.6 pt, i.e. 850.0 mm and 1510.0 mm at
+   1:50 (17.6389 mm/pt) and 1700/3020 mm at 1:100, against the sheet's own `-850W` (twice)
+   and `-1510W` (three times) window codes. **That gap table is not independently
+   reproducible** (PyMuPDF merges those bands into one 505.4 pt path drawn with polylines),
+   so it is recorded as the observation that found the error, not as the proof of it. Every
+   length and thickness in the artifact was twice its real value, including the "median
+   220 mm wall" that had been read as confirmation of brick veneer; 90 mm is a brick leaf.
+2. **Walls were read by shape.** Page 6 has 260 filled paths, and the counts are confirmed
+   by a second PDF engine: 50 black (the wall poche), 193 white (the background panel
+   behind every text label and title-block cell) and 17 cyan (the pan inside each window
    symbol). All three are closed rectangles of wall thickness, so the old reader read
-   the sheet's text panels and window pans as walls. `extract_pdf` now records paint
+   the sheet's text panels and window pans as walls. (The `Σ bbox width` figures first
+   quoted here — 3493.5 / 6271.6 / 9.3 pt — are `sum|right-left|` of bounding boxes, which
+   measures a vertical band's thickness rather than its length, so they are not wall lengths
+   and only the counts should be used.) `extract_pdf` now records paint
    mode and fill colour per path (additive; commands and every other field unchanged)
    and `wall_bands` reads a wall only from a **filled dark** band, with documented
    fallbacks to outlines and to shape-only behaviour, and `readMode`
@@ -79,10 +84,41 @@ all from filled poche**, extent **12.69 x 7.07 m**, thickness min/median/max
 the depth annotated on the sheet and the 7070 mm the residential pack derived from the
 page-5 dimension chains (0.2% agreement, a genuinely independent path); the 15255 mm
 overall width includes the alfresco strip, which this drawing dashes and does not paint,
-so the poche reader correctly does not claim it. All ten openings land on an annotated
-width (1510/1510/1510/850/850/870/830/916/1478/2400 mm against `...-1510W ASW`, the two
-`...-850W ASW`, `870 @2040`, `820 @2040`, `920`, `1500`, `3900H-2400W`); the 600 mm
-`900H-600W ASW` window is still missed and that is stated, not rounded away.
+so the poche reader correctly does not claim it.
+
+**Openings — corrected after an audit, because the first version of this entry
+over-claimed.** Six of the ten traced openings sit exactly on a width the drawing
+annotates (`-1510W` x3, `-850W` x2, `-2400W`), and at 1:100 none of them would. The other
+four do not: 830 mm is traced across a window annotated `-600W` (a 230 mm error, not the
+"missed window" this entry first claimed), 870 mm sits on the `870 @ 2040` door code, and
+916 and 1478 match no code. Read the other way, **three of the sheet's nine annotated
+widths — the two `-600W` and the single `-610W` — have no traced opening at their stated
+size.** The alfresco opening is annotated `2100H -2400W ASD`; the `3900H-2400W` this entry
+first quoted does not occur on the sheet.
+
+Scene SHA-256 `557d63b8a29f0acbd52bc508af896c68a07111939966c4feac43ddee0317d60d`; the
+artifact is committed under
+`proof/growth/2026-10-13-plan-trace/steps/wardoo-wireframe-poche/` beside the slice 7
+one so the before/after pair is in the repository. Tests: **69 passed, 21 subtests**
+(was 58), and the eleven new tests pin the paint rules, both fallbacks, `band_region`
+and the extractor's new fields. Detached regression: **198 passed, 1 pre-existing skip,
+223 subtests**. Committed as **`412e1def`** on `recovery/full-studio-20261011`; the audit
+corrections to this entry and to the proof doc are in the commit that follows it.
+
+**Audit of these claims (this is the part that was missing):**
+`xray-recovery-evidence/plan-trace-20261013-71f50a208c0e/verify_claims.py` re-derives every
+number above from outside the tracer — no xray import, the committed scene parsed as JSON,
+the PDF read with PyMuPDF instead of the extractor's pdfium. **46/46 checks pass**, and the
+six places the first version of this write-up was wrong are listed in the proof doc's audit
+section. Two things it withdrew rather than fixed:
+
+* the defect-1 gap table (48.2/85.6 pt) is **not independently reproducible** — PyMuPDF
+  reports the bottom wall as one dark path 505.4 pt wide drawn with polylines, so a second
+  engine cannot see those bands. The calibration now rests on the declared `1 : 50 @ A3`
+  and the six exact opening matches, both of which do reproduce;
+* the paint table's "Total width" column is not wall length (`sum|right-left|` of bounding
+  boxes, which measures a vertical band's thickness). Only the counts are load-bearing, and
+  a second engine confirms them exactly: 260 filled paths, 50 / 193 / 17 by colour.
 
 Scene SHA-256 `557d63b8a29f0acbd52bc508af896c68a07111939966c4feac43ddee0317d60d`; the
 artifact is committed under
