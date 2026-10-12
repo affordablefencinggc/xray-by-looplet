@@ -41,6 +41,50 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 6 — render the sheet, then read what it actually draws
+
+Owner `cline-plan-tracer-3-20261013`, baseline `327be504`. Slices 4-5 were heuristics
+written without looking at the sheet, and slice 5 proved it by changing nothing. This
+slice rendered Wardoo sheet 6 at 1x and the detected region at 6x
+(`plan-trace-20261013-fb27c4e1a0d9\sheet6-full.png`, `sheet6-region.png`) and read the
+drawing before writing code.
+
+What the drawing does: walls are **solid black filled poche**, not pairs of lines;
+windows are a **multi-line symbol inside a gap in the poche**, annotated
+`900H-600W ASW` and `1800H-850W ASW`; doors are gaps with their own symbol and label;
+hatching is regular (nine runs at ~3-4 pt pitch at `perp 430 pt`, seventeen at a
+uniform ~12 pt pitch at `perp 566 pt`).
+
+Two defects followed from that evidence:
+
+1. Poche is **one filled path with many vertices**, and slices 1-5 accepted only
+   four-corner quads, so most filled wall structure was discarded. `decompose_rectilinear`
+   now tiles any axis-aligned closed path into exact rectangles by vertical slabs with
+   even-odd scanline pairing. The old test asserted an L-shaped path was rejected; that
+   was the bug, so the test was corrected to assert exact tiling (area 7500, not the
+   10000 a bounding box claims).
+2. A **window symbol is a wall-thickness rectangle with glazing rules**, which is
+   exactly what `wall_bands` accepts — and because it touches the poche either side,
+   merging closed the gap that identifies the opening. `symbol_rectangles` now detects
+   it and `build_scene` emits it as an opening instead of a wall.
+
+Tests **48 passed / 14 subtests** (was 43). Wardoo sheet 6: rectangles read 219 → **285**,
+closed bands 74 → **104**, bands inside region 77 → **94**, symbols **1**, total recovered
+wall 64.1 → **65.8 m**, openings 1 → **2**. Scene `sceneSha256 f8756999…09f4`.
+
+**Openings are still wrong and the proof says why.** Only 1 symbol was found in the
+region, and the two reported openings are 1435 mm and 1660 mm wide while the annotated
+windows are 600 mm and 850 mm — so the two gaps are probably not the windows. Two
+false-positive routes were found while testing and are unfixed: two parallel glazing
+rules exactly `WALL_MIN_MM` (60 mm) apart pair into a phantom 60 mm "wall", and a symbol
+is only recognised when it is a closed rectangle. Proof:
+`proof/growth/2026-10-13-plan-trace/steps/plan-tracer-filled-poche.md`.
+
+Next: group the glazing rules themselves (several parallel same-span rules lying along a
+wall line are a window whether or not a closed outline exists) and remove them from the
+wall candidates as a group, then check each opening's width against its annotation.
+
+
 ## 2026-10-13 additive slice 5 — openings measured along a wall face
 
 Owner `cline-plan-tracer-2-20261013`, baseline `b026d5ac`. Slice 4's multi-piece

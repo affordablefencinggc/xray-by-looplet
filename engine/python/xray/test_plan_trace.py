@@ -16,8 +16,8 @@ import pikepdf
 from xray.plan_trace import (
     COLLINEAR_TOL_MM, OPENING_MIN_MM, PlanTraceError, WALL_MAX_MM, WALL_MIN_MM,
     build_scene, drop_regular_arrays, main, merge_bands, open_wall_bands,
-    plan_region, rectangles, subpaths, trace_plan, traced_openings,
-    validate_trace_scene, wall_bands, within_region)
+    plan_region, rectangles, subpaths, symbol_rectangles, trace_plan,
+    traced_openings, validate_trace_scene, wall_bands, within_region)
 
 
 def rect_path(x0, y0, x1, y1):
@@ -64,12 +64,19 @@ class RectangleTests(unittest.TestCase):
         self.assertEqual(stats['notQuad'], 0)
         self.assertEqual(stats['notAxisAligned'], 0)
 
-    def test_l_shape_is_rejected_rather_than_bounded(self):
+    def test_l_shape_is_decomposed_exactly_rather_than_bounded(self):
+        # An L is two rectangles, not its bounding box: the strips must tile the
+        # L exactly (area 7500, not the 10000 a bounding box would claim) and no
+        # strip may span the missing quadrant.
         l_shape = [['M', 0, 0], ['L', 100, 0], ['L', 100, 50], ['L', 50, 50],
                    ['L', 50, 100], ['L', 0, 100], ['Z']]
         rects, stats = rectangles(page_with([l_shape]))
-        self.assertEqual(rects, [])
-        self.assertEqual(stats['notQuad'], 1)
+        self.assertEqual(stats['polygons'], 1)
+        self.assertEqual(stats['notQuad'], 0)
+        area = sum((x1 - x0) * (y1 - y0) for x0, y0, x1, y1 in rects)
+        self.assertAlmostEqual(area, 7500.0)
+        for x0, y0, x1, y1 in rects:
+            self.assertFalse(x1 > 50 and y1 > 50, (x0, y0, x1, y1))
 
     def test_diagonal_quad_is_rejected(self):
         diamond = [['M', 0, 50], ['L', 50, 0], ['L', 100, 50], ['L', 50, 100], ['Z']]
@@ -407,6 +414,52 @@ class PlanRegionTests(unittest.TestCase):
         self.assertFalse(within_region(region, 'h', 300, 600, 800))
         self.assertTrue(within_region(region, 'v', 300, 200, 400))
         self.assertFalse(within_region(region, 'v', 700, 200, 400))
+
+
+class SymbolTests(unittest.TestCase):
+    """A window is a wall-thickness rectangle carrying glazing rules."""
+
+    @staticmethod
+    def page_with_symbol(rules, extra_walls=()):
+        # A 700 mm x 120 mm symbol at 1 mm/pt, with optional glazing rules. Sized
+        # so the page stays too sparse for the density grid to pick a plan
+        # region, which would otherwise filter synthetic fixtures.
+        paths = [rect_path(100, 200, 800, 320)]
+        for index in range(rules):
+            # 20 mm apart, so no two rules can pair into a thin "wall".
+            y = 230 + index * 20
+            paths.append([['M', 120, y], ['L', 780, y]])
+        for wall in extra_walls:
+            paths.append(rect_path(*wall))
+        return page_with(paths)
+
+    def test_rectangle_with_internal_rules_is_a_symbol(self):
+        symbols = symbol_rectangles(self.page_with_symbol(3), 1.0)
+        self.assertEqual(len(symbols), 1)
+        self.assertEqual(symbols[0]['rules'], 3)
+        self.assertAlmostEqual(symbols[0]['widthMm'], 700.0)
+        self.assertAlmostEqual(symbols[0]['thicknessMm'], 120.0)
+
+    def test_plain_wall_stub_of_the_same_shape_is_not_a_symbol(self):
+        self.assertEqual(symbol_rectangles(self.page_with_symbol(0), 1.0), [])
+
+    def test_one_internal_rule_is_not_enough_evidence(self):
+        self.assertEqual(symbol_rectangles(self.page_with_symbol(1), 1.0), [])
+
+    def test_a_symbol_scene_reports_it_as_an_opening_not_a_wall(self):
+        # A symbol beside a real wall: the wall must stay a wall and the symbol
+        # must become the opening, not a second wall.
+        page = self.page_with_symbol(3, extra_walls=[(100, 400, 1100, 600)])
+        scene = build_scene(extracted_for(page), 1, 1.0)
+        self.assertEqual(scene['summary']['wallRuns'], 1)
+        self.assertEqual(scene['summary']['openings'], 1)
+        self.assertEqual(scene['diagnostics']['symbols'], 1)
+        self.assertEqual(sorted(o['category'] for o in scene['objects']),
+                         ['opening', 'wall'])
+
+    def test_unusable_calibration_is_rejected(self):
+        with self.assertRaisesRegex(PlanTraceError, 'calibration'):
+            symbol_rectangles(self.page_with_symbol(3), 0)
 
 
 class EndToEndTests(unittest.TestCase):

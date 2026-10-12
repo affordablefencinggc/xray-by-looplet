@@ -146,16 +146,47 @@ def _axis_aligned(points, tolerance_deg=AXIS_TOL_DEG):
     return True
 
 
-def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
-    """Axis-aligned closed quads as (x0, y0, x1, y1) in page points.
+def decompose_rectilinear(points):
+    """Split an axis-aligned polygon into exact rectangles by vertical slabs.
 
-    Returns (rectangles, stats). Only genuine four-corner closed paths are
-    accepted: an L-shaped or multi-segment outline is ignored rather than
-    reduced to its bounding box, which would fabricate a wall thickness.
+    A connected run of wall poche is one FILLED path with many vertices, not a
+    set of four-corner quads, so reading only quads misses most of the wall
+    structure. Even-odd scanline pairing inside each x slab recovers it exactly:
+    the strips tile the polygon rather than approximating it, which a bounding
+    box would not.
+    """
+    xs = sorted({point[0] for point in points})
+    if len(xs) < 2:
+        return []
+    edges = []
+    for a, b in zip(points, points[1:] + points[:1]):
+        if abs(a[1] - b[1]) <= 1e-9:
+            edges.append((a[1], min(a[0], b[0]), max(a[0], b[0])))
+    rects = []
+    for x0, x1 in zip(xs, xs[1:]):
+        if x1 - x0 <= 0:
+            continue
+        middle = (x0 + x1) / 2.0
+        crossings = sorted(y for y, low, high in edges if low <= middle <= high)
+        for low, high in zip(crossings[0::2], crossings[1::2]):
+            if high - low > 0:
+                rects.append((x0, low, x1, high))
+                if len(rects) > MAX_SHAPES:
+                    raise PlanTraceError('Shape limit exceeded.')
+    return rects
+
+
+def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
+    """Axis-aligned rectangles as (x0, y0, x1, y1) in page points.
+
+    Returns (rectangles, stats). Four-corner quads are taken directly; larger
+    axis-aligned closed paths are decomposed exactly into rectangles, so a
+    filled wall run is measured rather than dropped. A non-orthogonal or open
+    outline is ignored instead of being reduced to its bounding box.
     """
     rects = []
-    stats = {'subpaths': 0, 'curvesSkipped': 0, 'notClosed': 0,
-             'notQuad': 0, 'notAxisAligned': 0}
+    stats = {'subpaths': 0, 'curvesSkipped': 0, 'notClosed': 0, 'notQuad': 0,
+             'notAxisAligned': 0, 'polygons': 0, 'polygonRectangles': 0}
     paths, curves = subpaths(page)
     stats['curvesSkipped'] = curves
     for subpath in paths:
@@ -164,18 +195,26 @@ def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
             stats['notClosed'] += 1
             continue
         points = _dedupe(subpath['points'])
-        if len(points) != 4:
+        if len(points) < 3:
             stats['notQuad'] += 1
             continue
         if not _axis_aligned(points, tolerance_deg):
             stats['notAxisAligned'] += 1
             continue
-        xs = sorted(point[0] for point in points)
-        ys = sorted(point[1] for point in points)
-        if xs[3] - xs[0] <= 0 or ys[3] - ys[0] <= 0:
-            stats['notQuad'] += 1
-            continue
-        rects.append((xs[0], ys[0], xs[3], ys[3]))
+        if len(points) == 4:
+            xs = sorted(point[0] for point in points)
+            ys = sorted(point[1] for point in points)
+            if xs[3] - xs[0] <= 0 or ys[3] - ys[0] <= 0:
+                stats['notQuad'] += 1
+                continue
+            rects.append((xs[0], ys[0], xs[3], ys[3]))
+        else:
+            stats['polygons'] += 1
+            for rect in decompose_rectilinear(points):
+                if rect[2] - rect[0] <= 0 or rect[3] - rect[1] <= 0:
+                    continue
+                rects.append(rect)
+                stats['polygonRectangles'] += 1
         if len(rects) > MAX_SHAPES:
             raise PlanTraceError('Shape limit exceeded.')
     return rects, stats
@@ -585,6 +624,61 @@ def drop_regular_arrays(bands, mm_per_pt, min_members=4, max_spacing_mm=450.0,
     return keep, {'dropped': dropped}
 
 
+# --- window and door symbols ------------------------------------------------
+# Rendering Wardoo sheet 6 shows how this drawing actually works: a window is a
+# rectangle of roughly wall thickness carrying several parallel glazing rules,
+# sitting in a gap in the wall poche. Such a rectangle has exactly the shape
+# wall_bands accepts, so without this check a window is counted as a wall AND, by
+# merging with the poche either side of it, it closes the very gap that identifies
+# the opening.
+
+SYMBOL_MIN_RULES = 2
+SYMBOL_SPAN_RATIO = 0.8
+
+
+def symbol_rectangles(page, mm_per_pt):
+    """Wall-thickness rectangles carrying internal parallel rules.
+
+    That is what a window or door symbol looks like on this drawing: the internal
+    rules are the glazing or leaf lines, and they are the evidence that separates
+    a symbol from a plain wall stub of the same size.
+    """
+    if not (0 < mm_per_pt < 1000):
+        raise PlanTraceError('Unusable calibration.')
+    rects, _ = rectangles(page)
+    runs = [_normalised_run(*run)
+            for run in open_runs(page, collinear_pt=COLLINEAR_TOL_MM / mm_per_pt)]
+    symbols = []
+    for x0, y0, x1, y1 in rects:
+        width_pt, height_pt = x1 - x0, y1 - y0
+        thickness_mm = min(width_pt, height_pt) * mm_per_pt
+        if not WALL_MIN_MM <= thickness_mm <= WALL_MAX_MM:
+            continue
+        horizontal = width_pt >= height_pt
+        axis = 'h' if horizontal else 'v'
+        span_low, span_high = (x0, x1) if horizontal else (y0, y1)
+        inside_low, inside_high = (y0, y1) if horizontal else (x0, x1)
+        span_mm = (span_high - span_low) * mm_per_pt
+        if span_mm < OPENING_MIN_MM:
+            continue
+        rules = 0
+        for run in runs:
+            if run[0] != axis:
+                continue
+            if not inside_low + 1e-6 < run[1] < inside_high - 1e-6:
+                continue
+            if (run[2] >= span_low + 1e-6 and run[3] <= span_high - 1e-6
+                    and (run[3] - run[2]) >= (span_high - span_low) * SYMBOL_SPAN_RATIO):
+                rules += 1
+        if rules >= SYMBOL_MIN_RULES:
+            symbols.append({'axis': axis, 'perp': (inside_low + inside_high) / 2.0,
+                            'a': span_low, 'b': span_high,
+                            'thicknessMm': thickness_mm, 'lengthMm': span_mm,
+                            'widthMm': span_mm, 'rules': rules,
+                            'rect': (x0, y0, x1, y1)})
+    return symbols
+
+
 def merge_gaps(groups, mm_per_pt):
     """Union of opening candidates, dropping ones that overlap a wider report.
 
@@ -666,20 +760,32 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
     if page_w <= 0 or page_h <= 0:
         raise PlanTraceError('Page has no usable extent.')
 
+    region = plan_region(page)
     raw, stats = wall_bands(page, mm_per_pt)
     paired, face_gaps, pair_stats = open_wall_bands(page, mm_per_pt)
-    region = plan_region(page)
+    # A window or door symbol is a wall-thickness rectangle carrying glazing or
+    # leaf rules. It must not become a wall: doing so also merges with the poche
+    # either side and closes the gap that identifies the opening.
+    symbols = [symbol for symbol in symbol_rectangles(page, mm_per_pt)
+               if within_region(region, symbol['axis'], symbol['perp'],
+                                symbol['a'], symbol['b'])]
+    symbol_rects = {symbol['rect'] for symbol in symbols}
+    raw = [band for band in raw if band['rect'] not in symbol_rects]
     inside = [band for band in raw + paired
               if within_region(region, band['axis'], band['perp'], band['a'], band['b'])]
     outside = len(raw) + len(paired) - len(inside)
     bands, array_stats = drop_regular_arrays(merge_bands(inside, mm_per_pt), mm_per_pt)
     kept_gaps = [gap for gap in face_gaps
                  if within_region(region, gap['axis'], gap['perp'], gap['a'], gap['b'])]
-    gaps = merge_gaps([traced_openings(bands, mm_per_pt), kept_gaps], mm_per_pt)
-
+    symbol_gaps = [{key: symbol[key] for key in
+                    ('axis', 'perp', 'a', 'b', 'thicknessMm', 'widthMm', 'rules')}
+                   for symbol in symbols]
+    gaps = merge_gaps([traced_openings(bands, mm_per_pt), kept_gaps, symbol_gaps],
+                      mm_per_pt)
     stats = dict(stats)
     stats.update({'closedBands': len(raw), 'openWallBands': len(paired),
                   'pairedRuns': pair_stats['paired'], 'outsideRegion': outside,
+                  'symbols': len(symbols),
                   'droppedRegular': array_stats['dropped'],
                   'region': [round(v, 1) for v in region] if region else None})
 
