@@ -16,9 +16,10 @@ import pikepdf
 
 from xray.plan_trace import (
     COLLINEAR_TOL_MM, OPENING_MIN_MM, PlanTraceError, WALL_MAX_MM, WALL_MIN_MM,
-    build_scene, drop_regular_arrays, export_wireframe, main, merge_bands,
-    open_wall_bands, plan_region, rectangles, subpaths, symbol_rectangles,
-    trace_plan, traced_openings, validate_trace_scene, wall_bands, within_region)
+    band_region, build_scene, drop_regular_arrays, export_wireframe, main, merge_bands,
+    open_wall_bands, plan_region, rectangles, rectangles_with_paint, subpaths,
+    symbol_rectangles, trace_plan, traced_openings, validate_trace_scene, wall_bands,
+    within_region)
 from xray.source_building import BuildingError
 
 
@@ -26,9 +27,18 @@ def rect_path(x0, y0, x1, y1):
     return [['M', x0, y0], ['L', x1, y0], ['L', x1, y1], ['L', x0, y1], ['Z']]
 
 
-def page_with(paths, width=1191.0, height=842.0, number=1):
-    return {'page': number, 'widthPt': width, 'heightPt': height,
-            'paths': [{'commands': commands} for commands in paths]}
+def page_with(paths, width=1191.0, height=842.0, number=1, paint=None):
+    """A synthetic page. `paint` optionally gives one record per path, e.g.
+    [{'fill': True, 'fillColor': [0, 0, 0, 255]}, {'fill': False, 'stroke': True}],
+    which is how a page that declares paint is distinguished from one that does
+    not (paint=None), the way a real extraction distinguishes them."""
+    records = []
+    for index, commands in enumerate(paths):
+        record = {'commands': commands}
+        if paint is not None:
+            record.update(paint[index])
+        records.append(record)
+    return {'page': number, 'widthPt': width, 'heightPt': height, 'paths': records}
 
 
 def extracted_for(page):
@@ -275,6 +285,107 @@ class ValidatorTests(unittest.TestCase):
         for change, message in cases:
             with self.subTest(message=message), self.assertRaisesRegex(PlanTraceError, message):
                 validate_trace_scene(forged(change))
+
+
+class PaintEvidenceTests(unittest.TestCase):
+    """Walls are read from the drawing's own paint evidence, not from shape alone.
+
+    Wardoo sheet 6 measured with pdfium: 50 black-filled paths (the wall poche),
+    193 white filled paths (the background panel behind every text label and
+    title-block cell) and 17 cyan fills (the pan inside each window symbol). All
+    three have exactly the rectangle shape this reader accepts, so fill luminance
+    is what separates a wall from the other two.
+    """
+
+    BLACK = {'fill': True, 'fillColor': [0, 0, 0, 255]}
+    WHITE = {'fill': True, 'fillColor': [255, 255, 255, 255]}
+    CYAN = {'fill': True, 'fillColor': [0, 223, 223, 255]}
+    STROKE_ONLY = {'fill': False, 'stroke': True}
+
+    def test_a_dark_filled_band_is_a_wall_and_a_light_one_is_not(self):
+        page = page_with([rect_path(100, 200, 1100, 300), rect_path(100, 400, 1100, 500)],
+                         paint=[self.BLACK, self.WHITE])
+        bands, stats = wall_bands(page, 1.0)
+        self.assertEqual([band['rect'] for band in bands], [(100.0, 200.0, 1100.0, 300.0)])
+        self.assertEqual(stats['lightFilled'], 1)
+        self.assertEqual(stats['readMode'], 'poche')
+
+    def test_a_tinted_window_pan_is_not_a_wall(self):
+        page = page_with([rect_path(100, 200, 1100, 300)], paint=[self.CYAN])
+        self.assertEqual(wall_bands(page, 1.0)[0], [])
+
+    def test_a_stroked_outline_is_not_a_wall_while_a_dark_poche_exists(self):
+        page = page_with([rect_path(100, 200, 1100, 300), rect_path(100, 400, 1100, 500)],
+                         paint=[self.BLACK, self.STROKE_ONLY])
+        bands, stats = wall_bands(page, 1.0)
+        self.assertEqual([band['rect'] for band in bands], [(100.0, 200.0, 1100.0, 300.0)])
+        self.assertEqual(stats['strokedOnly'], 1)
+
+    def test_outlines_are_still_walls_when_the_page_paints_nothing_filled(self):
+        page = page_with([rect_path(100, 200, 1100, 300)], paint=[self.STROKE_ONLY])
+        bands, stats = wall_bands(page, 1.0)
+        self.assertEqual(len(bands), 1)
+        self.assertEqual(stats['readMode'], 'outline')
+
+    def test_a_page_without_paint_evidence_behaves_exactly_as_before(self):
+        bands, stats = wall_bands(page_with([rect_path(100, 200, 1100, 300)]), 1.0)
+        self.assertEqual(len(bands), 1)
+        self.assertEqual(stats['readMode'], 'shape')
+        self.assertEqual(stats['lightFilled'], 0)
+        self.assertEqual(stats['strokedOnly'], 0)
+
+    def test_rectangles_with_paint_tags_each_rectangle_and_rectangles_is_unchanged(self):
+        page = page_with([rect_path(100, 300, 1100, 200)], paint=[self.BLACK])
+        records, _ = rectangles_with_paint(page)
+        self.assertEqual(records, [((100.0, 200.0, 1100.0, 300.0),
+                                    {'filled': True, 'fillColor': [0, 0, 0, 255]})])
+        self.assertEqual(rectangles(page)[0], [(100.0, 200.0, 1100.0, 300.0)])
+
+    def test_the_scene_keeps_poche_at_the_extremes_and_drops_panels_and_outlines(self):
+        # Four poche walls at the edges of the sheet, plus a light-filled panel and
+        # a stroked symbol INSIDE the plan: all six have the shape a wall band
+        # would have, so only the paint evidence separates them.
+        walls = [rect_path(100, 100, 1100, 200), rect_path(100, 700, 1100, 800),
+                 rect_path(100, 100, 200, 800), rect_path(1000, 100, 1100, 800)]
+        panel = rect_path(400, 220, 1000, 320)
+        symbol = rect_path(300, 250, 400, 750)
+        scene = build_scene(extracted_for(page_with(walls + [panel, symbol], paint=[
+            self.BLACK, self.BLACK, self.BLACK, self.BLACK, self.WHITE, self.STROKE_ONLY])), 1, 1.0)
+        self.assertEqual(scene['summary']['wallRuns'], 4)
+        self.assertEqual(scene['summary']['readMode'], 'poche')
+        self.assertEqual(scene['diagnostics']['lightFilled'], 1)
+        self.assertEqual(scene['diagnostics']['strokedOnly'], 1)
+        self.assertTrue(all(o['evidenceState'] == 'traced'
+                            for o in scene['objects'] if o['category'] == 'wall'))
+        self.assertTrue(any('filled, dark-painted poche' in ref['note']
+                            for o in scene['objects'] if o['category'] == 'wall'
+                            for ref in o['sourceRefs']))
+
+    def test_a_shape_only_page_still_reads_paired_open_strokes(self):
+        # With no paint evidence anywhere the older behaviour must be kept: walls
+        # drawn as two parallel open strokes are still paired and measured, and
+        # the same strokes are ignored once the page declares dark poche.
+        strokes = [[['M', 100, 200], ['L', 1100, 200]], [['M', 100, 300], ['L', 1100, 300]]]
+        rect = rect_path(100, 400, 1100, 500)
+        shape_only = build_scene(extracted_for(page_with(strokes + [rect])), 1, 1.0)
+        self.assertEqual(shape_only['summary']['readMode'], 'shape')
+        self.assertEqual(shape_only['summary']['fromOpenPairs'], 1)
+        self.assertEqual(shape_only['summary']['wallRuns'], 2)
+        poche = build_scene(extracted_for(page_with(strokes + [rect], paint=[
+            {'fill': True, 'fillColor': [0, 0, 0, 255]}] * 3)), 1, 1.0)
+        self.assertEqual(poche['summary']['readMode'], 'poche')
+        self.assertEqual(poche['summary']['fromOpenPairs'], 0)
+        self.assertEqual(poche['summary']['wallRuns'], 1)
+
+
+class BandRegionTests(unittest.TestCase):
+    def test_the_region_is_the_poche_extent_plus_a_margin(self):
+        bands, _ = wall_bands(page_with([rect_path(100, 200, 1100, 300),
+                                         rect_path(100, 400, 1100, 500)]), 1.0)
+        self.assertEqual(band_region(bands, margin_pt=10.0), (90.0, 190.0, 1110.0, 510.0))
+
+    def test_an_empty_set_means_do_not_filter(self):
+        self.assertIsNone(band_region([]))
 
 
 class OpenWallPairTests(unittest.TestCase):

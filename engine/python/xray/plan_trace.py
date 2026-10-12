@@ -64,6 +64,10 @@ OPENING_MAX_MM = 3600.0
 MIN_WALL_LENGTH_MM = 500.0
 # An edge counts as axis-aligned when its direction is within this angle.
 AXIS_TOL_DEG = 1.5
+# A FILLED closed band is only read as wall poche when its fill luminance is at
+# or below this value: black lines on this drawing, not the white text panels and
+# tinted window pans that share the shape.
+FILL_LUMINANCE_MAX = 0.5
 
 MAX_SHAPES = 60_000
 MAX_WALLS = 6_000
@@ -92,19 +96,27 @@ def subpaths(page):
     """Split a page's path commands into straight subpaths.
 
     Returns (subpaths, curves_skipped) where each subpath is
-    {'points': [(x, y), ...], 'closed': bool}. Cubic segments are counted and
-    their endpoint is carried forward so a following LINETO still attaches to
-    the right point, but a curve is never approximated into a straight wall.
+    {'points': [(x, y), ...], 'closed': bool, 'filled': bool|None} and Cubic
+    segments are counted: their endpoint is carried forward so a following
+    LINETO still attaches to the right point, but a curve is never approximated
+    into a straight wall.
+
+    `filled` is the paint evidence recorded by the extractor: True when the
+    source path was painted filled, False when it was only stroked and None when
+    the page carries no paint information at all (a synthetic page, or output
+    from before the extractor recorded it). Shape-only callers are unaffected;
+    the wall reader uses it when it exists.
     """
     out = []
     curves = 0
     for path in page.get('paths') or []:
+        paint = {'filled': path.get('fill'), 'fillColor': path.get('fillColor')}
         points = []
         for command in path.get('commands') or []:
             op = command[0]
             if op == 'M':
                 if len(points) >= 2:
-                    out.append({'points': points, 'closed': False})
+                    out.append({'points': points, 'closed': False, **paint})
                 points = [(_fin(command[1]), _fin(command[2]))]
             elif op == 'L':
                 if points:
@@ -115,12 +127,12 @@ def subpaths(page):
                     points.append((_fin(command[5]), _fin(command[6])))
             elif op == 'Z':
                 if len(points) >= 2:
-                    out.append({'points': points, 'closed': True})
+                    out.append({'points': points, 'closed': True, **paint})
                 points = []
             else:
                 raise PlanTraceError('Unknown path command.')
         if len(points) >= 2:
-            out.append({'points': points, 'closed': False})
+            out.append({'points': points, 'closed': False, **paint})
     return out, curves
 
 
@@ -144,6 +156,19 @@ def _axis_aligned(points, tolerance_deg=AXIS_TOL_DEG):
         if abs(dx) / length < allowed and abs(dy) / length < allowed:
             return False
     return True
+
+
+def _dark_fill(colour):
+    """True when a recorded fill colour is dark, None when there is no colour.
+
+    Wardoo sheet 6 measured: 50 black fills = the wall poche, 193 white fills =
+    the background panel behind every text label and title-block cell, 17 cyan
+    fills = the pan inside each window symbol. Luminance is what separates them.
+    """
+    if not isinstance(colour, (list, tuple)) or len(colour) < 3:
+        return None
+    red, green, blue = (int(value) / 255.0 for value in colour[:3])
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue < FILL_LUMINANCE_MAX
 
 
 def decompose_rectilinear(points):
@@ -176,15 +201,14 @@ def decompose_rectilinear(points):
     return rects
 
 
-def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
-    """Axis-aligned rectangles as (x0, y0, x1, y1) in page points.
+def _rectangle_records(page, tolerance_deg=AXIS_TOL_DEG):
+    """Axis-aligned rectangles as (rect, evidence) in page points, plus stats.
 
-    Returns (rectangles, stats). Four-corner quads are taken directly; larger
-    axis-aligned closed paths are decomposed exactly into rectangles, so a
-    filled wall run is measured rather than dropped. A non-orthogonal or open
-    outline is ignored instead of being reduced to its bounding box.
+    `evidence` is the paint evidence of the subpath the rectangle came from:
+    {'filled', 'fillColor'}, where filled is None when the page carries no paint
+    information at all.
     """
-    rects = []
+    records = []
     stats = {'subpaths': 0, 'curvesSkipped': 0, 'notClosed': 0, 'notQuad': 0,
              'notAxisAligned': 0, 'polygons': 0, 'polygonRectangles': 0}
     paths, curves = subpaths(page)
@@ -201,23 +225,41 @@ def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
         if not _axis_aligned(points, tolerance_deg):
             stats['notAxisAligned'] += 1
             continue
+        evidence = {'filled': subpath['filled'], 'fillColor': subpath['fillColor']}
         if len(points) == 4:
             xs = sorted(point[0] for point in points)
             ys = sorted(point[1] for point in points)
             if xs[3] - xs[0] <= 0 or ys[3] - ys[0] <= 0:
                 stats['notQuad'] += 1
                 continue
-            rects.append((xs[0], ys[0], xs[3], ys[3]))
+            records.append(((xs[0], ys[0], xs[3], ys[3]), evidence))
         else:
             stats['polygons'] += 1
             for rect in decompose_rectilinear(points):
                 if rect[2] - rect[0] <= 0 or rect[3] - rect[1] <= 0:
                     continue
-                rects.append(rect)
+                records.append((rect, evidence))
                 stats['polygonRectangles'] += 1
-        if len(rects) > MAX_SHAPES:
+        if len(records) > MAX_SHAPES:
             raise PlanTraceError('Shape limit exceeded.')
-    return rects, stats
+    return records, stats
+
+
+def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
+    """Axis-aligned rectangles as (x0, y0, x1, y1) in page points.
+
+    Four-corner quads are taken directly; larger axis-aligned closed paths are
+    decomposed exactly into rectangles, so a filled wall run is measured rather
+    than dropped. A non-orthogonal or open outline is ignored instead of being
+    reduced to its bounding box.
+    """
+    records, stats = _rectangle_records(page, tolerance_deg)
+    return [rect for rect, _ in records], stats
+
+
+def rectangles_with_paint(page, tolerance_deg=AXIS_TOL_DEG):
+    """`rectangles`, each tagged with the paint evidence it came from."""
+    return _rectangle_records(page, tolerance_deg)
 
 
 def _run_tuple(pending):
@@ -286,15 +328,29 @@ def wall_bands(page, mm_per_pt):
     Returns (bands, stats). Every band is expressed in page points plus its
     measured thickness in millimetres, so the caller keeps both the real-world
     claim and the evidence point that produced it.
+
+    Where the page carries paint evidence, a band is only read as a wall when it
+    was painted FILLED and with a DARK fill. Rendering Wardoo sheet 6 shows why
+    both tests are needed: its walls are solid black poche, while the sheet is
+    full of closed filled rectangles of exactly wall-band size that are not
+    walls at all - the white background panel behind every text label and title
+    block cell, and the tinted pan inside every window symbol (measured on that
+    sheet: 50 black fills totalling 3494 pt of width, 193 white fills and 17
+    cyan fills). Stroke-only outlines are the third non-wall case: joinery,
+    sanitary fixtures, stair treads and the window and door symbols themselves.
+    When no dark filled band is found at all the stroked rectangles are used
+    instead, so behaviour on sources that draw walls as outlines, or that carry
+    no paint evidence, is unchanged.
     """
     if not (0 < mm_per_pt < 1000):
         raise PlanTraceError('Unusable calibration.')
-    rects, stats = rectangles(page)
+    records, stats = rectangles_with_paint(page)
     stats = dict(stats)
-    stats['rectangles'] = len(rects)
-    stats.update({'tooThin': 0, 'tooThick': 0, 'tooShort': 0})
-    bands = []
-    for x0, y0, x1, y1 in rects:
+    stats['rectangles'] = len(records)
+    stats.update({'tooThin': 0, 'tooThick': 0, 'tooShort': 0, 'strokedOnly': 0,
+                  'lightFilled': 0})
+    filled, stroked = [], []
+    for (x0, y0, x1, y1), evidence in records:
         width_pt, height_pt = x1 - x0, y1 - y0
         width_mm, height_mm = width_pt * mm_per_pt, height_pt * mm_per_pt
         thickness_mm, length_mm = min(width_mm, height_mm), max(width_mm, height_mm)
@@ -311,12 +367,52 @@ def wall_bands(page, mm_per_pt):
             axis, perp, a, b = 'h', (y0 + y1) / 2.0, x0, x1
         else:
             axis, perp, a, b = 'v', (x0 + x1) / 2.0, y0, y1
-        bands.append({'axis': axis, 'perp': perp, 'a': a, 'b': b,
-                      'thicknessMm': thickness_mm, 'lengthMm': length_mm,
-                      'rect': (x0, y0, x1, y1)})
-        if len(bands) > MAX_WALLS:
+        band = {'axis': axis, 'perp': perp, 'a': a, 'b': b,
+                'thicknessMm': thickness_mm, 'lengthMm': length_mm,
+                'rect': (x0, y0, x1, y1)}
+        # None means the page carries no paint evidence, so the band is neither
+        # poche nor a proven outline; it is kept with the filled reader so that
+        # shape-only pages behave exactly as they did before.
+        if evidence['filled'] is False:
+            stroked.append(band)
+        elif _dark_fill(evidence['fillColor']) is False:
+            stats['lightFilled'] += 1
+        else:
+            filled.append(band)
+        if len(filled) + len(stroked) > MAX_WALLS:
             raise PlanTraceError('Wall band limit exceeded.')
-    return bands, stats
+    if filled:
+        stats['strokedOnly'] = len(stroked)
+        # 'shape' means the page declares no paint at all, so the bands were read
+        # on shape alone - the behaviour before paint evidence existed.
+        stats['readMode'] = ('poche' if any(evidence['filled'] is True for _, evidence in records)
+                             else 'shape')
+        return filled, stats
+    stats['readMode'] = 'outline'
+    return stroked, stats
+
+
+def band_region(bands, margin_pt=None):
+    """Bounding box of a set of bands plus a margin, in page points.
+
+    A page whose walls are drawn as filled poche does not need a density guess to
+    find its plan: the poche IS the plan, and the extent of the poche is a
+    measured boundary rather than an inferred one. Measured on Wardoo sheet 6,
+    that extent is 15.26 x 7.09 m, which matches the 15255 x 7070 mm envelope the
+    residential pack reads from the page-5 dimension chains - text and geometry
+    agreeing from opposite directions.
+
+    Returns None for an empty set, which the callers read as "do not filter".
+    """
+    if not bands:
+        return None
+    if margin_pt is None:
+        margin_pt = REGION_MARGIN_PT
+    left = min(band['rect'][0] for band in bands) - margin_pt
+    top = min(band['rect'][1] for band in bands) - margin_pt
+    right = max(band['rect'][2] for band in bands) + margin_pt
+    bottom = max(band['rect'][3] for band in bands) + margin_pt
+    return (left, top, right, bottom)
 
 
 def merge_bands(bands, mm_per_pt):
@@ -389,6 +485,11 @@ def traced_openings(bands, mm_per_pt):
 # carry dense non-plan linework. The plan is the largest contiguous dense block
 # of axis-aligned linework, so it is found by density rather than by assuming a
 # corner, which keeps working when a title block moves or is vertical.
+#
+# This region is used only to guard the fallback readers. A page whose walls are
+# filled poche does not need it: the extent of the poche is itself a measured
+# boundary (`band_region`), and filtering poche by a density guess is what threw
+# away the east half of the Wardoo plan and every exterior wall with it.
 
 REGION_COLUMNS = 48
 REGION_MARGIN_PT = 12.0
@@ -416,8 +517,7 @@ def _density_grid(page, columns=REGION_COLUMNS):
             t = index / steps
             mark(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
 
-    rects, _ = rectangles(page)
-    for x0, y0, x1, y1 in rects:
+    for x0, y0, x1, y1 in rectangles(page)[0]:
         # One mark per band: its centre is enough to place a single wall.
         mark((x0 + x1) / 2.0, (y0 + y1) / 2.0)
     for x0, y0, x1, y1 in open_runs(page):
@@ -760,9 +860,23 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
     if page_w <= 0 or page_h <= 0:
         raise PlanTraceError('Page has no usable extent.')
 
-    region = plan_region(page)
     raw, stats = wall_bands(page, mm_per_pt)
     paired, face_gaps, pair_stats = open_wall_bands(page, mm_per_pt)
+    read_mode = stats['readMode']
+    if read_mode == 'poche':
+        # The drawing paints its walls: the filled poche IS the wall network, and
+        # the paired-stroke reader is not consulted at all. On Wardoo sheet 6 that
+        # reader returned 170 bands from dimension lines, hatch and fixtures while
+        # the poche returned the dwelling's walls, so mixing them is what turned a
+        # plan into scattered rectangles. The region is then the extent of the
+        # poche rather than a density guess.
+        region = band_region(raw)
+        candidates = raw
+        paired_used = []
+    else:
+        region = plan_region(page)
+        candidates = raw + paired
+        paired_used = paired
     # A window or door symbol is a wall-thickness rectangle carrying glazing or
     # leaf rules. It must not become a wall: doing so also merges with the poche
     # either side and closes the gap that identifies the opening.
@@ -770,10 +884,10 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
                if within_region(region, symbol['axis'], symbol['perp'],
                                 symbol['a'], symbol['b'])]
     symbol_rects = {symbol['rect'] for symbol in symbols}
-    raw = [band for band in raw if band['rect'] not in symbol_rects]
-    inside = [band for band in raw + paired
+    candidates = [band for band in candidates if band['rect'] not in symbol_rects]
+    inside = [band for band in candidates
               if within_region(region, band['axis'], band['perp'], band['a'], band['b'])]
-    outside = len(raw) + len(paired) - len(inside)
+    outside = len(candidates) - len(inside)
     bands, array_stats = drop_regular_arrays(merge_bands(inside, mm_per_pt), mm_per_pt)
     kept_gaps = [gap for gap in face_gaps
                  if within_region(region, gap['axis'], gap['perp'], gap['a'], gap['b'])]
@@ -783,7 +897,7 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
     gaps = merge_gaps([traced_openings(bands, mm_per_pt), kept_gaps, symbol_gaps],
                       mm_per_pt)
     stats = dict(stats)
-    stats.update({'closedBands': len(raw), 'openWallBands': len(paired),
+    stats.update({'closedBands': len(candidates), 'openWallBands': len(paired_used),
                   'pairedRuns': pair_stats['paired'], 'outsideRegion': outside,
                   'symbols': len(symbols),
                   'droppedRegular': array_stats['dropped'],
@@ -795,9 +909,15 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
         band['bottom'], band['top'] = 0.0, float(wall_height_m)
         references = [_reference(
             number, band['rect'],
-            'Wall band outline traced in page points; band thickness is measured '
-            'from the drawing. Wall height is a presentation assumption, not a '
-            'dimension read from this sheet.', 'traced', page_w, page_h)]
+            ('Wall band outline traced in page points; band thickness is measured '
+             'from the drawing. This band is a filled, dark-painted poche band.'
+             if read_mode == 'poche' else
+             'Wall band outline traced in page points; band thickness is measured '
+             'from the drawing. This band came from a closed outline rather than a '
+             'filled poche, so it is weaker evidence.')
+            + ' Wall height is a presentation assumption, not a dimension read from '
+            'this sheet.', 'traced', page_w, page_h)]
+
         objects.append({
             'id': f'wall-{band["axis"]}-{index}', 'category': 'wall',
             'label': f'{band["lengthMm"]:.0f} mm wall',
@@ -857,14 +977,18 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             + ('recorded as verified.' if verified else
                'NOT verified - it rests on a paper-size assumption, so every '
                'real-world length here inherits that uncertainty.'),
-            'A wall band is either a closed axis-aligned quadrilateral or a pair of '
-            f'parallel open strokes, with a measured thickness between {WALL_MIN_MM:g} '
-            f'and {WALL_MAX_MM:g} mm. Curved walls and diagonal geometry are still '
-            'not recovered, and neither are walls outside the detected plan region.',
-            'Wall bands are isolated by drawing density: only the densest contiguous '
-            'block of the sheet is kept, so title-block and margin linework is '
-            'excluded. Regular close-spaced parallel bands (stair treads, hatching, '
-            'dimension ticks) are discarded.',
+            'A wall band is a closed axis-aligned rectangle with a measured '
+            f'thickness between {WALL_MIN_MM:g} and {WALL_MAX_MM:g} mm. Where the '
+            'drawing records how each path is painted, only FILLED bands with a '
+            'dark fill are read as walls: on this sheet the walls are filled black '
+            'poche while text background panels, window pans, joinery, fixtures and '
+            'stair treads are not. Otherwise closed outlines are read as walls. '
+            'Curved walls and diagonal geometry are still not recovered.',
+            'Wall bands are isolated by the paint evidence the drawing itself '
+            'carries: filled dark bands are wall poche and closed light or stroked '
+            'shapes are not. Where a sheet draws its walls as outlines instead, '
+            'closed bands are isolated by drawing density and regular close-spaced '
+            'parallel bands (stair treads, hatching, dimension ticks) are discarded.',
             'Wall height is a presentation assumption and opening head/sill heights '
             'are inferred; neither is read from the drawing.',
             'A traced opening is a gap between collinear wall bands inside the '
@@ -890,7 +1014,11 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
                 'max': round(thicknesses[-1], 1) if thicknesses else None,
             },
             'method': ('automatic vector linework trace: closed axis-aligned wall '
-                       'bands plus collinear gap detection'),
+                       'bands (' + {'poche': 'filled dark poche',
+                                    'outline': 'outlines and paired open strokes',
+                                    'shape': 'shape only, no paint evidence on this page'}
+                       [read_mode] + ') plus collinear gap detection'),
+            'readMode': read_mode,
             'status': 'automatic-approximate',
             'calibration': {'mmPerPt': mm_per_pt,
                             'value': calibration.get('value'),

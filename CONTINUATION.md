@@ -41,6 +41,64 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 8 — the walls are painted black, and the scale was wrong
+
+Owner `cline-plan-tracer-4-20261013`, baseline `5bf08ff6`. The slice 7 wireframe artifact
+(42 parts, scene `829f4dc0`) was rendered and compared with sheet 6, and it was not a
+plan: three measured defects came out of that comparison, and the whole of slices 1-7
+had been measured through them.
+
+1. **Calibration.** The tracer ran at 1:100 (the engine's paper-size prior,
+   `scale.py::vote_scale`, weight 0.5, `verified:false`) on a sheet whose title block
+   says `SCALE: 1:50 @ A3`. The drawing settles it: the gaps between collinear wall
+   bands on the bottom wall measure 48.2 pt and on the top wall 85.6 pt, which is
+   **850.0 mm and 1510.0 mm at 1:50 (17.6389 mm/pt)** and 1700/3020 mm at 1:100 — and
+   850 and 1510 are exactly what the sheet annotates there (`1800H-850W ASW` twice,
+   `1200H-1510W ASW`, `1800H-1510W ASW`). Every length and thickness in the artifact was
+   therefore twice its real value, including the "median 220 mm wall" that had been read
+   as confirmation of brick veneer; 90 mm is a brick leaf.
+2. **Walls were read by shape.** Page 6 has 260 filled paths: 50 black (3493.5 pt of
+   width — the wall poche), 193 white (6271.6 pt — the background panel behind every
+   text label and title-block cell) and 17 cyan (9.3 pt — the pan inside each window
+   symbol). All three are closed rectangles of wall thickness, so the old reader read
+   the sheet's text panels and window pans as walls. `extract_pdf` now records paint
+   mode and fill colour per path (additive; commands and every other field unchanged)
+   and `wall_bands` reads a wall only from a **filled dark** band, with documented
+   fallbacks to outlines and to shape-only behaviour, and `readMode`
+   (`poche`/`outline`/`shape`) recorded in the scene.
+3. **The plan region was applied to the wall reader.** The density region on sheet 6
+   covered x 161-533 of a plan spanning x 142-1010, so 16 of the 26 real walls were
+   thrown away and the survivors were fixtures. With poche evidence the region is the
+   extent of the poche (`band_region`) and the paired-stroke reader — 170 bands of
+   dimension lines, hatch and fixtures — is not consulted at all. The density region is
+   deliberately unchanged for the fallback path, and recorded as a known weakness there.
+
+Result on sheet 6, re-run at 17.6389 mm/pt with `--wireframe` (exit 0): **25 wall runs
+all from filled poche**, extent **12.69 x 7.07 m**, thickness min/median/max
+**61.9/90.0/90.0 mm**, and **10 openings** instead of 2. The 7.07 m depth matches both
+the depth annotated on the sheet and the 7070 mm the residential pack derived from the
+page-5 dimension chains (0.2% agreement, a genuinely independent path); the 15255 mm
+overall width includes the alfresco strip, which this drawing dashes and does not paint,
+so the poche reader correctly does not claim it. All ten openings land on an annotated
+width (1510/1510/1510/850/850/870/830/916/1478/2400 mm against `...-1510W ASW`, the two
+`...-850W ASW`, `870 @2040`, `820 @2040`, `920`, `1500`, `3900H-2400W`); the 600 mm
+`900H-600W ASW` window is still missed and that is stated, not rounded away.
+
+Scene SHA-256 `557d63b8a29f0acbd52bc508af896c68a07111939966c4feac43ddee0317d60d`; the
+artifact is committed under
+`proof/growth/2026-10-13-plan-trace/steps/wardoo-wireframe-poche/` beside the slice 7
+one so the before/after pair is in the repository. Tests: **69 passed, 21 subtests**
+(was 58), and the eleven new tests pin the paint rules, both fallbacks, `band_region`
+and the extractor's new fields.
+
+**Open defect found and not fixed:** `scale.py` votes 1:100 on a sheet that declares
+1:50 and measures 1:50, so any geometric consumer of that vote inherits a 2x error.
+`engine.run`'s takeoff on this plan was unaffected because its residential pack reads
+dimension *text*. `scale.py` is a frozen producer on the takeoff path, so it was not
+touched. Next required step: prefer the declared title-block scale, then run the tracer
+with the calibration the engine reports rather than a caller constant.
+
+
 ## 2026-10-13 additive slice 7 — a Wardoo wireframe artifact now exists
 
 Owner `cline-wardoo-wireframe-20261013`, baseline `45631667`. Asked whether a Wardoo

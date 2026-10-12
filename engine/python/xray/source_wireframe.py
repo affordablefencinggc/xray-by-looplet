@@ -3,6 +3,11 @@
 This additive API does not modify engine.run() or its takeoff schema. Text,
 images, shadings and explicitly clipped objects are counted as omissions.
 Curves remain cubic curves, not guessed wall or component geometry.
+
+Each path record carries its paint mode (`fill`, `stroke`) and, for a filled
+path, its fill colour (`fillColor`, RGBA 0-255 or None) next to its commands.
+That is additive: the commands and every other field are unchanged, and a
+consumer that ignores the new fields behaves exactly as before.
 """
 from __future__ import annotations
 
@@ -134,6 +139,12 @@ def extract_pdf(path, pages=None):
                         if not fill.value and not stroke.value:
                             omissions['nonPaintingPaths'] += 1
                             continue
+                        fill_color = None
+                        if fill.value:
+                            red = ctypes.c_uint(); green = ctypes.c_uint()
+                            blue = ctypes.c_uint(); alpha = ctypes.c_uint()
+                            if raw.FPDFPageObj_GetFillColor(obj, red, green, blue, alpha):
+                                fill_color = [red.value, green.value, blue.value, alpha.value]
                         commands = []; pending = []; has_move = False
                         display = compose(view, matrix)
                         for n in range(count_segments):
@@ -159,7 +170,15 @@ def extract_pdf(path, pages=None):
                                 commands.append(['Z'])
                         if pending: raise WireframeError('Truncated cubic path.')
                         if commands:
-                            records.append({'id': f'p{page_number}/' + '/'.join(map(str, identity)), 'objectIndices': list(identity), 'segmentCount': count_segments, 'commands': commands})
+                            # The paint mode and fill colour are recorded, not
+                            # just used to skip non-painting paths: whether a
+                            # closed outline was filled or only stroked separates
+                            # a wall poche from a symbol outline, and the fill
+                            # colour separates a black poche from the white text
+                            # panel or tinted window pan that has the same shape.
+                            # A consumer cannot recover either from the commands.
+                            records.append({'id': f'p{page_number}/' + '/'.join(map(str, identity)), 'objectIndices': list(identity), 'segmentCount': count_segments,
+                                            'fill': bool(fill.value), 'stroke': bool(stroke.value), 'fillColor': fill_color, 'commands': commands})
                 walk(page, IDENTITY)
                 result_pages.append({'page': page_number, 'widthPt': width, 'heightPt': height, 'cropBox': crop, 'rotation': rotation, 'coordinateSystem': 'display-page-top-left-points',
                     'status': 'partial' if records else 'unsupported', 'pathCount': len(records), 'counts': page_counts, 'omissions': omissions, 'paths': records})

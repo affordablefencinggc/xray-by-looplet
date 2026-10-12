@@ -51,6 +51,27 @@ class SourceWireframeTests(unittest.TestCase):
                 self.assertLess(min(sum(image.getpixel((x,y))) for x in range(97,104) for y in range(117,124)), 300)
             self.assertIn('M40 60', render_svg(page))
 
+    def test_paint_mode_and_fill_colour_are_recorded_for_each_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'paint.pdf'
+            pdf = pikepdf.Pdf.new()
+            page = pdf.add_blank_page(page_size=(400, 300))
+            # one stroked rectangle, one black filled rectangle, one white filled one
+            page.Contents = pdf.make_stream(
+                b'0 0 0 RG 0 0 m 10 0 l 10 10 l 0 10 l h S '
+                b'0 0 0 rg 20 0 m 30 0 l 30 10 l 20 10 l h f '
+                b'1 1 1 rg 40 0 m 50 0 l 50 10 l 40 10 l h f')
+            pdf.save(path)
+            paths = extract_pdf(path)['pages'][0]['paths']
+            by_colour = {tuple(p['fillColor']) if p['fillColor'] else None: p for p in paths}
+            self.assertEqual(len(paths), 3)
+            stroked = [p for p in paths if not p['fill']]
+            self.assertEqual(len(stroked), 1)
+            self.assertTrue(stroked[0]['stroke'])
+            self.assertIsNone(stroked[0]['fillColor'])
+            self.assertEqual(by_colour[(0, 0, 0, 255)]['fill'], True)
+            self.assertEqual(by_colour[(255, 255, 255, 255)]['fill'], True)
+
     def test_all_page_rotations_have_expected_corner_mapping(self):
         from xray.source_wireframe import transform
         expected = {0:[0,200], 90:[0,0], 180:[300,0], 270:[200,300]}
