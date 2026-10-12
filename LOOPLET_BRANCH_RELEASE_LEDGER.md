@@ -8,6 +8,9 @@ User requested continued app work and a ten-minute loop. Enabled schedule
 Additive terminal-record validator/tests and separate capped wrapper are **WIP**,
 not engine acceptance. Earlier 22-test development revision passed; final 25-test
 revision awaits clean committed proof after an unchanged preflight deadline failure.
+WIP checkpoint `067105e9`; clean run `b66c4d708dbe` also hit the unchanged preflight
+test deadline before reaching the new tests. Full proof remains open; exact logs,
+ownership and next diagnostic action are recorded in `CONTINUATION.md`.
 Preserve all failed evidence. No historical helper/product/transport/pin changes,
 remote retry, policy override, push, merge, installation or release.
 

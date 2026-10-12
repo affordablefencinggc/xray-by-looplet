@@ -69,6 +69,16 @@ format and complete artifact validation remain required before actual acceptance
   weaken or extend the established deadline to bypass this result.
 - Replaced the wrapper's synchronous Git HEAD subprocess with the reused bounded
   `Run-Check` function (15 seconds). No wrapper-wide hard deadline claim.
+- Final runner delta received read-only approval in `run_00024`.
+- Implementation checkpoint committed as **`067105e9`**, explicitly WIP. Clean
+  committed run `b66c4d708dbe`, owner PID 99724, creation
+  `2026-10-12T06:21:11.9183467Z`, hit the existing 120-second `evidence-tests`
+  deadline and wrote exit 1 at `2026-10-12T06:23:38.1770378Z`. The 25 new tests
+  again were not reached. Launcher PID 99724 was absent at the next observation.
+  Prior 18/22-test passes do not prove this final revision. No acceptance claimed.
+- A foreground phase-1 `ledger check` invocation also hit the command tool's
+  30-second timeout; no fresh successful result is claimed for that invocation.
+  Preserved phase-1 status remains 3/3 verified; its source/receipts were not edited.
 
 External evidence parent for these run IDs:
 `C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery-evidence`.
@@ -77,9 +87,20 @@ Each test run uses `terminal-records-<id>` plus tracked
 
 ## Next action
 
-Finish this additive slice: inspect the final retry's complete logs/exit/cleanup, address
-review findings, run and retain successful capped tests, commit explicit paths,
-then obtain a clean committed rerun and independent review. Do not call gate 3 or
-the app complete. Continue full terminal binding/artifact validation next, or
+Investigate the existing preflight timeouts before another blind full retry. Compare
+retained failed logs and host/process observations without killing unrelated work;
+do not weaken deadlines or test assertions. Final code is committed, but the 25-test
+revision still needs a clean successful capped run and independent executed review.
+Use a new immutable local run ID with the following entrypoint; monitor the tracked
+launcher asynchronously because foreground shell commands time out after 30 seconds:
+
+```powershell
+powershell.exe -NoProfile -File C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-terminal-evidence-check.ps1 -RunId <new-12-hex-id> -Actor <worker-name>
+```
+
+The new prerequisite is not yet registered as a verified machine-ledger item. Do not
+change the scope/acceptance of completed phase 1 to pretend it covers this work.
+Do not call gate 3 or the app complete. Continue full terminal binding/artifact
+validation after proving the prerequisite, or
 independently reproducible tablet/desktop UI work with fresh capped browser proof.
 Follow `FINISH-RECOVERY.md` for remaining gates and `LEDGER.md` for phase 1 only.
