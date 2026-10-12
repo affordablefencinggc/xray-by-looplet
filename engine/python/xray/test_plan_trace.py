@@ -15,8 +15,9 @@ import pikepdf
 
 from xray.plan_trace import (
     COLLINEAR_TOL_MM, OPENING_MIN_MM, PlanTraceError, WALL_MAX_MM, WALL_MIN_MM,
-    build_scene, main, merge_bands, rectangles, subpaths, trace_plan,
-    traced_openings, validate_trace_scene, wall_bands)
+    build_scene, drop_regular_arrays, main, merge_bands, open_wall_bands,
+    plan_region, rectangles, subpaths, trace_plan, traced_openings,
+    validate_trace_scene, wall_bands, within_region)
 
 
 def rect_path(x0, y0, x1, y1):
@@ -262,6 +263,122 @@ class ValidatorTests(unittest.TestCase):
         for change, message in cases:
             with self.subTest(message=message), self.assertRaisesRegex(PlanTraceError, message):
                 validate_trace_scene(forged(change))
+
+
+class OpenWallPairTests(unittest.TestCase):
+    """Parallel open strokes paired into walls, and the guards around it."""
+
+    @staticmethod
+    def run_page(runs):
+        return page_with([[['M', x0, y0], ['L', x1, y1]] for x0, y0, x1, y1 in runs])
+
+    def test_two_parallel_runs_become_one_measured_band(self):
+        bands, stats = open_wall_bands(
+            self.run_page([(100, 200, 1100, 200), (100, 300, 1100, 300)]), 1.0)
+        self.assertEqual(len(bands), 1)
+        self.assertEqual(stats['paired'], 1)
+        self.assertAlmostEqual(bands[0]['thicknessMm'], 100.0)
+        self.assertAlmostEqual(bands[0]['lengthMm'], 1000.0)
+        self.assertEqual(bands[0]['axis'], 'h')
+
+    def test_separation_outside_the_wall_band_is_never_paired(self):
+        too_close = self.run_page([(100, 200, 1100, 200),
+                                   (100, 200 + WALL_MIN_MM - 10, 1100, 200 + WALL_MIN_MM - 10)])
+        self.assertEqual(open_wall_bands(too_close, 1.0)[0], [])
+        too_far = self.run_page([(100, 200, 1100, 200),
+                                 (100, 200 + WALL_MAX_MM + 50, 1100, 200 + WALL_MAX_MM + 50)])
+        self.assertEqual(open_wall_bands(too_far, 1.0)[0], [])
+
+    def test_a_stroke_is_never_used_as_both_sides_of_two_walls(self):
+        bands, stats = open_wall_bands(
+            self.run_page([(100, 200, 1100, 200), (100, 300, 1100, 300),
+                           (100, 400, 1100, 400)]), 1.0)
+        self.assertEqual(len(bands), 1)
+        self.assertEqual(stats['paired'], 1)
+
+    def test_barely_overlapping_runs_are_not_a_wall(self):
+        bands, _ = open_wall_bands(
+            self.run_page([(100, 200, 2000, 200), (1900, 300, 2100, 300)]), 1.0)
+        self.assertEqual(bands, [])
+
+    def test_unusable_calibration_is_rejected(self):
+        with self.assertRaisesRegex(PlanTraceError, 'calibration'):
+            open_wall_bands(self.run_page([(0, 0, 1000, 0)]), 0)
+
+    def test_scene_attributes_paired_walls_to_the_open_pair_source(self):
+        # Regression: the paired flag was once dropped, so the summary credited
+        # every open double-line wall to the closed-quad reader.
+        scene = build_scene(
+            extracted_for(self.run_page([(100, 200, 1100, 200), (100, 300, 1100, 300)])),
+            1, 1.0)
+        self.assertEqual(scene['summary']['wallRuns'], 1)
+        self.assertEqual(scene['summary']['fromOpenPairs'], 1)
+        self.assertEqual(scene['summary']['fromClosedBands'], 0)
+        self.assertEqual(scene['summary']['wallHeightM'], 2.70)
+
+
+class RegularArrayTests(unittest.TestCase):
+    """Stair treads, hatching and dimension ticks must not read as walls."""
+
+    @staticmethod
+    def bands_at(perps, axis='h', a=100.0, b=1200.0, thickness=100.0):
+        return [{'axis': axis, 'perp': perp, 'a': a, 'b': b,
+                 'thicknessMm': thickness, 'lengthMm': (b - a),
+                 'rect': (a, perp, b, perp)} for perp in perps]
+
+    def test_uniform_close_spaced_chain_is_dropped(self):
+        kept, stats = drop_regular_arrays(self.bands_at([200, 430, 660, 890, 1120]), 1.0)
+        self.assertEqual(kept, [])
+        self.assertEqual(stats['dropped'], 5)
+
+    def test_two_close_parallel_walls_survive(self):
+        kept, stats = drop_regular_arrays(self.bands_at([200, 500]), 1.0)
+        self.assertEqual(len(kept), 2)
+        self.assertEqual(stats['dropped'], 0)
+
+    def test_irregular_chain_survives(self):
+        kept, stats = drop_regular_arrays(self.bands_at([200, 300, 1500, 1560, 3000]), 1.0)
+        self.assertEqual(len(kept), 5)
+        self.assertEqual(stats['dropped'], 0)
+
+    def test_non_overlapping_bands_are_never_chained(self):
+        left = self.bands_at([200, 430, 660, 890], a=100.0, b=400.0)
+        right = self.bands_at([200, 430, 660, 890], a=900.0, b=1200.0)
+        kept, stats = drop_regular_arrays(left + right, 1.0)
+        self.assertEqual(len(kept), 8)
+        self.assertEqual(stats['dropped'], 0)
+
+    def test_empty_input_is_safe(self):
+        self.assertEqual(drop_regular_arrays([], 1.0), ([], {'dropped': 0}))
+
+
+class PlanRegionTests(unittest.TestCase):
+    @staticmethod
+    def clustered_page():
+        paths = [[['M', 40, 40 + index * 45], ['L', 780, 40 + index * 45]]
+                 for index in range(14)]
+        paths.append(rect_path(1100, 760, 1160, 820))
+        return page_with(paths)
+
+    def test_region_covers_the_dense_block_and_excludes_the_stray(self):
+        region = plan_region(self.clustered_page(), columns=8)
+        self.assertIsNotNone(region)
+        left, top, right, bottom = region
+        self.assertLess(left, 100.0)
+        self.assertLess(top, 100.0)
+        self.assertLess(right, 1000.0)
+        self.assertLess(bottom, 760.0)
+
+    def test_a_sparse_page_yields_no_region_so_nothing_is_filtered(self):
+        self.assertIsNone(plan_region(page_with([rect_path(0, 0, 100, 50)]), columns=8))
+        self.assertTrue(within_region(None, 'h', 500, 0, 100))
+
+    def test_within_region_uses_the_band_midpoint(self):
+        region = (100.0, 100.0, 500.0, 500.0)
+        self.assertTrue(within_region(region, 'h', 300, 200, 400))
+        self.assertFalse(within_region(region, 'h', 300, 600, 800))
+        self.assertTrue(within_region(region, 'v', 300, 200, 400))
+        self.assertFalse(within_region(region, 'v', 700, 200, 400))
 
 
 class EndToEndTests(unittest.TestCase):

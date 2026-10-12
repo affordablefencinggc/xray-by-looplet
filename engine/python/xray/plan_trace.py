@@ -181,6 +181,32 @@ def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
     return rects, stats
 
 
+def open_runs(page, tolerance_deg=AXIS_TOL_DEG):
+    """Axis-aligned straight segments from OPEN subpaths, as (x1, y1, x2, y2).
+
+    These are the strokes a plan uses for walls drawn as parallel double lines,
+    grid lines and dimension lines. Diagonal strokes are excluded rather than
+    snapped, so a diagonal is never turned into a wall.
+    """
+    runs = []
+    allowed = math.cos(math.radians(tolerance_deg))
+    paths, _ = subpaths(page)
+    for subpath in paths:
+        if subpath['closed']:
+            continue
+        points = _dedupe(subpath['points'])
+        for a, b in zip(points, points[1:]):
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            length = math.hypot(dx, dy)
+            if length <= 0:
+                continue
+            if abs(dx) / length >= allowed or abs(dy) / length >= allowed:
+                runs.append((a[0], a[1], b[0], b[1]))
+            if len(runs) > MAX_SHAPES:
+                raise PlanTraceError('Run limit exceeded.')
+    return runs
+
+
 def wall_bands(page, mm_per_pt):
     """Thin axis-aligned rectangles measured as wall bands.
 
@@ -285,6 +311,208 @@ def traced_openings(bands, mm_per_pt):
     return openings
 
 
+# --- plan-region isolation -------------------------------------------------
+# A sheet is not all plan: the title block, revision schedule and sheet margins
+# carry dense non-plan linework. The plan is the largest contiguous dense block
+# of axis-aligned linework, so it is found by density rather than by assuming a
+# corner, which keeps working when a title block moves or is vertical.
+
+REGION_COLUMNS = 48
+REGION_MARGIN_PT = 12.0
+
+
+def _density_grid(page, columns=REGION_COLUMNS):
+    """Count linework samples per cell across the whole sheet."""
+    width, height = float(page['widthPt']), float(page['heightPt'])
+    if width <= 0 or height <= 0:
+        raise PlanTraceError('Page has no usable extent.')
+    rows = max(1, int(round(columns * height / width)))
+    counts = [[0] * columns for _ in range(rows)]
+    cell_w, cell_h = width / columns, height / rows
+    step = max(1.0, min(cell_w, cell_h) / 2.0)
+
+    def mark(x, y):
+        column = min(columns - 1, max(0, int(x / cell_w)))
+        row = min(rows - 1, max(0, int(y / cell_h)))
+        counts[row][column] += 1
+
+    def sample(x0, y0, x1, y1):
+        span = math.hypot(x1 - x0, y1 - y0)
+        steps = max(1, int(span / step))
+        for index in range(steps + 1):
+            t = index / steps
+            mark(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
+
+    rects, _ = rectangles(page)
+    for x0, y0, x1, y1 in rects:
+        # One mark per band: its centre is enough to place a single wall.
+        mark((x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    for x0, y0, x1, y1 in open_runs(page):
+        sample(x0, y0, x1, y1)
+    return counts, columns, rows, cell_w, cell_h
+
+
+def plan_region(page, columns=REGION_COLUMNS, sensitivity=1.0):
+    """Bounding box (x0, y0, x1, y1) in page points of the densest block.
+
+    Returns None when the sheet is too uniform to separate a plan from its
+    surrounding furniture, in which case the caller must NOT filter.
+    """
+    counts, columns, rows, cell_w, cell_h = _density_grid(page, columns)
+    nonzero = sorted(value for row in counts for value in row if value > 0)
+    if len(nonzero) < columns * 2:
+        return None
+    threshold = max(1.0, (sum(nonzero) / len(nonzero)) * sensitivity)
+    dense = [[value >= threshold for value in row] for row in counts]
+    if not any(any(row) for row in dense):
+        return None
+
+    seen = [[False] * columns for _ in range(rows)]
+    best = None
+    for start_row in range(rows):
+        for start_column in range(columns):
+            if seen[start_row][start_column] or not dense[start_row][start_column]:
+                continue
+            stack = [(start_row, start_column)]
+            seen[start_row][start_column] = True
+            members = []
+            while stack:
+                row, column = stack.pop()
+                members.append((row, column))
+                for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nr, nc = row + dr, column + dc
+                    if 0 <= nr < rows and 0 <= nc < columns and not seen[nr][nc] \
+                            and dense[nr][nc]:
+                        seen[nr][nc] = True
+                        stack.append((nr, nc))
+            if best is None or len(members) > len(best):
+                best = members
+    if not best:
+        return None
+    row_lo = min(r for r, _ in best)
+    row_hi = max(r for r, _ in best)
+    column_lo = min(c for _, c in best)
+    column_hi = max(c for _, c in best)
+    return (max(0.0, column_lo * cell_w - REGION_MARGIN_PT),
+            max(0.0, row_lo * cell_h - REGION_MARGIN_PT),
+            min(float(page['widthPt']), (column_hi + 1) * cell_w + REGION_MARGIN_PT),
+            min(float(page['heightPt']), (row_hi + 1) * cell_h + REGION_MARGIN_PT))
+
+
+def within_region(region, axis, perp, a, b):
+    """True when a band's midpoint sits inside the plan region (None = keep)."""
+    if region is None:
+        return True
+    x0, y0, x1, y1 = region
+    mid_a, mid_perp = (a + b) / 2.0, perp
+    x, y = (mid_a, mid_perp) if axis == 'h' else (mid_perp, mid_a)
+    return x0 <= x <= x1 and y0 <= y <= y1
+
+
+# --- open double-line wall recovery ----------------------------------------
+# A CAD plan very often draws a wall as a PAIR of parallel strokes rather than a
+# closed poche rectangle. Reading only closed quads misses those walls entirely;
+# this pairs each stroke with its nearest parallel partner when the separation is
+# a plausible wall thickness and the runs overlap enough to be one wall.
+
+PAIR_OVERLAP_RATIO = 0.5
+
+
+def _normalised_run(x0, y0, x1, y1):
+    horizontal = abs(x1 - x0) >= abs(y1 - y0)
+    if horizontal:
+        return 'h', (y0 + y1) / 2.0, min(x0, x1), max(x0, x1)
+    return 'v', (x0 + x1) / 2.0, min(y0, y1), max(y0, y1)
+
+
+def open_wall_bands(page, mm_per_pt):
+    """Walls drawn as two parallel open lines, paired into measured bands."""
+    if not (0 < mm_per_pt < 1000):
+        raise PlanTraceError('Unusable calibration.')
+    runs = [_normalised_run(*run) for run in open_runs(page)]
+    stats = {'runs': len(runs), 'paired': 0, 'noOverlap': 0}
+    bands = []
+    used = set()
+    for axis in ('h', 'v'):
+        group = sorted(((index, run) for index, run in enumerate(runs)
+                        if run[0] == axis), key=lambda item: (item[1][1], item[1][2]))
+        for position, (index, run) in enumerate(group):
+            if index in used or (run[3] - run[2]) * mm_per_pt < MIN_WALL_LENGTH_MM:
+                continue
+            for other_index, other in group[position + 1:]:
+                if other_index in used:
+                    continue
+                gap_mm = abs(other[1] - run[1]) * mm_per_pt
+                if gap_mm < WALL_MIN_MM:
+                    continue
+                if gap_mm > WALL_MAX_MM:
+                    break  # sorted by perpendicular coordinate: nothing pairs
+                low, high = max(run[2], other[2]), min(run[3], other[3])
+                overlap_mm = (high - low) * mm_per_pt
+                shorter_mm = min(run[3] - run[2], other[3] - other[2]) * mm_per_pt
+                if overlap_mm < MIN_WALL_LENGTH_MM or overlap_mm < shorter_mm * PAIR_OVERLAP_RATIO:
+                    stats['noOverlap'] += 1
+                    continue
+                used.add(index)
+                used.add(other_index)
+                thickness_pt = abs(other[1] - run[1])
+                perp = (run[1] + other[1]) / 2.0
+                half = thickness_pt / 2.0
+                if axis == 'h':
+                    rect = (low, perp - half, high, perp + half)
+                else:
+                    rect = (perp - half, low, perp + half, high)
+                bands.append({'axis': axis, 'perp': perp, 'a': low, 'b': high,
+                              'thicknessMm': thickness_pt * mm_per_pt,
+                              'lengthMm': overlap_mm, 'rect': rect,
+                              'paired': True})
+                stats['paired'] += 1
+                if len(bands) > MAX_WALLS:
+                    raise PlanTraceError('Wall band limit exceeded.')
+                break
+    return bands, stats
+
+
+def drop_regular_arrays(bands, mm_per_pt, min_members=4, max_spacing_mm=450.0,
+                        spacing_ratio=1.6):
+    """Discard stair treads, hatching and dimension ticks.
+
+    Those are regular, close-spaced, mutually overlapping parallel bands. A real
+    wall layout is not regular at that pitch, so a run of at least `min_members`
+    bands with near-uniform spacing is dropped while a pair of genuinely close
+    parallel walls survives.
+    """
+    if not bands:
+        return [], {'dropped': 0}
+    keep = []
+    dropped = 0
+    for axis in ('h', 'v'):
+        group = sorted((b for b in bands if b['axis'] == axis),
+                       key=lambda b: (b['perp'], b['a']))
+        index = 0
+        while index < len(group):
+            chain = [group[index]]
+            cursor = index + 1
+            while cursor < len(group):
+                previous, current = chain[-1], group[cursor]
+                if (current['perp'] - previous['perp']) * mm_per_pt > max_spacing_mm:
+                    break
+                if current['a'] > previous['b'] or current['b'] < previous['a']:
+                    break
+                chain.append(current)
+                cursor += 1
+            spacings = [(b['perp'] - a['perp']) * mm_per_pt
+                        for a, b in zip(chain, chain[1:])]
+            if (len(chain) >= min_members and spacings
+                    and max(spacings) <= min(spacings) * spacing_ratio):
+                dropped += len(chain)
+                index = cursor
+                continue
+            keep.append(group[index])
+            index += 1
+    return keep, {'dropped': dropped}
+
+
 MATERIALS = {
     'wall': {'color': '#e4ddcc', 'roughness': 0.88},
     'opening': {'color': '#65a5b0', 'opacity': 0.45, 'roughness': 0.25},
@@ -346,8 +574,19 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
         raise PlanTraceError('Page has no usable extent.')
 
     raw, stats = wall_bands(page, mm_per_pt)
-    bands = merge_bands(raw, mm_per_pt)
+    paired, pair_stats = open_wall_bands(page, mm_per_pt)
+    region = plan_region(page)
+    inside = [band for band in raw + paired
+              if within_region(region, band['axis'], band['perp'], band['a'], band['b'])]
+    outside = len(raw) + len(paired) - len(inside)
+    bands, array_stats = drop_regular_arrays(merge_bands(inside, mm_per_pt), mm_per_pt)
     gaps = traced_openings(bands, mm_per_pt)
+
+    stats = dict(stats)
+    stats.update({'closedBands': len(raw), 'openWallBands': len(paired),
+                  'pairedRuns': pair_stats['paired'], 'outsideRegion': outside,
+                  'droppedRegular': array_stats['dropped'],
+                  'region': [round(v, 1) for v in region] if region else None})
 
     objects = []
     for index, band in enumerate(sorted(bands, key=lambda b: (b['axis'], b['perp'], b['a'])), 1):
@@ -415,10 +654,14 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             + ('recorded as verified.' if verified else
                'NOT verified - it rests on a paper-size assumption, so every '
                'real-world length here inherits that uncertainty.'),
-            'A wall band is a closed axis-aligned quadrilateral whose measured '
-            f'thickness falls between {WALL_MIN_MM:g} and {WALL_MAX_MM:g} mm. Open '
-            'double-line walls, curved walls, hatched poché that is not a closed '
-            'quad, and all diagonal geometry are not yet recovered.',
+            'A wall band is either a closed axis-aligned quadrilateral or a pair of '
+            f'parallel open strokes, with a measured thickness between {WALL_MIN_MM:g} '
+            f'and {WALL_MAX_MM:g} mm. Curved walls and diagonal geometry are still '
+            'not recovered, and neither are walls outside the detected plan region.',
+            'Wall bands are isolated by drawing density: only the densest contiguous '
+            'block of the sheet is kept, so title-block and margin linework is '
+            'excluded. Regular close-spaced parallel bands (stair treads, hatching, '
+            'dimension ticks) are discarded.',
             'Wall height is a presentation assumption and opening head/sill heights '
             'are inferred; neither is read from the drawing.',
             'A traced opening is a gap between collinear wall bands inside the '
@@ -433,6 +676,10 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             'wallRuns': len(bands),
             'openings': len(gaps),
             'objects': len(objects),
+            'fromClosedBands': sum(1 for band in bands if not band.get('paired')),
+            'fromOpenPairs': sum(1 for band in bands if band.get('paired')),
+            'excludedOutsideRegion': outside,
+            'excludedRegularArray': array_stats['dropped'],
             'wallHeightM': float(wall_height_m),
             'thicknessMm': {
                 'min': round(thicknesses[0], 1) if thicknesses else None,
@@ -551,6 +798,10 @@ def main(argv=None):
             'wallRuns': scene['summary']['wallRuns'],
             'openings': scene['summary']['openings'],
             'objects': scene['summary']['objects'],
+            'fromClosedBands': scene['summary']['fromClosedBands'],
+            'fromOpenPairs': scene['summary']['fromOpenPairs'],
+            'excludedOutsideRegion': scene['summary']['excludedOutsideRegion'],
+            'excludedRegularArray': scene['summary']['excludedRegularArray'],
             'thicknessMm': scene['summary']['thicknessMm'],
             'calibrationVerified': scene['summary']['calibration']['verified'],
             'sceneSha256': hashlib.sha256(text.encode()).hexdigest(),

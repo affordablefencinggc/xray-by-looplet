@@ -41,6 +41,42 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 2 — plan-region isolation and open double-line walls
+
+Owner `cline-plan-tracer-2-20261013`, baseline `0597cc3b`. Slice 1 produced 66
+horizontal against 7 vertical bands spread across the whole sheet, because only
+closed quads were read and nothing separated the plan from the title block.
+
+Added to `engine/python/xray/plan_trace.py`: `open_runs`, `plan_region` (density
+grid plus largest 4-connected component), `within_region`, `open_wall_bands`
+(parallel-stroke pairing) and `drop_regular_arrays` (stair treads, hatching,
+dimension ticks). Tests grew from 26 to **40 passed / 14 subtests**; regression
+**197 passed, 1 skipped** (pre-existing skip), 223 subtests.
+
+Wardoo sheet 6, before → after: wall runs 73 → 45; **horizontal/vertical 66/7 →
+28/17**; from closed quads 73 → 9; **from open double-line pairs 0 → 36**;
+excluded outside region 225; excluded as regular array 4; openings 2 → 3;
+thickness 64.0/154.3/333.0 mm. Scene `sceneSha256 65593e12…b335`, exit 0.
+
+Independent cross-check: the detector's region is 13.1 × 7.8 m (≈102 m²) while the
+engine's residential pack independently derived 15.255 × 7.070 m (107.9 m²) from
+page-5 dimension chains — agreement within 6%, from a different code path on a
+different sheet. A sensitivity sweep (`plan-trace-20261013-fb27c4e1a0d9\sweep.py`)
+keeps the setting at 1.0: 0.50 merges the plan with the other drawings on the sheet.
+
+Defect found and fixed within the slice: the `paired` flag was dropped, so the first
+slice-2 scene reported `fromOpenPairs: 0`; a regression test now pins the attribution.
+
+Still not trustworthy: 47.7 m of recovered wall for a ~102 m² footprint under-recovers
+internal walls; median wall length is only 1.1 m because openings and crossings break
+walls into fragments that are not re-joined; the 1:100 calibration is still
+`verified: false`; and **no quantities are produced**. Proof:
+`proof/growth/2026-10-13-plan-trace/steps/plan-tracer-region-and-open-walls.md`.
+
+Next: re-join collinear fragments interrupted by openings and crossings so one wall is
+one run, then re-measure against the ≈41.8 m external perimeter the region implies.
+
+
 ## 2026-10-13 additive slice — automatic plan linework tracer (first milestone)
 
 Owner `cline-plan-tracer-20261013`. Baseline HEAD
