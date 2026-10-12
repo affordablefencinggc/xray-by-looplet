@@ -41,6 +41,44 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 continuation slice — registered targeted regression on the dirty tree
+
+Owner `cline-continuation-20261013`; exclusive lock at
+`xray-recovery-evidence\continuation-loop.lock.json` (acquired 04:41:40 +10:00, released on
+completion). HEAD unchanged at `000f60161283aeaebdc996d732766797022bc441`, branch
+`recovery/full-studio-20261011`. This slice added **no product source changes**.
+
+Ran the registered targeted unit modules for the currently dirty/added recovery files under
+the reviewed hash-pinned 20% aggregate CPU-cap harness (same pattern as
+`xray-recovery-evidence\job-engine-reconnect-20261012\run-check.ps1`; helper
+`scripts\run-recovery-ledger-check.ps1` hash `30DE7F56…C6F3A0` verified before use, cap
+inheritance asserted):
+
+`node --experimental-strip-types --test --test-concurrency=1` over
+`src/studio/persistence.test.ts`, `src/studio/projectRecoveryStore.test.ts`,
+`src/studio/liveWireframe.test.ts`, `src/lib/sourceGeometry.server.test.ts`,
+`src/studio/designedBuildingScope.test.ts`, `src/studio/designedBuildingStore.test.ts`,
+`src/studio/industries/roofing/cuttingSchedule.test.ts`, `src/studio/assistant/appTools.test.ts`.
+
+Result (`unit-suite-20261013-c7f30a91b2d4-r2`): **91 tests, 91 pass, 0 fail, 0 cancelled,
+0 skipped, 0 todo**, exitCode 0, timedOut false, exited true, 5.437 s. The real Python bridge
+test executed (1689.95 ms) with `XRAY_SOURCE_ENGINE_TESTS=1`; **no owned Python process
+remained** after completion. Owner/child PIDs 92156/85324/96204/34932 all absent.
+`git diff --check` exit 0; working-tree status byte-identical before and after (33 entries).
+
+Retained defect in the first attempt: with `XRAY_SOURCE_ENGINE_TESTS` unset the bridge test
+skipped (90 pass / 1 skip). That skip is a **harness configuration omission, not a product
+regression** — `src/lib/sourceGeometry.server.test.ts:14` gates on that variable. Attempt 2
+corrected the harness and reached zero skips. Evidence (both attempts, logs, owner/exit
+records, baseline/after status, `result.json`):
+`xray-recovery-evidence\continuation-20261013-c7f30a91b2d4\`.
+
+Scope limit: this is a **targeted 8-module subset on an uncommitted dirty tree** — not the
+full registered `src` suite, not typecheck/build, not the native/UI gate, and not engine
+qualification. No acceptance flag changes: `testInventoryAuthenticated`,
+`executionAuthenticated`, `freshEngineQualified` and `appAccepted` all remain **false**.
+
+
 ## Current slice — artifact consistency and trusted collection
 
 Superseding update, October 12: clean worker `b212a4926b37` and independently
