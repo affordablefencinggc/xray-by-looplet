@@ -5,6 +5,7 @@ needed) plus one real end-to-end run through pikepdf, so a failure names the
 rule that broke rather than only "the extraction changed".
 """
 import contextlib
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -15,9 +16,10 @@ import pikepdf
 
 from xray.plan_trace import (
     COLLINEAR_TOL_MM, OPENING_MIN_MM, PlanTraceError, WALL_MAX_MM, WALL_MIN_MM,
-    build_scene, drop_regular_arrays, main, merge_bands, open_wall_bands,
-    plan_region, rectangles, subpaths, symbol_rectangles, trace_plan,
-    traced_openings, validate_trace_scene, wall_bands, within_region)
+    build_scene, drop_regular_arrays, export_wireframe, main, merge_bands,
+    open_wall_bands, plan_region, rectangles, subpaths, symbol_rectangles,
+    trace_plan, traced_openings, validate_trace_scene, wall_bands, within_region)
+from xray.source_building import BuildingError
 
 
 def rect_path(x0, y0, x1, y1):
@@ -164,6 +166,9 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(scene['units'], 'm')
         self.assertEqual(scene['summary']['wallRuns'], 2)
         self.assertEqual(scene['summary']['openings'], 1)
+        # building_svg.included() switches on 'level' for the storey views, so the
+        # exporter needs it on every object.
+        self.assertTrue(all(o['level'] == 'ground' for o in scene['objects']))
         walls = [o for o in scene['objects'] if o['category'] == 'wall']
         self.assertEqual(len(walls), 2)
         for wall in walls:
@@ -524,6 +529,42 @@ class EndToEndTests(unittest.TestCase):
                              '--mm-per-pt', '1', '--out', str(Path(directory) / 'out.json')])
             self.assertEqual(code, 2)
             self.assertNotIn('Traceback', stderr.getvalue())
+
+    def test_wireframe_export_writes_only_views_that_have_geometry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'plan.pdf'
+            self.plan_fixture(source)
+            scene = trace_plan(source, 1, 1.0, scale={'value': '1:100', 'verified': False})
+            scene_path = Path(directory) / 'scene.json'
+            scene_path.write_text(json.dumps(scene), encoding='utf-8')
+            out = Path(directory) / 'wireframe'
+            manifest = export_wireframe(scene_path, source, out)
+            self.assertEqual(manifest['schema'], 'xray.building-wireframe-manifest/v1')
+            self.assertEqual(manifest['sourceSha256'], scene['source']['sha256'])
+            views = sorted(entry['file'] for entry in manifest['outputs'])
+            # A single-storey trace has no upper floor, so that view is skipped
+            # rather than raising 'Projection has no geometry'.
+            self.assertEqual(views, ['wireframe-axonometric.svg', 'wireframe-ground.svg'])
+            for entry in manifest['outputs']:
+                path = out / entry['file']
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),
+                                 entry['sha256'])
+                self.assertGreater(entry['segments'], 0)
+            self.assertEqual(json.loads((out / 'wireframe-manifest.json').read_text(
+                encoding='utf-8'))['sceneSha256'], manifest['sceneSha256'])
+
+    def test_wireframe_export_rejects_a_source_that_does_not_match_the_scene(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'plan.pdf'
+            self.plan_fixture(source)
+            scene = trace_plan(source, 1, 1.0)
+            scene_path = Path(directory) / 'scene.json'
+            scene_path.write_text(json.dumps(scene), encoding='utf-8')
+            other = Path(directory) / 'other.pdf'
+            self.plan_fixture(other)
+            other.write_bytes(other.read_bytes() + b'\n%changed')
+            with self.assertRaisesRegex(BuildingError, 'SHA-256'):
+                export_wireframe(scene_path, other, Path(directory) / 'wireframe')
 
 
 if __name__ == '__main__':

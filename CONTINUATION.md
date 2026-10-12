@@ -41,6 +41,47 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 7 — a Wardoo wireframe artifact now exists
+
+Owner `cline-wardoo-wireframe-20261013`, baseline `45631667`. Asked whether a Wardoo
+wireframe artifact existed, the answer was no: `public/models/` held caroline,
+crown-wharf, designed, redburn and ruffles only, no `wardoo`, and wireframe SVGs existed
+for **Caroline alone**. It now exists.
+
+`engine/python/xray/building_svg.py` already converts an `xray.source-building/v1` scene
+into wireframe SVGs plus a hashed manifest, and the tracer already emits that schema. The
+only missing field was `level`, which `building_svg.included()` switches on, so objects
+now carry `'level': 'ground'`. The first export then failed honestly with
+`Projection has no geometry` because `building_svg.export` always writes three fixed views
+and a single-storey trace has no upper floor. **`building_svg.py` was not modified**;
+`plan_trace.export_wireframe` reuses `building_svg.make_svg` and `load_bound_scene`, so
+the projection and per-part provenance are the same code the curated models use, and
+skips a view that has no parts. Exposed as `--wireframe DIR`.
+
+Artifact committed at
+`proof/growth/2026-10-13-plan-trace/artifacts/wardoo-wireframe/`:
+`wireframe-axonometric.svg` (51,817 bytes, 42 parts, 504 segments),
+`wireframe-ground.svg` (39,303 bytes, 42 parts, 168 segments),
+`wireframe-manifest.json`, and the source scene. Manifest pins source SHA-256
+`79126aaa…f59a` and scene SHA-256 `829f4dc0…a544`; each SVG embeds the projection matrix
+and per-part `sourceRefs`/`evidenceState` in nested `<metadata>`.
+
+Tests **50 passed / 14 subtests** (was 48), including that only non-empty views are
+exported, that every manifest hash matches the file on disk, and that a source PDF whose
+SHA-256 does not match the scene is refused before anything is written. Regression
+recorded via the detached `regression.ps1`.
+
+Honest limits: the scene is `automatic-approximate` from **one sheet of one storey**
+(page 6, no roof page 10), `calibrationVerified` is `false`, openings are still
+under-reported at 2, and it is committed under `proof/` rather than `public/models/`
+because it is not registered in the app's model catalogue and promoting an unverified
+automatic trace to a product artifact is not justified. It contains **no quantities**.
+Proof: `proof/growth/2026-10-13-plan-trace/steps/wardoo-wireframe-artifact.md`.
+
+Next: group the glazing rules as a group (slice 6's finding), then re-project — the
+wireframe is now cheap to regenerate and becomes the visual check for further changes.
+
+
 ## 2026-10-13 additive slice 6 — render the sheet, then read what it actually draws
 
 Owner `cline-plan-tracer-3-20261013`, baseline `327be504`. Slices 4-5 were heuristics

@@ -804,6 +804,7 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             'positions': _box(band, mm_per_pt, page_w, page_h),
             'indices': list(BOX_INDICES), 'material': 'wall',
             'sourceRefs': references, 'evidenceState': 'traced',
+            'level': 'ground',
         })
 
     head = min(float(head_depth_m), float(wall_height_m))
@@ -823,6 +824,7 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             'positions': _box(gap, mm_per_pt, page_w, page_h),
             'indices': list(BOX_INDICES), 'material': 'opening',
             'sourceRefs': references, 'evidenceState': 'inferred',
+            'level': 'ground',
         })
 
     thicknesses = sorted(band['thicknessMm'] for band in bands)
@@ -961,6 +963,45 @@ def trace_plan(pdf_path, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_M,
                        wall_height_m, head_depth_m, scale)
 
 
+def export_wireframe(scene_path, source_path, out):
+    """Write xray.building-wireframe-manifest/v1 output for a traced scene.
+
+    Reuses `building_svg.make_svg` so the projection, edge filtering and
+    per-part provenance are exactly the code the curated models use - this
+    function adds no rendering of its own.
+
+    `building_svg.export` is deliberately not called: it always exports three
+    fixed views, and a single-storey trace has no upper floor, so it raises
+    'Projection has no geometry' instead of skipping the empty view. Skipping is
+    the honest behaviour, and it belongs here rather than in that producer.
+    """
+    from xray import building_svg
+
+    scene, scene_sha = building_svg.load_bound_scene(scene_path, source_path)
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    results = []
+    for view in building_svg.VIEWS:
+        if not any(building_svg.included(part, view) for part in scene['objects']):
+            continue
+        data, metadata = building_svg.make_svg(scene, scene_sha, view)
+        name = f'wireframe-{view}.svg'
+        (out / name).write_bytes(data)
+        results.append({'file': name,
+                        'sha256': hashlib.sha256(data).hexdigest(),
+                        'bytes': len(data),
+                        'parts': metadata['parts'],
+                        'segments': metadata['segments']})
+    manifest = {'schema': 'xray.building-wireframe-manifest/v1',
+                'sourceSha256': scene['source']['sha256'],
+                'sceneSha256': scene_sha,
+                'hiddenEdgePolicy': building_svg.POLICY,
+                'outputs': results}
+    (out / 'wireframe-manifest.json').write_text(
+        json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    return manifest
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description=('Automatic PDF plan linework tracer: walls and traced openings '
@@ -978,6 +1019,9 @@ def main(argv=None):
                         help='e.g. 1:100, recorded for provenance only')
     parser.add_argument('--scale-verified', action='store_true',
                         help='assert the supplied calibration was independently verified')
+    parser.add_argument('--wireframe', default=None, metavar='DIR',
+                        help='also write the building wireframe SVG views and '
+                             'manifest into DIR (reuses the curated exporter)')
     args = parser.parse_args(argv)
     try:
         scale = {'value': args.scale_value, 'verified': bool(args.scale_verified),
@@ -992,7 +1036,7 @@ def main(argv=None):
             out.parent.mkdir(parents=True, exist_ok=True)
         with out.open('x', encoding='utf-8', newline='\n') as handle:
             handle.write(text)
-        print(json.dumps({
+        payload = {
             'status': scene['summary']['status'],
             'page': args.page,
             'sourceSha256': scene['source']['sha256'],
@@ -1006,7 +1050,15 @@ def main(argv=None):
             'thicknessMm': scene['summary']['thicknessMm'],
             'calibrationVerified': scene['summary']['calibration']['verified'],
             'sceneSha256': hashlib.sha256(text.encode()).hexdigest(),
-        }))
+        }
+        if args.wireframe:
+            manifest = export_wireframe(out, args.pdf, args.wireframe)
+            payload['wireframe'] = {
+                'dir': args.wireframe,
+                'manifest': 'xray.building-wireframe-manifest/v1',
+                'views': [entry['file'] for entry in manifest['outputs']],
+            }
+        print(json.dumps(payload))
         return 0
     except PlanTraceError as error:
         print('error: ' + str(error), file=sys.stderr)
