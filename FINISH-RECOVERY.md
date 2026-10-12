@@ -105,8 +105,14 @@ and full artifact/log/toolchain/fixture validation and trusted collection remain
 Additive artifact consistency validation has clean worker and independent proof at
 `9cc49c9c`: 95 tests, zero skips, queried 20% cap and cleanup; separate
 `artifact-consistency-executed.md` step. Even a structurally consistent bundle is
-not authenticated execution or acceptance. Implement the reviewed but unexecuted
-`QUALIFICATION-COLLECTION-PLAN.md` next; source/test coverage and warning review
+not authenticated execution or acceptance. The separate declared-coverage component
+has independent proof at `0c94244c`; the additive collection observer at `d553c480`
+has clean worker and independent proof, each 21 preflight + 25 observer tests,
+zero skips. See `collection-observer-executed.md`. Actual pytest/JUnit on synthetic
+fixtures is not an approved engine-source inventory or authenticated preparation.
+Continue the remaining integration in `QUALIFICATION-COLLECTION-PLAN.md`: pinned
+source preparation, independent full source/parameter approval, and the separate
+execution collector/external hard watchdog. Source/test coverage and warning review
 remain required. No fresh DANS1 engine qualification has been launched.
 Then create a new 12-hex-ID snapshot/cases/transfer set at the actual source commit;
 validate and independently rehash transferred inputs and the owner script.

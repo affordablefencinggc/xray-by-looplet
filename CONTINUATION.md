@@ -64,7 +64,7 @@ junction rejection, 109-source/four-helper audit, queried 20% cap, unchanged
 `proof/growth/2026-10-11-full-studio-recovery/steps/artifact-consistency-executed.md`.
 Earlier dirty development `efa977a3e23f` is retained, not final proof. No engine/app
 acceptance is inferred. Next implementation contract and source-test/skip findings:
-`QUALIFICATION-COLLECTION-PLAN.md` (design only, not executed). Trusted collection
+`QUALIFICATION-COLLECTION-PLAN.md` (observer component tested; integration open). Trusted collection
 and source/test/warning review remain engineering work, not a DANS1 permission issue.
 
 Next additive slice: `scripts/verify_qualification_coverage.py`, its tests and
@@ -80,6 +80,23 @@ and owned cleanup. Separate proof:
 Development `b0bd64d1f8f7` is retained separately. The independent short run had no
 live external transient-process snapshot; retained handles, self-CIM, exit and job
 accounting are documented without overstating observation coverage.
+
+October 12 next component: `scripts/collect_qualification_tests.py`, its tests
+and `scripts/run-collection-observer-check.ps1` have clean worker `1a6dbfe4fa50`
+and independent verifier `568657937b59` (`run_00052`) proof at
+`d553c4803ddcb3d092f1169e2762c3ae82630c49`. Each passed **21 preflight + 25
+observer tests, zero skips**, actual pytest 9.1.1 on synthetic fixtures, independent
+real JUnit comparison including unittest/parameters, preserved 109 sources/four
+helpers, queried 20% CPU cap, ten source/five selected runtime hashes unchanged,
+zero exits and owned cleanup. Foreground rehashed all 31 independent evidence files.
+Separate proof: `proof/growth/2026-10-11-full-studio-recovery/steps/collection-observer-executed.md`.
+Development `6e75f3247aff` is retained separately. The independent run also retained
+actual monitor exit 0 and live observations of 11 owned process identities,
+including a Python312 synthetic collector child; all were absent after completion.
+The exact inventory v1 schema is preserved under a new versioned observer envelope.
+This is **not** a real engine-source inventory, authenticated preparation approval,
+production collector, full dependency attestation or DANS1 engine qualification.
+The new direct pytest.main entry differs explicitly from the preserved producer.
 
 ## Previous slice — terminal-record prerequisite
 
@@ -145,18 +162,29 @@ Each test run uses `terminal-records-<id>` plus tracked
 
 ## Next action
 
-Implement trusted source-bound test preparation/observer and separately pinned
-execution/collection around the unchanged legacy producers, using the concrete
-contract in `QUALIFICATION-COLLECTION-PLAN.md`. The additive artifact and
-declared-coverage validators already have clean worker and independent proof.
+Integrate the tested observer into independently pinned, contained source-ZIP
+preparation and separate source/parameter inventory approval; then implement the
+separately pinned execution collector and external hard watchdog around unchanged
+legacy producers, following `QUALIFICATION-COLLECTION-PLAN.md`. The additive
+artifact, declared-coverage and observer components have independent regression proof.
 Full source/test inventory and warning/skip review are not established by a
 self-consistent bundle. Do not weaken deadlines or assertions.
 Use a new immutable local run ID with the following entrypoint; monitor a tracked
 bounded supervisor asynchronously because foreground commands time out after 30 seconds:
 
 ```powershell
-powershell.exe -NoProfile -File C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery\scripts\run-artifact-evidence-check.ps1 -RunId <new-12-hex-id> -Actor <worker-name>
+powershell.exe -NoProfile -NonInteractive -File C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery-evidence\observer-monitor-20261012.ps1 -Repo C:\Users\danie\Documents\Codex\2026-10-03\qu\work\az-web-bundle-r2\xray-recovery -RunId <new-12-hex-id> -Actor <worker-name>
 ```
+
+Launch that command via a tracked asynchronous process, not an unbounded foreground
+call. Recheck monitor SHA-256
+`b9994350d9482c758b8d7751a2e7a15f2d8729cd2bf5f2a12aef15c0581dab3d`
+and supervisor SHA-256
+`fcf96e9e3867479035bfb35c202676e1129eeab8c3534a41a88d6319cc906638`
+before use. The monitor invokes the inner capped observer runner, retains actual
+supervisor exit, and enforces the existing 400/360-second polling budgets; inspect
+all terminal/exit/source/log/cleanup evidence. This is a local development harness,
+not the still-unimplemented DANS1 collector/hard watchdog.
 
 The new gates are not registered as verified root machine-ledger items. Do not
 change the scope/acceptance of completed phase 1 to pretend it covers this work.

@@ -1,5 +1,19 @@
 # Verified Completion Checklist
 
+## October 12, 2026 — collection observer independently executed
+
+- Clean `d553c480`: worker `1a6dbfe4fa50`, independent `568657937b59`, each
+  21 preflight + 25 observer tests, zero skips. Actual pytest 9.1.1 on synthetic
+  fixtures and separate real JUnit oracle; not collection of the real engine source.
+- Preserved 109 sources/four helpers, queried 20% cap, ten source/five selected
+  runtime hashes unchanged, zero exits and owned cleanup. Independent monitor exit
+  also retained; 11 live owned identities absent afterward. Foreground rehashed
+  31 independent evidence files. Exact inventory v1 remains unchanged.
+- Separate proof: `proof/growth/2026-10-11-full-studio-recovery/steps/collection-observer-executed.md`.
+- Trusted source preparation, independent full inventory approval, DANS1 collector,
+  external hard watchdog and noncircular channel binding remain open. Authentication,
+  engine qualification and app acceptance flags stay false. Stop before installation.
+
 ## October 12, 2026 — declared-coverage tooling independently executed
 
 - Clean `0c94244c`: worker `cda4407665ca`, verifier `175274719595`, 21 preflight

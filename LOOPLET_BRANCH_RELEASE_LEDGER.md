@@ -1,5 +1,16 @@
 # Branch and Release Ledger
 
+## October 12, 2026 — collection observer clean worker and independent proof
+
+Code `d553c480` on the existing recovery branch: clean worker `1a6dbfe4fa50`,
+independent `568657937b59` (`run_00052`), 46 tests each with zero skips, queried
+20% cap, ten source/five selected runtime pins, zero exits and owned cleanup.
+Actual pytest/JUnit synthetic fixtures only; trusted preparation/full inventory
+approval and DANS1 collector remain engineering work. Separate bounded proof and
+continuation integration plan recorded; all authentication/engine/app flags false.
+No preserved producer/helper/pin/phase-1 ledger receipt change, DANS1 qualification,
+push, merge, staging or installation. Local source commit is WIP, not app acceptance.
+
 ## October 12, 2026 — declared coverage clean worker and independent proof
 
 Code `0c94244c` on existing recovery branch: clean worker `cda4407665ca` and

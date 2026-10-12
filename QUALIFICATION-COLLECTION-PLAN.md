@@ -1,6 +1,6 @@
 # Next qualification gate: trusted preparation and collection
 
-October 12, 2026. **Trusted observer/collector design, NOT implemented or executed.** This file
+October 12, 2026. **Observer component independently tested; trusted preparation and collector OPEN.** This file
 preserves concrete findings from independent design reviews `run_00033`,
 `run_00037`, `run_00038`. DANS1 operation is authorized; no permission re-request
 is needed. Stop before installation. Keep legacy producers/pin/receipts unchanged.
@@ -8,9 +8,38 @@ is needed. Stop before installation. Keep legacy producers/pin/receipts unchange
 The separate declared-coverage consistency gate now has worker and independent
 executed proof at `0c94244c` (19 coverage regressions plus 21 preflight). This checks
 declared identities only, not trusted collection or full function/parameter coverage.
-Its exact narrow `xray.collected-tests/v1` schema must be wrapped/versioned by a
-future richer observer envelope, not silently extended. See the separate
-`declared-coverage-executed.md` step. Steps 1 and 3 below remain unimplemented.
+Its exact narrow `xray.collected-tests/v1` schema is unchanged. The additive
+observer now emits a separate `xray.pytest-collection-observation/v1` envelope.
+Clean worker `1a6dbfe4fa50` and independent `568657937b59` at `d553c480` each
+passed 21 preflight + 25 observer regressions, zero skips. These are actual
+pytest 9.1.1 runs on synthetic fixtures, including independent real JUnit mapping,
+not collection of the engine source or an authenticated inventory approval.
+See `collection-observer-executed.md` and `declared-coverage-executed.md` steps.
+Step 1 has this tested component only; trusted preparation/approval integration
+and step 3 remain unimplemented. All authentication/engine/app flags remain false.
+
+### Tested observer component and next integration boundary
+
+`scripts/collect_qualification_tests.py` requires externally pinned run/source/
+snapshot identities, a verified extracted source tree, an absent sibling output,
+and an expected relative pytest root. It rejects configuration/ancestor conftest
+contamination, unexpected plugins (including transient registration), nondefault
+effective settings, collection diagnostics/warnings, source mutation and invalid
+identities. Active collection and post-cleanup plugin contexts are separate.
+It preserves the producer's selection/default-option semantics, adds collect-only
+and redirects diagnostic JUnit to sibling `collect-only.xml`, **but uses
+`pytest.main(..., plugins=[observer])`, not the producer's `python -m pytest`
+entrypoint**. Do not claim equivalent producer execution from this component.
+
+Next: an independently pinned preparation launcher must extract the exact ZIP
+into a fresh sibling, bind the fixed DANS1 Python/dependencies/observer/import
+dependencies, provide queried containment and an external hard deadline, retain
+logs and actual process exits, and approve the full source/parameter inventory
+separately before producer execution. It must compare preparation and producer
+ancestor/root/config contexts without changing preserved producer arguments.
+The observer does not itself extract a ZIP, authenticate a channel/owner, enforce
+an OS-level watchdog, or establish adversarial same-process isolation. Current
+local development harness polling is not the required DANS1 hard watchdog.
 
 ## Why the offline gate is insufficient
 
