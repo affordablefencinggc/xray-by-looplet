@@ -181,12 +181,23 @@ def rectangles(page, tolerance_deg=AXIS_TOL_DEG):
     return rects, stats
 
 
-def open_runs(page, tolerance_deg=AXIS_TOL_DEG):
-    """Axis-aligned straight segments from OPEN subpaths, as (x1, y1, x2, y2).
+def _run_tuple(pending):
+    axis, perp, low, high = pending
+    if axis == 'h':
+        return (low, perp, high, perp)
+    return (perp, low, perp, high)
 
-    These are the strokes a plan uses for walls drawn as parallel double lines,
-    grid lines and dimension lines. Diagonal strokes are excluded rather than
-    snapped, so a diagonal is never turned into a wall.
+
+def open_runs(page, tolerance_deg=AXIS_TOL_DEG, collinear_pt=0.75):
+    """Axis-aligned straight runs from OPEN subpaths, as (x1, y1, x2, y2).
+
+    Consecutive collinear segments of one subpath are re-joined into a single
+    run. A CAD wall is usually emitted as many short segments, one per vertex;
+    without this join a 6 m wall arrives as a dozen 0.5 m pieces and neither the
+    pairing nor the reported lengths mean anything.
+
+    Diagonal strokes are excluded rather than snapped, so a diagonal is never
+    turned into a wall.
     """
     runs = []
     allowed = math.cos(math.radians(tolerance_deg))
@@ -195,15 +206,38 @@ def open_runs(page, tolerance_deg=AXIS_TOL_DEG):
         if subpath['closed']:
             continue
         points = _dedupe(subpath['points'])
+        pending = None
         for a, b in zip(points, points[1:]):
             dx, dy = b[0] - a[0], b[1] - a[1]
             length = math.hypot(dx, dy)
             if length <= 0:
                 continue
-            if abs(dx) / length >= allowed or abs(dy) / length >= allowed:
-                runs.append((a[0], a[1], b[0], b[1]))
+            horizontal = abs(dx) / length >= allowed
+            vertical = abs(dy) / length >= allowed
+            if not (horizontal or vertical):
+                if pending is not None:
+                    runs.append(_run_tuple(pending))
+                    pending = None
+                continue
+            axis = 'h' if horizontal else 'v'
+            if axis == 'h':
+                perp, low, high = (a[1] + b[1]) / 2.0, min(a[0], b[0]), max(a[0], b[0])
+            else:
+                perp, low, high = (a[0] + b[0]) / 2.0, min(a[1], b[1]), max(a[1], b[1])
+            joins = (pending is not None and pending[0] == axis
+                     and abs(pending[1] - perp) <= collinear_pt
+                     and low <= pending[3] + collinear_pt
+                     and high >= pending[2] - collinear_pt)
+            if joins:
+                pending = (axis, perp, min(pending[2], low), max(pending[3], high))
+            else:
+                if pending is not None:
+                    runs.append(_run_tuple(pending))
+                pending = (axis, perp, low, high)
             if len(runs) > MAX_SHAPES:
                 raise PlanTraceError('Run limit exceeded.')
+        if pending is not None:
+            runs.append(_run_tuple(pending))
     return runs
 
 
@@ -426,50 +460,61 @@ def _normalised_run(x0, y0, x1, y1):
 
 
 def open_wall_bands(page, mm_per_pt):
-    """Walls drawn as two parallel open lines, paired into measured bands."""
+    """Walls drawn as two parallel open lines, paired into measured bands.
+
+    Both strokes must be at least MIN_WALL_LENGTH_MM long: a plan's run
+    population is otherwise dominated by hatch, tick and text strokes whose
+    median length is a few centimetres, and pairing those produces nonsense.
+    Each stroke is then matched to the candidate partner that OVERLAPS it most,
+    not merely to the first one sitting nearby, so a wall pairs with its own
+    facing line rather than with a neighbouring wall's.
+    """
     if not (0 < mm_per_pt < 1000):
         raise PlanTraceError('Unusable calibration.')
-    runs = [_normalised_run(*run) for run in open_runs(page)]
-    stats = {'runs': len(runs), 'paired': 0, 'noOverlap': 0}
+    runs = [_normalised_run(*run)
+            for run in open_runs(page, collinear_pt=COLLINEAR_TOL_MM / mm_per_pt)]
+    viable = [run for run in runs if (run[3] - run[2]) * mm_per_pt >= MIN_WALL_LENGTH_MM]
+    stats = {'runs': len(runs), 'viableRuns': len(viable), 'paired': 0, 'noOverlap': 0}
     bands = []
     used = set()
     for axis in ('h', 'v'):
-        group = sorted(((index, run) for index, run in enumerate(runs)
+        group = sorted(((index, run) for index, run in enumerate(viable)
                         if run[0] == axis), key=lambda item: (item[1][1], item[1][2]))
-        for position, (index, run) in enumerate(group):
-            if index in used or (run[3] - run[2]) * mm_per_pt < MIN_WALL_LENGTH_MM:
+        for index, run in group:
+            if index in used:
                 continue
-            for other_index, other in group[position + 1:]:
-                if other_index in used:
+            best = None
+            for other_index, other in group:
+                if other_index == index or other_index in used:
                     continue
                 gap_mm = abs(other[1] - run[1]) * mm_per_pt
-                if gap_mm < WALL_MIN_MM:
+                if gap_mm < WALL_MIN_MM or gap_mm > WALL_MAX_MM:
                     continue
-                if gap_mm > WALL_MAX_MM:
-                    break  # sorted by perpendicular coordinate: nothing pairs
                 low, high = max(run[2], other[2]), min(run[3], other[3])
                 overlap_mm = (high - low) * mm_per_pt
                 shorter_mm = min(run[3] - run[2], other[3] - other[2]) * mm_per_pt
                 if overlap_mm < MIN_WALL_LENGTH_MM or overlap_mm < shorter_mm * PAIR_OVERLAP_RATIO:
-                    stats['noOverlap'] += 1
                     continue
-                used.add(index)
-                used.add(other_index)
-                thickness_pt = abs(other[1] - run[1])
-                perp = (run[1] + other[1]) / 2.0
-                half = thickness_pt / 2.0
-                if axis == 'h':
-                    rect = (low, perp - half, high, perp + half)
-                else:
-                    rect = (perp - half, low, perp + half, high)
-                bands.append({'axis': axis, 'perp': perp, 'a': low, 'b': high,
-                              'thicknessMm': thickness_pt * mm_per_pt,
-                              'lengthMm': overlap_mm, 'rect': rect,
-                              'paired': True})
-                stats['paired'] += 1
-                if len(bands) > MAX_WALLS:
-                    raise PlanTraceError('Wall band limit exceeded.')
-                break
+                if best is None or overlap_mm > best[0]:
+                    best = (overlap_mm, other_index, other, low, high, gap_mm)
+            if best is None:
+                stats['noOverlap'] += 1
+                continue
+            overlap_mm, other_index, other, low, high, gap_mm = best
+            used.add(index)
+            used.add(other_index)
+            perp = (run[1] + other[1]) / 2.0
+            half = gap_mm / mm_per_pt / 2.0
+            if axis == 'h':
+                rect = (low, perp - half, high, perp + half)
+            else:
+                rect = (perp - half, low, perp + half, high)
+            bands.append({'axis': axis, 'perp': perp, 'a': low, 'b': high,
+                          'thicknessMm': gap_mm, 'lengthMm': overlap_mm,
+                          'rect': rect, 'paired': True})
+            stats['paired'] += 1
+            if len(bands) > MAX_WALLS:
+                raise PlanTraceError('Wall band limit exceeded.')
     return bands, stats
 
 

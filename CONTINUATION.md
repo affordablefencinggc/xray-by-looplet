@@ -41,6 +41,41 @@ session remained Restricted, and the probe launchers exited. No qualification
 worker was launched. Authorization is no longer the gate-2 blocker; the next
 technical action below is unchanged. Evidence ID: `3730110660a2`.
 
+## 2026-10-13 additive slice 3 — run re-join and best-overlap pairing
+
+Owner `cline-plan-tracer-2-20261013`, baseline `e68b9e96`. Slice 2 still had a
+1.1 m median wall and a 2.45 m maximum. Measuring the run population explained it:
+inside the region there are 1487 runs whose **median length is 0.08 m** — half the
+population is hatch, tick and text strokes — while the tail reaches 7.79 m. Only
+the first stroke of a candidate pair was length-checked, and the first partner in
+the thickness window won regardless of overlap.
+
+Changed in `plan_trace.py`: `open_runs` now re-joins consecutive collinear segments
+within a subpath; `open_wall_bands` requires BOTH strokes to be at least
+`MIN_WALL_LENGTH_MM` and selects the partner with the greatest overlap. Tests
+**42 passed / 14 subtests**; regression **197 passed, 1 skipped**, 223 subtests.
+
+Wardoo sheet 6 across the slices — wall runs 73 → 45 → 41; horizontal/vertical
+66/7 → 28/17 → **25/16**; from open pairs 0 → 36 → 32; total recovered wall
+167.5 → 47.7 → **52.6 m**; longest wall 6.84 → 2.45 → **3.78 m**; thickness
+67.0/180.0/367.0 mm; openings 3. Scene `sceneSha256 ea2aa0d4…37b5`.
+
+A cross-subpath collinear re-join was implemented and then **reverted**: it cut
+paired bands 209 → 92, reduced the total to 39.4 m and removed all three openings,
+because joining strokes before pairing consumes the gaps that identify an opening.
+It was deleted rather than left as dead code.
+
+Still not trustworthy: 52.6 m of wall for a 13.1 × 7.8 m region (external perimeter
+alone is ≈41.8 m) so internal walls remain under-recovered; no wall exceeds 3.78 m
+although 7.79 m runs exist; the 1:100 calibration is still `verified: false`; hatch
+is excluded by length threshold rather than identified; and **no quantities are
+produced**. Proof:
+`proof/growth/2026-10-13-plan-trace/steps/plan-tracer-run-join-and-pairing.md`.
+
+Next: a wall here is one long face stroke facing several shorter strokes, so pairing
+must accept a long stroke against a SET of facing pieces instead of a single partner.
+
+
 ## 2026-10-13 additive slice 2 — plan-region isolation and open double-line walls
 
 Owner `cline-plan-tracer-2-20261013`, baseline `0597cc3b`. Slice 1 produced 66

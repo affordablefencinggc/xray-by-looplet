@@ -301,6 +301,22 @@ class OpenWallPairTests(unittest.TestCase):
             self.run_page([(100, 200, 2000, 200), (1900, 300, 2100, 300)]), 1.0)
         self.assertEqual(bands, [])
 
+    def test_best_overlapping_partner_wins_over_a_nearer_one(self):
+        # A at y=200 (x 100..1100); C at y=260 is closer but overlaps A by only
+        # 500 mm; B at y=300 overlaps A over its full 1000 mm and is the real
+        # facing line, so the measured thickness must be 100 mm.
+        bands, _ = open_wall_bands(
+            self.run_page([(100, 200, 1100, 200),
+                           (600, 260, 1600, 260),
+                           (100, 300, 1100, 300)]), 1.0)
+        self.assertIn(100.0, [round(b['thicknessMm'], 3) for b in bands])
+
+    def test_a_stroke_shorter_than_the_minimum_is_never_paired(self):
+        bands, stats = open_wall_bands(
+            self.run_page([(100, 200, 1100, 200), (100, 300, 300, 300)]), 1.0)
+        self.assertEqual(bands, [])
+        self.assertEqual(stats['viableRuns'], 1)
+
     def test_unusable_calibration_is_rejected(self):
         with self.assertRaisesRegex(PlanTraceError, 'calibration'):
             open_wall_bands(self.run_page([(0, 0, 1000, 0)]), 0)
