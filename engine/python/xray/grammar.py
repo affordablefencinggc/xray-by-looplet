@@ -4,7 +4,7 @@ Tokens -> typed entities. Ported and hardened from tools/extract_entities.py.
 
 Entity types produced (see CONTEXT.md + schema/takeoff.schema.json):
   DIM     millimetre integers (commas stripped), plausibility 40..99999
-  SCALE   1:NNN ratio tokens
+  SCALE   1:NNN ratio tokens, including values paired with a nearby SCALE label
   TAG     window/door/wall-type tags (W|D|WT|DP|PF|WD prefixes), with the
           embedded-text confusable fix: lowercase l -> 1, O/o -> 0 inside the
           numeric tail (W0l -> W01)
@@ -47,6 +47,10 @@ RE_DIM = re.compile(r"^\d{1,3}(?:,\d{3})+$|^\d{2,6}$")
 DIM_MIN, DIM_MAX = 40, 99999
 
 RE_SCALE = re.compile(r"^1\s*:\s*(\d{1,4})$")
+RE_SCALE_LABEL = re.compile(r"^SCALE:?$", re.I)
+RE_SCALE_PREFIX = re.compile(r"^1\s*:$")
+RE_SCALE_SUFFIX = re.compile(r"^:\s*(\d{1,4})$")
+RE_SCALE_NUM = re.compile(r"^\d{1,4}$")
 
 # Tag: prefix + optional hyphen + numeric tail (confusables allowed) + optional
 # single alpha suffix. Tail must contain at least one real digit so words like
@@ -131,6 +135,73 @@ def _merge_bbox(toks: list[_Tok]) -> tuple[float, float, float, float]:
             max(t.x1 for t in toks), max(t.y1 for t in toks))
 
 
+def _scale_tokens_adjacent(left: _Tok, right: _Tok) -> bool:
+    if not _same_baseline(left, right):
+        return False
+    height = max(left.y1 - left.y0, right.y1 - right.y0, 1.0)
+    return 0.0 <= _gap(left, right) <= 4.0 * height
+
+
+def _scale_ratio_groups(toks: list[_Tok]):
+    """Yield spatially adjacent tokens that spell one scale ratio."""
+    groups = []
+    seen = set()
+
+    def add(ratio, group):
+        key = (int(ratio), frozenset(id(token) for token in group))
+        if key not in seen:
+            seen.add(key)
+            groups.append((int(ratio), group))
+
+    for token in toks:
+        match = RE_SCALE.match(token.text)
+        if match:
+            add(match.group(1), [token])
+
+    for left in toks:
+        for right in toks:
+            if left is right or not _scale_tokens_adjacent(left, right):
+                continue
+            if RE_SCALE_PREFIX.match(left.text) and RE_SCALE_NUM.fullmatch(right.text):
+                add(right.text, [left, right])
+            elif left.text.strip() == "1":
+                match = RE_SCALE_SUFFIX.match(right.text)
+                if match:
+                    add(match.group(1), [left, right])
+
+    ones = [token for token in toks if token.text.strip() == "1"]
+    colons = [token for token in toks if token.text.strip() == ":"]
+    numbers = [token for token in toks if RE_SCALE_NUM.fullmatch(token.text)]
+    for one in ones:
+        for colon in colons:
+            if colon is one or not _scale_tokens_adjacent(one, colon):
+                continue
+            for number in numbers:
+                if number in (one, colon):
+                    continue
+                if (_scale_tokens_adjacent(colon, number)
+                        and one.x0 < colon.x0 < number.x0):
+                    add(number.text, [one, colon, number])
+    return groups
+
+
+def _bbox_gaps(a, b):
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+    xgap = max(0.0, bx0 - ax1, ax0 - bx1)
+    ygap = max(0.0, by0 - ay1, ay0 - by1)
+    return xgap, ygap
+
+
+def _near_scale_label(label: _Tok, ratio_group: list[_Tok]) -> bool:
+    label_box = (label.x0, label.y0, label.x1, label.y1)
+    ratio_box = _merge_bbox(ratio_group)
+    xgap, ygap = _bbox_gaps(label_box, ratio_box)
+    height = max(label.y1 - label.y0,
+                 *(token.y1 - token.y0 for token in ratio_group), 1.0)
+    return xgap <= 2.5 * height and ygap <= 2.0 * height
+
+
 def normalize_tag(text: str) -> str | None:
     """W0l -> W01. Returns the normalized tag string, or None if not a tag.
 
@@ -177,6 +248,38 @@ def classify(words, page_rect) -> list[Entity]:
     """
     toks = [t for t in (_coerce(w) for w in words) if t is not None]
     pending: list[tuple[int, dict]] = []  # (order_key = first token index, kwargs)
+
+    # ---- pass 0: labelled scale values. PDF extractors commonly split a
+    # title-block value across a label row and three glyphs (SCALE / 1 / : / 50).
+    # Bind only a unique nearby ratio so unrelated dimensions remain untouched.
+    ratio_groups = _scale_ratio_groups(toks)
+    for label_index, label in enumerate(toks):
+        if label.used or not RE_SCALE_LABEL.match(label.text):
+            continue
+        nearby = [(ratio, group) for ratio, group in ratio_groups
+                  if all(not token.used for token in group)
+                  and _near_scale_label(label, group)]
+        ratio_values = {ratio for ratio, _ in nearby}
+        if len(ratio_values) != 1:
+            continue
+        ratio = next(iter(ratio_values))
+        _, group = min((item for item in nearby if item[0] == ratio),
+                       key=lambda item: (abs(_bbox_gaps(
+                           (label.x0, label.y0, label.x1, label.y1),
+                           _merge_bbox(item[1]))[0]) + abs(_bbox_gaps(
+                           (label.x0, label.y0, label.x1, label.y1),
+                           _merge_bbox(item[1]))[1]), len(item[1])))
+        used_tokens = [label, *group]
+        raw = f"{label.text.rstrip(':')}: 1:{ratio}"
+        pending.append((label_index, dict(
+            type="SCALE", value=f"1:{ratio}", raw=raw,
+            bbox=_merge_bbox(used_tokens), page=label.page,
+            confidence=min(_conf(token.source) for token in used_tokens),
+            source="reassembled" if any(token.source == "reassembled"
+                                        for token in used_tokens)
+                   else label.source)))
+        for token in used_tokens:
+            token.used = True
 
     # ---- pass 1: two-token entities (STD "AS/NZS 4600", LEVEL "RL 12.500")
     for i, t in enumerate(toks):

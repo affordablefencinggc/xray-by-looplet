@@ -92,6 +92,16 @@ def test_titleblock_beats_onpage():
     assert math.isclose(r["confidence"], round(2.0 / 3.0, 3))
 
 
+def test_explicit_scale_label_beats_paper_prior_outside_titleblock_bbox():
+    # Wardoo's PDFium coordinates use a crop-box origin, so the title-block text
+    # can sit below the old bottom-right bbox threshold despite its SCALE label.
+    ent = scale_ent("SCALE: 1:50", (531.5, 715.8, 538.6, 731.1))
+    r = vote_scale([ent], (1190.52, 841.8), None)
+    assert r["value"] == "1:50"
+    assert r["methods"] == ["titleblock-scale"]
+    assert r["verified"] is True
+
+
 def test_onpage_scale_reinforced_by_paper_prior():
     # A4 page adds a weak 1:100 prior that agrees with the on-page stamp
     ents = [scale_ent("1:100", (100.0, 100.0, 150.0, 110.0))]

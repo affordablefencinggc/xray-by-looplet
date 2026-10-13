@@ -74,6 +74,23 @@ def _ratio_of(entity) -> int | None:
     return None
 
 
+def _explicit_titleblock_scale(entity) -> bool:
+    """A parsed SCALE label is stronger title-block evidence than its bbox.
+
+    Some PDFs expose coordinates in crop-box space while reporting page size in
+    media-box space. The explicit label/value relationship remains meaningful
+    even when those coordinate origins do not, so do not misclassify it as a
+    generic on-page stamp from its bbox alone.
+    """
+    text = getattr(entity, "raw", None)
+    if not text:
+        text = getattr(entity, "value", None)
+    if text and re.search(r"\bSCALE\b\s*:?[ \t]*1\s*:\s*\d{1,4}\b",
+                          str(text), re.IGNORECASE):
+        return True
+    return False
+
+
 def _in_titleblock(bbox, w: float, h: float) -> bool:
     try:
         x0, y0 = float(bbox[0]), float(bbox[1])
@@ -135,7 +152,8 @@ def vote_scale(entities, page_rect, declared: str | None,
         ratio = _ratio_of(ent)
         if ratio is None:
             continue
-        if _in_titleblock(getattr(ent, "bbox", None), w, h):
+        if (_explicit_titleblock_scale(ent)
+                or _in_titleblock(getattr(ent, "bbox", None), w, h)):
             _vote(ratio, W_TITLEBLOCK, "titleblock-scale")
         else:
             _vote(ratio, W_ONPAGE, "onpage-scale")

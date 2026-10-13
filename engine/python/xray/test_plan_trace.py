@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import pikepdf
 
@@ -590,6 +591,15 @@ class EndToEndTests(unittest.TestCase):
             b'1800 200 m 2800 200 l 2800 300 l 1800 300 l h S')
         pdf.save(path, deterministic_id=True)
 
+    @staticmethod
+    def fifty_scale_plan_fixture(path):
+        pdf = pikepdf.Pdf.new()
+        page = pdf.add_blank_page(page_size=(1191, 842))
+        page.Contents = pdf.make_stream(
+            b'1 w 100 200 m 500 200 l 500 205.1023622 l 100 205.1023622 l h S '
+            b'600 200 m 1100 200 l 1100 205.1023622 l 600 205.1023622 l h S')
+        pdf.save(path, deterministic_id=True)
+
     def test_real_pdf_yields_measured_walls_and_a_traced_opening(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'plan.pdf'
@@ -632,6 +642,42 @@ class EndToEndTests(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main([str(source), '--page', '1', '--mm-per-pt', '1',
                                        '--out', str(out)]), 2)
+
+    def test_cli_uses_verified_engine_scale_when_no_override_is_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'plan.pdf'
+            self.fifty_scale_plan_fixture(source)
+            out = Path(directory) / 'scene.json'
+            engine_result = {'document': {'pages': [{
+                'n': 1, 'scale': {'value': '1:50', 'mmPerPt': 25.4 / 72 * 50,
+                                  'verified': True}}]}}
+            with patch('xray.engine.run', return_value=engine_result):
+                with contextlib.redirect_stdout(io.StringIO()) as stdout:
+                    code = main([str(source), '--page', '1', '--out', str(out)])
+            self.assertEqual(code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload['scaleValue'], '1:50')
+            self.assertAlmostEqual(payload['mmPerPt'], 25.4 / 72 * 50)
+            self.assertEqual(payload['calibrationSource'], 'xray-engine')
+            self.assertTrue(payload['calibrationVerified'])
+            scene = json.loads(out.read_text(encoding='utf-8'))
+            self.assertAlmostEqual(scene['summary']['thicknessMm']['median'], 90.0, places=1)
+            self.assertEqual(scene['summary']['calibration']['source'], 'xray-engine')
+
+    def test_cli_refuses_an_unverified_engine_paper_prior(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'plan.pdf'
+            self.plan_fixture(source)
+            out = Path(directory) / 'scene.json'
+            engine_result = {'document': {'pages': [{
+                'n': 1, 'scale': {'value': '1:100', 'mmPerPt': 25.4 / 72 * 100,
+                                  'verified': False}}]}}
+            with patch('xray.engine.run', return_value=engine_result):
+                with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    code = main([str(source), '--page', '1', '--out', str(out)])
+            self.assertEqual(code, 2)
+            self.assertIn('no verified scale', stderr.getvalue())
+            self.assertFalse(out.exists())
 
     def test_cli_reports_a_missing_source_without_a_traceback(self):
         with tempfile.TemporaryDirectory() as directory:

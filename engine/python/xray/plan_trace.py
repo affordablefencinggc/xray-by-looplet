@@ -22,9 +22,9 @@ What it deliberately does NOT do
   a "bedroom wall" rather than a title block, and it does not name rooms.
 * Wall HEIGHT and opening head/sill heights are presentation inferences, never
   read from the drawing, and are labelled `inferred` per object.
-* The source calibration (mm per PDF point) is CALLER-SUPPLIED and its
-  verification status is carried through into the scene. This module never
-  invents a scale.
+* The Python tracing API accepts an explicit source calibration. The CLI uses
+  the engine's per-page calibration when it is verified and otherwise refuses
+  to write a scene. Calibration provenance is carried into the scene.
 * It produces NO quantities. Nothing here is a takeoff.
 
 Every emitted object carries `sourceRefs` {page, region, trace, note} in page
@@ -958,6 +958,9 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
 
     calibration = dict(scale or {})
     verified = bool(calibration.get('verified'))
+    calibration_source = calibration.get('source') or 'caller-supplied'
+    calibration_reporter = ('the X-Ray engine' if calibration_source == 'xray-engine'
+                            else 'the caller')
     scene = {
         'schema': SCHEMA,
         'source': {'name': extracted['source']['name'],
@@ -973,7 +976,7 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             'Automatic vector linework trace of one sheet. This is NOT a coordinated '
             'CAD/BIM model and NOT a quantity schedule; nothing here is a takeoff.',
             f'Calibration {calibration.get("value") or "unspecified"} '
-            f'({mm_per_pt:g} mm per PDF point) was supplied by the caller and is '
+            f'({mm_per_pt:g} mm per PDF point) was reported by {calibration_reporter} and is '
             + ('recorded as verified.' if verified else
                'NOT verified - it rests on a paper-size assumption, so every '
                'real-world length here inherits that uncertainty.'),
@@ -1022,7 +1025,8 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             'status': 'automatic-approximate',
             'calibration': {'mmPerPt': mm_per_pt,
                             'value': calibration.get('value'),
-                            'verified': verified},
+                            'verified': verified,
+                            'source': calibration_source},
         },
         'diagnostics': dict(stats),
     }
@@ -1091,6 +1095,30 @@ def trace_plan(pdf_path, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_M,
                        wall_height_m, head_depth_m, scale)
 
 
+def _verified_engine_scale(pdf_path, page_number):
+    """Return the engine's verified page calibration or refuse to guess."""
+    try:
+        from xray.engine import run as run_engine
+        result = run_engine(str(pdf_path))
+    except Exception as error:
+        raise PlanTraceError(
+            f'X-Ray engine calibration failed ({type(error).__name__}).') from error
+    pages = (result.get('document') or {}).get('pages') or []
+    page = next((item for item in pages if item.get('n') == int(page_number)), None)
+    scale = (page or {}).get('scale') or {}
+    try:
+        mm_per_pt = float(scale.get('mmPerPt'))
+    except (TypeError, ValueError):
+        mm_per_pt = 0.0
+    if (not scale.get('verified') or not math.isfinite(mm_per_pt)
+            or mm_per_pt <= 0 or not scale.get('value')):
+        raise PlanTraceError(
+            f'X-Ray engine has no verified scale for page {int(page_number)}; '
+            'supply --mm-per-pt only after verifying the drawing scale.')
+    return {'mmPerPt': mm_per_pt, 'value': scale['value'], 'verified': True,
+            'source': 'xray-engine'}
+
+
 def export_wireframe(scene_path, source_path, out):
     """Write xray.building-wireframe-manifest/v1 output for a traced scene.
 
@@ -1137,9 +1165,9 @@ def main(argv=None):
                      'reconstruction and not quantities.'))
     parser.add_argument('pdf')
     parser.add_argument('--page', type=int, required=True, help='one-based page to trace')
-    parser.add_argument('--mm-per-pt', type=float, required=True,
-                        help='caller-supplied calibration: millimetres of real world '
-                             'per PDF point')
+    parser.add_argument('--mm-per-pt', type=float, default=None,
+                        help='verified caller calibration override: millimetres of real '
+                             'world per PDF point (default: use verified engine scale)')
     parser.add_argument('--out', required=True, help='path for the scene JSON')
     parser.add_argument('--wall-height', type=float, default=DEFAULT_WALL_HEIGHT_M)
     parser.add_argument('--head-depth', type=float, default=DEFAULT_HEAD_DEPTH_M)
@@ -1152,9 +1180,19 @@ def main(argv=None):
                              'manifest into DIR (reuses the curated exporter)')
     args = parser.parse_args(argv)
     try:
-        scale = {'value': args.scale_value, 'verified': bool(args.scale_verified),
-                 'mmPerPt': args.mm_per_pt}
-        scene = trace_plan(args.pdf, args.page, args.mm_per_pt,
+        if args.mm_per_pt is None:
+            if args.scale_value is not None or args.scale_verified:
+                raise PlanTraceError(
+                    '--scale-value and --scale-verified require --mm-per-pt.')
+            scale = _verified_engine_scale(args.pdf, args.page)
+            mm_per_pt = scale['mmPerPt']
+        else:
+            mm_per_pt = args.mm_per_pt
+            scale = {'value': args.scale_value,
+                     'verified': bool(args.scale_verified),
+                     'mmPerPt': mm_per_pt,
+                     'source': 'caller-supplied'}
+        scene = trace_plan(args.pdf, args.page, mm_per_pt,
                            args.wall_height, args.head_depth, scale)
         text = json.dumps(scene, separators=(',', ':'), allow_nan=False)
         out = Path(args.out)
@@ -1176,6 +1214,9 @@ def main(argv=None):
             'excludedOutsideRegion': scene['summary']['excludedOutsideRegion'],
             'excludedRegularArray': scene['summary']['excludedRegularArray'],
             'thicknessMm': scene['summary']['thicknessMm'],
+            'scaleValue': scene['summary']['calibration']['value'],
+            'mmPerPt': scene['summary']['calibration']['mmPerPt'],
+            'calibrationSource': scene['summary']['calibration']['source'],
             'calibrationVerified': scene['summary']['calibration']['verified'],
             'sceneSha256': hashlib.sha256(text.encode()).hexdigest(),
         }

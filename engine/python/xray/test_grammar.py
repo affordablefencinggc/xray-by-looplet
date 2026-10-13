@@ -178,6 +178,23 @@ def test_classify_skips_empty_words():
     assert len(ents) == 1 and ents[0].type == "DIM"
 
 
+def test_classify_split_labelled_scale_from_separate_rows():
+    ents = classify([
+        W("SCALE:", 519.5, 715.8, 541.1, 720.3),
+        W("1", 521.6, 723.7, 523.8, 731.0),
+        W(":", 527.6, 725.8, 528.6, 731.0),
+        W("50", 531.5, 723.7, 538.6, 731.1),
+        W("@", 541.0, 723.7, 546.0, 731.0),
+        W("A3", 549.0, 723.7, 561.0, 731.0),
+    ], (1190.52, 841.8))
+    scales = by_type(ents, "SCALE")
+    assert len(scales) == 1
+    assert scales[0].value == "1:50"
+    assert scales[0].raw == "SCALE: 1:50"
+    assert scales[0].bbox == (519.5, 715.8, 541.1, 731.1)
+    assert by_type(ents, "DIM") == []
+
+
 def test_classify_scale():
     ents = classify([W("1:200", 10, 10, 45, 20)], (1000.0, 700.0))
     scales = by_type(ents, "SCALE")
