@@ -587,3 +587,36 @@ Do not call gate 3 or the app complete. Continue trusted terminal binding/collec
 and source/test preparation, or
 independently reproducible tablet/desktop UI work with fresh capped browser proof.
 Follow `FINISH-RECOVERY.md` for remaining gates and `LEDGER.md` for phase 1 only.
+
+## 2026-10-13 Codex takeover checkpoint — Wardoo plan trace
+
+The user asked Codex to take over the unfinished work, find the project state,
+check Cline, and proceed. Cline's last session was at its usage limit, so the
+takeover continued from the attached handoff and local repository evidence.
+
+- Active branch: `codex/takeover-wardoo-plan-trace`.
+- `d8f0f26a812376e9b5905411c5908067c52ff2a6`: parse the split `SCALE: 1:50`
+  title-block tokens and let the plan-trace CLI use verified per-page engine
+  calibration instead of its paper-size prior.
+- `d6589897c97b922677c7372d9919f7ecd3a6bf55`: recover the two 600 mm and one
+  610 mm Wardoo window interruptions when short measured wall fragments and
+  multiple paired interior line tracks agree. Per-step output and checks:
+  `proof/growth/2026-10-13-plan-trace/steps/wardoo-window-rules-r3/README.md`.
+- The current sheet-6 scene reports 25 wall runs, 13 openings, and 3
+  rule-confirmed windows at verified 1:50 scale. All prior wall meshes and 10
+  prior opening meshes were preserved. The Python suite passed 263 tests, 1
+  skipped, and 237 subtests.
+- Limitation: the trace remains automatic-approximate. The existing 830 mm
+  bathroom symbol remains beside the newly measured 600 mm layer; their
+  relationship is not yet resolved. T-01 remains partial until the deliberate
+  UI rotation-and-reload journey is exercised.
+- The pre-existing modified and untracked studio work in the checkout remains
+  untouched and uncommitted. It spans source geometry, assistant/viewer
+  integration, roofing cuts, persistence/recovery, and their tests/proofs; its
+  exact ownership and acceptance have not been audited by this trace slice.
+
+This checkpoint is not an application or qualification acceptance. The earlier
+source-ZIP, engine collection, hard-watchdog, and tablet/desktop UI work listed
+under the original `Next action` remains open and must retain its separate
+evidence gates. Continue from the current branch and inspect the pending working
+tree before staging anything beyond the explicitly reviewed trace files.
