@@ -612,8 +612,29 @@ takeover continued from the attached handoff and local repository evidence.
   UI rotation-and-reload journey is exercised.
 - The pre-existing modified and untracked studio work in the checkout remains
   untouched and uncommitted. It spans source geometry, assistant/viewer
-  integration, roofing cuts, persistence/recovery, and their tests/proofs; its
-  exact ownership and acceptance have not been audited by this trace slice.
+  integration, roofing cuts, persistence/recovery, and their tests/proofs.
+  The four Cline proof campaigns are now mapped in
+  `proof/growth/2026-10-12-{job-engine-reconnect,missing-pieces-audit,takeoff-ui,wardoo-live-engine}/`.
+  Historical receipts record the bounded tests/build/browser checks and their
+  open limits; they are not current-run acceptance.
+- Source reconciliation: all 10 files in the later job-reconnect final source
+  snapshot match the current checkout byte-for-byte. In the earlier 21-file
+  Wardoo source review, 15 still match; five later versions are covered by that
+  newer 10-file snapshot. `src/lib/sourceGeometry.server.ts` is the remaining
+  mismatch against that review and has no later exact source snapshot in the
+  receipts inspected here, so it remains uncommitted and unclaimed as freshly
+  accepted.
+- Before the inventory note was committed, `git status --short
+  --untracked-files=all` showed 17 modified tracked files and 36 untracked file
+  entries. None were staged with the Wardoo trace commits. Two intermediate
+  generated trace folders remain untracked in the repository from the prior
+  artifact iterations; cleanup was blocked by the tool's file-operation
+  approval policy.
+- Cline's attached transcript ends with its usage limit reached. The next
+  drawing-level comparison and its result are recorded in
+  `proof/growth/2026-10-13-plan-trace/steps/wardoo-opening-code-audit.md`:
+  all nine printed width codes now have matching measured scene gaps, while an
+  830 mm parallel candidate and three other unclassified gaps remain unresolved.
 
 This checkpoint is not an application or qualification acceptance. The earlier
 source-ZIP, engine collection, hard-watchdog, and tablet/desktop UI work listed
