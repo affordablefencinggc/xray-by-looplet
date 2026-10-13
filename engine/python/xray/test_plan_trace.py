@@ -18,7 +18,8 @@ import pikepdf
 from xray.plan_trace import (
     COLLINEAR_TOL_MM, OPENING_MIN_MM, PlanTraceError, WALL_MAX_MM, WALL_MIN_MM,
     band_region, build_scene, drop_regular_arrays, export_wireframe, main, merge_bands,
-    open_wall_bands, plan_region, rectangles, rectangles_with_paint, subpaths,
+    open_wall_bands, plan_region, rectangles, rectangles_with_paint,
+    rule_confirmed_window_openings, subpaths,
     symbol_rectangles, trace_plan, traced_openings, validate_trace_scene, wall_bands,
     within_region)
 from xray.source_building import BuildingError
@@ -163,6 +164,38 @@ class MergeAndOpeningTests(unittest.TestCase):
         bands, _ = wall_bands(page_with([rect_path(100, 200, 600, 300),
                                          rect_path(600 + gap, 200, 1600 + gap, 300)]), 1.0)
         self.assertEqual(traced_openings(merge_bands(bands, 1.0), 1.0), [])
+
+    def test_short_wall_gap_requires_two_interior_paired_window_tracks(self):
+        page = page_with(
+            [rect_path(0, 0, 200, 100), rect_path(800, 0, 1200, 100),
+             [['M', 200, 20], ['L', 800, 20]],
+             [['M', 200, 40], ['L', 800, 40]]],
+            width=1200, height=200,
+            paint=[{'fill': True, 'fillColor': [0, 0, 0, 255]},
+                   {'fill': True, 'fillColor': [0, 0, 0, 255]},
+                   {'fill': False, 'stroke': True},
+                   {'fill': False, 'stroke': True}])
+        paired = [
+            {'axis': 'h', 'perp': 20, 'a': 200, 'b': 800,
+             'thicknessMm': 100, 'lengthMm': 600},
+            {'axis': 'h', 'perp': 40, 'a': 200, 'b': 800,
+             'thicknessMm': 100, 'lengthMm': 600},
+        ]
+        openings = rule_confirmed_window_openings(page, 1.0, paired)
+        self.assertEqual(len(openings), 1)
+        self.assertEqual(openings[0]['widthMm'], 600)
+        self.assertEqual(openings[0]['windowRules'], 2)
+
+        # One long parallel stroke and a paired track alone are insufficient;
+        # linework such as a dimension edge cannot conjure an opening.
+        single_track = rule_confirmed_window_openings(page_with(
+            [rect_path(0, 0, 200, 100), rect_path(800, 0, 1200, 100),
+             [['M', 200, 20], ['L', 800, 20]]],
+            width=1200, height=200,
+            paint=[{'fill': True, 'fillColor': [0, 0, 0, 255]},
+                   {'fill': True, 'fillColor': [0, 0, 0, 255]},
+                   {'fill': False, 'stroke': True}]), 1.0, paired[:1], None)
+        self.assertEqual(single_track, [])
 
 
 class SceneTests(unittest.TestCase):

@@ -14,7 +14,8 @@ What it does
    is drawn either as a filled/stroked thin rectangle (poche) or as a pair of
    parallel lines; this module measures the rectangles directly, so a wall's
    THICKNESS is measured from the drawing rather than assumed.
-3. Records gaps between collinear wall bands as traced openings.
+3. Records gaps between collinear wall bands as traced openings, and recovers a
+   short window gap only when its wall fragments and paired interior rules agree.
 
 What it deliberately does NOT do
 --------------------------------
@@ -74,6 +75,16 @@ MAX_WALLS = 6_000
 # Presentation-only: assumed storey height and lintel depth, never measured.
 DEFAULT_WALL_HEIGHT_M = 2.70
 DEFAULT_HEAD_DEPTH_M = 0.60
+
+# Small window openings can be bounded by wall fragments shorter than the main
+# wall reader's 500 mm minimum. Only recover such a gap when multiple interior
+# rules and the extractor's paired-line evidence confirm a window-like symbol.
+WINDOW_RULE_MIN_MM = 500.0
+WINDOW_RULE_MAX_MM = 1200.0
+WINDOW_RULE_TRACKS = 2
+WINDOW_RULE_COVERAGE = 0.80
+WINDOW_RULE_ENDPOINT_TOL_PT = 2.0
+WINDOW_FLANK_MIN_MM = 120.0
 
 # Top/bottom box faces then the four sides (the index layout the curated
 # scenes use, so downstream consumers need no special case).
@@ -684,6 +695,139 @@ def open_wall_bands(page, mm_per_pt):
     return bands, gaps, stats
 
 
+def rule_confirmed_window_openings(page, mm_per_pt, paired_bands, region=None):
+    """Recover short wall gaps only when paired rules confirm a window symbol.
+
+    The main wall reader drops fragments shorter than 500 mm. On Wardoo sheet 6
+    that drops the 600/610 mm window jambs, even though each interruption is
+    bounded by measured dark wall poche and contains several parallel glazing
+    rules. This reader uses those fragments only as gap boundaries; it requires
+    at least two interior rule tracks, each covering 80% of the gap, plus two
+    independently paired vector rules whose extents match the gap.
+
+    Paired lines can also describe a door leaf, hatch or dimension. The bounded
+    span and the independent wall-fragment endpoints prevent those strokes from
+    becoming openings on their own. The returned width is the measured gap, not
+    the width of the interior glazing strokes.
+    """
+    if not (0 < mm_per_pt < 1000):
+        raise PlanTraceError('Unusable calibration.')
+    tolerance = COLLINEAR_TOL_MM / mm_per_pt
+    fragments = []
+
+    # Keep short, dark-filled wall fragments as possible jambs. Excluding near
+    # square caps avoids treating a wall corner or polygon decomposition tile as
+    # a wall end by itself.
+    records, _ = rectangles_with_paint(page)
+    for rect, evidence in records:
+        if evidence['filled'] is not True or _dark_fill(evidence['fillColor']) is not True:
+            continue
+        x0, y0, x1, y1 = rect
+        width_mm, height_mm = (x1 - x0) * mm_per_pt, (y1 - y0) * mm_per_pt
+        thickness_mm, length_mm = min(width_mm, height_mm), max(width_mm, height_mm)
+        if (not WALL_MIN_MM <= thickness_mm <= WALL_MAX_MM
+                or length_mm < max(WINDOW_FLANK_MIN_MM, thickness_mm * 1.3)):
+            continue
+        if width_mm >= height_mm:
+            axis, perp, a, b = 'h', (y0 + y1) / 2.0, x0, x1
+        else:
+            axis, perp, a, b = 'v', (x0 + x1) / 2.0, y0, y1
+        fragments.append({'axis': axis, 'perp': perp, 'a': a, 'b': b,
+                          'thicknessMm': thickness_mm})
+
+    # A long, paired outline can bound the far side of a window in a mixed
+    # poche/outline wall. Short paired rectangles are the window rules themselves
+    # and must not close the opening we are trying to measure.
+    for band in paired_bands:
+        if (band.get('lengthMm', 0) < 1200
+                or not WALL_MIN_MM <= band.get('thicknessMm', 0) <= 160):
+            continue
+        fragments.append({key: band[key] for key in
+                          ('axis', 'perp', 'a', 'b', 'thicknessMm')})
+
+    runs = []
+    for x0, y0, x1, y1 in open_runs(page, collinear_pt=tolerance):
+        horizontal = abs(x1 - x0) >= abs(y1 - y0)
+        axis = 'h' if horizontal else 'v'
+        perp = (y0 + y1) / 2.0 if horizontal else (x0 + x1) / 2.0
+        a, b = (min(x0, x1), max(x0, x1)) if horizontal else (min(y0, y1), max(y0, y1))
+        runs.append((axis, perp, a, b))
+
+    openings = []
+    for axis in ('h', 'v'):
+        lanes = []
+        for fragment in sorted((f for f in fragments if f['axis'] == axis),
+                               key=lambda f: (f['perp'], f['a'])):
+            lane = next((item for item in lanes
+                         if abs(item['perp'] - fragment['perp']) <= tolerance), None)
+            if lane is None:
+                lane = {'axis': axis, 'perp': fragment['perp'], 'fragments': []}
+                lanes.append(lane)
+            lane['fragments'].append(fragment)
+            lane['perp'] = sum(f['perp'] for f in lane['fragments']) / len(lane['fragments'])
+
+        for lane in lanes:
+            ordered = sorted(lane['fragments'], key=lambda f: (f['a'], f['b']))
+            segments = []
+            for fragment in ordered:
+                if segments and fragment['a'] <= segments[-1]['b'] + 0.75:
+                    segment = segments[-1]
+                    segment['b'] = max(segment['b'], fragment['b'])
+                    segment['thicknessMm'] = max(segment['thicknessMm'], fragment['thicknessMm'])
+                else:
+                    segments.append({'a': fragment['a'], 'b': fragment['b'],
+                                     'thicknessMm': fragment['thicknessMm']})
+
+            for left, right in zip(segments, segments[1:]):
+                gap_mm = (right['a'] - left['b']) * mm_per_pt
+                if not WINDOW_RULE_MIN_MM <= gap_mm <= WINDOW_RULE_MAX_MM:
+                    continue
+                a, b = left['b'], right['a']
+                if not within_region(region, axis, lane['perp'], a, b):
+                    continue
+                thickness_mm = max(left['thicknessMm'], right['thicknessMm'])
+                half_thickness_pt = thickness_mm / (2.0 * mm_per_pt)
+
+                # Find distinct interior parallel tracks and measure their
+                # coverage after clipping them to the wall interruption.
+                tracks = {}
+                for run_axis, perp, run_a, run_b in runs:
+                    if run_axis != axis or abs(perp - lane['perp']) >= half_thickness_pt - 0.05:
+                        continue
+                    low, high = max(a, run_a), min(b, run_b)
+                    if high > low:
+                        tracks.setdefault(round(perp, 2), []).append((low, high))
+                confirmed_tracks = 0
+                for intervals in tracks.values():
+                    intervals.sort()
+                    covered, end = 0.0, None
+                    for low, high in intervals:
+                        covered += (high - low) if end is None or low > end else max(0.0, high - end)
+                        end = max(end or high, high)
+                    if covered / (b - a) >= WINDOW_RULE_COVERAGE:
+                        confirmed_tracks += 1
+                if confirmed_tracks < WINDOW_RULE_TRACKS:
+                    continue
+
+                # Each interior track must also be independently pairable by
+                # the bounded open-line wall reader across the same gap.
+                paired_tracks = {round(band['perp'], 2) for band in paired_bands
+                                 if band['axis'] == axis
+                                 and WINDOW_RULE_MIN_MM <= band['lengthMm'] <= WINDOW_RULE_MAX_MM
+                                 and WALL_MIN_MM <= band['thicknessMm'] <= 160
+                                 and abs(band['a'] - a) <= WINDOW_RULE_ENDPOINT_TOL_PT
+                                 and abs(band['b'] - b) <= WINDOW_RULE_ENDPOINT_TOL_PT
+                                 and abs(band['perp'] - lane['perp'])
+                                     <= half_thickness_pt + tolerance}
+                if len(paired_tracks) < WINDOW_RULE_TRACKS:
+                    continue
+
+                openings.append({'axis': axis, 'perp': lane['perp'], 'a': a, 'b': b,
+                                 'thicknessMm': thickness_mm, 'widthMm': gap_mm,
+                                 'windowRules': len(paired_tracks)})
+    return merge_gaps([openings], mm_per_pt)
+
+
 def drop_regular_arrays(bands, mm_per_pt, min_members=4, max_spacing_mm=450.0,
                         spacing_ratio=1.6):
     """Discard stair treads, hatching and dimension ticks.
@@ -894,12 +1038,15 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
     symbol_gaps = [{key: symbol[key] for key in
                     ('axis', 'perp', 'a', 'b', 'thicknessMm', 'widthMm', 'rules')}
                    for symbol in symbols]
-    gaps = merge_gaps([traced_openings(bands, mm_per_pt), kept_gaps, symbol_gaps],
-                      mm_per_pt)
+    window_gaps = (rule_confirmed_window_openings(page, mm_per_pt, paired, region)
+                   if read_mode == 'poche' else [])
+    gaps = merge_gaps([traced_openings(bands, mm_per_pt), kept_gaps,
+                       symbol_gaps, window_gaps], mm_per_pt)
     stats = dict(stats)
     stats.update({'closedBands': len(candidates), 'openWallBands': len(paired_used),
                   'pairedRuns': pair_stats['paired'], 'outsideRegion': outside,
                   'symbols': len(symbols),
+                  'ruleWindowCandidates': len(window_gaps),
                   'droppedRegular': array_stats['dropped'],
                   'region': [round(v, 1) for v in region] if region else None})
 
@@ -932,12 +1079,18 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
         gap = dict(gap)
         gap['bottom'], gap['top'] = float(wall_height_m) - head, float(wall_height_m)
         rect = _extents_rect(gap, mm_per_pt)
+        note = (f'Traced {gap["widthMm"]:.0f} mm gap between short wall fragments; '
+                f'{gap["windowRules"]} paired interior line tracks confirm a '
+                'window-like symbol. Its width is measured between the wall '
+                'fragments; the assembly and head/sill heights remain inferred. '
+                if gap.get('windowRules') else
+                f'Traced {gap["widthMm"]:.0f} mm gap between collinear wall bands. ')
+        if not gap.get('windowRules'):
+            note += ('The drawing at this extraction level does not distinguish a '
+                     'door, a window or two separate walls, and the head height '
+                     'shown is inferred, not measured.')
         references = [_reference(
-            number, rect,
-            f'Traced {gap["widthMm"]:.0f} mm gap between collinear wall bands. '
-            'The drawing at this extraction level does not distinguish a door, a '
-            'window or two separate walls, and the head height shown is inferred, '
-            'not measured.', 'inferred', page_w, page_h)]
+            number, rect, note, 'inferred', page_w, page_h)]
         objects.append({
             'id': f'opening-{index}', 'category': 'opening',
             'label': f'{gap["widthMm"]:.0f} mm opening',
@@ -995,8 +1148,9 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
             'Wall height is a presentation assumption and opening head/sill heights '
             'are inferred; neither is read from the drawing.',
             'A traced opening is a gap between collinear wall bands inside the '
-            f'{OPENING_MIN_MM:g}-{OPENING_MAX_MM:g} mm band. The drawing does not say '
-            'whether it is a door, a window or two separate walls, and openings are '
+            f'{OPENING_MIN_MM:g}-{OPENING_MAX_MM:g} mm band. Short window-like gaps '
+            'also require short wall fragments plus multiple paired interior rules. '
+            'Opening type and head/sill heights remain inferred, and openings are '
             'not currently subtracted from wall lengths.',
             'Room identity, room names, internal/external classification, slabs, '
             'roofs, services and finishes are not attempted by this module.',
@@ -1005,6 +1159,7 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
         'summary': {
             'wallRuns': len(bands),
             'openings': len(gaps),
+            'ruleConfirmedWindows': sum(1 for gap in gaps if gap.get('windowRules')),
             'objects': len(objects),
             'fromClosedBands': sum(1 for band in bands if not band.get('paired')),
             'fromOpenPairs': sum(1 for band in bands if band.get('paired')),
@@ -1020,7 +1175,8 @@ def build_scene(extracted, number, mm_per_pt, wall_height_m=DEFAULT_WALL_HEIGHT_
                        'bands (' + {'poche': 'filled dark poche',
                                     'outline': 'outlines and paired open strokes',
                                     'shape': 'shape only, no paint evidence on this page'}
-                       [read_mode] + ') plus collinear gap detection'),
+                       [read_mode] + ') plus collinear gap detection and '
+                       'rule-confirmed short window gaps'),
             'readMode': read_mode,
             'status': 'automatic-approximate',
             'calibration': {'mmPerPt': mm_per_pt,
@@ -1208,6 +1364,7 @@ def main(argv=None):
             'sourceSha256': scene['source']['sha256'],
             'wallRuns': scene['summary']['wallRuns'],
             'openings': scene['summary']['openings'],
+            'ruleConfirmedWindows': scene['summary']['ruleConfirmedWindows'],
             'objects': scene['summary']['objects'],
             'fromClosedBands': scene['summary']['fromClosedBands'],
             'fromOpenPairs': scene['summary']['fromOpenPairs'],
