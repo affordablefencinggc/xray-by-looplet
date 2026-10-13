@@ -641,3 +641,28 @@ source-ZIP, engine collection, hard-watchdog, and tablet/desktop UI work listed
 under the original `Next action` remains open and must retain its separate
 evidence gates. Continue from the current branch and inspect the pending working
 tree before staging anything beyond the explicitly reviewed trace files.
+
+## 2026-10-13 phase-1 ledger recheck
+
+The installed finish-line ledger remains explicitly scoped to phase 1; its
+acceptance was not expanded to cover the Wardoo trace. Running `ledger.mjs check`
+after the new `engine/python` commits detected its broad source-path overlap and
+set `PREFLIGHT` and `SHIP` to `in_progress`; `CONTAINMENT` remains verified at
+its original source revision. Check output:
+
+```text
+open 0 · in_progress 2 · blocked 0 · done 0 · verified 1 · total 3
+NEXT: PREFLIGHT Verify preserved engine inputs and blocked-attempt evidence without conflating CRLF and LF [in_progress]
+```
+
+The fresh `PREFLIGHT` run used the existing acceptance command unchanged. Its 21
+unit tests passed, but the preserved-evidence check exited 1 with
+`Selected source file inventory changed; prepare a new attempt`. The run and
+diagnostics are recorded in `.ledger/logs/PREFLIGHT-006.log` and
+`C:\Users\danie\AppData\Local\Temp\xray-ledger-96f03f4daaf44ea398110573ee14e2e7`.
+`ledger.mjs start PREFLIGHT` also refused because `SHIP` was already in progress.
+No ledger status or acceptance was edited by hand. This does not invalidate the
+historical phase-1 evidence, but it does mean neither reopened item is verified
+at the takeover head. Do not refresh the old pinned source snapshot in place or
+claim application completion; reconcile the pending source tree, then create a
+new immutable preflight attempt if phase-1 qualification is to be resumed.
