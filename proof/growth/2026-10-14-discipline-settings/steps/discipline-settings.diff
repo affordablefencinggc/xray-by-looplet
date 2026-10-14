@@ -1,0 +1,126 @@
+diff --git a/src/studio/SettingsRail.tsx b/src/studio/SettingsRail.tsx
+index a4d1fb51..2fb36448 100644
+--- a/src/studio/SettingsRail.tsx
++++ b/src/studio/SettingsRail.tsx
+@@ -4,9 +4,10 @@ import { useStudio } from "./store";
+ import { RAIL_WIDTHS_CHANGED_EVENT, DEFAULT_RAILS, RAIL_LAYOUT_KEY, readRailWidths } from "./railLayout";
+ import { useCurrentUserState } from "../lib/auth/use-current-user";
+ import { authEnabled, signOut } from "../lib/auth/client";
++import { getDiscipline, listDisciplines } from "../lib/disciplines";
+
+ export type SettingsSection =
+-  "Appearance" | "Layout" | "Measurement" | "Price sheets" | "Administration" | "Account";
++  "Appearance" | "Layout" | "Measurement" | "Discipline" | "Price sheets" | "Administration" | "Account";
+ export function AccountButton({ onClick }: { onClick: () => void }) {
+   const { user, isPending } = useCurrentUserState();
+   const real = user && !user.isDevFallback ? user : null;
+@@ -37,6 +38,7 @@ export function SettingsRail({
+ }) {
+   const s = useStudio(),
+     { user } = useCurrentUserState();
++  const discipline = getDiscipline(s.discipline);
+   const real = user && !user.isDevFallback ? user : null;
+   const [error, setError] = useState("");
+   const [widths, setWidths] = useState(DEFAULT_RAILS);
+@@ -83,6 +85,7 @@ export function SettingsRail({
+             "Appearance",
+             "Layout",
+             "Measurement",
++            "Discipline",
+             "Price sheets",
+             "Administration",
+             "Account",
+@@ -201,6 +204,27 @@ export function SettingsRail({
+             </p>
+           </>
+         )}
++        {section === "Discipline" && (
++          <>
++            <h3>Takeoff discipline</h3>
++            <p>Choose which trade pack guides the takeoff. Auto-detect runs each registered pack that matches the drawing.</p>
++            <div className="settings-discipline-options" role="group" aria-label="Takeoff discipline">
++              {listDisciplines().map((item) => (
++                <button
++                  key={item.id}
++                  type="button"
++                  className="pill"
++                  aria-pressed={s.discipline === item.id}
++                  title={`${item.audience} — ${item.blurb}`}
++                  onClick={() => s.setDiscipline(item.id)}
++                >
++                  {item.label}
++                </button>
++              ))}
++            </div>
++            <p className="settings-discipline-summary"><strong>{discipline.audience}</strong><br />{discipline.blurb}</p>
++          </>
++        )}
+         {section === "Price sheets" && <PriceSheets />}
+         {section === "Administration" && (
+           <>
+diff --git a/src/studio/Studio.tsx b/src/studio/Studio.tsx
+index eb0bfeb4..c3359c08 100644
+--- a/src/studio/Studio.tsx
++++ b/src/studio/Studio.tsx
+@@ -18,7 +18,6 @@ import { IsoCanvas, PlanCanvas } from "./IsoCanvas";
+ import { detectHost, pickAndImportPlan, PlanImportCancelledError } from "./engine";
+ import { inspectPlanBytes } from "./documents";
+ import { useStudio, type Pane } from "./store";
+-import { getDiscipline, listDisciplines } from "../lib/disciplines";
+ import { handleStudioKeyDown, shouldIgnoreShortcuts } from "./shortcuts";
+ import { WorkspaceDiagnostics } from "./WorkspaceDiagnostics.tsx";
+ import { ProjectPlanSwitcher } from "./ProjectPlanSwitcher";
+@@ -90,7 +89,6 @@ export function Studio() {
+
+ function StudioContent() {
+   const s = useStudio();
+-  const discipline = getDiscipline(s.discipline);
+   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+   const [newProjectOpen, setNewProjectOpen] = useState(false);
+   const [creatingProject, setCreatingProject] = useState(false);
+@@ -251,16 +249,6 @@ function StudioContent() {
+           <div className="flex gap-2"><button type="button" className="pill" disabled={creatingProject} onClick={() => setNewProjectOpen(false)}>Keep current project</button><button type="button" className="pill" disabled={creatingProject || s.persistenceRecoveryBlocked} onClick={() => void startNewProject()}>{creatingProject ? "Saving current project…" : "Save and start new project"}</button></div>
+         </div>
+       </WorkspaceDialog>}
+-      <AdjustableTopRow id="discipline" label="Discipline" minHeight={44} compact>
+-        <div className="flex flex-wrap items-center gap-1 border-b border-line bg-header px-3 py-1.5"
+-          role="group" aria-label="Discipline" title={`${discipline.audience} — ${discipline.blurb}`}>
+-          {listDisciplines().map((item) => (
+-            <button key={item.id} type="button" className="pill" style={{ minHeight: 44 }}
+-              aria-pressed={s.discipline === item.id} onClick={() => s.setDiscipline(item.id)}
+-              title={`${item.audience} — ${item.blurb}`}>{item.label}</button>
+-          ))}
+-        </div>
+-      </AdjustableTopRow>
+       <WorkflowNavigation pane={s.pane} onSelect={s.setPane} />
+       <div className={`studio-layout grid min-h-0 flex-1 ${s.pane === "model" ? "source-model-layout" : ""} ${s.lifted ? "grid-cols-1" : s.pane === "measure" || s.rightCollapsed || sourceTakeoffActive ? "grid-cols-[168px_minmax(0,1fr)]" : "grid-cols-[168px_minmax(620px,1fr)_320px]"}`}>
+         {!s.lifted && s.pane !== "model" && s.pane !== "render" && (s.pane !== "sheets" || !!activeDocument) && (
+diff --git a/src/studio/workspacePanels.css b/src/studio/workspacePanels.css
+index 31bcc0cc..250d58fc 100644
+--- a/src/studio/workspacePanels.css
++++ b/src/studio/workspacePanels.css
+@@ -1493,6 +1493,24 @@
+   flex-wrap: wrap;
+   gap: 8px;
+ }
++.settings-discipline-options {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 8px;
++}
++.settings-discipline-options .pill {
++  min-height: 44px;
++  text-align: left;
++  line-height: 1.3;
++  white-space: normal;
++}
++.settings-discipline-summary {
++  padding-top: 12px;
++  border-top: 1px solid var(--color-line);
++}
++.settings-discipline-summary strong {
++  color: var(--color-ink);
++}
+ .settings-price-list {
+   display: grid;
+   gap: 8px;

@@ -4,9 +4,10 @@ import { useStudio } from "./store";
 import { RAIL_WIDTHS_CHANGED_EVENT, DEFAULT_RAILS, RAIL_LAYOUT_KEY, readRailWidths } from "./railLayout";
 import { useCurrentUserState } from "../lib/auth/use-current-user";
 import { authEnabled, signOut } from "../lib/auth/client";
+import { getDiscipline, listDisciplines } from "../lib/disciplines";
 
 export type SettingsSection =
-  "Appearance" | "Layout" | "Measurement" | "Price sheets" | "Administration" | "Account";
+  "Appearance" | "Layout" | "Measurement" | "Discipline" | "Price sheets" | "Administration" | "Account";
 export function AccountButton({ onClick }: { onClick: () => void }) {
   const { user, isPending } = useCurrentUserState();
   const real = user && !user.isDevFallback ? user : null;
@@ -37,6 +38,7 @@ export function SettingsRail({
 }) {
   const s = useStudio(),
     { user } = useCurrentUserState();
+  const discipline = getDiscipline(s.discipline);
   const real = user && !user.isDevFallback ? user : null;
   const [error, setError] = useState("");
   const [widths, setWidths] = useState(DEFAULT_RAILS);
@@ -83,6 +85,7 @@ export function SettingsRail({
             "Appearance",
             "Layout",
             "Measurement",
+            "Discipline",
             "Price sheets",
             "Administration",
             "Account",
@@ -199,6 +202,27 @@ export function SettingsRail({
               Scale is calibrated against each drawing. Changing display settings never changes its
               measured dimensions.
             </p>
+          </>
+        )}
+        {section === "Discipline" && (
+          <>
+            <h3>Takeoff discipline</h3>
+            <p>Choose which trade pack guides the takeoff. Auto-detect runs each registered pack that matches the drawing.</p>
+            <div className="settings-discipline-options" role="group" aria-label="Takeoff discipline">
+              {listDisciplines().map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="pill"
+                  aria-pressed={s.discipline === item.id}
+                  title={`${item.audience} — ${item.blurb}`}
+                  onClick={() => s.setDiscipline(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <p className="settings-discipline-summary"><strong>{discipline.audience}</strong><br />{discipline.blurb}</p>
           </>
         )}
         {section === "Price sheets" && <PriceSheets />}

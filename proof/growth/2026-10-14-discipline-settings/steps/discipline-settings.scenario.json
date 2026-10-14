@@ -1,0 +1,16 @@
+[
+  ["set", "viewport", "1600", "1000"],
+  ["open", "http://127.0.0.1:8082/"],
+  ["wait", "--fn", "document.querySelector('[data-hydration-status]')?.dataset.hydrationStatus === 'ready'", 30000],
+  ["assert", "default", "!document.querySelector('[data-top-row=\"discipline\"]')", "The full-width discipline row is still present"],
+  ["find", "role", "button", "click", "--name", "Settings", "--exact"],
+  ["find", "role", "button", "click", "--name", "Discipline", "--exact"],
+  ["assert", "default", "document.querySelectorAll('.settings-discipline-options button').length === 7", "Settings does not show all seven disciplines"],
+  ["assert", "default", "document.querySelector('.settings-discipline-options button[aria-pressed=\"true\"]')?.textContent.trim() === 'Auto-detect'", "The existing Auto-detect selection did not carry into Settings"],
+  ["find", "role", "button", "click", "--name", "Electrical", "--exact"],
+  ["assert", "default", "document.querySelector('.settings-discipline-options button[aria-pressed=\"true\"]')?.textContent.trim() === 'Electrical' && document.querySelector('.settings-discipline-summary')?.textContent.includes('Electrical Engineers')", "Selecting a discipline did not update the active value and description"],
+  ["find", "role", "button", "click", "--name", "Auto-detect", "--exact"],
+  ["assert", "default", "(()=>{const p=document.querySelector('.workspace-settings');const r=p?.getBoundingClientRect();return !!r&&r.right<=innerWidth&&r.left>=0&&document.querySelectorAll('.settings-discipline-options button').length===7})()", "Settings panel or discipline controls are clipped"],
+  ["screenshot", "discipline-settings.png"],
+  ["errors"]
+]
